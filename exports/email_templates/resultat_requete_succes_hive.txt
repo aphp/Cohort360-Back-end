@@ -1,0 +1,8 @@
+Votre export de données concernant la cohorte numéro KEY_COHORT_ID a été généré avec succès.
+
+Les données sont accessibles dans votre espace Jupyter.
+
+Pour une première utilisation, vous trouverez à ce lien une aide pour l'ouverture des fichiers :
+https://gitlab.eds.aphp.fr/public-resources/eds-doc/-/wikis/Export
+
+Pour toute question, contactez le support Cohort360 à KEY_CONTACT_MAIL

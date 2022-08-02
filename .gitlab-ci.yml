@@ -1,0 +1,71 @@
+image: harbor.eds.aphp.fr/cohort360/python:3.7.10
+
+variables:
+  PIP_EXTRA_CLI_PARAMETERS: "--proxy=http:\\/\\/proxym-inter.aphp.fr:8080"
+
+stages:
+  - lint
+  - test
+  - deploy
+
+lint-job:
+  stage: lint
+  before_script:
+    - pip install flake8
+  script:
+    - echo "test lint"
+    - flake8 accesses/ admin_cohort/ cohort/ workspaces/ exports/ --max-line-length 81
+  allow_failure: false
+
+test-job:
+  image: harbor.eds.aphp.fr/cohort360/python-test:3.8.1
+  stage: test
+  services:
+    - postgres
+  variables:
+    POSTGRES_DB: portail_dev
+    POSTGRES_USER: portail_dev_limited_rw
+    POSTGRES_PASSWORD: portail_psswd
+  script:
+    - export $(grep -v '^#' admin_cohort/.test.env | xargs -d '\n') ;
+    - pip install -r requirements.txt
+    - cp accesses/example.conf_perimeters.py accesses/conf_perimeters.py ; cp admin_cohort/example_conf_auth.py admin_cohort/conf_auth.py ; cp cohort/example.conf_cohort_job_api.py cohort/conf_cohort_job_api.py ; cp workspaces/example.conf_workspaces.py workspaces/conf_workspaces.py ; cp exports/example_conf_exports.py exports/conf_exports.py
+    - coverage run --source='.' --omit="*/test*","*/migrations/*" manage.py test accesses.tests exports.tests
+    - coverage xml --omit="*/test*","*/migrations/*" -o coverage.xml
+    - coverage html --omit="*/test*","*/migrations/*" -d htmlcov
+  artifacts:
+    expire_in: 7 days
+    paths:
+      - htmlcov/
+      - coverage.xml
+      - report.html
+      - report.xml
+  only:
+    - tags
+    - develop
+
+deploy-job:
+  image: harbor.eds.aphp.fr/cohort360/kaniko:debug
+  stage: deploy
+  script:
+    - export VERSION=$(cat ./admin_cohort/__init__.py | grep __version__ | head -1 | awk -F'=' '{ print $2 }' | sed "s/[' ]//g")
+    - mkdir -p /kaniko/.docker
+    - |-
+      KANIKOPROXYARGS=""
+      KANIKOCFG="\"auths\":{\"${CI_REGISTRY}\":{\"username\":\"${BOT_NAME}\",\"password\":\"${BOT_TOKEN}\"}}"
+      if [ "x${http_proxy}" != "x" -o "x${https_proxy}" != "x" ]; then
+        KANIKOCFG="${KANIKOCFG}, \"proxies\" : { \"default\" : { \"httpProxy\" : \"${http_proxy}\", \"httpsProxy\" : \"${https_proxy}\", \"noProxy\" : \"${no_proxy}\" } }"
+        KANIKOPROXYARGS="--build-arg http_proxy=${http_proxy} --build-arg https_proxy=${https_proxy} --build-arg no_proxy=${no_proxy}"
+      fi
+      KANIKOCFG="{ ${KANIKOCFG} }"
+      echo "${KANIKOCFG}" > /kaniko/.docker/config.json
+    - >-
+      /kaniko/executor
+      --context "${CI_PROJECT_DIR}"
+      --dockerfile "${CI_PROJECT_DIR}/Dockerfile"
+      $KANIKOPROXYARGS
+      --destination "${CI_REGISTRY_IMAGE}:${VERSION}"
+  only:
+    - tags
+    - develop
+    - ^feat_deploy_(\w*|\d*)

@@ -1,0 +1,1238 @@
+import random
+from datetime import timedelta
+from typing import List
+from unittest import mock
+from unittest.mock import MagicMock
+
+from django.utils import timezone
+from rest_framework import status
+from rest_framework.test import force_authenticate
+
+from accesses.models import Access, Role
+from admin_cohort.tests_tools import new_user_and_profile, \
+    ViewSetTestsWithBasicPerims, random_str, CreateCase, \
+    CaseRetrieveFilter, ListCase, RequestCase, RetrieveCase, PatchCase, \
+    DeleteCase
+from admin_cohort.tools import prettify_json
+from cohort.models import CohortResult, RequestQuerySnapshot, Request, Folder, \
+    DatedMeasure
+from workspaces.models import Account
+from exports.models import ExportRequest, ExportRequestTable, \
+    VALIDATED_STATUS, ExportType, NEW_STATUS, SUCCESS_STATUS, FAILED_STATUS
+from exports.tasks import check_jobs, clean_jobs
+from exports.views import ExportRequestViewset
+from admin_cohort.models import User, NewJobStatus
+
+EXPORTS_URL = "/exports"
+
+
+class ObjectView(object):
+    def __init__(self, d):
+        self.__dict__ = d
+
+
+"""
+Cas à tester POST export_request:
+- si output_format est csv:
+  - le provider_id doit être vide ou bien égal à celui du user qui crée
+  - il faut que le provider ait créé la cohorte
+  - actuellement, le status réponse doit être validated
+- si output_format est hive:
+  - il faut provider_id
+  - en attendant url FHIR plus ouverte : il faut que provider_id = user_id
+  - il faut target_unix_account_id
+  - il faut que le provider_id soit lié au target_unix_account (via API infra)
+  - il faut que le provider ait créé la cohorte
+  - si provider_id != user_id : il faut que le user ait accès
+    right_review_transfer_jupyter
+  - il faut que le provider ait accès read nomi/pseudo (demande FHIR)
+    et right_transfer_jupyter_nominative
+
+  - si le user (créateur de la requête) a le droit
+  right_review_transfer_jupyter:
+    - le status réponse doit être validated
+    - sinon, le status est à new
+
+Cas à tester pour GET /exports/users :
+  - réponse contient ses propres users (Account, dans workspaces)
+  - réponse de liste complète si le user a right_review_transfer_jupyter
+  - permet filtre par provider_id : renvoie, grâce à l'API FHIR,
+    uniquement les users unix liés au provider_id
+
+Cas à tester pour GET /exports/cohorts :
+  - réponse contient les cohortes de l'utilisateur
+  - réponse de liste complète si le user a right_review_transfer_jupyter
+
+Cas à tester pour PATCH /exports/{id} :
+  - renvoie 403
+  - réussit seulement si on a /deny ou /validate dans l'url, si la requête
+    est en status created, si le user a right_review_transfer_jupyter
+"""
+
+
+def new_cohort_result(
+        owner: User, status: NewJobStatus = NewJobStatus.finished,
+        folder: Folder = None, req: Request = None,
+        rqs: RequestQuerySnapshot = None, dm: DatedMeasure = None
+) -> (Folder, Request, RequestQuerySnapshot, DatedMeasure, CohortResult):
+    if not folder:
+        folder: Folder = Folder.objects.create(owner=owner, name=random_str(5))
+
+    if not req:
+        req: Request = Request.objects.create(owner=owner, parent_folder=folder,
+                                              name=random_str(5))
+    if not rqs:
+        rqs: RequestQuerySnapshot = (
+            RequestQuerySnapshot.objects.create(owner=owner, request=req))
+
+    if not dm:
+        dm: DatedMeasure = DatedMeasure.objects.create(
+            owner=owner, request_query_snapshot=rqs)
+    cr: CohortResult = CohortResult.objects.create(
+        owner=owner, fhir_group_id=str(random.randint(0, 10000)),
+        dated_measure=dm, request_query_snapshot=rqs,
+        new_request_job_status=status)
+    return folder, req, rqs, dm, cr
+
+
+# class GetCase(RequestCase):
+#     def __init__(self, user: Union[User, None], status: int,
+#                  url: str = EXPORTS_URL, params: Dict = None,
+#                  to_find: List[ExportRequest] = None, page_size: int = 100):
+#         super(GetCase, self).__init__(user=user, status=status)
+#         self.url = url
+#         self.params = params
+#         self.to_find = to_find
+#         self.page_size = page_size
+
+
+class ExportsTests(ViewSetTestsWithBasicPerims):
+    unsettable_default_fields = dict(
+        is_user_notified=False,
+    )
+    unsettable_fields = [
+        "id", "execution_request_datetime",
+        "is_user_notified", "target_location", "target_name",
+        "creator_fk", "cleaned_at", "request_job_id",
+        "request_job_status", "new_request_job_status", "request_job_fail_msg",
+        "request_job_duration", "review_request_datetime", "reviewer_fk",
+        "insert_datetime", "update_datetime", "delete_datetime",
+    ]
+    table_unsettable_fields = [
+        "source_table_name", "export_request",
+        "export_request_table_id"
+    ]
+
+    objects_url = "/exports/"
+    retrieve_view = ExportRequestViewset.as_view({'get': 'retrieve'})
+    list_view = ExportRequestViewset.as_view({'get': 'list'})
+    create_view = ExportRequestViewset.as_view({'post': 'create'})
+    delete_view = ExportRequestViewset.as_view({'delete': 'destroy'})
+    update_view = ExportRequestViewset.as_view({'patch': 'partial_update'})
+    model = ExportRequest
+    model_objects = ExportRequest.objects
+    model_fields = ExportRequest._meta.fields
+
+    def setUp(self):
+        super(ExportsTests, self).setUp()
+
+        # ROLES
+        (self.role_review_csv,
+         self.role_review_jupyter,
+         self.role_read_pseudo,
+         self.role_read_nomi,
+         self.role_exp_csv_pseudo,
+         self.role_exp_csv_nomi,
+         self.role_exp_jup_pseudo,
+         self.role_exp_jup_nomi) = [
+            Role.objects.create(**dict([
+                (f, f == right) for f in self.all_rights]), name=name)
+            for (name, right) in [
+                ("REVIEW_CSV", "right_review_export_csv"),
+                ("REVIEW_JUPYTER", "right_review_transfer_jupyter"),
+                ("READ_PSEUDO", "right_read_patient_pseudo_anonymised"),
+                ("READ_NOMI", "right_read_patient_nominative"),
+                ("EXP_CSV_PSEUDO", "right_export_csv_pseudo_anonymised"),
+                ("EXP_CSV_NOMI", "right_export_csv_nominative"),
+                ("EXP_JUP_PSEUDO", "right_transfer_jupyter_pseudo_anonymised"),
+                ("EXP_JUP_NOMI", "right_transfer_jupyter_nominative"),
+            ]]
+
+        # USERS
+        self.user_with_no_right, ph_with_no_right = new_user_and_profile(
+            email="with_no_right@test.com")
+        self.user_jup_reviewer, self.ph_jup_reviewer = new_user_and_profile(
+            email="jup_reviewer@test.com")
+        self.user_csv_reviewer, ph_csv_reviewer = new_user_and_profile(
+            email="csv_reviewer@test.com")
+
+        self.user1, self.prof_1 = new_user_and_profile(email="us1@test.com")
+        self.user2, self.prof_2 = new_user_and_profile(email="us2@test.com")
+
+        # ACCESSES
+        self.jup_review_access: Access = Access.objects.create(
+            perimeter=self.aphp, role=self.role_review_jupyter,
+            profile=self.ph_jup_reviewer)
+
+        self.csv_review_access: Access = Access.objects.create(
+            perimeter=self.aphp, role=self.role_review_csv,
+            profile=ph_csv_reviewer)
+
+        self.user1_nomi_acc: Access = Access.objects.create(
+            perimeter=self.aphp,
+            profile=self.prof_1,
+            role=self.role_read_nomi
+        )
+
+        # COHORTS
+        _, _, _, _, self.user1_cohort = new_cohort_result(
+            owner=self.user1, status=NewJobStatus.finished.value)
+        _, _, _, _, self.user2_cohort = new_cohort_result(
+            owner=self.user2, status=NewJobStatus.finished.value)
+
+    def check_is_created(self, base_instance: ExportRequest,
+                         request_model: dict = None, user: User = None):
+        if user is None:
+            self.fail("There should be user provided")
+
+        super(ExportsTests, self).check_is_created(base_instance, request_model)
+        self.assertEqual(base_instance.creator_fk.pk, user.pk)
+
+        for table in request_model.get("tables", []):
+            ert = ExportRequestTable.objects.filter(
+                omop_table_name=table.get("omop_table_name", ""),
+                export_request=base_instance
+            ).first()
+            self.assertIsNotNone(ert)
+
+            [self.assertNotEqual(
+                getattr(ert, f), table.get(f),
+                f"Error with model's table's {f}"
+            ) for f in self.table_unsettable_fields if f in table]
+
+    def check_list_reqs(self, found: List[ExportRequest],
+                        to_find: List[ExportRequest], key: str = ""):
+        msg = f"{key} What was to find: \n {[r for r in to_find]}.\n " \
+              f"What was found: \n {[r for r in found]}"
+        self.assertEqual(len(to_find), len(found), msg)
+        found_ids = [er.get("export_request_id", "") for er in found]
+        [
+            self.assertIn(er.id, found_ids,
+                          f"{msg}.\nMissing request is {er}")
+            for er in to_find]
+
+
+class ExportsWithSimpleSetUp(ExportsTests):
+    def setUp(self):
+        super(ExportsWithSimpleSetUp, self).setUp()
+
+        self.user1_exp_req_succ: ExportRequest = \
+            ExportRequest.objects.create(
+                owner=self.user1,
+                cohort_fk=self.user1_cohort,
+                cohort_id=42,
+                output_format=ExportType.CSV.value,
+                provider_id=self.user1.provider_id,
+                status=SUCCESS_STATUS,  # useful for clean_jobs task
+                new_request_job_status=NewJobStatus.finished.value,
+                target_location="user1_exp_req_succ",
+                is_user_notified=False,
+            )
+        self.user1_exp_req_succ_table1: ExportRequestTable = \
+            ExportRequestTable.objects.create(
+                export_request=self.user1_exp_req_succ,
+                omop_table_name="Hello",
+            )
+
+        self.user1_exp_req_fail: ExportRequest = \
+            ExportRequest.objects.create(
+                owner=self.user1,
+                cohort_fk=self.user1_cohort,
+                cohort_id=42,
+                output_format=ExportType.CSV.value,
+                provider_id=self.user1.provider_id,
+                status=FAILED_STATUS,  # useful for clean_jobs task
+                new_request_job_status=NewJobStatus.failed.value,
+                target_location="user1_exp_req_failed",
+                is_user_notified=False,
+            )
+
+        self.user2_exp_req_succ: ExportRequest = \
+            ExportRequest.objects.create(
+                owner=self.user2,
+                cohort_fk=self.user2_cohort,
+                cohort_id=43,
+                output_format=ExportType.CSV.value,
+                provider_id=self.user1.provider_id,
+                new_request_job_status=NewJobStatus.finished.value,
+                target_location="user2_exp_req_succ",
+                is_user_notified=True,
+            )
+        #
+        # self.user2_exp_req_table: ExportRequestTable = \
+        #     ExportRequestTable.objects.create(
+        #         export_request=self.user2_exp_req,
+        #         omop_table_name="Hello",
+        #     )
+
+
+# GET ##################################################################
+
+
+class ExportsListTests(ExportsTests):
+    def setUp(self):
+        super(ExportsListTests, self).setUp()
+
+        _, _, _, _, self.user1_cohort2 = new_cohort_result(
+            self.user1, NewJobStatus.finished
+        )
+        f, r, rqs, dm, self.user2_cohort_1 = new_cohort_result(
+            owner=self.user2, status=NewJobStatus.finished)
+        _, _, _, _, self.user2_cohort2 = new_cohort_result(
+            self.user2, NewJobStatus.finished, f, r, rqs, dm
+        )
+
+        self.user1_unix_acc: Account = Account.objects.create(
+            username='user1', spark_port_start=0)
+
+        example_int = 42
+        self.user1_reqs = ExportRequest.objects.bulk_create([
+            ExportRequest(
+                owner=self.user1,
+                cohort_fk=random.choice([
+                    self.user1_cohort,
+                    self.user1_cohort2,
+                ]),
+                cohort_id=example_int,
+                nominative=random.random() > 0.5,
+                shift_dates=random.random() > 0.5,
+                target_unix_account=self.user1_unix_acc,
+                output_format=random.choice([ExportType.CSV.value,
+                                             ExportType.HIVE.value]),
+                provider_id=self.user1.provider_id,
+                new_request_job_status=random.choice([
+                    NewJobStatus.new.value, NewJobStatus.failed.value,
+                    NewJobStatus.validated.value]),
+                target_location=f"test_user_rec_{str(i)}",
+                is_user_notified=False,
+            ) for i in range(0, 200)
+        ])
+
+        self.user2_reqs: List[ExportRequest] = \
+            ExportRequest.objects.bulk_create([
+                ExportRequest(
+                    cohort_fk=random.choice([
+                        self.user1_cohort,
+                        self.user1_cohort2,
+                    ]),
+                    cohort_id=example_int,
+                    output_format=random.choice([ExportType.CSV.value,
+                                                 ExportType.HIVE.value]),
+                    provider_id=self.user2.provider_id,
+                    owner=self.user2,
+                    new_request_job_status=random.choice([
+                        NewJobStatus.new.value, NewJobStatus.failed.value,
+                        NewJobStatus.validated.value]),
+                    target_location=f"test_user2_{str(i)}",
+                    is_user_notified=False,
+                ) for i in range(0, 200)
+            ])
+
+    def test_list_requests_as_jup_reviewer(self):
+        base_results = self.user1_reqs + self.user2_reqs
+
+        self.check_get_paged_list_case(ListCase(
+            to_find=[e for e in base_results
+                     if e.output_format == ExportType.HIVE],
+            page_size=100,
+            user=self.user_jup_reviewer,
+            status=status.HTTP_200_OK,
+            success=True,
+        ))
+
+    def test_list_requests_as_csv_reviewer(self):
+        base_results = self.user1_reqs + self.user2_reqs
+
+        self.check_get_paged_list_case(ListCase(
+            to_find=[e for e in base_results
+                     if e.output_format == ExportType.CSV],
+            page_size=100,
+            user=self.user_csv_reviewer,
+            status=status.HTTP_200_OK,
+            success=True,
+        ))
+
+    def test_list_requests_as_user1(self):
+        base_results = self.user1_reqs
+
+        self.check_get_paged_list_case(ListCase(
+            to_find=base_results,
+            page_size=100,
+            user=self.user1,
+            status=status.HTTP_200_OK,
+            success=True,
+        ))
+
+    def test_list_requests_as_full_reviewer_with_filters(self):
+        # As a user with right_read_admin_accesses_same_level on a
+        # care_site, I can get accesses on the same care_site and whom
+        # the role has admin rights, and only them
+
+        # we also give right to review csv exports to jupyter reviewer
+        Access.objects.create(
+            perimeter=self.aphp,
+            role=self.role_review_csv,
+            profile=self.ph_jup_reviewer,
+        )
+
+        base_results = self.user1_reqs + self.user2_reqs
+        param_cases = {
+            'output_format': {
+                'value': ExportType.CSV.value,
+                'to_find': [
+                    e for e in base_results
+                    if e.output_format == ExportType.CSV.value
+                ]
+            },
+            'status': {
+                'value': NEW_STATUS,
+                'to_find': [
+                    e for e in base_results
+                    if e.status == NEW_STATUS
+                ]
+            },
+        }
+
+        for (param, pc) in param_cases.items():
+            pcs = [pc] if not isinstance(pc, list) else pc
+            for pc_ in pcs:
+                param_cases = [
+                    {**pc_, 'value': v} for v in pc_['value']
+                ] if isinstance(pc_['value'], list) else [pc_]
+
+                [
+                    self.check_get_paged_list_case(ListCase(
+                        params=dict({param: p_case['value']}),
+                        to_find=p_case['to_find'],
+                        page_size=100,
+                        user=self.user_jup_reviewer,
+                        status=status.HTTP_200_OK,
+                        success=True
+                    )) for p_case in param_cases
+                ]
+
+
+class DownloadCase(RequestCase):
+    def __init__(self, data_to_download: dict, mock_hdfs_resp: any = None,
+                 mock_file_size_resp: any = None, mock_hdfs_called: bool = True,
+                 mock_file_size_called: bool = True, **kwargs):
+        # self.export_request = export_request
+        self.data_to_download = data_to_download or dict()
+        self.mock_hdfs_resp = mock_hdfs_resp
+        self.mock_file_size_resp = mock_file_size_resp
+        self.mock_hdfs_called = mock_hdfs_called
+        self.mock_file_size_called = mock_file_size_called
+        super(DownloadCase, self).__init__(**kwargs)
+
+
+class ExportsRetrieveTests(ExportsWithSimpleSetUp):
+    download_view = ExportRequestViewset.as_view({'get': 'download'})
+
+    def setUp(self):
+        super(ExportsRetrieveTests, self).setUp()
+        self.base_data = dict(
+            owner=self.user1,
+            cohort_fk=self.user1_cohort,
+            cohort_id=42,
+            output_format=ExportType.CSV.value,
+            provider_id=self.user1.provider_id,
+            status=SUCCESS_STATUS,  # useful for clean_jobs task
+            new_request_job_status=NewJobStatus.finished.value,
+            target_location="location_example",
+            is_user_notified=False,
+        )
+        self.base_download_case: DownloadCase = DownloadCase(
+            mock_hdfs_resp=[""], mock_file_size_resp=1,
+            mock_hdfs_called=True, mock_file_size_called=True,
+            user=self.user1,
+            data_to_download=self.base_data,
+            # export_request=self.user1_exp_req_succ,
+            success=True,
+            status=status.HTTP_200_OK,
+        )
+        self.base_err_download_case = self.base_download_case.clone(
+            success=False,
+            status=status.HTTP_403_FORBIDDEN,
+            mock_file_size_called=False,
+            mock_hdfs_called=False,
+        )
+
+    def test_get_request_as_owner(self):
+        # As a user, I can retrieve an ExportRequest I created
+        self.check_retrieve_case(RetrieveCase(
+            to_find=self.user1_exp_req_succ,
+            view_params=dict(id=self.user1_exp_req_succ.id),
+            status=status.HTTP_200_OK,
+            user=self.user1,
+            success=True,
+        ))
+
+    def test_get_request_as_csv_reviewer(self):
+        # As a Csv export reviewer, I can retrieve a CSV ExportRequest
+        # from another user
+        self.check_retrieve_case(RetrieveCase(
+            to_find=self.user2_exp_req_succ,
+            view_params=dict(id=self.user2_exp_req_succ.id),
+            status=status.HTTP_200_OK,
+            user=self.user_csv_reviewer,
+            success=True,
+        ))
+
+    def test_error_get_request_not_owner(self):
+        # As a simple user, I cannot retrieve another user's ExportRequest
+        self.check_retrieve_case(RetrieveCase(
+            to_find=self.user2_exp_req_succ,
+            view_params=dict(id=self.user2_exp_req_succ.id),
+            status=status.HTTP_404_NOT_FOUND,
+            user=self.user1,
+            success=False,
+        ))
+
+    @mock.patch('exports.conf_exports.stream_gen')
+    @mock.patch('exports.conf_exports.get_file_size')
+    def check_download(self, case: DownloadCase, mock_get_file_size: MagicMock,
+                       mock_hdfs_stream_gen: MagicMock):
+        mock_hdfs_stream_gen.return_value = case.mock_hdfs_resp
+        mock_get_file_size.return_value = case.mock_file_size_resp
+
+        obj = self.model_objects.create(**case.data_to_download)
+
+        request = self.factory.get(self.objects_url)
+
+        if case.user:
+            force_authenticate(request, case.user)
+        response = self.__class__.download_view(request, id=obj.pk)
+        try:
+            response.render()
+            msg = (f"{case.title}: "
+                   + prettify_json(str(response.content))
+                   if response.content else "")
+        except Exception:
+            msg = (f"{case.title}: "
+                   + prettify_json(str(response.reason_phrase))
+                   if response.reason_phrase else "")
+
+        self.assertEqual(response.status_code, case.status, msg=msg)
+
+        if case.success:
+            self.assertEquals(
+                response.get('Content-Disposition'),
+                f"attachment; filename=export_"
+                f"{obj.cohort_id}.zip"
+            )
+            self.assertEquals(response.get('Content-length'), '1')
+        else:
+            self.assertNotEqual(
+                response.get('Content-Disposition'),
+                f"attachment; filename=export_"
+                f"{obj.cohort_id}.zip"
+            )
+            self.assertNotEqual(response.get('Content-length'), '1')
+
+        mock_hdfs_stream_gen.assert_called_once() if case.mock_hdfs_called \
+            else mock_hdfs_stream_gen.assert_not_called()
+        mock_get_file_size.assert_called_once() if case.mock_file_size_called \
+            else mock_get_file_size.assert_not_called()
+
+    def test_download_request_result(self):
+        # As a user, I can download the result of an ExportRequest I created
+        self.check_download(self.base_download_case)
+
+    def test_error_download_request_not_finished(self):
+        # As a user, I cannot download the result of
+        # an ExportRequest that is not finished
+        [self.check_download(self.base_err_download_case.clone(
+            data_to_download={**self.base_data,
+                              'new_request_job_status': s},
+        )) for s in NewJobStatus.list(exclude=[NewJobStatus.finished])]
+
+    def test_error_download_request_not_csv(self):
+        # As a user, I cannot download the result of an ExportRequest that is
+        # not of type CSV and with job status finished
+        self.check_download(self.base_err_download_case.clone(
+            data_to_download={**self.base_data,
+                              'output_format': ExportType.HIVE},
+            status=status.HTTP_403_FORBIDDEN,
+        ))
+
+    def test_error_download_request_result_not_owned(self):
+        # As a user, I can download the result of another user's ExportRequest
+        self.check_download(self.base_err_download_case.clone(
+            data_to_download={**self.base_data, 'owner': self.user2},
+            status=status.HTTP_404_NOT_FOUND,
+        ))
+
+# JOBS ##################################################################
+
+
+class ExportsJobsTests(ExportsWithSimpleSetUp):
+    def setUp(self):
+        super(ExportsJobsTests, self).setUp()
+        # self.user1_exp_req_csv_new: ExportRequest = \
+        #     ExportRequest.objects.create(
+        #         owner=self.user1,
+        #         cohort_fk=self.user1_cohort,
+        #         cohort_id=self.user1_cohort.fhir_group_id,
+        #         output_format=ExportType.CSV.value,
+        #         provider_id=self.user1.provider_id,
+        #         new_request_job_status=NewJobStatus.new.value,
+        #         target_location="user1_exp_req_csv_new",
+        #         is_user_notified=False,
+        #     )
+        #
+        # self.user1_exp_req_jup_new: ExportRequest = \
+        #     ExportRequest.objects.create(
+        #         owner=self.user1,
+        #         cohort_fk=self.user1_cohort,
+        #         cohort_id=self.user1_cohort.fhir_group_id,
+        #         output_format=ExportType.HIVE.value,
+        #         provider_id=self.user1.provider_id,
+        #         new_request_job_status=NewJobStatus.new.value,
+        #         target_location="user1_exp_req_jup_new",
+        #         is_user_notified=False,
+        #     )
+
+    @mock.patch('exports.emails.send_failed_email')
+    @mock.patch('exports.emails.send_success_email')
+    @mock.patch('exports.emails.EMAIL_REGEX_CHECK', r"^[\w.+-]+@test\.com$")
+    def test_task_check_jobs(
+            self, mock_send_success_email: MagicMock,
+            mock_send_failed_email: MagicMock
+    ):
+        # todo : test with denied/not validated
+        mock_send_success_email.return_value = None
+        mock_send_failed_email.return_value = None
+
+        check_jobs()
+
+        mock_send_failed_email.assert_called_once_with(
+            self.user1_exp_req_fail, self.user1.email
+        )
+        mock_send_success_email.assert_called_once_with(
+            self.user1_exp_req_succ, self.user1.email,
+        )
+
+        updated_req_1 = ExportRequest.objects.get(pk=self.user1_exp_req_fail.id)
+        updated_req_2 = ExportRequest.objects.get(pk=self.user1_exp_req_succ.id)
+        [self.assertTrue(er.is_user_notified) for er in [updated_req_1,
+                                                         updated_req_2]]
+        self.assertEqual(updated_req_1.new_request_job_status,
+                         NewJobStatus.failed)
+        self.assertEqual(updated_req_2.new_request_job_status,
+                         NewJobStatus.finished)
+
+    @mock.patch('exports.emails.send_mail')
+    @mock.patch('exports.conf_exports.delete_file')
+    def test_task_clean_jobs(self, mock_delete_hdfs_file, mock_send_mail):
+        from admin_cohort.settings import EXPORT_DAYS_BEFORE_DELETE
+
+        mock_delete_hdfs_file.return_value = None
+        mock_send_mail.return_value = None
+
+        self.user1_exp_req_succ.review_request_datetime = (
+                timezone.now() - timedelta(days=EXPORT_DAYS_BEFORE_DELETE))
+        self.user1_exp_req_succ.is_user_notified = True
+        self.user1_exp_req_succ.save()
+
+        clean_jobs()
+
+        deleted_ers = list(
+            ExportRequest.objects.filter(cleaned_at__isnull=False))
+
+        self.assertCountEqual([er.pk for er in deleted_ers],
+                              [self.user1_exp_req_succ.pk])
+        [self.assertAlmostEqual(
+            (er.cleaned_at - timezone.now()).total_seconds(), 0, delta=1)
+         for er in deleted_ers]
+
+
+# POST ##################################################################
+
+
+class ExportCaseRetrieveFilter(CaseRetrieveFilter):
+    def __init__(self, motivation: str, exclude: dict = None):
+        self.motivation = motivation
+
+        super(ExportCaseRetrieveFilter, self).__init__(exclude=exclude)
+
+
+class ExportCreateCase(CreateCase):
+    def __init__(self, job_status: str, mock_email_failed: bool,
+                 mock_perim_called: bool, mock_perim_resp: any = None,
+                 **kwargs):
+        super(ExportCreateCase, self).__init__(**kwargs)
+        self.job_status = job_status
+
+        self.mock_email_failed = mock_email_failed
+        self.mock_perim_resp = mock_perim_resp
+        self.mock_perim_called = mock_perim_called
+
+
+class ExportJupCreateCase(ExportCreateCase):
+    def __init__(self, mock_user_bound_resp: bool,
+                 mock_user_bound_called: bool, **kwargs):
+        self.mock_user_bound_resp = mock_user_bound_resp
+        self.mock_user_bound_called = mock_user_bound_called
+        super(ExportJupCreateCase, self).__init__(**kwargs)
+
+
+class ExportsCreateTests(ExportsTests):
+    @mock.patch('exports.tasks.launch_request.delay')
+    @mock.patch('exports.emails.email_info_request_confirmed')
+    @mock.patch('exports.conf_exports.get_cohort_perimeters')
+    @mock.patch('exports.emails.EMAIL_REGEX_CHECK', r"^[\w.+-]+@test\.com$")
+    def check_create_case(self, case: ExportCreateCase, mock_perim: MagicMock,
+                          mock_send_mail: MagicMock, mock_task: MagicMock):
+        mock_task.return_value = None
+        mock_perim.return_value = case.mock_perim_resp
+        mock_send_mail.return_value = None
+
+        super(ExportsCreateTests, self).check_create_case(case)
+
+        mock_perim.assert_called() if case.mock_perim_called \
+            else mock_perim.assert_not_called()
+        mock_send_mail.assert_called() if case.success \
+            else mock_send_mail.assert_not_called()
+
+
+class ExportsCsvCreateTests(ExportsCreateTests):
+    def setUp(self):
+        super(ExportsCsvCreateTests, self).setUp()
+
+        self.user1_csv_nomi_acc: Access = Access.objects.create(
+            perimeter=self.aphp,
+            profile=self.prof_1,
+            role=self.role_exp_csv_nomi
+        )
+
+        basic_export_descr = "basic_export"
+        self.basic_data = dict(
+            output_format=ExportType.CSV.value,
+            nominative=True,
+            shift_dates=False,
+            tables=[dict(omop_table_name="provider")],
+            cohort_fk=self.user1_cohort.pk,
+            motivation=basic_export_descr,
+        )
+        self.basic_case = ExportCreateCase(
+            data=self.basic_data,
+            user=self.user1,
+            status=status.HTTP_201_CREATED,
+            success=True,
+            retrieve_filter=ExportCaseRetrieveFilter(
+                motivation=basic_export_descr),
+            mock_perim_called=True,
+            mock_perim_resp=[self.user1_csv_nomi_acc.perimeter.id],
+            mock_email_failed=False,
+            job_status=NewJobStatus.validated,
+        )
+        self.err_basic_case = self.basic_case.clone(
+            success=False,
+            mock_email_called=False,
+            mock_perim_called=False,
+        )
+
+    def test_create_csv_full_request(self):
+        # As a provider with right to read nominative data and export csv
+        # I can create an export_request with unsettables fields that won't be
+        # set
+        example_date = timezone.now() + timedelta(minutes=10)
+        example_str = "test"
+        example_user = self.user_with_no_right
+        example_int = 50
+        cases = [self.basic_case, self.basic_case.clone(
+            # complete case
+            data={
+                **self.basic_data,
+                **dict(
+                    tables=[
+                        dict(
+                            omop_table_name="provider",
+                            source_table_name="test",  # unsettable
+                            target_table_name="test",  # unsettable
+                            export_request=444,  # unsettable
+                            export_request_table_id=3333,  # unsettable
+                        ),
+                    ],
+                    id=example_int,
+                    execution_request_datetime=example_date,
+                    validation_request_datetime=example_date,
+                    is_user_notified=True,
+                    target_location=example_str,
+                    target_name=example_str,
+                    creator_id=example_user.pk,
+                    reviewer_id=example_user.pk,
+                    cleaned_at=example_date,
+                    insert_datetime=example_date,
+                    update_datetime=example_date,
+                    delete_datetime=example_date,
+                    request_job_id=example_int,
+                    request_job_status=example_str,
+                    new_request_job_status=example_str,
+                    request_job_fail_msg=example_str,
+                    request_job_duration=example_int,
+                    review_request_datetime=example_date,
+                    reviewer_fk=example_user.pk,
+                )
+            },
+            job_status=VALIDATED_STATUS,
+            success=True,
+            user=self.user1,
+            status=status.HTTP_201_CREATED,
+        )]
+
+        [self.check_create_case(case) for case in cases]
+
+    @mock.patch('admin_cohort.AuthMiddleware.CustomAuthentication.authenticate')
+    def test_error_create_request_unauthenticated(self, mock_auth: MagicMock):
+        # As a user, I cannot create an export request if I am no authenticated
+        mock_auth.return_value = None
+        case = self.err_basic_case.clone(
+            user=None,
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+        self.check_create_case(case)
+
+    def test_error_create_request_no_email(self):
+        # As a user, I cannot create an export request if the recipient has no
+        # email address
+        self.user1.email = ""
+        self.user1.save()
+
+        case = self.err_basic_case.clone(
+            user=self.user1,
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+        self.check_create_case(case)
+
+    def test_error_create_cohort_not_owned(self):
+        # As a user, I cannot create an export request
+        # if I do not own the targeted cohort
+        case = self.err_basic_case.clone(
+            data={**self.basic_data, 'cohort_fk': self.user2_cohort.uuid},
+            created=False,
+            user=self.user1,
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+        self.check_create_case(case)
+
+    def test_error_create_csv_other_user_cohort_owned(self):
+        # As a user, I cannot create an export request
+        _, _, _, _, other_user_cohort = new_cohort_result(
+            owner=self.user_with_no_right)
+        case = self.err_basic_case.clone(
+            data={**self.basic_data, 'owner': self.user2.pk,
+                  'cohort': self.user2_cohort.pk},
+            created=False,
+            user=self.user1,
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+        self.check_create_case(case)
+
+    def test_error_create_csv_other_user_cohort_not_owned(self):
+        # As a user, I cannot create an export request
+        _, _, _, _, other_user_cohort = new_cohort_result(
+            owner=self.user_with_no_right)
+        case = self.err_basic_case.clone(
+            data={**self.basic_data, 'owner': self.user2.pk},
+            created=False,
+            user=self.user1,
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+        self.check_create_case(case)
+
+
+class ExportsJupCreateTests(ExportsCreateTests):
+    def setUp(self):
+        super(ExportsJupCreateTests, self).setUp()
+
+        self.user1_jup_nomi_acc: Access = Access.objects.create(
+            perimeter=self.aphp,
+            profile=self.prof_1,
+            role=self.role_exp_jup_nomi
+        )
+        self.user2_nomi_acc: Access = Access.objects.create(
+            perimeter=self.aphp,
+            profile=self.prof_2,
+            role=self.role_read_nomi
+        )
+        self.user2_jup_nomi_acc: Access = Access.objects.create(
+            perimeter=self.aphp,
+            profile=self.prof_2,
+            role=self.role_exp_jup_nomi
+        )
+
+        self.user1_unix_acc: Account = Account.objects.create(
+            username='user1', spark_port_start=0)
+
+        basic_export_descr = "basic_export"
+        self.basic_data = dict(
+            output_format=ExportType.HIVE.value,
+            nominative=True,
+            shift_dates=False,
+            tables=[dict(omop_table_name="provider")],
+            cohort_fk=self.user1_cohort.pk,
+            motivation=basic_export_descr,
+            # actual validity will be returned by mock
+            target_unix_account=self.user1_unix_acc.pk,
+        )
+        self.basic_case = ExportJupCreateCase(
+            data=self.basic_data,
+            user=self.user1,
+            status=status.HTTP_201_CREATED,
+            success=True,
+            retrieve_filter=ExportCaseRetrieveFilter(
+                motivation=basic_export_descr),
+            mock_perim_called=True,
+            mock_perim_resp=[self.user1_jup_nomi_acc.perimeter.id],
+            mock_email_failed=False,
+            job_status=NewJobStatus.validated,
+            mock_user_bound_resp=True,
+            mock_user_bound_called=True,
+        )
+        self.err_basic_case = self.basic_case.clone(
+            success=False,
+            mock_email_called=False,
+            mock_perim_called=False,
+            mock_user_bound_called=False,
+        )
+
+    @mock.patch('workspaces.conf_workspaces.is_user_bound_to_unix_account')
+    def check_create_case(self, case: ExportJupCreateCase,
+                          mock_user_bound: MagicMock):
+        mock_user_bound.return_value = case.mock_user_bound_resp
+        super(ExportsJupCreateTests, self).check_create_case(case)
+        mock_user_bound.assert_called() if case.mock_user_bound_called \
+            else mock_user_bound.assert_not_called()
+
+    def test_create_jup_full_request(self):
+        # As a provider with right to read nominative data and export csv
+        # I can create an export_request with unsettables fields that won't be
+        # set
+        example_date = timezone.now() + timedelta(minutes=10)
+        example_str = "test"
+        example_user = self.user_with_no_right
+        example_int = 50
+        cases = [self.basic_case, self.basic_case.clone(
+            # complete case
+            data={
+                **self.basic_data,
+                **dict(
+                    tables=[
+                        dict(
+                            omop_table_name="provider",
+                            source_table_name="test",  # unsettable
+                            target_table_name="test",  # unsettable
+                            export_request=444,  # unsettable
+                            export_request_table_id=3333,  # unsettable
+                        ),
+                    ],
+                    id=example_int,
+                    execution_request_datetime=example_date,
+                    validation_request_datetime=example_date,
+                    is_user_notified=True,
+                    target_location=example_str,
+                    target_name=example_str,
+                    creator_id=example_user.pk,
+                    reviewer_id=example_user.pk,
+                    cleaned_at=example_date,
+                    insert_datetime=example_date,
+                    update_datetime=example_date,
+                    delete_datetime=example_date,
+                    request_job_id=example_int,
+                    request_job_status=example_str,
+                    new_request_job_status=example_str,
+                    request_job_fail_msg=example_str,
+                    request_job_duration=example_int,
+                    review_request_datetime=example_date,
+                    reviewer_fk=example_user.pk,
+                )
+            },
+            job_status=VALIDATED_STATUS,
+            success=True,
+            user=self.user1,
+            status=status.HTTP_201_CREATED,
+        )]
+
+        [self.check_create_case(case) for case in cases]
+
+    def test_create_jup_other_recipient_with_rev_access(self):
+        # As a user with right to review jupyter exports,
+        # I can create an export request with another
+        self.check_create_case(self.basic_case.clone(
+            data={**self.basic_data,
+                  'cohort_fk': self.user2_cohort.pk,
+                  'owner': self.user2.pk},
+            user=self.user_jup_reviewer,
+        ))
+
+    def test_error_create_jup_other_recipient_without_rev_access(self):
+        # As a user, I cannot create an export request
+        # we close the access that should allow reviewer to review exports
+        self.check_create_case(self.err_basic_case.clone(
+            data={**self.basic_data,
+                  'cohort_fk': self.user2_cohort.pk,
+                  'owner': self.user2.pk},
+            created=False,
+            status=status.HTTP_400_BAD_REQUEST,
+        ))
+
+    def test_error_create_request_no_email(self):
+        # As a user, I cannot create an export request if the recipient has no
+        # email address
+        self.user1.email = ""
+        self.user1.save()
+
+        self.check_create_case(
+            self.err_basic_case.clone(status=status.HTTP_400_BAD_REQUEST))
+
+    def test_error_create_request_wrong_email(self):
+        # As a user, I cannot create an export request if the recipient has no
+        # email address
+        self.user1.email = "us1@testt.com"
+        self.user1.save()
+
+        self.check_create_case(
+            self.err_basic_case.clone(status=status.HTTP_400_BAD_REQUEST))
+
+    def test_error_create_cohort_not_owned(self):
+        # As a user, I cannot create an export request
+        # if I do not own the targeted cohort
+        [self.check_create_case(case) for case in [
+            self.err_basic_case.clone(
+                data={**self.basic_data, 'cohort_fk': self.user2_cohort.pk},
+                created=False,
+                status=status.HTTP_400_BAD_REQUEST,
+            ), self.err_basic_case.clone(
+                data={**self.basic_data, 'cohort_fk': self.user2_cohort.pk},
+                created=False,
+                user=self.user_jup_reviewer,
+                status=status.HTTP_400_BAD_REQUEST,
+            ),
+        ]]
+
+    def test_error_create_cohort_unfound(self):
+        self.check_create_case(self.err_basic_case.clone(
+            data={**self.basic_data, 'cohort_fk': 9999},
+            created=False,
+            status=status.HTTP_400_BAD_REQUEST,
+        ))
+
+    def test_error_create_jup_no_unix_account(self):
+        # As a user, I cannot create an export request
+        cases = [self.err_basic_case.clone(
+            created=False,
+            status=status.HTTP_400_BAD_REQUEST,
+            mock_user_bound_resp=False,
+            mock_user_bound_called=True,
+            mock_perim_called=True,
+        )]
+        [self.check_create_case(case) for case in cases]
+
+    def test_error_create_without_jup_nomi_right(self):
+        # As a user, I cannot create an export request
+        # we close the access that should allow reviewer to review exports
+        self.user1_jup_nomi_acc.manual_end_datetime = \
+            timezone.now() - timedelta(days=2)
+        self.user1_jup_nomi_acc.save()
+
+        self.check_create_case(self.err_basic_case.clone(
+            created=False,
+            status=status.HTTP_400_BAD_REQUEST,
+            mock_perim_called=True,
+        ))
+
+
+#  PATCH ##################################################################
+
+
+class ValidateCase(RequestCase):
+    def __init__(self, initial_data: dict, deny: bool, **kwargs):
+        super(ValidateCase, self).__init__(**kwargs)
+        self.initial_data = initial_data
+        self.deny = deny
+
+
+class ExportsValidateDenyTests(ExportsWithSimpleSetUp):
+    deny_view = ExportRequestViewset.as_view({'patch': 'deny'})
+    validate_view = ExportRequestViewset.as_view({'patch': 'validate'})
+
+    def setUp(self):
+        super(ExportsValidateDenyTests, self).setUp()
+        self.basic_jup_data = dict(
+            owner=self.user1,
+            cohort_fk=self.user1_cohort,
+            cohort_id=self.user1_cohort.fhir_group_id,
+            output_format=ExportType.HIVE.value,
+            provider_id=self.user1.provider_id,
+            new_request_job_status=NewJobStatus.new.value,
+            target_location="user1_exp_req_succ",
+            is_user_notified=False,
+
+        )
+        self.basic_csv_data = {**self.basic_jup_data,
+                               'output_format': ExportType.CSV.value}
+        self.basic_jup_validate_case = ValidateCase(
+            initial_data=self.basic_jup_data,
+            deny=False,
+            user=self.user_jup_reviewer,
+            status=status.HTTP_200_OK,
+            success=True,
+        )
+        self.basic_err_jup_validate_case = self.basic_jup_validate_case.clone(
+            status=status.HTTP_400_BAD_REQUEST,
+            success=False,
+        )
+
+    def test_deny_new_request(self):
+        # As a jupyter request reviewer, I can deny a request that is still new
+        self.check_validate_case(self.basic_jup_validate_case.clone(deny=True))
+
+    def check_validate_case(self, case: ValidateCase):
+        obj_id = self.model_objects.create(**case.initial_data).pk
+
+        request = self.factory.patch(self.objects_url)
+        if case.user:
+            force_authenticate(request, case.user)
+
+        view = self.__class__.validate_view if not case.deny \
+            else self.__class__.deny_view
+
+        response = view(request, id=obj_id)
+        response.render()
+
+        self.assertEqual(
+            response.status_code, case.status,
+            msg=(f"{case.description}"
+                 + (f" -> {prettify_json(response.content)}"
+                    if response.content else "")),)
+
+        new_obj = self.model_objects.filter(pk=obj_id).first()
+
+        if case.success:
+            self.assertIsNotNone(new_obj)
+            self.assertEqual(new_obj.new_request_job_status,
+                             NewJobStatus.validated if not case.deny
+                             else NewJobStatus.denied)
+        else:
+            self.assertEqual(new_obj.new_request_job_status,
+                             case.initial_data['new_request_job_status'])
+
+    def test_validate_new_request(self):
+        # As a jupyter request reviewer, I can validate a request that is still
+        # new
+        self.check_validate_case(self.basic_jup_validate_case)
+        self.check_validate_case(self.basic_jup_validate_case.clone(
+            initial_data=self.basic_csv_data,
+            user=self.user_csv_reviewer,
+        ))
+
+    def test_error_validate_not_new_request(self):
+        # As a jupyter request reviewer, I cannot validate a request that does
+        # not have the status NEW
+        [self.check_validate_case(self.basic_err_jup_validate_case.clone(
+            initial_data={**self.basic_jup_data,
+                          'new_request_job_status': s}
+        )) for s in NewJobStatus.list(exclude=[NewJobStatus.new])]
+
+    def test_error_validate_new_request_without_jup_right(self):
+        # As a user, I cannot review a jupyter export request
+        # if I do not own a right to review jupyter exports
+        self.jup_review_access.manual_end_datetime = timezone.now() \
+                                                     - timedelta(days=7)
+        self.jup_review_access.save()
+
+        self.check_validate_case(self.basic_err_jup_validate_case.clone(
+            initial_data=self.basic_csv_data,
+            status=status.HTTP_404_NOT_FOUND,
+        ))
+
+    def test_error_validate_new_request_without_csv_right(self):
+        # As a user, I cannot review a csv export request
+        # if I do not own a right to review csv exports
+        self.csv_review_access.manual_end_datetime = timezone.now() \
+                                                     - timedelta(days=7)
+        self.csv_review_access.save()
+        self.check_validate_case(self.basic_err_jup_validate_case.clone(
+            initial_data=self.basic_csv_data,
+            status=status.HTTP_404_NOT_FOUND,
+            user=self.user_csv_reviewer,
+        ))
+
+
+class ExportsNotAllowedTests(ExportsWithSimpleSetUp):
+    def setUp(self):
+        super(ExportsNotAllowedTests, self).setUp()
+        self.full_admin_user, full_admin_ph = new_user_and_profile("full@us.er")
+        role_full: Role = Role.objects.create(**dict([
+            (f, True) for f in self.all_rights
+        ]), name='FULL')
+
+        Access.objects.create(role=role_full, profile=full_admin_ph,
+                              perimeter=self.aphp)
+
+        self.basic_jup_data = dict(
+            owner=self.full_admin_user,
+            cohort_fk=self.user1_cohort,
+            cohort_id=self.user1_cohort.fhir_group_id,
+            output_format=ExportType.HIVE.value,
+            provider_id=self.user1.provider_id,
+            new_request_job_status=NewJobStatus.new.value,
+            target_location="user1_exp_req_succ",
+            is_user_notified=False,
+
+        )
+        self.basic_csv_data = {**self.basic_jup_data,
+                               'output_format': ExportType.CSV.value}
+
+
+class ExportsPatchNotAllowedTests(ExportsNotAllowedTests):
+    def test_error_patch_request(self):
+        [self.check_patch_case(PatchCase(
+            user=self.full_admin_user, status=status.HTTP_400_BAD_REQUEST,
+            success=False, initial_data=data, data_to_update={'motivation': 'a'}
+        )) for data in [self.basic_csv_data, self.basic_jup_data]]
+
+
+class ExportsDeleteNotAllowedTests(ExportsNotAllowedTests):
+    def test_error_delete_request(self):
+        [self.check_delete_case(DeleteCase(
+            user=self.full_admin_user,
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+            success=False, data_to_delete=data,
+        )) for data in [self.basic_csv_data, self.basic_jup_data]]
+
+
+class ExportsUpdateNotAllowedTests(ExportsNotAllowedTests):
+    update_view = ExportRequestViewset.as_view({'update': 'update'})
+
+    def test_error_update_request(self):
+        [self.check_patch_case(PatchCase(
+            user=self.full_admin_user,
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+            success=False, initial_data=data, data_to_update={}
+        )) for data in [self.basic_csv_data, self.basic_jup_data]]
+
+#  USERS ##################################################################
+
+
+class UsersGetTests(ExportsTests):
+    pass
+
+
+#  COHORTS ##################################################################
+
+
+class CohortsGetTests(ExportsTests):
+    pass
