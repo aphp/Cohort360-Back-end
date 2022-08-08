@@ -157,10 +157,10 @@ def get_or_create_user_with_info(user_info: UserInfo) -> User:
         return u
     except ObjectDoesNotExist:
         user = UserManager().create_simple_user(
-            provider_username=user_info['username'],
-            email=user_info['email'],
-            lastname=user_info['lastname'],
-            firstname=user_info['firstname'],
+            provider_username=user_info.username,
+            email=user_info.email,
+            lastname=user_info.lastname,
+            firstname=user_info.firstname,
         )
     return user
 
