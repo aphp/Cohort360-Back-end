@@ -849,7 +849,7 @@ class Perimeter(BaseModel):
 
 
 def get_all_level_parents_perimeters(
-        perimeter_ids: List[str], strict: bool = False, ids_only: bool = False
+        perimeter_ids: List[int], strict: bool = False, ids_only: bool = False
 ) -> List[Perimeter]:
     q = reduce(
         lambda a, b: a | b,

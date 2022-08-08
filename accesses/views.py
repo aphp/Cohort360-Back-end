@@ -282,7 +282,7 @@ class RoleViewSet(CustomLoggingMixin, BaseViewset):
 
 
 def build_data_rights(user_id: str, provider_id: int,
-                      required_cs_ids: List[str],
+                      required_cs_ids: List[int],
                       data_accesses: Dict[int, Access],
                       pop_previous_rights: bool = False) -> List[DataRight]:
     # we build a rootified (opposite of treefied, list of perimeters whom
@@ -774,7 +774,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
 def get_data_rights_on_roots(
         perimeter_roots: List[OrderedDict], user_id: str,
         provider_id: int,
-        required_perim_ids: List[str],
+        required_perim_ids: List[int],
         data_accesses: Dict[int, Access],
         pop_previous_rights: bool = False
 ) -> List[DataRight]:

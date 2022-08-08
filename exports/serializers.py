@@ -140,10 +140,10 @@ class ExportRequestSerializer(serializers.ModelSerializer):
     def validate_owner_rights(self, validated_data):
         cont_req: Request = self.context.get('request')
         owner: User = validated_data.get('owner')
-        perim_ids = conf_exports.get_cohort_perimeters(
+        perim_ids = list(map(int, conf_exports.get_cohort_perimeters(
             validated_data.get('cohort_fk').fhir_group_id,
             getattr(cont_req, 'jwt_session_key', None)
-        )
+        )))
 
         data_accesses = get_user_dict_data_accesses(owner)
 
