@@ -22,21 +22,6 @@ class PerimeterSerializer(serializers.ModelSerializer):
     pass
 
 
-def rootify_perimeters(
-        perimeters: List[OrderedDict], roots_ids: List[str]
-) -> List[OrderedDict]:
-    """
-    Given a full list of Perimeters that contain 'parent_id' that will
-    necessary be within the list,
-    returns the small list of perimeters from the roots_ids, completed
-    with the field parent showing directly the matching perimeter
-    @param perimeters: full list of perimeters
-    @param roots_ids: ids of the perimeters that should be returned
-    @return:
-    """
-    raise NotImplementedError
-
-
 def get_perimeters(ids_only: bool = False, **kwargs) \
         -> List[Union[ApiPerimeter, str]]:
     """

@@ -1093,7 +1093,9 @@ class AccessDataRightsTests(ViewSetTestsWithBasicPerims):
                 {**self.base_aphp_right_dict,
                  'right_read_patient_nominative': True,
                  'right_search_patient_with_ipp': True,
-                 'access_ids': [access_nomi_hosp3.id, access_ipp_hosp3.id],
+                 'right_read_patient_pseudo_anonymised': True,
+                 'access_ids': [access_nomi_hosp3.id, access_ipp_hosp3.id,
+                                access_pseudo_aphp.id],
                  'perimeter_id': str(self.hospital3.id)}]],
             title='With pseudo on hosp1 and aphp, aphp dominates,'
                   ' also nomi and search_app on hosp3',
@@ -1121,8 +1123,10 @@ class AccessDataRightsTests(ViewSetTestsWithBasicPerims):
                  'right_read_patient_nominative': True},
                 {**self.base_aphp_right_dict,
                  'right_search_patient_with_ipp': True,
+                 'right_read_patient_nominative': True,
                  'right_read_patient_pseudo_anonymised': True,
-                 'access_ids': [access_pseudo_hosp1.id, access_ipp_hosp1.id],
+                 'access_ids': [access_pseudo_hosp1.id, access_ipp_hosp1.id,
+                                access_nomi_aphp.id],
                  'perimeter_id': str(self.hospital1.id)}]],
             title='With nomi on hosp3 and aphp, aphp dominates,'
                   'also pseudo and search_ipp on hosp1',
@@ -1259,7 +1263,8 @@ class AccessDataRightsTests(ViewSetTestsWithBasicPerims):
                  'right_read_patient_nominative': True,
                  'right_search_patient_with_ipp': True,
                  'right_export_csv_nominative': True,
-                 'perimeter_id': str(self.hospital3.id)}]],
+                 'perimeter_id': str(self.hospital3.id)},
+            ]],
             title="With nomi on hosp2 and aphp, aphp dominates,also pseudo "
                   "on hosp1. Nominative export on hosp3 "
                   "implies the right globally",

@@ -851,13 +851,11 @@ class Perimeter(BaseModel):
 def get_all_level_parents_perimeters(
         perimeter_ids: List[int], strict: bool = False, ids_only: bool = False
 ) -> List[Perimeter]:
-    q = reduce(
-        lambda a, b: a | b,
-        [Perimeter.objects.filter(
+    q = join_qs([
+        Perimeter.objects.filter(
             **{i * 'children__' + 'id__in': perimeter_ids}
-        ) for i in range(0 + strict,
-                         len(PERIMETERS_TYPES))]
-    ).distinct()
+        ) for i in range(0 + strict, len(PERIMETERS_TYPES))
+    ]).distinct()
     return [str(i[0]) for i in q.values_list('id')] if ids_only else q
 
 
@@ -1125,8 +1123,8 @@ def get_user_valid_manual_accesses_queryset(u: User) -> QuerySet:
         )
 
 
-def get_user_dict_data_accesses(u: User) -> Dict[int, Access]:
-    q = get_user_valid_manual_accesses_queryset(u).filter(
+def get_user_data_accesses_queryset(u: User) -> QuerySet:
+    return get_user_valid_manual_accesses_queryset(u).filter(
         join_qs(
             [Q(role__right_read_patient_nominative=True),
              Q(role__right_read_patient_pseudo_anonymised=True),
@@ -1137,20 +1135,24 @@ def get_user_dict_data_accesses(u: User) -> Dict[int, Access]:
              Q(role__right_transfer_jupyter_nominative=True)]
         )).prefetch_related('role')
 
-    return dict([(a.id, a) for a in q])
+
+def get_user_dict_data_accesses(u: User) -> Dict[int, Access]:
+    return dict([(a.id, a) for a in get_user_data_accesses_queryset(u)])
 
 
 class DataRight:
-    def __init__(self, p_id: str, user_id: str, provider_id: int,
+    def __init__(self, perimeter_id: int, user_id: str, provider_id: int,
                  acc_ids: List[int] = None,
                  pseudo: bool = False, nomi: bool = False,
                  exp_pseudo: bool = False, exp_nomi: bool = False,
                  jupy_pseudo: bool = False, jupy_nomi: bool = False,
-                 search_ipp: bool = False) -> Dict:
+                 search_ipp: bool = False, **kwargs) -> Dict:
         """
         @return: a default DataRight as required by the serializer
         """
-        self.perimeter_id = p_id
+        if 'perimeter' in kwargs:
+            self.perimeter: Perimeter = kwargs['perimeter']
+        self.perimeter_id = perimeter_id
         self.provider_id = provider_id
         self.user_id = user_id
         self.access_ids = acc_ids or []
@@ -1162,7 +1164,25 @@ class DataRight:
         self.right_transfer_jupyter_nominative = jupy_nomi
         self.right_transfer_jupyter_pseudo_anonymised = jupy_pseudo
 
+    @property
+    def rights_granted(self) -> List[str]:
+        return [r for r in [
+            'right_read_patient_nominative',
+            'right_read_patient_pseudo_anonymised',
+            'right_search_patient_with_ipp',
+        ] if getattr(self, r)]
+
+    @property
+    def count_rights_granted(self) -> int:
+        return len(self.rights_granted)
+
     def add_right(self, right: DataRight):
+        """
+        Adds a new DataRight access id to self access_ids
+        and grants new rights given by this new DataRight
+        :param right: other DataRight to complete with
+        :return:
+        """
         self.access_ids = list(set(
             self.access_ids + right.access_ids))
         self.right_read_patient_nominative = \
@@ -1175,6 +1195,28 @@ class DataRight:
             self.right_search_patient_with_ipp \
             or right.right_search_patient_with_ipp
 
+    def add_global_right(self, right: DataRight):
+        """
+        Adds a new DataRight access id to self access_ids
+        and grants new rights given by this new DataRight
+        :param right: other DataRight to complete with
+        :return:
+        """
+        self.access_ids = list(set(
+            self.access_ids + right.access_ids))
+        self.right_export_csv_nominative = \
+            self.right_export_csv_nominative \
+            or right.right_export_csv_nominative
+        self.right_export_csv_pseudo_anonymised = \
+            self.right_export_csv_pseudo_anonymised \
+            or right.right_export_csv_pseudo_anonymised
+        self.right_transfer_jupyter_nominative = \
+            self.right_transfer_jupyter_nominative \
+            or right.right_transfer_jupyter_nominative
+        self.right_transfer_jupyter_pseudo_anonymised = \
+            self.right_transfer_jupyter_pseudo_anonymised \
+            or right.right_transfer_jupyter_pseudo_anonymised
+
     def add_access_ids(self, ids: List[int]):
         self.access_ids = list(set(self.access_ids + ids))
 
@@ -1183,6 +1225,13 @@ class DataRight:
         return self.right_read_patient_nominative \
                or self.right_read_patient_pseudo_anonymised \
                or self.right_search_patient_with_ipp
+
+    @property
+    def has_global_data_right(self):
+        return self.right_export_csv_nominative \
+               or self.right_export_csv_pseudo_anonymised \
+               or self.right_transfer_jupyter_nominative \
+               or self.right_transfer_jupyter_pseudo_anonymised
 
     @property
     def care_site_history_ids(self) -> List[int]:

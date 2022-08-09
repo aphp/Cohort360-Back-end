@@ -419,6 +419,18 @@ class TreefiedPerimeterSerializer(serializers.ModelSerializer):
         return fields
 
 
+class RootPerimeterSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Perimeter
+        fields = "__all__"
+
+    def get_fields(self):
+        fields = super(RootPerimeterSerializer, self).get_fields()
+        fields['parent'] = RootPerimeterSerializer(
+            source='prefetched_parent', required=False)
+        return fields
+
+
 class PerimeterSerializer(serializers.ModelSerializer):
     parent_id = serializers.CharField(read_only=True, allow_null=True)
 
