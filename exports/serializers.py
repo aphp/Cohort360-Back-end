@@ -187,7 +187,7 @@ class ExportRequestSerializer(serializers.ModelSerializer):
 
         try:
             from exports.tasks import launch_request
-            launch_request.delay(req)
+            launch_request.delay(req.id)
         except Exception as e:
             req.new_request_job_status = NewJobStatus.failed
             req.request_job_fail_msg = f"INTERNAL ERROR: " \
