@@ -82,15 +82,22 @@ def wait_for_job(er: ExportRequest):
 
 
 @shared_task
-def launch_request(er: ExportRequest):
+def launch_request(er_id: int):
     """
     Defines the ExportRequest target_name and then,
     given functions in conf_exports.py, prepares and starts the export,
     wait for it to end and concludes with post process
     If an exception happens, logs it and end the task
-    @param er: ExportRequest to launch a job for
+    @param er_id: id of ExportRequest to launch a job for
     @return: None
     """
+    try:
+        er: ExportRequest = ExportRequest.objects.get(er_id)
+    except Exception as e:
+        log_export_request_task(
+            er_id,
+            f"Could not find export request to launch with id {er_id}: {e}")
+        return
 
     t = timezone.now()
     log_export_request_task(er.id, "Sending request to Infra API.")

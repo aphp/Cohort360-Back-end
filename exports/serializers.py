@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List
 
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
@@ -15,7 +15,7 @@ from exports import conf_exports
 from exports.emails import check_email_address
 from exports.models import ExportRequest, ExportRequestTable, \
     VALIDATED_STATUS, ExportType
-from exports.permissions import can_review_transfer_jupyter
+from exports.permissions import can_review_transfer_jupyter, can_review_export
 
 
 class ExportRequestTableSerializer(serializers.ModelSerializer):
@@ -81,9 +81,19 @@ def check_rights_on_perimeters_for_exports(rights: List[DataRight],
             )
 
 
+class ReviewFilteredPrimaryKeyRelatedField(serializers.PrimaryKeyRelatedField):
+    def get_queryset(self):
+        q = super(ReviewFilteredPrimaryKeyRelatedField, self).get_queryset()
+        creator = self.context.get('request', None).user
+        if can_review_export(creator):
+            return q
+        else:
+            return q.filter(owner=creator)
+
+
 class ExportRequestSerializer(serializers.ModelSerializer):
     tables = ExportRequestTableSerializer(many=True, )
-    cohort = serializers.PrimaryKeyRelatedField(
+    cohort = ReviewFilteredPrimaryKeyRelatedField(
         queryset=CohortResult.objects.all(), source='cohort_fk')
     reviewer_fk = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.all(), allow_null=True, allow_empty=True,
@@ -160,7 +170,10 @@ class ExportRequestSerializer(serializers.ModelSerializer):
         check_email_address(owner)
         cohort: CohortResult = validated_data.get('cohort_fk')
 
-        if cohort.owner.pk != owner.pk:
+        creator_is_reviewer = can_review_transfer_jupyter(
+            self.context.get('request').user)
+
+        if not creator_is_reviewer and cohort.owner.pk != owner.pk:
             raise ValidationError("The owner of the request does not own the "
                                   "Cohort requested")
 
@@ -171,15 +184,20 @@ class ExportRequestSerializer(serializers.ModelSerializer):
         validated_data['cohort_id'] = (validated_data.get('cohort_fk')
                                        .fhir_group_id)
 
-        self.validate_owner_rights(validated_data)
-
         output_format = validated_data.get('output_format')
         validated_data['motivation'] = validated_data.get('motivation', "")\
             .replace("\n", " -- ")
+
         if output_format in [ExportType.HIVE, ExportType.PSQL]:
-            req, tables = self.create_type_sql_hive(validated_data)
+            self.validate_sql_hive(validated_data, creator_is_reviewer)
         else:
-            req, tables = self.create_csv_type(validated_data)
+            self.validate_csv(validated_data)
+
+        self.validate_owner_rights(validated_data)
+
+        tables = validated_data.pop("tables", [])
+        req = super(ExportRequestSerializer, self).create(validated_data)
+
         self.create_tables(tables, req)
 
         if req.output_format == ExportType.CSV:
@@ -187,15 +205,14 @@ class ExportRequestSerializer(serializers.ModelSerializer):
 
         try:
             from exports.tasks import launch_request
-            launch_request.delay(req)
+            launch_request.delay(req.id)
         except Exception as e:
             req.new_request_job_status = NewJobStatus.failed
             req.request_job_fail_msg = f"INTERNAL ERROR: " \
                                        f"Could not launch celery task: {e}"
         return req
 
-    def create_type_sql_hive(self, validated_data)\
-            -> Tuple[ExportRequest, List[ExportRequestTable]]:
+    def validate_sql_hive(self, validated_data, creator_is_reviewer: bool):
         target_unix_account: Account = validated_data.get(
             'target_unix_account', None)
         if target_unix_account is None:
@@ -204,25 +221,17 @@ class ExportRequestSerializer(serializers.ModelSerializer):
 
         owner = validated_data.get('owner')
         if not conf_workspaces.is_user_bound_to_unix_account(
-                validated_data.get('owner'),
-                target_unix_account.aphp_ldap_group_dn):
+                owner, target_unix_account.aphp_ldap_group_dn):
             raise ValidationError(
                 f"Le compte Unix destinataire ({target_unix_account.pk}) "
                 f"n'est pas lié à l'utilisateur voulu "
                 f"({owner.pk})")
 
-        reviewer = self.context.get('request').user
-        if can_review_transfer_jupyter(reviewer):
+        if creator_is_reviewer:
             validated_data['status'] = VALIDATED_STATUS
-            validated_data['reviewer_fk'] = reviewer
+            validated_data['reviewer_fk'] = self.context.get('request').user
 
-        tables = validated_data.pop("tables", [])
-        req = super(ExportRequestSerializer, self).create(validated_data)
-
-        return req, tables
-
-    def create_csv_type(self, validated_data) \
-            -> Tuple[ExportRequest, List[ExportRequestTable]]:
+    def validate_csv(self, validated_data):
         validated_data["status"] = VALIDATED_STATUS
         creator: User = self.context.get('request').user
 
@@ -232,11 +241,6 @@ class ExportRequestSerializer(serializers.ModelSerializer):
                 f"générer de demande d'export pour un autre provider_id "
                 f"que le vôtre. (vous êtes connecté.e en tant "
                 f"que {creator.displayed_name}")
-
-        tables = validated_data.pop("tables", [])
-        req = super(ExportRequestSerializer, self).create(validated_data)
-
-        return req, tables
 
     def update(self, instance, validated_data):
         raise ValidationError("Update is not authorized. "

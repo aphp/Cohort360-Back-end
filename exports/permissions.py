@@ -16,33 +16,47 @@ def can_export_psql_pseudo(user: User):
                 for r in get_bound_roles(user)])
 
 
-def can_review_transfer_jupyter(user: User):
+def can_review_transfer_jupyter(user: User) -> bool:
     """
     Will check the accesses of the Provider,
     Retrieve the roles bound to those,
     And return True if one of these roles
-    allow to review jypyter export requests
+    allows to review jypyter export requests
     @param user:
     @type user: User
     @return: if user can manage at least one type of accesses
     @rtype: bool
     """
-    return any([
-        r.right_review_transfer_jupyter for r in get_bound_roles(user)
-    ])
+    return any([r.right_review_transfer_jupyter
+                for r in get_bound_roles(user)])
 
 
-def can_review_export_csv(user: User):
+def can_review_export_csv(user: User) -> bool:
     """
     Will check the accesses of the Provider,
     Retrieve the roles bound to those,
-    And return True if one of these roles allow to review export_csv requests
+    And return True if one of these roles allows to review export_csv requests
     @param user:
     @type user: User
     @return: if user can manage at least one type of accesses
     @rtype: bool
     """
     return any([r.right_review_export_csv for r in get_bound_roles(user)])
+
+
+def can_review_export(user: User) -> bool:
+    """
+    Will check the accesses of the Provider,
+    Retrieve the roles bound to those,
+    And return True if one of these roles allows
+    to review jypyter OR CSV export requests
+    @param user:
+    @type user: User
+    @return: if user can manage at least one type of accesses
+    @rtype: bool
+    """
+    return any([r.right_review_export_csv or r.right_review_transfer_jupyter
+                for r in get_bound_roles(user)])
 
 
 class ExportJupyterPermissions(permissions.BasePermission):
