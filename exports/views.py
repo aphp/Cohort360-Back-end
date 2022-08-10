@@ -204,6 +204,10 @@ class ExportRequestViewset(CustomLoggingMixin, viewsets.ModelViewSet):
             req.status = VALIDATED_STATUS
 
             req.save()
+
+            from exports.tasks import launch_request
+            launch_request.delay(req.id)
+
             return Response(self.serializer_class(req).data,
                             status=status.HTTP_200_OK)
         except Exception as e:

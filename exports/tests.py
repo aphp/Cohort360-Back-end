@@ -69,6 +69,9 @@ Cas à tester pour PATCH /exports/{id} :
     est en status created, si le user a right_review_transfer_jupyter
 """
 
+REGEX_TEST_EMAIL = r"^[\w.+-]+@test\.com$"
+END_TEST_EMAIL = "@test.com"
+
 
 def new_cohort_result(
         owner: User, status: NewJobStatus = NewJobStatus.finished,
@@ -160,14 +163,16 @@ class ExportsTests(ViewSetTestsWithBasicPerims):
 
         # USERS
         self.user_with_no_right, ph_with_no_right = new_user_and_profile(
-            email="with_no_right@test.com")
+            email=f"with_no_right{END_TEST_EMAIL}")
         self.user_jup_reviewer, self.ph_jup_reviewer = new_user_and_profile(
-            email="jup_reviewer@test.com")
+            email=f"jup_reviewer{END_TEST_EMAIL}")
         self.user_csv_reviewer, ph_csv_reviewer = new_user_and_profile(
-            email="csv_reviewer@test.com")
+            email=f"csv_reviewer{END_TEST_EMAIL}")
 
-        self.user1, self.prof_1 = new_user_and_profile(email="us1@test.com")
-        self.user2, self.prof_2 = new_user_and_profile(email="us2@test.com")
+        self.user1, self.prof_1 = new_user_and_profile(
+            email=f"us1{END_TEST_EMAIL}")
+        self.user2, self.prof_2 = new_user_and_profile(
+            email=f"us2{END_TEST_EMAIL}")
 
         # ACCESSES
         self.jup_review_access: Access = Access.objects.create(
@@ -690,7 +695,7 @@ class ExportsCreateTests(ExportsTests):
     @mock.patch('exports.tasks.launch_request.delay')
     @mock.patch('exports.emails.email_info_request_confirmed')
     @mock.patch('exports.conf_exports.get_cohort_perimeters')
-    @mock.patch('exports.emails.EMAIL_REGEX_CHECK', r"^[\w.+-]+@test\.com$")
+    @mock.patch('exports.emails.EMAIL_REGEX_CHECK', REGEX_TEST_EMAIL)
     def check_create_case(self, case: ExportCreateCase, mock_perim: MagicMock,
                           mock_send_mail: MagicMock, mock_task: MagicMock):
         mock_task.return_value = None
@@ -969,27 +974,47 @@ class ExportsJupCreateTests(ExportsCreateTests):
 
     def test_create_jup_other_recipient_with_rev_access(self):
         # As a user with right to review jupyter exports,
-        # I can create an export request with another
+        # I can create an export request with a cohort from another user
+        # to a Unix account owned by a third user
         self.check_create_case(self.basic_case.clone(
             data={**self.basic_data,
-                  'cohort_fk': self.user2_cohort.pk,
+                  'cohort_fk': self.user1_cohort.pk,
                   'owner': self.user2.pk},
             user=self.user_jup_reviewer,
         ))
 
+    def test_error_create_jup_not_owned_cohort_without_rev_access(self):
+        # As a user, I cannot create an export request for a cohort I don't own
+        self.check_create_case(self.err_basic_case.clone(
+            data={**self.basic_data, 'cohort_fk': self.user2_cohort.pk},
+            created=False,
+            status=status.HTTP_400_BAD_REQUEST,
+        ))
+
     def test_error_create_jup_other_recipient_without_rev_access(self):
-        # As a user, I cannot create an export request
-        # we close the access that should allow reviewer to review exports
+        # As a user, I cannot create an export request for another owner
+        self.check_create_case(self.err_basic_case.clone(
+            data={**self.basic_data, 'owner': self.user2.pk},
+            created=False,
+            status=status.HTTP_400_BAD_REQUEST,
+        ))
+
+    def test_error_create_jup_wrong_owner_with_rev_access(self):
+        # Even as a reviewer, I cannot create an export request
+        # if the owner is not bound to the unix account provided
         self.check_create_case(self.err_basic_case.clone(
             data={**self.basic_data,
                   'cohort_fk': self.user2_cohort.pk,
                   'owner': self.user2.pk},
+            mock_user_bound_resp=False,
+            mock_user_bound_called=True,
+            user=self.user_jup_reviewer,
             created=False,
             status=status.HTTP_400_BAD_REQUEST,
         ))
 
     def test_error_create_request_no_email(self):
-        # As a user, I cannot create an export request if the recipient has no
+        # As a user, I cannot create an export request if the owner has no
         # email address
         self.user1.email = ""
         self.user1.save()
@@ -998,29 +1023,13 @@ class ExportsJupCreateTests(ExportsCreateTests):
             self.err_basic_case.clone(status=status.HTTP_400_BAD_REQUEST))
 
     def test_error_create_request_wrong_email(self):
-        # As a user, I cannot create an export request if the recipient has no
+        # As a user, I cannot create an export request if the owner has no
         # email address
-        self.user1.email = "us1@testt.com"
+        self.user1.email = f"us1{END_TEST_EMAIL}m"
         self.user1.save()
 
         self.check_create_case(
             self.err_basic_case.clone(status=status.HTTP_400_BAD_REQUEST))
-
-    def test_error_create_cohort_not_owned(self):
-        # As a user, I cannot create an export request
-        # if I do not own the targeted cohort
-        [self.check_create_case(case) for case in [
-            self.err_basic_case.clone(
-                data={**self.basic_data, 'cohort_fk': self.user2_cohort.pk},
-                created=False,
-                status=status.HTTP_400_BAD_REQUEST,
-            ), self.err_basic_case.clone(
-                data={**self.basic_data, 'cohort_fk': self.user2_cohort.pk},
-                created=False,
-                user=self.user_jup_reviewer,
-                status=status.HTTP_400_BAD_REQUEST,
-            ),
-        ]]
 
     def test_error_create_cohort_unfound(self):
         self.check_create_case(self.err_basic_case.clone(
@@ -1031,17 +1040,19 @@ class ExportsJupCreateTests(ExportsCreateTests):
 
     def test_error_create_jup_no_unix_account(self):
         # As a user, I cannot create an export request
+        # if I am not bound to the target unix account
         cases = [self.err_basic_case.clone(
             created=False,
             status=status.HTTP_400_BAD_REQUEST,
             mock_user_bound_resp=False,
             mock_user_bound_called=True,
-            mock_perim_called=True,
         )]
         [self.check_create_case(case) for case in cases]
 
     def test_error_create_without_jup_nomi_right(self):
-        # As a user, I cannot create an export request
+        # As a user, I cannot create a nominative export request
+        # without the right to do it
+
         # we close the access that should allow reviewer to review exports
         self.user1_jup_nomi_acc.manual_end_datetime = \
             timezone.now() - timedelta(days=2)
@@ -1051,6 +1062,7 @@ class ExportsJupCreateTests(ExportsCreateTests):
             created=False,
             status=status.HTTP_400_BAD_REQUEST,
             mock_perim_called=True,
+            mock_user_bound_called=True,
         ))
 
 
@@ -1099,7 +1111,10 @@ class ExportsValidateDenyTests(ExportsWithSimpleSetUp):
         # As a jupyter request reviewer, I can deny a request that is still new
         self.check_validate_case(self.basic_jup_validate_case.clone(deny=True))
 
-    def check_validate_case(self, case: ValidateCase):
+    @mock.patch('exports.tasks.launch_request.delay')
+    def check_validate_case(self, case: ValidateCase, mock_task: MagicMock):
+        mock_task.return_value = None
+
         obj_id = self.model_objects.create(**case.initial_data).pk
 
         request = self.factory.patch(self.objects_url)
@@ -1125,9 +1140,12 @@ class ExportsValidateDenyTests(ExportsWithSimpleSetUp):
             self.assertEqual(new_obj.new_request_job_status,
                              NewJobStatus.validated if not case.deny
                              else NewJobStatus.denied)
+            mock_task.assert_called() if not case.deny \
+                else mock_task.assert_not_called()
         else:
             self.assertEqual(new_obj.new_request_job_status,
                              case.initial_data['new_request_job_status'])
+            mock_task.assert_not_called()
 
     def test_validate_new_request(self):
         # As a jupyter request reviewer, I can validate a request that is still
