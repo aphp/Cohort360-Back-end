@@ -708,6 +708,8 @@ class ExportsCreateTests(ExportsTests):
             else mock_perim.assert_not_called()
         mock_send_mail.assert_called() if case.success \
             else mock_send_mail.assert_not_called()
+        mock_task.assert_called() if case.success \
+            else mock_task.assert_not_called()
 
 
 class ExportsCsvCreateTests(ExportsCreateTests):
@@ -853,6 +855,15 @@ class ExportsCsvCreateTests(ExportsCreateTests):
             data={**self.basic_data, 'owner': self.user2.pk},
             created=False,
             user=self.user1,
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+        self.check_create_case(case)
+
+    def test_error_create_csv_psuedo(self):
+        # I cannot create an export request with Pseudonym mode
+        case = self.err_basic_case.clone(
+            data={**self.basic_data, 'nominative': False},
+            created=False,
             status=status.HTTP_400_BAD_REQUEST,
         )
         self.check_create_case(case)

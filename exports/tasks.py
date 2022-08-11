@@ -1,7 +1,7 @@
 from datetime import timedelta, datetime
 import time
 from typing import List
-
+import environ
 from celery import shared_task
 from django.utils import timezone
 
@@ -13,6 +13,10 @@ from exports.example_conf_exports import HdfsServerUnreachableError, \
     ApiJobResponse
 from exports.models import ExportRequest, SUCCESS_STATUS, FAILED_STATUS, \
     DENIED_STATUS, ExportType
+
+
+env = environ.Env()
+EXPORT_CSV_PATH = env('EXPORT_CSV_PATH')
 
 
 def log_export_request_task(id, msg):
@@ -101,7 +105,11 @@ def launch_request(er_id: int):
 
     t = timezone.now()
     log_export_request_task(er.id, "Sending request to Infra API.")
-    er.target_name = f"{er.target_unix_account.name}" \
+    if er.output_format == ExportType.CSV:
+        er.target_name = f"{EXPORT_CSV_PATH}/{er.target_unix_account.name}" \
+                         f"_{timezone.now().strftime('%Y%m%d_%H%M%S%f')}"
+    else:
+        er.target_name = f"{er.target_unix_account.name}" \
                      f"_{timezone.now().strftime('%Y%m%d_%H%M%S%f')}"
     er.save()
 

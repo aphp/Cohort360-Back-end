@@ -84,7 +84,7 @@ class ExportRequest(JobModelWithReview, BaseModel, models.Model):
 
     @property
     def target_full_path(self) -> str:
-        return f"{self.target_location}{self.target_name}" if (
+        return f"{self.target_location}{self.target_name}.zip" if (
                     self.target_location is not None
                     and self.target_name is not None
         ) else ""
