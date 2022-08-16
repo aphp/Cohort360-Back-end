@@ -1,4 +1,4 @@
-from typing import List, Tuple, Dict, OrderedDict
+from typing import List, Tuple, Dict
 
 import django_filters
 from django.db.models import Q, Prefetch, F, BooleanField, When, Case, Value
@@ -21,12 +21,12 @@ from .perimeters_API import ApiPerimeter
 from .models import Role, Access, Profile, RoleType, \
     get_assignable_roles_on_perimeter, MANUAL_SOURCE, DataRight, \
     get_all_readable_accesses_perimeters, \
-    get_user_dict_data_accesses, Q_readable_with_admin_mng, \
-    Q_readable_with_data_admin, Q_readable_with_role_admin_access, \
+    Q_readable_with_admin_mng, Q_readable_with_data_admin,\
+    Q_readable_with_role_admin_access, get_user_data_accesses_queryset, \
     Q_readable_with_review_jup_mng_access, Q_readable_with_jupyter_mng_access, \
     Q_readable_with_csv_mng_access, Q_role_on_lower_levels, Perimeter, \
     get_all_level_parents_perimeters, Q_readable_with_review_csv_mng_access, \
-    get_user_valid_manual_accesses_queryset, get_user_data_accesses_queryset
+    get_user_valid_manual_accesses_queryset
 from .permissions import RolePermissions, AccessPermissions, \
     can_user_manage_review_transfer_jupyter_accesses, \
     can_user_manage_transfer_jupyter_accesses, \
@@ -36,11 +36,11 @@ from .permissions import RolePermissions, AccessPermissions, \
 from .serializers import RoleSerializer, AccessSerializer, \
     ProfileSerializer, ReducedProfileSerializer, \
     ProfileCheckSerializer, DataRightSerializer, PerimeterSerializer, \
-    TreefiedPerimeterSerializer, RootPerimeterSerializer
+    TreefiedPerimeterSerializer
 from admin_cohort import conf_auth
 from admin_cohort.permissions import IsAuthenticated, can_user_edit_roles, \
     IsAuthenticatedReadOnly, OR, can_user_read_users
-from admin_cohort.settings import ROOT_PERIMETER_TYPE, PERIMETERS_TYPES
+from admin_cohort.settings import PERIMETERS_TYPES
 from admin_cohort.tools import join_qs
 from admin_cohort.views import BaseViewset, CustomLoggingMixin, \
     YarnReadOnlyViewsetMixin

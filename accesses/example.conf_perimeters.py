@@ -1,4 +1,4 @@
-from typing import List, Union, OrderedDict
+from typing import List, Union
 
 from rest_framework import serializers
 
