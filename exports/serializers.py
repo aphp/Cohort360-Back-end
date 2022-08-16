@@ -4,12 +4,11 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.request import Request
 
-from accesses.models import get_user_dict_data_accesses, DataRight
+from accesses.models import DataRight
 from accesses.views import build_data_rights
 from admin_cohort.models import User, JobStatus, NewJobStatus
 from cohort.models import CohortResult
 import workspaces.conf_workspaces as conf_workspaces
-# from  import is_user_bound_to_unix_account
 from workspaces.models import Account
 from exports import conf_exports
 from exports.emails import check_email_address
@@ -155,11 +154,7 @@ class ExportRequestSerializer(serializers.ModelSerializer):
             getattr(cont_req, 'jwt_session_key', None)
         )))
 
-        data_accesses = get_user_dict_data_accesses(owner)
-
-        rights = build_data_rights(
-            owner.pk, owner.provider_id, perim_ids,
-            data_accesses)
+        rights = build_data_rights(owner, perim_ids)
 
         check_rights_on_perimeters_for_exports(
             rights, validated_data.get('output_format'),
