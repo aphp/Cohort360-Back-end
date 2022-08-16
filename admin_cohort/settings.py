@@ -216,6 +216,7 @@ EMAIL_SENDER_ADDRESS = env("EMAIL_SENDER_ADDRESS")
 EMAIL_REGEX_CHECK = env("EMAIL_REGEX_CHECK",
                         default=r"^[\w.+-]+@[\w-]+\.[\w]+$")
 
+EXPORT_CSV_PATH = env('EXPORT_CSV_PATH')
 EXPORT_DAYS_BEFORE_DELETE = int(env("EXPORT_DAYS_BEFORE_DELETE", default=7))
 
 # Celery

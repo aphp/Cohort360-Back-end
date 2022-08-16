@@ -199,10 +199,6 @@ class ExportRequestSerializer(serializers.ModelSerializer):
         req = super(ExportRequestSerializer, self).create(validated_data)
 
         self.create_tables(tables, req)
-
-        if req.output_format == ExportType.CSV:
-            return req
-
         try:
             from exports.tasks import launch_request
             launch_request.delay(req.id)
@@ -241,6 +237,11 @@ class ExportRequestSerializer(serializers.ModelSerializer):
                 f"générer de demande d'export pour un autre provider_id "
                 f"que le vôtre. (vous êtes connecté.e en tant "
                 f"que {creator.displayed_name}")
+        if not validated_data.get('nominative'):
+            raise ValidationError(
+                "Actuellement, la demande d'export CSV en pseudo-anonymisée "
+                "n'est pas possible."
+            )
 
     def update(self, instance, validated_data):
         raise ValidationError("Update is not authorized. "
