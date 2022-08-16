@@ -239,8 +239,8 @@ class ExportRequestSerializer(serializers.ModelSerializer):
                 f"que {creator.displayed_name}")
         if not validated_data.get('nominative'):
             raise ValidationError(
-                "Demande d'export CSV en mode Pseudonymisé est refusée, la demande d'export csv "
-                "fonctionne qu'avec le mode nominative "
+                "Actuellement, la demande d'export CSV en pseudo-anonymisée "
+                "n'est pas possible."
             )
 
     def update(self, instance, validated_data):

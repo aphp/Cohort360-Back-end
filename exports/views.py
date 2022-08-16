@@ -280,7 +280,8 @@ class ExportRequestViewset(CustomLoggingMixin, viewsets.ModelViewSet):
 
         res: Response = super(ExportRequestViewset, self)\
             .create(request, *args, **kwargs)
-        if res.status_code == http.HTTPStatus.CREATED and res.data["new_request_job_status"] != NewJobStatus.failed:
+        if res.status_code == http.HTTPStatus.CREATED \
+                and res.data["new_request_job_status"] != NewJobStatus.failed:
             try:
                 email_info_request_confirmed(res.data.serializer.instance,
                                              creator.email)

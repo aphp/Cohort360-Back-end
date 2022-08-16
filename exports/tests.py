@@ -859,7 +859,7 @@ class ExportsCsvCreateTests(ExportsCreateTests):
         )
         self.check_create_case(case)
 
-    def test_error_create_csv_psuedo(self):
+    def test_error_create_csv_pseudo(self):
         # I cannot create an export request with Pseudonym mode
         case = self.err_basic_case.clone(
             data={**self.basic_data, 'nominative': False},
