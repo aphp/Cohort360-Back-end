@@ -80,7 +80,7 @@ class DatedMeasureSerializer(BaseSerializer):
                 "the dated measure to it"
             )
 
-        if (measure is not None and fhir_datetime is None)\
+        if (measure is not None and fhir_datetime is None) \
                 or (measure is None and fhir_datetime is not None):
             raise serializers.ValidationError(
                 "If you provide measure or fhir_datetime, you have to "
@@ -94,7 +94,7 @@ class DatedMeasureSerializer(BaseSerializer):
         if measure is None:
             try:
                 from cohort.tasks import get_count_task
-                get_count_task.delay(
+                get_count_task(
                     get_fhir_authorization_header(
                         self.context.get("request", None)
                     ),
@@ -133,7 +133,7 @@ class CohortResultSerializer(BaseSerializer):
 
     fhir_group_id = serializers.CharField(
         allow_blank=True, allow_null=True, required=False
-        )
+    )
 
     class Meta:
         model = CohortResult
@@ -160,7 +160,7 @@ class CohortResultSerializer(BaseSerializer):
             if f in validated_data:
                 raise serializers.ValidationError(
                     f'{f} field cannot be updated manually')
-        return super(CohortResultSerializer, self)\
+        return super(CohortResultSerializer, self) \
             .update(instance, validated_data)
 
     def partial_update(self, instance, validated_data):
@@ -169,7 +169,7 @@ class CohortResultSerializer(BaseSerializer):
             if f in validated_data:
                 raise serializers.ValidationError(
                     f'{f} field cannot be updated manually')
-        return super(CohortResultSerializer, self)\
+        return super(CohortResultSerializer, self) \
             .partial_update(instance, validated_data)
 
     def create(self, validated_data):
@@ -216,7 +216,7 @@ class CohortResultSerializer(BaseSerializer):
             )
             validated_data["dated_measure_global"] = res_dm_global
 
-        result_cr: CohortResult = super(CohortResultSerializer, self)\
+        result_cr: CohortResult = super(CohortResultSerializer, self) \
             .create(validated_data=validated_data)
 
         if global_estimate:
@@ -232,7 +232,7 @@ class CohortResultSerializer(BaseSerializer):
             except Exception as e:
                 result_cr.dated_measure_global.request_job_fail_msg \
                     = f"INTERNAL ERROR: Could not launch FHIR cohort count: {e}"
-                result_cr.dated_measure_global\
+                result_cr.dated_measure_global \
                     .request_job_status = JobStatus.ERROR.value
                 result_cr.dated_measure_global.save()
 
@@ -344,7 +344,7 @@ class RequestQuerySnapshotSerializer(BaseSerializer):
 
         validated_data["perimeters_ids"] = retrieve_perimeters(serialized_query)
 
-        return super(RequestQuerySnapshotSerializer, self)\
+        return super(RequestQuerySnapshotSerializer, self) \
             .create(validated_data=validated_data)
 
     def update(self, instance, validated_data):
@@ -352,7 +352,7 @@ class RequestQuerySnapshotSerializer(BaseSerializer):
             if f in validated_data:
                 raise serializers.ValidationError(
                     f'{f} field cannot be updated manually')
-        return super(RequestQuerySnapshotSerializer, self)\
+        return super(RequestQuerySnapshotSerializer, self) \
             .update(instance, validated_data)
 
     def partial_update(self, instance, validated_data):
@@ -360,7 +360,7 @@ class RequestQuerySnapshotSerializer(BaseSerializer):
             if f in validated_data:
                 raise serializers.ValidationError(
                     f'{f} field cannot be updated manually')
-        return super(RequestQuerySnapshotSerializer, self)\
+        return super(RequestQuerySnapshotSerializer, self) \
             .partial_update(instance, validated_data)
 
 
@@ -397,7 +397,7 @@ class RequestSerializer(BaseSerializer):
             if f in validated_data:
                 raise serializers.ValidationError(
                     f'{f} field cannot bu updated manually')
-        return super(RequestSerializer, self)\
+        return super(RequestSerializer, self) \
             .partial_update(instance, validated_data)
 
 
@@ -440,5 +440,5 @@ class FolderSerializer(BaseSerializer):
             if f in validated_data:
                 raise serializers.ValidationError(
                     f'{f} field cannot bu updated manually')
-        return super(FolderSerializer, self)\
+        return super(FolderSerializer, self) \
             .partial_update(instance, validated_data)

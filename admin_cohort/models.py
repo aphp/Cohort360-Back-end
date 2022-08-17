@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.base_user import BaseUserManager, AbstractBaseUser
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
-from django.db.models import SET_NULL
+from django.db.models import SET_NULL, QuerySet
 from django.utils import timezone
 from safedelete import SOFT_DELETE_CASCADE
 from safedelete.models import SafeDeleteModel
@@ -98,11 +98,12 @@ class User(AbstractBaseUser, BaseModel):
                 if p.is_valid]
 
     @property
-    def valid_accesses(self):
-        return [a for a in
-                sum([list(p.accesses.all())
-                     for p in self.valid_profiles],
-                    list()) if a.is_valid]
+    def valid_manual_accesses_queryset(self) -> QuerySet:
+        try:
+            from accesses.models import get_user_valid_manual_accesses_queryset
+        except ImportError:
+            return QuerySet()
+        return get_user_valid_manual_accesses_queryset(self)
 
     def __str__(self):
         return f"{self.firstname} {self.lastname} ({self.provider_username})"

@@ -3,10 +3,9 @@
 ### Résumé du modèle de données
 
 Le modèle de données comportent 5 objets principaux.
-- _CareSite_: lieu auquel sont liées des données. Avoir accès à ce CareSite, c'est avoir accès à ces données.
+- _Perimeter_: lieu auquel sont liées des données. Avoir accès à ce CareSite, c'est avoir accès à ces données.
 - _Access_: littéralement un historique d'un CareSite auquel un utilisateur a été lié, autrement dit un accès à un CareSite délimité dans le temps
-- _Provider_: "fournisseur de soin", autrement dit un utilisateur, une personne physique
-- _Profile_: littéralement un historique de l'état d'un utilisateur, le terme est inspiré de Access mais signifie surtout un profil. La différence entre deux profils proviendra surtout de l'origine (cdm_source) de celui-ci, s'il a été entré manuellement ou bien inséré, avec les différents accès liés, automatiquement depuis une autre BDD (typiquement, venant de Orbis par exemple)
+- _Profile_: un état d'un _User_, lié à une liste d'_Accesses_, et défini par une _source_ (_manual_, _application x_, etc.)
 - _Role_: un profile Profile est lié temporairement à un ensemble de données CareSite via un accès Access. Le type de cet accès est défini par le Role auquel l'accès est lié. Par exemple, le Role définit si l'utilisateur a le droits aux données pseudo-anonymisées ou nominative du CareSite.
 
 
@@ -15,26 +14,98 @@ _Mis à jour le 2 Avril 2021_
 
 #### Les droits
 
-Les différents droits qui pourront définir un rôle sont de:
-- type Données :
-  - Droits applicatifs divers : concernent des droits liés à la lecture des données patients sur des périmètres définis.
-- type Admin :
-  - Lecture accès Données : permet la lecture complète des Access portant sur des Role accessibles [(voir Etendu côte Role)](#etendu-cote-Role). Conseillé de l'associer à Lecture Utilisateurs.
-  - Edition accès Données : permet la création et la fermeture des Access sur des CareSite accessibles.
-- type Admin Manager :
-  - idem que Admin, les Roles "accessibles" étant différents
-- type User Admin :
-  - lecture utilisateur : permet la lecture complète des Profile. Sans ça, une vue partielle (nom-prénom-idAph par exemple) est à considérer.
-  - édition utilisateur : permet d'éditer les Profile ayant `cdm_source=MANUAL`. Ainsi que certains champs de tous les Profile. De même que pour la création, l'édition de profils "MANUAL" entraînent l'édition des Providers via postgres.
-  - ajout utilisateur : permet la création de Profile. Un Profile créé manuellement est d'office estampillé `cdm_source=MANUAL`. Si il n'est pas lié à un Provider, la base de données postgres va le créé autmatiquement avec les données fournies dans le Profile.
-- type Logs :
-  - lecture Logs : permet de lire l'historique des actions des utilisateurs
-- type Rôles :
-  - édition rôles : permet de créer/modifier/supprimer des rôles, devrait être accordé seulement aux administrateurs les plus haut-placés.
+```mermaid
+classDiagram
+Z --> A1
+A1 --> A2
 
-- type Action Données : indépendant des périmètres, se cumulent avec les droits de type Données pour autoriser une action sur ces données (export csv, transfert Jupyter, validation des demandes, etc.)
-- type Action Validation : indépendant des périmètres, permettent l'examination de demandes d'Action Données (validation d'une demande d'export, etc.)
-- type Actions Admin : indépendant des périmètres, permettent de donner des rôles ayant certains droits d'Action
+Z --> B1
+B1 --> B2
+```
+
+
+```mermaid
+classDiagram
+class RolesEditors {
+  right_edit_roles
+}
+class AdminManager {
+  right_manage_admin_accesses_same_level
+  right_read_admin_accesses_same_level
+  right_manage_admin_accesses_inferior_levels
+  right_read_admin_accesses_inferior_levels
+}
+class DataReadersAdmin {
+  right_manage_data_accesses_same_level
+  right_read_data_accesses_same_level
+  right_manage_data_accesses_inferior_levels
+  right_read_data_accesses_inferior_levels
+}
+class DataReader {
+  right_read_patient_nominative
+  right_search_patient_with_ipp
+  right_read_patient_pseudo_anonymised
+}
+class CsvExportersAdmin {
+  right_manage_export_csv
+}
+class JupyterExportersAdmin {
+  right_manage_transfer_jupyter
+}
+class CsvExporters {
+  right_export_csv_nominative
+  right_export_csv_pseudo_anonymised
+}
+class JupyterExporters {
+  right_transfer_jupyter_nominative
+  right_transfer_jupyter_pseudo_anonymised
+}
+class CsvExportReviewersAdmin {
+  right_manage_review_export_csv
+}
+class JupyterExportReviewersAdmin {
+  right_manage_review_transfer_jupyter
+}
+class CsvExportReviewers {
+  right_review_export_csv
+}
+class JupyterExportReviewers {
+  right_review_transfer_jupyter
+}
+class WorkspacesManager {
+  right_read_env_unix_users
+  right_manage_env_unix_users
+  right_manage_env_user_links
+}
+class UsersAdmin {
+  right_add_users
+  right_edit_users
+  right_read_logs
+}
+RolesEditors --> AdminManager
+RolesEditors --> UsersAdmin
+AdminManager --> DataReadersAdmin
+DataReadersAdmin --> DataReader
+
+RolesEditors --> CsvExportersAdmin
+RolesEditors --> JupyterExportersAdmin
+CsvExportersAdmin --> CsvExporters
+JupyterExportersAdmin --> JupyterExporters
+
+RolesEditors --> CsvExportReviewersAdmin : Can manage accesses that include * - Can read accesses that at least include * (and optionally following *)
+RolesEditors --> JupyterExportReviewersAdmin
+CsvExportReviewersAdmin --> CsvExportReviewers
+JupyterExportReviewersAdmin --> JupyterExportReviewers
+
+RolesEditors --> WorkspacesManager
+
+class AnyManagerAdmin {
+  RolesEditors
+  AdminManager
+}
+AnyManagerAdmin --> UsersReaders
+UsersReaders : right_read_users
+```
 
 
 #### Les étendus
@@ -205,90 +276,6 @@ En simplifié :
       A2[RolesEditors]-->Z2
       B2[AdminManager]-->Z2
 ```
-
-```mermaid
-classDiagram
-class RolesEditors {
-  right_edit_roles
-}
-class AdminManager {
-  right_manage_admin_accesses_same_level
-  right_read_admin_accesses_same_level
-  right_manage_admin_accesses_inferior_levels
-  right_read_admin_accesses_inferior_levels
-}
-class DataReadersAdmin {
-  right_manage_data_accesses_same_level
-  right_read_data_accesses_same_level
-  right_manage_data_accesses_inferior_levels
-  right_read_data_accesses_inferior_levels
-}
-class DataReader {
-  right_read_patient_nominative
-  right_search_patient_with_ipp
-  right_read_patient_pseudo_anonymised
-}
-class CsvExportersAdmin {
-  right_manage_export_csv
-}
-class JupyterExportersAdmin {
-  right_manage_transfer_jupyter
-}
-class CsvExporters {
-  right_export_csv_nominative
-  right_export_csv_pseudo_anonymised
-}
-class JupyterExporters {
-  right_transfer_jupyter_nominative
-  right_transfer_jupyter_pseudo_anonymised
-}
-class CsvExportReviewersAdmin {
-  right_manage_review_export_csv
-}
-class JupyterExportReviewersAdmin {
-  right_manage_review_transfer_jupyter
-}
-class CsvExportReviewers {
-  right_review_export_csv
-}
-class JupyterExportReviewers {
-  right_review_transfer_jupyter
-}
-class WorkspacesManager {
-  right_read_env_unix_users
-  right_manage_env_unix_users
-  right_manage_env_user_links
-}
-class UsersAdmin {
-  right_add_users
-  right_edit_users
-  right_read_logs
-}
-RolesEditors --> AdminManager
-RolesEditors --> UsersAdmin
-AdminManager --> DataReadersAdmin
-DataReadersAdmin --> DataReader
-
-RolesEditors --> CsvExportersAdmin
-RolesEditors --> JupyterExportersAdmin
-CsvExportersAdmin --> CsvExporters
-JupyterExportersAdmin --> JupyterExporters
-
-RolesEditors --> CsvExportReviewersAdmin : Can manage accesses that include * - Can read accesses that at least include * (and optionally following *)
-RolesEditors --> JupyterExportReviewersAdmin
-CsvExportReviewersAdmin --> CsvExportReviewers
-JupyterExportReviewersAdmin --> JupyterExportReviewers
-
-RolesEditors --> WorkspacesManager
-
-class AnyManagerAdmin {
-  RolesEditors
-  AdminManager
-}
-AnyManagerAdmin --> UsersReaders
-UsersReaders : right_read_users
-```
-
 
 Comment lire ce schéma :
 

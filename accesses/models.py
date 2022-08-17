@@ -9,6 +9,7 @@ from django.db.models.query import QuerySet
 from django.utils import timezone
 from django.utils.datetime_safe import datetime
 
+from accesses.rights import RightGroup, main_admin_rights, all_rights
 from admin_cohort.models import BaseModel, User
 from admin_cohort.settings import MANUAL_SOURCE, \
     PERIMETERS_TYPES
@@ -338,6 +339,14 @@ def right_field():
     return models.BooleanField(default=False, null=False)
 
 
+class ReadableRightSet:
+    def __init__(self, on_inferior_levels: List[str], on_same_level: List[str],
+                 on_all_levels: List[str]):
+        self.on_inferior_levels = on_inferior_levels
+        self.on_same_level = on_same_level
+        self.on_all_levels = on_all_levels
+
+
 class Role(BaseModel):
     id = models.AutoField(primary_key=True)
     name = models.TextField(blank=True, null=True)
@@ -383,9 +392,265 @@ class Role(BaseModel):
     right_manage_env_unix_users = right_field()
     right_manage_env_user_links = right_field()
 
+    _readable_right_set = None
+    _right_groups = None
+    _inf_level_read_rights = None
+    _same_level_read_rights = None
+
     @classmethod
     def all_rights(cls):
         return [f.name for f in cls._meta.fields if f.name.startswith("right_")]
+
+    @property
+    def right_groups(self) -> List[RightGroup]:
+        def get_right_group(rg: RightGroup):
+            res = []
+            for r in map(lambda x: x.name, rg.rights):
+                if getattr(self, r):
+                    res.append(rg)
+                    break
+            return res + sum([get_right_group(c) for c in rg.children], [])
+
+        if self._right_groups is None:
+            self._right_groups = get_right_group(main_admin_rights)
+        return self._right_groups
+
+    @property
+    def inf_level_read_rights(self) -> List[str]:
+        """
+        Returns rights that, when bound to an access through a Role,
+        this role allows a user to read
+        on the children of the perimeter of the access this role is bound to
+        :return:
+        """
+        if self._inf_level_read_rights is None:
+            res = []
+            for rg in self.right_groups:
+                for right in rg.rights_read_on_inferior_levels:
+                    if getattr(self, right.name):
+                        readable_rights = sum([[r.name for r in c.rights]
+                                               for c in rg.children], [])
+                        if any([len(c.children) for c in rg.children]):
+                            readable_rights.append("right_read_users")
+                        res.extend(readable_rights)
+            self._inf_level_read_rights = list(set(res))
+        return self._inf_level_read_rights
+
+        # return list(set(
+        #     ([
+        #          "right_manage_data_accesses_same_level",
+        #          "right_read_data_accesses_same_level",
+        #          "right_manage_data_accesses_inferior_levels",
+        #          "right_read_data_accesses_inferior_levels",
+        #          "right_read_users",
+        #      ] if self.right_read_admin_accesses_inferior_levels else [])
+        #     + ([
+        #            "right_read_patient_nominative",
+        #            "right_read_patient_pseudo_anonymised",
+        #            "right_search_patient_with_ipp",
+        #        ] if self.right_read_admin_accesses_inferior_levels else [])
+        # ))
+
+    @property
+    def same_level_read_rights(self) -> List[str]:
+        """
+        Returns rights that, when bound to an access through a Role,
+        this role allows a user to read
+        on the same perimeter of the access this role is bound to
+        :return:
+        """
+        if self._same_level_read_rights is None:
+            res = []
+            for rg in self.right_groups:
+                for right in rg.rights_read_on_same_level:
+                    if getattr(self, right.name):
+                        readable_rights = sum([[r.name for r in c.rights]
+                                               for c in rg.children], [])
+                        if any([len(c.children) for c in rg.children]):
+                            readable_rights.append("right_read_users")
+                        res.extend(readable_rights)
+            self._same_level_read_rights = list(set(res))
+        return self._same_level_read_rights
+
+        # return list(set(
+        #     ([
+        #          "right_manage_data_accesses_same_level",
+        #          "right_read_data_accesses_same_level",
+        #          "right_manage_data_accesses_inferior_levels",
+        #          "right_read_data_accesses_inferior_levels",
+        #          "right_read_users",
+        #      ] if self.right_read_admin_accesses_same_level else [])
+        #     + ([
+        #            "right_read_patient_nominative",
+        #            "right_read_patient_pseudo_anonymised",
+        #            "right_search_patient_with_ipp",
+        #        ] if self.right_read_admin_accesses_same_level else [])
+        # ))
+
+    @property
+    def any_level_read_rights(self) -> List[str]:
+        res = []
+        for rg in self.right_groups:
+            for right in rg.rights_read_on_any_level:
+                if getattr(self, right.name):
+                    readable_rights = sum([[r.name for r in c.rights]
+                                           for c in rg.children], [])
+                    if any([len(c.children) for c in rg.children]):
+                        readable_rights.append("right_read_users")
+                    if rg.parent is None:
+                        readable_rights.extend([r.name for r in rg.rights])
+                    res.extend(readable_rights)
+        return list(set(res))
+        # return list(set(
+        #     ([
+        #          "right_edit_roles",
+        #          "right_read_logs",
+        #          "right_add_users",
+        #          "right_edit_users",
+        #          "right_read_users",
+        #          "right_manage_admin_accesses_same_level",
+        #          "right_read_admin_accesses_same_level",
+        #          "right_manage_admin_accesses_inferior_levels",
+        #          "right_read_admin_accesses_inferior_levels",
+        #          "right_manage_review_transfer_jupyter",
+        #          "right_manage_transfer_jupyter",
+        #          "right_manage_review_export_csv",
+        #          "right_manage_export_csv",
+        #          "right_read_env_unix_users",
+        #          "right_manage_env_unix_users",
+        #          "right_manage_env_user_links",
+        #      ] if self.right_edit_roles else [])
+        #     + ([
+        #            "right_review_transfer_jupyter",
+        #        ] if self.right_manage_review_transfer_jupyter else [])
+        #     + ([
+        #            "right_transfer_jupyter_nominative",
+        #            "right_transfer_jupyter_pseudo_anonymised",
+        #        ] if self.right_manage_transfer_jupyter else [])
+        #     + ([
+        #            "right_review_export_csv",
+        #        ] if self.right_manage_review_export_csv else [])
+        #     + ([
+        #            "right_export_csv_nominative",
+        #            "right_export_csv_pseudo_anonymised",
+        #        ] if self.right_manage_export_csv else [])
+        # ))
+
+    @property
+    def unreadable_rights(self) -> List[Dict]:
+        """
+        Returns rights that, when bound to an access through a Role,
+        this role allows a user to read
+        on the same perimeter of the access this role is bound to
+        :return:
+        """
+
+        def intersec_criteria(cs_a: List[Dict], cs_b: List[Dict]) -> List[Dict]:
+            res = []
+            for c_a in cs_a:
+                if c_a in cs_b:
+                    res.append(c_a)
+                else:
+                    add = False
+                    for c_b in cs_b:
+                        if all(c_b.get(r) for r in [k for (k, v) in c_a.items()
+                                                    if v]):
+                            add = True
+                            c_a.update(c_b)
+                    if add:
+                        res.append(c_a)
+            return res
+
+        criteria = list({r.name: True} for r in all_rights)
+        for rg in self.right_groups:
+            rg_criteria = []
+            if any(getattr(self, right.name)
+                   for right in rg.rights_allowing_reading_accesses):
+                for c in rg.children:
+                    if len(c.children_rights):
+                        not_true = dict((r.name, False) for r in c.rights)
+                        rg_criteria.extend({r.name: True, **not_true}
+                                           for r in c.children_rights)
+                rg_criteria.extend({r.name: True} for r in rg.unreadable_rights)
+                criteria = intersec_criteria(criteria, rg_criteria)
+
+        return criteria
+
+        # if self.right_edit_roles:
+        #     qs.append(
+        #         join_qs([
+        #             Q(**{'right_manage_data_accesses_same_level': True}),
+        #             Q(**{'right_read_data_accesses_same_level': True}),
+        #             Q(**{'right_manage_data_accesses_inferior_levels': True}),
+        #             Q(**{'right_read_data_accesses_inferior_levels': True}),
+        #             Q(**{'right_read_patient_nominative': True}),
+        #             Q(**{'right_read_patient_pseudo_anonymised': True}),
+        #             Q(**{'right_search_patient_with_ipp': True}),
+        #         ]) & ~Q(join_qs([
+        #             Q(**{'right_manage_admin_accesses_same_level': True}),
+        #             Q(**{'right_read_admin_accesses_same_level': True}),
+        #             Q(**{'right_manage_admin_accesses_inferior_levels': True}),
+        #             Q(**{'right_read_admin_accesses_inferior_levels': True}),
+        #         ])))
+        #     qs.append(
+        #         join_qs([
+        #             Q(**{'right_review_transfer_jupyter': True}),
+        #         ]) & ~Q(join_qs([
+        #             Q(**{'right_manage_review_transfer_jupyter': True}),
+        #         ])))
+        #     qs.append(
+        #         join_qs([
+        #             Q(**{'right_transfer_jupyter_nominative': True}),
+        #             Q(**{'right_transfer_jupyter_pseudo_anonymised': True}),
+        #         ]) & ~Q(join_qs([
+        #             Q(**{'right_manage_transfer_jupyter': True}),
+        #         ])))
+        #     qs.append(
+        #         join_qs([
+        #             Q(**{'right_review_export_csv': True}),
+        #         ]) & ~Q(join_qs([
+        #             Q(**{'right_manage_review_export_csv': True}),
+        #         ])))
+        #     qs.append(
+        #         join_qs([
+        #             Q(**{'right_export_csv_nominative': True}),
+        #             Q(**{'right_export_csv_pseudo_anonymised': True}),
+        #         ]) & ~Q(join_qs([
+        #             Q(**{'right_manage_export_csv': True}),
+        #         ])))
+        #
+        # if (self.right_read_admin_accesses_same_level
+        #         or self.right_read_admin_accesses_inferior_levels):
+        #     qs.append(join_qs([
+        #         join_qs([
+        #             Q(**{'right_read_patient_nominative': True}),
+        #             Q(**{'right_read_patient_pseudo_anonymised': True}),
+        #             Q(**{'right_search_patient_with_ipp': True}),
+        #         ]) & ~Q(join_qs([
+        #             Q(**{'right_manage_data_accesses_same_level': True}),
+        #             Q(**{'right_read_data_accesses_same_level': True}),
+        #             Q(**{'right_manage_data_accesses_inferior_levels': True}),
+        #             Q(**{'right_read_data_accesses_inferior_levels': True}),
+        #         ]), join_qs([
+        #             Q(**{'right_edit_roles': True}),
+        #             Q(**{'right_read_logs': True}),
+        #             Q(**{'right_add_users': True}),
+        #             Q(**{'right_edit_users': True}),
+        #             Q(**{'right_manage_review_transfer_jupyter': True}),
+        #             Q(**{'right_review_transfer_jupyter': True}),
+        #             Q(**{'right_manage_transfer_jupyter': True}),
+        #             Q(**{'right_transfer_jupyter_nominative': True}),
+        #             Q(**{'right_transfer_jupyter_pseudo_anonymised': True}),
+        #             Q(**{'right_manage_review_export_csv': True}),
+        #             Q(**{'right_review_export_csv': True}),
+        #             Q(**{'right_manage_export_csv': True}),
+        #             Q(**{'right_export_csv_nominative': True}),
+        #             Q(**{'right_export_csv_pseudo_anonymised': True}),
+        #             Q(**{'right_read_env_unix_users': True}),
+        #             Q(**{'right_manage_env_unix_users': True}),
+        #             Q(**{'right_manage_env_user_links': True}),
+        #         ]))
+        #     ]))
 
     @property
     def can_manage_other_accesses(self):
@@ -570,15 +835,17 @@ class Role(BaseModel):
                        "vers des environnements Jupyter")
 
         if self.right_manage_transfer_jupyter:
-            frs.append("Gérer les accès permettant de réaliser des demandes de "
-                       "transfert de données vers des environnements Jupyter")
+            frs.append(
+                "Gérer les accès permettant de réaliser des demandes de "
+                "transfert de données vers des environnements Jupyter")
 
         if self.right_transfer_jupyter_nominative:
             frs.append("Demander à transférer ses cohortes de patients "
                        "sous forme nominative vers un environnement Jupyter.")
         if self.right_transfer_jupyter_pseudo_anonymised:
-            frs.append("Demander à transférer ses cohortes de patients sous "
-                       "forme pseudonymisée vers un environnement Jupyter.")
+            frs.append(
+                "Demander à transférer ses cohortes de patients sous "
+                "forme pseudonymisée vers un environnement Jupyter.")
 
         # CSV EXPORT
         if self.right_manage_review_export_csv:
@@ -590,8 +857,9 @@ class Role(BaseModel):
                        "en format CSV")
 
         if self.right_manage_export_csv:
-            frs.append("Gérer les accès permettant de réaliser des demandes "
-                       "d'export de données en format CSV")
+            frs.append(
+                "Gérer les accès permettant de réaliser des demandes "
+                "d'export de données en format CSV")
 
         if self.right_export_csv_nominative:
             frs.append("Demander à exporter ses cohortes de patients"
@@ -602,20 +870,34 @@ class Role(BaseModel):
                        "forme pseudonymisée en format CSV.")
 
         if self.right_read_env_unix_users:
-            frs.append("Consulter les informations liées aux environnements "
-                       "de travail")
+            frs.append(
+                "Consulter les informations liées aux environnements "
+                "de travail")
 
         if self.right_manage_env_unix_users:
             frs.append("Gérer les environnements de travail")
 
         if self.right_manage_env_user_links:
-            frs.append("Gérer les accès des utilisateurs aux environnements "
-                       "de travail")
+            frs.append(
+                "Gérer les accès des utilisateurs aux environnements "
+                "de travail")
 
         return frs
 
-    class Meta:
-        managed = True
+    # @property
+    # def readable_right_set(self) -> ReadableRightSet:
+    #     if self._readable_right_set is None:
+    #         inf, same, all = [dict(), dict(), dict()]
+    #         if
+    #             self._readable_right_set = ReadableRightSet(
+    #                 on_inferior_levels=,
+    #                 on_same_level=,
+    #                 on_all_levels=,
+    #             )
+    #     return self._readable_right_set
+    #
+    # class Meta:
+    #     managed = True
 
 
 def get_specific_roles(role_type=int) \
@@ -662,16 +944,20 @@ def get_specific_roles(role_type=int) \
                     right_manage_data_accesses_inferior_levels=True)
                 | all_roles.filter(right_manage_review_export_csv=True)
                 | all_roles.filter(right_manage_export_csv=True)
-                | all_roles.filter(right_manage_review_transfer_jupyter=True)
+                | all_roles.filter(
+                    right_manage_review_transfer_jupyter=True)
                 | all_roles.filter(right_manage_transfer_jupyter=True)
                 ], \
                [r.id for r in
-                all_roles.filter(right_manage_admin_accesses_same_level=True)
+                all_roles.filter(
+                    right_manage_admin_accesses_same_level=True)
                 | all_roles.filter(right_edit_roles=True)
-                | all_roles.filter(right_manage_data_accesses_same_level=True)
+                | all_roles.filter(
+                    right_manage_data_accesses_same_level=True)
                 | all_roles.filter(right_manage_review_export_csv=True)
                 | all_roles.filter(right_manage_export_csv=True)
-                | all_roles.filter(right_manage_review_transfer_jupyter=True)
+                | all_roles.filter(
+                    right_manage_review_transfer_jupyter=True)
                 | all_roles.filter(right_manage_transfer_jupyter=True)
                 ]
     elif role_type == RoleType.MANAGING_CSV_EXPORT:
@@ -709,14 +995,17 @@ class Profile(BaseModel):
 
     is_active = models.BooleanField(blank=True, null=True)
     manual_is_active = models.BooleanField(blank=True, null=True)
-    valid_start_datetime: datetime = models.DateTimeField(blank=True, null=True)
+    valid_start_datetime: datetime = models.DateTimeField(blank=True,
+                                                          null=True)
     manual_valid_start_datetime: datetime = models.DateTimeField(
         blank=True, null=True)
-    valid_end_datetime: datetime = models.DateTimeField(blank=True, null=True)
+    valid_end_datetime: datetime = models.DateTimeField(blank=True,
+                                                        null=True)
     manual_valid_end_datetime: datetime = models.DateTimeField(
         blank=True, null=True)
 
-    user = models.ForeignKey(User, on_delete=CASCADE, related_name='profiles',
+    user = models.ForeignKey(User, on_delete=CASCADE,
+                             related_name='profiles',
                              null=True, blank=True)
 
     class Meta:
@@ -772,7 +1061,8 @@ class Profile(BaseModel):
         })
         q_start_lte_now = ((Q(**{fields['manual_valid_start']: None})
                             & Q(**{f"{fields['valid_start']}__lte": now}))
-                           | Q(**{f"{fields['manual_valid_start']}__lte": now}))
+                           | Q(
+                    **{f"{fields['manual_valid_start']}__lte": now}))
 
         q_actual_end_is_none = Q(**{
             fields['valid_end']: None,
@@ -819,7 +1109,8 @@ def get_all_readable_accesses_perimeters(
 
     perims_ids = (same_lvl_perims_ids
                   + list(get_all_level_children(perims_with_inf_perim_role,
-                                                strict=True, ids_only=True)))
+                                                strict=True,
+                                                ids_only=True)))
 
     return perims_ids
 
@@ -844,12 +1135,19 @@ class Perimeter(BaseModel):
     def type(self):
         return self.type_source_value
 
+    @property
+    def all_children_queryset(self):
+        return join_qs([Perimeter.objects.filter(
+            **{i * 'parent__' + 'id': self.id}
+        ) for i in range(1, len(PERIMETERS_TYPES))])
+
     class Meta:
         managed = True
 
 
 def get_all_level_parents_perimeters(
-        perimeter_ids: List[int], strict: bool = False, ids_only: bool = False
+        perimeter_ids: List[int], strict: bool = False,
+        ids_only: bool = False
 ) -> List[Perimeter]:
     q = join_qs([
         Perimeter.objects.filter(
@@ -892,8 +1190,8 @@ class Access(BaseModel):
 
     profile = models.ForeignKey(Profile, on_delete=CASCADE,
                                 related_name='accesses', null=True)
-    role = models.ForeignKey(Role, on_delete=CASCADE,
-                             related_name='accesses', null=True)
+    role: Role = models.ForeignKey(Role, on_delete=CASCADE,
+                                   related_name='accesses', null=True)
 
     @property
     def is_valid(self):
@@ -928,12 +1226,14 @@ class Access(BaseModel):
                             & Q(start_datetime__lte=now))
                            | Q(manual_start_datetime__lte=now))
 
-        q_actual_end_is_none = Q(end_datetime=None, manual_end_datetime=None)
+        q_actual_end_is_none = Q(end_datetime=None,
+                                 manual_end_datetime=None)
         q_end_gte_now = ((Q(manual_end_datetime=None)
                           & Q(end_datetime__gte=now))
                          | Q(manual_end_datetime__gte=now))
         return ((q_actual_start_is_none | q_start_lte_now)
                 & (q_actual_end_is_none | q_end_gte_now))
+
     # @property
     # def provider_history(self):
     #     return Profile.objects.get(
@@ -971,6 +1271,50 @@ class Access(BaseModel):
         return self.end_datetime if self.manual_end_datetime is None \
             else self.manual_end_datetime
 
+    @property
+    def include_accesses_to_read_Q(self) -> Q:
+        qs = []
+        if len(self.role.inf_level_read_rights):
+            qs.append(
+                join_qs([
+                    Q(**{'perimeter__' + i * 'parent__' + 'id': (
+                        self.perimeter_id
+                    )}) for i in range(1, len(PERIMETERS_TYPES))
+                ]) & join_qs([Q(**{f'role__{read_r}': True})
+                              for read_r in self.role.inf_level_read_rights])
+            )
+
+        if len(self.role.same_level_read_rights):
+            qs.append(
+                Q(perimeter_id=self.perimeter_id)
+                & join_qs([Q(**{f'role__{read_r}': True})
+                           for read_r in self.role.same_level_read_rights])
+            )
+
+        if len(self.role.any_level_read_rights):
+            qs.extend([Q(**{f'role__{read_r}': True})
+                       for read_r in self.role.any_level_read_rights])
+
+        return join_qs(qs) if len(qs) else ~Q()
+
+    @property
+    def accesses_criteria_to_exclude(self) -> List[Dict]:
+        res = self.role.unreadable_rights
+
+        for read_r in (self.role.inf_level_read_rights
+                       + self.role.same_level_read_rights):
+            d = {read_r: True}
+
+            if read_r in self.role.inf_level_read_rights:
+                d['perimeter_not_child'] = [self.perimeter_id]
+
+            if read_r in self.role.same_level_read_rights:
+                d['perimeter_not'] = [self.perimeter_id]
+
+            res.append(d)
+
+        return res
+
     class Meta:
         managed = True
 
@@ -993,7 +1337,8 @@ def can_roles_manage_access(
     @return:
     """
     # tested but not with just_read
-    has_main_admin_role = any([r.right_edit_roles for [_, r] in user_accesses])
+    has_main_admin_role = any(
+        [r.right_edit_roles for [_, r] in user_accesses])
 
     has_admin_managing_role = any(
         [
@@ -1116,11 +1461,11 @@ def get_all_user_accesses_with_roles_on_perimeter(
 
 def get_user_valid_manual_accesses_queryset(u: User) -> QuerySet:
     return Access.objects.filter(
-            Profile.Q_is_valid(field_prefix="profile__")
-            & Q(profile__source=MANUAL_SOURCE)
-            & Access.Q_is_valid()
-            & Q(profile__user=u)
-        )
+        Profile.Q_is_valid(field_prefix="profile__")
+        & Q(profile__source=MANUAL_SOURCE)
+        & Access.Q_is_valid()
+        & Q(profile__user=u)
+    )
 
 
 def get_user_data_accesses_queryset(u: User) -> QuerySet:

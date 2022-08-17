@@ -1,3 +1,4 @@
+from functools import reduce
 from typing import List, Tuple, Dict
 
 import django_filters
@@ -18,28 +19,19 @@ from rest_framework.status import HTTP_403_FORBIDDEN
 import urllib
 
 from .perimeters_API import ApiPerimeter
-from .models import Role, Access, Profile, RoleType, \
-    get_assignable_roles_on_perimeter, MANUAL_SOURCE, DataRight, \
-    get_all_readable_accesses_perimeters, \
-    Q_readable_with_admin_mng, Q_readable_with_data_admin,\
-    Q_readable_with_role_admin_access, get_user_data_accesses_queryset, \
-    Q_readable_with_review_jup_mng_access, Q_readable_with_jupyter_mng_access, \
-    Q_readable_with_csv_mng_access, Q_role_on_lower_levels, Perimeter, \
-    get_all_level_parents_perimeters, Q_readable_with_review_csv_mng_access, \
+from .models import Role, Access, Profile, get_assignable_roles_on_perimeter,\
+    MANUAL_SOURCE, DataRight, get_user_data_accesses_queryset, \
+    Q_role_on_lower_levels, Perimeter, get_all_level_parents_perimeters,\
     get_user_valid_manual_accesses_queryset
 from .permissions import RolePermissions, AccessPermissions, \
-    can_user_manage_review_transfer_jupyter_accesses, \
-    can_user_manage_transfer_jupyter_accesses, \
-    can_user_manage_review_export_csv_accesses, \
-    can_user_manage_export_csv_accesses, ProfilePermissions, \
-    HasUserAddingPermission
+    ProfilePermissions, HasUserAddingPermission
 from .serializers import RoleSerializer, AccessSerializer, \
     ProfileSerializer, ReducedProfileSerializer, \
     ProfileCheckSerializer, DataRightSerializer, PerimeterSerializer, \
     TreefiedPerimeterSerializer
 from admin_cohort import conf_auth
-from admin_cohort.permissions import IsAuthenticated, can_user_edit_roles, \
-    IsAuthenticatedReadOnly, OR, can_user_read_users
+from admin_cohort.permissions import IsAuthenticated, IsAuthenticatedReadOnly,\
+    OR, can_user_read_users
 from admin_cohort.settings import PERIMETERS_TYPES
 from admin_cohort.tools import join_qs
 from admin_cohort.views import BaseViewset, CustomLoggingMixin, \
@@ -93,13 +85,14 @@ class ProfileViewSet(CustomLoggingMixin, BaseViewset):
         return {'request': self.request}
 
     def get_serializer_class(self):
-        return (ReducedProfileSerializer
-                if self.request.method == 'GET'
-                and not can_user_read_users(self.request.user)
-                else ProfileSerializer)
+        return (
+            ReducedProfileSerializer
+            if (self.request.method == 'GET'
+                and not can_user_read_users(self.request.user))
+            else ProfileSerializer)
 
     def get_list_queryset(self):
-        return super(ProfileViewSet, self).get_list_queryset()\
+        return super(ProfileViewSet, self).get_list_queryset() \
             .select_related('user')
 
     @swagger_auto_schema(
@@ -147,7 +140,7 @@ class ProfileViewSet(CustomLoggingMixin, BaseViewset):
             "is_active": openapi.Schema(type=openapi.TYPE_BOOLEAN),
         }))
     def partial_update(self, request, *args, **kwargs):
-        return super(ProfileViewSet, self)\
+        return super(ProfileViewSet, self) \
             .partial_update(request, *args, **kwargs)
 
     @swagger_auto_schema(auto_schema=None)
@@ -215,8 +208,8 @@ class ProfileViewSet(CustomLoggingMixin, BaseViewset):
                 "lastname": person.lastname,
                 "user_id": person.user_id,
                 "email": person.email,
-                "provider":  u_data,
-                "user":  u_data,
+                "provider": u_data,
+                "user": u_data,
                 "manual_profile": manual_profile
             }).data
             return Response(
@@ -463,7 +456,7 @@ def build_data_rights(
 
     data_accesses = get_access_data_rights(user)
 
-    expected_perims = Perimeter.objects.filter(id__in=expected_perim_ids)\
+    expected_perims = Perimeter.objects.filter(id__in=expected_perim_ids) \
         .select_related(*["parent" + i * "__parent"
                           for i in range(0, len(PERIMETERS_TYPES) - 2)])
 
@@ -578,72 +571,64 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
     def get_queryset(self) -> Tuple[any, Dict[str, ApiPerimeter]]:
         q = super(AccessViewSet, self).get_queryset()
 
-        user = self.request.user
-        accesses = self.request.user.valid_accesses
+        accesses = self.request.user.valid_manual_accesses_queryset \
+            .select_related("role")
 
-        admin_perimeters_ids = get_all_readable_accesses_perimeters(
-            accesses=accesses,
-            role_type=RoleType.ADMIN_MANAGER_READ,
-        )
-        data_perimeters_ids = get_all_readable_accesses_perimeters(
-            accesses=accesses,
-            role_type=RoleType.ADMIN_READ,
-        )
+        def get_all_perims(perim, include_self=False):
+            return sum([get_all_perims(c, True) for c in perim.pref_children]) \
+                   + ([perim] if include_self else [])
 
-        is_main_admin = can_user_edit_roles(user=user)
+        # include_phase
+        q = q.filter(join_qs([a.include_accesses_to_read_Q for a in accesses]))
 
-        can_read_review_transfer_jupyter_accesses = \
-            can_user_manage_review_transfer_jupyter_accesses(user=user)
-        can_read_transfer_jupyter_accesses = \
-            can_user_manage_transfer_jupyter_accesses(user=user)
-        can_read_review_export_csv_accesses = \
-            can_user_manage_review_export_csv_accesses(user=user)
-        can_read_export_csv_accesses = can_user_manage_export_csv_accesses(
-            user=user
-        )
+        # exclude_phase
+        def intersec_criteria(cs_a: List[Dict], cs_b: List[Dict]) -> List[Dict]:
+            res = []
+            for c_a in cs_a:
+                if c_a in cs_b:
+                    res.append(c_a)
+                else:
+                    add = False
+                    for c_b in cs_b:
+                        none_perimeter_criteria = [
+                            k for (k, v) in c_a.items()
+                            if v and 'perimeter' not in k]
+                        if all(c_b.get(r) for r in none_perimeter_criteria):
+                            add = True
+                            perimeter_not = c_b.get('perimeter_not', [])
+                            perimeter_not.extend(c_a.get('perimeter_not', []))
+                            perimeter_not_child = c_b.get('perimeter_not_child',
+                                                          [])
+                            perimeter_not_child.extend(
+                                c_a.get('perimeter_not_child', []))
+                            if len(perimeter_not):
+                                c_b['perimeter_not'] = perimeter_not
+                            if len(perimeter_not_child):
+                                c_b['perimeter_not_child'] = perimeter_not_child
+                            c_a.update(c_b)
+                    if add:
+                        res.append(c_a)
+            return res
 
-        if not any([
-            is_main_admin, len(admin_perimeters_ids), len(data_perimeters_ids),
-            can_read_review_transfer_jupyter_accesses,
-            can_read_transfer_jupyter_accesses,
-            can_read_review_export_csv_accesses,
-            can_read_export_csv_accesses,
-        ]):
-            raise PermissionDenied(
-                "Aucun droit de lecture sur accès trouvé"
-            )
+        to_exclude = [a.accesses_criteria_to_exclude for a in accesses]
+        if len(to_exclude):
+            to_exclude = reduce(intersec_criteria, to_exclude, to_exclude.pop())
 
-        role_type_qs = []
-        if len(admin_perimeters_ids):
-            role_type_qs.append(
-                Q(perimeter_id__in=admin_perimeters_ids)
-                & Q_readable_with_admin_mng('role'))
+            qs = []
+            for cs in to_exclude:
+                exc_q = Q(**dict((f'role__{r}', v)
+                                 for (r, v) in cs.items()
+                                 if 'perimeter' not in r))
+                if 'perimeter_not' in cs:
+                    exc_q = exc_q & ~Q(perimeter_id__in=cs['perimeter_not'])
+                if 'perimeter_not_child' in cs:
+                    exc_q = exc_q & ~join_qs([Q(
+                        **{'perimeter__' + i * 'parent__' + 'id__in': (
+                            cs['perimeter_not_child'])})
+                        for i in range(1, len(PERIMETERS_TYPES))])
 
-        if len(data_perimeters_ids):
-            role_type_qs.append(
-                Q(perimeter_id__in=data_perimeters_ids)
-                & Q_readable_with_data_admin('role'))
-
-        if is_main_admin:
-            role_type_qs.append(Q_readable_with_role_admin_access('role'))
-
-        if can_read_review_transfer_jupyter_accesses:
-            role_type_qs.append(Q_readable_with_review_jup_mng_access('role'))
-
-        if can_read_transfer_jupyter_accesses:
-            role_type_qs.append(Q_readable_with_jupyter_mng_access('role'))
-
-        if can_read_review_export_csv_accesses:
-            role_type_qs.append(Q_readable_with_review_csv_mng_access('role'))
-
-        if can_read_export_csv_accesses:
-            role_type_qs.append(Q_readable_with_csv_mng_access('role'))
-
-        if len(role_type_qs):
-            q = q.filter(join_qs(role_type_qs))
-
-        q = q.select_related('profile', 'role')
-
+                qs.append(exc_q)
+            q = q.exclude(join_qs(qs)) if len(qs) else q
         return q
 
     def filter_queryset(self, queryset):
@@ -883,7 +868,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
                     "If True, keeps only the biggest parents for each right",
                     openapi.TYPE_BOOLEAN
                 ]
-                ])],
+            ])],
         responses={200: openapi.Response('Rights found', DataRightSerializer),
                    403: openapi.Response('perimeters_ids and '
                                          'pop_children are both null')}
@@ -959,7 +944,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, BaseViewset):
         return Perimeter.objects.all()
 
     def get_permissions(self):
-        return OR(IsAuthenticatedReadOnly(),)
+        return OR(IsAuthenticatedReadOnly(), )
 
     @swagger_auto_schema(
         method='get',
@@ -986,15 +971,15 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, BaseViewset):
     )
     @action(detail=False, methods=['get'], url_path="manageable")
     def get_manageable(self, request, *args, **kwargs):
-        from accesses.models import RoleType,  \
+        from accesses.models import RoleType, \
             get_all_readable_accesses_perimeters
         user_accesses = get_user_valid_manual_accesses_queryset(
             self.request.user)
 
         perim_ids = get_all_readable_accesses_perimeters(
-                user_accesses,
-                role_type=RoleType.MANAGING_ACCESS
-            )
+            user_accesses,
+            role_type=RoleType.MANAGING_ACCESS
+        )
 
         max_levels = len(PERIMETERS_TYPES)
         nb_levels = int(request.GET.get('nb_levels', max_levels))
@@ -1056,7 +1041,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, BaseViewset):
                     "If true, returns a tree-organised json, else, "
                     "returns a list", openapi.TYPE_BOOLEAN
                 ],
-                ])))
+            ])))
     def list(self, request, *args, **kwargs):
         q = self.filter_queryset(self.get_queryset())
 

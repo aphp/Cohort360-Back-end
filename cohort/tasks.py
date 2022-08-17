@@ -108,6 +108,7 @@ def get_count_task(auth_headers: dict, json_file: str, dm_uuid: str):
         return
 
     dm.count_task_id = current_task.request.id
+    dm.count_task_id = -1
     dm.save()
 
     global_estimate = dm.mode == GLOBAL_DM_MODE
