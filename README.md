@@ -50,8 +50,7 @@ Here is a list of major frameworks used here.
 
 ### Prerequisites
 
-This is an example of how to list things you need to use the software and how to install them.
-* python
+* Python
   ```sh
   sudo apt-get update
   sudo apt-get install python3.8
@@ -60,7 +59,7 @@ This is an example of how to list things you need to use the software and how to
   ```sh
   sudo apt-get install postgresql postgresql-contrib
   ```
-* Some dependencies 
+* Kerberos authentication development library
   ```sh
   sudo apt-get install -y libkrb5-dev gcc
   ```

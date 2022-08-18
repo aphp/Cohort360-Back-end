@@ -12,7 +12,6 @@ from safedelete import SOFT_DELETE_CASCADE
 from safedelete.models import SafeDeleteModel
 
 from admin_cohort import conf_auth
-from admin_cohort.example_conf_auth import UserInfo
 
 
 class StrEnum(str, Enum):
@@ -146,7 +145,7 @@ class User(AbstractBaseUser, BaseModel):
         db_table = 'user'
 
 
-def get_or_create_user_with_info(user_info: UserInfo) -> User:
+def get_or_create_user_with_info(user_info: conf_auth.UserInfo) -> User:
     try:
         u: User = User.objects.get(provider_username=user_info.username)
         if not u.email or not u.firstname or not u.lastname:

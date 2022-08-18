@@ -21,7 +21,6 @@ from workspaces.permissions import AccountPermissions
 from workspaces.views import AccountViewset
 from exports import conf_exports
 from exports.emails import check_email_address
-from exports.example_conf_exports import HdfsServerUnreachableError
 from exports.models import ExportRequest, ExportType, NEW_STATUS, \
     VALIDATED_STATUS, DENIED_STATUS
 from exports.permissions import ExportRequestPermissions, \
@@ -330,7 +329,7 @@ class ExportRequestViewset(CustomLoggingMixin, viewsets.ModelViewSet):
             return response
         except HdfsError as e:
             return HttpResponse(e, status=http.HTTPStatus.INTERNAL_SERVER_ERROR)
-        except HdfsServerUnreachableError:
+        except conf_exports.HdfsServerUnreachableError:
             return HttpResponse(
                 "Hdfs servers are unreachable or in stand-by",
                 status=http.HTTPStatus.INTERNAL_SERVER_ERROR
