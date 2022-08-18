@@ -1,15 +1,10 @@
 from django.db import models
 from django.db.models import CASCADE, SET_NULL
 
-from admin_cohort.models import StrEnum, User, BaseModel, JobModelWithReview
+from admin_cohort.models import User, BaseModel, JobModelWithReview
 from cohort.models import CohortResult
+from exports.types import ExportType
 from workspaces.models import Account
-
-
-class ExportType(StrEnum):
-    CSV: str = "csv"
-    HIVE: str = "hive"
-    PSQL: str = "psql"
 
 
 OUTPUT_FORMATS = [

@@ -2,6 +2,8 @@ from typing import Optional, Union
 
 from rest_framework.request import Request
 
+from admin_cohort.types import UserInfo
+
 
 class LoginError(Exception):
     pass
@@ -36,15 +38,6 @@ class JwtTokens:
 
 def check_ids(username: str, password: str) -> JwtTokens:
     raise NotImplementedError
-
-
-class UserInfo:
-    def __init__(self, username: str, email: str,
-                 firstname: str, lastname: str, **kwargs):
-        self.username = username
-        self.email = email
-        self.firstname = firstname
-        self.lastname = lastname
 
 
 def get_user_info(jwt_access_token) -> UserInfo:

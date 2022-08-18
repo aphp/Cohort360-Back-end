@@ -70,10 +70,6 @@ def get_cohort_perimeters(cohort_id: int, token: str) -> List[str]:
 
 # FILES EXTRACT ###############################################################
 
-class HdfsServerUnreachableError(Exception):
-    pass
-
-
 def stream_gen(file_name: str):
     raise NotImplementedError()
     # with get_client().read() as f:

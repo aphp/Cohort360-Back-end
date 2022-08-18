@@ -12,16 +12,8 @@ from safedelete import SOFT_DELETE_CASCADE
 from safedelete.models import SafeDeleteModel
 
 from admin_cohort import conf_auth
-
-
-class StrEnum(str, Enum):
-    def __str__(self):
-        return self.value
-
-    @classmethod
-    def list(cls, exclude: List[str] = None):
-        exclude = exclude or [""]
-        return [c.value for c in cls if c.value not in exclude]
+from admin_cohort.types import UserInfo
+from exports.types import JobStatus, NewJobStatus
 
 
 class UndeletableModelManager(models.Manager):
@@ -65,29 +57,6 @@ class CohortBaseModel(SafeDeleteModel):
 
     class Meta:
         abstract = True
-
-
-class NewJobStatus(StrEnum):
-    new = "new"
-    denied = "denied"
-    validated = "validated"
-    pending = "pending"
-    started = "started"
-    failed = "failed"
-    cancelled = "cancelled"
-    finished = "finished"
-    cleaned = "cleaned"
-    unknown = "unknown"
-
-
-class JobStatus(StrEnum):
-    KILLED = "killed"
-    FINISHED = "finished"
-    RUNNING = "running"
-    STARTED = "started"
-    ERROR = "error"
-    UNKNOWN = "unknown"
-    PENDING = "pending"
 
 
 class UserManager(BaseUserManager):
@@ -145,7 +114,7 @@ class User(AbstractBaseUser, BaseModel):
         db_table = 'user'
 
 
-def get_or_create_user_with_info(user_info: conf_auth.UserInfo) -> User:
+def get_or_create_user_with_info(user_info: UserInfo) -> User:
     try:
         u: User = User.objects.get(provider_username=user_info.username)
         if not u.email or not u.firstname or not u.lastname:
