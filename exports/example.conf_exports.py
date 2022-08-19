@@ -1,21 +1,10 @@
 from typing import List
 
-from admin_cohort.models import NewJobStatus
 from exports.models import ExportRequest
 
 
 # EXPORTS JOBS ################################################################
-
-class ApiJobResponse:
-    def __init__(self, status: NewJobStatus, output: str = "", err: str = ""):
-        self.status: NewJobStatus = status
-        self.output: str = output
-        self.err: str = err
-
-    @property
-    def has_ended(self):
-        return self.status in [NewJobStatus.failed, NewJobStatus.cancelled,
-                               NewJobStatus.finished, NewJobStatus.unknown]
+from exports.types import ApiJobResponse
 
 
 def get_job_status(er: ExportRequest) -> ApiJobResponse:
@@ -69,10 +58,6 @@ def get_cohort_perimeters(cohort_id: int, token: str) -> List[str]:
 
 
 # FILES EXTRACT ###############################################################
-
-class HdfsServerUnreachableError(Exception):
-    pass
-
 
 def stream_gen(file_name: str):
     raise NotImplementedError()

@@ -59,6 +59,40 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 ADMINS = [a.split(',') for a in env("ADMINS").split(';')]
 
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': "{levelname} {asctime} module={module} "
+                      "pid={process:d} tid={thread:d} msg=`{message}`",
+            'style': "{",
+        }
+    },
+    'handlers': {
+        'console': {
+            'level': "INFO",
+            'class': "logging.StreamHandler",
+            'formatter': "verbose"
+        },
+        'mail_admins': {
+            'level': "ERROR",
+            'class': "django.utils.log.AdminEmailHandler",
+        }
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'propagate': True,
+        },
+        'django.request': {
+            'handlers': ['console', 'mail_admins'],
+            'level': "ERROR",
+            'propagate': False,
+        }
+    }
+}
+
 # Application definition
 INCLUDED_APPS = env('INCLUDED_APPS').split(",")
 INSTALLED_APPS = [
@@ -193,7 +227,7 @@ SWAGGER_SETTINGS = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework.authentication.TokenAuthentication',
     ),
-    'DEFAULT_AUTO_SCHEMA_CLASS': "admin_cohort.tools.CustomAutoSchema",
+    'DEFAULT_AUTO_SCHEMA_CLASS': "admin_cohort.views.CustomAutoSchema",
 }
 
 REST_FRAMEWORK_EXTENSIONS = {
