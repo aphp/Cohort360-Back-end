@@ -1,4 +1,4 @@
-from enum import StrEnum
+from admin_cohort.tools import StrEnum
 
 
 class UserInfo:

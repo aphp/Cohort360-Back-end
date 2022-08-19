@@ -226,7 +226,7 @@ SWAGGER_SETTINGS = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework.authentication.TokenAuthentication',
     ),
-    'DEFAULT_AUTO_SCHEMA_CLASS': "admin_cohort.tools.CustomAutoSchema",
+    'DEFAULT_AUTO_SCHEMA_CLASS': "admin_cohort.tools_drf.CustomAutoSchema",
 }
 
 REST_FRAMEWORK_EXTENSIONS = {

@@ -2,14 +2,11 @@ import json
 
 from django.http import StreamingHttpResponse, FileResponse
 from django.utils.deprecation import MiddlewareMixin
-
-
-from admin_cohort.models import get_or_create_user_with_info
 from rest_framework.authentication import BaseAuthentication
 
 from admin_cohort import conf_auth
+from admin_cohort.models import get_or_create_user_with_info, get_or_create_user
 from admin_cohort.settings import JWT_SESSION_COOKIE, JWT_REFRESH_COOKIE
-from admin_cohort.models import get_or_create_user
 
 
 class CustomAuthentication(BaseAuthentication):

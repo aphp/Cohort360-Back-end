@@ -1,4 +1,3 @@
-from enum import Enum
 from typing import List, Union
 from uuid import uuid4
 
@@ -12,8 +11,7 @@ from safedelete import SOFT_DELETE_CASCADE
 from safedelete.models import SafeDeleteModel
 
 from admin_cohort import conf_auth
-from admin_cohort.types import UserInfo
-from exports.types import JobStatus, NewJobStatus
+from admin_cohort.types import UserInfo, JobStatus, NewJobStatus
 
 
 class UndeletableModelManager(models.Manager):
