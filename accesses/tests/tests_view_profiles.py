@@ -12,12 +12,12 @@ from rest_framework.test import force_authenticate
 from accesses.models import Access, Profile, \
     MANUAL_SOURCE, Role
 from accesses.views import ProfileViewSet
-from admin_cohort.example_conf_auth import IdResp
 from admin_cohort.models import User
 from admin_cohort.tests_tools import random_str, \
     new_user_and_profile, CaseRetrieveFilter, ViewSetTestsWithBasicPerims, \
     ListCase, CreateCase, DeleteCase, PatchCase, RequestCase
 from admin_cohort.tools import prettify_json, prettify_dict
+from admin_cohort.types import IdResp
 
 PROFILES_URL = "/profiles"
 

@@ -2,38 +2,11 @@ from typing import Optional, Union
 
 from rest_framework.request import Request
 
-from admin_cohort.types import UserInfo
-
-
-class LoginError(Exception):
-    pass
-
-
-class ServerError(Exception):
-    pass
-
-
-class IdResp:
-    def __init__(self, firstname, lastname, user_id, email, **kwargs):
-        self.firstname = firstname
-        self.lastname = lastname
-        self.user_id = user_id
-        self.email = email
-
-        for k, v in kwargs.items():
-            setattr(self, k, v)
+from admin_cohort.types import UserInfo, IdResp, JwtTokens
 
 
 def check_id_aph(id_aph: str) -> Optional[IdResp]:
     raise NotImplementedError
-
-
-class JwtTokens:
-    def __init__(self, access: str, refresh: str, last_connection: dict = None,
-                 **kwargs):
-        self.access = access
-        self.refresh = refresh
-        self.last_connection = last_connection if last_connection else {}
 
 
 def check_ids(username: str, password: str) -> JwtTokens:

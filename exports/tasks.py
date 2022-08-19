@@ -8,7 +8,8 @@ from admin_cohort.celery import app
 from admin_cohort.settings import EXPORT_CSV_PATH
 from exports import conf_exports
 from exports.emails import email_info_request_done, email_info_request_deleted
-from exports.types import NewJobStatus, HdfsServerUnreachableError, ApiJobResponse
+from exports.types import NewJobStatus, HdfsServerUnreachableError,\
+    ApiJobResponse
 from exports.models import ExportRequest, SUCCESS_STATUS, FAILED_STATUS, \
     DENIED_STATUS, ExportType
 

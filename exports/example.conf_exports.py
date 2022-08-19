@@ -1,6 +1,5 @@
 from typing import List
 
-from admin_cohort.models import NewJobStatus
 from exports.models import ExportRequest
 
 

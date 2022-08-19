@@ -64,19 +64,20 @@ LOGGING = {
     'disable_existing_loggers': False,
     'formatters': {
         'verbose': {
-            'format': '{levelname} {asctime} module={module} pid={process:d} tid={thread:d} msg=`{message}`',
-            'style': '{',
+            'format': "{levelname} {asctime} module={module} "
+                      "pid={process:d} tid={thread:d} msg=`{message}`",
+            'style': "{",
         }
     },
     'handlers': {
         'console': {
-            'level': 'INFO',
-            'class': 'logging.StreamHandler',
-            'formatter': 'verbose'
+            'level': "INFO",
+            'class': "logging.StreamHandler",
+            'formatter': "verbose"
         },
         'mail_admins': {
-            'level': 'ERROR',
-            'class': 'django.utils.log.AdminEmailHandler',
+            'level': "ERROR",
+            'class': "django.utils.log.AdminEmailHandler",
         }
     },
     'loggers': {
@@ -86,7 +87,7 @@ LOGGING = {
         },
         'django.request': {
             'handlers': ['console', 'mail_admins'],
-            'level': 'ERROR',
+            'level': "ERROR",
             'propagate': False,
         }
     }
@@ -226,7 +227,7 @@ SWAGGER_SETTINGS = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework.authentication.TokenAuthentication',
     ),
-    'DEFAULT_AUTO_SCHEMA_CLASS': "admin_cohort.tools_drf.CustomAutoSchema",
+    'DEFAULT_AUTO_SCHEMA_CLASS': "admin_cohort.views.CustomAutoSchema",
 }
 
 REST_FRAMEWORK_EXTENSIONS = {

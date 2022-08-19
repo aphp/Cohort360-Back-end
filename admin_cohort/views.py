@@ -12,6 +12,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.debug import sensitive_post_parameters
 from drf_yasg import openapi
+from drf_yasg.inspectors import SwaggerAutoSchema
 from rest_framework.decorators import action
 
 from drf_yasg.utils import swagger_auto_schema
@@ -30,6 +31,17 @@ from .permissions import LogsPermission, IsAuthenticatedReadOnly, \
 from .serializers import APIRequestLogSerializer, \
     UserSerializer, OpenUserSerializer, MaintenancePhaseSerializer
 from .settings import MANUAL_SOURCE
+
+
+# seen on https://stackoverflow.com/a/64440802
+class CustomAutoSchema(SwaggerAutoSchema):
+    def get_tags(self, operation_keys=None):
+        tags = self.overrides.get('tags', None) \
+               or getattr(self.view, 'swagger_tags', [])
+        if not tags:
+            tags = [operation_keys[0]]
+
+        return tags
 
 
 class YarnReadOnlyViewsetMixin:
