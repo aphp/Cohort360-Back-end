@@ -5,17 +5,7 @@ from exports.models import ExportRequest
 
 
 # EXPORTS JOBS ################################################################
-
-class ApiJobResponse:
-    def __init__(self, status: NewJobStatus, output: str = "", err: str = ""):
-        self.status: NewJobStatus = status
-        self.output: str = output
-        self.err: str = err
-
-    @property
-    def has_ended(self):
-        return self.status in [NewJobStatus.failed, NewJobStatus.cancelled,
-                               NewJobStatus.finished, NewJobStatus.unknown]
+from exports.types import ApiJobResponse
 
 
 def get_job_status(er: ExportRequest) -> ApiJobResponse:

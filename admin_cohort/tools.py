@@ -1,4 +1,5 @@
 import json
+from enum import Enum
 from functools import reduce
 from operator import or_
 from typing import List, Union
@@ -49,3 +50,13 @@ def exclude_qs(qs: List[Q]) -> Q:
     @return:
     """
     return Q(*[~q for q in qs])
+
+
+class StrEnum(str, Enum):
+    def __str__(self):
+        return self.value
+
+    @classmethod
+    def list(cls, exclude: List[str] = None):
+        exclude = exclude or [""]
+        return [c.value for c in cls if c.value not in exclude]
