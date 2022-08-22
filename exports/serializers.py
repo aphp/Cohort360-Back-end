@@ -188,8 +188,6 @@ class ExportRequestSerializer(serializers.ModelSerializer):
         else:
             self.validate_csv(validated_data)
 
-        self.validate_owner_rights(validated_data)
-
         tables = validated_data.pop("tables", [])
         req = super(ExportRequestSerializer, self).create(validated_data)
 
@@ -211,16 +209,17 @@ class ExportRequestSerializer(serializers.ModelSerializer):
                                   "fournir target_unix_account")
 
         owner = validated_data.get('owner')
-        if not conf_workspaces.is_user_bound_to_unix_account(
-                owner, target_unix_account.aphp_ldap_group_dn):
-            raise ValidationError(
-                f"Le compte Unix destinataire ({target_unix_account.pk}) "
-                f"n'est pas lié à l'utilisateur voulu "
-                f"({owner.pk})")
-
         if creator_is_reviewer:
             validated_data['status'] = VALIDATED_STATUS
             validated_data['reviewer_fk'] = self.context.get('request').user
+        else:
+            if not conf_workspaces.is_user_bound_to_unix_account(
+                    owner, target_unix_account.aphp_ldap_group_dn):
+                raise ValidationError(
+                    f"Le compte Unix destinataire ({target_unix_account.pk}) "
+                    f"n'est pas lié à l'utilisateur voulu "
+                    f"({owner.pk})")
+            self.validate_owner_rights(validated_data)
 
     def validate_csv(self, validated_data):
         validated_data["status"] = VALIDATED_STATUS
@@ -237,6 +236,8 @@ class ExportRequestSerializer(serializers.ModelSerializer):
                 "Actuellement, la demande d'export CSV en pseudo-anonymisée "
                 "n'est pas possible."
             )
+
+        self.validate_owner_rights(validated_data)
 
     def update(self, instance, validated_data):
         raise ValidationError("Update is not authorized. "

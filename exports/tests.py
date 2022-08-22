@@ -991,7 +991,24 @@ class ExportsJupCreateTests(ExportsCreateTests):
             data={**self.basic_data,
                   'cohort_fk': self.user1_cohort.pk,
                   'owner': self.user2.pk},
+            mock_perim_called=False,
+            mock_user_bound_called=False,
             user=self.user_jup_reviewer,
+        ))
+
+    def test_create_jup_no_owner_with_rev_access(self):
+        # As a user with right to review jupyter exports,
+        # I can create an export request with a cohort from another user
+        # without providing owner (will be me by default)
+        self.check_create_case(self.basic_case.clone(
+            data={**self.basic_data,
+                  'cohort_fk': self.user2_cohort.pk},
+            mock_user_bound_resp=False,
+            mock_perim_called=False,
+            mock_user_bound_called=False,
+            user=self.user_jup_reviewer,
+            created=True,
+            status=status.HTTP_201_CREATED,
         ))
 
     def test_error_create_jup_not_owned_cohort_without_rev_access(self):
@@ -1006,20 +1023,6 @@ class ExportsJupCreateTests(ExportsCreateTests):
         # As a user, I cannot create an export request for another owner
         self.check_create_case(self.err_basic_case.clone(
             data={**self.basic_data, 'owner': self.user2.pk},
-            created=False,
-            status=status.HTTP_400_BAD_REQUEST,
-        ))
-
-    def test_error_create_jup_wrong_owner_with_rev_access(self):
-        # Even as a reviewer, I cannot create an export request
-        # if the owner is not bound to the unix account provided
-        self.check_create_case(self.err_basic_case.clone(
-            data={**self.basic_data,
-                  'cohort_fk': self.user2_cohort.pk,
-                  'owner': self.user2.pk},
-            mock_user_bound_resp=False,
-            mock_user_bound_called=True,
-            user=self.user_jup_reviewer,
             created=False,
             status=status.HTTP_400_BAD_REQUEST,
         ))
