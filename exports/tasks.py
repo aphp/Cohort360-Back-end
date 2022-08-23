@@ -91,7 +91,7 @@ def launch_request(er_id: int):
     @return: None
     """
     try:
-        er: ExportRequest = ExportRequest.objects.get(er_id)
+        er: ExportRequest = ExportRequest.objects.get(pk=er_id)
     except Exception as e:
         log_export_request_task(
             er_id,
