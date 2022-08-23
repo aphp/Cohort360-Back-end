@@ -10,6 +10,7 @@ from rest_framework.exceptions import ValidationError
 from admin_cohort.models import User
 from admin_cohort.settings import EMAIL_BACK_HOST_URL, EMAIL_SENDER_ADDRESS, \
     EMAIL_SUPPORT_CONTACT, EXPORT_DAYS_BEFORE_DELETE, EMAIL_REGEX_CHECK
+from admin_cohort.types import NewJobStatus
 from exports.models import ExportRequest, SUCCESS_STATUS, FAILED_STATUS, \
     ExportType
 
@@ -166,9 +167,12 @@ def email_info_request_done(req: ExportRequest):
     """
     check_email_address(req.owner)
 
-    if req.status == SUCCESS_STATUS:
+    if req.status == SUCCESS_STATUS \
+            or req.new_request_job_status == NewJobStatus.finished:
         send_success_email(req, req.owner.email)
-    elif req.status == FAILED_STATUS:
+    elif req.status == FAILED_STATUS \
+            or req.new_request_job_status in [NewJobStatus.failed,
+                                              NewJobStatus.cancelled]:
         send_failed_email(req, req.owner.email)
 
 

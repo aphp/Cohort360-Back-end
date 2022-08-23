@@ -65,7 +65,7 @@ def wait_for_job(er: ExportRequest):
             log_export_request_task(
                 er.id,
                 f"Status received: {status_resp.status} - "
-                f"Err: {status_resp.err}")
+                + (f"Err: {status_resp.err}" if status_resp.err else ""))
             if er.new_request_job_status != status_resp.status:
                 er.new_request_job_status = status_resp.status
                 er.save()
