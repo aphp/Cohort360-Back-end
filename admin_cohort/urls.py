@@ -1,6 +1,8 @@
 from django.conf.urls import url
 from django.urls import include, path
 from drf_yasg import openapi
+from rest_framework_extensions.routers import NestedRouterMixin
+
 from . import __version__, __title__
 
 from rest_framework import routers, permissions
@@ -8,15 +10,32 @@ from rest_framework_swagger.views import get_swagger_view
 from drf_yasg.views import get_schema_view
 
 from accesses.views import RoleViewSet, AccessViewSet, PerimeterViewSet, \
-    ProfileViewSet
+    ProfileViewSet, NestedPerimeterViewSet
 from .views import UserViewSet, LoggingViewset, maintenance_view, \
     MaintenancePhaseViewSet
 
-router = routers.DefaultRouter()
+# router = routers.DefaultRouter()
+
+
+class NestedDefaultRouter(NestedRouterMixin, routers.DefaultRouter):
+    pass
+
+
+router = NestedDefaultRouter()
+
 router.register(r'accesses', AccessViewSet, basename="accesses")
 router.register(r'maintenances',
                 MaintenancePhaseViewSet, basename="maintenances")
-router.register(r'perimeters', PerimeterViewSet, basename="perimeters")
+
+p_router = router.register(
+    r'perimeters', PerimeterViewSet, basename="perimeters")
+p_router.register(
+    'children',
+    NestedPerimeterViewSet,
+    basename="perimeter-children",
+    parents_query_lookups=["parent"],
+)
+
 router.register(r'users', UserViewSet, basename="users")
 router.register(r'roles', RoleViewSet, basename="roles")
 router.register(r'profiles', ProfileViewSet, basename="profiles")

@@ -4,9 +4,9 @@ from typing import List
 
 from rest_framework import status
 
-from accesses.models import Access, Role, role_any_mng_rights
+from accesses.models import Access, Role
 from accesses.tests.tests_view_accesses import RightGroupForManage, \
-    RIGHT_GROUPS, AccessListCase
+    RIGHT_GROUPS, AccessListCase, any_manager_rights
 from accesses.views import RoleViewSet
 from admin_cohort.tests_tools import random_str, new_user_and_profile, \
     CaseRetrieveFilter, ViewSetTestsWithBasicPerims, ListCase, \
@@ -166,14 +166,14 @@ class RoleGetAssignableTests(RoleTests):
         ):
             rg.full_role = Role.objects.create(
                 **dict([(f, True) for f in rg.rights
-                        + (role_any_mng_rights if rg.is_manager_admin else [])
+                        + (any_manager_rights if rg.is_manager_admin else [])
                         ]))
             rg.full_role_with_any_from_child = [
                 Role.objects.create(
                     **dict([
                         (f, True) for f in
                         rg.rights
-                        + (role_any_mng_rights if rg.is_manager_admin else [])
+                        + (any_manager_rights if rg.is_manager_admin else [])
                         + [right]
                     ])) for right in rg.all_children_rights()
             ]
@@ -189,14 +189,14 @@ class RoleGetAssignableTests(RoleTests):
                     Role.objects.create(
                         **dict([(f, True) for f in
                                 rg.rights + [right]
-                                + (role_any_mng_rights
+                                + (any_manager_rights
                                    if rg.is_manager_admin else [])
                                 ])) for right in rg.siblings_rights
                 ]
                 rg.full_role_with_any_from_parent = [
                     Role.objects.create(
                         **dict([(f, True) for f in rg.rights + [right]
-                                + (role_any_mng_rights
+                                + (any_manager_rights
                                    if rg.is_manager_admin else [])
                                 ])) for right in parent.rights
                     if right not in rg.rights

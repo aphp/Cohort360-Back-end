@@ -15,7 +15,6 @@ class CustomAuthentication(BaseAuthentication):
         if getattr(request, "jwt_session_key", None) is not None:
             raw_token = request.jwt_session_key
         else:
-
             raw_token, auth_method = conf_auth.get_token_from_headers(request)
             if raw_token is None:
                 return None

@@ -4,9 +4,6 @@
 
 - [x] get_all_cs_to_cs_relationships
 - [x] get_direct_children_cs_ids
-- [x] get_all_level_children_cs_with_sql
-    - [x] care site 12
-    - [x] care site 23
 - [x] get_direct_parent_care_site_ids
 - [x] get_all_parent_care_sites_ids
     - [x] care site 32

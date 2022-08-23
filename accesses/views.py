@@ -1,8 +1,9 @@
 from functools import reduce
-from typing import List, Tuple, Dict
+from typing import List, Dict
 
 import django_filters
-from django.db.models import Q, Prefetch, F, BooleanField, When, Case, Value
+from django.db.models import Q, Prefetch, F, BooleanField, When, Case, Value, \
+    QuerySet
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
@@ -18,24 +19,26 @@ from rest_framework.response import Response
 from rest_framework.status import HTTP_403_FORBIDDEN
 import urllib
 
-from .perimeters_API import ApiPerimeter
-from .models import Role, Access, Profile, get_assignable_roles_on_perimeter,\
+from rest_framework_extensions.mixins import NestedViewSetMixin
+
+from .models import Role, Access, Profile, get_assignable_roles_on_perimeter, \
     MANUAL_SOURCE, DataRight, get_user_data_accesses_queryset, \
-    Q_role_on_lower_levels, Perimeter, get_all_level_parents_perimeters,\
-    get_user_valid_manual_accesses_queryset
+    Perimeter, get_user_valid_manual_accesses_queryset, \
+    intersect_queryset_criteria, \
+    get_all_perimeters_parents_queryset
 from .permissions import RolePermissions, AccessPermissions, \
     ProfilePermissions, HasUserAddingPermission
 from .serializers import RoleSerializer, AccessSerializer, \
     ProfileSerializer, ReducedProfileSerializer, \
     ProfileCheckSerializer, DataRightSerializer, PerimeterSerializer, \
-    TreefiedPerimeterSerializer
+    TreefiedPerimeterSerializer, YasgTreefiedPerimeterSerializer
 from admin_cohort import conf_auth
-from admin_cohort.permissions import IsAuthenticated, IsAuthenticatedReadOnly,\
-    OR, can_user_read_users
+from admin_cohort.permissions import IsAuthenticated, IsAuthenticatedReadOnly, \
+    can_user_read_users
 from admin_cohort.settings import PERIMETERS_TYPES
 from admin_cohort.tools import join_qs
 from admin_cohort.views import BaseViewset, CustomLoggingMixin, \
-    YarnReadOnlyViewsetMixin
+    YarnReadOnlyViewsetMixin, SwaggerSimpleNestedViewSetMixin
 from admin_cohort.models import User
 
 
@@ -90,10 +93,6 @@ class ProfileViewSet(CustomLoggingMixin, BaseViewset):
             if (self.request.method == 'GET'
                 and not can_user_read_users(self.request.user))
             else ProfileSerializer)
-
-    def get_list_queryset(self):
-        return super(ProfileViewSet, self).get_list_queryset() \
-            .select_related('user')
 
     @swagger_auto_schema(
         manual_parameters=list(map(
@@ -261,8 +260,12 @@ class RoleViewSet(CustomLoggingMixin, BaseViewset):
         perim_id = self.request.GET.get(
             "perimeter_id", self.request.GET.get("care_site_id", None))
         if perim_id is None:
-            raise ValidationError("Missing parameter 'perimeter_id'")
-        roles = get_assignable_roles_on_perimeter(self.request.user, perim_id)
+            raise ValidationError("Missing parameter 'perimeter_id'.")
+        perim: Perimeter = Perimeter.objects.filter(id=perim_id).first()
+        if perim is None:
+            raise ValidationError(f"Perimeter with id {perim_id} not found.")
+
+        roles = get_assignable_roles_on_perimeter(self.request.user, perim)
         q = Role.objects.filter(id__in=[r.id for r in roles])
         page = self.paginate_queryset(q)
 
@@ -474,19 +477,14 @@ def build_data_rights(
 class AccessFilter(django_filters.FilterSet):
     def target_perimeter_filter(self, queryset, field, value):
         if value:
-            parents = get_all_level_parents_perimeters([value], ids_only=True)
-
-            return queryset.filter(Q(perimeter_id=value)
-                                   | (Q(perimeter_id__in=parents)
-                                      & Q_role_on_lower_levels('role')))
+            return queryset.filter(
+                (
+                        join_qs([Q(**{'perimeter' + i * '__children': value})
+                                 for i in range(1, len(PERIMETERS_TYPES))])
+                        & Role.impact_lower_levels_query('role')
+                ) | Q(perimeter=value))
 
         return queryset
-
-    # def perimeter_id_filter(self, queryset, field, value):
-    #     if not len(value):
-    #         return queryset
-    #     filtered_perim_ids = conf.get_perimeters_ids(ids=value.split(","))
-    #     return queryset.filter(perimeter_id__in=filtered_perim_ids)
 
     provider_email = django_filters.CharFilter(
         lookup_expr="icontains", field_name="profile__email")
@@ -568,51 +566,16 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
             return [IsAuthenticated()]
         return [AND(IsAuthenticated(), AccessPermissions())]
 
-    def get_queryset(self) -> Tuple[any, Dict[str, ApiPerimeter]]:
+    def get_queryset(self) -> QuerySet:
         q = super(AccessViewSet, self).get_queryset()
 
         accesses = self.request.user.valid_manual_accesses_queryset \
             .select_related("role")
 
-        def get_all_perims(perim, include_self=False):
-            return sum([get_all_perims(c, True) for c in perim.pref_children]) \
-                   + ([perim] if include_self else [])
-
-        # include_phase
-        q = q.filter(join_qs([a.include_accesses_to_read_Q for a in accesses]))
-
-        # exclude_phase
-        def intersec_criteria(cs_a: List[Dict], cs_b: List[Dict]) -> List[Dict]:
-            res = []
-            for c_a in cs_a:
-                if c_a in cs_b:
-                    res.append(c_a)
-                else:
-                    add = False
-                    for c_b in cs_b:
-                        none_perimeter_criteria = [
-                            k for (k, v) in c_a.items()
-                            if v and 'perimeter' not in k]
-                        if all(c_b.get(r) for r in none_perimeter_criteria):
-                            add = True
-                            perimeter_not = c_b.get('perimeter_not', [])
-                            perimeter_not.extend(c_a.get('perimeter_not', []))
-                            perimeter_not_child = c_b.get('perimeter_not_child',
-                                                          [])
-                            perimeter_not_child.extend(
-                                c_a.get('perimeter_not_child', []))
-                            if len(perimeter_not):
-                                c_b['perimeter_not'] = perimeter_not
-                            if len(perimeter_not_child):
-                                c_b['perimeter_not_child'] = perimeter_not_child
-                            c_a.update(c_b)
-                    if add:
-                        res.append(c_a)
-            return res
-
         to_exclude = [a.accesses_criteria_to_exclude for a in accesses]
         if len(to_exclude):
-            to_exclude = reduce(intersec_criteria, to_exclude, to_exclude.pop())
+            to_exclude = reduce(intersect_queryset_criteria, to_exclude,
+                                to_exclude.pop())
 
             qs = []
             for cs in to_exclude:
@@ -927,9 +890,12 @@ class PerimeterFilter(django_filters.FilterSet):
         )
 
 
-class PerimeterViewSet(YarnReadOnlyViewsetMixin, BaseViewset):
+class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin,
+                       BaseViewset):
     serializer_class = PerimeterSerializer
     lookup_field = "id"
+    queryset = Perimeter.objects.all()
+    permission_classes = (IsAuthenticatedReadOnly,)
 
     filterset_class = PerimeterFilter
     ordering_fields = [('care_site_name', 'name'),
@@ -940,15 +906,9 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, BaseViewset):
         "source_value"
     ]
 
-    def get_queryset(self):
-        return Perimeter.objects.all()
-
-    def get_permissions(self):
-        return OR(IsAuthenticatedReadOnly(), )
-
     @swagger_auto_schema(
         method='get',
-        operation_summary="Get the care_sites on which the user has at least "
+        operation_summary="Get the perimeters on which the user has at least "
                           "one role that allows to give accesses.",
         manual_parameters=list(map(
             lambda x: openapi.Parameter(
@@ -967,56 +927,49 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, BaseViewset):
                     openapi.TYPE_INTEGER
                 ],
             ]
-        ))
+        )),
+        responses={
+            '201': openapi.Response("manageable perimeters found",
+                                    YasgTreefiedPerimeterSerializer()
+                                    ),
+        }
     )
     @action(detail=False, methods=['get'], url_path="manageable")
     def get_manageable(self, request, *args, **kwargs):
-        from accesses.models import RoleType, \
-            get_all_readable_accesses_perimeters
         user_accesses = get_user_valid_manual_accesses_queryset(
             self.request.user)
 
-        perim_ids = get_all_readable_accesses_perimeters(
-            user_accesses,
-            role_type=RoleType.MANAGING_ACCESS
-        )
+        if user_accesses.filter(Role.edit_on_any_level_query("role")).count():
+            # in that case, perims to retun is all perimeters
+            # and queryset result will only contain the top perimeters
+            perims = self.get_queryset()
+            q = Perimeter.objects.filter(parent__isnull=True)
+        else:
+            # in that case, perims to returns depends on roles
+            # and queryset result will only contain the top of those perimeters
+            acc_ids = user_accesses.values_list("id", flat=True)
+            perims = Perimeter.objects.filter(join_qs(
+                [Role.edit_on_lower_levels_query(
+                    f"{i * 'parent__'}accesses__role",
+                    {f'{i * "parent__"}accesses__id__in': acc_ids}
+                ) for i in range(1, len(PERIMETERS_TYPES))
+                ] + [Role.edit_on_same_level_query(
+                    "accesses__role",
+                    {'accesses__id__in': acc_ids}
+                )]
+            )).distinct()
 
-        max_levels = len(PERIMETERS_TYPES)
-        nb_levels = int(request.GET.get('nb_levels', max_levels))
-        better_q = Perimeter.objects.filter(
-            (
-                ~Q(parent__id__in=perim_ids)
-            )
-            & Q(id__in=perim_ids)
-        )
+            q = perims.filter(~Q(
+                parent__id__in=perims.values_list("id", flat=True)))
 
-        prefetch = Prefetch(
-            'children', queryset=Perimeter.objects.filter(id__in=perim_ids),
-            to_attr='prefetched_children')
+        prefetch = Perimeter.children_prefetch(perims)
+        nb_levels = int(request.GET.get('nb_levels', len(PERIMETERS_TYPES)))
         for _ in range(2, nb_levels):
-            prefetch = Prefetch(
-                'children',
-                queryset=(Perimeter.objects.filter(id__in=perim_ids)
-                          .prefetch_related(prefetch)),
-                to_attr='prefetched_children')
-        better_q = better_q.prefetch_related(prefetch)
+            prefetch = Perimeter.children_prefetch(perims
+                                                   .prefetch_related(prefetch))
 
-        better_treefied = TreefiedPerimeterSerializer(better_q, many=True).data
-
-        return Response(better_treefied)
-
-    @action(detail=True, methods=['get'], url_path="children")
-    def children(self, request, *args, **kwargs):
-        cs = self.get_object()
-        q = cs.children.all()
-
-        page = self.paginate_queryset(q)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-
-        serializer = self.get_serializer(q, many=True)
-        return Response(serializer.data)
+        q = q.prefetch_related(prefetch)
+        return Response(TreefiedPerimeterSerializer(q, many=True).data)
 
     @swagger_auto_schema(
         manual_parameters=list(map(
@@ -1043,47 +996,50 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, BaseViewset):
                 ],
             ])))
     def list(self, request, *args, **kwargs):
-        q = self.filter_queryset(self.get_queryset())
-
         treefy = request.GET.get("treefy", None)
         if str(treefy).lower() == 'true':
-            if not len(q):
-                return Response([])
+            return self.treefied(request, *args, **kwargs)
+        return super(PerimeterViewSet, self).list(request, *args, **kwargs)
 
-            filtered_ids = q.values_list("id", flat=True)
-            full_root = Perimeter.objects.filter(join_qs([
-                Q(**{i * 'children__' + 'id__in': filtered_ids})
-                for i in range(0, len(PERIMETERS_TYPES))
-            ])).distinct()
-            full_root_ids = full_root.values_list("id", flat=True)
+    @swagger_auto_schema(
+        operation_description="Test",
+        responses={
+            '201': openapi.Response("Perimeters found",
+                                    YasgTreefiedPerimeterSerializer),
+            '401': openapi.Response("Not authenticated")
+        }
+    )
+    @action(detail=False, methods=['get'], url_path="treefied")
+    def treefied(self, request, *args, **kwargs):
+        # in that case, for each perimeter filtered, we want to show the
+        # branch of the whole perimeter tree that leads to it
+        q = self.filter_queryset(self.get_queryset())
+        if not q.count():
+            return Response([])
 
-            res = full_root.filter(~Q(parent__id__in=full_root_ids))
-
-            prefetch = Prefetch(
-                'children',
-                queryset=Perimeter.objects.filter(id__in=full_root_ids),
-                to_attr='prefetched_children'
-            )
-            for _ in range(2, len(PERIMETERS_TYPES)):
-                prefetch = Prefetch(
-                    'children',
-                    queryset=(Perimeter.objects.filter(id__in=full_root_ids)
-                              .prefetch_related(prefetch)),
-                    to_attr='prefetched_children'
-                )
-            res = res.prefetch_related(prefetch)
-            better_treefied = TreefiedPerimeterSerializer(res, many=True).data
-
-            return Response(better_treefied)
+        if q.count() != self.get_queryset().count():
+            q = (q | get_all_perimeters_parents_queryset(q)).distinct()
+            res = q.filter(~Q(parent__id__in=q.values_list("id", flat=True)))\
+                .distinct()
         else:
-            page = self.paginate_queryset(q)
-            if page is not None:
-                serializer = self.get_serializer(page, many=True)
-                data = serializer.data
-                return self.get_paginated_response(data)
+            res = q.filter(parent__isnull=True)
 
-        serializer = self.get_serializer(q, many=True)
-        return Response(serializer.data)
+        prefetch = Perimeter.children_prefetch(q)
+        for _ in range(2, len(PERIMETERS_TYPES)):
+            prefetch = Perimeter.children_prefetch(
+                q.prefetch_related(prefetch))
 
-    def retrieve(self, request, *args, **kwargs):
-        return super(PerimeterViewSet, self).retrieve(request, *args, **kwargs)
+        res = res.prefetch_related(prefetch)
+        return Response(TreefiedPerimeterSerializer(res, many=True).data)
+
+
+class NestedPerimeterViewSet(SwaggerSimpleNestedViewSetMixin, PerimeterViewSet):
+    @swagger_auto_schema(auto_schema=None)
+    def get_manageable(self, request, *args, **kwargs):
+        return super(NestedPerimeterViewSet, self).get_manageable(
+            request, *args, **kwargs)
+
+    @swagger_auto_schema(auto_schema=None)
+    def treefied(self, request, *args, **kwargs):
+        return super(NestedPerimeterViewSet, self).treefied(
+            request, *args, **kwargs)

@@ -15,6 +15,7 @@ from rest_framework.relations import PrimaryKeyRelatedField
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
+from admin_cohort.views import SwaggerSimpleNestedViewSetMixin
 from cohort.permissions import IsOwner, OR, IsAdmin
 from admin_cohort import app
 from cohort.FhirAPi import JobStatus
@@ -106,24 +107,6 @@ class UserObjectsRestrictedViewSet(BaseViewSet):
             field_name_with_id = f'{field_name}_id'
             if field_name_with_id in request.data:
                 request.data[field_name] = request.data[field_name_with_id]
-
-
-class SwaggerSimpleNestedViewSetMixin:
-    @swagger_auto_schema(auto_schema=None)
-    def retrieve(self, request, *args, **kwargs):
-        return self.retrieve(request, *args, **kwargs)
-
-    @swagger_auto_schema(auto_schema=None)
-    def destroy(self, request, *args, **kwargs):
-        return self.destroy(request, *args, **kwargs)
-
-    @swagger_auto_schema(auto_schema=None)
-    def update(self, request, *args, **kwargs):
-        return self.update(request, *args, **kwargs)
-
-    @swagger_auto_schema(auto_schema=None)
-    def partial_update(self, request, *args, **kwargs):
-        return self.partial_update(request, *args, **kwargs)
 
 
 class CohortFilter(django_filters.FilterSet):

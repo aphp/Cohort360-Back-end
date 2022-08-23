@@ -186,10 +186,12 @@ class PatchCase(RequestCase):
 class ListCase(RequestCase):
     def __init__(self, to_find: list = None, url: str = "",
                  page_size: int = None, params: dict = None,
-                 previously_found_ids: List = None, **kwargs):
+                 previously_found_ids: List = None, nested_view: bool = False,
+                 **kwargs):
         super(ListCase, self).__init__(**kwargs)
         self.to_find = to_find or []
         self.url = url
+        self.nested_view = nested_view
         self.page_size = page_size if page_size is not None \
             else settings.REST_FRAMEWORK.get('PAGE_SIZE')
         self.params = params or {}
@@ -484,12 +486,16 @@ class ViewSetTests(BaseTests):
 
     def check_get_paged_list_case(
             self, case: ListCase, other_view: any = None, **view_kwargs):
-        request = self.factory.get(
-            path=case.url or self.objects_url,
-            data=[] if case.url else case.params)
-        force_authenticate(request, case.user)
-        response = other_view(request, **view_kwargs) if other_view else \
-            self.__class__.list_view(request)
+        if case.nested_view:
+            self.client.force_login(case.user)
+            response = self.client.get(case.url)
+        else:
+            request = self.factory.get(
+                path=case.url or self.objects_url,
+                data=[] if case.url else case.params)
+            force_authenticate(request, case.user)
+            response = other_view(request, **view_kwargs) if other_view else \
+                self.__class__.list_view(request)
         response.render()
         self.assertEqual(
             response.status_code, case.status,

@@ -2,7 +2,7 @@ import json
 from enum import Enum
 from functools import reduce
 from operator import or_
-from typing import List, Union
+from typing import List, Union, Iterable
 
 from django.db.models import Q
 
@@ -20,16 +20,17 @@ def prettify_json(str_json: str) -> str:
 
 # DJANGO Q HELPERS
 
-def join_qs(qs: List[Q]) -> Q:
+def join_qs(qs: Iterable[Q]) -> Q:
     """
     Returns a neutral query that joins, with a OR operator,
     all the results from queries in qs
     @param qs:
     @return:
     """
-    if not len(qs):
-        return Q()
-    return reduce(or_, qs, qs.pop())
+    lst_qs = list(qs)
+    if not len(lst_qs):
+        return ~Q()
+    return reduce(or_, lst_qs, lst_qs.pop())
 
 
 def exclude_qs(qs: List[Q]) -> Q:

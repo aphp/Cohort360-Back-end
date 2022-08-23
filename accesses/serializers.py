@@ -419,6 +419,13 @@ class TreefiedPerimeterSerializer(serializers.ModelSerializer):
         return fields
 
 
+class YasgTreefiedPerimeterSerializer(TreefiedPerimeterSerializer):
+    children = serializers.ListSerializer(child=serializers.JSONField())
+
+    def get_fields(self):
+        return super(TreefiedPerimeterSerializer, self).get_fields()
+
+
 class RootPerimeterSerializer(serializers.ModelSerializer):
     class Meta:
         model = Perimeter
@@ -535,21 +542,26 @@ class AccessSerializer(BaseSerializer):
         creator: User = self.context.get('request').user
 
         # todo : remove/fix when ready with perimeter
-        perimeter_id = validated_data.get(
-            "perimeter_id", validated_data.pop("care_site_id", None))
+        if 'perimeter' not in validated_data:
+            perimeter_id = validated_data.get(
+                "perimeter_id", validated_data.pop("care_site_id", None))
+            if perimeter_id is None:
+                raise ValidationError("Requires perimeter")
+            perimeter = Perimeter.objects.filter(id=perimeter_id).first()
+            if perimeter is None:
+                raise ValidationError(
+                    f"Perimeter id provided ({perimeter_id}) does not match"
+                    f" existing any perimeter"
+                )
+        else:
+            perimeter: Perimeter = validated_data.get('perimeter', None)
 
         role: Role = validated_data.get('role', None)
         if not role:
             raise ValidationError("Role field is missing")
 
-        if not can_user_manage_access(creator, role.id, perimeter_id):
+        if not can_user_manage_access(creator, role, perimeter):
             raise PermissionDenied
-
-        if Perimeter.objects.filter(id=perimeter_id).first() is None:
-            raise ValidationError(
-                f"Perimeter id provided ({perimeter_id}) does not match"
-                f" existing any perimeter"
-            )
 
         profile: Profile = validated_data.get("profile", None)
         provider_history_id = validated_data.get("provider_history_id", None)
@@ -577,6 +589,7 @@ class AccessSerializer(BaseSerializer):
 
         # todo : remove/fix when ready with perimeter
         validated_data["perimeter_id"] = perimeter_id
+        validated_data["perimeter"] = perimeter
 
         return super(AccessSerializer, self).create(validated_data)
 

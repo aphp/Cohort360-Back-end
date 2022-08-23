@@ -75,6 +75,24 @@ class BaseViewset(viewsets.ModelViewSet):
         instance.save()
 
 
+class SwaggerSimpleNestedViewSetMixin:
+    @swagger_auto_schema(auto_schema=None)
+    def retrieve(self, request, *args, **kwargs):
+        return self.retrieve(request, *args, **kwargs)
+
+    @swagger_auto_schema(auto_schema=None)
+    def destroy(self, request, *args, **kwargs):
+        return self.destroy(request, *args, **kwargs)
+
+    @swagger_auto_schema(auto_schema=None)
+    def update(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
+
+    @swagger_auto_schema(auto_schema=None)
+    def partial_update(self, request, *args, **kwargs):
+        return self.partial_update(request, *args, **kwargs)
+
+
 class CustomLoggingMixin(LoggingMixin):
     def handle_log(self):
         for f in ['data', 'errors', 'response']:

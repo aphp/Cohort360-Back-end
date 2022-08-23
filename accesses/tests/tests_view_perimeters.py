@@ -7,7 +7,7 @@ from rest_framework.test import force_authenticate
 from accesses.models import Perimeter, Access, Role
 from accesses.tests.tests_view_accesses import RightGroupForManage, \
     RIGHT_GROUPS, AccessListCase
-from accesses.views import PerimeterViewSet
+from accesses.views import PerimeterViewSet, NestedPerimeterViewSet
 from admin_cohort.settings import PERIMETERS_TYPES
 from admin_cohort.tests_tools import random_str, \
     new_user_and_profile, ViewSetTests, ListCase, \
@@ -268,18 +268,17 @@ class PerimeterGetTests(PerimeterTests):
 
     def test_get_children(self):
         # As a simple user, I can get the children of a perimeter
-        children_view = PerimeterViewSet.as_view({'get': 'children'})
         [self.check_get_paged_list_case(ListCase(
-            url=f"{self.objects_url}{p.id}/children",
             status=status.HTTP_200_OK,
             success=True,
             user=self.user_no_right,
             to_find=list(p.children.all())
-        ), children_view, id=p.id) for p in [
-            self.perims[0],
-            self.perims[0].children.first(),
-            self.perims[0].children.first().children.first(),
-        ]]
+        ), NestedPerimeterViewSet.as_view({'get': 'list'}), parent=p.id)
+            for p in [
+                self.perims[0],
+                self.perims[0].children.first(),
+                self.perims[0].children.first().children.first(),
+            ]]
 
 
 class PerimeterGetManageableTests(PerimeterTests, SimplePerimSetup):
@@ -423,43 +422,11 @@ class PerimeterGetManageableTests(PerimeterTests, SimplePerimSetup):
                 )]
             else:
                 cases = sum([[self.simple_get_case.clone(
-                    # with the right to manage accesses on both same and
-                    # inferior levels of a perimeter P,
-                    # manageable will return the perimeter P's children
+                    # with the right to manage accesses on any perimeter,
+                    # manageable will return all perimeters
                     title=f"{rg.name}-with {right}",
                     user_rights=[right],
-                    to_find=[self.hospital2] if has_children else [],
-                ), self.simple_get_case.clone(
-                    # with the right to manage accesses on both same and
-                    # inferior levels of a perimeter P and one of its siblings,
-                    # manageable will return the two perimeters
-                    # with their children
-                    title=f"{rg.name}-with {right} - with hosp1",
-                    user_rights=[right],
-                    to_find=([self.hospital1, self.hospital2]
-                             if has_children else []),
-                    user_perimeters=[self.hospital2, self.hospital1],
-                ), self.simple_get_case.clone(
-                    # with the right to manage accesses on both same and
-                    # inferior levels of the top level,
-                    # manageable will return all perimeters
-                    title=f"{rg.name}- with {right} - on top level",
-                    user_rights=[right],
-                    to_find=([self.aphp]
-                             if has_children else []),
-                    user_perimeter=self.aphp,
-                ), self.simple_get_case.clone(
-                    # with the right to manage accesses on both same and
-                    # inferior levels of the top level,
-                    # manageable will return all perimeters
-                    # except most inferior perimeter if nb_levels=2
-                    title=f"{rg.name}- with {right} - on top level",
-                    user_rights=[right],
-                    to_find=([self.aphp]
-                             if has_children else []),
-                    user_perimeter=self.aphp,
-                    params=dict(nb_levels=2),
-                    to_exclude=[self.hospital3],
+                    to_find=[self.aphp] if has_children else [],
                 )] for right in rg.rights], [])
 
             [self.check_treefy(case, self.__class__.manageable_view)

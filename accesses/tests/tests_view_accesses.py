@@ -12,11 +12,13 @@ from django.utils import timezone
 from rest_framework import status as http_status
 from rest_framework.test import force_authenticate
 
-from accesses.models import Access, Role, role_env_unix_users_rights, \
-    MANUAL_SOURCE, role_data_rights, role_adm_rights, \
-    role_any_mng_rights, role_adm_mng_rights, role_main_adm_rights, \
-    role_user_adm_rights, Profile, role_csv_rights, \
-    role_jupyter_rights, Perimeter
+from accesses.models import Access, Role, MANUAL_SOURCE, Profile, Perimeter
+from accesses.rights import main_admin_rights, admin_manager_rights,\
+    csv_export_manage_rights, jup_export_manage_rights,\
+    csv_review_manage_rights, workspaces_rights, user_rights,\
+    data_admin_rights, data_rights, csv_export_rights, jup_export_rights,\
+    jup_review_rights, csv_review_rights, right_read_users,\
+    jup_review_manage_rights
 from accesses.views import AccessViewSet
 from admin_cohort.tests_tools import new_user_and_profile, CaseRetrieveFilter, \
     ViewSetTestsWithBasicPerims, RequestCase, ALL_RIGHTS, DeleteCase, \
@@ -617,12 +619,12 @@ class RightGroupForManage(RightGroup):
 
 RIGHT_GROUPS = RightGroup(
     name="RoleEditor",
-    rights=role_main_adm_rights,
+    rights=main_admin_rights.rights_names,
     is_manager_admin=True,
     has_parent=False,
     children=[RightGroup(
         name="AdminManager",
-        rights=role_adm_mng_rights,
+        rights=admin_manager_rights.rights_names,
         is_manager_admin=True,
         same_level_reader="right_read_admin_accesses_same_level",
         inf_level_reader="right_read_admin_accesses_inferior_levels",
@@ -630,7 +632,7 @@ RIGHT_GROUPS = RightGroup(
         inf_level_editor="right_manage_admin_accesses_inferior_levels",
         children=[RightGroup(
             name="DataReadersAdmin",
-            rights=role_adm_rights,
+            rights=data_admin_rights.rights_names,
             is_manager_admin=False,
             same_level_reader="right_read_data_accesses_same_level",
             inf_level_reader="right_read_data_accesses_inferior_levels",
@@ -638,56 +640,60 @@ RIGHT_GROUPS = RightGroup(
             inf_level_editor="right_manage_data_accesses_inferior_levels",
             children=[RightGroup(
                 name="DataReader",
-                rights=role_data_rights,
+                rights=data_rights.rights_names,
                 is_manager_admin=False,
             )]
         )]
     ), RightGroup(
         name="CsvExportersAdmin",
-        rights=['right_manage_export_csv'],
+        rights=csv_export_manage_rights.rights_names,
         is_manager_admin=False,
         children=[RightGroup(
             name="CsvExporters",
-            rights=role_csv_rights,
+            rights=csv_export_rights.rights_names,
             is_manager_admin=False,
         )],
     ), RightGroup(
         name="JupyterExportersAdmin",
-        rights=['right_manage_transfer_jupyter'],
+        rights=jup_export_manage_rights.rights_names,
         is_manager_admin=False,
         children=[RightGroup(
             name="JupyterExporters",
-            rights=role_jupyter_rights,
+            rights=jup_export_rights.rights_names,
             is_manager_admin=False,
         )],
     ), RightGroup(
         name="CsvExportReviewersAdmin",
-        rights=["right_manage_review_export_csv"],
+        rights=csv_review_manage_rights.rights_names,
         is_manager_admin=False,
         children=[RightGroup(
             name="CsvExportReviewers",
-            rights=["right_review_export_csv"],
+            rights=csv_review_rights.rights_names,
             is_manager_admin=False,
         )]
     ), RightGroup(
         name="JupyterExportReviewersAdmin",
-        rights=["right_manage_review_transfer_jupyter"],
+        rights=jup_review_manage_rights.rights_names,
         is_manager_admin=False,
         children=[RightGroup(
             name="JupyterExportReviewers",
-            rights=["right_review_transfer_jupyter"],
+            rights=jup_review_rights.rights_names,
             is_manager_admin=False,
         )]
     ), RightGroup(
         name="WorkspacesManager",
-        rights=role_env_unix_users_rights,
+        rights=workspaces_rights.rights_names,
         is_manager_admin=False,
     ), RightGroup(
         name="UsersAdmin",
-        rights=role_user_adm_rights,
+        rights=user_rights.rights_names,
         is_manager_admin=False,
     )]
 )
+
+# rights that can be read with any manager manager role (because any manager
+# could have it
+any_manager_rights = [right_read_users.name]
 
 
 def create_accesses(roles: List[Role], profiles: List[Profile],
@@ -752,10 +758,10 @@ class AccessGetTests(AccessTests):
                 }) for f in rg.rights
             ], self.profiles_for_accesses, self.perimeters_for_accesses)
             rg.full_accesses_with_children = create_accesses([
-                Role.objects.create(**dict([
-                    (f, True) for f in (
+                Role.objects.create(**dict(
+                    [(f, True) for f in (
                             rg.rights
-                            + (role_any_mng_rights if rg.is_manager_admin
+                            + (any_manager_rights if rg.is_manager_admin
                                else [])
                             + rg.all_children_rights()
                     )] + [('name', f"{rg.name} - full")]))
@@ -765,39 +771,36 @@ class AccessGetTests(AccessTests):
                     r=False, exempt=rg.name)
 
                 rg.full_accesses_with_siblings = create_accesses([
-                    Role.objects.create(**dict([
-                        (f, True) for f in (
+                    Role.objects.create(**dict(
+                        [(f, True) for f in (
                                 rg.rights
-                                + (role_any_mng_rights if rg.is_manager_admin
+                                + (any_manager_rights if rg.is_manager_admin
                                    else [])
                                 + rg.siblings_rights
-                        )] + [
-                        ('name', f"{rg.name} - full with siblings")
-                    ]))
+                        )] + [('name', f"{rg.name} - full with siblings")]
+                    ))
                 ], self.profiles_for_accesses, self.perimeters_for_accesses) \
                     if len(rg.siblings_rights) > 0 else []
 
                 rg.full_accesses_with_parent = create_accesses([
-                    Role.objects.create(**dict([
-                        (f, True) for f in (
+                    Role.objects.create(**dict(
+                        [(f, True) for f in (
                                 rg.rights
-                                + (role_any_mng_rights if rg.is_manager_admin
+                                + (any_manager_rights if rg.is_manager_admin
                                    else []) + [parent_right]
-                        )] + [
-                        ('name', f"{rg.name} - full with parent right "
-                                 f"{parent_right}")
-                    ])) for parent_right in parent.rights
+                        )] + [('name', f"{rg.name} - full with parent right "
+                                       f"{parent_right}")]
+                    )) for parent_right in parent.rights
                 ], self.profiles_for_accesses, self.perimeters_for_accesses)
                 rg.full_accesses_with_parent_siblings = create_accesses([
-                    Role.objects.create(**dict([
-                        (f, True) for f in (
+                    Role.objects.create(**dict(
+                        [(f, True) for f in (
                                 rg.rights
-                                + (role_any_mng_rights if rg.is_manager_admin
+                                + (any_manager_rights if rg.is_manager_admin
                                    else []) + [forbidden_one]
-                        )] + [
-                        ('name', f"{rg.name} - full with "
-                                 f"forbidden {forbidden_one}")
-                    ])) for forbidden_one in parent.siblings_rights
+                        )] + [('name', f"{rg.name} - full with forbidden "
+                                       f"{forbidden_one}")]
+                    )) for forbidden_one in parent.siblings_rights
                 ], self.profiles_for_accesses, self.perimeters_for_accesses)
 
             for child in rg.children:
@@ -886,7 +889,7 @@ class AccessGetTests(AccessTests):
 
             rights_for_full_access = list(set(sum([
                 child.rights + (
-                    role_any_mng_rights if child.is_manager_admin else []
+                    any_manager_rights if child.is_manager_admin else []
                 ) + child.all_children_rights()
                 for child in right_group_a.children + right_group_b.children
             ], [])))
@@ -917,10 +920,11 @@ class AccessGetTests(AccessTests):
                                    if p in case_b_perims]
 
                 new_full_accesses_to_add = create_accesses([
-                    Role.objects.create(**dict([
-                        (f, True) for f in rights_for_full_access
-                    ] + [('name', f"{right_group_a} + {right_group_b}"
-                                  f" - full")]))],
+                    Role.objects.create(**dict(
+                        [(f, True) for f in rights_for_full_access]
+                        + [('name', f"{right_group_a} + {right_group_b}"
+                                    f" - full")]
+                    ))],
                     self.profiles_for_accesses, new_case_perims
                 )
 
@@ -980,7 +984,7 @@ class AccessGetTests(AccessTests):
                 ],
                 'to_find': [a for a in base_result
                             if a.profile.id == self.prof2_with_rnd_accesses.id]
-                }, {
+            }, {
                 'value': self.hospital2.name,
                 'to_find': [
                     a for a in base_result
@@ -1681,14 +1685,14 @@ class AccessAsEachAdminTests(AccessTests):
                 **dict([
                     (f, True) for f in
                     rg.rights
-                    + (role_any_mng_rights if rg.is_manager_admin else [])
+                    + (any_manager_rights if rg.is_manager_admin else [])
                 ]))
             rg.full_role_with_any_from_child = [
                 Role.objects.create(
                     **dict([
                         (f, True) for f in
                         rg.rights
-                        + (role_any_mng_rights if rg.is_manager_admin else [])
+                        + (any_manager_rights if rg.is_manager_admin else [])
                         + [right]
                     ])) for right in rg.all_children_rights()
                 if right not in rg.all_children_rights(r=True)
@@ -1698,7 +1702,7 @@ class AccessAsEachAdminTests(AccessTests):
                     **dict([
                         (f, True) for f in
                         rg.rights
-                        + (role_any_mng_rights if rg.is_manager_admin else [])
+                        + (any_manager_rights if rg.is_manager_admin else [])
                         + [right]
                     ])) for right in rg.all_children_rights(r=False)
             ]
@@ -1710,14 +1714,14 @@ class AccessAsEachAdminTests(AccessTests):
                     Role.objects.create(
                         **dict([(f, True) for f in
                                 rg.rights + [right]
-                                + (role_any_mng_rights
+                                + (any_manager_rights
                                    if rg.is_manager_admin else [])
                                 ])) for right in rg.siblings_rights
                 ]
                 rg.full_role_with_any_from_parent = [
                     Role.objects.create(
                         **dict([(f, True) for f in rg.rights + [right]
-                                + (role_any_mng_rights
+                                + (any_manager_rights
                                    if rg.is_manager_admin else [])
                                 ])) for right in parent.rights
                     if right not in rg.rights

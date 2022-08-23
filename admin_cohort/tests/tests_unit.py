@@ -1,5 +1,4 @@
-from accesses.models import get_all_level_children, \
-    get_all_level_parents_perimeters
+from accesses.models import get_all_level_children
 from admin_cohort.tests_tools import ViewSetTestsWithNumerousPerims
 
 
@@ -45,17 +44,19 @@ class ModelsUnitTest(ViewSetTestsWithNumerousPerims):
     #     perim_to_find = [self.perim21, self.perim23]
     #     self.check_perim_list(perim_found, perim_to_find)
 
-    def test_get_all_level_parents_perimeters_32(self):
-        perim_found = get_all_level_parents_perimeters(
-            perimeter_ids=self.perim32.care_site_id)
-        perim_to_find = [self.perim32, self.perim21, self.perim23, self.perim11,
-                         self.perim12, self.perim0]
-        self.check_perim_list(perim_found, perim_to_find)
-
-    def test_get_all_level_parents_perimeters_21_23(self):
-        perim_found = get_all_level_parents_perimeters(perimeter_ids=[
-            self.perim21.care_site_id, self.perim23.care_site_id
-        ])
-        perim_to_find = [self.perim21, self.perim23, self.perim11, self.perim12,
-                         self.perim0]
-        self.check_perim_list(perim_found, perim_to_find)
+    # def test_get_all_level_parents_perimeters_32(self):
+    #     perim_found = get_all_level_parents_perimeters(
+    #         perimeter_ids=self.perim32.care_site_id)
+    #     perim_to_find = [self.perim32, self.perim21,
+    #     self.perim23, self.perim11,
+    #                      self.perim12, self.perim0]
+    #     self.check_perim_list(perim_found, perim_to_find)
+    #
+    # def test_get_all_level_parents_perimeters_21_23(self):
+    #     perim_found = get_all_level_parents_perimeters(perimeter_ids=[
+    #         self.perim21.care_site_id, self.perim23.care_site_id
+    #     ])
+    #     perim_to_find = [self.perim21, self.perim23,
+    #       self.perim11, self.perim12,
+    #                      self.perim0]
+    #     self.check_perim_list(perim_found, perim_to_find)
