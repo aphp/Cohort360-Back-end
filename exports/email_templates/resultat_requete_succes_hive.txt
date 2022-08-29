@@ -1,6 +1,6 @@
 Votre export de données concernant la cohorte numéro KEY_COHORT_ID a été généré avec succès.
 
-Les données sont accessibles dans votre espace Jupyter.
+Les données sont accessibles dans votre espace Jupyter dans la base de données nommée KEY_DATABASE_NAME.
 
 Pour une première utilisation, vous trouverez à ce lien une aide pour l'ouverture des fichiers :
 https://gitlab.eds.aphp.fr/public-resources/eds-doc/-/wikis/Export

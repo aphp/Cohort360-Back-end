@@ -26,6 +26,7 @@ KEY_ERROR_MESSAGE = "KEY_ERROR_MESSAGE"
 KEY_CONTACT_MAIL = "KEY_CONTACT_MAIL"
 KEY_CONTENT = "KEY_CONTENT"
 KEY_DELETE_DATE = "KEY_DELETE_DATE"
+KEY_DATABASE_NAME = "KEY_DATABASE_NAME"
 
 
 def send_mail(msg: EmailMultiAlternatives):
@@ -49,6 +50,7 @@ def replace_keys(txt: str, req: ExportRequest, is_html: bool = False) -> str:
         KEY_NAME: User.objects.get(provider_id=req.provider_id).displayed_name,
         KEY_ERROR_MESSAGE: req.status_info,
         KEY_CONTACT_MAIL: EMAIL_SUPPORT_CONTACT,
+        KEY_DATABASE_NAME: req.target_name,
         KEY_DELETE_DATE: (
                 timezone.now().date()
                 + timedelta(days=int(EXPORT_DAYS_BEFORE_DELETE))
