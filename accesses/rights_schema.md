@@ -153,3 +153,473 @@ Par exemple, si je possède _right_read_admin_accesses_ (**AdminManager**):
 - apparaîtront les _Access_ avec un _Role_ contenant uniquement _right_manage_data_accesses_same_level_ (**DataReadersAdmin**) et _right_read_users_ (**UsersReaders**)
 - ils apparaîtront encore si je rajoute, à ce _Role_, _right_read_patient_nominative_ (**DataReaders**) 
 - n'apparaîtront plus si je rajoute, à ce _Role_, _right_read_admin_accesses_ (**DataReaders**), _right_export_csv_nominative_ (**Exporters**) ou même pire _right_edit_roles_ (**RolesEditors**)
+
+
+### Exemples
+
+Considérons un schéma simplifié des droits :
+
+```mermaid
+classDiagram
+class Main {
+  right_manage
+}
+class ChildA {
+  right_manageA
+}
+class ChildAA {
+  rightA
+}
+class ChildB {
+  right_manageB
+}
+class ChildBA {
+  rightB
+}
+Main --> ChildA
+Main --> ChildB
+ChildA --> ChildAA
+ChildB --> ChildBA
+```
+
+Pour simplifier encore, nous considérerons 
+
+```mermaid
+flowchart TD
+Main --> ChildA
+Main --> ChildB
+ChildA --> ChildAA
+ChildB --> ChildBA
+style AdminHas stroke:#088,stroke-width:4px
+style CanBeRead stroke:#080,stroke-width:4px
+style CantBeRead stroke:#800,stroke-width:4px
+```
+
+Attention, on considère :
+- qu'avoir ChildA signifie qu'on a right_read_accesses dans le cas de la lecture, et right_edit_accesses dans l'autre cas.
+- uniquement les droits, et non les Périmètres (dans le cas de right_read_accesses_on_inferior_levels)
+
+#### Lecture
+
+##### Cas 1
+
+Si admin possède :
+
+
+```mermaid
+flowchart TD
+subgraph Peut lire
+    subgraph admin
+    direction TB
+    Main --> ChildA
+    Main --> ChildB
+    ChildA --> ChildAA
+    ChildB --> ChildBA
+    style Main stroke:#088,stroke-width:4px
+    end
+    subgraph user1
+    direction TB
+    _Main --> _ChildA
+    _Main --> _ChildB
+    _ChildA --> _ChildAA
+    _ChildB --> _ChildBA
+    style _ChildB stroke:#080,stroke-width:4px
+    style _ChildA stroke:#080,stroke-width:4px
+    style _ChildBA stroke:#080,stroke-width:4px
+    style _ChildAA stroke:#080,stroke-width:4px
+    end
+    subgraph user2*
+    direction TB
+    __Main --> __ChildA
+    __Main --> __ChildB
+    __ChildA --> __ChildAA
+    __ChildB --> __ChildBA
+    style __Main stroke:#080,stroke-width:4px
+    style __ChildB stroke:#080,stroke-width:4px
+    style __ChildA stroke:#080,stroke-width:4px
+    style __ChildBA stroke:#080,stroke-width:4px
+    style __ChildAA stroke:#080,stroke-width:4px
+    end
+end
+```
+
+*parce que Main n'a pas de parent, il doit pouvoir se lire lui même.
+
+Mais ne pourra pas lire le suivant :
+
+```mermaid
+flowchart TD
+subgraph Ne peut pas lire
+    subgraph admin
+    direction TB
+    Main --> ChildA
+    Main --> ChildB
+    ChildA --> ChildAA
+    ChildB --> ChildBA
+    style Main stroke:#088,stroke-width:4px
+    end
+    subgraph user1
+    direction TB
+    _Main --> _ChildA
+    _Main --> _ChildB
+    _ChildA --> _ChildAA
+    _ChildB --> _ChildBA
+    style _ChildA stroke:#080,stroke-width:4px
+    style _ChildBA stroke:#800,stroke-width:4px
+    end
+end
+```
+
+Car il manque dans ChildB pour lire les droits enfants.
+
+##### Cas 2
+
+Si admin possède ceci :
+
+```mermaid
+flowchart TD
+subgraph Peut lire
+    subgraph admin
+    direction TB
+    Main --> ChildA
+    Main --> ChildB
+    ChildA --> ChildAA
+    ChildB --> ChildBA
+    style ChildA stroke:#088,stroke-width:4px
+    style ChildB stroke:#088,stroke-width:4px
+    end
+    subgraph user
+    direction TB
+    _Main --> _ChildA
+    _Main --> _ChildB
+    _ChildA --> _ChildAA
+    _ChildB --> _ChildBA
+    style _ChildBA stroke:#080,stroke-width:4px
+    style _ChildAA stroke:#080,stroke-width:4px
+    end
+end
+```
+
+Mais :
+
+```mermaid
+flowchart TD
+subgraph Ne peut pas lire
+    subgraph admin
+    direction TB
+    Main --> ChildA
+    Main --> ChildB
+    ChildA --> ChildAA
+    ChildB --> ChildBA
+    style ChildA stroke:#088,stroke-width:4px
+    style ChildB stroke:#088,stroke-width:4px
+    end
+    subgraph user
+    direction TB
+    _Main --> _ChildA
+    _Main --> _ChildB
+    _ChildA --> _ChildAA
+    _ChildB --> _ChildBA
+    style _ChildB stroke:#800,stroke-width:4px
+    style _ChildBA stroke:#080,stroke-width:4px
+    style _ChildAA stroke:#080,stroke-width:4px
+    end
+end
+```
+
+##### Cas 3
+
+Et si admin n'a que :
+
+```mermaid
+flowchart TD
+subgraph _
+    subgraph admin
+    direction TB
+    Main --> ChildA
+    Main --> ChildB
+    ChildA --> ChildAA
+    ChildB --> ChildBA
+    style ChildA stroke:#088,stroke-width:4px
+    end
+    subgraph peut_lire
+    direction TB
+    _Main --> _ChildA
+    _Main --> _ChildB
+    _ChildA --> _ChildAA
+    _ChildB --> _ChildBA
+    style _ChildAA stroke:#080,stroke-width:4px
+    end
+    subgraph ne_peut_pas_lire*
+    direction TB
+    __Main --> __ChildA
+    __Main --> __ChildB
+    __ChildA --> __ChildAA
+    __ChildB --> __ChildBA
+    style __Main stroke:#800,stroke-width:4px
+    style __ChildB stroke:#800,stroke-width:4px
+    style __ChildA stroke:#800,stroke-width:4px
+    style __ChildBA stroke:#800,stroke-width:4px
+    style __ChildAA stroke:#080,stroke-width:4px
+    end
+end
+```
+
+*Le cas 2 ne peut être lu si un seul des droits rouges est Vrai dans ce rôle.
+
+#### Ecriture
+
+Ici, le droit est moins permissif. ChildA permet de créer un accès à un Role qui contient uniquement les droits des enfants directs.
+
+Nous aurons ainsi :
+
+```mermaid
+flowchart TD
+subgraph _
+    subgraph admin
+    direction TB
+    Main --> ChildA
+    Main --> ChildB
+    ChildA --> ChildAA
+    ChildAA --> ChildAAA
+    ChildB --> ChildBA
+    style ChildA stroke:#088,stroke-width:4px
+    style ChildB stroke:#088,stroke-width:4px
+    end
+    subgraph peut_editer
+    direction TB
+    _Main --> _ChildA
+    _Main --> _ChildB
+    _ChildA --> _ChildAA
+    _ChildAA --> _ChildAAA
+    _ChildB --> _ChildBA
+    style _ChildBA stroke:#080,stroke-width:4px
+    style _ChildAA stroke:#080,stroke-width:4px
+    end
+    subgraph ne_peut_pas_editer
+    direction TB
+    _Main_ --> _ChildA_
+    _Main_ --> _ChildB_
+    _ChildA_ --> _ChildAA_
+    _ChildAA_ --> _ChildAAA_
+    _ChildB_ --> _ChildBA_
+    style _ChildAAA_ stroke:#800,stroke-width:4px
+    style _ChildBA_ stroke:#080,stroke-width:4px
+    style _ChildAA_ stroke:#080,stroke-width:4px
+    style _ChildB_ stroke:#800,stroke-width:4px
+    end
+end
+```
+
+On conserve le cas particulier d'un droit n'ayant pas de parent :
+
+```mermaid
+flowchart TD
+subgraph _
+    subgraph admin
+    direction TB
+    Main --> ChildA
+    Main --> ChildB
+    ChildA --> ChildAA
+    ChildAA --> ChildAAA
+    ChildB --> ChildBA
+    style Main stroke:#088,stroke-width:4px
+    end
+    subgraph peut_editer
+    direction TB
+    _Main --> _ChildA
+    _Main --> _ChildB
+    _ChildA --> _ChildAA
+    _ChildAA --> _ChildAAA
+    _ChildB --> _ChildBA
+    style _ChildB stroke:#080,stroke-width:4px
+    style _Main stroke:#080,stroke-width:4px
+    style _ChildA stroke:#080,stroke-width:4px
+    end
+    subgraph ne_peut_pas_editer
+    direction TB
+    _Main_ --> _ChildA_
+    _Main_ --> _ChildB_
+    _ChildA_ --> _ChildAA_
+    _ChildAA_ --> _ChildAAA_
+    _ChildB_ --> _ChildBA_
+    style _Main_ stroke:#080,stroke-width:4px
+    style _ChildA_ stroke:#080,stroke-width:4px
+    style _ChildB_ stroke:#080,stroke-width:4px
+    style _ChildAA_ stroke:#800,stroke-width:4px
+    style _ChildAAA_ stroke:#800,stroke-width:4px
+    style _ChildBA_ stroke:#800,stroke-width:4px
+    end
+end
+```
+
+
+#### Cas particulier de right_read_users
+
+right_read_users devrait être attribuable/attribué avec n'importe quel Role pouvant gérer un accès qui lui-même gère un accès.
+
+Ceci est vrai pour **Lecture** et **Ecriture**.
+
+Exemple :
+
+```mermaid
+classDiagram
+class ChildA {
+  right_edit
+  right_read
+}
+class ReadUsers {
+  right_read_users
+}
+Main --> ChildA
+Main --> ReadUsers
+ChildA --> ChildAA
+ChildAA --> ChildAAA
+```
+
+```mermaid
+flowchart TD
+subgraph _
+    subgraph admin
+    direction TB
+    Main --> ChildA
+    Main --> ReadUsers
+    ChildA --> ChildAA
+    ChildAA --> ChildAAA
+    style ChildA stroke:#088,stroke-width:4px
+    end
+    subgraph peut_gerer
+    direction TB
+    _Main --> _ChildA
+    _Main --> _ReadUsers
+    _ChildA --> _ChildAA
+    _ChildAA --> _ChildAAA
+    style _ChildAA stroke:#080,stroke-width:4px
+    style _ReadUsers stroke:#080,stroke-width:4px
+    end
+    subgraph ne_peut_toujours_pas_gerer*
+    direction TB
+    __Main --> __ChildA
+    __Main --> __ReadUsers
+    __ChildA --> __ChildAA
+    __ChildAA --> __ChildAAA
+    style __ChildAAA stroke:#800,stroke-width:4px
+    style __ReadUsers stroke:#080,stroke-width:4px
+    end
+end
+```
+
+*car ChildAAA n'est pas vivible sans __ChildAA
+
+Mais :
+
+```mermaid
+flowchart TD
+subgraph _
+    subgraph admin
+    direction TB
+    Main --> ChildA
+    Main --> ReadUsers
+    ChildA --> ChildAA
+    ChildAA --> ChildAAA
+    style ChildAA stroke:#088,stroke-width:4px
+    end
+    subgraph ne_peut_pas_gerer
+    direction TB
+    _Main --> _ChildA
+    _Main --> _ReadUsers
+    _ChildA --> _ChildAA
+    _ChildAA --> _ChildAAA
+    style _ChildAAA stroke:#080,stroke-width:4px
+    style _ReadUsers stroke:#800,stroke-width:4px
+    end
+end
+```
+
+Car ChildAAA ne permet pas de gérer d'autres accès.
+
+
+### Traitement du cas avec périmètres
+
+Considérons un modèle un petit peu plus complet :
+
+```mermaid
+classDiagram
+class Main {
+  right_manage
+}
+class ChildA {
+  right_manage_inf_levels
+  right_manage_same_levels
+}
+class ChildAA {
+  rightA
+}
+class ChildB {
+  right_manageB
+}
+class ChildBA {
+  rightB
+}
+Main --> ChildA
+Main --> ChildB
+ChildA --> ChildAA
+ChildB --> ChildBA
+
+PerimCentrale --> Hopital1
+PerimCentrale --> Hopital2
+Hopital2 --> Unite1
+```
+
+Lorsqu'un groupe de droits ne possède pas de inf/same level, cela veut dire que sont right_manage est valable sur TOUS les périmètres.
+
+Nous pouvons avoir des cas comme ceci :
+
+```mermaid
+flowchart TD
+subgraph _
+direction TB
+    
+    subgraph admin
+        direction LR
+        subgraph Hop2
+            direction TB
+            Main --> ChildA_same_lvl
+            Main --> ChildB
+            ChildA_same_lvl --> ChildAA
+            ChildB --> ChildBA
+            style ChildA_same_lvl stroke:#088,stroke-width:4px
+        end
+        subgraph any
+            direction TB
+            Main_ --> ChildA_
+            Main_ --> ChildB_
+            ChildA_ --> ChildAA_
+            ChildB_ --> ChildBA_
+            style ChildB_ stroke:#088,stroke-width:4px
+        end
+        Hop2 --- any
+    end
+
+    direction LR
+    subgraph peut lire si Hop2
+    direction TB
+    _Main --> _ChildA
+    _Main --> _ChildB
+    _ChildA --> _ChildAA
+    _ChildB --> _ChildBA
+    style _ChildAA stroke:#080,stroke-width:4px
+    style _ChildBA stroke:#080,stroke-width:4px
+    end
+    subgraph ne peut pas lire si Hop3
+    direction TB
+    __Main --> __ChildA
+    __Main --> __ChildB
+    __ChildA --> __ChildAA
+    __ChildB --> __ChildBA
+    style __ChildBA stroke:#080,stroke-width:4px
+    style __ChildAA stroke:#800,stroke-width:4px
+    end
+end
+```
+

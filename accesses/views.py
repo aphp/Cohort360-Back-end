@@ -73,8 +73,6 @@ class ProfileViewSet(CustomLoggingMixin, BaseViewset):
     lookup_field = "id"
     logging_methods = ['POST', 'PUT', 'PATCH', 'DELETE']
 
-    user_fields = [f.column for f in User._meta.local_fields]
-    ph_fields = [f.column for f in Profile._meta.local_fields]
     permission_classes = [
         lambda: AND(IsAuthenticated(), ProfilePermissions()),
     ]
@@ -83,9 +81,6 @@ class ProfileViewSet(CustomLoggingMixin, BaseViewset):
 
     # search_fields = [
     #     "p.provider_name", "p.lastname", "p.firstname", "p.email", "p.user_id"]
-
-    def get_serializer_context(self):
-        return {'request': self.request}
 
     def get_serializer_class(self):
         return (
@@ -558,9 +553,6 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
                        filters.SearchFilter)
     filter_class = AccessFilter
 
-    def get_serializer_context(self):
-        return {'request': self.request}
-
     def get_permissions(self):
         if self.action in ['my_accesses', 'data_rights']:
             return [IsAuthenticated()]
@@ -893,11 +885,13 @@ class PerimeterFilter(django_filters.FilterSet):
 class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin,
                        BaseViewset):
     serializer_class = PerimeterSerializer
+    queryset = Perimeter.objects.all()
     lookup_field = "id"
     queryset = Perimeter.objects.all()
     permission_classes = (IsAuthenticatedReadOnly,)
 
     filterset_class = PerimeterFilter
+    # todo : check if works with param name
     ordering_fields = [('care_site_name', 'name'),
                        ('care_site_type_source_value', 'type_source_value'),
                        ('care_site_source_value', 'source_value')]
