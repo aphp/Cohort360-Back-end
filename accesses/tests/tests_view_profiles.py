@@ -9,10 +9,10 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import force_authenticate
 
-from accesses.models import Access, Profile, \
-    MANUAL_SOURCE, Role
+from accesses.models import Access, Profile, Role
 from accesses.views import ProfileViewSet
 from admin_cohort.models import User
+from admin_cohort.settings import MANUAL_SOURCE
 from admin_cohort.tests_tools import random_str, \
     new_user_and_profile, CaseRetrieveFilter, ViewSetTestsWithBasicPerims, \
     ListCase, CreateCase, DeleteCase, PatchCase, RequestCase
@@ -83,7 +83,7 @@ class CheckCase(RequestCase):
 class ProfileTests(ViewSetTestsWithBasicPerims):
     unupdatable_fields = ["is_active", "valid_start_datetime",
                           "valid_end_datetime", "id"]
-    unsettable_default_fields = dict(source=MANUAL_SOURCE, )
+    unsettable_default_fields = dict(source=MANUAL_SOURCE,)
     unsettable_fields = ["id"]
     manual_dupplicated_fields = ['valid_start_datetime', 'valid_end_datetime',
                                  'is_active']

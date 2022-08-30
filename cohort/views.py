@@ -15,7 +15,8 @@ from rest_framework.relations import PrimaryKeyRelatedField
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
-from admin_cohort.views import SwaggerSimpleNestedViewSetMixin
+from admin_cohort.views import SwaggerSimpleNestedViewSetMixin, \
+    CustomLoggingMixin
 from cohort.permissions import IsOwner, OR, IsAdmin
 from admin_cohort import app
 from cohort.FhirAPi import JobStatus
@@ -541,13 +542,15 @@ class NestedRequestViewSet(SwaggerSimpleNestedViewSetMixin, RequestViewSet):
     pass
 
 
-class FolderViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
+class FolderViewSet(CustomLoggingMixin, NestedViewSetMixin,
+                    UserObjectsRestrictedViewSet):
     queryset = Folder.objects.all()
     serializer_class = FolderSerializer
     http_method_names = ['get', 'post', 'patch', 'delete']
     lookup_field = "uuid"
-    swagger_tags = ['Folders']
 
+    swagger_tags = ['Folders']
+    logging_methods = ['POST', 'PUT', 'PATCH', 'DELETE']
     pagination_class = LimitOffsetPagination
 
     filterset_fields = ('uuid', 'name',)

@@ -265,6 +265,7 @@ subgraph Ne peut pas lire
     _ChildA --> _ChildAA
     _ChildB --> _ChildBA
     style _ChildA stroke:#080,stroke-width:4px
+    style _ChildAA stroke:#080,stroke-width:4px
     style _ChildBA stroke:#800,stroke-width:4px
     end
 end
@@ -407,6 +408,32 @@ subgraph _
     style _ChildBA_ stroke:#080,stroke-width:4px
     style _ChildAA_ stroke:#080,stroke-width:4px
     style _ChildB_ stroke:#800,stroke-width:4px
+    end
+end
+```
+
+```mermaid
+flowchart TD
+subgraph _
+    subgraph admin
+    direction TB
+    Main --> ChildA
+    Main --> ChildB
+    ChildA --> ChildAA
+    ChildAA --> ChildAAA
+    ChildB --> ChildBA
+    style ChildA stroke:#088,stroke-width:4px
+    style ChildAA stroke:#088,stroke-width:4px
+    end
+    subgraph peut_editer
+    direction TB
+    _Main --> _ChildA
+    _Main --> _ChildB
+    _ChildA --> _ChildAA
+    _ChildAA --> _ChildAAA
+    _ChildB --> _ChildBA
+    style _ChildAA stroke:#080,stroke-width:4px
+    style _ChildAAA stroke:#080,stroke-width:4px
     end
 end
 ```

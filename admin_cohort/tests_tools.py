@@ -11,10 +11,10 @@ from django.test import TestCase
 from rest_framework.response import Response
 from rest_framework.test import APIRequestFactory, force_authenticate
 
-from accesses.models import Role, Profile, MANUAL_SOURCE, Perimeter
+from accesses.models import Role, Profile, Perimeter
 from admin_cohort.models import BaseModel, User
 from admin_cohort.settings import PERIMETERS_TYPES, \
-    ROOT_PERIMETER_TYPE
+    ROOT_PERIMETER_TYPE, MANUAL_SOURCE
 from admin_cohort.tools import prettify_json, prettify_dict
 
 

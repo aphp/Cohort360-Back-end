@@ -12,7 +12,7 @@ from django.utils import timezone
 from rest_framework import status as http_status
 from rest_framework.test import force_authenticate
 
-from accesses.models import Access, Role, MANUAL_SOURCE, Profile, Perimeter
+from accesses.models import Access, Role, Profile, Perimeter
 from accesses.rights import main_admin_rights, admin_manager_rights,\
     csv_export_manage_rights, jup_export_manage_rights,\
     csv_review_manage_rights, workspaces_rights, user_rights,\
@@ -20,6 +20,7 @@ from accesses.rights import main_admin_rights, admin_manager_rights,\
     jup_review_rights, csv_review_rights, right_read_users,\
     jup_review_manage_rights
 from accesses.views import AccessViewSet
+from admin_cohort.settings import MANUAL_SOURCE
 from admin_cohort.tests_tools import new_user_and_profile, CaseRetrieveFilter, \
     ViewSetTestsWithBasicPerims, RequestCase, ALL_RIGHTS, DeleteCase, \
     PatchCase, CreateCase, ListCase, new_random_user

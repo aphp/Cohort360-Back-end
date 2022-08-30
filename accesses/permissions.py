@@ -8,22 +8,6 @@ from admin_cohort.permissions import get_bound_roles, \
     can_user_edit_roles, can_user_read_users
 
 
-class RolePermissions(permissions.BasePermission):
-    def has_permission(self, request, view):
-        # in list, objects will be serialized given the user's rights
-        if request.method in ["PUT", "PATCH", "POST", "DELETE"]:
-            return can_user_edit_roles(request.user.provider_username)
-        return request.method in permissions.SAFE_METHODS
-
-    def has_object_permission(self, request, view, obj):
-        if request.method in ["PUT", "PATCH", "POST"]:
-            return can_user_edit_roles(request.user.provider_username)
-        elif request.method == "GET":
-            return True
-        else:
-            return False
-
-
 def can_user_manage_access(
         user: User, role: Role, perimeter: Perimeter
 ) -> bool:
@@ -115,6 +99,30 @@ def can_user_read_access(user: User, role: Role, perimeter: Perimeter) -> bool:
     )
 
 
+def can_user_edit_profiles(user: User) -> bool:
+    return any([r.right_edit_users for r in get_bound_roles(user)])
+
+
+def can_user_add_profiles(user: User) -> bool:
+    return any([r.right_add_users for r in get_bound_roles(user)])
+
+
+class RolePermissions(permissions.BasePermission):
+    def has_permission(self, request, view):
+        # in list, objects will be serialized given the user's rights
+        if request.method in ["PUT", "PATCH", "POST", "DELETE"]:
+            return can_user_edit_roles(request.user.provider_username)
+        return request.method in permissions.SAFE_METHODS
+
+    def has_object_permission(self, request, view, obj):
+        if request.method in ["PUT", "PATCH", "POST"]:
+            return can_user_edit_roles(request.user.provider_username)
+        elif request.method == "GET":
+            return True
+        else:
+            return False
+
+
 class AccessPermissions(permissions.BasePermission):
     def has_permission(self, request, view):
         if request.method in ["POST", "PUT", "PATCH", "DELETE"]:
@@ -132,14 +140,6 @@ class AccessPermissions(permissions.BasePermission):
             return can_user_read_access(request.user, obj.role, obj.perimeter)
         else:
             return False
-
-
-def can_user_edit_profiles(user: User) -> bool:
-    return any([r.right_edit_users for r in get_bound_roles(user)])
-
-
-def can_user_add_profiles(user: User) -> bool:
-    return any([r.right_add_users for r in get_bound_roles(user)])
 
 
 class HasUserAddingPermission(permissions.BasePermission):

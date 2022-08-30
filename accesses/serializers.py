@@ -8,14 +8,14 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError, PermissionDenied
 
 from .conf_perimeters import get_provider_id
-from .models import Role, Access, Profile, MANUAL_SOURCE, Perimeter
+from .models import Role, Access, Profile, Perimeter
 from .permissions import can_user_manage_access
 from admin_cohort.conf_auth import check_id_aph
 from admin_cohort.models import User
 from admin_cohort.serializers import BaseSerializer, ReducedUserSerializer, \
     UserSerializer
 from admin_cohort.settings import MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE, \
-    MODEL_MANUAL_END_DATE_DEFAULT_ON_UPDATE
+    MODEL_MANUAL_END_DATE_DEFAULT_ON_UPDATE, MANUAL_SOURCE
 
 
 def check_date_rules(
@@ -424,18 +424,6 @@ class YasgTreefiedPerimeterSerializer(TreefiedPerimeterSerializer):
 
     def get_fields(self):
         return super(TreefiedPerimeterSerializer, self).get_fields()
-
-
-class RootPerimeterSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Perimeter
-        fields = "__all__"
-
-    def get_fields(self):
-        fields = super(RootPerimeterSerializer, self).get_fields()
-        fields['parent'] = RootPerimeterSerializer(
-            source='prefetched_parent', required=False)
-        return fields
 
 
 class PerimeterSerializer(serializers.ModelSerializer):
