@@ -27,6 +27,8 @@ class RoleViewSet(CustomLoggingMixin, BaseViewset):
     queryset = Role.objects.filter(delete_datetime__isnull=True).all()
     lookup_field = "id"
     logging_methods = ['POST', 'PUT', 'PATCH', 'DELETE']
+
+    swagger_tags = ['Accesses - roles']
     filter_class = RoleFilter
 
     def get_permissions(self):

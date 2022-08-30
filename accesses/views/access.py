@@ -101,7 +101,9 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
     serializer_class = AccessSerializer
     queryset = Access.objects.all()
     lookup_field = "id"
+
     logging_methods = ['POST', 'PUT', 'PATCH', 'DELETE']
+    swagger_tags = ['Accesses - accesses']
 
     search_fields = [
         "profile__lastname",

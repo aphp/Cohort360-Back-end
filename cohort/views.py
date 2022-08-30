@@ -158,7 +158,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     serializer_class = CohortResultSerializer
     http_method_names = ['get', 'post', 'patch', 'delete']
     lookup_field = "uuid"
-    swagger_tags = ['CohortResult']
+    swagger_tags = ['Cohort - cohorts']
 
     pagination_class = LimitOffsetPagination
 
@@ -245,7 +245,7 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     serializer_class = DatedMeasureSerializer
     http_method_names = ['get', 'post', 'patch', 'delete']
     lookup_field = "uuid"
-    swagger_tags = ['DatedMeasures']
+    swagger_tags = ['Cohort - dated-measures']
 
     pagination_class = LimitOffsetPagination
 
@@ -389,7 +389,7 @@ class RequestQuerySnapshotViewSet(
     serializer_class = RequestQuerySnapshotSerializer
     http_method_names = ['get', 'post', 'patch', 'delete']
     lookup_field = "uuid"
-    swagger_tags = ['RequestQuerySnapshot']
+    swagger_tags = ['Cohort - request-query-snapshots']
 
     pagination_class = LimitOffsetPagination
 
@@ -503,7 +503,7 @@ class RequestViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     serializer_class = RequestSerializer
     http_method_names = ['get', 'post', 'patch', 'delete']
     lookup_field = "uuid"
-    swagger_tags = ['Requests']
+    swagger_tags = ['Cohort - requests']
 
     pagination_class = LimitOffsetPagination
 
@@ -549,7 +549,7 @@ class FolderViewSet(CustomLoggingMixin, NestedViewSetMixin,
     http_method_names = ['get', 'post', 'patch', 'delete']
     lookup_field = "uuid"
 
-    swagger_tags = ['Folders']
+    swagger_tags = ['Cohort - folders']
     logging_methods = ['POST', 'PUT', 'PATCH', 'DELETE']
     pagination_class = LimitOffsetPagination
 

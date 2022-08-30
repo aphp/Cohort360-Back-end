@@ -69,6 +69,8 @@ class AccountViewset(YarnReadOnlyViewsetMixin, viewsets.ModelViewSet):
         "mail",
     ]
 
+    swagger_tags = ['Workspaces - users']
+
     def get_serializer_context(self):
         return {'request': self.request}
 
@@ -120,6 +122,8 @@ class ProjectViewset(YarnReadOnlyViewsetMixin, viewsets.ModelViewSet):
     lookup_field = "id"
     http_method_names = ["get"]
 
+    swagger_tags = ['Workspaces - projects']
+
     def get_serializer_class(self):
         if user_is_authenticated(self.request.user) \
                 and can_user_read_unix_accounts(self.request.user):
@@ -135,6 +139,8 @@ class JupyterMachineViewset(YarnReadOnlyViewsetMixin, viewsets.ModelViewSet):
     http_method_names = ["get"]
     permission_classes = [AccountPermissions]
 
+    swagger_tags = ['Workspaces - jupyter-machines']
+
 
 class RangerHivePolicyViewset(YarnReadOnlyViewsetMixin, viewsets.ModelViewSet):
     serializer_class = RangerHivePolicySerializer
@@ -142,6 +148,8 @@ class RangerHivePolicyViewset(YarnReadOnlyViewsetMixin, viewsets.ModelViewSet):
     lookup_field = "id"
     http_method_names = ["get"]
     permission_classes = [AccountPermissions]
+
+    swagger_tags = ['Workspaces - ranger-hive-policies']
 
     def get_permissions(self):
         if self.action in ['get_types']:
@@ -167,6 +175,8 @@ class LdapGroupViewset(YarnReadOnlyViewsetMixin, viewsets.ModelViewSet):
     http_method_names = ["get"]
     permission_classes = [AccountPermissions]
 
+    swagger_tags = ['Workspaces - ldap-groups']
+
 
 class KernelViewset(YarnReadOnlyViewsetMixin, viewsets.ModelViewSet):
     serializer_class = KernelSerializer
@@ -174,3 +184,5 @@ class KernelViewset(YarnReadOnlyViewsetMixin, viewsets.ModelViewSet):
     lookup_field = "id"
     http_method_names = ["get"]
     permission_classes = [AccountPermissions]
+
+    swagger_tags = ['Workspaces - kernels']

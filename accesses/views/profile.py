@@ -49,10 +49,11 @@ class ProfileViewSet(CustomLoggingMixin, BaseViewset):
     queryset = Profile.objects.filter(delete_datetime__isnull=True).all()
     lookup_field = "id"
     logging_methods = ['POST', 'PUT', 'PATCH', 'DELETE']
-
     permission_classes = [
         lambda: AND(IsAuthenticated(), ProfilePermissions()),
     ]
+
+    swagger_tags = ['Accesses - profiles']
     filter_class = ProfileFilter
     search_fields = ["lastname", "firstname", "email", "user_id"]
 

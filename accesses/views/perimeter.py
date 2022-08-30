@@ -48,9 +48,9 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin,
     serializer_class = PerimeterSerializer
     queryset = Perimeter.objects.all()
     lookup_field = "id"
-    queryset = Perimeter.objects.all()
     permission_classes = (IsAuthenticatedReadOnly,)
 
+    swagger_tags = ['Accesses - perimeters']
     filterset_class = PerimeterFilter
     # todo : check if works with param name
     ordering_fields = [('care_site_name', 'name'),

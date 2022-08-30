@@ -48,6 +48,8 @@ class UsersViewSet(AccountViewset):
     lookup_field = "uid"
     serializer_class = AnnexeAccountSerializer
     http_method_names = ["get"]
+
+    swagger_tags = ['Exports - users']
     filter_class = UserFilter
 
     def get_permissions(self):
@@ -74,6 +76,7 @@ class CohortViewSet(viewsets.ModelViewSet):
     queryset = CohortResult.objects.filter(
         request_job_status=JobStatus.FINISHED)
 
+    swagger_tags = ['Exports - cohorts']
     filterset_fields = ("owner_id",)
     search_fields = ('$name', '$description',)
 
@@ -112,9 +115,10 @@ class ExportRequestViewset(CustomLoggingMixin, viewsets.ModelViewSet):
     lookup_field = "id"
     permissions = (ExportRequestPermissions, ExportJupyterPermissions)
     filterset_fields = ['output_format', 'status', 'creator_fk']
-
-    logging_methods = ['POST', 'PATCH']
     http_method_names = ['get', 'post', 'patch']
+
+    swagger_tags = ['Exports']
+    logging_methods = ['POST', 'PATCH']
 
     def should_log(self, request, response):
         action = getattr(
