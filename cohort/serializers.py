@@ -1,12 +1,11 @@
 import json
 
 from rest_framework import serializers
+
+from admin_cohort.types import JobStatus, NewJobStatus
 from cohort.models import User
 from admin_cohort.serializers import BaseSerializer, OpenUserSerializer
-import cohort.conf_cohort_job_api as fhir_api
-from cohort.FhirAPi import JobStatus
-from cohort.conf_cohort_job_api import get_fhir_authorization_header, \
-    format_json_request, retrieve_perimeters
+import cohort.conf_cohort_job_api as conf
 from cohort.models import Request, CohortResult, RequestQuerySnapshot, \
     DatedMeasure, Folder, GLOBAL_DM_MODE
 
@@ -17,8 +16,8 @@ class PrimaryKeyRelatedFieldWithOwner(serializers.PrimaryKeyRelatedField):
         if user is None:
             raise Exception(
                 "Internal error: No context request provided to serializer")
-        qs = super(PrimaryKeyRelatedFieldWithOwner, self).get_queryset()
-        return qs.filter(owner=user)
+        return super(PrimaryKeyRelatedFieldWithOwner, self).get_queryset()\
+            .filter(owner=user)
 
 
 class UserPrimaryKeyRelatedField(serializers.PrimaryKeyRelatedField):
@@ -28,12 +27,23 @@ class UserPrimaryKeyRelatedField(serializers.PrimaryKeyRelatedField):
             raise Exception(
                 "Internal error: No context request provided to serializer")
         qs = super(UserPrimaryKeyRelatedField, self).get_queryset()
-        return qs.filter(provider_username=user.provider_username)
+        return qs.filter(pk=user.pk)
+
+
+class CohortBaseSerializer(serializers.ModelSerializer):
+    created_at = serializers.DateTimeField(read_only=True)
+    modified_at = serializers.DateTimeField(read_only=True)
+    deleted = serializers.DateTimeField(read_only=True)
 
 
 class DatedMeasureSerializer(BaseSerializer):
-    request = serializers.UUIDField(read_only=True, required=False,
-                                    source='request_id')
+    owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(),
+                                       required=False)
+    request = serializers.UUIDField(
+        read_only=True, required=False,
+        source='request_query_snapshot__request__pk')
+    request_query_snapshot = PrimaryKeyRelatedFieldWithOwner(
+        queryset=RequestQuerySnapshot.objects.all(), required=True)
 
     class Meta:
         model = DatedMeasure
@@ -50,22 +60,12 @@ class DatedMeasureSerializer(BaseSerializer):
         ]
 
     def update(self, instance, validated_data):
-        for f in ['owner', 'request_query_snapshot']:
+        for f in ['request_query_snapshot']:
             if f in validated_data:
                 raise serializers.ValidationError(
                     f'{f} field cannot bu updated manually'
                 )
         return super(DatedMeasureSerializer, self).update(
-            instance, validated_data
-        )
-
-    def partial_update(self, instance, validated_data):
-        for f in ['owner', 'request', 'request_query_snapshot']:
-            if f in validated_data:
-                raise serializers.ValidationError(
-                    f'{f} field cannot bu updated manually'
-                )
-        return super(DatedMeasureSerializer, self).partial_update(
             instance, validated_data
         )
 
@@ -94,11 +94,11 @@ class DatedMeasureSerializer(BaseSerializer):
         if measure is None:
             try:
                 from cohort.tasks import get_count_task
-                get_count_task(
-                    get_fhir_authorization_header(
+                get_count_task.delay(
+                    conf.get_fhir_authorization_header(
                         self.context.get("request", None)
                     ),
-                    format_json_request(str(rqs.serialized_query)),
+                    conf.format_json_request(str(rqs.serialized_query)),
                     res_dm.uuid
                 )
             except Exception as e:
@@ -110,11 +110,13 @@ class DatedMeasureSerializer(BaseSerializer):
 
 
 class CohortResultSerializer(BaseSerializer):
+    owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(),
+                                       required=False)
     result_size = serializers.IntegerField(read_only=True)
     request = serializers.UUIDField(read_only=True, required=False,
                                     source='request_id')
     request_query_snapshot = PrimaryKeyRelatedFieldWithOwner(
-        queryset=RequestQuerySnapshot.objects.all()
+        queryset=RequestQuerySnapshot.objects.all(), required=True
     )
     dated_measure = PrimaryKeyRelatedFieldWithOwner(
         queryset=DatedMeasure.objects.all(), required=False
@@ -122,11 +124,6 @@ class CohortResultSerializer(BaseSerializer):
     dated_measure_global = PrimaryKeyRelatedFieldWithOwner(
         queryset=DatedMeasure.objects.all(), required=False
     )
-    # request_query_snapshot = serializers.UUIDField(
-    #     read_only=True, required=False, source='request_query_snapshot_id')
-    # dated_measure = DatedMeasureSerializer()
-    # dated_measure_global = DatedMeasureSerializer(required=False)
-
     global_estimate = serializers.BooleanField(
         write_only=True, allow_null=True, default=True
     )
@@ -138,52 +135,36 @@ class CohortResultSerializer(BaseSerializer):
     class Meta:
         model = CohortResult
         fields = "__all__"
-        # exclude = ["request_query_snapshot", "request"]
-        # write_only_fields = ["dated_measure_id"]
         read_only_fields = [
             "create_task_id",
             "request_job_id",
             "request_job_status",
             "request_job_fail_msg",
             "request_job_duration",
-
-            # "request_query_snapshot",
-            # "request"
         ]
 
     def update(self, instance, validated_data):
-        for f in [
-            'owner', 'request', 'request_query_snapshot', 'dated_measure',
-            'dated_measure_id', 'type', 'owner_id', 'request_id',
-            'request_query_snapshot_id'
-        ]:
+        for f in ['owner', 'request_query_snapshot', 'dated_measure', 'type']:
             if f in validated_data:
                 raise serializers.ValidationError(
                     f'{f} field cannot be updated manually')
         return super(CohortResultSerializer, self) \
             .update(instance, validated_data)
 
-    def partial_update(self, instance, validated_data):
-        for f in ['owner', 'request', 'request_query_snapshot',
-                  'dated_measure', 'type']:
-            if f in validated_data:
-                raise serializers.ValidationError(
-                    f'{f} field cannot be updated manually')
-        return super(CohortResultSerializer, self) \
-            .partial_update(instance, validated_data)
-
     def create(self, validated_data):
         if validated_data.get("type", None) is not None:
             raise serializers.ValidationError("You cannot provide a type")
 
         rqs = validated_data.get("request_query_snapshot", None)
-        global_estimate = validated_data.pop("global_estimate", None)
+        global_estimate = (validated_data.pop("global_estimate", None) and
+                           validated_data.get('dated_measure_global', None)
+                           is None)
 
-        if rqs is None:
-            raise serializers.ValidationError(
-                "You have to provide a request_query_snapshot_id to bind "
-                "the cohort result to it"
-            )
+        # if rqs is None:
+        #     raise serializers.ValidationError(
+        #         "You have to provide a request_query_snapshot_id to bind "
+        #         "the cohort result to it"
+        #     )
 
         dm = validated_data.get(
             "dated_measure", dict(fhir_datetime=None, measure=None)
@@ -223,10 +204,10 @@ class CohortResultSerializer(BaseSerializer):
             try:
                 from cohort.tasks import get_count_task
                 get_count_task.delay(
-                    get_fhir_authorization_header(
+                    conf.get_fhir_authorization_header(
                         self.context.get("request", None)
                     ),
-                    format_json_request(str(rqs.serialized_query)),
+                    conf.format_json_request(str(rqs.serialized_query)),
                     res_dm_global.uuid
                 )
             except Exception as e:
@@ -234,6 +215,8 @@ class CohortResultSerializer(BaseSerializer):
                     = f"INTERNAL ERROR: Could not launch FHIR cohort count: {e}"
                 result_cr.dated_measure_global \
                     .request_job_status = JobStatus.ERROR.value
+                result_cr.dated_measure_global \
+                    .new_request_job_status = NewJobStatus.failed.value
                 result_cr.dated_measure_global.save()
 
         # once it has been created, we launch Fhir API cohort creation
@@ -242,10 +225,10 @@ class CohortResultSerializer(BaseSerializer):
             try:
                 from cohort.tasks import create_cohort_task
                 create_cohort_task.delay(
-                    get_fhir_authorization_header(
+                    conf.get_fhir_authorization_header(
                         self.context.get("request", None)
                     ),
-                    format_json_request(str(rqs.serialized_query)),
+                    conf.format_json_request(str(rqs.serialized_query)),
                     result_cr.uuid
                 )
 
@@ -267,12 +250,17 @@ class CohortResultSerializerFullDatedMeasure(CohortResultSerializer):
 
 
 class ReducedRequestQuerySnapshotSerializer(BaseSerializer):
+    owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(),
+                                       required=False)
+
     class Meta:
         model = RequestQuerySnapshot
         fields = "__all__"
 
 
 class RequestQuerySnapshotSerializer(BaseSerializer):
+    owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(),
+                                       required=False)
     request = PrimaryKeyRelatedFieldWithOwner(
         queryset=Request.objects.all(), required=False)
     previous_snapshot = PrimaryKeyRelatedFieldWithOwner(
@@ -301,15 +289,13 @@ class RequestQuerySnapshotSerializer(BaseSerializer):
         previous_snapshot = validated_data.get("previous_snapshot", None)
         request = validated_data.get("request", None)
         if previous_snapshot is not None:
-            for rqs in previous_snapshot.next_snapshots.all():
-                rqs.active = False
-                rqs.save()
             if request is not None \
                     and request.uuid != previous_snapshot.request.uuid:
                 raise serializers.ValidationError(
                     "You cannot provide a request_id that is not the same as "
                     "the id of the request bound to the previous_snapshot")
-            validated_data["request_id"] = previous_snapshot.request.uuid
+
+            validated_data["request"] = previous_snapshot.request
         elif request is not None:
             if len(request.query_snapshots.all()) != 0:
                 raise serializers.ValidationError(
@@ -320,11 +306,7 @@ class RequestQuerySnapshotSerializer(BaseSerializer):
                 "You have to provide a previous_snapshot_id or a request_id "
                 "if the request has not query snapshots bound to it yet")
 
-        serialized_query = validated_data.get("serialized_query", None)
-        if serialized_query is None:
-            raise serializers.ValidationError(
-                "You have to provide a serialized_query")
-
+        serialized_query = validated_data.get("serialized_query")
         try:
             json.loads(serialized_query)
         except json.JSONDecodeError as e:
@@ -333,72 +315,53 @@ class RequestQuerySnapshotSerializer(BaseSerializer):
 
         # post_validate_cohort is called this way
         # so that fhir_api can be mocked in tests
-        validate_resp = fhir_api.post_validate_cohort(
-            format_json_request(serialized_query),
-            get_fhir_authorization_header(self.context.get("request"))
+        validate_resp = conf.post_validate_cohort(
+            conf.format_json_request(serialized_query),
+            conf.get_fhir_authorization_header(self.context.get("request"))
         )
         if not validate_resp.success:
             raise serializers.ValidationError(
                 f"Serialized_query, after formatting, is not accepted by "
                 f"FHIR server: {validate_resp.err_msg}")
 
-        validated_data["perimeters_ids"] = retrieve_perimeters(serialized_query)
+        validated_data["perimeters_ids"] = conf.retrieve_perimeters(
+            serialized_query)
 
-        return super(RequestQuerySnapshotSerializer, self) \
+        res = super(RequestQuerySnapshotSerializer, self)\
             .create(validated_data=validated_data)
 
+        if res.previous_snapshot is not None:
+            for rqs in res.previous_snapshot.next_snapshots.all():
+                rqs.is_active_branch = False
+                rqs.save()
+
+        return res
+
     def update(self, instance, validated_data):
-        for f in ['owner', 'request', 'owner_id', 'request_id']:
+        for f in ['request', 'request_id']:
             if f in validated_data:
                 raise serializers.ValidationError(
                     f'{f} field cannot be updated manually')
         return super(RequestQuerySnapshotSerializer, self) \
             .update(instance, validated_data)
 
-    def partial_update(self, instance, validated_data):
-        for f in ['owner', 'request', 'owner_id', 'request_id']:
-            if f in validated_data:
-                raise serializers.ValidationError(
-                    f'{f} field cannot be updated manually')
-        return super(RequestQuerySnapshotSerializer, self) \
-            .partial_update(instance, validated_data)
-
 
 class RequestSerializer(BaseSerializer):
-    # owner_id = UserPrimaryKeyRelatedField(source='owner',
-    # queryset=User.objects.all(), required=False)
-    # parent_folder_id = PrimaryKeyRelatedFieldWithOwner(source='parent_folder',
-    # queryset=Folder.objects.all(), required=False)
-    # query_snapshots = RequestQuerySnapshotSerializer(many=True,
-    # read_only=True)
+    owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(),
+                                       required=False)
     query_snapshots = serializers.SlugRelatedField(slug_field='uuid', many=True,
                                                    read_only=True)
     shared_by = OpenUserSerializer(read_only=True)
+    parent_folder = PrimaryKeyRelatedFieldWithOwner(
+        queryset=Folder.objects.all(), required=True)
 
     class Meta:
         model = Request
         fields = "__all__"
-        # exclude = ["owner"]
         read_only_fields = [
-            # "owner",
             "query_snapshots",
             'shared_by',
         ]
-
-    def update(self, instance, validated_data):
-        for f in ['owner']:
-            if f in validated_data:
-                raise serializers.ValidationError(
-                    f'{f} field cannot bu updated manually')
-        return super(RequestSerializer, self).update(instance, validated_data)
-
-    def partial_update(self, instance, validated_data):
-        for f in ['owner']:
-            if f in validated_data:
-                raise serializers.ValidationError(
-                    f'{f} field cannot bu updated manually')
-        return super(RequestSerializer, self) \
-            .partial_update(instance, validated_data)
 
 
 class ReducedFolderSerializer(serializers.ModelSerializer):
@@ -410,35 +373,14 @@ class ReducedFolderSerializer(serializers.ModelSerializer):
 
 
 class FolderSerializer(BaseSerializer):
-    parent_folder_id = PrimaryKeyRelatedFieldWithOwner(
-        source='parent_folder', queryset=Folder.objects.all(), required=False)
-    owner_id = UserPrimaryKeyRelatedField(
-        source='owner', queryset=User.objects.all(), required=False)
-
+    owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(),
+                                       required=False)
+    parent_folder = PrimaryKeyRelatedFieldWithOwner(
+        queryset=Folder.objects.all(), required=False)
     children_folders = ReducedFolderSerializer(many=True, read_only=True)
-    # requests = RequestSerializer(many=True, read_only=True)
     requests = serializers.SlugRelatedField(slug_field='uuid', many=True,
                                             read_only=True)
 
     class Meta:
         model = Folder
         fields = "__all__"
-        # exclude = ["owner"]
-        read_only_fields = ["owner",
-                            "children_folders", "requests"
-                            ]
-
-    def update(self, instance, validated_data):
-        for f in ['owner']:
-            if f in validated_data:
-                raise serializers.ValidationError(
-                    f'{f} field cannot bu updated manually')
-        return super(FolderSerializer, self).update(instance, validated_data)
-
-    def partial_update(self, instance, validated_data):
-        for f in ['owner']:
-            if f in validated_data:
-                raise serializers.ValidationError(
-                    f'{f} field cannot bu updated manually')
-        return super(FolderSerializer, self) \
-            .partial_update(instance, validated_data)

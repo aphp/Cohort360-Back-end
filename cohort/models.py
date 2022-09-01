@@ -13,7 +13,6 @@ from django.db import models
 
 from admin_cohort.models import CohortBaseModel
 
-
 COHORT_TYPE_CHOICES = [
     ("IMPORT_I2B2", "Previous cohorts imported from i2b2.",),
     ("MY_ORGANIZATIONS", "Organizations in which I work (care sites "
@@ -52,6 +51,15 @@ class Folder(CohortBaseModel):
         related_name="children_folders", null=True
     )
 
+    class Meta:
+        unique_together = ('owner', 'name', 'parent_folder')
+
+    def __str__(self):
+        return f"{self.name} ({self.owner})"
+
+    def __repr__(self):
+        return f"Folder {self})"
+
 
 class Request(CohortBaseModel):
     owner = models.ForeignKey(
@@ -77,7 +85,7 @@ class Request(CohortBaseModel):
     )
 
     def last_request_snapshot(self):
-        return RequestQuerySnapshot.objects.filter(request__uuid=self.uuid)\
+        return RequestQuerySnapshot.objects.filter(request__uuid=self.uuid) \
             .latest('created_at')
 
     def saved_snapshot(self):
@@ -87,7 +95,8 @@ class Request(CohortBaseModel):
     def dated_measures(self):
         return reduce(lambda a, b: a | b,
                       [rqs.dated_measures.all()
-                       for rqs in self.query_snapshots.all()])
+                       for rqs in self.query_snapshots.all()],
+                      DatedMeasure.objects.none())
 
 
 class RequestQuerySnapshot(CohortBaseModel):
@@ -100,21 +109,21 @@ class RequestQuerySnapshot(CohortBaseModel):
     )
 
     serialized_query = models.TextField(default="{}")
-    refresh_every_seconds = models.BigIntegerField(default=0)
-    refresh_create_cohort = models.BooleanField(default=False)
-
     previous_snapshot = models.ForeignKey(
         "RequestQuerySnapshot", related_name="next_snapshots",
         on_delete=models.SET_NULL, null=True)
     is_active_branch = models.BooleanField(default=True)
-    saved = models.BooleanField(default=False)
-    perimeters_ids = ArrayField(models.CharField(max_length=15),
-                                null=True, blank=True)
-
     shared_by = models.ForeignKey(
         User, on_delete=models.SET_NULL,
         related_name='shared_query_snapshots', null=True, default=None,
     )
+
+    # unused, untested
+    saved = models.BooleanField(default=False)
+    refresh_every_seconds = models.BigIntegerField(default=0)
+    refresh_create_cohort = models.BooleanField(default=False)
+    perimeters_ids = ArrayField(models.CharField(max_length=15),
+                                null=True, blank=True)
 
     @property
     def active_next_snapshot(self):
@@ -137,20 +146,23 @@ class RequestQuerySnapshot(CohortBaseModel):
         request_name = name or self.request.name
 
         requests = [
-            Request(**{
-                **dict([
-                    (f.name, getattr(self.request, f.name))
-                    for f in Request._meta.fields
-                    if f.name != Request._meta.pk.name
-                ]),
-                'owner': dct_recipients[o], 'favorite': False,
-                'name': request_name,
-                'shared_by': self.owner,
-                'parent_folder': f})
+            Request(
+                **{
+                    **dict([
+                        (f.name, getattr(self.request, f.name))
+                        for f in Request._meta.fields
+                        if f.name != Request._meta.pk.name
+                    ]),
+                    'owner': dct_recipients[o], 'favorite': False,
+                    'name': request_name,
+                    'shared_by': self.owner,
+                    'parent_folder': f
+                }
+            )
             for (o, f) in dct_folders.items()]
 
         dct_requests = dict([(r.owner.pk, r)
-                            for r in requests])
+                             for r in requests])
 
         rqss = [
             RequestQuerySnapshot(**{
@@ -197,6 +209,7 @@ class DatedMeasure(CohortBaseModel, JobModel):
     This is an intermediary result giving only limited info before
     possibly generating a Cohort/Group in Fhir.
     """
+    # todo : fix this, user_request_query_results is wrong
     owner = models.ForeignKey(
         User, on_delete=models.CASCADE,
         related_name='user_request_query_results',
@@ -252,6 +265,7 @@ class CohortResult(CohortBaseModel, JobModel):
 
     # will depend on the right (pseudo-anonymised or nominative) you
     # have on the care_site
+    # unused untested
     type = models.CharField(
         max_length=20, choices=COHORT_TYPE_CHOICES,
         default=MY_COHORTS_COHORT_TYPE

@@ -15,11 +15,11 @@ from rest_framework.relations import PrimaryKeyRelatedField
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
+from admin_cohort.types import JobStatus, NewJobStatus
 from admin_cohort.views import SwaggerSimpleNestedViewSetMixin, \
     CustomLoggingMixin
 from cohort.permissions import IsOwner, OR, IsAdmin
 from admin_cohort import app
-from cohort.FhirAPi import JobStatus
 from cohort.conf_cohort_job_api import cancel_job, \
     get_fhir_authorization_header
 from cohort.models import Request, CohortResult, RequestQuerySnapshot, \
@@ -28,13 +28,6 @@ from cohort.serializers import RequestSerializer, \
     CohortResultSerializer, RequestQuerySnapshotSerializer, \
     DatedMeasureSerializer, FolderSerializer, \
     CohortResultSerializerFullDatedMeasure
-
-
-class NoDeleteViewSetMixin:
-    def destroy(self, request, *args, **kwargs):
-        return Response(
-            {"response": "request_query_snapshot manual deletion not possible"},
-            status=status.HTTP_400_BAD_REQUEST)
 
 
 class NoUpdateViewSetMixin:
@@ -70,28 +63,24 @@ class CustomOrderingFilter(OrderingFilter):
 class BaseViewSet(viewsets.ModelViewSet):
     filter_backends = (DjangoFilterBackend, CustomOrderingFilter, SearchFilter,)
 
+    def get_serializer_context(self):
+        return {'request': self.request}
+
 
 class UserObjectsRestrictedViewSet(BaseViewSet):
     def get_queryset(self):
         return self.__class__.queryset.filter(owner=self.request.user)
 
-    def partial_update(self, request, *args, **kwargs):
-        if 'owner_id' in request.data:
-            return Response({"message": "Cannot specify a different owner"},
-                            status=status.HTTP_400_BAD_REQUEST)
-
-        return super(UserObjectsRestrictedViewSet, self)\
-            .partial_update(request, *args, **kwargs)
-
     def create(self, request, *args, **kwargs):
         user = request.user
-        if 'owner_id' in request.data:
-            if request.data['owner_id'] != str(user.provider_username):
-                return Response({"message": "Cannot specify a different owner"},
-                                status=status.HTTP_400_BAD_REQUEST)
-        request.data['owner'] = str(user.provider_username)
-        return super(UserObjectsRestrictedViewSet, self)\
-            .create(request, *args, **kwargs)
+        if type(request.data) == QueryDict:
+            request.data._mutable = True
+
+        request.data['owner'] = request.data.get(
+            'owner', request.data.get('owner_id', user.pk))
+
+        return super(UserObjectsRestrictedViewSet, self).create(
+            request, *args, **kwargs)
 
     def initial(self, request, *args, **kwargs):
         super(UserObjectsRestrictedViewSet, self)\
@@ -119,35 +108,41 @@ class CohortFilter(django_filters.FilterSet):
         return queryset.filter(
             request_query_snapshot__perimeters_ids__contains=value.split(","))
 
-    name = django_filters.CharFilter(field_name='name', lookup_expr="contains")
-    perimeter_id = django_filters.CharFilter(method="perimeter_filter")
-    perimeters_ids = django_filters.CharFilter(method="perimeters_filter")
+    name = django_filters.CharFilter(field_name='name', lookup_expr="icontains")
     min_result_size = django_filters.NumberFilter(
         field_name='dated_measure__measure', lookup_expr='gte')
     max_result_size = django_filters.NumberFilter(
         field_name='dated_measure__measure', lookup_expr='lte')
     # ?min_created_at=2015-04-23
-    min_fhir_datetime = django_filters.DateTimeFilter(
+    min_fhir_datetime = django_filters.IsoDateTimeFilter(
         field_name='dated_measure__fhir_datetime', lookup_expr="gte")
-    max_fhir_datetime = django_filters.DateTimeFilter(
+    max_fhir_datetime = django_filters.IsoDateTimeFilter(
         field_name='dated_measure__fhir_datetime', lookup_expr="lte")
     request_job_status = django_filters.AllValuesMultipleFilter()
+
+    # unused, untested
     type = django_filters.AllValuesMultipleFilter()
+    perimeter_id = django_filters.CharFilter(method="perimeter_filter")
+    perimeters_ids = django_filters.CharFilter(method="perimeters_filter")
 
     class Meta:
         model = CohortResult
         fields = (
-            "request_job_status",
             "name",
-            "perimeter_id",
             "min_result_size",
             "max_result_size",
             "min_fhir_datetime",
             "max_fhir_datetime",
             "favorite",
             "type",
+            "fhir_group_id",
+            "create_task_id",
+            "request_query_snapshot",
+            "request_query_snapshot__request",
+            "new_request_job_status",
+            "request_job_status",
+            "perimeter_id",
             "perimeters_ids",
-            "fhir_group_id"
         )
 
 
@@ -188,8 +183,6 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         return super(CohortResultViewSet, self).get_serializer_class()
 
     def create(self, request, *args, **kwargs):
-        user = request.user
-
         if type(request.data) == QueryDict:
             request.data._mutable = True
 
@@ -204,7 +197,6 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                     if "request_query_snapshot" in request.data:
                         dated_measure["request_query_snapshot"] \
                             = request.data["request_query_snapshot"]
-                    dated_measure["owner"] = str(user.provider_username)
         else:
             request.data['dated_measure'] = request.data['dated_measure_id']
 
@@ -218,19 +210,13 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
 
+        # todo : check
         if getattr(instance, '_prefetched_objects_cache', None):
             # If 'prefetch_related' has been applied to a queryset, we need to
             # forcibly invalidate the prefetch cache on the instance.
             instance._prefetched_objects_cache = {}
 
         return Response(serializer.data)
-
-    def partial_update(self, request, *args, **kwargs):
-        return super(CohortResultViewSet, self)\
-            .partial_update(request, *args, **kwargs)
-
-    def list(self, request, *args, **kwargs):
-        return super(CohortResultViewSet, self).list(request, *args, **kwargs)
 
 
 class NestedCohortResultViewSet(SwaggerSimpleNestedViewSetMixin,
@@ -249,10 +235,11 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
 
     pagination_class = LimitOffsetPagination
 
-    filterset_fields = ('uuid', 'request_query_snapshot_id',
-                        'request_query_snapshot__request_id')
-    ordering_fields = ('created_at', 'modified_at', 'result_size')
-    ordering = ('-created_at',)
+    filterset_fields = ("uuid", "request_query_snapshot",
+                        "request_query_snapshot__request", "mode",
+                        "count_task_id")
+    ordering_fields = ("created_at", "modified_at", "result_size")
+    ordering = ("-created_at",)
     search_fields = []
 
     def get_permissions(self):
@@ -288,6 +275,7 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         Demande à l'API FHIR d'annuler tous les jobs de calcul de count liés à
         une construction de Requête avant d'en créer un nouveau
         """
+        # TODO : test
         if 'request_query_snapshot' in kwargs:
             rqs_id = kwargs['request_query_snapshot']
         elif "request_query_snapshot_id" in request.data:
@@ -312,9 +300,12 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                 status.HTTP_400_BAD_REQUEST,
             )
 
-        for job_to_cancel in rqs.request.dated_measures.filter(
+        req_dms = rqs.request.dated_measures
+        for job_to_cancel in (req_dms.filter(
                 request_job_status=JobStatus.STARTED.name.lower()
-        ).prefetch_related('cohort', 'restricted_cohort'):
+        ) | req_dms.filter(
+            new_request_job_status=NewJobStatus.new.name.lower()
+        )).prefetch_related('cohort', 'restricted_cohort'):
             if len(job_to_cancel.cohort.all()) \
                     or len(job_to_cancel.restricted_cohort.all()):
                 # if the pending dated measure is bound to a cohort,
@@ -334,9 +325,11 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                     ), status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
 
-        for job_to_cancel in rqs.request.dated_measures.filter(
+        for job_to_cancel in (req_dms.filter(
                 request_job_status=JobStatus.PENDING.name.lower()
-        ).prefetch_related('cohort', 'restricted_cohort'):
+        ) | req_dms.filter(
+            new_request_job_status=NewJobStatus.new.name.lower()
+        )).prefetch_related('cohort', 'restricted_cohort'):
             if len(job_to_cancel.cohort.all()) \
                     or len(job_to_cancel.restricted_cohort.all()):
                 # if the pending dated measure is bound to a cohort,
@@ -347,6 +340,8 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                 app.control.revoke(job_to_cancel.count_task_id)
                 # revoke(task_id=job_to_cancel.count_task_id, terminate=True)
                 job_to_cancel.request_job_status = JobStatus.KILLED.name.lower()
+                job_to_cancel.new_request_job_status = (NewJobStatus.cancelled
+                                                        .value)
                 job_to_cancel.save()
             except Exception as e:
                 return Response(
@@ -355,11 +350,16 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
 
         return self.create(request, *args, **kwargs)
 
+    def update(self, request, *args, **kwargs):
+        return Response("Updating a dated measure is not allowed",
+                        status=status.HTTP_403_FORBIDDEN)
+
     @action(methods=['patch'], detail=True, url_path='abort')
     def abort(self, request, *args, **kwargs):
         """
         Demande à l'API FHIR d'annuler le job de calcul de count d'une requête
         """
+        # TODO : test
         instance: DatedMeasure = self.get_object()
         try:
             cancel_job(
@@ -382,18 +382,20 @@ class NestedDatedMeasureViewSet(SwaggerSimpleNestedViewSetMixin,
 
 
 class RequestQuerySnapshotViewSet(
-    NestedViewSetMixin, NoDeleteViewSetMixin, NoUpdateViewSetMixin,
+    NestedViewSetMixin, NoUpdateViewSetMixin,
     UserObjectsRestrictedViewSet
 ):
     queryset = RequestQuerySnapshot.objects.all()
     serializer_class = RequestQuerySnapshotSerializer
-    http_method_names = ['get', 'post', 'patch', 'delete']
+    http_method_names = ['get', 'post']
     lookup_field = "uuid"
     swagger_tags = ['Cohort - request-query-snapshots']
 
     pagination_class = LimitOffsetPagination
 
-    filterset_fields = ('uuid', 'request_id',)
+    filterset_fields = ('uuid', 'request_id', 'request', 'is_active_branch',
+                        'shared_by', "previous_snapshot", "request",
+                        "request__parent_folder")
     ordering_fields = ('created_at', 'modified_at',)
     ordering = ('-created_at',)
     search_fields = ('$serialized_query',)
@@ -403,18 +405,11 @@ class RequestQuerySnapshotViewSet(
             return OR(IsOwner())
 
     def create(self, request, *args, **kwargs):
-        user = request.user
         if type(request.data) == QueryDict:
             request.data._mutable = True
 
-        if 'owner_id' in request.data:
-            if request.data['owner_id'] != str(user.provider_username):
-                return Response({"message": "Cannot specify a different owner"},
-                                status=status.HTTP_400_BAD_REQUEST)
-        request.data['owner'] = str(user.provider_username)
-
-        if 'request' in kwargs:
-            request.data["request"] = kwargs['request']
+        if 'request_id' in kwargs:
+            request.data["request"] = kwargs['request_id']
         if 'previous_snapshot' in kwargs:
             request.data["previous_snapshot"] = kwargs['previous_snapshot']
 
@@ -428,6 +423,7 @@ class RequestQuerySnapshotViewSet(
     @action(detail=True, methods=['post'], permission_classes=(IsOwner,),
             url_path="save")
     def save(self, req, request_query_snapshot_uuid):
+        # unused, untested
         try:
             rqs = RequestQuerySnapshot.objects.get(
                 uuid=request_query_snapshot_uuid)
@@ -501,32 +497,26 @@ class NestedRqsViewSet(SwaggerSimpleNestedViewSetMixin,
 class RequestViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     queryset = Request.objects.all()
     serializer_class = RequestSerializer
-    http_method_names = ['get', 'post', 'patch', 'delete']
+    http_method_names = ["get", "post", "patch", "delete"]
     lookup_field = "uuid"
-    swagger_tags = ['Cohort - requests']
+    swagger_tags = ["Cohort - requests"]
 
     pagination_class = LimitOffsetPagination
 
-    filterset_fields = ('uuid', 'name', 'favorite', 'data_type_of_query',)
-    ordering_fields = ('created_at', 'modified_at',
-                       'name', 'favorite', 'data_type_of_query')
-    ordering = ('name',)
-    search_fields = ('$name', '$description',)
+    filterset_fields = ("uuid", "name", "favorite", "data_type_of_query",
+                        "parent_folder", "shared_by")
+    ordering_fields = ("created_at", "modified_at",
+                       "name", "favorite", "data_type_of_query")
+    ordering = ("name",)
+    search_fields = ("$name", "$description",)
 
     def get_permissions(self):
-        if self.request.method in ['GET', 'POST', 'PATCH', 'DELETE']:
+        if self.request.method in ["GET", "POST", "PATCH", "DELETE"]:
             return OR(IsOwner())
 
     def create(self, request, *args, **kwargs):
-        user = request.user
         if type(request.data) == QueryDict:
             request.data._mutable = True
-
-        if 'owner_id' in request.data:
-            if request.data['owner_id'] != str(user.provider_username):
-                return Response({"message": "Cannot specify a different owner"},
-                                status=status.HTTP_400_BAD_REQUEST)
-        request.data['owner'] = str(user.provider_username)
 
         if 'parent_folder' in kwargs:
             request.data["parent_folder"] = kwargs['parent_folder']
@@ -553,7 +543,7 @@ class FolderViewSet(CustomLoggingMixin, NestedViewSetMixin,
     logging_methods = ['POST', 'PUT', 'PATCH', 'DELETE']
     pagination_class = LimitOffsetPagination
 
-    filterset_fields = ('uuid', 'name',)
+    filterset_fields = ('uuid', 'name', 'parent_folder')
     ordering_fields = ('created_at', 'modified_at',
                        'name')
     ordering = ('name',)
@@ -562,20 +552,3 @@ class FolderViewSet(CustomLoggingMixin, NestedViewSetMixin,
     def get_permissions(self):
         if self.request.method in ['GET', 'POST', 'PATCH', 'DELETE']:
             return OR(IsOwner())
-
-    def create(self, request, *args, **kwargs):
-        user = request.user
-        if type(request.data) == QueryDict:
-            request.data._mutable = True
-
-        if 'owner_id' in request.data:
-            if request.data['owner_id'] != str(user.provider_username):
-                return Response({"message": "Cannot specify a different owner"},
-                                status=status.HTTP_400_BAD_REQUEST)
-        request.data['owner_id'] = str(user.provider_username)
-
-        return super(FolderViewSet, self).create(request, *args, **kwargs)
-
-    def partial_update(self, request, *args, **kwargs):
-        return super(FolderViewSet, self)\
-            .partial_update(request, *args, **kwargs)

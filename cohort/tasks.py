@@ -3,14 +3,15 @@ from time import sleep
 from celery import shared_task, current_task
 
 import cohort.conf_cohort_job_api as fhir_api
-from cohort.FhirAPi import JobStatus
+from admin_cohort.types import NewJobStatus
 from cohort.models import CohortResult, DatedMeasure, GLOBAL_DM_MODE
 
 
 def update_instance_failed(
-        instance, msg, job_duration, fhir_job_id, job_status: JobStatus
+        instance, msg, job_duration, fhir_job_id, job_status: NewJobStatus
 ):
-    instance.request_job_status = job_status.name.lower()
+    # instance.request_job_status = job_status.name.lower()
+    instance.new_request_job_status = job_status.name.lower()
     instance.request_job_fail_msg = msg
     instance.request_job_duration = job_duration
     instance.request_job_id = fhir_job_id
@@ -44,9 +45,9 @@ def create_cohort_task(auth_headers: dict, json_file: str, cohort_uuid: str):
         )
         return
 
-    cr.create_task_id = current_task.request.id
+    cr.create_task_id = current_task.request.id or ""
     cr.save()
-    cr.dated_measure.count_task_id = current_task.request.id
+    cr.dated_measure.count_task_id = current_task.request.id or ""
     cr.dated_measure.save()
 
     log_create_task(cohort_uuid, "Asking fhir to create cohort")
@@ -59,14 +60,22 @@ def create_cohort_task(auth_headers: dict, json_file: str, cohort_uuid: str):
     if resp.success:
         cr.dated_measure.fhir_datetime = resp.fhir_datetime
         cr.dated_measure.measure = resp.count
+        cr.dated_measure.measure_male = resp.count_male
+        cr.dated_measure.measure_unknown = resp.count_unknown
+        cr.dated_measure.measure_deceased = resp.count_deceased
+        cr.dated_measure.measure_alive = resp.count_alive
+        cr.dated_measure.measure_female = resp.count_female
         cr.dated_measure.request_job_id = resp.fhir_job_id
-        cr.dated_measure.request_job_status = resp.fhir_job_status.name.lower()
+        # cr.dated_measure.request_job_status =
+        # resp.fhir_job_status.name.lower()
+        cr.dated_measure.new_request_job_status = resp.fhir_job_status.value
         cr.dated_measure.request_job_duration = resp.job_duration
         cr.dated_measure.save()
 
         cr.fhir_group_id = resp.group_id
         cr.request_job_id = resp.fhir_job_id
-        cr.request_job_status = resp.fhir_job_status.name.lower()
+        # cr.request_job_status = resp.fhir_job_status.name.lower()
+        cr.new_request_job_status = resp.fhir_job_status.value
         cr.request_job_duration = resp.job_duration
         cr.save()
 
@@ -107,8 +116,7 @@ def get_count_task(auth_headers: dict, json_file: str, dm_uuid: str):
         log_count_task(dm_uuid, "Error: could not find DatedMeasure to update")
         return
 
-    dm.count_task_id = current_task.request.id
-    dm.count_task_id = -1
+    dm.count_task_id = current_task.request.id or ""
     dm.save()
 
     global_estimate = dm.mode == GLOBAL_DM_MODE
@@ -137,7 +145,8 @@ def get_count_task(auth_headers: dict, json_file: str, dm_uuid: str):
             dm.measure_max = resp.count_max
 
         dm.fhir_datetime = resp.fhir_datetime
-        dm.request_job_status = resp.fhir_job_status.name.lower()
+        # dm.request_job_status = resp.fhir_job_status.name.lower()
+        dm.new_request_job_status = resp.fhir_job_status.name.lower()
         dm.request_job_duration = resp.job_duration
         dm.request_job_id = resp.fhir_job_id
         dm.save()

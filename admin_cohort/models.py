@@ -108,6 +108,9 @@ class User(AbstractBaseUser, BaseModel):
     def __str__(self):
         return f"{self.firstname} {self.lastname} ({self.provider_username})"
 
+    def __repr__(self):
+        return f"User {self})"
+
     class Meta:
         managed = True
         db_table = 'user'
@@ -153,8 +156,8 @@ class JobModel(models.Model):
     )
     new_request_job_status = models.CharField(
         max_length=10,
-        choices=[(e.value.lower(), e.value.lower()) for e in NewJobStatus],
-        default=JobStatus.PENDING.name.lower(), null=True
+        choices=[(e.value, e.value) for e in NewJobStatus],
+        default=NewJobStatus.pending.name, null=True
     )
     request_job_fail_msg = models.TextField(blank=True, null=True)
     request_job_duration = models.TextField(blank=True, null=True)

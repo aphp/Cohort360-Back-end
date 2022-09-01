@@ -22,6 +22,9 @@ class ObjectView(object):
         self.__dict__ = d
 
 
+# TEST CASES #################################################################
+
+
 class PerimeterCaseRetrieveFilter(CaseRetrieveFilter):
     def __init__(self, name: str = "", **kwargs):
         self.name = name
@@ -42,6 +45,9 @@ class PerimeterListCase(AccessListCase):
         super(PerimeterListCase, self).__init__(**kwargs)
 
 
+# ACTUAL TESTS #################################################################
+
+
 class PerimeterTests(ViewSetTests):
     objects_url = "/perimeters/"
     retrieve_view = PerimeterViewSet.as_view({'get': 'retrieve'})
@@ -56,7 +62,6 @@ class PerimeterTests(ViewSetTests):
     model_fields = Perimeter._meta.fields
 
     restricted_list_view = PerimeterViewSet.as_view({'get': 'get_manageable'})
-    children_view = PerimeterViewSet.as_view({'get': 'children'})
 
     def setUp(self):
         super(PerimeterTests, self).setUp()

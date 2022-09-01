@@ -12,7 +12,7 @@ from rest_framework.response import Response
 from rest_framework.test import APIRequestFactory, force_authenticate
 
 from accesses.models import Role, Profile, Perimeter
-from admin_cohort.models import BaseModel, User
+from admin_cohort.models import BaseModel, User, CohortBaseModel
 from admin_cohort.settings import PERIMETERS_TYPES, \
     ROOT_PERIMETER_TYPE, MANUAL_SOURCE
 from admin_cohort.tools import prettify_json, prettify_dict
@@ -186,12 +186,10 @@ class PatchCase(RequestCase):
 class ListCase(RequestCase):
     def __init__(self, to_find: list = None, url: str = "",
                  page_size: int = None, params: dict = None,
-                 previously_found_ids: List = None, nested_view: bool = False,
-                 **kwargs):
+                 previously_found_ids: List = None, **kwargs):
         super(ListCase, self).__init__(**kwargs)
         self.to_find = to_find or []
         self.url = url
-        self.nested_view = nested_view
         self.page_size = page_size if page_size is not None \
             else settings.REST_FRAMEWORK.get('PAGE_SIZE')
         self.params = params or {}
@@ -259,7 +257,7 @@ class BaseTests(TestCase):
                          request_model: dict = None, **kwargs):
         request_model = request_model or dict()
         self.assertIsNotNone(base_instance)
-        self.assertTrue(isinstance(base_instance, BaseModel))
+        self.assertTrue(isinstance(base_instance, (BaseModel, CohortBaseModel)))
         self.assertIsNotNone(base_instance)
 
         [
@@ -290,13 +288,16 @@ class BaseTests(TestCase):
         if isinstance(base_instance, BaseModel):
             self.assertIsNotNone(base_instance)
             self.assertIsNotNone(base_instance.delete_datetime)
+        elif isinstance(base_instance, CohortBaseModel):
+            self.assertIsNotNone(base_instance)
+            self.assertIsNotNone(base_instance.deleted)
         else:
             self.assertIsNone(base_instance)
 
     def check_unupdatable_not_updated(self, base_instance,
                                       originModel, request_model=dict()):
-        self.assertTrue(isinstance(base_instance, BaseModel))
-        self.assertTrue(isinstance(originModel, BaseModel))
+        self.assertTrue(isinstance(base_instance, (BaseModel, CohortBaseModel)))
+        self.assertTrue(isinstance(originModel, (BaseModel, CohortBaseModel)))
         [self.assertNotEqual(getattr(base_instance, f), request_model[f],
                              f"Error with model's {f}")
          for f in self.unupdatable_fields + self.manual_dupplicated_fields
@@ -388,13 +389,15 @@ class ViewSetTests(BaseTests):
     model_objects: Manager
     model_fields: List[Field]
 
-    def check_create_case(self, case: CreateCase):
+    def check_create_case(self, case: CreateCase, other_view: any = None,
+                          **view_kwargs):
         request = self.factory.post(self.objects_url, case.json_data,
                                     format='json')
         if case.user:
             force_authenticate(request, case.user)
 
-        response = self.__class__.create_view(request)
+        response = other_view(request, **view_kwargs) if other_view else \
+            self.__class__.create_view(request)
         response.render()
 
         self.assertEqual(
@@ -417,7 +420,9 @@ class ViewSetTests(BaseTests):
 
         request = self.factory.delete(self.objects_url)
         force_authenticate(request, case.user)
-        response = self.__class__.delete_view(request, id=obj_id)
+        response = self.__class__.delete_view(
+            request, **{self.model._meta.pk.name: obj_id}
+        )
         response.render()
 
         self.assertEqual(
@@ -427,7 +432,7 @@ class ViewSetTests(BaseTests):
                     if response.content else "")),
         )
 
-        if isinstance(self.model, BaseModel):
+        if isinstance(self.model, (BaseModel, CohortBaseModel)):
             obj = self.model_objects.filter(even_deleted=True, pk=obj_id).first()
         else:
             obj = self.model_objects.filter(pk=obj_id).first()
@@ -436,7 +441,7 @@ class ViewSetTests(BaseTests):
             self.check_is_deleted(obj)
         else:
             self.assertIsNotNone(obj)
-            if isinstance(self.model, BaseModel):
+            if isinstance(self.model, (BaseModel, CohortBaseModel)):
                 self.assertIsNone(obj.delete_datetime)
             obj.delete()
 
@@ -448,7 +453,9 @@ class ViewSetTests(BaseTests):
             self.objects_url, case.data_to_update, format='json'
         )
         force_authenticate(request, case.user)
-        response = self.__class__.update_view(request, id=obj_id)
+        response = self.__class__.update_view(
+            request, **{self.model._meta.pk.name: obj_id}
+        )
         response.render()
 
         self.assertEqual(
@@ -461,41 +468,34 @@ class ViewSetTests(BaseTests):
         new_obj = self.model_objects.filter(pk=obj_id).first()
 
         if case.success:
-            [
-                self.assertNotEqual(
-                    getattr(new_obj, f), case.data_to_update.get(f),
-                    f"Error with model's {f}"
-                )
-                for f in (self.unupdatable_fields
-                          + self.manual_dupplicated_fields)
-                if f in case.data_to_update
-            ]
             for field in case.data_to_update:
                 f = f"manual_{field}" if \
                     field in self.manual_dupplicated_fields else field
 
-                self.assertEqual(
-                    getattr(new_obj, f), case.data_to_update.get(field)
-                )
+                new_value = getattr(new_obj, f)
+                new_value = getattr(new_value, 'pk', new_value)
+
+                if f in self.unupdatable_fields:
+                    self.assertNotEqual(
+                        new_value, case.data_to_update.get(field),
+                        f"{field} updated")
+                else:
+                    self.assertEqual(new_value, case.data_to_update.get(field),
+                                     f"{field} not updated")
         else:
-            [
-                self.assertEqual(getattr(new_obj, f), getattr(obj, f),
-                                 case.description)
-                for f in [fd.name for fd in self.model_fields]
-            ]
+            [self.assertEqual(
+                getattr(new_obj, f), getattr(obj, f), case.description
+            ) for f in [fd.name for fd in self.model_fields]]
 
     def check_get_paged_list_case(
             self, case: ListCase, other_view: any = None, **view_kwargs):
-        if case.nested_view:
-            self.client.force_login(case.user)
-            response = self.client.get(case.url)
-        else:
-            request = self.factory.get(
-                path=case.url or self.objects_url,
-                data=[] if case.url else case.params)
-            force_authenticate(request, case.user)
-            response = other_view(request, **view_kwargs) if other_view else \
-                self.__class__.list_view(request)
+        request = self.factory.get(
+            path=case.url or self.objects_url,
+            data=[] if case.url else case.params)
+        force_authenticate(request, case.user)
+        response = other_view(request, **view_kwargs) if other_view else \
+            self.__class__.list_view(request)
+
         response.render()
         self.assertEqual(
             response.status_code, case.status,
@@ -511,50 +511,23 @@ class ViewSetTests(BaseTests):
 
         self.assertEqual(res.count, len(case.to_find), case.description)
 
-        obj_to_find_ids = [obj.pk for obj in case.to_find]
+        obj_to_find_ids = [str(obj.pk) for obj in case.to_find]
         current_obj_found_ids = [obj.get(self.model._meta.pk.name)
                                  for obj in res.results]
         obj_found_ids = current_obj_found_ids + case.previously_found_ids
 
         if case.page_size is not None:
-            # we check that all the results from the current page are
-            # in the 'to_find' list
-            msg = case.description + "\n".join([
-                "", "got", str(current_obj_found_ids), "should be included in",
-                str(obj_to_find_ids)
-            ])
-            [
-                self.assertIn(i, obj_to_find_ids, msg=msg)
-                for i in current_obj_found_ids
-            ]
             if res.next:
-                # we check that the size is indeed of the page size and get
-                # next url that will also check response,
-                # adding the current result
                 self.assertEqual(
-                    len(current_obj_found_ids), case.page_size, msg=msg
+                    len(current_obj_found_ids), case.page_size
                 )
                 next_case = case.clone(
                     url=res.next, previously_found_ids=obj_found_ids)
                 self.check_get_paged_list_case(next_case, other_view,
                                                **view_kwargs)
-            else:
-                # we check that the total size, given all the pages, is the
-                # same than required and that
-                # all required were found
-                [
-                    self.assertIn(i, obj_found_ids, msg=msg)
-                    for i in obj_to_find_ids
-                ]
         else:
-            # we check the equality of the acc_to_find and teh acc_found
-            msg = case.description + \
-                  "\n".join([
-                      "", "got", str(current_obj_found_ids), "should be",
-                      str(obj_to_find_ids)
-                  ])
-            [self.assertIn(i, obj_found_ids, msg=msg) for i in obj_to_find_ids]
-            [self.assertIn(i, obj_to_find_ids, msg=msg) for i in obj_found_ids]
+            self.assertCountEqual(map(str, obj_found_ids),
+                                  map(str, obj_to_find_ids))
 
     def check_retrieve_case(self, case: RetrieveCase):
         request = self.factory.get(
@@ -572,9 +545,9 @@ class ViewSetTests(BaseTests):
 
         if case.success:
             if case.to_find is not None:
-                self.assertEqual(
-                    case.to_find.pk, res.get(self.model._meta.pk.name),
-                    case.description)
+                self.assertEqual(str(case.to_find.pk),
+                                 str(res.get(self.model._meta.pk.name)),
+                                 case.description)
             else:
                 self.assertEqual(len(res), 0, case.description)
 

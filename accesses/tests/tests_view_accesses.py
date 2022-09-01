@@ -27,6 +27,9 @@ from admin_cohort.tests_tools import new_user_and_profile, CaseRetrieveFilter, \
 from admin_cohort.tools import prettify_json, prettify_dict
 
 
+# EXPECTED READ RESULTS #######################################################
+
+
 class ObjectView(object):
     def __init__(self, d):
         self.__dict__ = d
@@ -123,6 +126,9 @@ class ReadAccess(ReadObject):
                 except Exception:
                     raise Exception(f"Datetime unreadable for {dt_field}: {v}")
             setattr(self, dt_field, v)
+
+
+# TEST CASES #################################################################
 
 
 class AccessCaseRetrieveFilter(CaseRetrieveFilter):
@@ -266,190 +272,8 @@ class AccessCloseCase(RequestCase, AccessCase):
         return d
 
 
-# ACTUAL TESTS
+# RIGHTS DESCRIPTION ###########################################################
 
-
-class AccessTests(ViewSetTestsWithBasicPerims):
-    unupdatable_fields = ["role", "start_datetime", "end_datetime",
-                          "perimeter_id", "profile"]
-    unsettable_default_fields = dict(source=MANUAL_SOURCE, )
-    unsettable_fields = ["id"]
-    manual_dupplicated_fields = ['start_datetime', 'end_datetime']
-
-    objects_url = "/accesses/"
-    retrieve_view = AccessViewSet.as_view({'get': 'retrieve'})
-    list_view = AccessViewSet.as_view({'get': 'list'})
-    create_view = AccessViewSet.as_view({'post': 'create'})
-    delete_view = AccessViewSet.as_view({'delete': 'destroy'})
-    update_view = AccessViewSet.as_view({'patch': 'partial_update'})
-    close_view = AccessViewSet.as_view({'patch': 'close'})
-    model = Access
-    model_objects = Access.objects
-    model_fields = Access._meta.fields
-
-    def setUp(self):
-        super(AccessTests, self).setUp()
-
-        # ROLES
-        self.role_full: Role = Role.objects.create(**dict([
-            (f, True) for f in ALL_RIGHTS
-        ]), name='FULL')
-        self.role_empty: Role = Role.objects.create(**dict([
-            (f, False) for f in ALL_RIGHTS
-        ]), name='EMPTY')
-
-        # USERS
-        self.admin_user, self.admin_profile = new_user_and_profile(
-            p_name='admin', provider_id=1000000,
-            firstname="Cid", lastname="Kramer", email='cid@aphp.fr'
-        )
-        self.user1, self.profile1 = new_user_and_profile(
-            p_name='user1', provider_id=2000000,
-            firstname="Squall", lastname="Leonheart", email='s.l@aphp.fr'
-        )
-        self.user2, self.profile2 = new_user_and_profile(
-            p_name='user2', provider_id=3000000,
-            firstname="Seifer", lastname="Almasy", email='s.a@aphp.fr'
-        )
-
-    def check_close_case(self, case: AccessCloseCase):
-        user_access: Union[Access, None] = None
-        if case.user_rights:
-            r = Role.objects.create(**dict([(r, True)
-                                            for r in case.user_rights]))
-            user_access = Access.objects.create(
-                role=r, profile=case.user_profile,
-                perimeter=case.user_perimeter)
-
-        acc = Access.objects.create(**case.initial_data)
-        acc_id = acc.id
-
-        request = self.factory.patch(self.objects_url)
-        force_authenticate(request, case.user)
-        response = self.__class__.close_view(request, id=acc_id)
-        response.render()
-
-        self.assertEqual(
-            response.status_code, case.status,
-            prettify_json(response.content) if response.content else None
-        )
-        access = Access.objects.filter(id=acc_id).first()
-
-        if case.success:
-            delta = (access.manual_end_datetime - timezone.now())
-            self.assertAlmostEqual(delta.total_seconds(), 0, delta=1)
-        else:
-            self.assertEqual(
-                access.manual_end_datetime, acc.manual_end_datetime
-            )
-
-        if user_access:
-            user_access.delete()
-
-    def check_create_case(self, case: Union[AccessCreateCase, CreateCase]):
-        if isinstance(case, AccessCreateCase):
-            r = Role.objects.create(**dict([(r, True)
-                                            for r in case.user_rights]))
-            user_access: Access = Access.objects.create(
-                role=r, profile=case.user_profile,
-                perimeter=case.user_perimeter)
-
-            super(AccessTests, self).check_create_case(case)
-            user_access.delete()
-        else:
-            super(AccessTests, self).check_create_case(case)
-
-    def check_delete_case(self, case: Union[AccessDeleteCase, DeleteCase]):
-        if isinstance(case, AccessDeleteCase):
-            r = Role.objects.create(**dict([(r, True)
-                                            for r in case.user_rights]))
-            user_access: Access = Access.objects.create(
-                role=r, profile=case.user_profile,
-                perimeter=case.user_perimeter)
-
-            super(AccessTests, self).check_delete_case(case)
-            user_access.delete()
-        else:
-            super(AccessTests, self).check_delete_case(case)
-
-    def check_patch_case(self, case: Union[AccessPatchCase, PatchCase]):
-        if isinstance(case, AccessPatchCase):
-            r = Role.objects.create(**dict([(r, True)
-                                            for r in case.user_rights]))
-            user_access: Access = Access.objects.create(
-                role=r, profile=case.user_profile,
-                perimeter=case.user_perimeter)
-
-            super(AccessTests, self).check_patch_case(case)
-            user_access.delete()
-        else:
-            super(AccessTests, self).check_patch_case(case)
-
-    def check_get_acc_paged_list_case(
-            self, case: Union[AccessListCase, ListCase]):
-        if isinstance(case, AccessListCase):
-            r = Role.objects.create(**dict([(r, True)
-                                            for r in case.user_rights]))
-            user_access: Access = Access.objects.create(
-                role=r, profile=case.user_profile,
-                perimeter=case.user_perimeter)
-            if r.right_edit_roles:
-                case.to_find.append(user_access)
-
-            self.check_get_paged_list_case(case)
-            user_access.delete()
-        else:
-            self.check_get_paged_list_case(case)
-
-    def check_get_paged_list_2_role_case(
-            self, case_a: AccessListCase, case_b: AccessListCase,
-            additional_accesses: List[Access]):
-        r_a: Role = Role.objects.filter(
-            **{**dict([(r, r in case_a.user_rights)
-                       for r in Role.all_rights()])}) \
-            .first()
-        r_b: Role = Role.objects.filter(
-            **{**dict([(r, r in case_b.user_rights)
-                       for r in Role.all_rights()])}) \
-            .first()
-
-        self.assertIsNotNone(r_a, msg=case_a.title)
-        self.assertIsNotNone(r_b, msg=case_b.title)
-
-        user_access_a: Access = Access.objects.create(
-            role=r_a, profile=case_a.user_profile,
-            perimeter=case_a.user_perimeter)
-        user_access_b: Access = Access.objects.create(
-            role=r_b, profile=case_b.user_profile,
-            perimeter=case_b.user_perimeter)
-        succ = case_a.success or case_b.success
-        case = ListCase(
-            success=succ,
-            user=self.user2,
-            status=(http_status.HTTP_200_OK if succ
-                    else http_status.HTTP_403_FORBIDDEN),
-            title=f"{case_a.title} & {case_b.title}",
-            to_find=list(set(case_a.to_find + case_b.to_find
-                             + additional_accesses)),
-        )
-
-        if len([acc for acc in case.to_find if (
-                acc.role.id == r_a.id
-                and acc.perimeter_id == user_access_a.perimeter_id)]):
-            case.to_find.append(user_access_a)
-
-        if len([acc for acc in case.to_find
-                if (acc.role.id == r_b.id
-                    and acc.perimeter_id == user_access_b.perimeter_id)]):
-            case.to_find.append(user_access_b)
-
-        self.check_get_acc_paged_list_case(case)
-
-        user_access_a.delete()
-        user_access_b.delete()
-
-
-# GET
 
 class RightGroup:
     def __init__(self, name: str, rights: List[str], is_manager_admin: bool,
@@ -696,6 +520,191 @@ RIGHT_GROUPS = RightGroup(
 # could have it
 any_manager_rights = [right_read_users.name]
 
+
+# ACTUAL TESTS #################################################################
+
+
+class AccessTests(ViewSetTestsWithBasicPerims):
+    unupdatable_fields = ["role", "start_datetime", "end_datetime",
+                          "perimeter_id", "profile"]
+    unsettable_default_fields = dict(source=MANUAL_SOURCE, )
+    unsettable_fields = ["id"]
+    manual_dupplicated_fields = ['start_datetime', 'end_datetime']
+
+    objects_url = "/accesses/"
+    retrieve_view = AccessViewSet.as_view({'get': 'retrieve'})
+    list_view = AccessViewSet.as_view({'get': 'list'})
+    create_view = AccessViewSet.as_view({'post': 'create'})
+    delete_view = AccessViewSet.as_view({'delete': 'destroy'})
+    update_view = AccessViewSet.as_view({'patch': 'partial_update'})
+    close_view = AccessViewSet.as_view({'patch': 'close'})
+    model = Access
+    model_objects = Access.objects
+    model_fields = Access._meta.fields
+
+    def setUp(self):
+        super(AccessTests, self).setUp()
+
+        # ROLES
+        self.role_full: Role = Role.objects.create(**dict([
+            (f, True) for f in ALL_RIGHTS
+        ]), name='FULL')
+        self.role_empty: Role = Role.objects.create(**dict([
+            (f, False) for f in ALL_RIGHTS
+        ]), name='EMPTY')
+
+        # USERS
+        self.admin_user, self.admin_profile = new_user_and_profile(
+            p_name='admin', provider_id=1000000,
+            firstname="Cid", lastname="Kramer", email='cid@aphp.fr'
+        )
+        self.user1, self.profile1 = new_user_and_profile(
+            p_name='user1', provider_id=2000000,
+            firstname="Squall", lastname="Leonheart", email='s.l@aphp.fr'
+        )
+        self.user2, self.profile2 = new_user_and_profile(
+            p_name='user2', provider_id=3000000,
+            firstname="Seifer", lastname="Almasy", email='s.a@aphp.fr'
+        )
+
+    def check_close_case(self, case: AccessCloseCase):
+        user_access: Union[Access, None] = None
+        if case.user_rights:
+            r = Role.objects.create(**dict([(r, True)
+                                            for r in case.user_rights]))
+            user_access = Access.objects.create(
+                role=r, profile=case.user_profile,
+                perimeter=case.user_perimeter)
+
+        acc = Access.objects.create(**case.initial_data)
+        acc_id = acc.id
+
+        request = self.factory.patch(self.objects_url)
+        force_authenticate(request, case.user)
+        response = self.__class__.close_view(request, id=acc_id)
+        response.render()
+
+        self.assertEqual(
+            response.status_code, case.status,
+            prettify_json(response.content) if response.content else None
+        )
+        access = Access.objects.filter(id=acc_id).first()
+
+        if case.success:
+            delta = (access.manual_end_datetime - timezone.now())
+            self.assertAlmostEqual(delta.total_seconds(), 0, delta=1)
+        else:
+            self.assertEqual(
+                access.manual_end_datetime, acc.manual_end_datetime
+            )
+
+        if user_access:
+            user_access.delete()
+
+    def check_create_case(self, case: Union[AccessCreateCase, CreateCase]):
+        if isinstance(case, AccessCreateCase):
+            r = Role.objects.create(**dict([(r, True)
+                                            for r in case.user_rights]))
+            user_access: Access = Access.objects.create(
+                role=r, profile=case.user_profile,
+                perimeter=case.user_perimeter)
+
+            super(AccessTests, self).check_create_case(case)
+            user_access.delete()
+        else:
+            super(AccessTests, self).check_create_case(case)
+
+    def check_delete_case(self, case: Union[AccessDeleteCase, DeleteCase]):
+        if isinstance(case, AccessDeleteCase):
+            r = Role.objects.create(**dict([(r, True)
+                                            for r in case.user_rights]))
+            user_access: Access = Access.objects.create(
+                role=r, profile=case.user_profile,
+                perimeter=case.user_perimeter)
+
+            super(AccessTests, self).check_delete_case(case)
+            user_access.delete()
+        else:
+            super(AccessTests, self).check_delete_case(case)
+
+    def check_patch_case(self, case: Union[AccessPatchCase, PatchCase]):
+        if isinstance(case, AccessPatchCase):
+            r = Role.objects.create(**dict([(r, True)
+                                            for r in case.user_rights]))
+            user_access: Access = Access.objects.create(
+                role=r, profile=case.user_profile,
+                perimeter=case.user_perimeter)
+
+            super(AccessTests, self).check_patch_case(case)
+            user_access.delete()
+        else:
+            super(AccessTests, self).check_patch_case(case)
+
+    def check_get_acc_paged_list_case(
+            self, case: Union[AccessListCase, ListCase]):
+        if isinstance(case, AccessListCase):
+            r = Role.objects.create(**dict([(r, True)
+                                            for r in case.user_rights]))
+            user_access: Access = Access.objects.create(
+                role=r, profile=case.user_profile,
+                perimeter=case.user_perimeter)
+            if r.right_edit_roles:
+                case.to_find.append(user_access)
+
+            self.check_get_paged_list_case(case)
+            user_access.delete()
+        else:
+            self.check_get_paged_list_case(case)
+
+    def check_get_paged_list_2_role_case(
+            self, case_a: AccessListCase, case_b: AccessListCase,
+            additional_accesses: List[Access]):
+        r_a: Role = Role.objects.filter(
+            **{**dict([(r, r in case_a.user_rights)
+                       for r in Role.all_rights()])}) \
+            .first()
+        r_b: Role = Role.objects.filter(
+            **{**dict([(r, r in case_b.user_rights)
+                       for r in Role.all_rights()])}) \
+            .first()
+
+        self.assertIsNotNone(r_a, msg=case_a.title)
+        self.assertIsNotNone(r_b, msg=case_b.title)
+
+        user_access_a: Access = Access.objects.create(
+            role=r_a, profile=case_a.user_profile,
+            perimeter=case_a.user_perimeter)
+        user_access_b: Access = Access.objects.create(
+            role=r_b, profile=case_b.user_profile,
+            perimeter=case_b.user_perimeter)
+        succ = case_a.success or case_b.success
+        case = ListCase(
+            success=succ,
+            user=self.user2,
+            status=(http_status.HTTP_200_OK if succ
+                    else http_status.HTTP_403_FORBIDDEN),
+            title=f"{case_a.title} & {case_b.title}",
+            to_find=list(set(case_a.to_find + case_b.to_find
+                             + additional_accesses)),
+        )
+
+        if len([acc for acc in case.to_find if (
+                acc.role.id == r_a.id
+                and acc.perimeter_id == user_access_a.perimeter_id)]):
+            case.to_find.append(user_access_a)
+
+        if len([acc for acc in case.to_find
+                if (acc.role.id == r_b.id
+                    and acc.perimeter_id == user_access_b.perimeter_id)]):
+            case.to_find.append(user_access_b)
+
+        self.check_get_acc_paged_list_case(case)
+
+        user_access_a.delete()
+        user_access_b.delete()
+
+
+# GET
 
 def create_accesses(roles: List[Role], profiles: List[Profile],
                     perims: List[Perimeter]) -> List[Access]:

@@ -12,8 +12,8 @@ from rest_framework.response import Response
 
 from admin_cohort.models import User, NewJobStatus
 from admin_cohort.permissions import OR
+from admin_cohort.types import JobStatus
 from admin_cohort.views import CustomLoggingMixin
-from cohort.FhirAPi import JobStatus
 from cohort.models import CohortResult
 from cohort.permissions import IsOwner
 from workspaces.conf_workspaces import get_account_groups_from_id_aph
@@ -74,7 +74,10 @@ class CohortViewSet(viewsets.ModelViewSet):
     http_method_names = ["get"]
     serializer_class = AnnexeCohortResultSerializer
     queryset = CohortResult.objects.filter(
-        request_job_status=JobStatus.FINISHED)
+        request_job_status=JobStatus.FINISHED
+    ) | CohortResult.objects.filter(
+        new_request_job_status=NewJobStatus.finished
+    )
 
     swagger_tags = ['Exports - cohorts']
     filterset_fields = ("owner_id",)
