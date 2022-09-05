@@ -100,10 +100,14 @@ def launch_request(er_id: int):
 
     t = timezone.now()
     log_export_request_task(er.id, "Sending request to Infra API.")
-    er.target_name = f"{er.target_unix_account.name}" \
-                     f"_{timezone.now().strftime('%Y%m%d_%H%M%S%f')}"
     if er.output_format == ExportType.CSV:
+        er.target_name = f"{er.owner.pk}" \
+                         f"_{timezone.now().strftime('%Y%m%d_%H%M%S%f')}"
         er.target_location = EXPORT_CSV_PATH
+    else:
+        er.target_name = f"{er.target_unix_account.name}" \
+                         f"_{timezone.now().strftime('%Y%m%d_%H%M%S%f')}"
+
     er.save()
 
     try:

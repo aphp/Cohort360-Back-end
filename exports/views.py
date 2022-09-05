@@ -252,7 +252,7 @@ class ExportRequestViewset(CustomLoggingMixin, viewsets.ModelViewSet):
         check_email_address(creator)
 
         owner_id = request.data.get(
-            'owner', request.data.get('provider_source_value', request.user.pk))
+            'owner', request.data.get('provider_source_value', creator.pk))
         request.data['owner'] = owner_id
 
         # to deprecate
