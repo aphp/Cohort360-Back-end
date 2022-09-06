@@ -280,17 +280,6 @@ CELERY_BEAT_SCHEDULE = {
     **CONFIG_TASKS,
 }
 
-VOTING_GITLAB = {
-    'enable': True,
-    'api_url': env("VOTING_GITLAB_API_URL"),
-    'project_id': env("VOTING_GITLAB_PROJECT_ID"),
-    'project_name': env("VOTING_GITLAB_PROJECT_NAME"),
-    'private_token': env("VOTING_GITLAB_PRIVATE_TOKEN"),
-    'authorized_labels': ['To Do', 'Doing', 'Feature request', 'Bug request'],
-}
-VOTING_ATTACHMENT_MAX_SIZE = int(env("VOTING_ATTACHMENT_MAX_SIZE"))
-VOTING_POST_LABELS = env("VOTING_AUTHORIZED_LABELS").split(",")
-
 
 # CONSTANTS
 utc = pytz.UTC
