@@ -1,8 +1,9 @@
 from django.db.models import Model
 from rest_framework.request import Request
 
+from admin_cohort.types import JobStatus
 from cohort.FhirAPi import FhirCountResponse, FhirCohortResponse, \
-    FhirValidateResponse, JobStatus
+    FhirValidateResponse
 
 
 def format_json_request(json_req: str) -> str:
