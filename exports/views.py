@@ -41,6 +41,7 @@ class UserFilter(django_filters.FilterSet):
         method="provider_source_value_filter")
 
     class Meta:
+        model = User
         fields = ("provider_source_value",)
 
 
@@ -69,6 +70,12 @@ class UsersViewSet(AccountViewset):
         return super(UsersViewSet, self).list(request, *args, **kwargs)
 
 
+class CohortFilter(django_filters.FilterSet):
+    class Meta:
+        model = CohortResult
+        fields = ('owner_id',)
+
+
 class CohortViewSet(viewsets.ModelViewSet):
     lookup_field = "uuid"
     http_method_names = ["get"]
@@ -80,7 +87,7 @@ class CohortViewSet(viewsets.ModelViewSet):
     )
 
     swagger_tags = ['Exports - cohorts']
-    filterset_fields = ("owner_id",)
+    filter_class = CohortFilter
     search_fields = ('$name', '$description',)
 
     def get_permissions(self):
@@ -112,16 +119,22 @@ class CohortViewSet(viewsets.ModelViewSet):
         return super(CohortViewSet, self).list(request, *args, **kwargs)
 
 
+class ExportRequestFilter(django_filters.FilterSet):
+    class Meta:
+        model = ExportRequest
+        fields = ('output_format', 'status', 'creator_fk')
+
+
 class ExportRequestViewset(CustomLoggingMixin, viewsets.ModelViewSet):
     serializer_class = ExportRequestSerializer
     queryset = ExportRequest.objects.all()
     lookup_field = "id"
     permissions = (ExportRequestPermissions, ExportJupyterPermissions)
-    filterset_fields = ['output_format', 'status', 'creator_fk']
-    http_method_names = ['get', 'post', 'patch']
 
     swagger_tags = ['Exports']
     logging_methods = ['POST', 'PATCH']
+    filterset_class = ExportRequestFilter
+    http_method_names = ['get', 'post', 'patch']
 
     def should_log(self, request, response):
         action = getattr(

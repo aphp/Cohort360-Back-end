@@ -30,18 +30,6 @@ req_router.register(
     basename="request-request-query-snapshots",
     parents_query_lookups=["request_id"]
 )
-req_router.register(
-    'dated-measures',
-    NestedDatedMeasureViewSet,
-    basename="request-dated-measures",
-    parents_query_lookups=["request_id"]
-)
-req_router.register(
-    "cohorts",
-    NestedCohortResultViewSet,
-    basename="request-cohort-results",
-    parents_query_lookups=["request_id"]
-)
 
 rqs_router = router.register(r'request-query-snapshots',
                              RequestQuerySnapshotViewSet)

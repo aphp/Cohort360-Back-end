@@ -11,7 +11,7 @@ from django.http import Http404
 from django_filters import OrderingFilter
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework import status, filters
+from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import AND
@@ -112,8 +112,6 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
         "profile__email",
         "profile__user__provider_username"
     ]
-    filter_backends = (django_filters.rest_framework.DjangoFilterBackend,
-                       filters.SearchFilter)
     filter_class = AccessFilter
 
     def get_permissions(self):

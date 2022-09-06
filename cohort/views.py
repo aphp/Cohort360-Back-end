@@ -1,24 +1,20 @@
-import re
-
 import django_filters
-from django.db.models import F
 from django.http import QueryDict
-from django_filters.rest_framework import DjangoFilterBackend
+from django_filters import OrderingFilter
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework.decorators import action
 from rest_framework import status, viewsets
 from rest_framework.exceptions import ValidationError
-from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.pagination import LimitOffsetPagination
-from rest_framework.relations import PrimaryKeyRelatedField
+from rest_framework.relations import RelatedField
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from admin_cohort.types import JobStatus, NewJobStatus
 from admin_cohort.views import SwaggerSimpleNestedViewSetMixin, \
     CustomLoggingMixin
-from cohort.permissions import IsOwner, OR, IsAdmin
+from cohort.permissions import IsOwner
 from admin_cohort import app
 from cohort.conf_cohort_job_api import cancel_job, \
     get_fhir_authorization_header
@@ -42,26 +38,8 @@ class NoUpdateViewSetMixin:
             status=status.HTTP_400_BAD_REQUEST)
 
 
-class CustomOrderingFilter(OrderingFilter):
-    # Allows to add aliases while ordering
-    # for instance, you can add in a url /?ordering=alias
-    # and set the viewset's ordering_fields to ("alias", "actual_field")
-    def remove_invalid_fields(self, queryset, fields, view, request):
-        valid_fields = self.get_valid_fields(queryset, view,
-                                             {'request': request})
-        valid_terms = [
-            term for term in fields
-            if term.lstrip('-') in [vf[0] for vf in valid_fields]
-            and re.compile(r'\?|[-+]?[.\w]+$').match(term)
-        ]
-        for term in valid_terms:
-            ordering_term = [v_f[1] for v_f in valid_fields
-                             if v_f[0] == term.lstrip('-')][0]
-            yield f"-{ordering_term}" if term[0] == '-' else ordering_term
-
-
 class BaseViewSet(viewsets.ModelViewSet):
-    filter_backends = (DjangoFilterBackend, CustomOrderingFilter, SearchFilter,)
+    permission_classes = (IsOwner,)
 
     def get_serializer_context(self):
         return {'request': self.request}
@@ -72,23 +50,22 @@ class UserObjectsRestrictedViewSet(BaseViewSet):
         return self.__class__.queryset.filter(owner=self.request.user)
 
     def create(self, request, *args, **kwargs):
-        user = request.user
         if type(request.data) == QueryDict:
             request.data._mutable = True
-
-        request.data['owner'] = request.data.get(
-            'owner', request.data.get('owner_id', user.pk))
+        request.data['owner'] = request.data.get('owner', request.user.pk)
 
         return super(UserObjectsRestrictedViewSet, self).create(
             request, *args, **kwargs)
 
+    # todo : remove when front is ready
+    #  (front should not post with '_id' fields)
     def initial(self, request, *args, **kwargs):
         super(UserObjectsRestrictedViewSet, self)\
             .initial(request, *args, **kwargs)
 
         s = self.get_serializer_class()()
         primary_key_fields = [f.field_name for f in s._writable_fields
-                              if isinstance(f, PrimaryKeyRelatedField)]
+                              if isinstance(f, RelatedField)]
 
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
@@ -100,14 +77,6 @@ class UserObjectsRestrictedViewSet(BaseViewSet):
 
 
 class CohortFilter(django_filters.FilterSet):
-    def perimeter_filter(self, queryset, field, value):
-        return queryset.filter(
-            request_query_snapshot__perimeters_ids__contains=[value])
-
-    def perimeters_filter(self, queryset, field, value):
-        return queryset.filter(
-            request_query_snapshot__perimeters_ids__contains=value.split(","))
-
     name = django_filters.CharFilter(field_name='name', lookup_expr="icontains")
     min_result_size = django_filters.NumberFilter(
         field_name='dated_measure__measure', lookup_expr='gte')
@@ -119,37 +88,57 @@ class CohortFilter(django_filters.FilterSet):
     max_fhir_datetime = django_filters.IsoDateTimeFilter(
         field_name='dated_measure__fhir_datetime', lookup_expr="lte")
     request_job_status = django_filters.AllValuesMultipleFilter()
+    request_id = django_filters.CharFilter(
+        field_name='request_query_snapshot__request__pk')
 
     # unused, untested
+    def perimeter_filter(self, queryset, field, value):
+        return queryset.filter(
+            request_query_snapshot__perimeters_ids__contains=[value])
+
+    def perimeters_filter(self, queryset, field, value):
+        return queryset.filter(
+            request_query_snapshot__perimeters_ids__contains=value.split(","))
+
     type = django_filters.AllValuesMultipleFilter()
     perimeter_id = django_filters.CharFilter(method="perimeter_filter")
     perimeters_ids = django_filters.CharFilter(method="perimeters_filter")
 
+    ordering = OrderingFilter(fields=(
+        '-created_at',
+        'name',
+        ('result_size', 'dated_measure__measure'),
+        ('fhir_datetime', 'dated_measure__fhir_datetime'),
+        'type',
+        'favorite',
+        'request_job_status'
+    ))
+
     class Meta:
         model = CohortResult
         fields = (
-            "name",
-            "min_result_size",
-            "max_result_size",
-            "min_fhir_datetime",
-            "max_fhir_datetime",
-            "favorite",
-            "type",
-            "fhir_group_id",
-            "create_task_id",
-            "request_query_snapshot",
-            "request_query_snapshot__request",
-            "new_request_job_status",
-            "request_job_status",
-            "perimeter_id",
-            "perimeters_ids",
+            'name',
+            'min_result_size',
+            'max_result_size',
+            'min_fhir_datetime',
+            'max_fhir_datetime',
+            'favorite',
+            'fhir_group_id',
+            'create_task_id',
+            'request_query_snapshot',
+            'request_query_snapshot__request',
+            'request_id',
+            'new_request_job_status',
+            'request_job_status',
+            # unused, untested
+            'type',
+            'perimeter_id',
+            'perimeters_ids',
         )
 
 
 class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
-    queryset = CohortResult.objects\
-        .select_related('request_query_snapshot__request')\
-        .annotate(request_id=F('request_query_snapshot__request__uuid')).all()
+    queryset = CohortResult.objects.all()
     serializer_class = CohortResultSerializer
     http_method_names = ['get', 'post', 'patch', 'delete']
     lookup_field = "uuid"
@@ -158,20 +147,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     pagination_class = LimitOffsetPagination
 
     filter_class = CohortFilter
-    ordering_fields = (
-        "name",
-        ("result_size", "dated_measure__measure"),
-        ("fhir_datetime", "dated_measure__fhir_datetime"),
-        "type",
-        "favorite",
-        "request_job_status"
-    )
-    # ordering = ('-created_at',)
     search_fields = ('$name', '$description',)
-
-    def get_permissions(self):
-        if self.request.method in ['GET', 'POST', 'PATCH', 'DELETE']:
-            return OR(IsOwner())
 
     def get_serializer_class(self):
         if self.request.method in ["POST", "PUT", "PATCH"] \
@@ -186,10 +162,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         if type(request.data) == QueryDict:
             request.data._mutable = True
 
-        if 'request_query_snapshot' in kwargs:
-            request.data["request_query_snapshot"] = \
-                kwargs['request_query_snapshot']
-
+        # todo remove possibility to post _id when Front is ready
         if 'dated_measure_id' not in request.data:
             if 'dated_measure' in request.data:
                 dated_measure = request.data['dated_measure']
@@ -202,51 +175,49 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
 
         return super(CohortResultViewSet, self).create(request, *args, **kwargs)
 
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        serializer = self.get_serializer(
-            instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-
-        # todo : check
-        if getattr(instance, '_prefetched_objects_cache', None):
-            # If 'prefetch_related' has been applied to a queryset, we need to
-            # forcibly invalidate the prefetch cache on the instance.
-            instance._prefetched_objects_cache = {}
-
-        return Response(serializer.data)
-
 
 class NestedCohortResultViewSet(SwaggerSimpleNestedViewSetMixin,
                                 CohortResultViewSet):
-    pass
+    def create(self, request, *args, **kwargs):
+        if type(request.data) == QueryDict:
+            request.data._mutable = True
+
+        if 'request_query_snapshot' in kwargs:
+            request.data["request_query_snapshot"] = \
+                kwargs['request_query_snapshot']
+
+        return super(NestedCohortResultViewSet, self).create(
+            request, *args, **kwargs)
+
+
+class DMFilter(django_filters.FilterSet):
+    ordering = OrderingFilter(fields=("-created_at", "modified_at",
+                                      "result_size"), )
+    request_id = django_filters.CharFilter(
+        field_name='request_query_snapshot__request__pk')
+
+    class Meta:
+        model = DatedMeasure
+        fields = (
+            'uuid',
+            'request_query_snapshot',
+            'mode',
+            'count_task_id',
+            'request_query_snapshot__request',
+            'request_id'
+        )
 
 
 class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
-    queryset = DatedMeasure.objects\
-        .select_related('request_query_snapshot__request')\
-        .annotate(request_id=F('request_query_snapshot__request__uuid')).all()
+    queryset = DatedMeasure.objects.all()
     serializer_class = DatedMeasureSerializer
     http_method_names = ['get', 'post', 'patch', 'delete']
     lookup_field = "uuid"
     swagger_tags = ['Cohort - dated-measures']
 
+    filterset_class = DMFilter
     pagination_class = LimitOffsetPagination
-
-    filterset_fields = ("uuid", "request_query_snapshot",
-                        "request_query_snapshot__request", "mode",
-                        "count_task_id")
-    ordering_fields = ("created_at", "modified_at", "result_size")
-    ordering = ("-created_at",)
     search_fields = []
-
-    def get_permissions(self):
-        if self.request.method in ['GET', 'POST', 'PATCH', 'DELETE']:
-            return OR(IsOwner())
-        else:
-            return OR(IsAdmin())
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -254,20 +225,10 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                 dated_measure__uuid=instance.uuid).first() is not None:
             return Response({
                 'message': "Cannot delete a Dated measure "
-                           "that is binded to a cohort result"
+                           "that is bound to a cohort result"
             }, status=status.HTTP_403_FORBIDDEN)
         return super(DatedMeasureViewSet, self)\
             .destroy(request, *args, **kwargs)
-
-    def create(self, request, *args, **kwargs):
-        if type(request.data) == QueryDict:
-            request.data._mutable = True
-
-        if 'request_query_snapshot' in kwargs:
-            request.data["request_query_snapshot"] \
-                = kwargs['request_query_snapshot']
-
-        return super(DatedMeasureViewSet, self).create(request, *args, **kwargs)
 
     @action(methods=['post'], detail=False, url_path='create-unique')
     def create_unique(self, request, *args, **kwargs):
@@ -375,10 +336,29 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
 
 class NestedDatedMeasureViewSet(SwaggerSimpleNestedViewSetMixin,
                                 DatedMeasureViewSet):
-
     @swagger_auto_schema(auto_schema=None)
     def abort(self, request, *args, **kwargs):
         return self.abort(self, request, *args, **kwargs)
+
+    def create(self, request, *args, **kwargs):
+        if type(request.data) == QueryDict:
+            request.data._mutable = True
+
+        if 'request_query_snapshot' in kwargs:
+            request.data["request_query_snapshot"] \
+                = kwargs['request_query_snapshot']
+
+        return super(NestedDatedMeasureViewSet, self).create(
+            request, *args, **kwargs)
+
+
+class RQSFilter(django_filters.FilterSet):
+    ordering = OrderingFilter(fields=('-created_at', 'modified_at'))
+
+    class Meta:
+        model = RequestQuerySnapshot
+        fields = ('uuid', 'request', 'is_active_branch', 'shared_by',
+                  'previous_snapshot', 'request', 'request__parent_folder')
 
 
 class RequestQuerySnapshotViewSet(
@@ -392,33 +372,8 @@ class RequestQuerySnapshotViewSet(
     swagger_tags = ['Cohort - request-query-snapshots']
 
     pagination_class = LimitOffsetPagination
-
-    filterset_fields = ('uuid', 'request_id', 'request', 'is_active_branch',
-                        'shared_by', "previous_snapshot", "request",
-                        "request__parent_folder")
-    ordering_fields = ('created_at', 'modified_at',)
-    ordering = ('-created_at',)
+    filterset_class = RQSFilter
     search_fields = ('$serialized_query',)
-
-    def get_permissions(self):
-        if self.request.method in ['GET', 'POST', 'PATCH', 'DELETE']:
-            return OR(IsOwner())
-
-    def create(self, request, *args, **kwargs):
-        if type(request.data) == QueryDict:
-            request.data._mutable = True
-
-        if 'request_id' in kwargs:
-            request.data["request"] = kwargs['request_id']
-        if 'previous_snapshot' in kwargs:
-            request.data["previous_snapshot"] = kwargs['previous_snapshot']
-
-        return super(RequestQuerySnapshotViewSet, self)\
-            .create(request, *args, **kwargs)
-
-    def list(self, request, *args, **kwargs):
-        return super(RequestQuerySnapshotViewSet, self)\
-            .list(request, *args, **kwargs)
 
     @action(detail=True, methods=['post'], permission_classes=(IsOwner,),
             url_path="save")
@@ -493,6 +448,28 @@ class NestedRqsViewSet(SwaggerSimpleNestedViewSetMixin,
     def share(self, request, *args, **kwargs):
         return self.share(request, *args, **kwargs)
 
+    def create(self, request, *args, **kwargs):
+        if type(request.data) == QueryDict:
+            request.data._mutable = True
+
+        if 'request_id' in kwargs:
+            request.data["request"] = kwargs['request_id']
+        if 'previous_snapshot' in kwargs:
+            request.data["previous_snapshot"] = kwargs['previous_snapshot']
+
+        return super(NestedRqsViewSet, self)\
+            .create(request, *args, **kwargs)
+
+
+class RequestFilter(django_filters.FilterSet):
+    ordering = OrderingFilter(fields=('name', 'created_at', 'modified_at',
+                                      'favorite', 'data_type_of_query'))
+
+    class Meta:
+        model = Request
+        fields = ('uuid', 'name', 'favorite', 'data_type_of_query',
+                  'parent_folder', 'shared_by')
+
 
 class RequestViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     queryset = Request.objects.all()
@@ -503,17 +480,13 @@ class RequestViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
 
     pagination_class = LimitOffsetPagination
 
-    filterset_fields = ("uuid", "name", "favorite", "data_type_of_query",
-                        "parent_folder", "shared_by")
-    ordering_fields = ("created_at", "modified_at",
-                       "name", "favorite", "data_type_of_query")
-    ordering = ("name",)
+    filterset_class = RequestFilter
+    filterset_fields = ('uuid', 'name', 'favorite', 'data_type_of_query',
+                        'parent_folder', 'shared_by')
     search_fields = ("$name", "$description",)
 
-    def get_permissions(self):
-        if self.request.method in ["GET", "POST", "PATCH", "DELETE"]:
-            return OR(IsOwner())
 
+class NestedRequestViewSet(SwaggerSimpleNestedViewSetMixin, RequestViewSet):
     def create(self, request, *args, **kwargs):
         if type(request.data) == QueryDict:
             request.data._mutable = True
@@ -521,15 +494,16 @@ class RequestViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         if 'parent_folder' in kwargs:
             request.data["parent_folder"] = kwargs['parent_folder']
 
-        return super(RequestViewSet, self).create(request, *args, **kwargs)
-
-    def partial_update(self, request, *args, **kwargs):
-        return super(RequestViewSet, self)\
-            .partial_update(request, *args, **kwargs)
+        return super(NestedRequestViewSet, self)\
+            .create(request, *args, **kwargs)
 
 
-class NestedRequestViewSet(SwaggerSimpleNestedViewSetMixin, RequestViewSet):
-    pass
+class FolderFilter(django_filters.FilterSet):
+    ordering = OrderingFilter(fields=('name', 'created_at', 'modified_at'))
+
+    class Meta:
+        model = Folder
+        fields = "__all__"
 
 
 class FolderViewSet(CustomLoggingMixin, NestedViewSetMixin,
@@ -543,12 +517,6 @@ class FolderViewSet(CustomLoggingMixin, NestedViewSetMixin,
     logging_methods = ['POST', 'PUT', 'PATCH', 'DELETE']
     pagination_class = LimitOffsetPagination
 
+    filter_class = FolderFilter
     filterset_fields = ('uuid', 'name', 'parent_folder')
-    ordering_fields = ('created_at', 'modified_at',
-                       'name')
-    ordering = ('name',)
     search_fields = ('$name', '$description',)
-
-    def get_permissions(self):
-        if self.request.method in ['GET', 'POST', 'PATCH', 'DELETE']:
-            return OR(IsOwner())

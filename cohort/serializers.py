@@ -160,12 +160,6 @@ class CohortResultSerializer(BaseSerializer):
                            validated_data.get('dated_measure_global', None)
                            is None)
 
-        # if rqs is None:
-        #     raise serializers.ValidationError(
-        #         "You have to provide a request_query_snapshot_id to bind "
-        #         "the cohort result to it"
-        #     )
-
         dm = validated_data.get(
             "dated_measure", dict(fhir_datetime=None, measure=None)
         )
@@ -265,10 +259,6 @@ class RequestQuerySnapshotSerializer(BaseSerializer):
         queryset=Request.objects.all(), required=False)
     previous_snapshot = PrimaryKeyRelatedFieldWithOwner(
         required=False, queryset=RequestQuerySnapshot.objects.all())
-    # request = serializers.UUIDField(
-    #     required=False, source='request')
-    # previous_snapshot = serializers.UUIDField(
-    #     required=False, source='previous_snapshot_id')
 
     dated_measures = DatedMeasureSerializer(many=True, read_only=True)
     cohort_results = CohortResultSerializer(many=True, read_only=True)
@@ -279,9 +269,7 @@ class RequestQuerySnapshotSerializer(BaseSerializer):
         model = RequestQuerySnapshot
         fields = "__all__"
         optional_fields = ["previous_snapshot", "request"]
-        # exclude = ["request", "owner"]
         read_only_fields = ["is_active_branch", "care_sites_ids",
-                            # "request", "owner",
                             "dated_measures", "cohort_results", 'shared_by',
                             ]
 

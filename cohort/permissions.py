@@ -23,8 +23,6 @@ class IsOwner(permissions.BasePermission):
             return False
         if obj == request.user:
             return True
-        if hasattr(obj, "user"):
-            return obj.user == request.user
         if hasattr(obj, "owner"):
             return obj.owner == request.user
         return False

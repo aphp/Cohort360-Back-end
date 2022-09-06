@@ -564,8 +564,8 @@ class ViewSetTestsWithNumerousPerims(ViewSetTests, NumerousPerimSetup):
         NumerousPerimSetup.setUp(self)
 
 
-def random_str(length, include_pattern: str = ''):
-    letters = string.ascii_lowercase + ' '
+def random_str(length, include_pattern: str = '', with_space: bool = True):
+    letters = string.ascii_lowercase + (" " if with_space else "")
     res = ''.join(random.choice(letters) for i in range(length))
     if include_pattern:
         h = int(length / 2)

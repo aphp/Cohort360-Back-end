@@ -1261,21 +1261,13 @@ class DatedMeasuresGetTests(DatedMeasuresTests):
                 to_find=sum((list(rqs.dated_measures.all())
                              for rqs in req.query_snapshots.all()), []),
             ),
+            basic_case.clone(
+                params=dict(request_id=req.pk),
+                to_find=sum((list(rqs.dated_measures.all())
+                             for rqs in req.query_snapshots.all()), []),
+            ),
         ]
         [self.check_get_paged_list_case(case) for case in cases]
-
-    def test_rest_get_list_from_request(self):
-        # As a user, I can get the list of DMs from the request they are
-        # bound to
-        req = self.user1.user_requests.first()
-
-        self.check_get_paged_list_case(ListCase(
-            status=status.HTTP_200_OK,
-            success=True,
-            user=self.user1,
-            to_find=list(req.dated_measures.all())
-        ), NestedDatedMeasureViewSet.as_view({'get': 'list'}),
-            request_id=req.pk)
 
     def test_rest_get_list_from_rqs(self):
         # As a user, I can get the list of DMs from the RQS it is bound to
@@ -1652,7 +1644,7 @@ class CohortsGetTests(CohortsTests):
                                        and self.str_pattern),
                 favorite=random.random() > .5,
                 request_query_snapshot=dm.request_query_snapshot,
-                fhir_group_id=random_str(10),
+                fhir_group_id=random_str(10, with_space=False),
                 request_job_status=random.choice(NewJobStatus.list()),
                 dated_measure=dm,
                 dated_measure_global=dm_global,
@@ -1747,7 +1739,6 @@ class CohortsGetTests(CohortsTests):
                 params=dict(fhir_group_id=first_cr.fhir_group_id),
                 to_find=[first_cr],
             ),
-
             basic_case.clone(
                 params=dict(create_task_id=first_cr.create_task_id),
                 to_find=[first_cr],
@@ -1761,22 +1752,13 @@ class CohortsGetTests(CohortsTests):
                 to_find=sum((list(rqs.cohort_results.all())
                              for rqs in req.query_snapshots.all()), []),
             ),
+            basic_case.clone(
+                params=dict(request_id=req.pk),
+                to_find=sum((list(rqs.cohort_results.all())
+                             for rqs in req.query_snapshots.all()), []),
+            ),
         ]
         [self.check_get_paged_list_case(case) for case in cases]
-
-    def test_rest_get_list_from_request(self):
-        # As a user, I can get the list of CRs from the request they are
-        # bound to
-        req = self.user1.user_requests.first()
-
-        self.check_get_paged_list_case(ListCase(
-            status=status.HTTP_200_OK,
-            success=True,
-            user=self.user1,
-            to_find=sum((list(rqs.cohort_results.all())
-                         for rqs in req.query_snapshots.all()), [])
-        ), NestedCohortResultViewSet.as_view({'get': 'list'}),
-            request_id=req.pk)
 
     def test_rest_get_list_from_rqs(self):
         # As a user, I can get the list of CRs from the RQS it is bound to
