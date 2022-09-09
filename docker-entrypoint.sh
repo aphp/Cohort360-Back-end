@@ -1,16 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-
 mkdir -p static/ /app/log
-
-# update variables in nginx
-declare -a UrlArray=("BACK_URL_LOCAL")
-for NAME in ${UrlArray[@]}; do
-  ENV_VAR="${!NAME}"
-  ENV_VAR=$(echo $ENV_VAR | sed "s/[^a-zA-Z0-9]/\\\\&/g");
-  sed -i s/"{{"$NAME"}}"/$ENV_VAR/g /etc/nginx/sites-enabled/nginx.conf;
-done
 
 # restart nginx
 service nginx restart
