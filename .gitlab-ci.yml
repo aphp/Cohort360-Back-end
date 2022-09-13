@@ -31,7 +31,7 @@ test-job:
     - pip install -r requirements.txt
     - cp admin_cohort/example.settings.py admin_cohort/settings.py
     - cp accesses/example.conf_perimeters.py accesses/conf_perimeters.py ; cp admin_cohort/example.conf_auth.py admin_cohort/conf_auth.py ; cp cohort/example.conf_cohort_job_api.py cohort/conf_cohort_job_api.py ; cp workspaces/example.conf_workspaces.py workspaces/conf_workspaces.py ; cp exports/example.conf_exports.py exports/conf_exports.py
-    - coverage run --source='.' --omit="*/test*","*/migrations/*" manage.py test accesses exports cohorts
+    - coverage run --source='.' --omit="*/test*","*/migrations/*" manage.py test accesses exports cohort
     - coverage xml --omit="*/test*","*/migrations/*" -o coverage.xml
     - coverage html --omit="*/test*","*/migrations/*" -d htmlcov
   artifacts:
