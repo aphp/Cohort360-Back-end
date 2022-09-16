@@ -11,7 +11,7 @@ from rest_framework.relations import RelatedField
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
-from admin_cohort.types import JobStatus, NewJobStatus
+from admin_cohort.types import JobStatus
 from admin_cohort.views import SwaggerSimpleNestedViewSetMixin, \
     CustomLoggingMixin
 from cohort.permissions import IsOwner
@@ -128,7 +128,6 @@ class CohortFilter(django_filters.FilterSet):
             'request_query_snapshot',
             'request_query_snapshot__request',
             'request_id',
-            'new_request_job_status',
             'request_job_status',
             # unused, untested
             'type',
@@ -262,11 +261,9 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             )
 
         req_dms = rqs.request.dated_measures
-        for job_to_cancel in (req_dms.filter(
-                request_job_status=JobStatus.STARTED.name.lower()
-        ) | req_dms.filter(
-            new_request_job_status=NewJobStatus.new.name.lower()
-        )).prefetch_related('cohort', 'restricted_cohort'):
+        for job_to_cancel in req_dms.filter(
+            request_job_status=JobStatus.started.name.lower()
+        ).prefetch_related('cohort', 'restricted_cohort'):
             if len(job_to_cancel.cohort.all()) \
                     or len(job_to_cancel.restricted_cohort.all()):
                 # if the pending dated measure is bound to a cohort,
@@ -286,11 +283,9 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                     ), status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
 
-        for job_to_cancel in (req_dms.filter(
-                request_job_status=JobStatus.PENDING.name.lower()
-        ) | req_dms.filter(
-            new_request_job_status=NewJobStatus.new.name.lower()
-        )).prefetch_related('cohort', 'restricted_cohort'):
+        for job_to_cancel in req_dms.filter(
+            request_job_status=JobStatus.pending.name.lower()
+        ).prefetch_related('cohort', 'restricted_cohort'):
             if len(job_to_cancel.cohort.all()) \
                     or len(job_to_cancel.restricted_cohort.all()):
                 # if the pending dated measure is bound to a cohort,
@@ -300,9 +295,7 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             try:
                 app.control.revoke(job_to_cancel.count_task_id)
                 # revoke(task_id=job_to_cancel.count_task_id, terminate=True)
-                job_to_cancel.request_job_status = JobStatus.KILLED.name.lower()
-                job_to_cancel.new_request_job_status = (NewJobStatus.cancelled
-                                                        .value)
+                job_to_cancel.request_job_status = (JobStatus.cancelled.value)
                 job_to_cancel.save()
             except Exception as e:
                 return Response(

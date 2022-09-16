@@ -6,12 +6,12 @@ from django.utils import timezone
 
 from admin_cohort.celery import app
 from admin_cohort.settings import EXPORT_CSV_PATH
+from admin_cohort.types import JobStatus
 from exports import conf_exports
 from exports.emails import email_info_request_done, email_info_request_deleted
-from exports.types import NewJobStatus, HdfsServerUnreachableError,\
+from exports.types import HdfsServerUnreachableError,\
     ApiJobResponse
-from exports.models import ExportRequest, SUCCESS_STATUS, FAILED_STATUS, \
-    DENIED_STATUS, ExportType
+from exports.models import ExportRequest, ExportType
 
 
 def log_export_request_task(id, msg):
@@ -32,10 +32,10 @@ def manage_exception(er: ExportRequest, e: Exception, msg: str,
     """
     err_msg = f"{msg}: {e}"
     er.request_job_fail_msg = err_msg
-    if er.new_request_job_status in [
-        NewJobStatus.pending, NewJobStatus.validated, NewJobStatus.new
+    if er.request_job_status in [
+        JobStatus.pending, JobStatus.validated, JobStatus.new
     ]:
-        er.new_request_job_status = NewJobStatus.failed
+        er.request_job_status = JobStatus.failed
     er.request_job_duration = timezone.now() - start
     er.save()
     log_export_request_task(er.id, err_msg)
@@ -53,7 +53,7 @@ def wait_for_job(er: ExportRequest):
     """
     errs = 0
     err_msg = ""
-    status_resp = ApiJobResponse(NewJobStatus.pending)
+    status_resp = ApiJobResponse(JobStatus.pending)
 
     while errs < 5 and not status_resp.has_ended:
         time.sleep(5)
@@ -66,15 +66,15 @@ def wait_for_job(er: ExportRequest):
                 er.id,
                 f"Status received: {status_resp.status} - "
                 + (f"Err: {status_resp.err}" if status_resp.err else ""))
-            if er.new_request_job_status != status_resp.status:
-                er.new_request_job_status = status_resp.status
+            if er.request_job_status != status_resp.status:
+                er.request_job_status = status_resp.status
                 er.save()
         except Exception as e:
             log_export_request_task(er.id, f"Status not received: {e}")
             errs += 1
             err_msg = str(e)
 
-    if status_resp.status != NewJobStatus.finished:
+    if status_resp.status != JobStatus.finished:
         raise Exception(status_resp.err or "no 'err' value returned.")
     elif errs >= 5:
         raise Exception(f"5 times internal error during task -> {err_msg}")
@@ -122,11 +122,11 @@ def launch_request(er_id: int):
         manage_exception(er, e, f"Could not post export {er.id}", t)
         return
 
-    er.new_request_job_status = NewJobStatus.pending
+    er.request_job_status = JobStatus.pending
     er.request_job_id = job_id
     er.save()
     log_export_request_task(er.id, f"Request sent, job {job_id} is now "
-                                   f"{NewJobStatus.pending}")
+                                   f"{JobStatus.pending}")
 
     try:
         wait_for_job(er)
@@ -153,23 +153,19 @@ def check_jobs():
     """
     Queries ExportRequest that have csv output, have finished
     and whom the owner has not been notified yet.
-    Will update its new_request_job_status, warn the owner by email and update
+    Will warn the owner by email and update
     the ExportRequest with 'is_user_notified'
     @return: None
     """
     reqs = list(ExportRequest.objects.filter(
-        status__in=[SUCCESS_STATUS, FAILED_STATUS, DENIED_STATUS],
+        request_job_status__in=[
+            JobStatus.finished.value, JobStatus.failed.value,
+            JobStatus.cancelled.value, JobStatus.denied.value],
         output_format=ExportType.CSV.value,
         is_user_notified=False
     ))
 
-    old_status_to_new = {SUCCESS_STATUS: NewJobStatus.finished.value,
-                         FAILED_STATUS: NewJobStatus.failed.value,
-                         DENIED_STATUS: NewJobStatus.denied.value}
-
     for req in reqs:
-        req.new_request_job_status = old_status_to_new[req.status]
-        req.save()
         try:
             email_info_request_done(req)
             req.is_user_notified = True
@@ -189,9 +185,8 @@ def clean_jobs():
     """
     from admin_cohort.settings import EXPORT_DAYS_BEFORE_DELETE
     q = ExportRequest.objects.all()
-    reqs: List[ExportRequest] = list((
-            q.filter(status=SUCCESS_STATUS)
-            | q.filter(new_request_job_status=NewJobStatus.finished.value)
+    reqs: List[ExportRequest] = list(q.filter(
+        request_job_status=JobStatus.finished.value
     ).filter(
         output_format=ExportType.CSV.value,
         is_user_notified=True,

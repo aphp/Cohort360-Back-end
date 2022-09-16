@@ -2,16 +2,15 @@ from time import sleep
 
 from celery import shared_task, current_task
 
+from admin_cohort.models import JobStatus
 import cohort.conf_cohort_job_api as fhir_api
-from admin_cohort.types import NewJobStatus
 from cohort.models import CohortResult, DatedMeasure, GLOBAL_DM_MODE
 
 
 def update_instance_failed(
-        instance, msg, job_duration, fhir_job_id, job_status: NewJobStatus
+        instance, msg, job_duration, fhir_job_id, job_status: JobStatus
 ):
-    # instance.request_job_status = job_status.name.lower()
-    instance.new_request_job_status = job_status.name.lower()
+    instance.request_job_status = job_status.value
     instance.request_job_fail_msg = msg
     instance.request_job_duration = job_duration
     instance.request_job_id = fhir_job_id
@@ -68,14 +67,13 @@ def create_cohort_task(auth_headers: dict, json_file: str, cohort_uuid: str):
         cr.dated_measure.request_job_id = resp.fhir_job_id
         # cr.dated_measure.request_job_status =
         # resp.fhir_job_status.name.lower()
-        cr.dated_measure.new_request_job_status = resp.fhir_job_status.value
+        cr.dated_measure.request_job_status = resp.fhir_job_status.value
         cr.dated_measure.request_job_duration = resp.job_duration
         cr.dated_measure.save()
 
         cr.fhir_group_id = resp.group_id
         cr.request_job_id = resp.fhir_job_id
-        # cr.request_job_status = resp.fhir_job_status.name.lower()
-        cr.new_request_job_status = resp.fhir_job_status.value
+        cr.request_job_status = resp.fhir_job_status.value
         cr.request_job_duration = resp.job_duration
         cr.save()
 
@@ -117,6 +115,7 @@ def get_count_task(auth_headers: dict, json_file: str, dm_uuid: str):
         return
 
     dm.count_task_id = current_task.request.id or ""
+    dm.request_job_status = JobStatus.pending.value
     dm.save()
 
     global_estimate = dm.mode == GLOBAL_DM_MODE
@@ -145,8 +144,7 @@ def get_count_task(auth_headers: dict, json_file: str, dm_uuid: str):
             dm.measure_max = resp.count_max
 
         dm.fhir_datetime = resp.fhir_datetime
-        # dm.request_job_status = resp.fhir_job_status.name.lower()
-        dm.new_request_job_status = resp.fhir_job_status.name.lower()
+        dm.request_job_status = resp.fhir_job_status.name.lower()
         dm.request_job_duration = resp.job_duration
         dm.request_job_id = resp.fhir_job_id
         dm.save()

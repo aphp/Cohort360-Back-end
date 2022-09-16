@@ -11,7 +11,7 @@ from rest_framework.test import force_authenticate
 from admin_cohort.models import User
 from admin_cohort.settings import SHARED_FOLDER_NAME
 from admin_cohort.tools import prettify_json
-from admin_cohort.types import NewJobStatus, JobStatus
+from admin_cohort.types import JobStatus
 from cohort.FhirAPi import FhirValidateResponse, FhirCountResponse, \
     FhirCohortResponse
 from admin_cohort.tests_tools import ViewSetTests, new_random_user, \
@@ -1142,7 +1142,7 @@ class DatedMeasuresTests(RqsTests):
                           "measure_alive", "measure_female",
                           "created_at", "modified_at", "deleted"]
     unsettable_default_fields = dict(
-        new_request_job_status=NewJobStatus.pending)
+        request_job_status=JobStatus.new)
     unsettable_fields = ["owner", "uuid", "count_task_id",
                          "created_at", "modified_at", "deleted", ]
     manual_dupplicated_fields = []
@@ -1492,8 +1492,7 @@ class DatedMeasuresDeleteTests(DatedMeasuresTests):
             created_at=timezone.now(),
             modified_at=timezone.now(),
             request_job_id="test",
-            request_job_status=JobStatus.PENDING.name.lower(),
-            new_request_job_status=NewJobStatus.pending.name,
+            request_job_status=JobStatus.pending.name,
             request_job_fail_msg="test",
             request_job_duration="1s",
         )
@@ -1548,8 +1547,7 @@ class DatedMeasuresUpdateTests(DatedMeasuresTests):
             created_at=timezone.now(),
             modified_at=timezone.now(),
             request_job_id="test",
-            request_job_status=JobStatus.PENDING.name.lower(),
-            new_request_job_status=NewJobStatus.pending.name,
+            request_job_status=JobStatus.pending.name,
             request_job_fail_msg="test",
             request_job_duration="1s",
         )
@@ -1582,8 +1580,7 @@ class CohortsTests(DatedMeasuresTests):
                           "request_job_id", "request_job_status",
                           "request_job_fail_msg", "request_job_duration",
                           "created_at", "modified_at", "deleted"]
-    unsettable_default_fields = dict(
-        new_request_job_status=NewJobStatus.pending)
+    unsettable_default_fields = dict(request_job_status=JobStatus.new)
     unsettable_fields = ["owner", "uuid", "create_task_id",
                          "created_at", "modified_at", "deleted", ]
     manual_dupplicated_fields = []
@@ -1645,7 +1642,7 @@ class CohortsGetTests(CohortsTests):
                 favorite=random.random() > .5,
                 request_query_snapshot=dm.request_query_snapshot,
                 fhir_group_id=random_str(10, with_space=False),
-                request_job_status=random.choice(NewJobStatus.list()),
+                request_job_status=random.choice(JobStatus.list()),
                 dated_measure=dm,
                 dated_measure_global=dm_global,
                 create_task_id=random_str(10),
@@ -1703,13 +1700,14 @@ class CohortsGetTests(CohortsTests):
 
         cases = [
             basic_case.clone(
-                params=dict(new_request_job_status=NewJobStatus.pending.value),
+                params=dict(request_job_status=JobStatus.pending.value),
                 to_find=[cr for cr in crs
-                         if cr.new_request_job_status == NewJobStatus.pending],
+                         if cr.request_job_status == JobStatus.pending],
             ),
             basic_case.clone(
                 params=dict(name=self.str_pattern),
-                to_find=[cr for cr in crs if self.str_pattern in cr.name],
+                to_find=[cr for cr in crs
+                         if self.str_pattern.lower() in cr.name.lower()],
             ),
             basic_case.clone(
                 params=dict(min_result_size=example_measure),
@@ -1985,7 +1983,7 @@ class CohortsDeleteTests(CohortsTests):
             created_at=timezone.now(),
             modified_at=timezone.now(),
             request_job_id="test",
-            new_request_job_status=NewJobStatus.pending.name,
+            request_job_status=JobStatus.pending.name,
             request_job_fail_msg="test",
             request_job_duration="1s",
         )
@@ -2026,7 +2024,7 @@ class CohortsUpdateTests(CohortsTests):
             created_at=timezone.now(),
             modified_at=timezone.now(),
             request_job_id="test",
-            new_request_job_status=NewJobStatus.pending.name,
+            request_job_status=JobStatus.pending.name,
             request_job_fail_msg="test",
             request_job_duration="1s",
         )
@@ -2051,7 +2049,7 @@ class CohortsUpdateTests(CohortsTests):
                 # read_only
                 create_task_id="test_task_id",
                 request_job_id="test_job_id",
-                request_job_status=JobStatus.FINISHED.name.lower(),
+                request_job_status=JobStatus.finished,
                 request_job_fail_msg="test_fail_msg",
                 request_job_duration=1001,
                 created_at=timezone.now() + timedelta(hours=1),
@@ -2099,19 +2097,19 @@ class TasksTests(DatedMeasuresTests):
         self.test_job_id = "job_id"
         self.test_task_id = "task_id"
         self.test_job_duration = 1000
-        self.test_job_status_finished = NewJobStatus.finished
+        self.test_job_status_finished = JobStatus.finished
 
         self.user1_req1_snap1_empty_dm = DatedMeasure.objects.create(
             owner=self.user1,
             request_query_snapshot=self.user1_req1_snap1,
             count_task_id=self.test_task_id,
-            new_request_job_status=NewJobStatus.pending
+            request_job_status=JobStatus.pending
         )
         self.user1_req1_snap1_empty_global_dm = DatedMeasure.objects.create(
             owner=self.user1,
             request_query_snapshot=self.user1_req1_snap1,
             count_task_id=self.test_task_id,
-            new_request_job_status=NewJobStatus.pending,
+            request_job_status=JobStatus.pending,
             mode=GLOBAL_DM_MODE,
         )
 
@@ -2121,7 +2119,7 @@ class TasksTests(DatedMeasuresTests):
             name="My empty cohort",
             description="so empty",
             create_task_id="task_id",
-            request_job_status=JobStatus.PENDING.name.lower(),
+            request_job_status=JobStatus.pending,
             dated_measure=self.user1_req1_snap1_empty_dm
         )
 
@@ -2164,7 +2162,7 @@ class TasksTests(DatedMeasuresTests):
             measure_female=self.test_count,
             fhir_datetime=self.test_datetime,
             request_job_duration=self.test_job_duration,
-            new_request_job_status=self.test_job_status_finished,
+            request_job_status=self.test_job_status_finished,
             request_job_id=self.test_job_id,
             # count_task_id=self.user1_req1_snap1_empty_dm.count_task_id
         ).first()
@@ -2189,7 +2187,7 @@ class TasksTests(DatedMeasuresTests):
             measure_female__isnull=True,
             fhir_datetime=self.test_datetime,
             request_job_duration=self.test_job_duration,
-            new_request_job_status=self.test_job_status_finished,
+            request_job_status=self.test_job_status_finished,
             request_job_id=self.test_job_id,
             # count_task_id=self.user1_req1_snap1_empty_dm.count_task_id
         ).first()
@@ -2198,7 +2196,7 @@ class TasksTests(DatedMeasuresTests):
     @mock.patch('cohort.tasks.fhir_api')
     def test_failed_get_count_task(self, mock_fhir_api):
         test_err_msg = "Error"
-        job_status = NewJobStatus.failed
+        job_status = JobStatus.failed
 
         mock_fhir_api.post_count_cohort.return_value = FhirCountResponse(
             fhir_job_id=self.test_job_id,
@@ -2222,7 +2220,7 @@ class TasksTests(DatedMeasuresTests):
             measure_female__isnull=True,
             request_job_id=self.test_job_id,
             request_job_duration=self.test_job_duration,
-            new_request_job_status=job_status,
+            request_job_status=job_status,
             request_job_fail_msg=test_err_msg,
             # count_task_id=self.user1_req1_snap1_empty_dm.count_task_id
         ).first()
@@ -2253,12 +2251,12 @@ class TasksTests(DatedMeasuresTests):
 
             dated_measure__fhir_datetime=self.test_datetime,
             dated_measure__request_job_duration=self.test_job_duration,
-            dated_measure__new_request_job_status=self.test_job_status_finished,
+            dated_measure__request_job_status=self.test_job_status_finished,
             dated_measure__request_job_id=self.test_job_id,
             # dated_measure__count_task_id=(self.user1_req1_snap1_empty_dm
             #                               .count_task_id),
 
-            new_request_job_status=self.test_job_status_finished,
+            request_job_status=self.test_job_status_finished,
             fhir_group_id=self.test_job_id,
             request_job_id=self.test_job_id,
             request_job_duration=self.test_job_duration,
@@ -2269,7 +2267,7 @@ class TasksTests(DatedMeasuresTests):
     @mock.patch('cohort.tasks.fhir_api')
     def test_failed_create_cohort_task(self, mock_fhir_api):
         test_err_msg = "Error"
-        job_status = NewJobStatus.failed
+        job_status = JobStatus.failed
 
         mock_fhir_api.post_create_cohort.return_value = FhirCohortResponse(
             fhir_job_id=self.test_job_id,
@@ -2294,12 +2292,12 @@ class TasksTests(DatedMeasuresTests):
             dated_measure__measure_female__isnull=True,
             dated_measure__fhir_datetime__isnull=True,
             dated_measure__request_job_duration=self.test_job_duration,
-            dated_measure__new_request_job_status=NewJobStatus.failed.value,
+            dated_measure__request_job_status=JobStatus.failed.value,
             dated_measure__request_job_fail_msg=test_err_msg,
             dated_measure__request_job_id=self.test_job_id,
             # dated_measure__count_task_id=(self.user1_req1_snap1_empty_dm
             #                               .count_task_id),
-            new_request_job_status=NewJobStatus.failed.value,
+            request_job_status=JobStatus.failed.value,
             request_job_fail_msg=test_err_msg,
             fhir_group_id="",
             request_job_id=self.test_job_id,

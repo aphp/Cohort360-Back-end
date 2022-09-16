@@ -2,7 +2,7 @@ import json
 
 from rest_framework import serializers
 
-from admin_cohort.types import JobStatus, NewJobStatus
+from admin_cohort.types import JobStatus
 from cohort.models import User
 from admin_cohort.serializers import BaseSerializer, OpenUserSerializer
 import cohort.conf_cohort_job_api as conf
@@ -208,9 +208,7 @@ class CohortResultSerializer(BaseSerializer):
                 result_cr.dated_measure_global.request_job_fail_msg \
                     = f"INTERNAL ERROR: Could not launch FHIR cohort count: {e}"
                 result_cr.dated_measure_global \
-                    .request_job_status = JobStatus.ERROR.value
-                result_cr.dated_measure_global \
-                    .new_request_job_status = NewJobStatus.failed.value
+                    .request_job_status = JobStatus.failed.value
                 result_cr.dated_measure_global.save()
 
         # once it has been created, we launch Fhir API cohort creation

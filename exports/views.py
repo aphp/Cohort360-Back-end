@@ -10,7 +10,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 
-from admin_cohort.models import User, NewJobStatus
+from admin_cohort.models import User
 from admin_cohort.permissions import OR
 from admin_cohort.types import JobStatus
 from admin_cohort.views import CustomLoggingMixin
@@ -21,8 +21,7 @@ from workspaces.permissions import AccountPermissions
 from workspaces.views import AccountViewset
 from exports import conf_exports
 from exports.emails import check_email_address
-from exports.models import ExportRequest, ExportType, NEW_STATUS, \
-    VALIDATED_STATUS, DENIED_STATUS
+from exports.models import ExportRequest, ExportType
 from exports.permissions import ExportRequestPermissions, \
     can_review_transfer_jupyter, can_review_export_csv, AnnexesPermissions, \
     ExportJupyterPermissions
@@ -81,9 +80,7 @@ class CohortViewSet(viewsets.ModelViewSet):
     http_method_names = ["get"]
     serializer_class = AnnexeCohortResultSerializer
     queryset = CohortResult.objects.filter(
-        request_job_status=JobStatus.FINISHED
-    ) | CohortResult.objects.filter(
-        new_request_job_status=NewJobStatus.finished
+        request_job_status=JobStatus.finished
     )
 
     swagger_tags = ['Exports - cohorts']
@@ -122,7 +119,7 @@ class CohortViewSet(viewsets.ModelViewSet):
 class ExportRequestFilter(django_filters.FilterSet):
     class Meta:
         model = ExportRequest
-        fields = ('output_format', 'status', 'creator_fk')
+        fields = ('output_format', 'request_job_status', 'creator_fk')
 
 
 class ExportRequestViewset(CustomLoggingMixin, viewsets.ModelViewSet):
@@ -184,11 +181,11 @@ class ExportRequestViewset(CustomLoggingMixin, viewsets.ModelViewSet):
                                        "'right_review_transfer_jupyter'")
 
         req: ExportRequest = self.get_object()
-        if req.status == NEW_STATUS:
+        if req.request_job_status == JobStatus.new:
             req.deny(request.user)
 
             # to be deprecated
-            req.status = DENIED_STATUS
+            req.request_job_status = JobStatus.denied
             # req.reviewer_id = reviewer_id
 
             req.save()
@@ -196,8 +193,8 @@ class ExportRequestViewset(CustomLoggingMixin, viewsets.ModelViewSet):
                             status=status.HTTP_200_OK)
         else:
             raise ValidationError(f"La requête doit posséder le statut "
-                                  f"'{NEW_STATUS}' pour être refusée. "
-                                  f"Statut actuel : '{req.status}'")
+                                  f"'{JobStatus.new}' pour être refusée. "
+                                  f"Statut actuel : '{req.request_job_status}'")
 
     @action(
         detail=True, methods=['patch'], url_path="validate"
@@ -218,11 +215,6 @@ class ExportRequestViewset(CustomLoggingMixin, viewsets.ModelViewSet):
 
         try:
             req.validate(request.user)
-
-            # to be deprecated
-            req.status = VALIDATED_STATUS
-
-            req.save()
 
             from exports.tasks import launch_request
             launch_request.delay(req.id)
@@ -300,7 +292,7 @@ class ExportRequestViewset(CustomLoggingMixin, viewsets.ModelViewSet):
         res: Response = super(ExportRequestViewset, self)\
             .create(request, *args, **kwargs)
         if res.status_code == http.HTTPStatus.CREATED \
-                and res.data["new_request_job_status"] != NewJobStatus.failed:
+                and res.data["request_job_status"] != JobStatus.failed:
             try:
                 email_info_request_confirmed(res.data.serializer.instance,
                                              creator.email)
@@ -316,7 +308,7 @@ class ExportRequestViewset(CustomLoggingMixin, viewsets.ModelViewSet):
     )
     def download(self, request, *args, **kwargs):
         req: ExportRequest = self.get_object()
-        if req.new_request_job_status != NewJobStatus.finished:
+        if req.request_job_status != JobStatus.finished:
             return HttpResponse("The export request you asked for is not "
                                 "done yet or has failed.",
                                 status=http.HTTPStatus.FORBIDDEN)
