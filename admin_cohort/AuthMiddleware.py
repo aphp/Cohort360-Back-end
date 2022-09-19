@@ -5,7 +5,7 @@ from django.utils.deprecation import MiddlewareMixin
 from rest_framework.authentication import BaseAuthentication
 
 from admin_cohort import conf_auth
-from admin_cohort.models import get_or_create_user_with_info, get_or_create_user
+from admin_cohort.models import get_or_create_user_with_info, User
 from admin_cohort.settings import JWT_SESSION_COOKIE, JWT_REFRESH_COOKIE
 
 
@@ -36,6 +36,10 @@ class CustomAuthentication(BaseAuthentication):
             user = get_or_create_user(jwt_access_token=raw_token)
         return user, raw_token
 
+
+def get_or_create_user(jwt_access_token: str) -> User:
+    user_info = conf_auth.get_user_info(jwt_access_token=jwt_access_token)
+    return get_or_create_user_with_info(user_info)
 
 class CustomJwtSessionMiddleware(MiddlewareMixin):
     def process_request(self, request):
