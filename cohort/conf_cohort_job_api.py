@@ -187,7 +187,7 @@ def get_job(job_id: str, auth_headers) -> Tuple[Response, dict]:
 
     try:
         result = resp.json()
-    except Exception as e:
+    except Exception:
         raise Exception(f"QUERY SERVER ERROR {resp.status_code}: {resp}")
 
     if resp.status_code != 200:
@@ -402,7 +402,7 @@ def post_count_cohort(
     if job.status == JobStatus.KILLED:
         return FhirCountResponse(
             job_duration=datetime.now() - d, success=False,
-            err_msg=f"Job was cancelled", fhir_job_status=JobStatus.KILLED
+            err_msg="Job was cancelled", fhir_job_status=JobStatus.KILLED
         )
 
     if job.status == JobStatus.ERROR:
@@ -413,7 +413,7 @@ def post_count_cohort(
 
     job_result = job.result[0]
     if job_result.count is None and job_result.count_max is None:
-        err_msg = f"INTERNAL ERROR: format of received " \
+        err_msg = "INTERNAL ERROR: format of received " \
                   f"response not anticipated: {str(result)}"
         return FhirCountResponse(
             fhir_job_id=job.job_id, job_duration=datetime.now() - d,
@@ -575,7 +575,7 @@ def post_create_cohort(
     if job.status == JobStatus.KILLED:
         return FhirCohortResponse(
             job_duration=datetime.now() - d, success=False,
-            err_msg=f"Job was cancelled",
+            err_msg="Job was cancelled",
             fhir_job_status=JobStatus.KILLED,
         )
 

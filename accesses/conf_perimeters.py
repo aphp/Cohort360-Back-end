@@ -325,10 +325,10 @@ def fill_up_care_sites():
 
                     if len(changes):
                         all_changes[level]['updated'][p.local_id] = dict([
-                            (ch, f"{old_value} -> {getattr(p, ch)}"
-                            if ch != 'parent_id' else
-                            f"{p.parent.name}({p.parent.local_id}) -> {new_parent and new_parent.name}({c.get('parent_id')})")
-                            for (ch, old_value) in changes.items()])
+                          (ch, f"{old_value} -> {getattr(p, ch)}"
+                              if ch != 'parent_id'
+                              else f"{p.parent.name}({p.parent.local_id}) -> {new_parent and new_parent.name}({c.get('parent_id')})")
+                          for (ch, old_value) in changes.items()])
                         to_update.append(p)
                     dct_children.pop(omop_id)
                 else:
