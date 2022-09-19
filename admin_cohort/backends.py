@@ -1,5 +1,3 @@
-from typing import Union
-
 from admin_cohort import conf_auth
 from admin_cohort.conf_auth import LoginError, ServerError, JwtTokens
 from admin_cohort.models import User, get_or_create_user_with_info

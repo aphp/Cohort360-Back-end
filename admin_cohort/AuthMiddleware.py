@@ -41,6 +41,7 @@ def get_or_create_user(jwt_access_token: str) -> User:
     user_info = conf_auth.get_user_info(jwt_access_token=jwt_access_token)
     return get_or_create_user_with_info(user_info)
 
+
 class CustomJwtSessionMiddleware(MiddlewareMixin):
     def process_request(self, request):
         session_key = request.COOKIES.get(JWT_SESSION_COOKIE)
