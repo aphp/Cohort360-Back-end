@@ -1,6 +1,9 @@
+import json
+
 import environ
 import enum
 import requests
+import simplejson
 from requests import Response
 from typing import Dict, List
 
@@ -83,7 +86,7 @@ class JobResult:
         try:
             self.status: ApiJobStatutes = ApiJobStatutes[
                 kwargs.get('status', None)]
-        except:
+        except ValueError:
             raise Exception(f"Status received from Infra API is not expected: "
                             f"{kwargs.get('status', None)}")
         self.ret_code: int = kwargs.get('ret_code', None)
@@ -94,8 +97,6 @@ class JobResult:
 class JobStatusResponse:
     def __init__(self, **kwargs):
         self.task_status: str = kwargs.get('task_status', None)
-        # self.std_out: str = kwargs.get('std_out', None)
-        # self.std_err: str = kwargs.get('std_err', None)
         if 'task_result' not in kwargs:
             raise Exception(f"Response from Infra API is missing 'task_result'."
                             f" What was received : {kwargs}")
@@ -136,7 +137,7 @@ def check_resp(resp: Response, url: str) -> Dict:
 
     try:
         return resp.json()
-    except:
+    except (simplejson.JSONDecodeError, json.JSONDecodeError, ValueError):
         raise Exception(f"Response from Infra API ({url}) not readable: "
                         f"status code {resp.status_code} - "
                         f"{resp.text}")
@@ -414,7 +415,7 @@ def get_cohort_perimeters(cohort_id: int, token: str) -> List[str]:
     )
 
     if resp.status_code == 401:
-        raise ValidationError(f"Token error with FHIR api")
+        raise ValidationError("Token error with FHIR api")
 
     try:
         res = resp.json()

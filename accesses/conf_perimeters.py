@@ -26,8 +26,7 @@ settings.DATABASES.__setitem__(
         'OPTIONS': {
             'options': f"-c search_path={env('DB_OMOP_SCHEMA')},public"
         },
-},)
-
+    }, )
 
 MAIN_CARE_SITE_ID = 8312002244
 
@@ -62,7 +61,7 @@ def get_provider_id(user_id: str) -> int:
         & (Q(valid_end_datetime__gte=timezone.now())
            | Q(valid_end_datetime__isnull=True))).first()
     if p is None:
-        from accesses.models import Perimeter, Profile
+        from accesses.models import Profile
         return Profile.objects.aggregate(
             Max("provider_id"))['provider_id__max'] + 1
     return p.provider_id
@@ -122,8 +121,7 @@ def where_conditions(
 
 def sql_care_site_children(care_site_ids: List[int], cs_domain_concept_id: int,
                            is_part_of_rel_id: int) -> str:
-    ids = ','.join([f"'{id}'" for id in care_site_ids]) \
-
+    ids = ','.join([f"'{id}'" for id in care_site_ids])
     return f"""
         WITH RECURSIVE child as (
             SELECT
@@ -136,7 +134,7 @@ def sql_care_site_children(care_site_ids: List[int], cs_domain_concept_id: int,
                 cs.care_site_id=fr.fact_id_1
             WHERE (
                 cs.care_site_id IN ({ids})
-                AND {where_conditions('fr', 'cs', 
+                AND {where_conditions('fr', 'cs',
                                       cs_domain_concept_id, is_part_of_rel_id)}
             )
             UNION
@@ -226,7 +224,7 @@ def treefy_perimeters(
             if not use_filter or ids_to_filter is None \
                     or cs_id in ids_to_filter:
                 if (not p_id
-                        or p_id not in full_dct \
+                        or p_id not in full_dct
                         or cs["type_source_value"] ==
                         settings.ROOT_PERIMETER_TYPE):
                     end_result.setdefault(cs_id, cs)
@@ -261,7 +259,6 @@ IS_PART_OF_RELATONSHIP_NAME = "Care Site is part of Care Site"
 CONTAINS_RELATIONSHIP_NAME = "Care Site contains Care Site"
 CARE_SITE_DOMAIN_CONCEPT_NAME = "Care site"
 
-
 perim_fields_to_care_site = dict(
     source_value="care_site_source_value",
     name="care_site_name",
@@ -271,7 +268,7 @@ perim_fields_to_care_site = dict(
 
 
 def fill_up_care_sites():
-    print(f"Building query for care-sites")
+    print("Building query for care-sites")
     try:
         is_part_of_rel_id = Concept.objects.get(
             concept_name=IS_PART_OF_RELATONSHIP_NAME
@@ -285,7 +282,7 @@ def fill_up_care_sites():
     q = CareSite.objects.raw(sql_care_site_children(
         [MAIN_CARE_SITE_ID], cs_domain_concept_id, is_part_of_rel_id))
 
-    print(f"Building care-site tree")
+    print("Building care-site tree")
     tree = treefy_perimeters(list(CareSiteSerializerFaster(q, many=True).data))
 
     for c in tree:
@@ -337,18 +334,18 @@ def fill_up_care_sites():
                 else:
                     all_changes[level]['deleted'][p.local_id] = p.name
                     to_delete.append(p)
-            except Exception as e:
+            except Exception:
                 pass
 
         for cs in dct_children.values():
             p = Perimeter(
-                    local_id=str(cs['care_site_id']),
-                    source_value=c['care_site_source_value'],
-                    name=c['care_site_name'],
-                    short_name=c['care_site_short_name'],
-                    type_source_value=c['care_site_type_source_value'],
-                    parent_id=c['parent_id']
-                )
+                local_id=str(cs['care_site_id']),
+                source_value=c['care_site_source_value'],
+                name=c['care_site_name'],
+                short_name=c['care_site_short_name'],
+                type_source_value=c['care_site_type_source_value'],
+                parent_id=c['parent_id']
+            )
             all_changes[level]['new'][str(cs['care_site_id'])] = p.__dict__
             to_create.append(p)
 
@@ -363,7 +360,7 @@ def fill_up_care_sites():
         for k in ['new', 'deleted', 'updated']:
             if len(all_changes[level][k]) == 0:
                 all_changes[level].pop(k)
-        if len(all_changes[level]) == 0 :
+        if len(all_changes[level]) == 0:
             all_changes.pop(level)
 
     for to_del in to_delete:

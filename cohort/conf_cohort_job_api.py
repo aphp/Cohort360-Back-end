@@ -3,6 +3,7 @@ import json
 import time
 from typing import List, Tuple, Dict
 
+import simplejson
 from django.db.models import Model
 from django.utils.datetime_safe import datetime
 from requests import Response
@@ -44,7 +45,7 @@ def parse_date(str):
     for f in possible_formats:
         try:
             return datetime.strptime(str, f)
-        except:
+        except ValueError:
             pass
     raise ValueError("Unsupported date format {}".format(str))
 
@@ -113,7 +114,7 @@ class JobResult:
         self._type: str = kwargs.get('_type', None)
         self.source: str = kwargs.get('source', None)
 
-        #count
+        # count
         if "group.count" in kwargs:
             self.count = kwargs.get("group.count", None)
         else:
@@ -126,10 +127,10 @@ class JobResult:
         self.count_min = kwargs.get("minimum", None)
         self.count_max = kwargs.get("maximum", None)
 
-        #cohort
+        # cohort
         self.group_id = kwargs.get("group.id", None)
 
-        #case of error
+        # case of error
         self.message = kwargs.get(
             'message', f'could not read the message. Full response: {resp.text}'
         )
@@ -286,7 +287,7 @@ def create_count_job(
 
     try:
         result = resp.json()
-    except:
+    except (simplejson.JSONDecodeError, json.JSONDecodeError, ValueError):
         raise Exception(f"QUERY SERVER ERROR {resp.status_code}: {resp}")
 
     if resp.status_code != 200:
@@ -301,7 +302,7 @@ def create_count_job(
 
 def post_count_cohort(
         json_file: str, auth_headers, log_prefix: str = "",
-        dated_measure: Model = None, global_estimate: bool=False
+        dated_measure: Model = None, global_estimate: bool = False
 ) -> FhirCountResponse:
     """
     Called to ask a Fhir API to compute the size of a cohort given

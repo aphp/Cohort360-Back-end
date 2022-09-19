@@ -1,7 +1,9 @@
+import json
 from typing import Dict, List
 
 import environ
 import requests
+import simplejson
 from requests import Response
 from rest_framework import status
 
@@ -22,7 +24,7 @@ def check_resp(resp: Response, url: str) -> Dict:
 
     try:
         res = resp.json()
-    except:
+    except (simplejson.JSONDecodeError, json.JSONDecodeError, ValueError):
         raise Exception(f"Response from Infra API ({url}) not readable: "
                         f"status code {resp.status_code} - "
                         f"{resp.text}")

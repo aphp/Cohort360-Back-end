@@ -97,10 +97,7 @@ def check_id_aph(id_aph: str) -> Optional[IdResp]:
     if resp.status_code != status.HTTP_200_OK:
         raise Exception(f"Internal error: {resp.text}")
 
-    try:
-        res: dict = resp.json().get('data', {}).get('attributes', {})
-    except:
-        raise Exception(f"Could not load JWT server response: {resp.content}")
+    res: dict = resp.json().get('data', {}).get('attributes', {})
 
     for expected in ['givenName', 'sn', 'sAMAccountName', 'mail']:
         if expected not in res:
