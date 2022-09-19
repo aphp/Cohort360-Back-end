@@ -1,5 +1,7 @@
+import os
 import random
 from typing import List, Iterable
+from unittest import mock
 
 from rest_framework import status
 from rest_framework.test import force_authenticate
@@ -280,10 +282,10 @@ class PerimeterGetTests(PerimeterTests):
             to_find=list(p.children.all())
         ), NestedPerimeterViewSet.as_view({'get': 'list'}), parent=p.id)
             for p in [
-                self.perims[0],
-                self.perims[0].children.first(),
-                self.perims[0].children.first().children.first(),
-            ]]
+            self.perims[0],
+            self.perims[0].children.first(),
+            self.perims[0].children.first().children.first(),
+        ]]
 
 
 class PerimeterGetManageableTests(PerimeterTests, SimplePerimSetup):
@@ -364,6 +366,7 @@ class PerimeterGetManageableTests(PerimeterTests, SimplePerimSetup):
         check_list(case.to_find, res)
         [acc.delete() for acc in user_accesses]
 
+    @mock.patch.dict(os.environ, {"SERVER_VERSION": "dev"})
     def test_manageable_as_any_admin(self):
         # (tree view) As a user...
         def test_rights_group(rg: RightGroupForManage):
