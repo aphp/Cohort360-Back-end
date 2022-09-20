@@ -19,6 +19,6 @@ celery worker -B -A admin_cohort --loglevel=info >> /app/log/celery.log 2>&1 &
 
 sleep 10
 
-python manage.py runserver 49040 >> /app/log/django.log 2>&1 &
+python manage.py runserver >> /app/log/django.log 2>&1 &
 
 tail -f /app/log/django.log
