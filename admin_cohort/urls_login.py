@@ -15,6 +15,8 @@ Including another URLconf
 """
 from django.conf.urls import url
 from django.contrib.auth import views
+from django.urls import path
+from django.views.generic import TemplateView
 from rest_framework.routers import DefaultRouter
 
 from admin_cohort.views import CustomLoginView, redirect_token_refresh_view
@@ -30,4 +32,9 @@ urlpatterns = [
     ),
     url(r'^refresh/$', redirect_token_refresh_view, name='token_refresh'),
     url(r'^logout/$', views.LogoutView.as_view(), name='logout'),
+
+    path('docs/', TemplateView.as_view(
+        template_name='documentation.html',
+        extra_context={'schema_url': 'openapi-schema'}
+    ), name='swagger-ui'),
 ]
