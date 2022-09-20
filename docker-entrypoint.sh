@@ -3,6 +3,9 @@ set -e
 
 mkdir -p static/ /app/log
 
+# update variables in nginx
+sed -i s/{{BACK_URL_LOCAL}}/$BACK_URL_LOCAL/g /etc/nginx/sites-enabled/nginx.conf;
+
 # restart nginx
 service nginx restart
 
