@@ -159,18 +159,42 @@ python manage.py runserver
 ```
 You can now go on website `localhost:8000/docs/` for more details on the API.
 
+## Data Models
+
+How to explore data model into your POD
+
+1 - Connection to your POD.
+
+2 - launch the following command:
+```
+python3 manage.py shell
+```
+
+3 - import your data models:
+```
+from accesses.models import Access, Profile, Role
+```
+
+4 - you can start explore your data models:
+Exemple
+```
+allProfiles = Profile.objects.all()
+ firstProfil = allProfiles .first()
+firstProfil.provider_id
+```
+
 ## Testing
 
 Run: `python manage.py test`
 
 <!-- CONTRIBUTING -->
-## Contributing
+<!-- ## Contributing
 
 1. Clone the Project
 2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
 3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
 4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request with develop branch
+5. Open a Pull Request with develop branch -->
 
 
 <!-- CONTACT -->
