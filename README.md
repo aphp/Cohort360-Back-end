@@ -119,12 +119,12 @@ Here is a list of major frameworks used here.
     INSERT INTO accesses_profile(id, user_id, source, is_active, firstname, lastname, email) VALUES(1, '41269', 'Manual', 't', 'Squall', 'Leonheart', 'squall@garden.bal');
 
     -- Basic perimeter tree
-    INSERT INTO accesses_perimter(id, name, local_id, type_source_value, parent_id) 
+    INSERT INTO accesses_perimeter(id, name, local_id, type_source_value, parent_id) 
     VALUES 
-        (0, 'AP-HP', 'Local 00', AP-HP', null),
+        (0, 'AP-HP', 'Local 00', 'AP-HP', null),
         (1, 'Hospital 1', 'Local 01','Hospital', 0),
         (2, 'Hospital 2', 'Local 02','Hospital', 0),
-        (3, 'Unit 1', 'Local 02','Hospital', 2)
+        (3, 'Unit 1', 'Hospital 2','Hospital', 2)
     ;
 
     -- Full administration role
