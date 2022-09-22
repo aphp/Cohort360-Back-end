@@ -27,12 +27,10 @@ test-job:
     POSTGRES_USER: portail_dev_limited_rw
     POSTGRES_PASSWORD: portail_psswd
   script:
-    - export $(grep -v '^#' admin_cohort/.test.env | xargs -d '\n') ;
     - pip install -r requirements.txt
-    - cp admin_cohort/example.settings.py admin_cohort/settings.py
-#    - coverage run --source='.' --omit="*/test*","*/migrations/*" manage.py test accesses exports
-#    - coverage xml --omit="*/test*","*/migrations/*" -o coverage.xml
-#    - coverage html --omit="*/test*","*/migrations/*" -d htmlcov
+    - coverage run --source='.' --omit="*/test*","*/migrations/*" manage.py test accesses exports cohort worskpaces
+    - coverage xml --omit="*/test*","*/migrations/*" -o coverage.xml
+    - coverage html --omit="*/test*","*/migrations/*" -d htmlcov
   artifacts:
     expire_in: 7 days
     paths:
