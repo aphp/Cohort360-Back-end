@@ -27,6 +27,7 @@ test-job:
     POSTGRES_USER: portail_dev_limited_rw
     POSTGRES_PASSWORD: portail_psswd
   script:
+    - cp admin_cohort/.test.env admin_cohort/.env
     - pip install -r requirements.txt
     - coverage run --source='.' --omit="*/test*","*/migrations/*" manage.py test accesses exports cohort worskpaces
     - coverage xml --omit="*/test*","*/migrations/*" -o coverage.xml
