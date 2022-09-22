@@ -1,7 +1,8 @@
 import os
+from datetime import date, datetime, time
+
 import environ
 import pytz
-from datetime import date, datetime, time
 
 # from django.utils.datetime_safe import datetime
 
@@ -151,10 +152,13 @@ AUTHENTICATION_BACKENDS = [
 
 ROOT_URLCONF = 'admin_cohort.urls'
 
+MEDIA_ROOT = os.path.join(BASE_DIR, 'admin_cohort/media')
+MEDIA_URL = '/media/'
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'templates')],
+        'DIRS': [os.path.join(BASE_DIR, 'admin_cohort/templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [

@@ -25,9 +25,10 @@ app_name = 'rest_framework'
 urlpatterns = [
     url(
         r'^login/$',
-        CustomLoginView.as_view(template_name='rest_framework/login.html'),
+        CustomLoginView.as_view(template_name='login.html'),
         name='login'
     ),
     url(r'^refresh/$', redirect_token_refresh_view, name='token_refresh'),
     url(r'^logout/$', views.LogoutView.as_view(), name='logout'),
+
 ]
