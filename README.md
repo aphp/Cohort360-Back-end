@@ -88,9 +88,8 @@ Here is a list of major frameworks used here.
    \q
    ```
 4. Configuration : 
-- Complete your admin_cohort/.env file following .env.example format
-- Clone, in each app folder `accesses`, `cohort`, `exports`, `workspaces`, the _example.conf_ file removing _example._.
-- Complete these files with your own process.
+- create a .env file admin_cohort/.env following .env.example format
+
 5. Now run Django migrations in that order
    ```sh
    source venv/bin/activate
@@ -113,36 +112,36 @@ Here is a list of major frameworks used here.
     \c portail_dev
     -- An admin user
     INSERT INTO "user" (firstname , lastname, provider_id, provider_username, email) VALUES('Cid', 'Kramer', 0, '96214', 'cid.kramer@garden.bal');
-    INSERT INTO profile(id, user_id, source, is_active, firstname, lastname, email) VALUES(0, '96214', 'Manual', 't', 'Cid', 'Kramer', 'cid.kramer@garden.bal');
+    INSERT INTO accesses_profile(id, user_id, source, is_active, firstname, lastname, email) VALUES(0, '96214', 'Manual', 't', 'Cid', 'Kramer', 'cid.kramer@garden.bal');
 
     -- An simple user to play with
     INSERT INTO "user" (firstname , lastname, provider_id, provider_username, email) VALUES('Squall', 'Leonheart', 1, '41269', 'squall@garden.bal');
-    INSERT INTO profile(id, user_id, source, is_active, firstname, lastname, email) VALUES(1, '41269', 'Manual', 't', 'Squall', 'Leonheart', 'squall@garden.bal');
+    INSERT INTO accesses_profile(id, user_id, source, is_active, firstname, lastname, email) VALUES(1, '41269', 'Manual', 't', 'Squall', 'Leonheart', 'squall@garden.bal');
 
     -- Basic perimeter tree
-    INSERT INTO portail_care_site(id, name, type_source_value, parent_id) 
+    INSERT INTO accesses_perimeter(id, name, local_id, type_source_value, parent_id) 
     VALUES 
-        (0, 'AP-HP', 'AP-HP', null),
-        (1, 'Hospital 1', 'Hospital', 0),
-        (2, 'Hospital 2', 'Hospital', 0),
-        (3, 'Unit 1', 'Hospital', 2)
+        (0, 'AP-HP', 'Local 00', 'AP-HP', null),
+        (1, 'Hospital 1', 'Local 01','Hospital', 0),
+        (2, 'Hospital 2', 'Local 02','Hospital', 0),
+        (3, 'Unit 1', 'Hospital 2','Hospital', 2)
     ;
 
     -- Full administration role
-    INSERT INTO role(id, name, right_edit_roles, right_add_users, right_edit_users, right_read_users, right_manage_admin_accesses_same_level, right_read_admin_accesses_same_level, right_manage_admin_accesses_inferior_levels, right_read_admin_accesses_inferior_levels, right_manage_data_accesses_same_level, right_read_data_accesses_same_level, right_manage_data_accesses_inferior_levels, right_read_data_accesses_inferior_levels, right_read_patient_nominative, right_search_patient_with_ipp, right_read_patient_pseudo_anonymised, invalid_reason, right_read_logs, right_export_csv_nominative, right_export_csv_pseudo_anonymised, right_manage_export_csv, right_manage_review_export_csv, right_manage_review_transfer_jupyter, right_manage_transfer_jupyter, right_review_export_csv, right_review_transfer_jupyter, right_transfer_jupyter_nominative, right_transfer_jupyter_pseudo_anonymised, right_manage_env_unix_users, right_manage_env_user_links, right_read_env_unix_users) VALUES(0,'FULL_ADMIN','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t');
+    INSERT INTO accesses_role(id, name, right_edit_roles, right_add_users, right_edit_users, right_read_users, right_manage_admin_accesses_same_level, right_read_admin_accesses_same_level, right_manage_admin_accesses_inferior_levels, right_read_admin_accesses_inferior_levels, right_manage_data_accesses_same_level, right_read_data_accesses_same_level, right_manage_data_accesses_inferior_levels, right_read_data_accesses_inferior_levels, right_read_patient_nominative, right_search_patient_with_ipp, right_read_patient_pseudo_anonymised, invalid_reason, right_read_logs, right_export_csv_nominative, right_export_csv_pseudo_anonymised, right_manage_export_csv, right_manage_review_export_csv, right_manage_review_transfer_jupyter, right_manage_transfer_jupyter, right_review_export_csv, right_review_transfer_jupyter, right_transfer_jupyter_nominative, right_transfer_jupyter_pseudo_anonymised, right_manage_env_unix_users, right_manage_env_user_links, right_read_env_unix_users) VALUES(0,'FULL_ADMIN','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t');
     -- Access to admin profile
-    INSERT INTO access(role_id, perimeter_id, profile_id) VALUES(0, 0, 1);
+    INSERT INTO accesses_access(role_id, perimeter_id, profile_id) VALUES(0, 0, 1);
   ```
 9. If you want to start using Cohort:
   ```psql
     \c portail_dev
     -- Nominative Data reading role
-    INSERT INTO role(id, name, right_edit_roles, right_add_users, right_edit_users, right_read_users, right_manage_admin_accesses_same_level, right_read_admin_accesses_same_level, right_manage_admin_accesses_inferior_levels, right_read_admin_accesses_inferior_levels, right_manage_data_accesses_same_level, right_read_data_accesses_same_level, right_manage_data_accesses_inferior_levels, right_read_data_accesses_inferior_levels, right_read_patient_nominative, right_search_patient_with_ipp, right_read_patient_pseudo_anonymised, invalid_reason, right_read_logs, right_export_csv_nominative, right_export_csv_pseudo_anonymised, right_manage_export_csv, right_manage_review_export_csv, right_manage_review_transfer_jupyter, right_manage_transfer_jupyter, right_review_export_csv, right_review_transfer_jupyter, right_transfer_jupyter_nominative, right_transfer_jupyter_pseudo_anonymised, right_manage_env_unix_users, right_manage_env_user_links, right_read_env_unix_users) VALUES(1,'Nominative Patient Reader','f','f','f','f','f','f','f','f','f','f','f','f','t','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f');
+    INSERT INTO accesses_role(id, name, right_edit_roles, right_add_users, right_edit_users, right_read_users, right_manage_admin_accesses_same_level, right_read_admin_accesses_same_level, right_manage_admin_accesses_inferior_levels, right_read_admin_accesses_inferior_levels, right_manage_data_accesses_same_level, right_read_data_accesses_same_level, right_manage_data_accesses_inferior_levels, right_read_data_accesses_inferior_levels, right_read_patient_nominative, right_search_patient_with_ipp, right_read_patient_pseudo_anonymised, invalid_reason, right_read_logs, right_export_csv_nominative, right_export_csv_pseudo_anonymised, right_manage_export_csv, right_manage_review_export_csv, right_manage_review_transfer_jupyter, right_manage_transfer_jupyter, right_review_export_csv, right_review_transfer_jupyter, right_transfer_jupyter_nominative, right_transfer_jupyter_pseudo_anonymised, right_manage_env_unix_users, right_manage_env_user_links, right_read_env_unix_users) VALUES(1,'Nominative Patient Reader','f','f','f','f','f','f','f','f','f','f','f','f','t','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f');
     -- Pseudo-anonymised Data reading role
-    INSERT INTO role(id, name, right_edit_roles, right_add_users, right_edit_users, right_read_users, right_manage_admin_accesses_same_level, right_read_admin_accesses_same_level, right_manage_admin_accesses_inferior_levels, right_read_admin_accesses_inferior_levels, right_manage_data_accesses_same_level, right_read_data_accesses_same_level, right_manage_data_accesses_inferior_levels, right_read_data_accesses_inferior_levels, right_read_patient_nominative, right_search_patient_with_ipp, right_read_patient_pseudo_anonymised, invalid_reason, right_read_logs, right_export_csv_nominative, right_export_csv_pseudo_anonymised, right_manage_export_csv, right_manage_review_export_csv, right_manage_review_transfer_jupyter, right_manage_transfer_jupyter, right_review_export_csv, right_review_transfer_jupyter, right_transfer_jupyter_nominative, right_transfer_jupyter_pseudo_anonymised, right_manage_env_unix_users, right_manage_env_user_links, right_read_env_unix_users) VALUES(2,'Pseudo-anonymised Patient Reader','f','f','f','f','f','f','f','f','f','f','f','f','f','f','t','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f');
+    INSERT INTO accesses_role(id, name, right_edit_roles, right_add_users, right_edit_users, right_read_users, right_manage_admin_accesses_same_level, right_read_admin_accesses_same_level, right_manage_admin_accesses_inferior_levels, right_read_admin_accesses_inferior_levels, right_manage_data_accesses_same_level, right_read_data_accesses_same_level, right_manage_data_accesses_inferior_levels, right_read_data_accesses_inferior_levels, right_read_patient_nominative, right_search_patient_with_ipp, right_read_patient_pseudo_anonymised, invalid_reason, right_read_logs, right_export_csv_nominative, right_export_csv_pseudo_anonymised, right_manage_export_csv, right_manage_review_export_csv, right_manage_review_transfer_jupyter, right_manage_transfer_jupyter, right_review_export_csv, right_review_transfer_jupyter, right_transfer_jupyter_nominative, right_transfer_jupyter_pseudo_anonymised, right_manage_env_unix_users, right_manage_env_user_links, right_read_env_unix_users) VALUES(2,'Pseudo-anonymised Patient Reader','f','f','f','f','f','f','f','f','f','f','f','f','f','f','t','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f');
 
     -- Access to NominativeDataReader for User 1 on Hospital1
-    INSERT INTO access(role_id, perimeter_id, profile_id) VALUES(1, 1, 1);
+    INSERT INTO accesses_access(role_id, perimeter_id, profile_id) VALUES(1, 1, 1);
   ```
 
 <!-- USAGE EXAMPLES -->
