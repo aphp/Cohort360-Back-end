@@ -50,9 +50,8 @@ p_router.register(
 
 internal_urls = []
 
-
 urlpatterns = [
-    url(r'^', include(router.urls)),
+                  url(r'^', include(router.urls)),
                   path("accounts/", include("admin_cohort.urls_login")),
                   path("accesses/",
                        include(("accesses.urls", "accesses"), namespace="accesses")),
