@@ -1,5 +1,5 @@
 from .role import Role
-from .perimeter import Perimeter, get_all_perimeters_parents_queryset
+from .perimeter import Perimeter, get_all_perimeters_parents_queryset, get_all_level_children
 from .access import Access
 from .profile import Profile
 from .tools import get_user_valid_manual_accesses_queryset,\

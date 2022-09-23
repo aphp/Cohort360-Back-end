@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-import environ
+import os
+
 from typing import List, Union, OrderedDict, Dict
 
 from django.db import models
@@ -12,19 +13,19 @@ from accesses.models import Perimeter
 from admin_cohort import settings, app
 from admin_cohort.tools import prettify_dict
 
-env = environ.Env()
-environ.Env.read_env()
+env = os.environ
+
 settings.DATABASES.__setitem__(
     'omop', {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': env("DB_OMOP_NAME"),
-        'USER': env("DB_OMOP_USER"),
-        'PASSWORD': env("DB_OMOP_PASSWORD"),
-        'HOST': env("DB_OMOP_HOST"),
-        'PORT': env("DB_OMOP_PORT"),
+        'NAME': env.get("DB_OMOP_NAME"),
+        'USER': env.get("DB_OMOP_USER"),
+        'PASSWORD': env.get("DB_OMOP_PASSWORD"),
+        'HOST': env.get("DB_OMOP_HOST"),
+        'PORT': env.get("DB_OMOP_PORT"),
         'DISABLE_SERVER_SIDE_CURSORS': True,
         'OPTIONS': {
-            'options': f"-c search_path={env('DB_OMOP_SCHEMA')},public"
+            'options': f"-c search_path={env.get('DB_OMOP_SCHEMA')},public"
         },
     }, )
 
