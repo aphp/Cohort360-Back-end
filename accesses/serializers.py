@@ -118,8 +118,8 @@ def check_profile_entries(validated_data, for_update: bool = False):
     lastname = validated_data.get("lastname", -1)
     email = validated_data.get("email", -1)
 
-    name_regex_pattern = re.compile(r"^[A-Za-zÀ-ÖØ-öø-ÿ\-' ]*$")
-    email_regex_pattern = re.compile(r"^[A-z0-9\-. @_]*$")
+    name_regex_pattern = re.compile(r"^[A-Za-zÀ-ÖØ-öø-ÿ\-']*$")
+    email_regex_pattern = re.compile(r"^[A-Za-z0-9\-. @_]*$")
 
     if source is not None and source != MANUAL_SOURCE:
         raise ValidationError(
@@ -143,7 +143,7 @@ def check_profile_entries(validated_data, for_update: bool = False):
     if email != -1:
         if email is not None and not email_regex_pattern.match(email):
             raise ValidationError(
-                f"L'adresse email fourni ({email}) est invalide. Doit "
+                f"L'adresse email fournie ({email}) est invalide. Doit "
                 f"uniquement comporter des lettres, "
                 f"chiffres et caractères @_-.")
 
