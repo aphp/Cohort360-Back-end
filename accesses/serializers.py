@@ -17,6 +17,10 @@ from admin_cohort.serializers import BaseSerializer, ReducedUserSerializer, \
 from admin_cohort.settings import MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE, \
     MODEL_MANUAL_END_DATE_DEFAULT_ON_UPDATE, MANUAL_SOURCE
 
+import logging as lg
+
+_logger = lg.getLogger(__name__)
+
 
 def check_date_rules(
         new_start_datetime: Optional[datetime] = None,
@@ -346,8 +350,8 @@ class ProfileSerializer(BaseSerializer):
             try:
                 id_details = check_id_aph(user_id)
             except Exception as e:
-                raise ValidationError(
-                    f"Echec de la vérification de l'identifiant: {e}")
+                _logger.exception(e.message)
+                raise ValidationError(f"Echec de la vérification de l'identifiant: {e.message}")
 
             if id_details is None:
                 raise ValidationError(
