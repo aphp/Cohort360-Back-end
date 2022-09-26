@@ -30,6 +30,10 @@ from exports.serializers import ExportRequestSerializer, \
     AnnexeAccountSerializer, AnnexeCohortResultSerializer, \
     ExportRequestSerializerNoReviewer
 
+import logging as lg
+
+_logger = lg.getLogger(__name__)
+
 
 class UserFilter(django_filters.FilterSet):
     def provider_source_value_filter(self, queryset, field, value):
@@ -230,7 +234,8 @@ class ExportRequestViewset(CustomLoggingMixin, viewsets.ModelViewSet):
             return Response(self.serializer_class(req).data,
                             status=status.HTTP_200_OK)
         except Exception as e:
-            raise ValidationError(f"La requête n'a pas pu être validée: {e}")
+            _logger.exception(e.message)
+            raise ValidationError(f"La requête n'a pas pu être validée: {e.message}")
 
     @swagger_auto_schema(request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
@@ -348,7 +353,8 @@ class ExportRequestViewset(CustomLoggingMixin, viewsets.ModelViewSet):
             # )
             return response
         except HdfsError as e:
-            return HttpResponse(e, status=http.HTTPStatus.INTERNAL_SERVER_ERROR)
+            _logger.exception(e.message)
+            return HttpResponse(e.message, status=http.HTTPStatus.INTERNAL_SERVER_ERROR)
         except conf_exports.HdfsServerUnreachableError:
             return HttpResponse(
                 "Hdfs servers are unreachable or in stand-by",
