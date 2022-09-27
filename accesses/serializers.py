@@ -350,8 +350,8 @@ class ProfileSerializer(BaseSerializer):
             try:
                 id_details = check_id_aph(user_id)
             except Exception as e:
-                _logger.exception(e.message)
-                raise ValidationError(f"Echec de la vérification de l'identifiant: {e.message}")
+                _logger.exception(str(e))
+                raise ValidationError(f"Echec de la vérification de l'identifiant: {str(e)}")
 
             if id_details is None:
                 raise ValidationError(
