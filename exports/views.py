@@ -235,7 +235,7 @@ class ExportRequestViewset(CustomLoggingMixin, viewsets.ModelViewSet):
                             status=status.HTTP_200_OK)
         except Exception as e:
             _logger.exception(str(e))
-            raise ValidationError(f"La requête n'a pas pu être validée: {str(e)}")
+            raise ValidationError("La requête n'a pas pu être validée")
 
     @swagger_auto_schema(request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
