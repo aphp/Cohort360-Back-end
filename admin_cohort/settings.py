@@ -123,7 +123,7 @@ for app, example, conf in [
     ('exports', 'example_conf_exports', 'conf_exports'),
     ('workspaces', 'example.conf_workspaces', 'conf_workspaces'),
 ]:
-    p = os.path.join(app, f"{conf}.py")
+    p = os.path.join(BASE_DIR, app, f"{conf}.py")
     if app in INSTALLED_APPS and not os.path.exists(p):
         raise Exception(
             f"You want '{app}' app, but {p} file could not be found."
