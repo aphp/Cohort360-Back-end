@@ -324,130 +324,93 @@ class Role(BaseModel):
             frs.append("Gérer les rôles")
         if self.right_read_logs:
             frs.append("Lire l'historique des requêtes des utilisateurs")
-
         if self.right_add_users:
-            frs.append("Ajouter un profil manuel "
-                       "pour un utilisateur de l'AP-HP.")
+            frs.append("Ajouter un profil manuel pour un utilisateur de l'AP-HP.")
         if self.right_edit_users:
-            frs.append("Modifier les profils manuels, "
-                       "et activer/désactiver les autres.")
+            frs.append("Modifier les profils manuels et activer/désactiver les autres.")
         if self.right_read_users:
             frs.append("Consulter la liste des utilisateurs/profils")
-
-        if self.right_manage_admin_accesses_same_level \
-                and self.right_manage_admin_accesses_inferior_levels:
-            frs.append("Gérer les accès des administrateurs "
-                       "sur son périmètre et ses sous-périmètres")
+        if self.right_manage_admin_accesses_same_level and self.right_manage_admin_accesses_inferior_levels:
+            frs.append("Gérer les accès des administrateurs sur son périmètre et ses sous-périmètres")
         else:
             if self.right_manage_admin_accesses_same_level:
-                frs.append("Gérer les accès des administrateurs "
-                           "sur son périmètre exclusivement")
+                frs.append("Gérer les accès des administrateurs sur son périmètre exclusivement")
             if self.right_manage_admin_accesses_inferior_levels:
-                frs.append("Gérer les accès des administrateurs "
-                           "sur les sous-périmètres exclusivement")
+                frs.append("Gérer les accès des administrateurs sur les sous-périmètres exclusivement")
 
-        if self.right_read_admin_accesses_same_level \
-                and self.right_read_admin_accesses_inferior_levels:
-            frs.append("Consulter la liste des accès administrateurs "
-                       "d'un périmètre et ses sous-périmètres")
+        if self.right_read_admin_accesses_same_level and self.right_read_admin_accesses_inferior_levels:
+            frs.append("Consulter la liste des accès administrateurs d'un périmètre et ses sous-périmètres")
         else:
             if self.right_read_admin_accesses_same_level:
-                frs.append("Consulter la liste des "
-                           "accès administrateurs d'un périmètre")
+                frs.append("Consulter la liste des accès administrateurs d'un périmètre")
             if self.right_read_admin_accesses_inferior_levels:
-                frs.append("Consulter la liste des accès administrateurs "
-                           "des sous-périmètres")
+                frs.append("Consulter la liste des accès administrateurs des sous-périmètres")
 
-        if self.right_manage_data_accesses_same_level \
-                and self.right_manage_data_accesses_inferior_levels:
-            frs.append("Gérer les accès aux données "
-                       "sur son périmètre et ses sous-périmètres")
+        if self.right_manage_data_accesses_same_level and self.right_manage_data_accesses_inferior_levels:
+            frs.append("Gérer les accès aux données sur son périmètre et ses sous-périmètres")
         else:
             if self.right_manage_data_accesses_same_level:
-                frs.append("Gérer les accès aux données "
-                           "sur son périmètre exclusivement")
+                frs.append("Gérer les accès aux données sur son périmètre exclusivement")
             if self.right_manage_data_accesses_inferior_levels:
-                frs.append("Gérer les accès aux données "
-                           "sur les sous-périmètres exclusivement")
+                frs.append("Gérer les accès aux données sur les sous-périmètres exclusivement")
 
-        if self.right_read_data_accesses_same_level \
-                and self.right_read_data_accesses_inferior_levels:
-            frs.append("Consulter la liste des accès aux données patients "
-                       "d'un périmètre et ses sous-périmètres")
+        if self.right_read_data_accesses_same_level and self.right_read_data_accesses_inferior_levels:
+            frs.append("Consulter la liste des accès aux données patients d'un périmètre et ses sous-périmètres")
         else:
             if self.right_read_data_accesses_same_level:
-                frs.append("Consulter la liste des accès aux "
-                           "données patients d'un périmètre")
+                frs.append("Consulter la liste des accès aux données patients d'un périmètre")
             if self.right_read_data_accesses_inferior_levels:
-                frs.append("Consulter la liste des accès aux données "
-                           "patients d'un sous-périmètre")
+                frs.append("Consulter la liste des accès aux données patients d'un sous-périmètre")
 
         if self.right_read_patient_nominative:
-            frs.append("Lire les données patient sous forme nominatives "
-                       "sur son périmètre et ses sous-périmètres")
+            frs.append("Lire les données patient sous forme nominatives sur son périmètre et ses sous-périmètres")
         if self.right_search_patient_with_ipp:
-            frs.append("Utiliser une liste d'IPP comme "
-                       "critère d'une requête Cohort.")
+            frs.append("Utiliser une liste d'IPP comme critère d'une requête Cohort.")
         if self.right_read_patient_pseudo_anonymised:
-            frs.append("Lire les données patient sous forme pseudonymisée "
-                       "sur son périmètre et ses sous-périmètres")
+            frs.append("Lire les données patient sous forme pseudonymisée sur son périmètre et ses sous-périmètres")
 
         # JUPYTER TRANSFER
         if self.right_manage_review_transfer_jupyter:
-            frs.append("Gérer les accès permettant de valider "
-                       "ou non les demandes de "
+            frs.append("Gérer les accès permettant de valider ou non les demandes de "
                        "transfert de données vers des environnements Jupyter")
 
         if self.right_review_transfer_jupyter:
-            frs.append("Gérer les transferts de données "
-                       "vers des environnements Jupyter")
+            frs.append("Gérer les transferts de données vers des environnements Jupyter")
 
         if self.right_manage_transfer_jupyter:
-            frs.append(
-                "Gérer les accès permettant de réaliser des demandes de "
-                "transfert de données vers des environnements Jupyter")
+            frs.append("Gérer les accès permettant de réaliser des demandes de "
+                       "transfert de données vers des environnements Jupyter")
 
         if self.right_transfer_jupyter_nominative:
             frs.append("Demander à transférer ses cohortes de patients "
                        "sous forme nominative vers un environnement Jupyter.")
         if self.right_transfer_jupyter_pseudo_anonymised:
-            frs.append(
-                "Demander à transférer ses cohortes de patients sous "
-                "forme pseudonymisée vers un environnement Jupyter.")
+            frs.append("Demander à transférer ses cohortes de patients sous "
+                       "forme pseudonymisée vers un environnement Jupyter.")
 
         # CSV EXPORT
         if self.right_manage_review_export_csv:
-            frs.append("Gérer les accès permettant de valider ou non les "
-                       "demandes d'export de données en format CSV")
+            frs.append("Gérer les accès permettant de valider ou non les demandes d'export de données en format CSV")
 
         if self.right_review_export_csv:
-            frs.append("Valider ou non les demandes d'export de données "
-                       "en format CSV")
+            frs.append("Valider ou non les demandes d'export de données en format CSV")
 
         if self.right_manage_export_csv:
-            frs.append(
-                "Gérer les accès permettant de réaliser des demandes "
-                "d'export de données en format CSV")
+            frs.append("Gérer les accès permettant de réaliser des demandes d'export de données en format CSV")
 
         if self.right_export_csv_nominative:
-            frs.append("Demander à exporter ses cohortes de patients"
-                       " sous forme nominative en format CSV.")
+            frs.append("Demander à exporter ses cohortes de patients sous forme nominative en format CSV.")
 
         if self.right_export_csv_pseudo_anonymised:
-            frs.append("Demander à exporter ses cohortes de patients sous "
-                       "forme pseudonymisée en format CSV.")
+            frs.append("Demander à exporter ses cohortes de patients sous forme pseudonymisée en format CSV.")
 
         if self.right_read_env_unix_users:
-            frs.append(
-                "Consulter les informations liées aux environnements "
-                "de travail")
+            frs.append("Consulter les informations liées aux environnements de travail")
 
         if self.right_manage_env_unix_users:
             frs.append("Gérer les environnements de travail")
 
         if self.right_manage_env_user_links:
-            frs.append(
-                "Gérer les accès des utilisateurs aux environnements "
-                "de travail")
+            frs.append("Gérer les accès des utilisateurs aux environnements de travail")
 
         return frs
