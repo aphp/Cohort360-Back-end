@@ -335,8 +335,8 @@ class ProfileCreateTests(ProfileTests):
         # empty_user
         self.user_empty: User = User.objects.create(
             provider_username=str(random.randint(0, 10000000)),
-            lastname="empty_last",
-            firstname="empty_last",
+            lastname="empty-last",
+            firstname="empty-last",
             email="em@pty.user",
         )
 
@@ -731,8 +731,8 @@ class ProfilePatchTests(ProfileTests):
         # empty_user
         self.user_empty: User = User.objects.create(
             provider_username=str(random.randint(0, 10000000)),
-            lastname="empty_last",
-            firstname="empty_last",
+            lastname="empty-last",
+            firstname="empty-last",
             email="em@pty.user",
         )
 
@@ -820,8 +820,8 @@ class ProfileDeleteTests(ProfileTests):
         # empty_user
         self.user_empty: User = User.objects.create(
             provider_username=str(random.randint(0, 10000000)),
-            lastname="empty_last",
-            firstname="empty_last",
+            lastname="empty-last",
+            firstname="empty-last",
             email="em@pty.user",
         )
 

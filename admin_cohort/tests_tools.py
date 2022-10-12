@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import json
 import random
 import string
@@ -7,7 +8,6 @@ from typing import Tuple, List
 from django.conf import settings
 from django.db.models import Manager, Field, Model
 from django.test import TestCase
-
 from rest_framework.response import Response
 from rest_framework.test import APIRequestFactory, force_authenticate
 
@@ -356,26 +356,17 @@ class NumerousPerimSetup:
         #   |    \            |
         # perim31 perim32   perim33
         t = PERIMETERS_TYPES[0]
-        self.perim0 = Perimeter.objects.create(type_source_value=t)
-        self.perim11 = Perimeter.objects.create(
-            type_source_value=t, parent=self.perim0)
-        self.perim21 = Perimeter.objects.create(
-            type_source_value=t, parent=self.perim11)
-        self.perim31 = Perimeter.objects.create(
-            type_source_value=t, parent=self.perim21)
-        self.perim32 = Perimeter.objects.create(
-            type_source_value=t, parent=self.perim21)
-        self.perim12 = Perimeter.objects.create(
-            type_source_value=t, parent=self.perim0)
-        self.perim22 = Perimeter.objects.create(
-            type_source_value=t, parent=self.perim12)
-        self.perim23 = Perimeter.objects.create(
-            type_source_value=t, parent=self.perim12)
-        self.perim33 = Perimeter.objects.create(
-            type_source_value=t, parent=self.perim23)
-        self.list_cs: List[Perimeter] = [
-            self.perim0, self.perim11, self.perim21, self.perim31, self.perim32,
-            self.perim12, self.perim22, self.perim23, self.perim33]
+        self.perim0 = Perimeter.objects.create(type_source_value=t, local_id="0")
+        self.perim11 = Perimeter.objects.create(type_source_value=t, parent=self.perim0, local_id="11")
+        self.perim21 = Perimeter.objects.create(type_source_value=t, parent=self.perim11, local_id="21")
+        self.perim31 = Perimeter.objects.create(type_source_value=t, parent=self.perim21, local_id="31")
+        self.perim32 = Perimeter.objects.create(type_source_value=t, parent=self.perim21, local_id="32")
+        self.perim12 = Perimeter.objects.create(type_source_value=t, parent=self.perim0, local_id="12")
+        self.perim22 = Perimeter.objects.create(type_source_value=t, parent=self.perim12, local_id="22")
+        self.perim23 = Perimeter.objects.create(type_source_value=t, parent=self.perim12, local_id="23")
+        self.perim33 = Perimeter.objects.create(type_source_value=t, parent=self.perim23, local_id="33")
+        self.list_cs: List[Perimeter] = [self.perim0, self.perim11, self.perim21, self.perim31, self.perim32,
+                                         self.perim12, self.perim22, self.perim23, self.perim33]
 
 
 class ViewSetTests(BaseTests):

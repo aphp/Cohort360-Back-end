@@ -10,7 +10,6 @@ from django.utils import timezone
 from safedelete import SOFT_DELETE_CASCADE
 from safedelete.models import SafeDeleteModel
 
-from admin_cohort import conf_auth
 from admin_cohort.types import UserInfo, JobStatus
 
 
@@ -133,11 +132,6 @@ def get_or_create_user_with_info(user_info: UserInfo) -> User:
             firstname=user_info.firstname,
         )
     return user
-
-
-def get_or_create_user(jwt_access_token: str) -> User:
-    user_info = conf_auth.get_user_info(jwt_access_token=jwt_access_token)
-    return get_or_create_user_with_info(user_info)
 
 
 def get_user(user_id: str) -> User:
