@@ -10,9 +10,8 @@ from rest_framework.exceptions import ValidationError
 from admin_cohort.models import User
 from admin_cohort.settings import EMAIL_BACK_HOST_URL, EMAIL_SENDER_ADDRESS, \
     EMAIL_SUPPORT_CONTACT, EXPORT_DAYS_BEFORE_DELETE, EMAIL_REGEX_CHECK
-from admin_cohort.types import NewJobStatus
-from exports.models import ExportRequest, SUCCESS_STATUS, FAILED_STATUS, \
-    ExportType
+from admin_cohort.types import JobStatus
+from exports.models import ExportRequest, ExportType
 
 locale.setlocale(locale.LC_ALL, 'fr_FR.utf8')
 
@@ -48,7 +47,7 @@ def replace_keys(txt: str, req: ExportRequest, is_html: bool = False) -> str:
     for k, v in {
         KEY_COHORT_ID: req.cohort_id,
         KEY_NAME: User.objects.get(provider_id=req.provider_id).displayed_name,
-        KEY_ERROR_MESSAGE: req.status_info,
+        KEY_ERROR_MESSAGE: req.request_job_fail_msg,
         KEY_CONTACT_MAIL: EMAIL_SUPPORT_CONTACT,
         KEY_DATABASE_NAME: req.target_name,
         KEY_DELETE_DATE: (
@@ -169,12 +168,9 @@ def email_info_request_done(req: ExportRequest):
     """
     check_email_address(req.owner)
 
-    if req.status == SUCCESS_STATUS \
-            or req.new_request_job_status == NewJobStatus.finished:
+    if req.request_job_status == JobStatus.finished:
         send_success_email(req, req.owner.email)
-    elif req.status == FAILED_STATUS \
-            or req.new_request_job_status in [NewJobStatus.failed,
-                                              NewJobStatus.cancelled]:
+    elif req.request_job_status in [JobStatus.failed, JobStatus.cancelled]:
         send_failed_email(req, req.owner.email)
 
 

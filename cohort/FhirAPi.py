@@ -1,10 +1,10 @@
-from admin_cohort.types import NewJobStatus
+from admin_cohort.types import JobStatus
 
 
 class FhirValidateResponse:
     def __init__(
             self, success: bool = False, err_msg: str = "",
-            fhir_job_status: NewJobStatus = NewJobStatus.unknown,
+            fhir_job_status: JobStatus = JobStatus.unknown,
     ):
         self.success = success
         self.err_msg = err_msg

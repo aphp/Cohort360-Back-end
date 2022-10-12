@@ -13,26 +13,6 @@ OUTPUT_FORMATS = [
     (ExportType.PSQL.value, ExportType.PSQL.value),
 ]
 
-NEW_STATUS = "new"
-VALIDATED_STATUS = "validated"
-SUCCESS_STATUS = "done"
-FAILED_STATUS = "failed"
-DENIED_STATUS = "denied"
-
-JOB_STATUTES = [
-    (NEW_STATUS, NEW_STATUS),
-    (VALIDATED_STATUS, VALIDATED_STATUS),
-    (DENIED_STATUS, DENIED_STATUS),
-
-    ("running", "running"),
-    ("canceled", "canceled"),
-
-    (SUCCESS_STATUS, SUCCESS_STATUS),
-    (FAILED_STATUS, FAILED_STATUS),
-    ("to delete", "to delete"),
-    ("deleted", "deleted"),
-]
-
 
 class ExportRequest(JobModelWithReview, BaseModel, models.Model):
     id = models.BigAutoField(primary_key=True)
@@ -65,9 +45,6 @@ class ExportRequest(JobModelWithReview, BaseModel, models.Model):
     # to remove when infra is ready
     cohort_id = models.BigIntegerField(null=False)
     provider_id = models.BigIntegerField(null=True)
-    status = models.CharField(choices=JOB_STATUTES, default=NEW_STATUS,
-                              max_length=20)
-    status_info = models.TextField(null=True)
 
     class Meta:
         managed = True
@@ -75,7 +52,7 @@ class ExportRequest(JobModelWithReview, BaseModel, models.Model):
 
     def __str__(self):
         return f"{self.id}: cohort {self.cohort_fk.fhir_group_id} - " \
-               f"{self.new_request_job_status}"
+               f"{self.request_job_status}"
 
     @property
     def target_full_path(self) -> str:

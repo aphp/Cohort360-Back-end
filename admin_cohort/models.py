@@ -10,7 +10,7 @@ from django.utils import timezone
 from safedelete import SOFT_DELETE_CASCADE
 from safedelete.models import SafeDeleteModel
 
-from admin_cohort.types import UserInfo, JobStatus, NewJobStatus
+from admin_cohort.types import UserInfo, JobStatus
 
 
 class UndeletableModelManager(models.Manager):
@@ -145,13 +145,8 @@ class JobModel(models.Model):
     request_job_id = models.TextField(blank=True, null=True)
     request_job_status = models.CharField(
         max_length=10,
-        choices=[(e.value.lower(), e.value.lower()) for e in JobStatus],
-        default=JobStatus.PENDING.name.lower(), null=True
-    )
-    new_request_job_status = models.CharField(
-        max_length=10,
-        choices=[(e.value, e.value) for e in NewJobStatus],
-        default=NewJobStatus.pending.name, null=True
+        choices=[(e.value, e.value) for e in JobStatus],
+        default=JobStatus.new.name, null=True
     )
     request_job_fail_msg = models.TextField(blank=True, null=True)
     request_job_duration = models.TextField(blank=True, null=True)
@@ -160,21 +155,21 @@ class JobModel(models.Model):
         abstract = True
 
     def validate(self):
-        if self.new_request_job_status != NewJobStatus.new:
+        if self.request_job_status != JobStatus.new:
             raise Exception(
                 f"Job can be validated only if current status is "
-                f"'{NewJobStatus.new}'. Current status is "
-                f"'{self.new_request_job_status}'")
-        self.new_request_job_status = NewJobStatus.validated
+                f"'{JobStatus.new}'. Current status is "
+                f"'{self.request_job_status}'")
+        self.request_job_status = JobStatus.validated
         self.save()
 
     def deny(self):
-        if self.new_request_job_status != NewJobStatus.new:
+        if self.request_job_status != JobStatus.new:
             raise Exception(
                 f"Job can be denied only if current status is "
-                f"'{NewJobStatus.new}'. Current status is "
-                f"'{self.new_request_job_status}'")
-        self.new_request_job_status = NewJobStatus.denied
+                f"'{JobStatus.new}'. Current status is "
+                f"'{self.request_job_status}'")
+        self.request_job_status = JobStatus.denied
         self.save()
 
 

@@ -17,11 +17,10 @@ from admin_cohort.tools import prettify_json
 from cohort.models import CohortResult, RequestQuerySnapshot, Request, Folder, \
     DatedMeasure
 from workspaces.models import Account
-from exports.models import ExportRequest, ExportRequestTable, \
-    VALIDATED_STATUS, ExportType, NEW_STATUS, SUCCESS_STATUS, FAILED_STATUS
+from exports.models import ExportRequest, ExportRequestTable, ExportType
 from exports.tasks import check_jobs, clean_jobs
 from exports.views import ExportRequestViewset
-from admin_cohort.models import User, NewJobStatus
+from admin_cohort.models import User, JobStatus
 
 EXPORTS_URL = "/exports"
 
@@ -74,7 +73,7 @@ END_TEST_EMAIL = "@test.com"
 
 
 def new_cohort_result(
-        owner: User, status: NewJobStatus = NewJobStatus.finished,
+        owner: User, status: JobStatus = JobStatus.finished,
         folder: Folder = None, req: Request = None,
         rqs: RequestQuerySnapshot = None, dm: DatedMeasure = None
 ) -> (Folder, Request, RequestQuerySnapshot, DatedMeasure, CohortResult):
@@ -94,7 +93,7 @@ def new_cohort_result(
     cr: CohortResult = CohortResult.objects.create(
         owner=owner, fhir_group_id=str(random.randint(0, 10000)),
         dated_measure=dm, request_query_snapshot=rqs,
-        new_request_job_status=status)
+        request_job_status=status)
     return folder, req, rqs, dm, cr
 
 
@@ -117,7 +116,7 @@ class ExportsTests(ViewSetTestsWithBasicPerims):
         "id", "execution_request_datetime",
         "is_user_notified", "target_location", "target_name",
         "creator_fk", "cleaned_at", "request_job_id",
-        "request_job_status", "new_request_job_status", "request_job_fail_msg",
+        "request_job_status", "request_job_status", "request_job_fail_msg",
         "request_job_duration", "review_request_datetime", "reviewer_fk",
         "insert_datetime", "update_datetime", "delete_datetime",
     ]
@@ -191,9 +190,9 @@ class ExportsTests(ViewSetTestsWithBasicPerims):
 
         # COHORTS
         _, _, _, _, self.user1_cohort = new_cohort_result(
-            owner=self.user1, status=NewJobStatus.finished.value)
+            owner=self.user1, status=JobStatus.finished.value)
         _, _, _, _, self.user2_cohort = new_cohort_result(
-            owner=self.user2, status=NewJobStatus.finished.value)
+            owner=self.user2, status=JobStatus.finished.value)
 
     def check_is_created(self, base_instance: ExportRequest,
                          request_model: dict = None, user: User = None):
@@ -238,8 +237,7 @@ class ExportsWithSimpleSetUp(ExportsTests):
                 cohort_id=42,
                 output_format=ExportType.CSV.value,
                 provider_id=self.user1.provider_id,
-                status=SUCCESS_STATUS,  # useful for clean_jobs task
-                new_request_job_status=NewJobStatus.finished.value,
+                request_job_status=JobStatus.finished.value,
                 target_location="user1_exp_req_succ",
                 is_user_notified=False,
             )
@@ -256,8 +254,7 @@ class ExportsWithSimpleSetUp(ExportsTests):
                 cohort_id=42,
                 output_format=ExportType.CSV.value,
                 provider_id=self.user1.provider_id,
-                status=FAILED_STATUS,  # useful for clean_jobs task
-                new_request_job_status=NewJobStatus.failed.value,
+                request_job_status=JobStatus.failed.value,
                 target_location="user1_exp_req_failed",
                 is_user_notified=False,
             )
@@ -269,7 +266,7 @@ class ExportsWithSimpleSetUp(ExportsTests):
                 cohort_id=43,
                 output_format=ExportType.CSV.value,
                 provider_id=self.user1.provider_id,
-                new_request_job_status=NewJobStatus.finished.value,
+                request_job_status=JobStatus.finished.value,
                 target_location="user2_exp_req_succ",
                 is_user_notified=True,
             )
@@ -289,12 +286,12 @@ class ExportsListTests(ExportsTests):
         super(ExportsListTests, self).setUp()
 
         _, _, _, _, self.user1_cohort2 = new_cohort_result(
-            self.user1, NewJobStatus.finished
+            self.user1, JobStatus.finished
         )
         f, r, rqs, dm, self.user2_cohort_1 = new_cohort_result(
-            owner=self.user2, status=NewJobStatus.finished)
+            owner=self.user2, status=JobStatus.finished)
         _, _, _, _, self.user2_cohort2 = new_cohort_result(
-            self.user2, NewJobStatus.finished, f, r, rqs, dm
+            self.user2, JobStatus.finished, f, r, rqs, dm
         )
 
         self.user1_unix_acc: Account = Account.objects.create(
@@ -315,9 +312,9 @@ class ExportsListTests(ExportsTests):
                 output_format=random.choice([ExportType.CSV.value,
                                              ExportType.HIVE.value]),
                 provider_id=self.user1.provider_id,
-                new_request_job_status=random.choice([
-                    NewJobStatus.new.value, NewJobStatus.failed.value,
-                    NewJobStatus.validated.value]),
+                request_job_status=random.choice([
+                    JobStatus.new.value, JobStatus.failed.value,
+                    JobStatus.validated.value]),
                 target_location=f"test_user_rec_{str(i)}",
                 is_user_notified=False,
             ) for i in range(0, 200)
@@ -335,9 +332,9 @@ class ExportsListTests(ExportsTests):
                                                  ExportType.HIVE.value]),
                     provider_id=self.user2.provider_id,
                     owner=self.user2,
-                    new_request_job_status=random.choice([
-                        NewJobStatus.new.value, NewJobStatus.failed.value,
-                        NewJobStatus.validated.value]),
+                    request_job_status=random.choice([
+                        JobStatus.new.value, JobStatus.failed.value,
+                        JobStatus.validated.value]),
                     target_location=f"test_user2_{str(i)}",
                     is_user_notified=False,
                 ) for i in range(0, 200)
@@ -399,11 +396,11 @@ class ExportsListTests(ExportsTests):
                     if e.output_format == ExportType.CSV.value
                 ]
             },
-            'status': {
-                'value': NEW_STATUS,
+            'request_job_status': {
+                'value': JobStatus.new.value,
                 'to_find': [
                     e for e in base_results
-                    if e.status == NEW_STATUS
+                    if e.request_job_status == JobStatus.new
                 ]
             },
         }
@@ -451,8 +448,7 @@ class ExportsRetrieveTests(ExportsWithSimpleSetUp):
             cohort_id=42,
             output_format=ExportType.CSV.value,
             provider_id=self.user1.provider_id,
-            status=SUCCESS_STATUS,  # useful for clean_jobs task
-            new_request_job_status=NewJobStatus.finished.value,
+            request_job_status=JobStatus.finished.value,
             target_location="location_example",
             is_user_notified=False,
         )
@@ -558,8 +554,8 @@ class ExportsRetrieveTests(ExportsWithSimpleSetUp):
         # an ExportRequest that is not finished
         [self.check_download(self.base_err_download_case.clone(
             data_to_download={**self.base_data,
-                              'new_request_job_status': s},
-        )) for s in NewJobStatus.list(exclude=[NewJobStatus.finished])]
+                              'request_job_status': s},
+        )) for s in JobStatus.list(exclude=[JobStatus.finished])]
 
     def test_error_download_request_not_csv(self):
         # As a user, I cannot download the result of an ExportRequest that is
@@ -590,7 +586,7 @@ class ExportsJobsTests(ExportsWithSimpleSetUp):
         #         cohort_id=self.user1_cohort.fhir_group_id,
         #         output_format=ExportType.CSV.value,
         #         provider_id=self.user1.provider_id,
-        #         new_request_job_status=NewJobStatus.new.value,
+        #         request_job_status=JobStatus.new.value,
         #         target_location="user1_exp_req_csv_new",
         #         is_user_notified=False,
         #     )
@@ -602,7 +598,7 @@ class ExportsJobsTests(ExportsWithSimpleSetUp):
         #         cohort_id=self.user1_cohort.fhir_group_id,
         #         output_format=ExportType.HIVE.value,
         #         provider_id=self.user1.provider_id,
-        #         new_request_job_status=NewJobStatus.new.value,
+        #         request_job_status=JobStatus.new.value,
         #         target_location="user1_exp_req_jup_new",
         #         is_user_notified=False,
         #     )
@@ -631,10 +627,10 @@ class ExportsJobsTests(ExportsWithSimpleSetUp):
         updated_req_2 = ExportRequest.objects.get(pk=self.user1_exp_req_succ.id)
         [self.assertTrue(er.is_user_notified) for er in [updated_req_1,
                                                          updated_req_2]]
-        self.assertEqual(updated_req_1.new_request_job_status,
-                         NewJobStatus.failed)
-        self.assertEqual(updated_req_2.new_request_job_status,
-                         NewJobStatus.finished)
+        self.assertEqual(updated_req_1.request_job_status,
+                         JobStatus.failed)
+        self.assertEqual(updated_req_2.request_job_status,
+                         JobStatus.finished)
 
     @mock.patch('exports.emails.send_mail')
     @mock.patch('exports.conf_exports.delete_file')
@@ -741,7 +737,7 @@ class ExportsCsvCreateTests(ExportsCreateTests):
             mock_perim_called=True,
             mock_perim_resp=[self.user1_csv_nomi_acc.perimeter.id],
             mock_email_failed=False,
-            job_status=NewJobStatus.validated,
+            job_status=JobStatus.validated,
         )
         self.err_basic_case = self.basic_case.clone(
             success=False,
@@ -785,17 +781,15 @@ class ExportsCsvCreateTests(ExportsCreateTests):
                     delete_datetime=example_date,
                     request_job_id=example_int,
                     request_job_status=example_str,
-                    new_request_job_status=example_str,
                     request_job_fail_msg=example_str,
                     request_job_duration=example_int,
                     review_request_datetime=example_date,
                     reviewer_fk=example_user.pk,
                 )
             },
-            job_status=VALIDATED_STATUS,
+            job_status=JobStatus.validated.value,
             success=True,
             user=self.user1,
-            status=status.HTTP_201_CREATED,
         )]
 
         [self.check_create_case(case) for case in cases]
@@ -913,7 +907,7 @@ class ExportsJupCreateTests(ExportsCreateTests):
             mock_perim_called=True,
             mock_perim_resp=[self.user1_jup_nomi_acc.perimeter.id],
             mock_email_failed=False,
-            job_status=NewJobStatus.validated,
+            job_status=JobStatus.validated,
             mock_user_bound_resp=True,
             mock_user_bound_called=True,
         )
@@ -968,17 +962,15 @@ class ExportsJupCreateTests(ExportsCreateTests):
                     delete_datetime=example_date,
                     request_job_id=example_int,
                     request_job_status=example_str,
-                    new_request_job_status=example_str,
                     request_job_fail_msg=example_str,
                     request_job_duration=example_int,
                     review_request_datetime=example_date,
                     reviewer_fk=example_user.pk,
                 )
             },
-            job_status=VALIDATED_STATUS,
+            job_status=JobStatus.validated,
             success=True,
             user=self.user1,
-            status=status.HTTP_201_CREATED,
         )]
 
         [self.check_create_case(case) for case in cases]
@@ -1102,7 +1094,7 @@ class ExportsValidateDenyTests(ExportsWithSimpleSetUp):
             cohort_id=self.user1_cohort.fhir_group_id,
             output_format=ExportType.HIVE.value,
             provider_id=self.user1.provider_id,
-            new_request_job_status=NewJobStatus.new.value,
+            request_job_status=JobStatus.new.value,
             target_location="user1_exp_req_succ",
             is_user_notified=False,
 
@@ -1151,14 +1143,14 @@ class ExportsValidateDenyTests(ExportsWithSimpleSetUp):
 
         if case.success:
             self.assertIsNotNone(new_obj)
-            self.assertEqual(new_obj.new_request_job_status,
-                             NewJobStatus.validated if not case.deny
-                             else NewJobStatus.denied)
+            self.assertEqual(new_obj.request_job_status,
+                             JobStatus.validated if not case.deny
+                             else JobStatus.denied)
             mock_task.assert_called() if not case.deny \
                 else mock_task.assert_not_called()
         else:
-            self.assertEqual(new_obj.new_request_job_status,
-                             case.initial_data['new_request_job_status'])
+            self.assertEqual(new_obj.request_job_status,
+                             case.initial_data['request_job_status'])
             mock_task.assert_not_called()
 
     def test_validate_new_request(self):
@@ -1175,8 +1167,8 @@ class ExportsValidateDenyTests(ExportsWithSimpleSetUp):
         # not have the status NEW
         [self.check_validate_case(self.basic_err_jup_validate_case.clone(
             initial_data={**self.basic_jup_data,
-                          'new_request_job_status': s}
-        )) for s in NewJobStatus.list(exclude=[NewJobStatus.new])]
+                          'request_job_status': s}
+        )) for s in JobStatus.list(exclude=[JobStatus.new])]
 
     def test_error_validate_new_request_without_jup_right(self):
         # As a user, I cannot review a jupyter export request
@@ -1220,7 +1212,7 @@ class ExportsNotAllowedTests(ExportsWithSimpleSetUp):
             cohort_id=self.user1_cohort.fhir_group_id,
             output_format=ExportType.HIVE.value,
             provider_id=self.user1.provider_id,
-            new_request_job_status=NewJobStatus.new.value,
+            request_job_status=JobStatus.new.value,
             target_location="user1_exp_req_succ",
             is_user_notified=False,
 
