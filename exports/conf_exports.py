@@ -1,21 +1,20 @@
-import json
-
-import environ
 import enum
-import requests
-import simplejson
-from requests import Response
+import json
 from typing import Dict, List
 
+import environ
+import requests
+import simplejson
 from hdfs import HdfsError
 from hdfs.ext.kerberos import KerberosClient
+from requests import Response
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
 
-from admin_cohort.models import NewJobStatus
+from admin_cohort.models import JobStatus
 from admin_cohort.tools import prettify_dict
-from .types import ApiJobResponse, HdfsServerUnreachableError
 from .models import ExportRequest
+from .types import ApiJobResponse, HdfsServerUnreachableError
 
 env = environ.Env()
 
@@ -57,15 +56,15 @@ class ApiJobStatutes(enum.Enum):
 
 
 dct_api_to_job_status = {
-    ApiJobStatutes.pending.value: NewJobStatus.pending,
-    ApiJobStatutes.received.value: NewJobStatus.pending,
-    ApiJobStatutes.started.value: NewJobStatus.started,
-    ApiJobStatutes.success.value: NewJobStatus.finished,
-    ApiJobStatutes.failure.value: NewJobStatus.failed,
-    ApiJobStatutes.revoked.value: NewJobStatus.cancelled,
-    ApiJobStatutes.rejected.value: NewJobStatus.failed,
-    ApiJobStatutes.retry.value: NewJobStatus.pending,
-    ApiJobStatutes.ignored.value: NewJobStatus.failed,
+    ApiJobStatutes.pending.value: JobStatus.pending,
+    ApiJobStatutes.received.value: JobStatus.pending,
+    ApiJobStatutes.started.value: JobStatus.started,
+    ApiJobStatutes.success.value: JobStatus.finished,
+    ApiJobStatutes.failure.value: JobStatus.failed,
+    ApiJobStatutes.revoked.value: JobStatus.cancelled,
+    ApiJobStatutes.rejected.value: JobStatus.failed,
+    ApiJobStatutes.retry.value: JobStatus.pending,
+    ApiJobStatutes.ignored.value: JobStatus.failed,
 }
 
 # TOOLS ###############################################################
@@ -246,10 +245,10 @@ def get_job_status(export_job_id: str) -> ApiJobResponse:
 
     jsr = JobStatusResponse(**res)
 
-    j_status = dct_api_to_job_status.get(jsr.task_status, NewJobStatus.unknown)
+    j_status = dct_api_to_job_status.get(jsr.task_status, JobStatus.unknown)
 
     err = ""
-    if j_status == NewJobStatus.unknown:
+    if j_status == JobStatus.unknown:
         err = f"Job status unknown : {jsr.task_status}."
         if jsr.task_result is not None:
             jsr.task_result.err = err
