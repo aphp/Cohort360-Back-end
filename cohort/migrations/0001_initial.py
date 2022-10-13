@@ -147,11 +147,11 @@ class Migration(migrations.Migration):
                 ('favorite', models.BooleanField(default=False)),
                 ('fhir_group_id', models.CharField(blank=True, max_length=64)),
                 ('create_task_id', models.TextField(blank=True)),
-                ('type', models.CharField(choices=[('IMPORT_I2B2', 'Previous cohorts imported from i2b2.'), (
-                'MY_ORGANIZATIONS',
-                'Organizations in which I work (care sites with pseudo-anonymised reading rights).'),
-                ('MY_PATIENTS','Patients that passed by all my organizations '\ 
-                               '(care sites with nominative reading rights).'),
+                ('type', models.CharField(choices=[('IMPORT_I2B2', 'Previous cohorts imported from i2b2.'),
+                                                   ('MY_ORGANIZATIONS', 'Organizations in which I work (care sites '\ 
+                                                                        'with pseudo-anonymised reading rights).'),
+                                                   ('MY_PATIENTS', 'Patients that passed by all my organizations '\ 
+                                                                    '(care sites with nominative reading rights).'),
                                                    ('MY_COHORTS', 'Cohorts I created in Cohort360')],
                                           default='MY_COHORTS', max_length=20)),
                 ('dated_measure', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='cohort',
