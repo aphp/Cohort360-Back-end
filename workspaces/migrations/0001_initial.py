@@ -5,7 +5,6 @@ import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
@@ -37,13 +36,18 @@ class Migration(migrations.Migration):
             name='Project',
             fields=[
                 ('uid', models.AutoField(primary_key=True, serialize=False)),
-                ('type', models.CharField(choices=[('default_user', 'default_user'), ('default_cse', 'default_cse'), ('default_dsip', 'default_dsip'), ('default_bdr', 'default_bdr')], max_length=63)),
+                ('type', models.CharField(choices=[('default_user', 'default_user'), ('default_cse', 'default_cse'),
+                                                   ('default_dsip', 'default_dsip'), ('default_bdr', 'default_bdr')],
+                                          max_length=63)),
                 ('identifier', models.CharField(max_length=63, unique=True)),
                 ('acronym', models.CharField(blank=True, max_length=63)),
                 ('title', models.TextField(blank=True)),
                 ('thematic', models.CharField(blank=True, max_length=63)),
                 ('description', models.TextField(blank=True)),
-                ('status', models.CharField(choices=[('new', 'new'), ('validated', 'validated'), ('not_validated', 'not_validated'), ('aborted', 'aborted'), ('in progress', 'in progress'), ('closed', 'closed')], default='new', max_length=20)),
+                ('status', models.CharField(
+                    choices=[('new', 'new'), ('validated', 'validated'), ('not_validated', 'not_validated'),
+                             ('aborted', 'aborted'), ('in progress', 'in progress'), ('closed', 'closed')],
+                    default='new', max_length=20)),
                 ('operation_actors', models.TextField(blank=True)),
                 ('partners', models.TextField(blank=True)),
                 ('lawfulness_of_processing', models.TextField(blank=True)),
@@ -57,7 +61,9 @@ class Migration(migrations.Migration):
             name='RangerHivePolicy',
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('policy_type', models.CharField(choices=[('default_user', 'default_user'), ('default_cse', 'default_cse'), ('default_dsip', 'default_dsip'), ('default_bdr', 'default_bdr')], max_length=63)),
+                ('policy_type', models.CharField(
+                    choices=[('default_user', 'default_user'), ('default_cse', 'default_cse'),
+                             ('default_dsip', 'default_dsip'), ('default_bdr', 'default_bdr')], max_length=63)),
                 ('db', models.CharField(max_length=63, null=True)),
                 ('db_tables', models.CharField(max_length=63, null=True)),
                 ('db_imagerie', models.CharField(max_length=63, null=True)),
@@ -88,9 +94,13 @@ class Migration(migrations.Migration):
                 ('spark_port_start', models.IntegerField()),
                 ('jupyter_machines', models.ManyToManyField(related_name='users_uids', to='workspaces.JupyterMachine')),
                 ('kernels', models.ManyToManyField(related_name='users_uids', to='workspaces.Kernel')),
-                ('ldap_groups', models.ManyToManyField(blank=True, related_name='users_uids', to='workspaces.LdapGroup')),
-                ('project', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, to='workspaces.Project')),
-                ('ranger_hive_policy', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='users_uids', to='workspaces.RangerHivePolicy')),
+                ('ldap_groups',
+                 models.ManyToManyField(blank=True, related_name='users_uids', to='workspaces.LdapGroup')),
+                ('project',
+                 models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, to='workspaces.Project')),
+                ('ranger_hive_policy',
+                 models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='users_uids',
+                                   to='workspaces.RangerHivePolicy')),
             ],
         ),
     ]
