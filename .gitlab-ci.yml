@@ -14,7 +14,7 @@ lint-job:
     - pip install flake8
   script:
     - echo "test lint"
-    - flake8 accesses/ admin_cohort/ cohort/ workspaces/ exports/ --max-line-length 150
+    - flake8 accesses/ admin_cohort/ cohort/ workspaces/ exports/ --max-line-length 180
   allow_failure: false
 
 test-job:
