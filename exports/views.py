@@ -11,6 +11,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 
 from admin_cohort.models import User
+from workspaces.models import Account
 from admin_cohort.permissions import OR
 from admin_cohort.types import JobStatus
 from admin_cohort.views import CustomLoggingMixin
@@ -44,7 +45,7 @@ class UserFilter(django_filters.FilterSet):
         method="provider_source_value_filter")
 
     class Meta:
-        model = User
+        model = Account
         fields = ("provider_source_value",)
 
 
@@ -61,7 +62,7 @@ class UsersViewSet(AccountViewset):
                   AccountPermissions())
 
     def get_queryset(self):
-        q = super(AccountViewset, self).get_queryset()
+        q = super(UsersViewSet, self).get_queryset()
         user = self.request.user
         if not can_review_transfer_jupyter(user)\
                 and not can_review_export_csv(user):
