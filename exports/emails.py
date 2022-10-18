@@ -129,10 +129,10 @@ def send_success_email(req: ExportRequest, email_address: str):
                f".txt"
 
     with open(html_path) as f:
-        txt_content = "\n".join(f.readlines())
+        html_content = "\n".join(f.readlines())
 
     with open(txt_path) as f:
-        html_content = "\n".join(f.readlines())
+        txt_content = "\n".join(f.readlines())
 
     html_mail, txt_mail = get_base_templates()
     html_mail = html_mail.replace(KEY_CONTENT, html_content)
