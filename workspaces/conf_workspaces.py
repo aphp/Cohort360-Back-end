@@ -19,7 +19,7 @@ ACTIVE_DIRECTORY_PARENT_GROUP = env('ACTIVE_DIRECTORY_PARENT_GROUP')
 
 def check_resp(resp: Response, url: str) -> Dict:
     if resp.status_code not in [status.HTTP_201_CREATED, status.HTTP_200_OK]:
-        raise Exception(f"Connection error with Infr API ({url}) : "
+        raise Exception(f"Connection error with Infra API ({url}) : "
                         f"status code {resp.text}")
 
     try:

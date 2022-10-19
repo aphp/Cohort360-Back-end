@@ -231,7 +231,6 @@ You can start exploring your data models:
 >> first_profile.provider_id
 ```
 
-
 <!-- CONTRIBUTING -->
 <!-- ## Contributing
 
@@ -241,10 +240,20 @@ You can start exploring your data models:
 4. Push to the Branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request with develop branch -->
 
+## How to deploy this application to your infrastructure
+
+The following files contains AP-HP-specific code. You'll need to write your own implementation of the methods and
+replace
+them in your CI/CD pipeline.
+
+1. [conf_perimeters](accesses/conf_perimeters.py)
+2. [conf_auth](admin_cohort/conf_auth.py)
+3. [conf_cohort_job_api](cohort/conf_cohort_job_api.py)
+4. [conf_exports](exports/conf_exports.py)
+5. [conf_workspaces](workspaces/conf_workspaces.py)
 
 <!-- CONTACT -->
+
 ## Contact
 
-Alexandre Martin, main developer - [@alexandreMartinEcl](https://gitlab.eds.aphp.fr/alexandreMartinEcl) - alexandre.martin3@aphp.fr
-
-Julien Dubiel, project Owner - [@j.du](https://gitlab.eds.aphp.fr/j.du) - julien.dubiel@aphp.fr
+open-source@cohort360.org
