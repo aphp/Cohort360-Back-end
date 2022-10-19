@@ -119,11 +119,11 @@ PERIMETER_TYPES you provide in _admin_cohort/.env_ file):
                           VALUES (2, '41269', 'Manual', 't', 'Simple', 'SIMPLSON', 'simple.simplson@c360.co');
 
     -- Basic perimeters tree
-    INSERT INTO accesses_perimeter (id, name, local_id, type_source_value, parent_id) 
-                            VALUES (1, 'AP-HP', 'Local 00', 'AP-HP', null),
-                                   (2, 'Hospital 1', 'Local 01','Hospital', 1),
-                                   (3, 'Hospital 2', 'Local 02','Hospital', 1),
-                                   (4, 'Unit 1', 'Hospital 2','Hospital', 2);
+    INSERT INTO accesses_perimeter (id, name, source_value, short_name, local_id, type_source_value, parent_id) 
+                            VALUES (1, 'APHP', 'Assistance Publique - Hôpitaux de Paris', 'AP-HP', 'Local 00', 'AP-HP', null),
+                                   (2, 'Hopit 1', 'Hopital 01', 'Hopit 1', 'Local 01','Hopital', 1),
+                                   (3, 'Hopit 2', 'Hopital 02', 'Hopit 2', 'Local 02','Hopital', 1),
+                                   (4, 'Unit 1', 'Unité 01', 'Unit 1', 'Hopital 2', 'Unit', 2);
 
     -- Full administration role
     INSERT INTO accesses_role (id, name, right_edit_roles, right_add_users, right_edit_users, right_read_users, 
