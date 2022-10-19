@@ -12,10 +12,9 @@ from .views import UserViewSet, LoggingViewset, MaintenancePhaseViewSet
 schema_view = get_schema_view(openapi.Info(title=__title__,
                                            default_version=f'v{__version__}',
                                            description="Infos de l'API concernant le portail d'administration",
-                                           terms_of_service=""
-                                           ),
-                                           public=True,
-                                           permission_classes=(permissions.AllowAny,)
+                                           terms_of_service=""),
+                              public=True,
+                              permission_classes=(permissions.AllowAny,)
                               )
 
 
