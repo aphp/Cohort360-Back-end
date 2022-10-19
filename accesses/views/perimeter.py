@@ -21,10 +21,8 @@ from admin_cohort.views import BaseViewset, YarnReadOnlyViewsetMixin,\
 
 class PerimeterFilter(django_filters.FilterSet):
     care_site_name = django_filters.CharFilter(field_name='name')
-    care_site_type_source_value = django_filters.CharFilter(
-        field_name='type_source_value')
-    care_site_source_value = django_filters.CharFilter(
-        field_name='source_value')
+    care_site_type_source_value = django_filters.CharFilter(field_name='type_source_value')
+    care_site_source_value = django_filters.CharFilter(field_name='source_value')
     care_site_id = django_filters.CharFilter(field_name='id')
     name = django_filters.CharFilter(lookup_expr='icontains')
     source_value = django_filters.CharFilter(lookup_expr='icontains')
@@ -43,8 +41,7 @@ class PerimeterFilter(django_filters.FilterSet):
         )
 
 
-class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin,
-                       BaseViewset):
+class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset):
     serializer_class = PerimeterSerializer
     queryset = Perimeter.objects.all()
     lookup_field = "id"
@@ -56,10 +53,9 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin,
     ordering_fields = [('care_site_name', 'name'),
                        ('care_site_type_source_value', 'type_source_value'),
                        ('care_site_source_value', 'source_value')]
-    search_fields = [
-        "name", "type_source_value",
-        "source_value"
-    ]
+    search_fields = ["name",
+                     "type_source_value",
+                     "source_value"]
 
     @swagger_auto_schema(
         method='get',
