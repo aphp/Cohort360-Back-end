@@ -121,8 +121,8 @@ PERIMETER_TYPES you provide in _admin_cohort/.env_ file):
     -- Basic perimeters tree
     INSERT INTO accesses_perimeter (id, name, local_id, type_source_value, parent_id) 
                             VALUES (1, 'AP-HP', 'Local 00', 'AP-HP', null),
-                                   (2, 'Hospital 1', 'Local 01','Hospital', 0),
-                                   (3, 'Hospital 2', 'Local 02','Hospital', 0),
+                                   (2, 'Hospital 1', 'Local 01','Hospital', 1),
+                                   (3, 'Hospital 2', 'Local 02','Hospital', 1),
                                    (4, 'Unit 1', 'Hospital 2','Hospital', 2);
 
     -- Full administration role
