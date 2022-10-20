@@ -20,11 +20,21 @@ class Perimeter(BaseModel):
     parent = models.ForeignKey("accesses.perimeter",
                                on_delete=models.CASCADE,
                                related_name="children", null=True)
+    above = models.TextField(blank=True, null=True)
+    children = models.TextField(blank=True, null=True)
 
     @property
     def names(self):
         return dict(name=self.name, short=self.short_name,
                     source_value=self.source_value)
+
+    @property
+    def get_above(self) -> List[int]:
+        return list([int(i) for i in self.above.split(",")])
+
+    @property
+    def get_children(self) -> List[int]:
+        return list([int(i) for i in self.children.split(",")])
 
     @property
     def type(self):
