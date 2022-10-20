@@ -53,15 +53,29 @@ _The following guide is valid for Unix like platforms. Another guide will be ava
 
 ### Prerequisites
 
-* Python (_version 3.8 or higher_)
+* Python (_version 3.8_)
   ```sh
   sudo apt-get update
   sudo apt-get install python3.8
   ```
+If you have already an higher version of python already installed:
+```sh
+sudo apt update && sudo apt upgrade
+sudo apt install software-properties-common -y
+sudo add-apt-repository ppa:deadsnakes/ppa -y
+sudo apt update
+sudo apt install python3.8 -y
+python3.8 --version
+```
+  
 * PostgreSQL
   ```sh
   sudo apt-get install postgresql postgresql-contrib
   ```
+* Install python3.8-dev:
+    ```sh
+    sudo apt-get install python3.8-dev
+    ```
 * Kerberos authentication development library
   ```sh
   sudo apt-get install -y libkrb5-dev gcc
@@ -81,6 +95,12 @@ _The following guide is valid for Unix like platforms. Another guide will be ava
    source venv/bin/activate
    pip install -r requirements.txt
    ```
+    If you are using proxy, it can be necessary to add it in pip install:
+    ```shell
+    pip install --proxy http://my-proxy:proxy-port -r requirements.txt
+    ```
+
+
 3. Prepare your database
 - 3.1. Enter _psql_ interactive shell
    ```sh
