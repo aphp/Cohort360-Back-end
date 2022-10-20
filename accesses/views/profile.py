@@ -153,35 +153,27 @@ class ProfileViewSet(CustomLoggingMixin, BaseViewset):
     def check_existing_user(self, request, *args, **kwargs):
         from admin_cohort.serializers import UserSerializer
 
-        psv = self.request.data.get(
-            "user_id", self.request.data.get("provider_source_value", None))
+        psv = self.request.data.get("user_id", self.request.data.get("provider_source_value", None))
         if not psv:
-            return Response("No provider_source_value provided",
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response("No provider_source_value provided", status=status.HTTP_400_BAD_REQUEST)
         person = conf_auth.check_id_aph(psv)
         if person is not None:
-            manual_profile: Profile = Profile.objects.filter(
-                Profile.Q_is_valid()
-                & Q(user=person)
-                & Q(source=MANUAL_SOURCE)
-            ).first()
+            manual_profile: Profile = Profile.objects.filter(Profile.Q_is_valid()
+                                                             # & Q(user=person) # /!\ User instance != IdResp instance
+                                                             & Q(user__provider_username=person.user_id)
+                                                             & Q(source=MANUAL_SOURCE)
+                                                             ).first()
 
-            user: User = User.objects.filter(
-                provider_username=person.user_id,
-            ).first()
+            user: User = User.objects.filter(provider_username=person.user_id).first()
             u_data = UserSerializer(user).data if user else None
 
-            data = ProfileCheckSerializer({
-                "firstname": person.firstname,
-                "lastname": person.lastname,
-                "user_id": person.user_id,
-                "email": person.email,
-                "provider": u_data,
-                "user": u_data,
-                "manual_profile": manual_profile
-            }).data
-            return Response(
-                data, status=status.HTTP_200_OK,
-                headers=self.get_success_headers(data)
-            )
+            data = ProfileCheckSerializer({"firstname": person.firstname,
+                                           "lastname": person.lastname,
+                                           "user_id": person.user_id,
+                                           "email": person.email,
+                                           "provider": u_data,
+                                           "user": u_data,
+                                           "manual_profile": manual_profile
+                                           }).data
+            return Response(data, status=status.HTTP_200_OK, headers=self.get_success_headers(data))
         return Response(status=status.HTTP_204_NO_CONTENT)
