@@ -15,7 +15,7 @@ from ..serializers import PerimeterSerializer, \
 from admin_cohort.permissions import IsAuthenticatedReadOnly
 from admin_cohort.settings import PERIMETERS_TYPES
 from admin_cohort.tools import join_qs
-from admin_cohort.views import BaseViewset, YarnReadOnlyViewsetMixin,\
+from admin_cohort.views import BaseViewset, YarnReadOnlyViewsetMixin, \
     SwaggerSimpleNestedViewSetMixin
 
 
@@ -90,11 +90,22 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
         user_accesses = get_user_valid_manual_accesses_queryset(
             self.request.user)
 
+        def get_response(list_perimeter: [Perimeter], lower_access: bool) -> [dict]:
+            def map_perimeter_response(perimeter_object, right):
+                return {
+                    "id": perimeter_object.id,
+                    "name": perimeter_object.name,
+                    "short_name": perimeter_object.short_namename,
+                    "level": perimeter_object.type_source_value,
+                    "is_lower_level_edit_role": right
+                }
+
+            return [map_perimeter_response(perimeter, lower_access) for perimeter in list_perimeter]
+
         if user_accesses.filter(Role.edit_on_any_level_query("role")).count():
             # in that case, perims to retun is all perimeters
             # and queryset result will only contain the top perimeters
-            perims = self.get_queryset()
-            q = Perimeter.objects.filter(parent__isnull=True)
+            return Response(get_response(Perimeter.objects.filter(parent__isnull=True), True))
         else:
             # in that case, perims to returns depends on roles
             # and queryset result will only contain the top of those perimeters
@@ -120,6 +131,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
                                                    .prefetch_related(prefetch))
 
         q = q.prefetch_related(prefetch)
+
         return Response(TreefiedPerimeterSerializer(q, many=True).data)
 
     @swagger_auto_schema(
@@ -170,7 +182,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
 
         if q.count() != self.get_queryset().count():
             q = (q | get_all_perimeters_parents_queryset(q)).distinct()
-            res = q.filter(~Q(parent__id__in=q.values_list("id", flat=True)))\
+            res = q.filter(~Q(parent__id__in=q.values_list("id", flat=True))) \
                 .distinct()
         else:
             res = q.filter(parent__isnull=True)
