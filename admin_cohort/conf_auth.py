@@ -87,12 +87,10 @@ def get_token_from_headers(request) -> (str, str):
 
 
 def check_id_aph(id_aph: str) -> Optional[IdResp]:
-    resp = requests.post(ID_CHECKER_URL, data={'username': id_aph},
-                         headers=id_checker_server_headers)
+    resp = requests.post(ID_CHECKER_URL, data={'username': id_aph}, headers=id_checker_server_headers)
 
     if status.is_server_error(resp.status_code):
-        raise ServerError(f"Error {resp.status_code} from "
-                          f"id-checker server ({ID_CHECKER_URL}): {resp.text}")
+        raise ServerError(f"Error {resp.status_code} from id-checker server ({ID_CHECKER_URL}): {resp.text}")
 
     if resp.status_code != status.HTTP_200_OK:
         raise Exception(f"Internal error: {resp.text}")
@@ -101,9 +99,7 @@ def check_id_aph(id_aph: str) -> Optional[IdResp]:
 
     for expected in ['givenName', 'sn', 'sAMAccountName', 'mail']:
         if expected not in res:
-            raise Exception(
-                f"JWT server response not as expected: missing {expected} "
-                f"({resp.content})")
+            raise Exception(f"JWT server response not as expected: missing {expected} ({resp.content})")
 
     return IdResp(firstname=res.get('givenName'), lastname=res.get('sn'),
                   user_id=res.get('sAMAccountName'), email=res.get('mail'))
