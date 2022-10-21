@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='Perimeter',
-            name='children',
+            name='lower_levels',
             field=models.TextField(blank=True, null=True)
         ),
     ]
