@@ -90,49 +90,43 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
         user_accesses = get_user_valid_manual_accesses_queryset(
             self.request.user)
 
-        def get_response(list_perimeter: [Perimeter], lower_access: bool) -> [dict]:
-            def map_perimeter_response(perimeter_object, right):
-                return {
-                    "id": perimeter_object.id,
-                    "name": perimeter_object.name,
-                    "short_name": perimeter_object.short_namename,
-                    "level": perimeter_object.type_source_value,
-                    "is_lower_level_edit_role": right
-                }
-
-            return [map_perimeter_response(perimeter, lower_access) for perimeter in list_perimeter]
-
         if user_accesses.filter(Role.edit_on_any_level_query("role")).count():
             # in that case, perims to retun is all perimeters
             # and queryset result will only contain the top perimeters
-            return Response(get_response(Perimeter.objects.filter(parent__isnull=True), True))
+            return Response(PerimeterSerializer(Perimeter.objects.filter(parent__isnull=True), many=True).data)
         else:
-            # in that case, perims to returns depends on roles
-            # and queryset result will only contain the top of those perimeters
             acc_ids = user_accesses.values_list("id", flat=True)
-            perims = Perimeter.objects.filter(join_qs(
-                [Role.edit_on_lower_levels_query(
-                    f"{i * 'parent__'}accesses__role",
-                    {f'{i * "parent__"}accesses__id__in': acc_ids}
-                ) for i in range(1, len(PERIMETERS_TYPES))
-                ] + [Role.edit_on_same_level_query(
-                    "accesses__role",
-                    {'accesses__id__in': acc_ids}
-                )]
-            )).distinct()
+            accesses_same_levels = [perimeter for perimeter in
+                                    user_accesses.filter(Role.edit_on_same_level_query("role"))]
+            accesses_inf_levels = [perimeter for perimeter
+                                   in user_accesses.filter(Role.edit_on_lower_levels_query("role"))]
 
-            q = perims.filter(~Q(
-                parent__id__in=perims.values_list("id", flat=True)))
+            all_distinct_perims = list(set(accesses_same_levels + accesses_inf_levels))
+            all_ids = [p.id for p in all_distinct_perims]
 
-        prefetch = Perimeter.children_prefetch(perims)
-        nb_levels = int(request.GET.get('nb_levels', len(PERIMETERS_TYPES)))
-        for _ in range(2, nb_levels):
-            prefetch = Perimeter.children_prefetch(perims
-                                                   .prefetch_related(prefetch))
+            response_list = []
+            for perimeter in accesses_same_levels:
+                above_list = [int(i) for i in perimeter.above.split(",")]
+                above_list.remove(perimeter.id)
+                is_top = True
+                for check_id in all_distinct_perims:
+                    if check_id.id in above_list:
+                        is_top = False
+                if is_top:
+                    response_list.append(perimeter)
+            for perimeter in accesses_inf_levels:
+                above_list = [int(i) for i in perimeter.above.split(",")]
+                above_list.remove(perimeter.id)
+                is_top = True
+                for check_id in all_distinct_perims:
+                    if check_id.id in above_list:
+                        is_top = False
+                if is_top:
+                    children_list = [int(i) for i in perimeter.lower_levels.split(",")]
+                    Perimeter.objects.filter(id__in=children_list)
+                    response_list.append(perimeter)
 
-        q = q.prefetch_related(prefetch)
-
-        return Response(TreefiedPerimeterSerializer(q, many=True).data)
+        return Response(PerimeterSerializer(response_list, many=True).data)
 
     @swagger_auto_schema(
         manual_parameters=list(map(
