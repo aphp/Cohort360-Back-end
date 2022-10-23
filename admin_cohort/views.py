@@ -11,6 +11,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.debug import sensitive_post_parameters
+from django_filters import OrderingFilter
 from drf_yasg import openapi
 from drf_yasg.inspectors import SwaggerAutoSchema
 from rest_framework.decorators import action
@@ -108,38 +109,26 @@ class CustomLoggingMixin(LoggingMixin):
 
 class LogFilter(django_filters.FilterSet):
     def method_filter(self, queryset, field, value):
-        return queryset.filter(
-            **{f'{field}__in': str(value).upper().split(",")}
-        )
+        return queryset.filter(**{f'{field}__in': str(value).upper().split(",")})
 
     def status_code_filter(self, queryset, field, value):
-        return queryset.filter(
-            **{f'{field}__in': [int(v) for v in str(value).upper().split(",")]}
-        )
+        return queryset.filter(**{f'{field}__in': [int(v) for v in str(value).upper().split(",")]})
 
     method = django_filters.CharFilter(method='method_filter')
     status_code = django_filters.CharFilter(method='status_code_filter')
     requested_at = django_filters.DateTimeFromToRangeFilter()
     response_ms = django_filters.RangeFilter()
     # path = django_filters.CharFilter(lookup_expr='icontains')
-    path_contains = django_filters.CharFilter(
-        field_name='path', lookup_expr='icontains'
-    )
-    response = django_filters.CharFilter(
-        field_name='response', lookup_expr='icontains'
-    )
-    errors = django_filters.CharFilter(
-        field_name='errors', lookup_expr='icontains'
-    )
-    data = django_filters.CharFilter(
-        field_name='data', lookup_expr='icontains'
-    )
+    path_contains = django_filters.CharFilter(field_name='path', lookup_expr='icontains')
+    response = django_filters.CharFilter(field_name='response', lookup_expr='icontains')
+    errors = django_filters.CharFilter(field_name='errors', lookup_expr='icontains')
+    data = django_filters.CharFilter(field_name='data', lookup_expr='icontains')
+
+    ordering = OrderingFilter(fields=['requested_at'])
 
     class Meta:
         model = APIRequestLog
-        fields = [f.name for f in APIRequestLog._meta.fields] + [
-            'path_contains'
-        ]
+        fields = [f.name for f in APIRequestLog._meta.fields] + ['path_contains']
 
 
 def log_related_names(log_data: dict):
@@ -434,12 +423,7 @@ class UserViewSet(YarnReadOnlyViewsetMixin, BaseViewset):
     queryset = User.objects.all()
     lookup_field = "provider_username"
     filterset_fields = ['firstname', "lastname", "provider_username", "email"]
-    ordering_fields = (
-        "firstname",
-        "lastname",
-        "provider_username",
-        "email",
-    )
+    ordering_fields = ["firstname", "lastname", "provider_username", "email"]
     search_fields = ["firstname", "lastname", "provider_username", "email"]
 
     def get_serializer_context(self):
