@@ -33,68 +33,46 @@ from admin_cohort.views import BaseViewset, CustomLoggingMixin
 class AccessFilter(django_filters.FilterSet):
     def target_perimeter_filter(self, queryset, field, value):
         if value:
-            return queryset.filter(
-                (
-                        join_qs([Q(**{'perimeter' + i * '__children': value})
-                                 for i in range(1, len(PERIMETERS_TYPES))])
-                        & Role.impact_lower_levels_query('role')
-                ) | Q(perimeter=value))
-
+            return queryset.filter((join_qs([Q(**{'perimeter' + i * '__children': value})
+                                             for i in range(1, len(PERIMETERS_TYPES))])
+                                    & Role.impact_lower_levels_query('role'))
+                                   | Q(perimeter=value))
         return queryset
 
-    provider_email = django_filters.CharFilter(
-        lookup_expr="icontains", field_name="profile__email")
-    provider_lastname = django_filters.CharFilter(
-        lookup_expr="icontains", field_name="profile__lastname")
-    provider_firstname = django_filters.CharFilter(
-        lookup_expr="icontains", field_name="profile__firstname")
-    provider_source_value = django_filters.CharFilter(
-        lookup_expr="icontains", field_name="profile__user_id")
+    provider_email = django_filters.CharFilter(lookup_expr="icontains", field_name="profile__email")
+    provider_lastname = django_filters.CharFilter(lookup_expr="icontains", field_name="profile__lastname")
+    provider_firstname = django_filters.CharFilter(lookup_expr="icontains", field_name="profile__firstname")
+    provider_source_value = django_filters.CharFilter(lookup_expr="icontains", field_name="profile__user_id")
     provider_id = django_filters.CharFilter(field_name="profile__provider_id")
     provider_history_id = django_filters.CharFilter(field_name="profile_id")
 
-    profile_email = django_filters.CharFilter(
-        lookup_expr="icontains", field_name="profile__email")
-    profile_lastname = django_filters.CharFilter(
-        lookup_expr="icontains", field_name="profile__lastname")
-    profile_firstname = django_filters.CharFilter(
-        lookup_expr="icontains", field_name="profile__firstname")
-    profile_user_id = django_filters.CharFilter(
-        lookup_expr="icontains", field_name="profile__user__pk")
+    profile_email = django_filters.CharFilter(lookup_expr="icontains", field_name="profile__email")
+    profile_lastname = django_filters.CharFilter(lookup_expr="icontains", field_name="profile__lastname")
+    profile_firstname = django_filters.CharFilter(lookup_expr="icontains", field_name="profile__firstname")
+    profile_user_id = django_filters.CharFilter(lookup_expr="icontains", field_name="profile__user__pk")
     profile_id = django_filters.CharFilter(field_name="profile_id")
 
-    perimeter_name = django_filters.CharFilter(field_name="perimeter__name",
-                                               lookup_expr="icontains")
+    perimeter_name = django_filters.CharFilter(field_name="perimeter__name", lookup_expr="icontains")
     care_site_id = django_filters.CharFilter(field_name="perimeter_id")
-    # perimeter_id = django_filters.CharFilter(
-    #     method="perimeter_id_filter")
+    # perimeter_id = django_filters.CharFilter(method="perimeter_id_filter")
 
-    target_care_site_id = django_filters.CharFilter(
-        method="target_perimeter_filter")
-    target_perimeter_id = django_filters.CharFilter(
-        method="target_perimeter_filter")
+    target_care_site_id = django_filters.CharFilter(method="target_perimeter_filter")
+    target_perimeter_id = django_filters.CharFilter(method="target_perimeter_filter")
 
-    ordering = OrderingFilter(
-        fields=(
-            ('role__name', 'role_name'),
-            ('sql_actual_start_datetime', 'start_datetime'),
-            ('sql_actual_end_datetime', 'end_datetime'),
-            ('sql_is_valid', 'is_valid'),
-        )
-    )
+    ordering = OrderingFilter(fields=(('role__name', 'role_name'),
+                                      ('sql_start_datetime', 'start_datetimee'),
+                                      ('sql_end_datetime', 'end_datetimee'),
+                                      ('sql_is_valid', 'is_valid')))
 
     class Meta:
         model = Access
-        fields = (
-            "profile_email", "provider_email",
-            "profile_lastname", "provider_lastname",
-            "profile_firstname", "provider_firstname",
-            "profile_user_id", "provider_source_value",
-            "provider_id",
-            "profile_id", "provider_history_id",
-            "perimeter", "care_site_id",
-            "target_perimeter_id", "target_care_site_id",
-        )
+        fields = ("profile_email", "provider_email",
+                  "profile_lastname", "provider_lastname",
+                  "profile_firstname", "provider_firstname",
+                  "profile_user_id", "provider_source_value",
+                  "provider_id", "profile_id", "provider_history_id",
+                  "perimeter", "care_site_id",
+                  "target_perimeter_id", "target_care_site_id")
 
 
 class AccessViewSet(CustomLoggingMixin, BaseViewset):
@@ -105,13 +83,11 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
     logging_methods = ['POST', 'PUT', 'PATCH', 'DELETE']
     swagger_tags = ['Accesses - accesses']
 
-    search_fields = [
-        "profile__lastname",
-        "profile__firstname",
-        "perimeter__name",
-        "profile__email",
-        "profile__user__provider_username"
-    ]
+    search_fields = ["profile__lastname",
+                     "profile__firstname",
+                     "perimeter__name",
+                     "profile__email",
+                     "profile__user__provider_username"]
     filter_class = AccessFilter
 
     def get_permissions(self):
@@ -148,17 +124,15 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
 
     def filter_queryset(self, queryset):
         now = timezone.now()
-        queryset = queryset.annotate(
-            sql_start_datetime=Coalesce('manual_start_datetime',
-                                        'start_datetime'),
-            sql_end_datetime=Coalesce('manual_end_datetime', 'end_datetime')
-        ).annotate(
-            sql_is_valid=Case(
-                When(sql_start_datetime__lte=now,
-                     sql_end_datetime__gte=now, then=Value(True)),
-                default=Value(False), output_field=BooleanField()
-            )
-        )
+        queryset = queryset.annotate(sql_start_datetime=Coalesce('manual_start_datetime', 'start_datetime'),
+                                     sql_end_datetime=Coalesce('manual_end_datetime', 'end_datetime')
+                                     ).annotate(sql_is_valid=Case(When(sql_start_datetime__lte=now,
+                                                                       sql_end_datetime__gte=now,
+                                                                       then=Value(True)),
+                                                                  default=Value(False),
+                                                                  output_field=BooleanField()
+                                                                  )
+                                                )
         return super(AccessViewSet, self).filter_queryset(queryset)
 
     @swagger_auto_schema(
