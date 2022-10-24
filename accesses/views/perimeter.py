@@ -17,6 +17,7 @@ from admin_cohort.settings import PERIMETERS_TYPES
 from admin_cohort.tools import join_qs
 from admin_cohort.views import BaseViewset, YarnReadOnlyViewsetMixin, \
     SwaggerSimpleNestedViewSetMixin
+from ..tools.perimeter_process import get_top_perimeter_same_level, get_top_perimeter_inf_level
 
 
 class PerimeterFilter(django_filters.FilterSet):
@@ -59,26 +60,8 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
 
     @swagger_auto_schema(
         method='get',
-        operation_summary="Get the perimeters on which the user has at least "
+        operation_summary="Get the top hierarchy perimeters on which the user has at least "
                           "one role that allows to give accesses.",
-        manual_parameters=list(map(
-            lambda x: openapi.Parameter(
-                name=x[0], in_=openapi.IN_QUERY, description=x[1], type=x[2],
-                pattern=x[3] if len(x) == 4 else None
-            ), [
-                [
-                    "search",
-                    "Will search in multiple fields (care_site_name, "
-                    "care_site_type_source_value, care_site_source_value)",
-                    openapi.TYPE_STRING
-                ],
-                [
-                    "nb_levels",
-                    "Indicates the limit of children layers to reply.",
-                    openapi.TYPE_INTEGER
-                ],
-            ]
-        )),
         responses={
             '201': openapi.Response("manageable perimeters found",
                                     YasgTreefiedPerimeterSerializer()
@@ -91,42 +74,20 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
             self.request.user)
 
         if user_accesses.filter(Role.edit_on_any_level_query("role")).count():
-            # in that case, perims to retun is all perimeters
-            # and queryset result will only contain the top perimeters
+            # if edit on any level, we don't care about perimeters' accesses; return the top perimeter hierarchy:
             return Response(PerimeterSerializer(Perimeter.objects.filter(parent__isnull=True), many=True).data)
         else:
-            acc_ids = user_accesses.values_list("id", flat=True)
-            accesses_same_levels = [perimeter for perimeter in
-                                    user_accesses.filter(Role.edit_on_same_level_query("role"))]
-            accesses_inf_levels = [perimeter for perimeter
-                                   in user_accesses.filter(Role.edit_on_lower_levels_query("role"))]
+            access_same_level = [access for access in user_accesses.filter(Role.edit_on_same_level_query("role"))]
+            access_inf_level = [access for access in user_accesses.filter(Role.edit_on_lower_levels_query("role"))]
 
-            all_distinct_perims = list(set(accesses_same_levels + accesses_inf_levels))
-            all_ids = [p.id for p in all_distinct_perims]
+            all_perimeters = list(set([access.perimeter for access in access_same_level + access_inf_level]))
 
-            response_list = []
-            for perimeter in accesses_same_levels:
-                above_list = [int(i) for i in perimeter.above.split(",")]
-                above_list.remove(perimeter.id)
-                is_top = True
-                for check_id in all_distinct_perims:
-                    if check_id.id in above_list:
-                        is_top = False
-                if is_top:
-                    response_list.append(perimeter)
-            for perimeter in accesses_inf_levels:
-                above_list = [int(i) for i in perimeter.above.split(",")]
-                above_list.remove(perimeter.id)
-                is_top = True
-                for check_id in all_distinct_perims:
-                    if check_id.id in above_list:
-                        is_top = False
-                if is_top:
-                    children_list = [int(i) for i in perimeter.lower_levels.split(",")]
-                    Perimeter.objects.filter(id__in=children_list)
-                    response_list.append(perimeter)
+            top_perimeter_same_level = list(set(get_top_perimeter_same_level(access_same_level, all_perimeters)))
+            top_perimeter_inf_level = get_top_perimeter_inf_level(access_inf_level, all_perimeters,
+                                                                  top_perimeter_same_level)
 
-        return Response(PerimeterSerializer(response_list, many=True).data)
+        return Response(PerimeterSerializer(list(set(top_perimeter_inf_level + top_perimeter_same_level)),
+                                            many=True).data)
 
     @swagger_auto_schema(
         manual_parameters=list(map(

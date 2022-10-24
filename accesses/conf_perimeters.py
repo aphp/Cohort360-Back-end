@@ -6,7 +6,6 @@ from typing import List
 from django.db import models
 from django.db.models import Q, Max
 from django.utils import timezone
-
 from accesses.models import Perimeter, Access
 from admin_cohort import settings, app
 
@@ -274,7 +273,7 @@ def create_current_perimeter_level(care_site_id_list: List[int], care_site_objec
             children = get_children_care_site_list_by_id(care_site_objects, care_site.care_site_id)
 
             insert_update_perimeter_list_append(list_perimeter_to_create, list_perimeter_to_update,
-                                                existing_perimeters, care_site, (str(care_site.care_site_id), children),
+                                                existing_perimeters, care_site, ("", children),
                                                 current_perimeters)
             care_site_levels.append(care_site.care_site_type_source_value)
     log_insert_update(care_site_levels, current_perimeters, list_perimeter_to_create, list_perimeter_to_update)
@@ -328,9 +327,9 @@ def get_above_from_parent_perimeter(previous_perimeter_list: [Perimeter], care_s
     parent: [Perimeter] = [perimeter for perimeter in previous_perimeter_list if
                            perimeter.id == care_site.care_site_parent_id]
     if len(parent) == 0:
-        print(f"WARN: {care_site.care_site_id} has no previous perimeters wiht the same id")
+        print(f"WARN: {care_site.care_site_parent_id} has no previous perimeters wiht the same id")
         return ""
-    return parent[0].above + f",{care_site.care_site_id}"
+    return parent[0].above + f"{care_site.care_site_parent_id},"
 
 
 """
@@ -408,6 +407,8 @@ Bulk update data Perimeters
 
 
 def update_perimeter(list_perimeter_to_update: List[Perimeter]):
+    if len(list_perimeter_to_update) == 0:
+        return
     Perimeter.objects.bulk_update(list_perimeter_to_update,
                                   ["source_value", "name", "short_name", "type_source_value", "parent_id", "above",
                                    "lower_levels", "delete_datetime"])
@@ -419,7 +420,8 @@ Bulk update data Access
 
 
 def update_accesses(list_access_to_update: List[Perimeter]):
-    Access.objects.bulk_update(list_access_to_update, ["manual_end_datetime"])
+    if len(list_access_to_update) > 0:
+        Access.objects.bulk_update(list_access_to_update, ["manual_end_datetime"])
 
 
 """
@@ -428,6 +430,8 @@ Bulk create data Perimeters
 
 
 def insert_perimeter(list_perimeter_to_create: List[Perimeter]):
+    if len(list_perimeter_to_create) == 0:
+        return
     Perimeter.objects.bulk_create(list_perimeter_to_create)
 
 
