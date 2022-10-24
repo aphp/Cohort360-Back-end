@@ -29,3 +29,7 @@ class AuthBackend:
         request.jwt_refresh_key = tokens.refresh
         request.last_connection = tokens.last_connection
         return user
+
+    def get_user(self, user_id) -> User:
+        user: User = User.objects.get(provider_username=user_id)
+        return user
