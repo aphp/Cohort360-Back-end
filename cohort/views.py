@@ -1,4 +1,4 @@
-import django_filters
+from django_filters import rest_framework as filters
 from django.http import QueryDict
 from django_filters import OrderingFilter
 from drf_yasg import openapi
@@ -76,19 +76,19 @@ class UserObjectsRestrictedViewSet(BaseViewSet):
                 request.data[field_name] = request.data[field_name_with_id]
 
 
-class CohortFilter(django_filters.FilterSet):
-    name = django_filters.CharFilter(field_name='name', lookup_expr="icontains")
-    min_result_size = django_filters.NumberFilter(
+class CohortFilter(filters.FilterSet):
+    name = filters.CharFilter(field_name='name', lookup_expr="icontains")
+    min_result_size = filters.NumberFilter(
         field_name='dated_measure__measure', lookup_expr='gte')
-    max_result_size = django_filters.NumberFilter(
+    max_result_size = filters.NumberFilter(
         field_name='dated_measure__measure', lookup_expr='lte')
     # ?min_created_at=2015-04-23
-    min_fhir_datetime = django_filters.IsoDateTimeFilter(
+    min_fhir_datetime = filters.IsoDateTimeFilter(
         field_name='dated_measure__fhir_datetime', lookup_expr="gte")
-    max_fhir_datetime = django_filters.IsoDateTimeFilter(
+    max_fhir_datetime = filters.IsoDateTimeFilter(
         field_name='dated_measure__fhir_datetime', lookup_expr="lte")
-    request_job_status = django_filters.AllValuesMultipleFilter()
-    request_id = django_filters.CharFilter(
+    request_job_status = filters.AllValuesMultipleFilter()
+    request_id = filters.CharFilter(
         field_name='request_query_snapshot__request__pk')
 
     # unused, untested
@@ -100,9 +100,9 @@ class CohortFilter(django_filters.FilterSet):
         return queryset.filter(
             request_query_snapshot__perimeters_ids__contains=value.split(","))
 
-    type = django_filters.AllValuesMultipleFilter()
-    perimeter_id = django_filters.CharFilter(method="perimeter_filter")
-    perimeters_ids = django_filters.CharFilter(method="perimeters_filter")
+    type = filters.AllValuesMultipleFilter()
+    perimeter_id = filters.CharFilter(method="perimeter_filter")
+    perimeters_ids = filters.CharFilter(method="perimeters_filter")
 
     ordering = OrderingFilter(fields=(
         '-created_at',
@@ -145,7 +145,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
 
     pagination_class = LimitOffsetPagination
 
-    filter_class = CohortFilter
+    filterset_class = CohortFilter
     search_fields = ('$name', '$description',)
 
     def get_serializer_class(self):
@@ -189,22 +189,19 @@ class NestedCohortResultViewSet(SwaggerSimpleNestedViewSetMixin,
             request, *args, **kwargs)
 
 
-class DMFilter(django_filters.FilterSet):
-    ordering = OrderingFilter(fields=("-created_at", "modified_at",
-                                      "result_size"), )
-    request_id = django_filters.CharFilter(
-        field_name='request_query_snapshot__request__pk')
+class DMFilter(filters.FilterSet):
+    request_id = filters.CharFilter(field_name='request_query_snapshot__request__pk')
+    ordering = OrderingFilter(fields=("-created_at", "modified_at", "result_size"))
 
     class Meta:
         model = DatedMeasure
-        fields = (
-            'uuid',
-            'request_query_snapshot',
-            'mode',
-            'count_task_id',
-            'request_query_snapshot__request',
-            'request_id'
-        )
+        fields = ('uuid',
+                  'request_query_snapshot',
+                  'mode',
+                  'count_task_id',
+                  'request_query_snapshot__request',
+                  'request_id'
+                  )
 
 
 class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
@@ -345,7 +342,7 @@ class NestedDatedMeasureViewSet(SwaggerSimpleNestedViewSetMixin,
             request, *args, **kwargs)
 
 
-class RQSFilter(django_filters.FilterSet):
+class RQSFilter(filters.FilterSet):
     ordering = OrderingFilter(fields=('-created_at', 'modified_at'))
 
     class Meta:
@@ -454,7 +451,7 @@ class NestedRqsViewSet(SwaggerSimpleNestedViewSetMixin,
             .create(request, *args, **kwargs)
 
 
-class RequestFilter(django_filters.FilterSet):
+class RequestFilter(filters.FilterSet):
     ordering = OrderingFilter(fields=('name', 'created_at', 'modified_at',
                                       'favorite', 'data_type_of_query'))
 
@@ -474,8 +471,6 @@ class RequestViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     pagination_class = LimitOffsetPagination
 
     filterset_class = RequestFilter
-    filterset_fields = ('uuid', 'name', 'favorite', 'data_type_of_query',
-                        'parent_folder', 'shared_by')
     search_fields = ("$name", "$description",)
 
 
@@ -491,12 +486,12 @@ class NestedRequestViewSet(SwaggerSimpleNestedViewSetMixin, RequestViewSet):
             .create(request, *args, **kwargs)
 
 
-class FolderFilter(django_filters.FilterSet):
+class FolderFilter(filters.FilterSet):
     ordering = OrderingFilter(fields=('name', 'created_at', 'modified_at'))
 
     class Meta:
         model = Folder
-        fields = "__all__"
+        fields = ['uuid', 'name', 'parent_folder']
 
 
 class FolderViewSet(CustomLoggingMixin, NestedViewSetMixin,
@@ -510,6 +505,5 @@ class FolderViewSet(CustomLoggingMixin, NestedViewSetMixin,
     logging_methods = ['POST', 'PUT', 'PATCH', 'DELETE']
     pagination_class = LimitOffsetPagination
 
-    filter_class = FolderFilter
-    filterset_fields = ('uuid', 'name', 'parent_folder')
+    filterset_class = FolderFilter
     search_fields = ('$name', '$description',)

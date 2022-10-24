@@ -1,4 +1,4 @@
-import django_filters
+from django_filters import rest_framework as filters
 from django_filters import OrderingFilter
 from drf_yasg import openapi
 from drf_yasg.openapi import Schema
@@ -20,7 +20,7 @@ from workspaces.serializers import AccountSerializer, JupyterMachineSerializer, 
                                    LdapGroupSerializer, KernelSerializer, ProjectSerializer, PublicProjectSerializer
 
 
-class AccountFilter(django_filters.FilterSet):
+class AccountFilter(filters.FilterSet):
     def search_filter(self, queryset, field, value):
         return queryset.filter(**{f'{field}__icontains': str(value)})
 
@@ -30,13 +30,13 @@ class AccountFilter(django_filters.FilterSet):
     def include_distinct(self, queryset, field, value):
         return queryset.filter(**{f'{field}__in': [int(v) for v in str(value).upper().split(",")]}).distinct()
 
-    kernels = django_filters.CharFilter(method="include_distinct")
-    jupyter_machines = django_filters.CharFilter(method="include_distinct")
-    ldap_groups = django_filters.CharFilter(method="include_distinct")
-    ranger_hive_policy = django_filters.CharFilter(method="include_distinct")
-    aphp_ldap_group_dn_search = django_filters.CharFilter(lookup_expr="icontains")
+    kernels = filters.CharFilter(method="include_distinct")
+    jupyter_machines = filters.CharFilter(method="include_distinct")
+    ldap_groups = filters.CharFilter(method="include_distinct")
+    ranger_hive_policy = filters.CharFilter(method="include_distinct")
+    aphp_ldap_group_dn_search = filters.CharFilter(lookup_expr="icontains")
 
-    ordering = OrderingFilter(fields=["username", "name", "firstname", "lastname", "mail"])
+    ordering = OrderingFilter(fields=("username", "name", "firstname", "lastname", "mail"))
 
     class Meta:
         model = Account
@@ -47,7 +47,7 @@ class AccountViewset(YarnReadOnlyViewsetMixin, viewsets.ModelViewSet):
     serializer_class = AccountSerializer
     queryset = Account.objects.all()
     lookup_field = "uid"
-    filter_class = AccountFilter
+    filterset_class = AccountFilter
     search_fields = ["username", "name", "firstname", "lastname", "mail"]
     swagger_tags = ['Workspaces - users']
 
