@@ -28,7 +28,6 @@ def check_date_rules(
         old_start_datetime: Optional[datetime] = None,
         old_end_datetime: Optional[datetime] = None
 ):
-
     if old_start_datetime is not None:
         # first accesses, added with SQL, may be "naive" (without timezone info)
         old_start = timezone.get_current_timezone().localize(
@@ -219,17 +218,17 @@ def fix_profile_entries(validated_data, for_create: bool = False):
                 " et 'manual_valid_start_datetime' différents"
             )
         else:
-            validated_data["manual_valid_start_datetime"] =\
+            validated_data["manual_valid_start_datetime"] = \
                 valid_start_datetime if valid_start_datetime is not None \
-                else MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE
+                    else MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE
     elif manual_valid_start_datetime != -1:
-        validated_data["manual_valid_start_datetime"] =\
+        validated_data["manual_valid_start_datetime"] = \
             manual_valid_start_datetime \
-            if manual_valid_start_datetime is not None \
-            else MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE
+                if manual_valid_start_datetime is not None \
+                else MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE
 
     if valid_end_datetime != -1:
-        if manual_valid_end_datetime != -1\
+        if manual_valid_end_datetime != -1 \
                 and valid_end_datetime != manual_valid_end_datetime:
             raise ValidationError(
                 "Vous ne pouvez pas fournir à la fois 'valid_end_datetime'"
@@ -240,9 +239,9 @@ def fix_profile_entries(validated_data, for_create: bool = False):
                 if valid_end_datetime is not None \
                 else MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE
     elif manual_valid_end_datetime != -1:
-        validated_data["manual_valid_end_datetime"] =\
+        validated_data["manual_valid_end_datetime"] = \
             manual_valid_end_datetime if manual_valid_end_datetime is not None \
-            else MODEL_MANUAL_END_DATE_DEFAULT_ON_UPDATE
+                else MODEL_MANUAL_END_DATE_DEFAULT_ON_UPDATE
 
     return validated_data
 
@@ -388,7 +387,7 @@ class ProfileSerializer(BaseSerializer):
             check_profile_entries(validated_data, True)
             validated_data = fix_profile_entries(validated_data)
 
-        return super(ProfileSerializer, self)\
+        return super(ProfileSerializer, self) \
             .update(instance, validated_data)
 
 
@@ -458,10 +457,26 @@ class PerimeterSerializer(serializers.ModelSerializer):
         model = Perimeter
         abstract = True
         # fields = "__all__"
-        exclude = ["parent"]
+        exclude = ["parent", "above", "lower_levels"]
 
 
-# todo : remove when ready with perimeter
+"""
+Serializer with minimal config field for perimeters/manageable path
+"""
+
+
+class PerimeterLightSerializer(serializers.ModelSerializer):
+    parent_id = serializers.CharField(read_only=True, allow_null=True)
+    type = serializers.CharField(allow_null=True, source='type_source_value')
+
+    class Meta:
+        model = Perimeter
+        abstract = True
+        # fields = "__all__"
+        exclude = ["parent", "above", "lower_levels", "insert_datetime", "delete_datetime", "local_id", "short_name",
+                   "type_source_value", "update_datetime"]
+
+
 class CareSiteSerializer(serializers.Serializer):
     care_site_id = serializers.CharField(read_only=True)
     care_site_name = serializers.CharField(read_only=True)

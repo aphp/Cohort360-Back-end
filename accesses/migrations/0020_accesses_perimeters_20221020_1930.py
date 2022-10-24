@@ -5,7 +5,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accesses', '0020_caresite_concept_provider'),
+        ('accesses', '0019_auto_20220628_1728'),
     ]
     operations = [
         migrations.AddField(
