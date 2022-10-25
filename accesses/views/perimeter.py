@@ -65,7 +65,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
                           "- Inferior level right give only access to children of current perimeter.",
         responses={
             '201': openapi.Response("manageable perimeters found",
-                                    YasgTreefiedPerimeterSerializer()
+                                    PerimeterLightSerializer()
                                     ),
         }
     )
@@ -149,7 +149,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
                 q.prefetch_related(prefetch))
 
         res = res.prefetch_related(prefetch)
-        return Response(TreefiedPerimeterSerializer(res, many=True).data)
+        return Response(TreefieYasgTreefiedPerimeterSerializerdPerimeterSerializer(res, many=True).data)
 
 
 class NestedPerimeterViewSet(SwaggerSimpleNestedViewSetMixin, PerimeterViewSet):
