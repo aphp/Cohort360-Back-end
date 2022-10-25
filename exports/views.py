@@ -1,6 +1,6 @@
 import http
 
-import django_filters
+from django_filters import rest_framework as filters
 from django.http import HttpResponse, StreamingHttpResponse
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
@@ -35,14 +35,12 @@ import logging as lg
 _logger = lg.getLogger(__name__)
 
 
-class UserFilter(django_filters.FilterSet):
+class UserFilter(filters.FilterSet):
     def provider_source_value_filter(self, queryset, field, value):
-        return queryset.filter(
-            aphp_ldap_group_dn__in=get_account_groups_from_id_aph(value))
+        return queryset.filter(aphp_ldap_group_dn__in=get_account_groups_from_id_aph(value))
 
-    provider_source_value = django_filters.CharFilter(
-        field_name='provider_source_value',
-        method="provider_source_value_filter")
+    provider_source_value = filters.CharFilter(field_name='provider_source_value',
+                                               method="provider_source_value_filter")
 
     class Meta:
         model = Account
@@ -55,7 +53,7 @@ class UsersViewSet(AccountViewset):
     http_method_names = ["get"]
 
     swagger_tags = ['Exports - users']
-    filter_class = UserFilter
+    filterset_class = UserFilter
 
     def get_permissions(self):
         return OR(AnnexesPermissions(),
@@ -74,7 +72,7 @@ class UsersViewSet(AccountViewset):
         return super(UsersViewSet, self).list(request, *args, **kwargs)
 
 
-class CohortFilter(django_filters.FilterSet):
+class CohortFilter(filters.FilterSet):
     class Meta:
         model = CohortResult
         fields = ('owner_id',)
@@ -89,7 +87,7 @@ class CohortViewSet(viewsets.ModelViewSet):
     )
 
     swagger_tags = ['Exports - cohorts']
-    filter_class = CohortFilter
+    filterset_class = CohortFilter
     search_fields = ('$name', '$description',)
 
     def get_permissions(self):
@@ -121,7 +119,7 @@ class CohortViewSet(viewsets.ModelViewSet):
         return super(CohortViewSet, self).list(request, *args, **kwargs)
 
 
-class ExportRequestFilter(django_filters.FilterSet):
+class ExportRequestFilter(filters.FilterSet):
     class Meta:
         model = ExportRequest
         fields = ('output_format', 'request_job_status', 'creator_fk')

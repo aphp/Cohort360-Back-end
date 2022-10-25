@@ -1,4 +1,5 @@
-import django_filters
+from django_filters import rest_framework as filters
+from django_filters import OrderingFilter
 
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
@@ -14,8 +15,10 @@ from admin_cohort.permissions import IsAuthenticated
 from admin_cohort.views import BaseViewset, CustomLoggingMixin
 
 
-class RoleFilter(django_filters.FilterSet):
-    name = django_filters.CharFilter(lookup_expr="icontains")
+class RoleFilter(filters.FilterSet):
+    name = filters.CharFilter(lookup_expr="icontains")
+
+    ordering = OrderingFilter(fields=('name',))
 
     class Meta:
         model = Role
@@ -29,7 +32,7 @@ class RoleViewSet(CustomLoggingMixin, BaseViewset):
     logging_methods = ['POST', 'PUT', 'PATCH', 'DELETE']
 
     swagger_tags = ['Accesses - roles']
-    filter_class = RoleFilter
+    filterset_class = RoleFilter
 
     def get_permissions(self):
         return [AND(IsAuthenticated(), RolePermissions())]

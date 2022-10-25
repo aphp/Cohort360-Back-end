@@ -1,4 +1,5 @@
-import django_filters
+from django_filters import rest_framework as filters
+from django_filters import OrderingFilter
 from drf_yasg import openapi
 from drf_yasg.openapi import Schema
 from drf_yasg.utils import swagger_auto_schema
@@ -13,36 +14,29 @@ from admin_cohort.permissions import OR, user_is_authenticated, IsAuthenticated
 from admin_cohort.settings import RANGER_HIVE_POLICY_TYPES
 from admin_cohort.views import YarnReadOnlyViewsetMixin
 from workspaces.conf_workspaces import get_account_groups_from_id_aph
-from workspaces.models import Account, Project, JupyterMachine, \
-    RangerHivePolicy, LdapGroup, Kernel
+from workspaces.models import Account, Project, JupyterMachine, RangerHivePolicy, LdapGroup, Kernel
 from workspaces.permissions import AccountPermissions
-from workspaces.serializers import AccountSerializer, \
-    JupyterMachineSerializer, RangerHivePolicySerializer, LdapGroupSerializer, \
-    KernelSerializer, ProjectSerializer, PublicProjectSerializer
+from workspaces.serializers import AccountSerializer, JupyterMachineSerializer, RangerHivePolicySerializer, \
+                                   LdapGroupSerializer, KernelSerializer, ProjectSerializer, PublicProjectSerializer
 
 
-class AccountFilter(django_filters.FilterSet):
+class AccountFilter(filters.FilterSet):
     def search_filter(self, queryset, field, value):
-        return queryset.filter(
-            **{f'{field}__icontains': str(value)}
-        )
+        return queryset.filter(**{f'{field}__icontains': str(value)})
 
     def status_code_filter(self, queryset, field, value):
-        return queryset.filter(
-            **{f'{field}__in': [int(v) for v in str(value).upper().split(",")]}
-        )
+        return queryset.filter(**{f'{field}__in': [int(v) for v in str(value).upper().split(",")]})
 
     def include_distinct(self, queryset, field, value):
-        return queryset.filter(
-            **{f'{field}__in': [int(v) for v in str(value).upper().split(",")]}
-        ).distinct()
+        return queryset.filter(**{f'{field}__in': [int(v) for v in str(value).upper().split(",")]}).distinct()
 
-    kernels = django_filters.CharFilter(method="include_distinct")
-    jupyter_machines = django_filters.CharFilter(method="include_distinct")
-    ldap_groups = django_filters.CharFilter(method="include_distinct")
-    ranger_hive_policy = django_filters.CharFilter(method="include_distinct")
-    aphp_ldap_group_dn_search = django_filters.CharFilter(
-        lookup_expr="icontains")
+    kernels = filters.CharFilter(method="include_distinct")
+    jupyter_machines = filters.CharFilter(method="include_distinct")
+    ldap_groups = filters.CharFilter(method="include_distinct")
+    ranger_hive_policy = filters.CharFilter(method="include_distinct")
+    aphp_ldap_group_dn_search = filters.CharFilter(lookup_expr="icontains")
+
+    ordering = OrderingFilter(fields=("username", "name", "firstname", "lastname", "mail"))
 
     class Meta:
         model = Account
@@ -53,22 +47,8 @@ class AccountViewset(YarnReadOnlyViewsetMixin, viewsets.ModelViewSet):
     serializer_class = AccountSerializer
     queryset = Account.objects.all()
     lookup_field = "uid"
-    filter_class = AccountFilter
-    search_fields = [
-        "username",
-        "name",
-        "firstname",
-        "lastname",
-        "mail",
-    ]
-    ordering_fields = [
-        "username",
-        "name",
-        "firstname",
-        "lastname",
-        "mail",
-    ]
-
+    filterset_class = AccountFilter
+    search_fields = ["username", "name", "firstname", "lastname", "mail"]
     swagger_tags = ['Workspaces - users']
 
     def get_serializer_context(self):
@@ -108,7 +88,7 @@ class AccountViewset(YarnReadOnlyViewsetMixin, viewsets.ModelViewSet):
                 ],
                 [
                     "ordering",
-                    f"To sort the result. Can be {', '.join(ordering_fields)}. "
+                    f"To sort the result. Can be {', '.join(['username', 'name', 'firstname', 'lastname', 'mail'])}."
                     f"Use -field for descending order", openapi.TYPE_STRING
                 ],
             ])))
