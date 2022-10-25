@@ -416,13 +416,19 @@ class MaintenancePhaseViewSet(viewsets.ModelViewSet):
         return Response(d)
 
 
+class UserFilter(filters.FilterSet):
+    ordering = OrderingFilter(fields=('firstname', "lastname", "provider_username", "email"))
+
+    class Meta:
+        model = User
+        fields = ['firstname', "lastname", "provider_username", "email"]
+
+
 class UserViewSet(YarnReadOnlyViewsetMixin, BaseViewset):
     queryset = User.objects.all()
     lookup_field = "provider_username"
-    # this works only for basic equality filtering. Instead, declare a filter class and define lookups expressions
-    filterset_fields = ['firstname', "lastname", "provider_username", "email"]
-    ordering_fields = ["firstname", "lastname", "provider_username", "email"]
     search_fields = ["firstname", "lastname", "provider_username", "email"]
+    filterset_class = UserFilter
 
     def get_serializer_context(self):
         return {'request': self.request}
