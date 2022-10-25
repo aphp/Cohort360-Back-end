@@ -1,4 +1,4 @@
-import django_filters
+from django_filters import rest_framework as filters, OrderingFilter
 from django.db.models import Q
 
 from drf_yasg import openapi
@@ -19,21 +19,25 @@ from admin_cohort.views import BaseViewset, YarnReadOnlyViewsetMixin, \
 from ..tools.perimeter_process import get_top_perimeter_same_level, get_top_perimeter_inf_level
 
 
-class PerimeterFilter(django_filters.FilterSet):
-    care_site_name = django_filters.CharFilter(field_name='name')
-    care_site_type_source_value = django_filters.CharFilter(field_name='type_source_value')
-    care_site_source_value = django_filters.CharFilter(field_name='source_value')
-    care_site_id = django_filters.CharFilter(field_name='id')
-    name = django_filters.CharFilter(lookup_expr='icontains')
-    source_value = django_filters.CharFilter(lookup_expr='icontains')
+class PerimeterFilter(filters.FilterSet):
+    # care_site_name = filters.CharFilter(field_name='name')
+    # care_site_type_source_value = filters.CharFilter(field_name='type_source_value')
+    # care_site_source_value = filters.CharFilter(field_name='source_value')
+    # care_site_id = filters.CharFilter(field_name='id')
+    name = filters.CharFilter(lookup_expr='icontains')
+    source_value = filters.CharFilter(lookup_expr='icontains')
+
+    ordering = OrderingFilter(fields=(('name', 'care_site_name'),
+                                      ('type_source_value', 'care_site_type_source_value'),
+                                      ('source_value', 'care_site_source_value')))
 
     class Meta:
         model = Perimeter
         fields = (
-            "care_site_name",
-            "care_site_type_source_value",
-            "care_site_source_value",
-            "care_site_id",
+            # "care_site_name",
+            # "care_site_type_source_value",
+            # "care_site_source_value",
+            # "care_site_id",
             "name",
             "type_source_value",
             "source_value",
@@ -49,10 +53,6 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
 
     swagger_tags = ['Accesses - perimeters']
     filterset_class = PerimeterFilter
-    # todo : check if works with param name
-    ordering_fields = [('care_site_name', 'name'),
-                       ('care_site_type_source_value', 'type_source_value'),
-                       ('care_site_source_value', 'source_value')]
     search_fields = ["name",
                      "type_source_value",
                      "source_value"]

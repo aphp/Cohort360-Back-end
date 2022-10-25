@@ -472,7 +472,6 @@ def get_cohort_perimeters(cohort_id: int, token: str) -> List[str]:
 # FILES EXTRACT ###############################################################
 
 HDFS_SERVERS = env("HDFS_SERVERS").split(',')
-# HDFS_EXPORTS_BASE_PATH = env("HDFS_EXPORTS_BASE_PATH")
 
 
 HDFS_CLIENTS_DICT = {
@@ -509,7 +508,6 @@ def get_client():
 
 
 def build_path(file_name: str) -> str:
-    # return f"{HDFS_EXPORTS_BASE_PATH}{file_name}"
     return file_name
 
 

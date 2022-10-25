@@ -1,6 +1,5 @@
-import django_filters
 from django.db.models import Q
-
+from django_filters import rest_framework as filters
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
@@ -19,16 +18,16 @@ from admin_cohort.views import BaseViewset, CustomLoggingMixin
 from admin_cohort.models import User
 
 
-class ProfileFilter(django_filters.FilterSet):
-    provider_source_value = django_filters.CharFilter(field_name="user")
-    provider_name = django_filters.CharFilter(lookup_expr="icontains")
-    lastname = django_filters.CharFilter(lookup_expr="icontains")
-    firstname = django_filters.CharFilter(lookup_expr="icontains")
-    email = django_filters.CharFilter(lookup_expr="icontains")
+class ProfileFilter(filters.FilterSet):
+    provider_source_value = filters.CharFilter(field_name="user")
+    provider_name = filters.CharFilter(lookup_expr="icontains")
+    lastname = filters.CharFilter(lookup_expr="icontains")
+    firstname = filters.CharFilter(lookup_expr="icontains")
+    email = filters.CharFilter(lookup_expr="icontains")
 
-    provider_history_id = django_filters.NumberFilter(field_name='id')
+    provider_history_id = filters.NumberFilter(field_name='id')
 
-    cdm_source = django_filters.CharFilter(field_name='source')
+    cdm_source = filters.CharFilter(field_name='source')
 
     class Meta:
         model = Profile
@@ -54,11 +53,8 @@ class ProfileViewSet(CustomLoggingMixin, BaseViewset):
     ]
 
     swagger_tags = ['Accesses - profiles']
-    filter_class = ProfileFilter
+    filterset_class = ProfileFilter
     search_fields = ["lastname", "firstname", "email", "user_id"]
-
-    # search_fields = [
-    #     "p.provider_name", "p.lastname", "p.firstname", "p.email", "p.user_id"]
 
     def get_serializer_class(self):
         return (
