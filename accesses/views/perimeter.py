@@ -149,7 +149,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
                 q.prefetch_related(prefetch))
 
         res = res.prefetch_related(prefetch)
-        return Response(TreefieYasgTreefiedPerimeterSerializerdPerimeterSerializer(res, many=True).data)
+        return Response(TreefiedPerimeterSerializer(res, many=True).data)
 
 
 class NestedPerimeterViewSet(SwaggerSimpleNestedViewSetMixin, PerimeterViewSet):
