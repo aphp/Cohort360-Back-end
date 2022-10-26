@@ -1,4 +1,4 @@
-from accesses.models import *
+from accesses.models import Perimeter, Access
 
 
 def string_to_int_list(str_list: str) -> [int]:
@@ -34,7 +34,7 @@ def is_perimeter_in_top_hierarchy(above_list: [int], all_distinct_perimeters: [P
 """
 for each perimeter in same level access we get the above perimeter list.
 if we find an id in this list one id already present in another access, it is meaning this perimeter is not a top of
-roles perimeter hierarchy of user. 
+roles perimeter hierarchy of user.
 if it is, we add current id to the list
 
 We consider a right on a same level equal to right on the current level and all children
@@ -56,13 +56,13 @@ def get_top_perimeter_same_level(accesses_same_levels: [Access], all_distinct_pe
 """
 for each perimeter in inferior level access we get the above perimeter list.
 if we find an id in this list one id already present in another access, it is meaning this perimeter is not a top of
-roles perimeter hierarchy of user. 
+roles perimeter hierarchy of user.
 if it is, we add all children perimeter id to the list
 """
 
 
-def get_top_perimeter_inf_level(accesses_inf_levels: [Access], all_distinct_perimeters: [Perimeter]
-                                , same_level_perimeters_response: [Perimeter]) -> [Perimeter]:
+def get_top_perimeter_inf_level(accesses_inf_levels: [Access], all_distinct_perimeters: [Perimeter],
+                                same_level_perimeters_response: [Perimeter]) -> [Perimeter]:
     response_list = []
     for access in accesses_inf_levels:
         perimeter = access.perimeter

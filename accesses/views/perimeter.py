@@ -86,7 +86,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
                                                                   top_perimeter_same_level)
 
         return Response(PerimeterLiteSerializer(list(set(top_perimeter_inf_level + top_perimeter_same_level)),
-                                                 many=True).data)
+                                                many=True).data)
 
     @swagger_auto_schema(
         manual_parameters=list(map(

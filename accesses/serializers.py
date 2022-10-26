@@ -218,13 +218,10 @@ def fix_profile_entries(validated_data, for_create: bool = False):
             )
         else:
             validated_data["manual_valid_start_datetime"] = \
-                valid_start_datetime if valid_start_datetime is not None \
-                    else MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE
+                valid_start_datetime if valid_start_datetime is not None else MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE
     elif manual_valid_start_datetime != -1:
-        validated_data["manual_valid_start_datetime"] = \
-            manual_valid_start_datetime \
-                if manual_valid_start_datetime is not None \
-                else MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE
+        validated_data["manual_valid_start_datetime"] = manual_valid_start_datetime if \
+            manual_valid_start_datetime is not None else MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE
 
     if valid_end_datetime != -1:
         if manual_valid_end_datetime != -1 \
@@ -238,9 +235,8 @@ def fix_profile_entries(validated_data, for_create: bool = False):
                 if valid_end_datetime is not None \
                 else MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE
     elif manual_valid_end_datetime != -1:
-        validated_data["manual_valid_end_datetime"] = \
-            manual_valid_end_datetime if manual_valid_end_datetime is not None \
-                else MODEL_MANUAL_END_DATE_DEFAULT_ON_UPDATE
+        validated_data["manual_valid_end_datetime"] = manual_valid_end_datetime if \
+            manual_valid_end_datetime is not None else MODEL_MANUAL_END_DATE_DEFAULT_ON_UPDATE
 
     return validated_data
 

@@ -218,7 +218,7 @@ def psql_query_care_site_relationship(top_care_site_ids: list) -> str:
             AND frr.domain_concept_id_1={cs_domain_concept_id}
             AND frr.domain_concept_id_2={cs_domain_concept_id}
             AND frr.relationship_concept_id={is_part_of_rel_id}
-            AND css.care_site_type_source_value IN ({str(settings.PERIMETERS_TYPES)[1:-1]})          
+            AND css.care_site_type_source_value IN ({str(settings.PERIMETERS_TYPES)[1:-1]})
             AND css.delete_datetime IS NULL
             AND frr.delete_datetime IS NULL
             ))
@@ -529,7 +529,7 @@ def get_all_perimeters_with_no_valid_care_site(existing_perimeters: List[Perimet
 
 
 """
-return a String list of all direct children care sites 
+return a String list of all direct children care sites
 """
 
 
