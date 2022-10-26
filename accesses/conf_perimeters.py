@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import os
-
 from typing import List
+
 from django.db import models
 from django.db.models import Q, Max
 from django.utils import timezone
@@ -14,18 +14,18 @@ from admin_cohort import settings, app
 This script define 3 data models and the function which will refresh by insert/update all modified Perimeters objects.
 
 One Perimeter is built with care site information and the relation with other care site in the hierarchy of services.
-In our case, all Perimeters and the service hierarchy are in omop tables. We have to fetch informations 
+In our case, all Perimeters and the service hierarchy are in omop tables. We have to fetch information
 from those tables, saved its in data models and apply logical rule to build again all perimeters.
 
 New Data Models:
-- Provider: the user object reference. it will be mapped by omop.provider, it contains user informations id, name etc...
-- CareSite: the medical service reference. it will be mapped by omop.care_site, it contains user informations like 
+- Provider: the user object reference. it will be mapped by omop.provider, it contains user information id, name etc...
+- CareSite: the medical service reference. it will be mapped by omop.care_site, it contains user information like
   care site id, care site name, type of care site (if it is an hospital lower or bigger service) etc...
-- Concept: the translation of reference concept table from omop. It used to get technical id from concept label 
+- Concept: the translation of reference concept table from omop. It used to get technical id from concept label
   (concept name) to finally apply filter on other table.
 
 Care site Hierarchy: each care site must have a type, which correspond to the "level" of this care site in the hierarchy
-It is a mono-hierarchy => one parent maximum for 1.n children 
+It is a mono-hierarchy => one parent maximum for 1.n children
 
 1) With build PSQL Query with Concept result filter, and fetch care_site and relation between them in CareSite objects
 2) We generate Perimeters objects ordering by desc in hierarchy logic (from the top level to leafs)
@@ -54,8 +54,8 @@ settings.DATABASES.__setitem__(
 Model Manager init
 It used to simplify sql SELECT query and Model Mapping
 
-for example in Concept => Concept.object.get(concept_name='My name') is equivalent to 
-Concept.object.raw("SELECT * FROM omop.concept WHERE concept_name='My name';")  
+for example in Concept => Concept.object.get(concept_name='My name') is equivalent to
+Concept.object.raw("SELECT * FROM omop.concept WHERE concept_name='My name';")
 """
 
 
@@ -199,11 +199,11 @@ def psql_query_care_site_relationship(top_care_site_ids: list) -> str:
             cs.care_site_source_value,
             NULL as care_site_parent_id
             FROM omop.care_site cs
-            WHERE (cs.care_site_id IN ({str(top_care_site_ids)[1:-1]}) 
+            WHERE (cs.care_site_id IN ({str(top_care_site_ids)[1:-1]})
             AND cs.delete_datetime IS NULL
             )
             UNION
-            SELECT 
+            SELECT
             css.care_site_id,
             css.care_site_name,
             css.care_site_short_name,
@@ -213,12 +213,12 @@ def psql_query_care_site_relationship(top_care_site_ids: list) -> str:
             FROM omop.care_site css
             INNER JOIN omop.fact_relationship frr
             ON css.care_site_id=frr.fact_id_1
-            WHERE ( 
-            frr.fact_id_1!=frr.fact_id_2 
+            WHERE (
+            frr.fact_id_1!=frr.fact_id_2
             AND frr.domain_concept_id_1={cs_domain_concept_id}
             AND frr.domain_concept_id_2={cs_domain_concept_id}
             AND frr.relationship_concept_id={is_part_of_rel_id}
-            AND css.care_site_type_source_value IN ({str(settings.PERIMETERS_TYPES)[1:-1]})            
+            AND css.care_site_type_source_value IN ({str(settings.PERIMETERS_TYPES)[1:-1]})          
             AND css.delete_datetime IS NULL
             AND frr.delete_datetime IS NULL
             ))
@@ -379,7 +379,7 @@ def insert_perimeter(list_perimeter_to_create: List[Perimeter]):
 
 
 """
-Return simple mapping of care_site and delete_datetime in dictionary 
+Return simple mapping of care_site and delete_datetime in dictionary
 """
 
 
@@ -395,7 +395,7 @@ def get_dict_deleted_care_site() -> dict:
 
 """
 Update perimeters with the correct delete_datetime:
-- 2 checks: if perimeter is associated with deleted care_site 
+- 2 checks: if perimeter is associated with deleted care_site
             if perimeter get reference not in valid care_site hierarchy
 """
 
@@ -414,7 +414,7 @@ def delete_perimeters_and_accesses(existing_perimeters: List[Perimeter], all_val
 
 
 """
-get boolean filter if manual or end date is not superior 
+get boolean filter if manual or end date is not superior
 """
 
 
@@ -472,7 +472,7 @@ def get_all_perimeters_with_no_valid_care_site(existing_perimeters: List[Perimet
 
 """
 Main function to recreate all Perimeters:
-the update run in "INSERT/UPDATE/DELETE" mode (delta). 
+the update run in "INSERT/UPDATE/DELETE" mode (delta).
 
 process steps:
 1) Get list of top care site hierarchy
