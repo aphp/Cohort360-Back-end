@@ -230,7 +230,8 @@ Mapping between care_site object to Perimeter Model
 """
 
 
-def map_to_perimeter(care_site_object: CareSite):
+def map_to_perimeter(care_site_object: CareSite, above_and_children: tuple):
+    above_value, children_value = above_and_children
     return Perimeter(
         id=care_site_object.care_site_id,
         local_id=str(care_site_object.care_site_id),
@@ -238,8 +239,17 @@ def map_to_perimeter(care_site_object: CareSite):
         name=care_site_object.care_site_name,
         short_name=care_site_object.care_site_short_name,
         type_source_value=care_site_object.care_site_type_source_value,
-        parent_id=care_site_object.care_site_parent_id
+        parent_id=care_site_object.care_site_parent_id,
+        above_levels_ids=above_value,
+        bellow_levels_ids=children_value
     )
+
+
+def log_insert_update(care_site_levels, new_previous_level_list, list_perimeter_to_create, list_perimeter_to_update):
+    print(f"Process at levels: {set(care_site_levels)}"
+          f"\n- Perimeters already existing: {len(new_previous_level_list)}"
+          f"\n- Perimeters to Create: {len(list_perimeter_to_create)} "
+          f"\n- Perimeters to update: {len(list_perimeter_to_update)} ")
 
 
 """
@@ -247,8 +257,8 @@ Method to create perimeters at the top of hierarchy
 """
 
 
-def create_current_perimeter_level(care_site_id_list: List[int], care_site_objects: List[CareSite],
-                                   existing_perimeters: List[Perimeter] = None):
+def create_current_perimeter_level(care_site_id_list: List[int], care_site_objects: [CareSite],
+                                   existing_perimeters: [Perimeter]) -> [Perimeter]:
     # init var
     if existing_perimeters is None:
         existing_perimeters = list()
@@ -256,22 +266,35 @@ def create_current_perimeter_level(care_site_id_list: List[int], care_site_objec
     list_perimeter_to_create = []
     list_perimeter_to_update = []
     care_site_levels = []
-
+    current_perimeters = []
     # for every care_site where id is in current id list we map to perimeter and add it to a list
     for care_site in care_site_objects:
         if care_site.care_site_id in care_site_id_list:
-            insert_update_perimeter_list_append(list_perimeter_to_create, list_perimeter_to_update,
-                                                existing_perimeters, care_site)
-            care_site_levels.append(care_site.care_site_type_source_value)
+            # Get from the rest of  CareSite objects direct children care site ids
+            children = get_children_care_site_list_by_id(care_site_objects, care_site.care_site_id)
 
-    print(f"Creation of top hierarchy perimeters: {str(care_site_id_list)} "
-          f" - size created object list: {len(list_perimeter_to_create)}"
-          f" - size updating object list: {len(list_perimeter_to_update)}"
-          f" - levels: {set(care_site_levels)}")
+            insert_update_perimeter_list_append(list_perimeter_to_create, list_perimeter_to_update,
+                                                existing_perimeters, care_site, ("", children),
+                                                current_perimeters)
+            care_site_levels.append(care_site.care_site_type_source_value)
+    log_insert_update(care_site_levels, current_perimeters, list_perimeter_to_create, list_perimeter_to_update)
 
     # INSERT/UPDATE PERIMETERS
     insert_perimeter(list_perimeter_to_create)
     update_perimeter(list_perimeter_to_update)
+    return current_perimeters + list_perimeter_to_create + list_perimeter_to_update
+
+
+def is_care_site_different_from_perimeter(care_site: CareSite, perimeter: Perimeter, above_and_children: tuple):
+    if care_site.care_site_parent_id != perimeter.parent_id or \
+            care_site.care_site_type_source_value != perimeter.type_source_value or \
+            care_site.care_site_name != perimeter.name or \
+            care_site.care_site_short_name != perimeter.short_name or \
+            care_site.delete_datetime != perimeter.delete_datetime or \
+            above_and_children[0] != perimeter.above_levels_ids or \
+            above_and_children[1] != perimeter.bellow_levels_ids:
+        return True
+    return False
 
 
 """
@@ -280,12 +303,34 @@ it append in 2 respective list perimeters object.
 """
 
 
-def insert_update_perimeter_list_append(insert_list: List[Perimeter], update_list: List[Perimeter],
-                                        existing_perimeters: List[Perimeter], care_site: CareSite):
-    if care_site.care_site_id in [perimeter.id for perimeter in existing_perimeters]:
-        update_list.append(map_to_perimeter(care_site))
+def insert_update_perimeter_list_append(insert_list: [Perimeter], update_list: [Perimeter],
+                                        existing_perimeters: [Perimeter], care_site: CareSite,
+                                        above_and_children: tuple, new_previous_level_perimeter: [Perimeter]):
+    check_perimeter = [perimeter for perimeter in existing_perimeters if care_site.care_site_id == perimeter.id]
+    if len(check_perimeter) > 0:
+        compare_perimeter = check_perimeter[0]
+        if is_care_site_different_from_perimeter(care_site, compare_perimeter, above_and_children):
+            update_list.append(map_to_perimeter(care_site, above_and_children))
+        else:
+            new_previous_level_perimeter.append(compare_perimeter)
+
     else:
-        insert_list.append(map_to_perimeter(care_site))
+        insert_list.append(map_to_perimeter(care_site, above_and_children))
+
+
+"""
+Find in the list of previous perimeter the parent perimeter associated to current caresite and concat the
+above_levels_ids value with the current caresite id
+"""
+
+
+def get_above_from_parent_perimeter(previous_perimeter_list: [Perimeter], care_site: CareSite) -> str:
+    parent: [Perimeter] = [perimeter for perimeter in previous_perimeter_list if
+                           perimeter.id == care_site.care_site_parent_id]
+    if len(parent) == 0:
+        print(f"WARN: {care_site.care_site_parent_id} has no previous perimeters wiht the same id")
+        return ""
+    return parent[0].above_levels_ids + f"{care_site.care_site_parent_id},"
 
 
 """
@@ -294,9 +339,8 @@ Is starts from the top to the leafs
 """
 
 
-def sequential_recursive_create_children_perimeters(care_site_id_list: list,
-                                                    care_site_objects: List[CareSite],
-                                                    existing_perimeters=None):
+def sequential_recursive_create_children_perimeters(care_site_id_list: list, care_site_objects: [CareSite],
+                                                    existing_perimeters: list, previous_level_perimeters: [Perimeter]):
     # init var
     if existing_perimeters is None:
         existing_perimeters = list()
@@ -307,31 +351,40 @@ def sequential_recursive_create_children_perimeters(care_site_id_list: list,
     list_perimeter_to_update = []
     list_current_parent_id = []
     care_site_levels = []
-
+    new_previous_level_list = []
     # for every care_site where id is in current parent id list we map to perimeter and add it to a list
     for care_site in care_site_objects_copy:
         if care_site.care_site_parent_id in care_site_id_list:
             if care_site.care_site_id in list_current_parent_id:
                 print(f"warn: Care site {care_site.care_site_id} has 2 or more parents !")
                 continue
+
+            # We get the previous above_levels_ids value from parent perimeter and add current id
+            above_levels_ids = get_above_from_parent_perimeter(previous_level_perimeters, care_site)
+            # Get from the rest of  CareSite objects direct children care site ids
+            children = get_children_care_site_list_by_id(care_site_objects, care_site.care_site_id)
+
             insert_update_perimeter_list_append(list_perimeter_to_create, list_perimeter_to_update,
-                                                existing_perimeters, care_site)
+                                                existing_perimeters, care_site, (above_levels_ids, children),
+                                                new_previous_level_list)
+
             list_current_parent_id.append(care_site.care_site_id)
             care_site_levels.append(care_site.care_site_type_source_value)
         else:
             children_care_site_objects.append(care_site)
 
-    print(f"children_care_site_objects: {len(children_care_site_objects)}")
+    print(f"Children care_site objects found: {len(children_care_site_objects)}")
 
-    if len(list_perimeter_to_create) > 0 or len(list_perimeter_to_update) > 0:
-        print(f"sequential_perimeters_create(): Create {len(list_perimeter_to_create)} perimeters and updating "
-              f"{len(list_perimeter_to_update)} perimeters at levels {set(care_site_levels)}")
+    if len(list_perimeter_to_create) > 0 or len(list_perimeter_to_update) > 0 or len(new_previous_level_list) > 0:
+        log_insert_update(care_site_levels, new_previous_level_list, list_perimeter_to_create, list_perimeter_to_update)
         insert_perimeter(list_perimeter_to_create)
         update_perimeter(list_perimeter_to_update)
 
+        # we save all current level perimeters to the next previous perimeters list
+        new_previous_level_list = new_previous_level_list + list_perimeter_to_create + list_perimeter_to_update
         # run the current function with new current parent id list and children objects to go to lower care_site level
         sequential_recursive_create_children_perimeters(list_current_parent_id, children_care_site_objects,
-                                                        existing_perimeters)
+                                                        existing_perimeters, new_previous_level_list)
     # If there is no more perimeter to add, end of recursive function
 
 
@@ -355,9 +408,11 @@ Bulk update data Perimeters
 
 
 def update_perimeter(list_perimeter_to_update: List[Perimeter]):
+    if len(list_perimeter_to_update) == 0:
+        return
     Perimeter.objects.bulk_update(list_perimeter_to_update,
-                                  ["source_value", "name", "short_name", "type_source_value", "parent_id",
-                                   "delete_datetime"])
+                                  ["source_value", "name", "short_name", "type_source_value", "parent_id", "above_levels_ids",
+                                   "bellow_levels_ids", "delete_datetime"])
 
 
 """
@@ -366,7 +421,8 @@ Bulk update data Access
 
 
 def update_accesses(list_access_to_update: List[Perimeter]):
-    Access.objects.bulk_update(list_access_to_update, ["manual_end_datetime"])
+    if len(list_access_to_update) > 0:
+        Access.objects.bulk_update(list_access_to_update, ["manual_end_datetime"])
 
 
 """
@@ -375,6 +431,8 @@ Bulk create data Perimeters
 
 
 def insert_perimeter(list_perimeter_to_create: List[Perimeter]):
+    if len(list_perimeter_to_create) == 0:
+        return
     Perimeter.objects.bulk_create(list_perimeter_to_create)
 
 
@@ -471,6 +529,16 @@ def get_all_perimeters_with_no_valid_care_site(existing_perimeters: List[Perimet
 
 
 """
+return a String list of all direct children care sites 
+"""
+
+
+def get_children_care_site_list_by_id(all_care_site: [CareSite], current_care_site_id: int) -> str:
+    return str([care_site.care_site_id for care_site in all_care_site if
+                care_site.care_site_parent_id == current_care_site_id])[1:-1]
+
+
+"""
 Main function to recreate all Perimeters:
 the update run in "INSERT/UPDATE/DELETE" mode (delta).
 
@@ -486,16 +554,20 @@ process steps:
 def perimeters_data_model_objects_update():
     print("Get top hierarchy ids")
     top_care_site_ids = get_top_hierarchy_care_site_ids()
+
     print("Building query for care-sites")
     all_valid_care_site_relationship = CareSite.objects.raw(psql_query_care_site_relationship(top_care_site_ids))
+
     print(f"Fetch {len(all_valid_care_site_relationship)} care sites from OMOP DB")
+    # ! "even_deleted=True" to take also delete_datetime non null
     existing_perimeters = Perimeter.objects.all(even_deleted=True)
-    # ! "even_deleted=True" pour prendre en compte les lignes ayant un delete_datetime non null
+
     print("Start Top hierarchy Perimeter objects creation")
-    create_current_perimeter_level(top_care_site_ids, all_valid_care_site_relationship, existing_perimeters)
+    top_perimeters_list = create_current_perimeter_level(top_care_site_ids, all_valid_care_site_relationship,
+                                                         existing_perimeters)
     print("Start recursive Perimeter objects creation")
     sequential_recursive_create_children_perimeters(top_care_site_ids, all_valid_care_site_relationship,
-                                                    existing_perimeters)
+                                                    existing_perimeters, top_perimeters_list)
     print("Start deletion of removed perimeters")
     delete_perimeters_and_accesses(existing_perimeters, all_valid_care_site_relationship)
     print("End of perimeters updating")

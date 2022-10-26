@@ -1,23 +1,22 @@
+import logging as lg
 import re
+from datetime import timedelta
 from typing import Optional, List
 
-from django.utils.datetime_safe import datetime
 from django.utils import timezone
-from datetime import timedelta
+from django.utils.datetime_safe import datetime
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError, PermissionDenied
 
-from .conf_perimeters import get_provider_id
-from .models import Role, Access, Profile, Perimeter
-from .permissions import can_user_manage_access
 from admin_cohort.conf_auth import check_id_aph
 from admin_cohort.models import User
 from admin_cohort.serializers import BaseSerializer, ReducedUserSerializer, \
     UserSerializer
 from admin_cohort.settings import MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE, \
     MODEL_MANUAL_END_DATE_DEFAULT_ON_UPDATE, MANUAL_SOURCE
-
-import logging as lg
+from .conf_perimeters import get_provider_id
+from .models import Role, Access, Profile, Perimeter
+from .permissions import can_user_manage_access
 
 _logger = lg.getLogger(__name__)
 
@@ -28,7 +27,6 @@ def check_date_rules(
         old_start_datetime: Optional[datetime] = None,
         old_end_datetime: Optional[datetime] = None
 ):
-
     if old_start_datetime is not None:
         # first accesses, added with SQL, may be "naive" (without timezone info)
         old_start = timezone.get_current_timezone().localize(
@@ -219,17 +217,17 @@ def fix_profile_entries(validated_data, for_create: bool = False):
                 " et 'manual_valid_start_datetime' différents"
             )
         else:
-            validated_data["manual_valid_start_datetime"] =\
+            validated_data["manual_valid_start_datetime"] = \
                 valid_start_datetime if valid_start_datetime is not None \
-                else MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE
+                    else MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE
     elif manual_valid_start_datetime != -1:
-        validated_data["manual_valid_start_datetime"] =\
+        validated_data["manual_valid_start_datetime"] = \
             manual_valid_start_datetime \
-            if manual_valid_start_datetime is not None \
-            else MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE
+                if manual_valid_start_datetime is not None \
+                else MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE
 
     if valid_end_datetime != -1:
-        if manual_valid_end_datetime != -1\
+        if manual_valid_end_datetime != -1 \
                 and valid_end_datetime != manual_valid_end_datetime:
             raise ValidationError(
                 "Vous ne pouvez pas fournir à la fois 'valid_end_datetime'"
@@ -240,9 +238,9 @@ def fix_profile_entries(validated_data, for_create: bool = False):
                 if valid_end_datetime is not None \
                 else MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE
     elif manual_valid_end_datetime != -1:
-        validated_data["manual_valid_end_datetime"] =\
+        validated_data["manual_valid_end_datetime"] = \
             manual_valid_end_datetime if manual_valid_end_datetime is not None \
-            else MODEL_MANUAL_END_DATE_DEFAULT_ON_UPDATE
+                else MODEL_MANUAL_END_DATE_DEFAULT_ON_UPDATE
 
     return validated_data
 
@@ -388,7 +386,7 @@ class ProfileSerializer(BaseSerializer):
             check_profile_entries(validated_data, True)
             validated_data = fix_profile_entries(validated_data)
 
-        return super(ProfileSerializer, self)\
+        return super(ProfileSerializer, self) \
             .update(instance, validated_data)
 
 
@@ -413,7 +411,6 @@ class TreefiedPerimeterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Perimeter
-        abstract = True
         exclude = ['insert_datetime', 'update_datetime', 'delete_datetime']
 
     def get_fields(self):
@@ -456,12 +453,23 @@ class PerimeterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Perimeter
-        abstract = True
-        # fields = "__all__"
-        exclude = ["parent"]
+        exclude = ["parent", "above_levels_ids", "bellow_levels_ids"]
 
 
-# todo : remove when ready with perimeter
+"""
+Serializer with minimal config field for perimeters/manageable path
+"""
+
+
+class PerimeterLiteSerializer(serializers.ModelSerializer):
+    parent_id = serializers.CharField(read_only=True, allow_null=True)
+    type = serializers.CharField(allow_null=True, source='type_source_value')
+
+    class Meta:
+        model = Perimeter
+        fields = ['id', 'name', 'source_value']
+
+
 class CareSiteSerializer(serializers.Serializer):
     care_site_id = serializers.CharField(read_only=True)
     care_site_name = serializers.CharField(read_only=True)

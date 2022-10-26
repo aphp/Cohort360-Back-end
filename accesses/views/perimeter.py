@@ -1,22 +1,20 @@
-from django_filters import rest_framework as filters, OrderingFilter
 from django.db.models import Q
-
+from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework.decorators import action
 from rest_framework.response import Response
-
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
+from admin_cohort.permissions import IsAuthenticatedReadOnly
+from admin_cohort.settings import PERIMETERS_TYPES
+from admin_cohort.views import BaseViewset, YarnReadOnlyViewsetMixin, \
+    SwaggerSimpleNestedViewSetMixin
 from ..models import Role, Perimeter, get_user_valid_manual_accesses_queryset, \
     get_all_perimeters_parents_queryset
 from ..serializers import PerimeterSerializer, \
-    TreefiedPerimeterSerializer, YasgTreefiedPerimeterSerializer
-from admin_cohort.permissions import IsAuthenticatedReadOnly
-from admin_cohort.settings import PERIMETERS_TYPES
-from admin_cohort.tools import join_qs
-from admin_cohort.views import BaseViewset, YarnReadOnlyViewsetMixin,\
-    SwaggerSimpleNestedViewSetMixin
+    TreefiedPerimeterSerializer, YasgTreefiedPerimeterSerializer, PerimeterLiteSerializer
+from ..tools.perimeter_process import get_top_perimeter_same_level, get_top_perimeter_inf_level
 
 
 class PerimeterFilter(filters.FilterSet):
@@ -59,29 +57,13 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
 
     @swagger_auto_schema(
         method='get',
-        operation_summary="Get the perimeters on which the user has at least "
-                          "one role that allows to give accesses.",
-        manual_parameters=list(map(
-            lambda x: openapi.Parameter(
-                name=x[0], in_=openapi.IN_QUERY, description=x[1], type=x[2],
-                pattern=x[3] if len(x) == 4 else None
-            ), [
-                [
-                    "search",
-                    "Will search in multiple fields (care_site_name, "
-                    "care_site_type_source_value, care_site_source_value)",
-                    openapi.TYPE_STRING
-                ],
-                [
-                    "nb_levels",
-                    "Indicates the limit of children layers to reply.",
-                    openapi.TYPE_INTEGER
-                ],
-            ]
-        )),
+        operation_summary="Get the top hierarchy perimeters on which the user has at least "
+                          "one role that allows to give accesses."
+                          "- Same level right give access to current perimeter and lower levels."
+                          "- Inferior level right give only access to children of current perimeter.",
         responses={
             '201': openapi.Response("manageable perimeters found",
-                                    YasgTreefiedPerimeterSerializer()
+                                    PerimeterLiteSerializer()
                                     ),
         }
     )
@@ -91,36 +73,20 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
             self.request.user)
 
         if user_accesses.filter(Role.edit_on_any_level_query("role")).count():
-            # in that case, perims to retun is all perimeters
-            # and queryset result will only contain the top perimeters
-            perims = self.get_queryset()
-            q = Perimeter.objects.filter(parent__isnull=True)
+            # if edit on any level, we don't care about perimeters' accesses; return the top perimeter hierarchy:
+            return Response(PerimeterLiteSerializer(Perimeter.objects.filter(parent__isnull=True), many=True).data)
         else:
-            # in that case, perims to returns depends on roles
-            # and queryset result will only contain the top of those perimeters
-            acc_ids = user_accesses.values_list("id", flat=True)
-            perims = Perimeter.objects.filter(join_qs(
-                [Role.edit_on_lower_levels_query(
-                    f"{i * 'parent__'}accesses__role",
-                    {f'{i * "parent__"}accesses__id__in': acc_ids}
-                ) for i in range(1, len(PERIMETERS_TYPES))
-                ] + [Role.edit_on_same_level_query(
-                    "accesses__role",
-                    {'accesses__id__in': acc_ids}
-                )]
-            )).distinct()
+            access_same_level = [access for access in user_accesses.filter(Role.edit_on_same_level_query("role"))]
+            access_inf_level = [access for access in user_accesses.filter(Role.edit_on_lower_levels_query("role"))]
 
-            q = perims.filter(~Q(
-                parent__id__in=perims.values_list("id", flat=True)))
+            all_perimeters = list(set([access.perimeter for access in access_same_level + access_inf_level]))
 
-        prefetch = Perimeter.children_prefetch(perims)
-        nb_levels = int(request.GET.get('nb_levels', len(PERIMETERS_TYPES)))
-        for _ in range(2, nb_levels):
-            prefetch = Perimeter.children_prefetch(perims
-                                                   .prefetch_related(prefetch))
+            top_perimeter_same_level = list(set(get_top_perimeter_same_level(access_same_level, all_perimeters)))
+            top_perimeter_inf_level = get_top_perimeter_inf_level(access_inf_level, all_perimeters,
+                                                                  top_perimeter_same_level)
 
-        q = q.prefetch_related(prefetch)
-        return Response(TreefiedPerimeterSerializer(q, many=True).data)
+        return Response(PerimeterLiteSerializer(list(set(top_perimeter_inf_level + top_perimeter_same_level)),
+                                                 many=True).data)
 
     @swagger_auto_schema(
         manual_parameters=list(map(
@@ -170,7 +136,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
 
         if q.count() != self.get_queryset().count():
             q = (q | get_all_perimeters_parents_queryset(q)).distinct()
-            res = q.filter(~Q(parent__id__in=q.values_list("id", flat=True)))\
+            res = q.filter(~Q(parent__id__in=q.values_list("id", flat=True))) \
                 .distinct()
         else:
             res = q.filter(parent__isnull=True)
