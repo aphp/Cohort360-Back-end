@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import os
-
 from typing import List
+
 from django.db import models
 from django.db.models import Q, Max
 from django.utils import timezone
+
 from accesses.models import Perimeter, Access
 from admin_cohort import settings, app
 
@@ -239,8 +240,8 @@ def map_to_perimeter(care_site_object: CareSite, above_and_children: tuple):
         short_name=care_site_object.care_site_short_name,
         type_source_value=care_site_object.care_site_type_source_value,
         parent_id=care_site_object.care_site_parent_id,
-        above=above_value,
-        lower_levels=children_value
+        above_levels_ids=above_value,
+        bellow_levels_ids=children_value
     )
 
 
@@ -290,8 +291,8 @@ def is_care_site_different_from_perimeter(care_site: CareSite, perimeter: Perime
             care_site.care_site_name != perimeter.name or \
             care_site.care_site_short_name != perimeter.short_name or \
             care_site.delete_datetime != perimeter.delete_datetime or \
-            above_and_children[0] != perimeter.above or \
-            above_and_children[1] != perimeter.lower_levels:
+            above_and_children[0] != perimeter.above_levels_ids or \
+            above_and_children[1] != perimeter.bellow_levels_ids:
         return True
     return False
 
@@ -318,8 +319,8 @@ def insert_update_perimeter_list_append(insert_list: [Perimeter], update_list: [
 
 
 """
-Find in the list of previous perimeter the parent perimeter associated to curren caresite and concat the
-above value with the current caresite id
+Find in the list of previous perimeter the parent perimeter associated to current caresite and concat the
+above_levels_ids value with the current caresite id
 """
 
 
@@ -329,7 +330,7 @@ def get_above_from_parent_perimeter(previous_perimeter_list: [Perimeter], care_s
     if len(parent) == 0:
         print(f"WARN: {care_site.care_site_parent_id} has no previous perimeters wiht the same id")
         return ""
-    return parent[0].above + f"{care_site.care_site_parent_id},"
+    return parent[0].above_levels_ids + f"{care_site.care_site_parent_id},"
 
 
 """
@@ -358,13 +359,13 @@ def sequential_recursive_create_children_perimeters(care_site_id_list: list, car
                 print(f"warn: Care site {care_site.care_site_id} has 2 or more parents !")
                 continue
 
-            # We get the previous above value from parent perimeter and add current id
-            above = get_above_from_parent_perimeter(previous_level_perimeters, care_site)
+            # We get the previous above_levels_ids value from parent perimeter and add current id
+            above_levels_ids = get_above_from_parent_perimeter(previous_level_perimeters, care_site)
             # Get from the rest of  CareSite objects direct children care site ids
             children = get_children_care_site_list_by_id(care_site_objects, care_site.care_site_id)
 
             insert_update_perimeter_list_append(list_perimeter_to_create, list_perimeter_to_update,
-                                                existing_perimeters, care_site, (above, children),
+                                                existing_perimeters, care_site, (above_levels_ids, children),
                                                 new_previous_level_list)
 
             list_current_parent_id.append(care_site.care_site_id)
@@ -410,8 +411,8 @@ def update_perimeter(list_perimeter_to_update: List[Perimeter]):
     if len(list_perimeter_to_update) == 0:
         return
     Perimeter.objects.bulk_update(list_perimeter_to_update,
-                                  ["source_value", "name", "short_name", "type_source_value", "parent_id", "above",
-                                   "lower_levels", "delete_datetime"])
+                                  ["source_value", "name", "short_name", "type_source_value", "parent_id", "above_levels_ids",
+                                   "bellow_levels_ids", "delete_datetime"])
 
 
 """

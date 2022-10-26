@@ -47,7 +47,7 @@ def get_top_perimeter_same_level(accesses_same_levels: [Access], all_distinct_pe
         perimeter = access.perimeter
         if perimeter is None:
             pass
-        above_list = string_to_int_list(perimeter.above)
+        above_list = string_to_int_list(perimeter.above_levels_ids)
         if is_perimeter_in_top_hierarchy(above_list, all_distinct_perimeters):
             response_list.append(perimeter)
     return response_list
@@ -68,13 +68,13 @@ def get_top_perimeter_inf_level(accesses_inf_levels: [Access], all_distinct_peri
         perimeter = access.perimeter
         if perimeter is None:
             pass
-        above_list = string_to_int_list(perimeter.above)
+        above_list = string_to_int_list(perimeter.above_levels_ids)
         if is_perimeter_in_top_hierarchy(above_list, all_distinct_perimeters) and \
                 is_perimeter_in_top_hierarchy([perimeter.id], same_level_perimeters_response):
-            if perimeter.lower_levels is None:
+            if perimeter.bellow_levels_ids is None:
                 print("WARN: No lower levels perimeters found! ")
                 pass
-            children_list = string_to_int_list(perimeter.lower_levels)
+            children_list = string_to_int_list(perimeter.bellow_levels_ids)
             if len(children_list) == 0:
                 pass
             children_perimeters = Perimeter.objects.filter(id__in=children_list)

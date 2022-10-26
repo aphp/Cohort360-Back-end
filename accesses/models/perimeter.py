@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from typing import List, Union
 
 from django.db import models
@@ -20,8 +21,8 @@ class Perimeter(BaseModel):
     parent = models.ForeignKey("accesses.perimeter",
                                on_delete=models.CASCADE,
                                related_name="children", null=True)
-    above = models.TextField(blank=True, null=True)
-    lower_levels = models.TextField(blank=True, null=True)
+    above_levels_ids = models.TextField(blank=True, null=True)
+    bellow_levels_ids = models.TextField(blank=True, null=True)
 
     @property
     def names(self):

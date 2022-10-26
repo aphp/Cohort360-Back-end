@@ -1,21 +1,19 @@
-from django_filters import rest_framework as filters, OrderingFilter
 from django.db.models import Q
-
+from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework.decorators import action
 from rest_framework.response import Response
-
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
-from ..models import Role, Perimeter, get_user_valid_manual_accesses_queryset, \
-    get_all_perimeters_parents_queryset
-from ..serializers import PerimeterSerializer, \
-    TreefiedPerimeterSerializer, YasgTreefiedPerimeterSerializer, PerimeterLightSerializer
 from admin_cohort.permissions import IsAuthenticatedReadOnly
 from admin_cohort.settings import PERIMETERS_TYPES
 from admin_cohort.views import BaseViewset, YarnReadOnlyViewsetMixin, \
     SwaggerSimpleNestedViewSetMixin
+from ..models import Role, Perimeter, get_user_valid_manual_accesses_queryset, \
+    get_all_perimeters_parents_queryset
+from ..serializers import PerimeterSerializer, \
+    TreefiedPerimeterSerializer, YasgTreefiedPerimeterSerializer, PerimeterLiteSerializer
 from ..tools.perimeter_process import get_top_perimeter_same_level, get_top_perimeter_inf_level
 
 
@@ -65,7 +63,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
                           "- Inferior level right give only access to children of current perimeter.",
         responses={
             '201': openapi.Response("manageable perimeters found",
-                                    PerimeterLightSerializer()
+                                    PerimeterLiteSerializer()
                                     ),
         }
     )
@@ -76,7 +74,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
 
         if user_accesses.filter(Role.edit_on_any_level_query("role")).count():
             # if edit on any level, we don't care about perimeters' accesses; return the top perimeter hierarchy:
-            return Response(PerimeterLightSerializer(Perimeter.objects.filter(parent__isnull=True), many=True).data)
+            return Response(PerimeterLiteSerializer(Perimeter.objects.filter(parent__isnull=True), many=True).data)
         else:
             access_same_level = [access for access in user_accesses.filter(Role.edit_on_same_level_query("role"))]
             access_inf_level = [access for access in user_accesses.filter(Role.edit_on_lower_levels_query("role"))]
@@ -87,7 +85,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
             top_perimeter_inf_level = get_top_perimeter_inf_level(access_inf_level, all_perimeters,
                                                                   top_perimeter_same_level)
 
-        return Response(PerimeterLightSerializer(list(set(top_perimeter_inf_level + top_perimeter_same_level)),
+        return Response(PerimeterLiteSerializer(list(set(top_perimeter_inf_level + top_perimeter_same_level)),
                                                  many=True).data)
 
     @swagger_auto_schema(
