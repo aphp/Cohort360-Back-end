@@ -35,7 +35,7 @@ import logging as lg
 _logger = lg.getLogger(__name__)
 
 
-class UserFilter(filters.FilterSet):
+class UnixAccountFilter(filters.FilterSet):
     def provider_source_value_filter(self, queryset, field, value):
         return queryset.filter(aphp_ldap_group_dn__in=get_account_groups_from_id_aph(value))
 
@@ -47,20 +47,20 @@ class UserFilter(filters.FilterSet):
         fields = ("provider_source_value",)
 
 
-class UsersViewSet(AccountViewset):
+class UnixAccountViewSet(AccountViewset):
     lookup_field = "uid"
     serializer_class = AnnexeAccountSerializer
     http_method_names = ["get"]
 
     swagger_tags = ['Exports - users']
-    filterset_class = UserFilter
+    filterset_class = UnixAccountFilter
 
     def get_permissions(self):
         return OR(AnnexesPermissions(),
                   AccountPermissions())
 
     def get_queryset(self):
-        q = super(UsersViewSet, self).get_queryset()
+        q = super(UnixAccountViewSet, self).get_queryset()
         user = self.request.user
         if not can_review_transfer_jupyter(user)\
                 and not can_review_export_csv(user):
@@ -69,7 +69,7 @@ class UsersViewSet(AccountViewset):
         return q
 
     def list(self, request, *args, **kwargs):
-        return super(UsersViewSet, self).list(request, *args, **kwargs)
+        return super(UnixAccountViewSet, self).list(request, *args, **kwargs)
 
 
 class CohortFilter(filters.FilterSet):
