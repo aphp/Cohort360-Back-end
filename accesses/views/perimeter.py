@@ -61,6 +61,24 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
                           "one role that allows to give accesses."
                           "- Same level right give access to current perimeter and lower levels."
                           "- Inferior level right give only access to children of current perimeter.",
+        manual_parameters=list(map(
+            lambda x: openapi.Parameter(
+                name=x[0], in_=openapi.IN_QUERY, description=x[1], type=x[2],
+                pattern=x[3] if len(x) == 4 else None
+            ), [
+                [
+                    "search",
+                    "Will search in multiple fields (care_site_name, "
+                    "care_site_type_source_value, care_site_source_value)",
+                    openapi.TYPE_STRING
+                ],
+                [
+                    "nb_levels",
+                    "Indicates the limit of children layers to reply.",
+                    openapi.TYPE_INTEGER
+                ],
+            ]
+        )),
         responses={
             '201': openapi.Response("manageable perimeters found",
                                     PerimeterLiteSerializer()
@@ -71,7 +89,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
     def get_manageable(self, request, *args, **kwargs):
         user_accesses = get_user_valid_manual_accesses_queryset(
             self.request.user)
-
+        perims = self.get_queryset()
         if user_accesses.filter(Role.edit_on_any_level_query("role")).count():
             # if edit on any level, we don't care about perimeters' accesses; return the top perimeter hierarchy:
             return Response(PerimeterLiteSerializer(Perimeter.objects.filter(parent__isnull=True), many=True).data)
