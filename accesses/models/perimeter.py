@@ -23,6 +23,7 @@ class Perimeter(BaseModel):
                                related_name="children", null=True)
     above_levels_ids = models.TextField(blank=True, null=True)
     bellow_levels_ids = models.TextField(blank=True, null=True)
+    full_path = models.TextField(blank=True, null=True)
 
     @property
     def names(self):

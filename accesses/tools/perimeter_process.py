@@ -2,7 +2,7 @@ from accesses.models import Perimeter, Access
 
 
 def string_to_int_list(str_list: str) -> [int]:
-    if len(str_list) == 0:
+    if str_list is None or len(str_list) == 0:
         print("WARN: string list field empty")
         return []
     try:
@@ -80,4 +80,21 @@ def get_top_perimeter_inf_level(accesses_inf_levels: [Access], all_distinct_peri
             children_perimeters = Perimeter.objects.filter(id__in=children_list)
             for perimeter_child in children_perimeters:
                 response_list.append(perimeter_child)
+    return response_list
+
+
+"""
+Used to filter the perimeters fetch by search params with hirerchy perimeter response with user Roles and Accesses.
+If there is no search params it return the previous top hierarchy compute response.
+"""
+
+
+def filter_perimeter_by_top_hierarchy_perimeter_list(perimeters_filtered_by_search, top_hierarchy_perimeter_list):
+    response_list = []
+    if len(perimeters_filtered_by_search) == 0:
+        return top_hierarchy_perimeter_list
+    for perimeter in perimeters_filtered_by_search:
+        for top_perimeter in top_hierarchy_perimeter_list:
+            if top_perimeter.id == perimeter.id or top_perimeter.id in string_to_int_list(perimeter.above_levels_ids):
+                response_list.append(perimeter)
     return response_list
