@@ -8,12 +8,10 @@ from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from admin_cohort.permissions import IsAuthenticatedReadOnly
 from admin_cohort.settings import PERIMETERS_TYPES
-from admin_cohort.views import BaseViewset, YarnReadOnlyViewsetMixin, \
-    SwaggerSimpleNestedViewSetMixin
-from ..models import Role, Perimeter, get_user_valid_manual_accesses_queryset, \
-    get_all_perimeters_parents_queryset
-from ..serializers import PerimeterSerializer, \
-    TreefiedPerimeterSerializer, YasgTreefiedPerimeterSerializer, PerimeterLiteSerializer
+from admin_cohort.views import BaseViewset, YarnReadOnlyViewsetMixin, SwaggerSimpleNestedViewSetMixin
+from ..models import Role, Perimeter, get_user_valid_manual_accesses_queryset, get_all_perimeters_parents_queryset
+from ..serializers import PerimeterSerializer, TreefiedPerimeterSerializer, YasgTreefiedPerimeterSerializer, \
+    PerimeterLiteSerializer
 from ..tools.perimeter_process import get_top_perimeter_same_level, get_top_perimeter_inf_level, \
     filter_perimeter_by_top_hierarchy_perimeter_list
 
@@ -56,36 +54,26 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
                      "type_source_value",
                      "source_value"]
 
-    @swagger_auto_schema(
-        method='get',
-        operation_summary="Get the top hierarchy perimeters on which the user has at least "
-                          "one role that allows to give accesses."
-                          "- Same level right give access to current perimeter and lower levels."
-                          "- Inferior level right give only access to children of current perimeter.",
-        responses={
-            '201': openapi.Response("manageable perimeters found",
-                                    PerimeterLiteSerializer()
-                                    ),
-        }
-    )
+    @swagger_auto_schema(method='get',
+                         operation_summary="Get the top hierarchy perimeters on which the user has at least "
+                                           "one role that allows to give accesses."
+                                           "- Same level right give access to current perimeter and lower levels."
+                                           "- Inferior level right give only access to children of current perimeter.",
+                         responses={'201': openapi.Response("manageable perimeters found", PerimeterLiteSerializer())})
     @action(detail=False, methods=['get'], url_path="manageable")
     def get_manageable(self, request, *args, **kwargs):
-        user_accesses = get_user_valid_manual_accesses_queryset(
-            self.request.user)
+        user_accesses = get_user_valid_manual_accesses_queryset(self.request.user)
 
         # Get perimeters if search param is used:
         perimeters_filtered_by_search = []
-        if len(self.request.query_params) > 0:
+        if self.request.query_params:
             perimeters_filtered_by_search = self.filter_queryset(self.get_queryset())
-            if len(perimeters_filtered_by_search) == 0:
+            if not perimeters_filtered_by_search:
                 return Response({"WARN": "No Perimeters Found"})
 
         if user_accesses.filter(Role.edit_on_any_level_query("role")).count():
             # if edit on any level, we don't care about perimeters' accesses; return the top perimeter hierarchy:
             top_hierarchy_perimeter = Perimeter.objects.filter(parent__isnull=True)
-            return Response(PerimeterLiteSerializer(
-                filter_perimeter_by_top_hierarchy_perimeter_list(perimeters_filtered_by_search,
-                                                                 top_hierarchy_perimeter), many=True).data)
         else:
             access_same_level = [access for access in user_accesses.filter(Role.edit_on_same_level_query("role"))]
             access_inf_level = [access for access in user_accesses.filter(Role.edit_on_lower_levels_query("role"))]
@@ -100,49 +88,32 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
             # Apply Distinct to list
             top_hierarchy_perimeter = list(set(top_perimeter_inf_level + top_perimeter_same_level))
 
-        return Response(
-            PerimeterLiteSerializer(filter_perimeter_by_top_hierarchy_perimeter_list(perimeters_filtered_by_search,
-                                                                                     top_hierarchy_perimeter),
-                                    many=True).data)
+        perims = filter_perimeter_by_top_hierarchy_perimeter_list(perimeters_filtered_by_search,
+                                                                  top_hierarchy_perimeter)
+        return Response(PerimeterLiteSerializer(perims, many=True).data)
 
-    @swagger_auto_schema(
-        manual_parameters=list(map(
-            lambda x: openapi.Parameter(
-                name=x[0], in_=openapi.IN_QUERY, description=x[1], type=x[2],
-                pattern=x[3] if len(x) == 4 else None
-            ), [
-                [
-                    "ordering",
-                    "'field' or '-field' in care_site_name, "
-                    "care_site_type_source_value, care_site_source_value, ",
-                    openapi.TYPE_STRING
-                ],
-                [
-                    "search",
-                    "Will search in multiple fields (care_site_name, "
-                    "care_site_type_source_value, care_site_source_value)",
-                    openapi.TYPE_STRING
-                ],
-                [
-                    "treefy",
-                    "If true, returns a tree-organised json, else, "
-                    "returns a list", openapi.TYPE_BOOLEAN
-                ],
-            ])))
+    @swagger_auto_schema(manual_parameters=list(map(lambda x: openapi.Parameter(name=x[0],
+                                                                                in_=openapi.IN_QUERY,
+                                                                                description=x[1],
+                                                                                type=x[2],
+                                                                                pattern=x[3] if len(x) == 4 else None),
+                                                    [["ordering", "'field' or '-field' in care_site_name, "
+                                                                  "care_site_type_source_value, care_site_source_value",
+                                                      openapi.TYPE_STRING],
+                                                     ["search", "Will search in multiple fields (care_site_name, "
+                                                                "care_site_type_source_value, care_site_source_value)",
+                                                      openapi.TYPE_STRING],
+                                                     ["treefy", "If true, returns a tree-organised json, else a list",
+                                                      openapi.TYPE_BOOLEAN]])))
     def list(self, request, *args, **kwargs):
         treefy = request.GET.get("treefy", None)
         if str(treefy).lower() == 'true':
             return self.treefied(request, *args, **kwargs)
         return super(PerimeterViewSet, self).list(request, *args, **kwargs)
 
-    @swagger_auto_schema(
-        operation_description="Test",
-        responses={
-            '201': openapi.Response("Perimeters found",
-                                    YasgTreefiedPerimeterSerializer),
-            '401': openapi.Response("Not authenticated")
-        }
-    )
+    @swagger_auto_schema(operation_description="Test",
+                         responses={'201': openapi.Response("Perimeters found", YasgTreefiedPerimeterSerializer),
+                                    '401': openapi.Response("Not authenticated")})
     @action(detail=False, methods=['get'], url_path="treefied")
     def treefied(self, request, *args, **kwargs):
         # in that case, for each perimeter filtered, we want to show the
@@ -153,15 +124,13 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
 
         if q.count() != self.get_queryset().count():
             q = (q | get_all_perimeters_parents_queryset(q)).distinct()
-            res = q.filter(~Q(parent__id__in=q.values_list("id", flat=True))) \
-                .distinct()
+            res = q.filter(~Q(parent__id__in=q.values_list("id", flat=True))).distinct()
         else:
             res = q.filter(parent__isnull=True)
 
         prefetch = Perimeter.children_prefetch(q)
         for _ in range(2, len(PERIMETERS_TYPES)):
-            prefetch = Perimeter.children_prefetch(
-                q.prefetch_related(prefetch))
+            prefetch = Perimeter.children_prefetch(q.prefetch_related(prefetch))
 
         res = res.prefetch_related(prefetch)
         return Response(TreefiedPerimeterSerializer(res, many=True).data)
