@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from typing import List, Dict, Callable
 
 from django.db import models
@@ -9,8 +10,10 @@ from admin_cohort.models import BaseModel
 from admin_cohort.tools import join_qs
 
 
-def right_field():
-    return models.BooleanField(default=False, null=False)
+def format_prefix(prefix: str) -> str:
+    if prefix is None or prefix == "":
+        return ""
+    return prefix + "__"
 
 
 class Role(BaseModel):
@@ -18,45 +21,45 @@ class Role(BaseModel):
     name = models.TextField(blank=True, null=True)
     invalid_reason = models.TextField(blank=True, null=True)
 
-    right_edit_roles = right_field()
-    right_read_logs = right_field()
+    right_edit_roles = models.BooleanField(default=False, null=False)
+    right_read_logs = models.BooleanField(default=False, null=False)
 
-    right_add_users = right_field()
-    right_edit_users = right_field()
-    right_read_users = right_field()
+    right_add_users = models.BooleanField(default=False, null=False)
+    right_edit_users = models.BooleanField(default=False, null=False)
+    right_read_users = models.BooleanField(default=False, null=False)
 
-    right_manage_admin_accesses_same_level = right_field()
-    right_read_admin_accesses_same_level = right_field()
-    right_manage_admin_accesses_inferior_levels = right_field()
-    right_read_admin_accesses_inferior_levels = right_field()
+    right_manage_admin_accesses_same_level = models.BooleanField(default=False, null=False)
+    right_read_admin_accesses_same_level = models.BooleanField(default=False, null=False)
+    right_manage_admin_accesses_inferior_levels = models.BooleanField(default=False, null=False)
+    right_read_admin_accesses_inferior_levels = models.BooleanField(default=False, null=False)
 
-    right_manage_data_accesses_same_level = right_field()
-    right_read_data_accesses_same_level = right_field()
-    right_manage_data_accesses_inferior_levels = right_field()
-    right_read_data_accesses_inferior_levels = right_field()
+    right_manage_data_accesses_same_level = models.BooleanField(default=False, null=False)
+    right_read_data_accesses_same_level = models.BooleanField(default=False, null=False)
+    right_manage_data_accesses_inferior_levels = models.BooleanField(default=False, null=False)
+    right_read_data_accesses_inferior_levels = models.BooleanField(default=False, null=False)
 
-    right_read_patient_nominative = right_field()
-    right_read_patient_pseudo_anonymised = right_field()
-    right_search_patient_with_ipp = right_field()
+    right_read_patient_nominative = models.BooleanField(default=False, null=False)
+    right_read_patient_pseudo_anonymised = models.BooleanField(default=False, null=False)
+    right_search_patient_with_ipp = models.BooleanField(default=False, null=False)
 
     # JUPYTER TRANSFER
-    right_manage_review_transfer_jupyter = right_field()
-    right_review_transfer_jupyter = right_field()
-    right_manage_transfer_jupyter = right_field()
-    right_transfer_jupyter_nominative = right_field()
-    right_transfer_jupyter_pseudo_anonymised = right_field()
+    right_manage_review_transfer_jupyter = models.BooleanField(default=False, null=False)
+    right_review_transfer_jupyter = models.BooleanField(default=False, null=False)
+    right_manage_transfer_jupyter = models.BooleanField(default=False, null=False)
+    right_transfer_jupyter_nominative = models.BooleanField(default=False, null=False)
+    right_transfer_jupyter_pseudo_anonymised = models.BooleanField(default=False, null=False)
 
     # CSV EXPORT
-    right_manage_review_export_csv = right_field()
-    right_review_export_csv = right_field()
-    right_manage_export_csv = right_field()
-    right_export_csv_nominative = right_field()
-    right_export_csv_pseudo_anonymised = right_field()
+    right_manage_review_export_csv = models.BooleanField(default=False, null=False)
+    right_review_export_csv = models.BooleanField(default=False, null=False)
+    right_manage_export_csv = models.BooleanField(default=False, null=False)
+    right_export_csv_nominative = models.BooleanField(default=False, null=False)
+    right_export_csv_pseudo_anonymised = models.BooleanField(default=False, null=False)
 
     # environments
-    right_read_env_unix_users = right_field()
-    right_manage_env_unix_users = right_field()
-    right_manage_env_user_links = right_field()
+    right_read_env_unix_users = models.BooleanField(default=False, null=False)
+    right_manage_env_unix_users = models.BooleanField(default=False, null=False)
+    right_manage_env_user_links = models.BooleanField(default=False, null=False)
 
     _readable_right_set = None
     _right_groups = None
@@ -65,6 +68,49 @@ class Role(BaseModel):
 
     class Meta:
         managed = True
+
+    @classmethod
+    def is_read_patient_role_nominative(cls, prefix: str = "") -> Q:
+        formatted_prefix = format_prefix(prefix)
+        return join_qs([Q(**{f'{formatted_prefix}right_read_patient_nominative ': True})])
+
+    @classmethod
+    def is_read_patient_role_pseudo(cls, prefix: str = "") -> Q:
+        formatted_prefix = format_prefix(prefix)
+        return join_qs(
+            [Q(**{f'{formatted_prefix}right_read_patient_pseudo_anonymised ': True,
+                  f'{formatted_prefix}right_read_patient_nominative ': False
+                  })])
+
+    @classmethod
+    def is_manage_role_any_level(cls, prefix: str = "") -> Q:
+        formatted_prefix = format_prefix(prefix)
+        return join_qs(
+            [Q(**{f'{formatted_prefix}right_manage_review_transfer_jupyter': True}),
+             Q(**{f'{formatted_prefix}right_manage_review_export_csv': True}),
+             Q(**{f'{formatted_prefix}right_manage_transfer_jupyter': True}),
+             Q(**{f'{formatted_prefix}right_manage_export_csv': True})]
+        )
+
+    @classmethod
+    def is_manage_role_same_level(cls, prefix: str = "") -> Q:
+        formatted_prefix = format_prefix(prefix)
+        return join_qs(
+            [Q(**{f'{formatted_prefix}right_manage_data_accesses_same_level': True}),
+             Q(**{f'{formatted_prefix}right_manage_admin_accesses_same_level': True}),
+             Q(**{f'{formatted_prefix}right_read_data_accesses_same_level': True}),
+             Q(**{f'{formatted_prefix}right_read_admin_accesses_same_level': True})]
+        )
+
+    @classmethod
+    def is_manage_role_inf_level(cls, prefix: str = "") -> Q:
+        formatted_prefix = format_prefix(prefix)
+        return join_qs(
+            [Q(**{f'{formatted_prefix}right_manage_admin_accesses_inferior_levels': True}),
+             Q(**{f'{formatted_prefix}right_read_admin_accesses_inferior_levels': True}),
+             Q(**{f'{formatted_prefix}right_manage_data_accesses_inferior_levels': True}),
+             Q(**{f'{formatted_prefix}right_read_data_accesses_inferior_levels': True})]
+        )
 
     @classmethod
     def all_rights(cls):
