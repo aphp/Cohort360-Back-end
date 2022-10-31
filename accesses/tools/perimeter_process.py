@@ -41,13 +41,11 @@ def get_top_perimeter_same_level(accesses_same_levels: [Access], all_distinct_pe
     return response_list
 
 
-"""
-Check if current access is top read nominative richt accesses perimeter hierarchy,
-and return list of top accesses.
-"""
-
-
 def get_top_accesses_nominative(accesses_nominative: [Access], all_nominative_perimeters: [Perimeter]) -> [Access]:
+    """
+    Check if current access is top read nominative right accesses perimeter hierarchy,
+    and return list of top accesses.
+    """
     response_list = []
     for access in accesses_nominative:
         perimeter = access.perimeter
@@ -59,17 +57,15 @@ def get_top_accesses_nominative(accesses_nominative: [Access], all_nominative_pe
     return response_list
 
 
-"""
-return top of only pseudo read patient right accesses with (read_pseudo: True AND read_nominative:False)
-check in first time if pseudo access is top of all pseudo accesses in hierarchy perimeter
-In second time, it check if there is no Nominative access in current ou parent perimeter level:
-The rule must be => a read nominative right win vs read pseudo right  
-A nominative right on one perimeter at True give nominative right for all children of this perimeters.
-"""
-
-
 def get_top_accesses_pseudo(accesses_pseudo: [Access], all_nominative_perimeters: [Perimeter],
                             all_pseudo_perimeters: [Perimeter]) -> [Access]:
+    """
+    return top of only pseudo read patient right accesses with (read_pseudo: True AND read_nominative:False)
+    check in first time if pseudo access is top of all pseudo accesses in hierarchy perimeter
+    In second time, it checks if there is no Nominative access in current ou parent perimeter level:
+    The rule must be => a read nominative right win vs read pseudo right
+    A nominative right on one perimeter at True give nominative right for all children of these perimeters.
+    """
     response_list = []
     for access in accesses_pseudo:
         perimeter = access.perimeter
@@ -81,14 +77,6 @@ def get_top_accesses_pseudo(accesses_pseudo: [Access], all_nominative_perimeters
                 is_perimeter_in_top_hierarchy([perimeter.id] + above_list, all_nominative_perimeters):
             response_list.append(access)
     return response_list
-
-
-"""
-for each perimeter in inferior level access we get the above perimeter list.
-if we find an id in this list one id already present in another access, it is meaning this perimeter is not a top of
-roles perimeter hierarchy of user.
-if it is, we add all children perimeter id to the list
-"""
 
 
 def get_top_perimeter_inf_level(accesses_inf_levels: [Access], all_distinct_perimeters: [Perimeter],
@@ -106,7 +94,7 @@ def get_top_perimeter_inf_level(accesses_inf_levels: [Access], all_distinct_peri
             pass
         above_list = get_perimeters_ids_list(perimeter.above_levels_ids)
         if is_perimeter_in_top_hierarchy(above_list, all_distinct_perimeters) and \
-           is_perimeter_in_top_hierarchy([perimeter.id], same_level_perimeters_response):
+                is_perimeter_in_top_hierarchy([perimeter.id], same_level_perimeters_response):
             if perimeter.bellow_levels_ids is None:
                 print("WARN: No lower levels perimeters found! ")
                 pass
