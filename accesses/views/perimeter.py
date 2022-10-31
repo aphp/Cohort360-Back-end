@@ -8,10 +8,6 @@ from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from admin_cohort.permissions import IsAuthenticatedReadOnly
 from admin_cohort.settings import PERIMETERS_TYPES
-from admin_cohort.views import BaseViewset, YarnReadOnlyViewsetMixin, SwaggerSimpleNestedViewSetMixin
-from ..models import Role, Perimeter, get_user_valid_manual_accesses_queryset, get_all_perimeters_parents_queryset
-from ..serializers import PerimeterSerializer, TreefiedPerimeterSerializer, YasgTreefiedPerimeterSerializer, \
-    PerimeterLiteSerializer
 from admin_cohort.views import BaseViewset, YarnReadOnlyViewsetMixin, \
     SwaggerSimpleNestedViewSetMixin
 from ..models import Role, Perimeter, get_user_valid_manual_accesses_queryset, \
@@ -123,30 +119,6 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
         top_hierarchy_accesses = list(set(top_nominative_accesses + top_pseudo_accesses))
         return Response(AccessSerializer(top_hierarchy_accesses, many=True).data)
 
-    @swagger_auto_schema(
-        manual_parameters=list(map(
-            lambda x: openapi.Parameter(
-                name=x[0], in_=openapi.IN_QUERY, description=x[1], type=x[2],
-                pattern=x[3] if len(x) == 4 else None
-            ), [
-                [
-                    "ordering",
-                    "'field' or '-field' in care_site_name, "
-                    "care_site_type_source_value, care_site_source_value, ",
-                    openapi.TYPE_STRING
-                ],
-                [
-                    "search",
-                    "Will search in multiple fields (care_site_name, "
-                    "care_site_type_source_value, care_site_source_value)",
-                    openapi.TYPE_STRING
-                ],
-                [
-                    "treefy",
-                    "If true, returns a tree-organised json, else, "
-                    "returns a list", openapi.TYPE_BOOLEAN
-                ],
-            ])))
     @swagger_auto_schema(manual_parameters=list(map(lambda x: openapi.Parameter(name=x[0],
                                                                                 in_=openapi.IN_QUERY,
                                                                                 description=x[1],
