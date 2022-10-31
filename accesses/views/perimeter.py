@@ -109,14 +109,12 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
                                     ),
         }
     )
-    @action(detail=False, methods=['get'], url_path="top-read-right")
+    @action(detail=False, methods=['get'], url_path="top-hierarchy/read-patient")
     def get_top_read_right_accesses(self, request, *args, **kwargs):
         user_accesses = get_user_valid_manual_accesses_queryset(self.request.user)
 
-        nominative_read_patient_access = [access for access
-                                          in user_accesses.filter(Role.is_read_patient_role_nominative("role"))]
-        pseudo_read_patient_access = [access for access
-                                      in user_accesses.filter(Role.is_read_patient_role_pseudo("role"))]
+        nominative_read_patient_access = user_accesses.filter(Role.is_read_patient_role_nominative("role"))
+        pseudo_read_patient_access = user_accesses.filter(Role.is_read_patient_role_pseudo("role"))
 
         # Get all distinct perimeter from accesses:
         all_nominative_perimeters = list(set([access.perimeter for access in nominative_read_patient_access]))
@@ -132,68 +130,66 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
         top_hierarchy_accesses = list(set(top_nominative_accesses + top_pseudo_accesses))
         return Response(AccessSerializer(top_hierarchy_accesses, many=True).data)
 
+    @swagger_auto_schema(
+        manual_parameters=list(map(
+            lambda x: openapi.Parameter(
+                name=x[0], in_=openapi.IN_QUERY, description=x[1], type=x[2],
+                pattern=x[3] if len(x) == 4 else None
+            ), [
+                [
+                    "ordering",
+                    "'field' or '-field' in care_site_name, "
+                    "care_site_type_source_value, care_site_source_value, ",
+                    openapi.TYPE_STRING
+                ],
+                [
+                    "search",
+                    "Will search in multiple fields (care_site_name, "
+                    "care_site_type_source_value, care_site_source_value)",
+                    openapi.TYPE_STRING
+                ],
+                [
+                    "treefy",
+                    "If true, returns a tree-organised json, else, "
+                    "returns a list", openapi.TYPE_BOOLEAN
+                ],
+            ])))
+    def list(self, request, *args, **kwargs):
+        treefy = request.GET.get("treefy", None)
+        if str(treefy).lower() == 'true':
+            return self.treefied(request, *args, **kwargs)
+        return super(PerimeterViewSet, self).list(request, *args, **kwargs)
 
-@swagger_auto_schema(
-    manual_parameters=list(map(
-        lambda x: openapi.Parameter(
-            name=x[0], in_=openapi.IN_QUERY, description=x[1], type=x[2],
-            pattern=x[3] if len(x) == 4 else None
-        ), [
-            [
-                "ordering",
-                "'field' or '-field' in care_site_name, "
-                "care_site_type_source_value, care_site_source_value, ",
-                openapi.TYPE_STRING
-            ],
-            [
-                "search",
-                "Will search in multiple fields (care_site_name, "
-                "care_site_type_source_value, care_site_source_value)",
-                openapi.TYPE_STRING
-            ],
-            [
-                "treefy",
-                "If true, returns a tree-organised json, else, "
-                "returns a list", openapi.TYPE_BOOLEAN
-            ],
-        ])))
-def list(self, request, *args, **kwargs):
-    treefy = request.GET.get("treefy", None)
-    if str(treefy).lower() == 'true':
-        return self.treefied(request, *args, **kwargs)
-    return super(PerimeterViewSet, self).list(request, *args, **kwargs)
+    @swagger_auto_schema(
+        operation_description="Test",
+        responses={
+            '201': openapi.Response("Perimeters found",
+                                    YasgTreefiedPerimeterSerializer),
+            '401': openapi.Response("Not authenticated")
+        }
+    )
+    @action(detail=False, methods=['get'], url_path="treefied")
+    def treefied(self, request, *args, **kwargs):
+        # in that case, for each perimeter filtered, we want to show the
+        # branch of the whole perimeter tree that leads to it
+        q = self.filter_queryset(self.get_queryset())
+        if not q.count():
+            return Response([])
 
+        if q.count() != self.get_queryset().count():
+            q = (q | get_all_perimeters_parents_queryset(q)).distinct()
+            res = q.filter(~Q(parent__id__in=q.values_list("id", flat=True))) \
+                .distinct()
+        else:
+            res = q.filter(parent__isnull=True)
 
-@swagger_auto_schema(
-    operation_description="Test",
-    responses={
-        '201': openapi.Response("Perimeters found",
-                                YasgTreefiedPerimeterSerializer),
-        '401': openapi.Response("Not authenticated")
-    }
-)
-@action(detail=False, methods=['get'], url_path="treefied")
-def treefied(self, request, *args, **kwargs):
-    # in that case, for each perimeter filtered, we want to show the
-    # branch of the whole perimeter tree that leads to it
-    q = self.filter_queryset(self.get_queryset())
-    if not q.count():
-        return Response([])
+        prefetch = Perimeter.children_prefetch(q)
+        for _ in range(2, len(PERIMETERS_TYPES)):
+            prefetch = Perimeter.children_prefetch(
+                q.prefetch_related(prefetch))
 
-    if q.count() != self.get_queryset().count():
-        q = (q | get_all_perimeters_parents_queryset(q)).distinct()
-        res = q.filter(~Q(parent__id__in=q.values_list("id", flat=True))) \
-            .distinct()
-    else:
-        res = q.filter(parent__isnull=True)
-
-    prefetch = Perimeter.children_prefetch(q)
-    for _ in range(2, len(PERIMETERS_TYPES)):
-        prefetch = Perimeter.children_prefetch(
-            q.prefetch_related(prefetch))
-
-    res = res.prefetch_related(prefetch)
-    return Response(TreefiedPerimeterSerializer(res, many=True).data)
+        res = res.prefetch_related(prefetch)
+        return Response(TreefiedPerimeterSerializer(res, many=True).data)
 
 
 class NestedPerimeterViewSet(SwaggerSimpleNestedViewSetMixin, PerimeterViewSet):
