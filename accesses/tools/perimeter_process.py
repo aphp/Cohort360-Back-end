@@ -1,28 +1,19 @@
 from accesses.models import Perimeter, Access
 
 
-def string_to_int_list(str_list: str) -> [int]:
-    if str_list is None or len(str_list) == 0:
-        print("WARN: string list field empty")
-        return []
+def get_perimeters_ids_list(str_ids: str) -> [int]:
     try:
-        # [:-1] to remove ',' at the end of str
-        if (str_list[-1]) == ",":
-            return [int(i) for i in str_list[:-1].split(",")]
-        else:
-            return [int(i) for i in str_list.split(",")]
+        return [int(i) for i in str_ids.split(",") if i]
     except Exception as err:
         raise f"Error in element str list conversion to integer: {err}"
 
 
-"""
-Check for each parent if we found it il perimeters already given in accesses, so if the current perimeter is a child
-of another given perimeter.
-"""
-
-
 def is_perimeter_in_top_hierarchy(above_list: [int], all_distinct_perimeters: [Perimeter]) -> bool:
-    if above_list is None or above_list == "":
+    """
+    Check for each parent if we found it il perimeters already given in accesses, so if the current perimeter
+    is a child of another given perimeter.
+    """
+    if not above_list:
         return True
     is_top = True
     for perimeter in all_distinct_perimeters:
@@ -31,23 +22,20 @@ def is_perimeter_in_top_hierarchy(above_list: [int], all_distinct_perimeters: [P
     return is_top
 
 
-"""
-for each perimeter in same level access we get the above perimeter list.
-if we find an id in this list one id already present in another access, it is meaning this perimeter is not a top of
-roles perimeter hierarchy of user.
-if it is, we add current id to the list
-
-We consider a right on a same level equal to right on the current level and all children
-"""
-
-
 def get_top_perimeter_same_level(accesses_same_levels: [Access], all_distinct_perimeters: [Perimeter]) -> [Perimeter]:
+    """
+    for each perimeter in same level access we get the above perimeter list.
+    if we find an id in this list one id already present in another access,
+    it is meaning this perimeter is not a top of roles perimeter hierarchy of user.
+    if it is, we add current id to the list
+    We consider a right on a same level equal to right on the current level and all children
+    """
     response_list = []
     for access in accesses_same_levels:
         perimeter = access.perimeter
         if perimeter is None:
             pass
-        above_list = string_to_int_list(perimeter.above_levels_ids)
+        above_list = get_perimeters_ids_list(perimeter.above_levels_ids)
         if is_perimeter_in_top_hierarchy(above_list, all_distinct_perimeters):
             response_list.append(perimeter)
     return response_list
@@ -65,7 +53,7 @@ def get_top_accesses_nominative(accesses_nominative: [Access], all_nominative_pe
         perimeter = access.perimeter
         if perimeter is None:
             pass
-        above_list = string_to_int_list(perimeter.above_levels_ids)
+        above_list = get_perimeters_ids_list(perimeter.above_levels_ids)
         if is_perimeter_in_top_hierarchy(above_list, all_nominative_perimeters):
             response_list.append(access)
     return response_list
@@ -87,7 +75,7 @@ def get_top_accesses_pseudo(accesses_pseudo: [Access], all_nominative_perimeters
         perimeter = access.perimeter
         if perimeter is None:
             pass
-        above_list = string_to_int_list(perimeter.above_levels_ids)
+        above_list = get_perimeters_ids_list(perimeter.above_levels_ids)
         # if pseudo is top of all pseudo read accesses AND is not child of read nominative accesses
         if is_perimeter_in_top_hierarchy(above_list, all_pseudo_perimeters) and \
                 is_perimeter_in_top_hierarchy([perimeter.id] + above_list, all_nominative_perimeters):
@@ -105,18 +93,24 @@ if it is, we add all children perimeter id to the list
 
 def get_top_perimeter_inf_level(accesses_inf_levels: [Access], all_distinct_perimeters: [Perimeter],
                                 same_level_perimeters_response: [Perimeter]) -> [Perimeter]:
+    """
+    for each perimeter in inferior level access we get the above perimeter list.
+    if we find an id in this list one id already present in another access,
+    it is meaning this perimeter is not a top of roles perimeter hierarchy of user.
+    if it is, we add all children perimeter id to the list
+    """
     response_list = []
     for access in accesses_inf_levels:
         perimeter = access.perimeter
         if perimeter is None:
             pass
-        above_list = string_to_int_list(perimeter.above_levels_ids)
+        above_list = get_perimeters_ids_list(perimeter.above_levels_ids)
         if is_perimeter_in_top_hierarchy(above_list, all_distinct_perimeters) and \
-                is_perimeter_in_top_hierarchy([perimeter.id], same_level_perimeters_response):
+           is_perimeter_in_top_hierarchy([perimeter.id], same_level_perimeters_response):
             if perimeter.bellow_levels_ids is None:
                 print("WARN: No lower levels perimeters found! ")
                 pass
-            children_list = string_to_int_list(perimeter.bellow_levels_ids)
+            children_list = get_perimeters_ids_list(perimeter.bellow_levels_ids)
             if len(children_list) == 0:
                 pass
             children_perimeters = Perimeter.objects.filter(id__in=children_list)
@@ -125,18 +119,17 @@ def get_top_perimeter_inf_level(accesses_inf_levels: [Access], all_distinct_peri
     return response_list
 
 
-"""
-Used to filter the perimeters fetch by search params with hirerchy perimeter response with user Roles and Accesses.
-If there is no search params it return the previous top hierarchy compute response.
-"""
-
-
 def filter_perimeter_by_top_hierarchy_perimeter_list(perimeters_filtered_by_search, top_hierarchy_perimeter_list):
+    """
+    filter the perimeters fetched by search params with hierarchy perimeter response with user Roles and Accesses.
+    If there is no search params it return the previous top hierarchy compute response.
+    """
     response_list = []
-    if len(perimeters_filtered_by_search) == 0:
+    if not perimeters_filtered_by_search:
         return top_hierarchy_perimeter_list
     for perimeter in perimeters_filtered_by_search:
+        above_levels_ids = get_perimeters_ids_list(perimeter.above_levels_ids)
         for top_perimeter in top_hierarchy_perimeter_list:
-            if top_perimeter.id == perimeter.id or top_perimeter.id in string_to_int_list(perimeter.above_levels_ids):
+            if top_perimeter.id == perimeter.id or top_perimeter.id in above_levels_ids:
                 response_list.append(perimeter)
     return response_list

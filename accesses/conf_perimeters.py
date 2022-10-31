@@ -109,10 +109,6 @@ class CareSite(models.Model):
 
 
 class RelationPerimeter:
-    above_levels_ids = ""
-    children = ""
-    full_path = ""
-
     def __init__(self, above_levels_ids: str, children: str, full_path: str):
         self.above_levels_ids = above_levels_ids
         self.children = children
@@ -121,36 +117,30 @@ class RelationPerimeter:
 
 # FUNCTION DEFINITION #################################################################################################
 
-""""
-For one user id return the provider id associate
-"""
-
-
 # TODO: check si doit changer avec l'issue de modification du profile id par le provider_source_value (code aph du user)
 # TODO: qu'est ce que ça fiche ici, à déplacer dans le script appelé
 def get_provider_id(user_id: str) -> int:
-    p: Provider = Provider.objects.filter(
-        Q(provider_source_value=user_id)
-        & (Q(valid_start_datetime__lte=timezone.now())
-           | Q(valid_start_datetime__isnull=True))
-        & (Q(valid_end_datetime__gte=timezone.now())
-           | Q(valid_end_datetime__isnull=True))).first()
+    """"
+    For one user id return the provider id associate
+    """
+    p: Provider = Provider.objects.filter(Q(provider_source_value=user_id)
+                                          & (Q(valid_start_datetime__lte=timezone.now())
+                                             | Q(valid_start_datetime__isnull=True))
+                                          & (Q(valid_end_datetime__gte=timezone.now())
+                                             | Q(valid_end_datetime__isnull=True))).first()
     if p is None:
         from accesses.models import Profile
-        return Profile.objects.aggregate(
-            Max("provider_id"))['provider_id__max'] + 1
+        return Profile.objects.aggregate(Max("provider_id"))['provider_id__max'] + 1
     return p.provider_id
 
 
-"""
-Get technical id from 2 concept of the table omop.fact_relationship:
-- domain_concept_id (1 et 2)
-- relationship_concept_id
-It is used to define the relation between fact_id_1 and fact_id_2 in Where clause in psql query.
-"""
-
-
 def get_concept_filter_id() -> tuple:
+    """
+    Get technical id from 2 concept of the table omop.fact_relationship:
+    - domain_concept_id (1 et 2)
+    - relationship_concept_id
+    It is used to define the relation between fact_id_1 and fact_id_2 in Where clause in psql query.
+    """
     try:
         domain_id = env.get("CARE_SITE_DOMAIN_CONCEPT_NAME")
         relationship_id = env.get("IS_PART_OF_RELATIONSHIP_NAME")
@@ -161,17 +151,13 @@ def get_concept_filter_id() -> tuple:
     return str(is_part_of_rel_id), str(cs_domain_concept_id)
 
 
-"""
-Simple function to be type tolerant of env value fetch for top hierarchy care_site ids
-"""
-
-
 def cast_to_list_ids(item) -> List[int]:
-    if type(item) == list:
-        return item
-    elif type(item) == tuple:
+    """
+    Simple function to be type tolerant of env value fetch for top hierarchy care_site ids
+    """
+    if isinstance(item, (tuple, list)):
         return list(item)
-    elif type(item) == str:
+    elif isinstance(item, str):
         try:
             return [int(i) for i in item.replace(" ", "").split(",")]
         except Exception as err:
@@ -180,12 +166,10 @@ def cast_to_list_ids(item) -> List[int]:
         return [item]
 
 
-"""
-return list of top hierarchy care sites
-"""
-
-
 def get_top_hierarchy_care_site_ids() -> List[int]:
+    """
+    return list of top hierarchy care sites
+    """
     try:
         list_top_care_site_ids = env.get("TOP_HIERARCHY_CARE_SITE_IDS")
     except Exception as e:
