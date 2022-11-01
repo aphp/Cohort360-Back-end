@@ -46,15 +46,16 @@ def get_top_accesses_nominative(accesses_nominative: [Access], all_nominative_pe
     Check if current access is top read nominative right accesses perimeter hierarchy,
     and return list of top accesses.
     """
-    response_list = []
+    accesses_dictionary = {}
     for access in accesses_nominative:
-        perimeter = access.perimeter
+        perimeter: Perimeter = access.perimeter
         if perimeter is None:
             pass
         above_list = get_perimeters_ids_list(perimeter.above_levels_ids)
         if is_perimeter_in_top_hierarchy(above_list, all_nominative_perimeters):
-            response_list.append(access)
-    return response_list
+            accesses_dictionary[perimeter.id] = access
+
+    return list(accesses_dictionary.values())
 
 
 def get_top_accesses_pseudo(accesses_pseudo: [Access], all_nominative_perimeters: [Perimeter],
@@ -66,7 +67,7 @@ def get_top_accesses_pseudo(accesses_pseudo: [Access], all_nominative_perimeters
     The rule must be => a read nominative right win vs read pseudo right
     A nominative right on one perimeter at True give nominative right for all children of these perimeters.
     """
-    response_list = []
+    accesses_dictionary = {}
     for access in accesses_pseudo:
         perimeter = access.perimeter
         if perimeter is None:
@@ -75,8 +76,8 @@ def get_top_accesses_pseudo(accesses_pseudo: [Access], all_nominative_perimeters
         # if pseudo is top of all pseudo read accesses AND is not child of read nominative accesses
         if is_perimeter_in_top_hierarchy(above_list, all_pseudo_perimeters) and \
                 is_perimeter_in_top_hierarchy([perimeter.id] + above_list, all_nominative_perimeters):
-            response_list.append(access)
-    return response_list
+            accesses_dictionary[perimeter.id] = access
+    return list(accesses_dictionary.values())
 
 
 def get_top_perimeter_inf_level(accesses_inf_levels: [Access], all_distinct_perimeters: [Perimeter],

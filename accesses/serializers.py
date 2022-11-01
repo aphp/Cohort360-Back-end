@@ -474,6 +474,19 @@ class CareSiteSerializer(serializers.Serializer):
     care_site_source_value = serializers.CharField(read_only=True)
 
 
+"""
+Serializer with minimal config field for perimeters/manageable path
+"""
+
+
+class AccessLiteSerializer(serializers.Serializer):
+    perimeter_id = serializers.CharField(read_only=True, allow_null=True)
+    provider_id = serializers.IntegerField(read_only=True, allow_null=True)
+    right_read_patient_nominative = serializers.BooleanField(read_only=True, allow_null=True)
+    right_read_patient_pseudo_anonymised = serializers.BooleanField(read_only=True, allow_null=True)
+    right_export_csv_nominative = serializers.BooleanField(read_only=True, allow_null=True)
+
+
 class AccessSerializer(BaseSerializer):
     is_valid = serializers.BooleanField(read_only=True)
     actual_start_datetime = serializers.DateTimeField(read_only=True)
@@ -481,8 +494,7 @@ class AccessSerializer(BaseSerializer):
     perimeter = PerimeterSerializer(allow_null=True, required=False)
     perimeter_id = serializers.CharField(allow_null=True, required=False)
     # todo : remove when ready with perimeter
-    care_site = CareSiteSerializer(allow_null=True, required=False,
-                                   source='perimeter')
+    care_site = CareSiteSerializer(allow_null=True, required=False, source='perimeter')
 
     care_site_history_id = serializers.IntegerField(read_only=True, source='id')
 
@@ -491,13 +503,9 @@ class AccessSerializer(BaseSerializer):
         queryset=Role.objects.all(), source="role", write_only=True)
 
     profile = ReducedProfileSerializer(read_only=True)
-    profile_id = serializers.PrimaryKeyRelatedField(
-        queryset=Profile.objects.all(), source="profile", write_only=True
-    )
-    provider_history_id = serializers.IntegerField(source='profile_id',
-                                                   required=False)
-    provider_history = ReducedProfileSerializer(read_only=True,
-                                                source='profile')
+    profile_id = serializers.PrimaryKeyRelatedField(queryset=Profile.objects.all(), source="profile", write_only=True)
+    provider_history_id = serializers.IntegerField(source='profile_id', required=False)
+    provider_history = ReducedProfileSerializer(read_only=True, source='profile')
 
     class Meta:
         model = Access
@@ -641,3 +649,12 @@ class DataRightSerializer(serializers.Serializer):
         read_only=True, allow_null=True)
     right_transfer_jupyter_pseudo_anonymised = serializers.BooleanField(
         read_only=True, allow_null=True)
+
+
+class DataReadRightSerializer(serializers.Serializer):
+    user_id = serializers.CharField(read_only=True, allow_null=True)
+    provider_id = serializers.IntegerField(read_only=True, allow_null=True)
+    perimeter = PerimeterLiteSerializer(allow_null=True, required=False)
+    right_read_patient_nominative = serializers.BooleanField(read_only=True, allow_null=True)
+    right_read_patient_pseudo_anonymised = serializers.BooleanField(read_only=True, allow_null=True)
+    read_role = serializers.CharField(read_only=True, allow_null=True)
