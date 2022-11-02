@@ -449,7 +449,7 @@ class PerimeterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Perimeter
-        exclude = ["parent", "above_levels_ids", "bellow_levels_ids"]
+        exclude = ["parent", "above_levels_ids", "inferior_levels_ids"]
 
 
 """
@@ -463,7 +463,7 @@ class PerimeterLiteSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Perimeter
-        fields = ['id', 'name', 'source_value', 'parent_id', 'type', 'bellow_levels_ids', 'full_path']
+        fields = ['id', 'name', 'source_value', 'parent_id', 'type', 'inferior_levels_ids', 'full_path']
 
 
 class CareSiteSerializer(serializers.Serializer):

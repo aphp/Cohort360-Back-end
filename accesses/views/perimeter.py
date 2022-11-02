@@ -29,12 +29,10 @@ class PerimeterFilter(filters.FilterSet):
 
     class Meta:
         model = Perimeter
-        fields = (
-            "name",
-            "type_source_value",
-            "source_value",
-            "id",
-        )
+        fields = ("name",
+                  "type_source_value",
+                  "source_value",
+                  "id")
 
 
 class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset):

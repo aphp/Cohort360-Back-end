@@ -235,7 +235,7 @@ def map_to_perimeter(care_site_object: CareSite, relation_perimeter: RelationPer
         type_source_value=care_site_object.care_site_type_source_value,
         parent_id=care_site_object.care_site_parent_id,
         above_levels_ids=relation_perimeter.above_levels_ids,
-        bellow_levels_ids=relation_perimeter.children,
+        inferior_levels_ids=relation_perimeter.children,
         full_path=relation_perimeter.full_path
     )
 
@@ -261,7 +261,7 @@ def is_care_site_different_from_perimeter(care_site: CareSite, perimeter: Perime
             care_site.delete_datetime != perimeter.delete_datetime or \
             relation_perimeter.above_levels_ids != perimeter.above_levels_ids or \
             relation_perimeter.full_path != perimeter.full_path or \
-            relation_perimeter.children != perimeter.bellow_levels_ids:
+            relation_perimeter.children != perimeter.inferior_levels_ids:
         return True
     return False
 
@@ -427,7 +427,7 @@ def update_perimeter(list_perimeter_to_update: List[Perimeter]):
         return
     Perimeter.objects.bulk_update(list_perimeter_to_update,
                                   ["source_value", "name", "short_name", "type_source_value", "parent_id",
-                                   "above_levels_ids", "full_path", "bellow_levels_ids", "delete_datetime"])
+                                   "above_levels_ids", "full_path", "inferior_levels_ids", "delete_datetime"])
 
 
 """

@@ -96,10 +96,10 @@ def get_top_perimeter_inf_level(accesses_inf_levels: [Access], all_distinct_peri
         above_list = get_perimeters_ids_list(perimeter.above_levels_ids)
         if is_perimeter_in_top_hierarchy(above_list, all_distinct_perimeters) and \
                 is_perimeter_in_top_hierarchy([perimeter.id], same_level_perimeters_response):
-            if perimeter.bellow_levels_ids is None:
+            if perimeter.inferior_levels_ids is None:
                 print("WARN: No lower levels perimeters found! ")
                 pass
-            children_list = get_perimeters_ids_list(perimeter.bellow_levels_ids)
+            children_list = get_perimeters_ids_list(perimeter.inferior_levels_ids)
             if len(children_list) == 0:
                 pass
             children_perimeters = Perimeter.objects.filter(id__in=children_list)
