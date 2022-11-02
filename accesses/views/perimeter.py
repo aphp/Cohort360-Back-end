@@ -98,7 +98,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
         ,
         responses={
             '201': openapi.Response("manageable perimeters found",
-                                    PerimeterLiteSerializer()
+                                    DataReadRightSerializer()
                                     ),
         }
     )
@@ -118,7 +118,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
         top_pseudo_accesses = get_top_accesses_pseudo(pseudo_read_patient_access, all_nominative_perimeters,
                                                       all_pseudo_perimeters)
 
-        # Apply Distinct to list
+        # Apply DataReadRight Mapping
         top_hierarchy_data_read = data_read_access_mapper(list(set(top_nominative_accesses + top_pseudo_accesses)))
 
         return Response(DataReadRightSerializer(top_hierarchy_data_read, many=True).data)
