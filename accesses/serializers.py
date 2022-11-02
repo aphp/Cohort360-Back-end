@@ -474,19 +474,6 @@ class CareSiteSerializer(serializers.Serializer):
     care_site_source_value = serializers.CharField(read_only=True)
 
 
-"""
-Serializer with minimal config field for perimeters/manageable path
-"""
-
-
-class AccessLiteSerializer(serializers.Serializer):
-    perimeter_id = serializers.CharField(read_only=True, allow_null=True)
-    provider_id = serializers.IntegerField(read_only=True, allow_null=True)
-    right_read_patient_nominative = serializers.BooleanField(read_only=True, allow_null=True)
-    right_read_patient_pseudo_anonymised = serializers.BooleanField(read_only=True, allow_null=True)
-    right_export_csv_nominative = serializers.BooleanField(read_only=True, allow_null=True)
-
-
 class AccessSerializer(BaseSerializer):
     is_valid = serializers.BooleanField(read_only=True)
     actual_start_datetime = serializers.DateTimeField(read_only=True)
