@@ -92,14 +92,8 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
                           "- all children and current perimeter are in nominative read if right read patient nominative"
                           "is at True."
                           "- Same logical for pesudo read patient right, but if there is a current or parent perimeter"
-                          "with also a nominative patient read right, it is the nominative right which win"
-        ,
-        responses={
-            '201': openapi.Response("manageable perimeters found",
-                                    DataReadRightSerializer()
-                                    ),
-        }
-    )
+                          "with also a nominative patient read right, it is the nominative right which win",
+        responses={'201': openapi.Response("manageable perimeters found", DataReadRightSerializer())})
     @action(detail=False, methods=['get'], url_path="top-hierarchy/read-patient")
     def get_top_read_right_accesses(self, request, *args, **kwargs):
         user_accesses = get_user_valid_manual_accesses_queryset(self.request.user)

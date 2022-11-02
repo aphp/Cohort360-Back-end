@@ -376,8 +376,8 @@ def sequential_recursive_create_children_perimeters(care_site_id_list: list, car
 
             relation_perimeter = RelationPerimeter(
                 above_levels_ids=get_above_from_parent_perimeter(care_site, parent_perimeter),
-                children=get_children_care_site_list_by_id(care_site_objects, care_site.care_site_id)
-                , full_path=get_path(parent_perimeter, care_site))
+                children=get_children_care_site_list_by_id(care_site_objects, care_site.care_site_id),
+                full_path=get_path(parent_perimeter, care_site))
 
             insert_update_perimeter_list_append(list_perimeter_to_create, list_perimeter_to_update,
                                                 existing_perimeters, care_site, relation_perimeter,
