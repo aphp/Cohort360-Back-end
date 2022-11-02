@@ -1,20 +1,18 @@
 import json
-
 import time
 from typing import List, Tuple, Dict
 
+import environ
 import simplejson
 from django.db.models import Model
 from django.utils.datetime_safe import datetime
 from requests import Response
 from rest_framework import status
 from rest_framework.request import Request
-import environ
-
-from cohort.FhirAPi import FhirCountResponse, FhirCohortResponse, \
-    FhirValidateResponse
 
 from admin_cohort.types import JobStatus
+from cohort.FhirAPi import FhirCountResponse, FhirCohortResponse, \
+    FhirValidateResponse
 
 env = environ.Env()
 COHORT_REQUEST_BUILDER_URL = f"{env('COHORT_REQUEST_BUILDER_URL')}"
@@ -52,13 +50,13 @@ def parse_date(str):
 
 def fhir_to_job_status() -> Dict[str, JobStatus]:
     return dict(
-        KILLED=JobStatus.KILLED,
-        FINISHED=JobStatus.FINISHED,
-        RUNNING=JobStatus.STARTED,
-        STARTED=JobStatus.STARTED,
-        ERROR=JobStatus.ERROR,
-        UNKNOWN=JobStatus.UNKNOWN,
-        PENDING=JobStatus.PENDING,
+        KILLED=JobStatus.cancelled,
+        FINISHED=JobStatus.finished,
+        RUNNING=JobStatus.started,
+        STARTED=JobStatus.started,
+        ERROR=JobStatus.failed,
+        UNKNOWN=JobStatus.unknown,
+        PENDING=JobStatus.pending,
     )
 
 
@@ -166,7 +164,7 @@ class JobResponse:
             init_result_from_response_dict(resp, job_result)
         ]
         if len(self.result) < 1 \
-                and self.status in [JobStatus.FINISHED.name, JobStatus.ERROR.name]:
+                and self.status in [JobStatus.finished.name, JobStatus.failed.name]:
             raise Exception(f"FHIR ERROR: Result is empty - {resp.text}")
 
         self.request_response: Response = resp
@@ -227,7 +225,7 @@ def cancel_job(job_id: str, auth_headers) -> JobStatus:
         raise Exception(f"QUERY SERVER ERROR {resp.status_code}: {resp}")
 
     if resp.status_code == status.HTTP_403_FORBIDDEN:
-        return JobStatus.FINISHED
+        return JobStatus.finished
 
     if resp.status_code != status.HTTP_200_OK:
         # temp fix before actual fix in FHIR back-end
@@ -254,7 +252,7 @@ def cancel_job(job_id: str, auth_headers) -> JobStatus:
             f"QUERY SERVER ERROR: status from response ({s}) is not expected. "
             f"Values can be {[v.value for v in JobStatus]}")
 
-    if new_status not in [JobStatus.KILLED, JobStatus.FINISHED]:
+    if new_status not in [JobStatus.cancelled, JobStatus.finished]:
         raise Exception(
             f"DATA ERROR: status returned by FHIR is neither KILLED or "
             f"FINISHED -> {str(result)}"
@@ -300,10 +298,8 @@ def create_count_job(
     return resp, result
 
 
-def post_count_cohort(
-        json_file: str, auth_headers, log_prefix: str = "",
-        dated_measure: Model = None, global_estimate: bool = False
-) -> FhirCountResponse:
+def post_count_cohort(json_file: str, auth_headers, log_prefix: str = "", dated_measure: Model = None,
+                      global_estimate: bool = False) -> FhirCountResponse:
     """
     Called to ask a Fhir API to compute the size of a cohort given
     the request in the json_file
@@ -323,48 +319,34 @@ def post_count_cohort(
     d = datetime.now()
     print(f"{log_prefix} Step 1: Posting count request")
     if dated_measure is None:
-        return FhirCountResponse(
-            job_duration=datetime.now() - d, success=False,
-            err_msg="No dated_measure was provided "
-                    "to be updated during the process",
-            fhir_job_status=JobStatus.ERROR
-        )
+        return FhirCountResponse(job_duration=datetime.now() - d, success=False, fhir_job_status=JobStatus.failed,
+                                 err_msg="No dated_measure was provided to be updated during the process")
 
     try:
-        resp, result = create_count_job(
-            json_file, auth_headers, global_estimate
-        )
+        resp, result = create_count_job(json_file, auth_headers, global_estimate)
     except Exception as e:
-        return FhirCountResponse(
-            job_duration=datetime.now() - d, success=False, err_msg=str(e),
-            fhir_job_status=JobStatus.ERROR
-        )
+        return FhirCountResponse(job_duration=datetime.now() - d, success=False, fhir_job_status=JobStatus.failed,
+                                 err_msg=str(e))
 
     print(f"{log_prefix} Step 2: Response being processed")
     try:
         job = init_job_from_response(resp, result)
     except Exception as e:
-        return FhirCountResponse(
-            job_duration=datetime.now() - d, success=False,
-            err_msg=f"Error while interpreting response: {e} - {resp.text}",
-            fhir_job_status=JobStatus.ERROR
-        )
+        return FhirCountResponse(job_duration=datetime.now() - d, success=False, fhir_job_status=JobStatus.failed,
+                                 err_msg=f"Error while interpreting response: {e} - {resp.text}")
 
-    if job.status == JobStatus.ERROR:
+    if job.status == JobStatus.failed:
         job_result = job.result[0]
         reason = job_result.message
-        if len(reason) == 0:
+        if reason:
             if job_result.stack is None or len(job_result.stack) == 0:
-                reason = f'message and stack message are empty. ' \
-                         f'Full result: {resp.text}'
+                reason = f'message and stack message are empty. Full result: {resp.text}'
             else:
                 reason = f'message is empty. Stack message: {job_result.stack}'
 
         err_msg = f"FHIR ERROR {job.request_response.status_code}: {reason}"
-        return FhirCountResponse(
-            job_duration=datetime.now() - d, success=False, err_msg=err_msg,
-            fhir_job_status=JobStatus.ERROR
-        )
+        return FhirCountResponse(job_duration=datetime.now() - d, success=False, fhir_job_status=JobStatus.failed,
+                                 err_msg=err_msg)
 
     dated_measure.request_job_status = job.status.name.lower()
     dated_measure.request_job_id = job.job_id
@@ -372,70 +354,49 @@ def post_count_cohort(
 
     err_cnt = 0
     print(f"{log_prefix} Step 3: Job created. Waiting for it to be finished")
-    while job.status not in [
-        JobStatus.KILLED, JobStatus.FINISHED, JobStatus.ERROR
-    ]:
+    while job.status not in [JobStatus.cancelled, JobStatus.finished, JobStatus.failed]:
         time.sleep(2)
         try:
             res, result = get_job(job.job_id, auth_headers=auth_headers)
             job = init_job_from_response(resp=res, result=result)
-            print(
-                f"{log_prefix} Step 3.x: Job created. Status: {job.status}."
-            )
+            print(f"{log_prefix} Step 3.x: Job created. Status: {job.status}.")
         except Exception as e:
             err_cnt += 1
-            print(
-                f"{log_prefix} Step 3.x: "
-                f"Error {err_cnt} found on getting status : {str(e)}. "
-                f"Waiting 10s."
-            )
+            print(f"{log_prefix} Step 3.x: Error {err_cnt} found on getting status : {str(e)}. Waiting 10s.")
             if err_cnt > 5:
-                return FhirCountResponse(
-                    job_duration=datetime.now() - d, success=False,
-                    err_msg=f"5 errors in a row while getting "
-                            f"job status : {str(e)}",
-                    fhir_job_status=JobStatus.ERROR
-                )
+                return FhirCountResponse(job_duration=datetime.now() - d, success=False,
+                                         fhir_job_status=JobStatus.failed, err_msg=f"5 errors in a row while getting "
+                                                                                   f"job status : {str(e)}")
             time.sleep(10)
 
     print(f"{log_prefix} Step 4: Job ended, returning result.")
-    if job.status == JobStatus.KILLED:
-        return FhirCountResponse(
-            job_duration=datetime.now() - d, success=False,
-            err_msg="Job was cancelled", fhir_job_status=JobStatus.KILLED
-        )
+    if job.status == JobStatus.cancelled:
+        return FhirCountResponse(job_duration=datetime.now() - d, success=False, fhir_job_status=JobStatus.cancelled,
+                                 err_msg="Job was cancelled")
 
-    if job.status == JobStatus.ERROR:
-        return FhirCountResponse(
-            job_duration=datetime.now() - d, success=False,
-            err_msg=job.result[0].message, fhir_job_status=JobStatus.ERROR
-        )
+    if job.status == JobStatus.failed:
+        return FhirCountResponse(job_duration=datetime.now() - d, success=False, fhir_job_status=JobStatus.failed,
+                                 err_msg=job.result[0].message)
 
     job_result = job.result[0]
     if job_result.count is None and job_result.count_max is None:
-        err_msg = "INTERNAL ERROR: format of received " \
-                  f"response not anticipated: {str(result)}"
-        return FhirCountResponse(
-            fhir_job_id=job.job_id, job_duration=datetime.now() - d,
-            success=False, err_msg=err_msg,
-            fhir_job_status=JobStatus.ERROR
-        )
+        err_msg = "INTERNAL ERROR: format of received response not anticipated: {str(result)}"
+        return FhirCountResponse(fhir_job_id=job.job_id, job_duration=datetime.now() - d, success=False,
+                                 fhir_job_status=JobStatus.failed, err_msg=err_msg)
 
-    return FhirCountResponse(
-        fhir_datetime=datetime.now(),
-        fhir_job_id=job.job_id,
-        job_duration=datetime.now() - d,
-        success=True,
-        count=job_result.count,
-        count_male=job_result.count_male,
-        count_unknown=job_result.count_unknown,
-        count_deceased=job_result.count_deceased,
-        count_alive=job_result.count_alive,
-        count_female=job_result.count_female,
-        count_min=job_result.count_min,
-        count_max=job_result.count_max,
-        fhir_job_status=job.status,
-    )
+    return FhirCountResponse(fhir_datetime=datetime.now(),
+                             fhir_job_id=job.job_id,
+                             job_duration=datetime.now() - d,
+                             success=True,
+                             count=job_result.count,
+                             count_male=job_result.count_male,
+                             count_unknown=job_result.count_unknown,
+                             count_deceased=job_result.count_deceased,
+                             count_alive=job_result.count_alive,
+                             count_female=job_result.count_female,
+                             count_min=job_result.count_min,
+                             count_max=job_result.count_max,
+                             fhir_job_status=job.status)
 
 
 def create_cohort_job(json_file: str, auth_headers) -> Tuple[Response, dict]:
@@ -502,7 +463,7 @@ def post_create_cohort(
             job_duration=datetime.now() - d, success=False,
             err_msg="No dated_measure was provided "
                     "to be updated during the process",
-            fhir_job_status=JobStatus.ERROR
+            fhir_job_status=JobStatus.failed
         )
 
     try:
@@ -510,7 +471,7 @@ def post_create_cohort(
     except Exception as e:
         return FhirCohortResponse(
             job_duration=datetime.now() - d, success=False, err_msg=str(e),
-            fhir_job_status=JobStatus.ERROR
+            fhir_job_status=JobStatus.failed
         )
 
     print(f"{log_prefix} Step 2: Response being processed")
@@ -519,10 +480,10 @@ def post_create_cohort(
     except Exception as e:
         return FhirCohortResponse(
             job_duration=datetime.now() - d, success=False, err_msg=str(e),
-            fhir_job_status=JobStatus.ERROR
+            fhir_job_status=JobStatus.failed
         )
 
-    if job.status == JobStatus.ERROR:
+    if job.status == JobStatus.failed:
         job_result = job.result[0]
         reason = job_result.message
         if len(reason) == 0:
@@ -535,7 +496,7 @@ def post_create_cohort(
         err_msg = f"FHIR ERROR {job.request_response.status_code}: {reason}"
         return FhirCohortResponse(
             job_duration=datetime.now() - d, success=False, err_msg=err_msg,
-            fhir_job_status=JobStatus.ERROR
+            fhir_job_status=JobStatus.failed
         )
 
     print(f"{log_prefix} Step 3: Job created. Waiting for it to be finished")
@@ -550,7 +511,7 @@ def post_create_cohort(
 
     err_cnt = 0
     while job.status not in [
-        JobStatus.KILLED, JobStatus.FINISHED, JobStatus.ERROR
+        JobStatus.cancelled, JobStatus.finished, JobStatus.failed
     ]:
         time.sleep(5)
         try:
@@ -567,22 +528,22 @@ def post_create_cohort(
                     job_duration=datetime.now() - d, success=False,
                     err_msg=f"5 errors in a row while getting "
                             f"job status : {str(e)}",
-                    fhir_job_status=JobStatus.ERROR,
+                    fhir_job_status=JobStatus.failed,
                 )
             time.sleep(15)
 
     print(f"{log_prefix} Step 4: Job stopped, returning result.")
-    if job.status == JobStatus.KILLED:
+    if job.status == JobStatus.cancelled:
         return FhirCohortResponse(
             job_duration=datetime.now() - d, success=False,
             err_msg="Job was cancelled",
-            fhir_job_status=JobStatus.KILLED,
+            fhir_job_status=JobStatus.cancelled,
         )
 
-    if job.status == JobStatus.ERROR:
+    if job.status == JobStatus.failed:
         return FhirCohortResponse(
             job_duration=datetime.now() - d, success=False,
-            err_msg=job.result[0].message, fhir_job_status=JobStatus.ERROR
+            err_msg=job.result[0].message, fhir_job_status=JobStatus.failed
         )
 
     job_result = job.result[0]
@@ -591,7 +552,7 @@ def post_create_cohort(
                   f"{str(result)}"
         return FhirCohortResponse(
             fhir_job_id=job.job_id, job_duration=datetime.now() - d,
-            success=False, err_msg=err_msg, fhir_job_status=JobStatus.ERROR,
+            success=False, err_msg=err_msg, fhir_job_status=JobStatus.failed,
 
         )
 

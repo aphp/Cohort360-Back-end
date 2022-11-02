@@ -4,15 +4,15 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.request import Request
 
+import workspaces.conf_workspaces as conf_workspaces
 from accesses.models import DataRight, build_data_rights
 from admin_cohort.models import User, JobStatus
 from cohort.models import CohortResult
-import workspaces.conf_workspaces as conf_workspaces
-from workspaces.models import Account
 from exports import conf_exports
 from exports.emails import check_email_address
 from exports.models import ExportRequest, ExportRequestTable, ExportType
 from exports.permissions import can_review_transfer_jupyter, can_review_export
+from workspaces.models import Account
 
 
 class ExportRequestTableSerializer(serializers.ModelSerializer):
@@ -167,7 +167,7 @@ class ExportRequestSerializer(serializers.ModelSerializer):
                                   "Cohort requested")
 
         if cohort.request_job_status != JobStatus.finished \
-                and cohort.request_job_status != JobStatus.FINISHED:
+                and cohort.request_job_status != JobStatus.finished:
             raise ValidationError('The requested cohort has not successfully '
                                   'finished.')
         validated_data['cohort_id'] = (validated_data.get('cohort_fk')
