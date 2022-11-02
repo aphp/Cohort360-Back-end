@@ -100,7 +100,7 @@ def fix_csh_dates(validated_data, for_update: bool = False):
         raise ValidationError("You cannot set end_datetime "
                               "at null when updating")
 
-    # if there is no value and it is not for udpating, we set end_datetime
+    # if there is no value, and it is not for updating, we set end_datetime
     if end_datetime != 0 or not for_update:
         validated_data["manual_end_datetime"] = end_datetime \
             if end_datetime is not None and not end_is_empty \
@@ -449,7 +449,7 @@ class PerimeterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Perimeter
-        exclude = ["parent", "above_levels_ids", "bellow_levels_ids"]
+        exclude = ["parent", "above_levels_ids", "inferior_levels_ids"]
 
 
 """
@@ -463,7 +463,7 @@ class PerimeterLiteSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Perimeter
-        fields = ['id', 'name', 'source_value', 'parent_id', 'type', 'bellow_levels_ids', 'full_path']
+        fields = ['id', 'name', 'source_value', 'parent_id', 'type', 'inferior_levels_ids', 'full_path']
 
 
 class CareSiteSerializer(serializers.Serializer):
@@ -481,8 +481,7 @@ class AccessSerializer(BaseSerializer):
     perimeter = PerimeterSerializer(allow_null=True, required=False)
     perimeter_id = serializers.CharField(allow_null=True, required=False)
     # todo : remove when ready with perimeter
-    care_site = CareSiteSerializer(allow_null=True, required=False,
-                                   source='perimeter')
+    care_site = CareSiteSerializer(allow_null=True, required=False, source='perimeter')
 
     care_site_history_id = serializers.IntegerField(read_only=True, source='id')
 
@@ -491,13 +490,9 @@ class AccessSerializer(BaseSerializer):
         queryset=Role.objects.all(), source="role", write_only=True)
 
     profile = ReducedProfileSerializer(read_only=True)
-    profile_id = serializers.PrimaryKeyRelatedField(
-        queryset=Profile.objects.all(), source="profile", write_only=True
-    )
-    provider_history_id = serializers.IntegerField(source='profile_id',
-                                                   required=False)
-    provider_history = ReducedProfileSerializer(read_only=True,
-                                                source='profile')
+    profile_id = serializers.PrimaryKeyRelatedField(queryset=Profile.objects.all(), source="profile", write_only=True)
+    provider_history_id = serializers.IntegerField(source='profile_id', required=False)
+    provider_history = ReducedProfileSerializer(read_only=True, source='profile')
 
     class Meta:
         model = Access
@@ -641,3 +636,12 @@ class DataRightSerializer(serializers.Serializer):
         read_only=True, allow_null=True)
     right_transfer_jupyter_pseudo_anonymised = serializers.BooleanField(
         read_only=True, allow_null=True)
+
+
+class DataReadRightSerializer(serializers.Serializer):
+    user_id = serializers.CharField(read_only=True, allow_null=True)
+    provider_id = serializers.IntegerField(read_only=True, allow_null=True)
+    perimeter = PerimeterLiteSerializer(allow_null=True, required=False)
+    right_read_patient_nominative = serializers.BooleanField(read_only=True, allow_null=True)
+    right_read_patient_pseudo_anonymised = serializers.BooleanField(read_only=True, allow_null=True)
+    read_role = serializers.CharField(read_only=True, allow_null=True)

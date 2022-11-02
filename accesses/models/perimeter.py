@@ -22,7 +22,7 @@ class Perimeter(BaseModel):
                                on_delete=models.CASCADE,
                                related_name="children", null=True)
     above_levels_ids = models.TextField(blank=True, null=True)
-    bellow_levels_ids = models.TextField(blank=True, null=True)
+    inferior_levels_ids = models.TextField(blank=True, null=True)
     full_path = models.TextField(blank=True, null=True)
 
     @property

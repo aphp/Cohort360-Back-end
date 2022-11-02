@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from typing import List, Dict
 
 from django.db.models import Q, F
@@ -212,7 +213,7 @@ class DataRight:
                  pseudo: bool = False, nomi: bool = False,
                  exp_pseudo: bool = False, exp_nomi: bool = False,
                  jupy_pseudo: bool = False, jupy_nomi: bool = False,
-                 search_ipp: bool = False, **kwargs) -> Dict:
+                 search_ipp: bool = False, **kwargs):
         """
         @return: a default DataRight as required by the serializer
         """

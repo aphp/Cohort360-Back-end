@@ -109,10 +109,6 @@ class CareSite(models.Model):
 
 
 class RelationPerimeter:
-    above_levels_ids = ""
-    children = ""
-    full_path = ""
-
     def __init__(self, above_levels_ids: str, children: str, full_path: str):
         self.above_levels_ids = above_levels_ids
         self.children = children
@@ -121,36 +117,30 @@ class RelationPerimeter:
 
 # FUNCTION DEFINITION #################################################################################################
 
-""""
-For one user id return the provider id associate
-"""
-
-
 # TODO: check si doit changer avec l'issue de modification du profile id par le provider_source_value (code aph du user)
 # TODO: qu'est ce que ça fiche ici, à déplacer dans le script appelé
 def get_provider_id(user_id: str) -> int:
-    p: Provider = Provider.objects.filter(
-        Q(provider_source_value=user_id)
-        & (Q(valid_start_datetime__lte=timezone.now())
-           | Q(valid_start_datetime__isnull=True))
-        & (Q(valid_end_datetime__gte=timezone.now())
-           | Q(valid_end_datetime__isnull=True))).first()
+    """"
+    For one user id return the provider id associate
+    """
+    p: Provider = Provider.objects.filter(Q(provider_source_value=user_id)
+                                          & (Q(valid_start_datetime__lte=timezone.now())
+                                             | Q(valid_start_datetime__isnull=True))
+                                          & (Q(valid_end_datetime__gte=timezone.now())
+                                             | Q(valid_end_datetime__isnull=True))).first()
     if p is None:
         from accesses.models import Profile
-        return Profile.objects.aggregate(
-            Max("provider_id"))['provider_id__max'] + 1
+        return Profile.objects.aggregate(Max("provider_id"))['provider_id__max'] + 1
     return p.provider_id
 
 
-"""
-Get technical id from 2 concept of the table omop.fact_relationship:
-- domain_concept_id (1 et 2)
-- relationship_concept_id
-It is used to define the relation between fact_id_1 and fact_id_2 in Where clause in psql query.
-"""
-
-
 def get_concept_filter_id() -> tuple:
+    """
+    Get technical id from 2 concept of the table omop.fact_relationship:
+    - domain_concept_id (1 et 2)
+    - relationship_concept_id
+    It is used to define the relation between fact_id_1 and fact_id_2 in Where clause in psql query.
+    """
     try:
         domain_id = env.get("CARE_SITE_DOMAIN_CONCEPT_NAME")
         relationship_id = env.get("IS_PART_OF_RELATIONSHIP_NAME")
@@ -161,17 +151,13 @@ def get_concept_filter_id() -> tuple:
     return str(is_part_of_rel_id), str(cs_domain_concept_id)
 
 
-"""
-Simple function to be type tolerant of env value fetch for top hierarchy care_site ids
-"""
-
-
 def cast_to_list_ids(item) -> List[int]:
-    if type(item) == list:
-        return item
-    elif type(item) == tuple:
+    """
+    Simple function to be type tolerant of env value fetch for top hierarchy care_site ids
+    """
+    if isinstance(item, (tuple, list)):
         return list(item)
-    elif type(item) == str:
+    elif isinstance(item, str):
         try:
             return [int(i) for i in item.replace(" ", "").split(",")]
         except Exception as err:
@@ -180,12 +166,10 @@ def cast_to_list_ids(item) -> List[int]:
         return [item]
 
 
-"""
-return list of top hierarchy care sites
-"""
-
-
 def get_top_hierarchy_care_site_ids() -> List[int]:
+    """
+    return list of top hierarchy care sites
+    """
     try:
         list_top_care_site_ids = env.get("TOP_HIERARCHY_CARE_SITE_IDS")
     except Exception as e:
@@ -251,7 +235,7 @@ def map_to_perimeter(care_site_object: CareSite, relation_perimeter: RelationPer
         type_source_value=care_site_object.care_site_type_source_value,
         parent_id=care_site_object.care_site_parent_id,
         above_levels_ids=relation_perimeter.above_levels_ids,
-        bellow_levels_ids=relation_perimeter.children,
+        inferior_levels_ids=relation_perimeter.children,
         full_path=relation_perimeter.full_path
     )
 
@@ -277,7 +261,7 @@ def is_care_site_different_from_perimeter(care_site: CareSite, perimeter: Perime
             care_site.delete_datetime != perimeter.delete_datetime or \
             relation_perimeter.above_levels_ids != perimeter.above_levels_ids or \
             relation_perimeter.full_path != perimeter.full_path or \
-            relation_perimeter.children != perimeter.bellow_levels_ids:
+            relation_perimeter.children != perimeter.inferior_levels_ids:
         return True
     return False
 
@@ -443,7 +427,7 @@ def update_perimeter(list_perimeter_to_update: List[Perimeter]):
         return
     Perimeter.objects.bulk_update(list_perimeter_to_update,
                                   ["source_value", "name", "short_name", "type_source_value", "parent_id",
-                                   "above_levels_ids", "full_path", "bellow_levels_ids", "delete_datetime"])
+                                   "above_levels_ids", "full_path", "inferior_levels_ids", "delete_datetime"])
 
 
 """
