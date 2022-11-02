@@ -100,7 +100,7 @@ def fix_csh_dates(validated_data, for_update: bool = False):
         raise ValidationError("You cannot set end_datetime "
                               "at null when updating")
 
-    # if there is no value and it is not for udpating, we set end_datetime
+    # if there is no value, and it is not for updating, we set end_datetime
     if end_datetime != 0 or not for_update:
         validated_data["manual_end_datetime"] = end_datetime \
             if end_datetime is not None and not end_is_empty \
