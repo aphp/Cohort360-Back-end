@@ -11,7 +11,7 @@ from admin_cohort.tools import join_qs
 
 
 def format_prefix(prefix: str) -> str:
-    if prefix is None or prefix == "":
+    if prefix:
         return ""
     return prefix + "__"
 
