@@ -16,7 +16,7 @@ drf-extensions==0.6.0
 django-extensions==3.0.9
 django-safedelete==1.0.0
 coverage==6.4.1
-Celery==5.2.2
+Celery==4.4.*
 redis==3.3.*
 hdfs==2.6.0
 kerberos==1.3.1
