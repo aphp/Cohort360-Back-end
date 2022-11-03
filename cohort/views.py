@@ -1,4 +1,6 @@
-from django.http import QueryDict
+from collections import defaultdict
+
+from django.http import QueryDict, JsonResponse
 from django_filters import OrderingFilter
 from django_filters import rest_framework as filters
 from drf_yasg import openapi
@@ -78,62 +80,51 @@ class UserObjectsRestrictedViewSet(BaseViewSet):
 
 class CohortFilter(filters.FilterSet):
     name = filters.CharFilter(field_name='name', lookup_expr="icontains")
-    min_result_size = filters.NumberFilter(
-        field_name='dated_measure__measure', lookup_expr='gte')
-    max_result_size = filters.NumberFilter(
-        field_name='dated_measure__measure', lookup_expr='lte')
+    min_result_size = filters.NumberFilter(field_name='dated_measure__measure', lookup_expr='gte')
+    max_result_size = filters.NumberFilter(field_name='dated_measure__measure', lookup_expr='lte')
     # ?min_created_at=2015-04-23
-    min_fhir_datetime = filters.IsoDateTimeFilter(
-        field_name='dated_measure__fhir_datetime', lookup_expr="gte")
-    max_fhir_datetime = filters.IsoDateTimeFilter(
-        field_name='dated_measure__fhir_datetime', lookup_expr="lte")
+    min_fhir_datetime = filters.IsoDateTimeFilter(field_name='dated_measure__fhir_datetime', lookup_expr="gte")
+    max_fhir_datetime = filters.IsoDateTimeFilter(field_name='dated_measure__fhir_datetime', lookup_expr="lte")
     request_job_status = filters.AllValuesMultipleFilter()
-    request_id = filters.CharFilter(
-        field_name='request_query_snapshot__request__pk')
+    request_id = filters.CharFilter(field_name='request_query_snapshot__request__pk')
 
     # unused, untested
     def perimeter_filter(self, queryset, field, value):
-        return queryset.filter(
-            request_query_snapshot__perimeters_ids__contains=[value])
+        return queryset.filter(request_query_snapshot__perimeters_ids__contains=[value])
 
     def perimeters_filter(self, queryset, field, value):
-        return queryset.filter(
-            request_query_snapshot__perimeters_ids__contains=value.split(","))
+        return queryset.filter(request_query_snapshot__perimeters_ids__contains=value.split(","))
 
     type = filters.AllValuesMultipleFilter()
     perimeter_id = filters.CharFilter(method="perimeter_filter")
     perimeters_ids = filters.CharFilter(method="perimeters_filter")
 
-    ordering = OrderingFilter(fields=(
-        '-created_at',
-        'name',
-        ('result_size', 'dated_measure__measure'),
-        ('fhir_datetime', 'dated_measure__fhir_datetime'),
-        'type',
-        'favorite',
-        'request_job_status'
-    ))
+    ordering = OrderingFilter(fields=('-created_at',
+                                      'name',
+                                      ('dated_measure__measure', 'result_size'),
+                                      ('dated_measure__fhir_datetime', 'fhir_datetime'),
+                                      'type',
+                                      'favorite',
+                                      'request_job_status'))
 
     class Meta:
         model = CohortResult
-        fields = (
-            'name',
-            'min_result_size',
-            'max_result_size',
-            'min_fhir_datetime',
-            'max_fhir_datetime',
-            'favorite',
-            'fhir_group_id',
-            'create_task_id',
-            'request_query_snapshot',
-            'request_query_snapshot__request',
-            'request_id',
-            'request_job_status',
-            # unused, untested
-            'type',
-            'perimeter_id',
-            'perimeters_ids',
-        )
+        fields = ('name',
+                  'min_result_size',
+                  'max_result_size',
+                  'min_fhir_datetime',
+                  'max_fhir_datetime',
+                  'favorite',
+                  'fhir_group_id',
+                  'create_task_id',
+                  'request_query_snapshot',
+                  'request_query_snapshot__request',
+                  'request_id',
+                  'request_job_status',
+                  # unused, untested
+                  'type',
+                  'perimeter_id',
+                  'perimeters_ids')
 
 
 class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
@@ -142,15 +133,12 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     http_method_names = ['get', 'post', 'patch', 'delete']
     lookup_field = "uuid"
     swagger_tags = ['Cohort - cohorts']
-
     pagination_class = LimitOffsetPagination
-
     filterset_class = CohortFilter
-    search_fields = ('$name', '$description',)
+    search_fields = ('$name', '$description')
 
     def get_serializer_class(self):
-        if self.request.method in ["POST", "PUT", "PATCH"] \
-                and "dated_measure" in self.request.data \
+        if self.request.method in ["POST", "PUT", "PATCH"] and "dated_measure" in self.request.data \
                 and isinstance(self.request.data["dated_measure"], dict):
             return CohortResultSerializerFullDatedMeasure
         if self.request.method == "GET":
@@ -160,19 +148,26 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     def create(self, request, *args, **kwargs):
         if type(request.data) == QueryDict:
             request.data._mutable = True
-
         # todo remove possibility to post _id when Front is ready
         if 'dated_measure_id' not in request.data:
             if 'dated_measure' in request.data:
                 dated_measure = request.data['dated_measure']
                 if isinstance(dated_measure, dict):
                     if "request_query_snapshot" in request.data:
-                        dated_measure["request_query_snapshot"] \
-                            = request.data["request_query_snapshot"]
+                        dated_measure["request_query_snapshot"] = request.data["request_query_snapshot"]
         else:
             request.data['dated_measure'] = request.data['dated_measure_id']
 
         return super(CohortResultViewSet, self).create(request, *args, **kwargs)
+
+    @action(methods=['get'], detail=False, url_path='active-jobs')
+    def get_active_jobs(self, request, *args, **kwargs):
+        active_statuses = [JobStatus.started, JobStatus.pending]
+        active_jobs = CohortResult.objects.filter(request_job_status__in=active_statuses)
+        jobs_count = defaultdict(int)
+        for job in active_jobs:
+            jobs_count[job.request_job_status] += 1
+        return JsonResponse(data=jobs_count)
 
 
 class NestedCohortResultViewSet(SwaggerSimpleNestedViewSetMixin,
