@@ -2,8 +2,8 @@ from time import sleep
 
 from celery import shared_task, current_task
 
-from admin_cohort.models import JobStatus
 import cohort.conf_cohort_job_api as fhir_api
+from admin_cohort.models import JobStatus
 from cohort.models import CohortResult, DatedMeasure, GLOBAL_DM_MODE
 
 
@@ -102,11 +102,7 @@ def get_count_task(auth_headers: dict, json_file: str, dm_uuid: str):
     while dm is None and tries <= 5:
         dm = DatedMeasure.objects.filter(uuid=dm_uuid).first()
         if dm is None:
-            log_count_task(
-                dm_uuid,
-                f"Error: could not find DatedMeasure to update"
-                f" after {tries - 1} sec"
-            )
+            log_count_task(dm_uuid, f"Error: could not find DatedMeasure to update after {tries - 1} sec")
             tries = tries + 1
             sleep(1)
 
@@ -120,16 +116,10 @@ def get_count_task(auth_headers: dict, json_file: str, dm_uuid: str):
 
     global_estimate = dm.mode == GLOBAL_DM_MODE
 
-    log_count_task(
-        dm_uuid,
-        f"Asking fhir to get {'global ' if global_estimate else ''}count"
-    )
-    resp = fhir_api.post_count_cohort(
-        json_file, auth_headers,
-        log_prefix=f"[{'global' if global_estimate else ''}CountTask] "
-                   f"[DM uuid: {dm_uuid}]",
-        dated_measure=dm, global_estimate=global_estimate
-    )
+    log_count_task(dm_uuid, f"Asking FHIR to get {'global ' if global_estimate else ''}count")
+    log_prefix = f"[{'global' if global_estimate else ''}CountTask] [DM uuid: {dm_uuid}]"
+    resp = fhir_api.post_count_cohort(json_file, auth_headers, log_prefix=log_prefix, dated_measure=dm,
+                                      global_estimate=global_estimate)
 
     if resp.success:
         if not global_estimate:
@@ -149,10 +139,6 @@ def get_count_task(auth_headers: dict, json_file: str, dm_uuid: str):
         dm.request_job_id = resp.fhir_job_id
         dm.save()
         log_count_task(dm_uuid, "Dated measure updated")
-
     else:
-        update_instance_failed(
-            dm, resp.err_msg, resp.job_duration, resp.fhir_job_id,
-            resp.fhir_job_status
-        )
+        update_instance_failed(dm, resp.err_msg, resp.job_duration, resp.fhir_job_id, resp.fhir_job_status)
         log_count_task(dm_uuid, resp.err_msg)

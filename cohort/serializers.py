@@ -2,12 +2,12 @@ import json
 
 from rest_framework import serializers
 
-from admin_cohort.types import JobStatus
-from cohort.models import User
-from admin_cohort.serializers import BaseSerializer, OpenUserSerializer
 import cohort.conf_cohort_job_api as conf
+from admin_cohort.serializers import BaseSerializer, OpenUserSerializer
+from admin_cohort.types import JobStatus
 from cohort.models import Request, CohortResult, RequestQuerySnapshot, \
     DatedMeasure, Folder, GLOBAL_DM_MODE
+from cohort.models import User
 
 
 class PrimaryKeyRelatedFieldWithOwner(serializers.PrimaryKeyRelatedField):
@@ -75,37 +75,24 @@ class DatedMeasureSerializer(BaseSerializer):
         fhir_datetime = validated_data.get("fhir_datetime", None)
 
         if rqs is None:
-            raise serializers.ValidationError(
-                "You have to provide a request_query_snapshot_id to bind "
-                "the dated measure to it"
-            )
+            raise serializers.ValidationError("You have to provide a request_query_snapshot_id to bind "
+                                              "the dated measure to it")
 
-        if (measure is not None and fhir_datetime is None) \
-                or (measure is None and fhir_datetime is not None):
-            raise serializers.ValidationError(
-                "If you provide measure or fhir_datetime, you have to "
-                "provide the other"
-            )
+        if (measure is not None and fhir_datetime is None) or (measure is None and fhir_datetime is not None):
+            raise serializers.ValidationError("If you provide measure or fhir_datetime, you have to "
+                                              "provide the other")
 
-        res_dm = super(DatedMeasureSerializer, self).create(
-            validated_data=validated_data
-        )
+        res_dm = super(DatedMeasureSerializer, self).create(validated_data=validated_data)
 
         if measure is None:
             try:
                 from cohort.tasks import get_count_task
-                get_count_task.delay(
-                    conf.get_fhir_authorization_header(
-                        self.context.get("request", None)
-                    ),
-                    conf.format_json_request(str(rqs.serialized_query)),
-                    res_dm.uuid
-                )
+                get_count_task.delay(conf.get_fhir_authorization_header(self.context.get("request", None)),
+                                     conf.format_json_request(str(rqs.serialized_query)),
+                                     res_dm.uuid)
             except Exception as e:
                 res_dm.delete()
-                raise serializers.ValidationError(
-                    f"INTERNAL ERROR: Could not launch FHIR cohort count: {e}")
-
+                raise serializers.ValidationError(f"INTERNAL ERROR: Could not launch FHIR cohort count: {e}")
         return res_dm
 
 

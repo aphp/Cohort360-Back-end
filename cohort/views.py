@@ -1,25 +1,25 @@
-from django_filters import rest_framework as filters
 from django.http import QueryDict
 from django_filters import OrderingFilter
+from django_filters import rest_framework as filters
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework.decorators import action
 from rest_framework import status, viewsets
+from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.relations import RelatedField
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
+from admin_cohort import app
 from admin_cohort.types import JobStatus
 from admin_cohort.views import SwaggerSimpleNestedViewSetMixin, \
     CustomLoggingMixin
-from cohort.permissions import IsOwner
-from admin_cohort import app
 from cohort.conf_cohort_job_api import cancel_job, \
     get_fhir_authorization_header
 from cohort.models import Request, CohortResult, RequestQuerySnapshot, \
     DatedMeasure, Folder, User
+from cohort.permissions import IsOwner
 from cohort.serializers import RequestSerializer, \
     CohortResultSerializer, RequestQuerySnapshotSerializer, \
     DatedMeasureSerializer, FolderSerializer, \
@@ -238,66 +238,46 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         elif "request_query_snapshot_id" in request.data:
             rqs_id = request.data.get('request_query_snapshot_id')
         else:
-            return Response(
-                dict(message="'request_query_snapshot_id' not provided"),
-                status.HTTP_400_BAD_REQUEST,
-            )
+            return Response(dict(message="'request_query_snapshot_id' not provided"), status.HTTP_400_BAD_REQUEST)
 
         headers = get_fhir_authorization_header(request)
         try:
-            rqs: RequestQuerySnapshot = RequestQuerySnapshot.objects.get(
-                pk=rqs_id
-            )
+            rqs: RequestQuerySnapshot = RequestQuerySnapshot.objects.get(pk=rqs_id)
         except RequestQuerySnapshot.DoesNotExist:
-            return Response(
-                dict(
-                    message="No existing request_query_snapshot to "
-                            "'request_query_snapshot_id' provided"
-                ),
-                status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"message": "No existing request_query_snapshot to 'request_query_snapshot_id' provided"},
+                            status.HTTP_400_BAD_REQUEST)
 
         req_dms = rqs.request.dated_measures
-        for job_to_cancel in req_dms.filter(
-            request_job_status=JobStatus.started.name.lower()
-        ).prefetch_related('cohort', 'restricted_cohort'):
-            if len(job_to_cancel.cohort.all()) \
-                    or len(job_to_cancel.restricted_cohort.all()):
-                # if the pending dated measure is bound to a cohort,
-                # we don't cancel it
+        started_status = JobStatus.started.name.lower()
+        started_jobs_to_cancel = req_dms.filter(request_job_status=started_status).prefetch_related('cohort',
+                                                                                                    'restricted_cohort')
+        for job in started_jobs_to_cancel:
+            if len(job.cohort.all()) or len(job.restricted_cohort.all()):
+                # if the started dated measure is bound to a cohort, don't cancel it
                 continue
             try:
-                job_status = cancel_job(job_to_cancel.request_job_id, headers)
-                job_to_cancel.request_job_status = job_status.value
-                job_to_cancel.save()
+                job_status = cancel_job(job.request_job_id, headers)
+                job.request_job_status = job_status.value
+                job.save()
             except Exception as e:
-                return Response(
-                    dict(
-                        message=f"Error while cancelling job "
-                                f"'{job_to_cancel.request_job_id}', bound "
-                                f"to dated-measure '{job_to_cancel.uuid}': "
-                                f"{str(e)}"
-                    ), status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
+                return Response({"message": f"Error while cancelling job '{job.request_job_id}', "
+                                            f"bound to dated-measure '{job.uuid}': {str(e)}"},
+                                status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        for job_to_cancel in req_dms.filter(
-            request_job_status=JobStatus.pending.name.lower()
-        ).prefetch_related('cohort', 'restricted_cohort'):
-            if len(job_to_cancel.cohort.all()) \
-                    or len(job_to_cancel.restricted_cohort.all()):
-                # if the pending dated measure is bound to a cohort,
-                # we don't cancel it
+        pending_status = JobStatus.pending.name.lower()
+        pending_jobs_to_cancel = req_dms.filter(request_job_status=pending_status).prefetch_related('cohort',
+                                                                                                    'restricted_cohort')
+        for job in pending_jobs_to_cancel:
+            if len(job.cohort.all()) or len(job.restricted_cohort.all()):
+                # if the pending dated measure is bound to a cohort, don't cancel it
                 continue
-
             try:
-                app.control.revoke(job_to_cancel.count_task_id)
-                # revoke(task_id=job_to_cancel.count_task_id, terminate=True)
-                job_to_cancel.request_job_status = (JobStatus.cancelled.value)
-                job_to_cancel.save()
+                app.control.revoke(job.count_task_id)
+                # revoke(task_id=job.count_task_id, terminate=True)
+                job.request_job_status = (JobStatus.cancelled.value)
+                job.save()
             except Exception as e:
-                return Response(
-                    dict(message=str(e)), status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
+                return Response({"message": str(e)}, status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return self.create(request, *args, **kwargs)
 
