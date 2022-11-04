@@ -16,7 +16,7 @@ def rename_duplicate_folders(apps, schema_editor):
         folders_to_update = FolderModel.objects.using(db_alias).filter(name=item["name"],
                                                                        owner__provider_username=item["owner_id"]).\
             order_by("created_at")
-        for i, f in enumerate(folders_to_update[1:]):# do not update the first folder's name
+        for i, f in enumerate(folders_to_update[1:]):   # do not update the first folder's name
             f.name = f"{f.name} #{i+1}#"
             f.save()
 
@@ -29,7 +29,6 @@ def rollback_duplicate_folders_names(apps, schema_editor):
     for f in renamed_fodlers:
         f.name = f.name.split("#")[0].strip()
         f.save()
-
 
 
 class Migration(migrations.Migration):
