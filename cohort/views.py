@@ -1,5 +1,3 @@
-from collections import defaultdict
-
 from django.http import QueryDict, JsonResponse
 from django_filters import OrderingFilter
 from django_filters import rest_framework as filters
@@ -164,10 +162,10 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     def get_active_jobs(self, request, *args, **kwargs):
         active_statuses = [JobStatus.started, JobStatus.pending]
         active_jobs = CohortResult.objects.filter(request_job_status__in=active_statuses)
-        jobs_count = defaultdict(int)
+        jobs_count = {"started": 0, "pending": 0}
         for job in active_jobs:
             jobs_count[job.request_job_status] += 1
-        return JsonResponse(data=jobs_count)
+        return JsonResponse(data=jobs_count, status=status.HTTP_200_OK)
 
 
 class NestedCohortResultViewSet(SwaggerSimpleNestedViewSetMixin,
