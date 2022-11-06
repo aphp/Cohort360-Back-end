@@ -1,4 +1,4 @@
-from django.http import QueryDict
+from django.http import QueryDict, JsonResponse
 from django_filters import OrderingFilter
 from django_filters import rest_framework as filters
 from drf_yasg import openapi
@@ -13,17 +13,12 @@ from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from admin_cohort import app
 from admin_cohort.types import JobStatus
-from admin_cohort.views import SwaggerSimpleNestedViewSetMixin, \
-    CustomLoggingMixin
-from cohort.conf_cohort_job_api import cancel_job, \
-    get_fhir_authorization_header
-from cohort.models import Request, CohortResult, RequestQuerySnapshot, \
-    DatedMeasure, Folder, User
+from admin_cohort.views import SwaggerSimpleNestedViewSetMixin, CustomLoggingMixin
+from cohort.conf_cohort_job_api import cancel_job, get_fhir_authorization_header
+from cohort.models import Request, CohortResult, RequestQuerySnapshot, DatedMeasure, Folder, User
 from cohort.permissions import IsOwner
-from cohort.serializers import RequestSerializer, \
-    CohortResultSerializer, RequestQuerySnapshotSerializer, \
-    DatedMeasureSerializer, FolderSerializer, \
-    CohortResultSerializerFullDatedMeasure
+from cohort.serializers import RequestSerializer, CohortResultSerializer, RequestQuerySnapshotSerializer, \
+    DatedMeasureSerializer, FolderSerializer, CohortResultSerializerFullDatedMeasure
 
 
 class NoUpdateViewSetMixin:
@@ -474,8 +469,7 @@ class FolderFilter(filters.FilterSet):
         fields = ['uuid', 'name', 'parent_folder']
 
 
-class FolderViewSet(CustomLoggingMixin, NestedViewSetMixin,
-                    UserObjectsRestrictedViewSet):
+class FolderViewSet(CustomLoggingMixin, NestedViewSetMixin, UserObjectsRestrictedViewSet):
     queryset = Folder.objects.all()
     serializer_class = FolderSerializer
     http_method_names = ['get', 'post', 'patch', 'delete']
@@ -487,3 +481,20 @@ class FolderViewSet(CustomLoggingMixin, NestedViewSetMixin,
 
     filterset_class = FolderFilter
     search_fields = ('$name', '$description',)
+
+    @staticmethod
+    def return_unique_constraint_resp():
+        return JsonResponse(data={"unique_constraint_error": "Un projet avec cet intitulé existe déjà."},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+    def create(self, request, *args, **kwargs):
+        try:
+            return super(FolderViewSet, self).create(request, *args, **kwargs)
+        except ValidationError:
+            self.return_unique_constraint_resp()
+
+    def partial_update(self, request, *args, **kwargs):
+        try:
+            return super(FolderViewSet, self).partial_update(request, *args, **kwargs)
+        except ValidationError:
+            self.return_unique_constraint_resp()
