@@ -466,7 +466,7 @@ class FolderFilter(filters.FilterSet):
 
     class Meta:
         model = Folder
-        fields = ['uuid', 'name', 'parent_folder']
+        fields = ['uuid', 'name']
 
 
 class FolderViewSet(CustomLoggingMixin, NestedViewSetMixin, UserObjectsRestrictedViewSet):
