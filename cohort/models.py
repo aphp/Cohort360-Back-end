@@ -6,12 +6,11 @@ from typing import List
 
 from django.apps import apps
 from django.contrib.postgres.fields import ArrayField
-
-from admin_cohort.settings import SHARED_FOLDER_NAME
-from admin_cohort.models import User, JobModel
 from django.db import models
 
 from admin_cohort.models import CohortBaseModel
+from admin_cohort.models import User, JobModel
+from admin_cohort.settings import SHARED_FOLDER_NAME
 
 COHORT_TYPE_CHOICES = [("IMPORT_I2B2", "Previous cohorts imported from i2b2.",),
                        ("MY_ORGANIZATIONS", "Organizations in which I work (care sites "
@@ -38,8 +37,6 @@ DATED_MEASURE_MODE_CHOICES = [(SNAPSHOT_DM_MODE, SNAPSHOT_DM_MODE),
 class Folder(CohortBaseModel):
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='folders')
     name = models.CharField(max_length=50)
-    parent_folder = models.ForeignKey("cohort.Folder", on_delete=models.CASCADE, related_name="children_folders",
-                                      null=True)
 
     class Meta:
         unique_together = ('owner', 'name')
@@ -97,10 +94,9 @@ class RequestQuerySnapshot(CohortBaseModel):
 
     def share(self, recipients: List[User], name: str) -> RequestQuerySnapshot:
         dct_recipients = dict([(r.pk, r) for r in recipients])
-        folders = list(Folder.objects.filter(owner__in=recipients, name=SHARED_FOLDER_NAME, parent_folder=None))
+        folders = list(Folder.objects.filter(owner__in=recipients, name=SHARED_FOLDER_NAME))
         owners_ids = [folder.owner.pk for folder in folders]
-        folders_to_create = [Folder(owner=r, name=SHARED_FOLDER_NAME, parent_folder=None)
-                             for r in recipients if r.pk not in owners_ids]
+        folders_to_create = [Folder(owner=r, name=SHARED_FOLDER_NAME) for r in recipients if r.pk not in owners_ids]
         dct_folders = dict([(f.owner.pk, f) for f in folders + folders_to_create])
         request_name = name or self.request.name
 

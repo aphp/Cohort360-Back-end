@@ -10,13 +10,13 @@ from rest_framework.test import force_authenticate
 
 from admin_cohort.models import User
 from admin_cohort.settings import SHARED_FOLDER_NAME
+from admin_cohort.tests_tools import ViewSetTests, new_random_user, \
+    random_str, ListCase, RetrieveCase, CreateCase, CaseRetrieveFilter, \
+    DeleteCase, PatchCase, RequestCase
 from admin_cohort.tools import prettify_json
 from admin_cohort.types import JobStatus
 from cohort.FhirAPi import FhirValidateResponse, FhirCountResponse, \
     FhirCohortResponse
-from admin_cohort.tests_tools import ViewSetTests, new_random_user, \
-    random_str, ListCase, RetrieveCase, CreateCase, CaseRetrieveFilter, \
-    DeleteCase, PatchCase, RequestCase
 from cohort.models import Request, RequestQuerySnapshot, DatedMeasure, \
     CohortResult, Folder, REQUEST_DATA_TYPE_CHOICES, \
     PATIENT_REQUEST_TYPE, DATED_MEASURE_MODE_CHOICES, SNAPSHOT_DM_MODE, \
@@ -108,7 +108,6 @@ class FoldersGetTests(FoldersTests):
                     name=random_str(10,
                                     random.random() > .5 and self.name_pattern),
                     owner=f.owner,
-                    parent_folder=f
                 )
             ])
 
@@ -148,22 +147,11 @@ class FoldersGetTests(FoldersTests):
 
     def test_list_with_filters(self):
         # As a user, I can list the folders I own
-        basic_case = ListCase(user=self.user1, success=True,
-                              status=status.HTTP_200_OK)
+        basic_case = ListCase(user=self.user1, success=True, status=status.HTTP_200_OK)
         user1_folders = [f for f in self.folders if f.owner == self.user1]
-        parent_folder = next(f for f in user1_folders
-                             if f.parent_folder is not None).parent_folder
-        cases = [
-            basic_case.clone(
-                params=dict(parent_folder=parent_folder.pk),
-                to_find=list(parent_folder.children_folders.all()),
-            ),
-            basic_case.clone(
-                params=dict(name=self.name_pattern),
-                to_find=[f for f in user1_folders
-                         if self.name_pattern.lower() in f.name],
-            )
-        ]
+        cases = [basic_case.clone(params={"name": self.name_pattern},
+                                  to_find=[f for f in user1_folders if self.name_pattern.lower() in f.name]),
+                 ]
         [self.check_get_paged_list_case(case) for case in cases]
 
 
@@ -172,23 +160,13 @@ class FoldersCreateTests(FoldersTests):
         super(FoldersCreateTests, self).setUp()
         self.test_name = "test"
         self.main_folder_name = "Main"
-        self.user1_folder = Folder.objects.create(
-            name=self.main_folder_name, owner=self.user1)
-        self.user2_folder = Folder.objects.create(
-            name=self.main_folder_name, owner=self.user2)
+        self.user1_folder = Folder.objects.create(name=self.main_folder_name, owner=self.user1)
+        self.user2_folder = Folder.objects.create(name=self.main_folder_name, owner=self.user2)
 
-        self.basic_data = dict(
-            parent_folder=self.user1_folder.pk,
-            name=self.test_name,
-        )
-        self.basic_case = CreateCase(
-            success=True,
-            status=status.HTTP_201_CREATED,
-            user=self.user1,
-            data=self.basic_data,
-            retrieve_filter=FolderCaseRetrieveFilter(name=self.test_name,
-                                                     owner=self.user1)
-        )
+        self.basic_data = {"name": self.test_name}
+        self.basic_case = CreateCase(success=True, status=status.HTTP_201_CREATED, user=self.user1,
+                                     data=self.basic_data,
+                                     retrieve_filter=FolderCaseRetrieveFilter(name=self.test_name, owner=self.user1))
 
     def test_create(self):
         # As a user, I can create a folder
@@ -214,31 +192,12 @@ class FoldersCreateTests(FoldersTests):
 
     def test_error_create_with_other_owner(self):
         # As a user, I cannot create a folder
-        self.check_create_case(self.basic_case.clone(
-            data=dict(parent_folder_id=self.user1_folder.pk,
-                      owner=self.user2.pk,
-                      name=self.test_name),
-            success=False,
-            status=status.HTTP_400_BAD_REQUEST,
-            retrieve_filter=FolderCaseRetrieveFilter(
-                name=self.test_name,
-                owner=self.user2
-            ),
-        ))
-
-    def test_error_create_with_wrong_parent(self):
-        # As a user, I cannot create a folder
-        self.check_create_case(self.basic_case.clone(
-            data=dict(parent_folder_id=self.user2_folder.pk,
-                      owner_id=self.user1.pk,
-                      name=self.test_name),
-            success=False,
-            status=status.HTTP_400_BAD_REQUEST,
-            retrieve_filter=FolderCaseRetrieveFilter(
-                name=self.test_name,
-                owner=self.user1
-            ),
-        ))
+        case = self.basic_case.clone(data={"owner": self.user2.pk,
+                                           "name": self.test_name},
+                                     success=False,
+                                     status=status.HTTP_400_BAD_REQUEST,
+                                     retrieve_filter=FolderCaseRetrieveFilter(name=self.test_name, owner=self.user2))
+        self.check_create_case(case)
 
     def test_error_create_with_same_user_name_and_parent(self):
         # As a user, I cannot create a folder with a name already taken
@@ -294,17 +253,17 @@ class FoldersUpdateTests(FoldersTests):
 
     def test_update_as_owner(self):
         # As a user, I can patch a folder I own
-        self.check_patch_case(self.basic_case.clone(
-            initial_data=dict(owner=self.user1, name="test"),
-            data_to_update=dict(
-                name="new_name",
-                parent_folder=self.user1_folder.pk,
-                # read_only
-                created_at=timezone.now() + timedelta(hours=1),
-                modified_at=timezone.now() + timedelta(hours=1),
-                deleted=timezone.now() + timedelta(hours=1),
-            )
-        ))
+        initial_data = {"owner": self.user1,
+                        "name": "test"
+                        }
+        data_to_update = {"name": "new_name",
+                          # read_only
+                          "created_at": timezone.now() + timedelta(hours=1),
+                          "modified_at": timezone.now() + timedelta(hours=1),
+                          "deleted": timezone.now() + timedelta(hours=1)
+                          }
+        case = self.basic_case.clone(initial_data=initial_data, data_to_update=data_to_update)
+        self.check_patch_case(case)
 
     def test_error_update_as_not_owner(self):
         # As a user, I cannot patch a folder I do not own
