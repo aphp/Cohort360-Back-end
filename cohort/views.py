@@ -1,4 +1,4 @@
-from django.http import QueryDict, JsonResponse
+from django.http import QueryDict
 from django_filters import OrderingFilter
 from django_filters import rest_framework as filters
 from drf_yasg import openapi
@@ -481,20 +481,3 @@ class FolderViewSet(CustomLoggingMixin, NestedViewSetMixin, UserObjectsRestricte
 
     filterset_class = FolderFilter
     search_fields = ('$name', '$description',)
-
-    @staticmethod
-    def unique_constraint_error_resp():
-        return JsonResponse(data={"unique_constraint_error": "Un projet avec cet intitulé existe déjà."},
-                            status=status.HTTP_400_BAD_REQUEST)
-
-    def create(self, request, *args, **kwargs):
-        try:
-            return super(FolderViewSet, self).create(request, *args, **kwargs)
-        except ValidationError:
-            return self.unique_constraint_error_resp()
-
-    def partial_update(self, request, *args, **kwargs):
-        try:
-            return super(FolderViewSet, self).partial_update(request, *args, **kwargs)
-        except ValidationError:
-            return self.unique_constraint_error_resp()
