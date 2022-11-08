@@ -1,4 +1,4 @@
-from django.http import QueryDict, JsonResponse
+from django.http import QueryDict, JsonResponse, HttpResponse
 from django_filters import OrderingFilter
 from django_filters import rest_framework as filters
 from drf_yasg import openapi
@@ -158,14 +158,13 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
 
         return super(CohortResultViewSet, self).create(request, *args, **kwargs)
 
-    @action(methods=['get'], detail=False, url_path='active-jobs')
+    @action(methods=['get'], detail=False, url_path='jobs/active')
     def get_active_jobs(self, request, *args, **kwargs):
-        active_statuses = [JobStatus.started, JobStatus.pending]
-        active_jobs = CohortResult.objects.filter(request_job_status__in=active_statuses)
-        jobs_count = {"started": 0, "pending": 0}
-        for job in active_jobs:
-            jobs_count[job.request_job_status] += 1
-        return JsonResponse(data=jobs_count, status=status.HTTP_200_OK)
+        active_statuses = [JobStatus.new, JobStatus.validated, JobStatus.started, JobStatus.pending]
+        jobs_count = CohortResult.objects.filter(request_job_status__in=active_statuses).count()
+        if not jobs_count:
+            return HttpResponse(status=status.HTTP_204_NO_CONTENT)
+        return JsonResponse(data={"jobs_count": jobs_count}, status=status.HTTP_200_OK)
 
 
 class NestedCohortResultViewSet(SwaggerSimpleNestedViewSetMixin,
