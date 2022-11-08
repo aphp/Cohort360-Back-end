@@ -153,19 +153,15 @@ class JobModel(models.Model):
 
     def validate(self):
         if self.request_job_status != JobStatus.new:
-            raise Exception(
-                f"Job can be validated only if current status is "
-                f"'{JobStatus.new}'. Current status is "
-                f"'{self.request_job_status}'")
+            raise Exception(f"Job can be validated only if current status is '{JobStatus.new}'."
+                            f"Current status is '{self.request_job_status}'")
         self.request_job_status = JobStatus.validated
         self.save()
 
     def deny(self):
         if self.request_job_status != JobStatus.new:
-            raise Exception(
-                f"Job can be denied only if current status is "
-                f"'{JobStatus.new}'. Current status is "
-                f"'{self.request_job_status}'")
+            raise Exception(f"Job can be denied only if current status is {JobStatus.new}'."
+                            f"Current status is '{self.request_job_status}'")
         self.request_job_status = JobStatus.denied
         self.save()
 
