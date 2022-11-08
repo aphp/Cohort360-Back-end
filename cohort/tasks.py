@@ -90,8 +90,8 @@ def create_cohort_task(auth_headers: dict, json_file: str, cohort_uuid: str):
         log_create_task(cohort_uuid, resp.err_msg)
 
 
-def log_count_task(id, msg):
-    print(f"[CountTask] [DM uuid: {id}] {msg}")
+def log_count_task(dm_id, msg):
+    print(f"[CountTask] [DM uuid: {dm_id}] {msg}")
 
 
 @shared_task
@@ -138,6 +138,7 @@ def get_count_task(auth_headers: dict, json_file: str, dm_uuid: str):
         dm.request_job_duration = resp.job_duration
         dm.request_job_id = resp.fhir_job_id
         dm.save()
+        log_count_task(dm_uuid, f"Dated Measure count: {dm.measure}")
         log_count_task(dm_uuid, "Dated measure updated")
     else:
         update_instance_failed(dm, resp.err_msg, resp.job_duration, resp.fhir_job_id, resp.fhir_job_status)
