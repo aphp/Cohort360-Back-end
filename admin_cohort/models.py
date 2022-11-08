@@ -143,11 +143,8 @@ def get_user(user_id: str) -> User:
 
 class JobModel(models.Model):
     request_job_id = models.TextField(blank=True, null=True)
-    request_job_status = models.CharField(
-        max_length=10,
-        choices=[(e.value, e.value) for e in JobStatus],
-        default=JobStatus.new.name, null=True
-    )
+    request_job_status = models.CharField(max_length=10, choices=[(e.value, e.value) for e in JobStatus], null=True,
+                                          default=JobStatus.new.name)
     request_job_fail_msg = models.TextField(blank=True, null=True)
     request_job_duration = models.TextField(blank=True, null=True)
 
@@ -156,19 +153,15 @@ class JobModel(models.Model):
 
     def validate(self):
         if self.request_job_status != JobStatus.new:
-            raise Exception(
-                f"Job can be validated only if current status is "
-                f"'{JobStatus.new}'. Current status is "
-                f"'{self.request_job_status}'")
+            raise Exception(f"Job can be validated only if current status is '{JobStatus.new}'."
+                            f"Current status is '{self.request_job_status}'")
         self.request_job_status = JobStatus.validated
         self.save()
 
     def deny(self):
         if self.request_job_status != JobStatus.new:
-            raise Exception(
-                f"Job can be denied only if current status is "
-                f"'{JobStatus.new}'. Current status is "
-                f"'{self.request_job_status}'")
+            raise Exception(f"Job can be denied only if current status is {JobStatus.new}'."
+                            f"Current status is '{self.request_job_status}'")
         self.request_job_status = JobStatus.denied
         self.save()
 
