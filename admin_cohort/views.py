@@ -9,7 +9,6 @@ from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.debug import sensitive_post_parameters
 from django_filters import OrderingFilter
 from django_filters import rest_framework as filters
 from drf_yasg import openapi
@@ -324,7 +323,6 @@ class CustomLoginView(LoginView):
             handler = self.http_method_not_allowed
         return handler(request, *args, **kwargs)
 
-    @sensitive_post_parameters("password")
     @csrf_exempt
     def post(self, request, *args, **kwargs):
         resp = super(CustomLoginView, self).post(request, *args, **kwargs)
