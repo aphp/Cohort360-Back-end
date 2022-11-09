@@ -106,7 +106,10 @@ class JobResult:
         self._type: str = kwargs.get('_type')
         self.source: str = kwargs.get('source')
         # count
-        self.count = "group.count" in kwargs and kwargs["group.count"] or kwargs["count"]
+        if "group.count" in kwargs:
+            self.count = kwargs.get("group.count", None)
+        else:
+            self.count = kwargs.get("count", None)
         self.count_male = kwargs.get("count_male")
         self.count_unknown = kwargs.get("count_unknown")
         self.count_deceased = kwargs.get("count_deceased")
@@ -141,7 +144,7 @@ class JobResponse:
         job_result = kwargs.get('result', [])
 
         if isinstance(job_result, list):
-            self.result: List[JobResult] = [init_result_from_response_dict(resp, d) for d in job_result]
+            self.result: List[JobResult] = [init_result_from_response_dict(resp, jr) for jr in job_result]
         else:
             self.result: List[JobResult] = [init_result_from_response_dict(resp, job_result)]
         if not self.result and self.status in [JobStatus.finished.name, JobStatus.failed.name]:
