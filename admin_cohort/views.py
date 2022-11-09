@@ -309,7 +309,6 @@ class CustomLoginView(LoginView):
         url = self.get_redirect_url()
         return JsonResponse(data) if not url else HttpResponseRedirect(url)
 
-    @method_decorator(sensitive_post_parameters())
     @csrf_exempt
     @method_decorator(never_cache)
     def dispatch(self, request, *args, **kwargs):
@@ -325,6 +324,7 @@ class CustomLoginView(LoginView):
             handler = self.http_method_not_allowed
         return handler(request, *args, **kwargs)
 
+    @sensitive_post_parameters("password")
     @csrf_exempt
     def post(self, request, *args, **kwargs):
         resp = super(CustomLoginView, self).post(request, *args, **kwargs)
