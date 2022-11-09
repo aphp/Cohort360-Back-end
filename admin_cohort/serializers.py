@@ -107,8 +107,7 @@ class MaintenancePhaseSerializer(BaseSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     displayed_name = serializers.CharField(read_only=True)
-    provider_source_value = serializers.CharField(
-        read_only=True, source="provider_username")
+    provider_source_value = serializers.CharField(read_only=True, source="provider_username")
 
     class Meta:
         model = User

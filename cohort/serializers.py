@@ -87,9 +87,9 @@ class DatedMeasureSerializer(BaseSerializer):
         if measure is None:
             try:
                 from cohort.tasks import get_count_task
-                get_count_task.delay(conf.get_fhir_authorization_header(self.context.get("request", None)),
-                                     conf.format_json_request(str(rqs.serialized_query)),
-                                     res_dm.uuid)
+                auth_header = conf.get_fhir_authorization_header(self.context.get("request", None))
+                json_file = conf.format_json_request(str(rqs.serialized_query))
+                get_count_task.delay(auth_header, json_file, res_dm.uuid)
             except Exception as e:
                 res_dm.delete()
                 raise serializers.ValidationError(f"INTERNAL ERROR: Could not launch FHIR cohort count: {e}")
