@@ -304,3 +304,6 @@ JWT_REFRESH_COOKIE = "refresh"
 # WORKSPACES
 if 'workspaces' in INCLUDED_APPS:
     RANGER_HIVE_POLICY_TYPES = env('RANGER_HIVE_POLICY_TYPES').split(",")
+
+DEFAULT_EXCEPTION_REPORTER_FILTER = 'admin_cohort.tools.CustomExceptionReporterFilter'
+CUSTOM_SENSITIVE_POST_PARAMS = ['password']

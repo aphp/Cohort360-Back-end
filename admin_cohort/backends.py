@@ -1,5 +1,3 @@
-from django.views.decorators.debug import sensitive_variables
-
 from admin_cohort import conf_auth
 from admin_cohort.conf_auth import LoginError, ServerError, JwtTokens
 from admin_cohort.models import User, get_or_create_user_with_info
@@ -12,7 +10,6 @@ def get_or_create_user(jwt_access_token: str) -> User:
 
 class AuthBackend:
 
-    @sensitive_variables("password")
     def authenticate(self, request, username, password):
         try:
             tokens: JwtTokens = conf_auth.check_ids(username=username,
