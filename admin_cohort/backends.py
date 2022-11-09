@@ -9,6 +9,7 @@ def get_or_create_user(jwt_access_token: str) -> User:
 
 
 class AuthBackend:
+
     def authenticate(self, request, username, password):
         try:
             tokens: JwtTokens = conf_auth.check_ids(username=username,

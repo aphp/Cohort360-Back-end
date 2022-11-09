@@ -4,7 +4,9 @@ from functools import reduce
 from operator import or_
 from typing import List, Union, Iterable
 
+from django.conf import settings
 from django.db.models import Q
+from django.views.debug import SafeExceptionReporterFilter, CLEANSED_SUBSTITUTE
 
 
 def prettify_dict(obj: Union[dict, list]) -> str:
@@ -50,3 +52,14 @@ class StrEnum(str, Enum):
     def list(cls, exclude: List[str] = None):
         exclude = exclude or [""]
         return [c.value for c in cls if c.value not in exclude]
+
+
+class CustomExceptionReporterFilter(SafeExceptionReporterFilter):
+
+    def get_post_parameters(self, request):
+        immutable_post_params = super(CustomExceptionReporterFilter, self).get_post_parameters(request)
+        post_params = immutable_post_params.copy()
+        for param_name in settings.CUSTOM_SENSITIVE_POST_PARAMS:
+            if param_name in post_params:
+                post_params[param_name] = CLEANSED_SUBSTITUTE
+        return post_params

@@ -1,12 +1,11 @@
-import environ
 import json
-import jwt
-import requests
-
-from django.utils import timezone
-from django.utils.translation import ugettext_lazy as _
 from typing import Optional, Union
 
+import environ
+import jwt
+import requests
+from django.utils import timezone
+from django.utils.translation import ugettext_lazy as _
 from rest_framework import status, HTTP_HEADER_ENCODING
 from rest_framework_simplejwt.exceptions import AuthenticationFailed
 
@@ -107,20 +106,18 @@ def check_id_aph(id_aph: str) -> Optional[IdResp]:
 
 def check_ids(username: str, password: str) -> JwtTokens:
     if SERVER_VERSION.lower() == "dev":
-        return JwtTokens(username, username, dict(
-            created_at=timezone.now() - timezone.timedelta(days=1),
-            modified_at=timezone.now() - timezone.timedelta(days=1),
-            app_name='localhost'))
+        return JwtTokens(username, username, {"created_at": timezone.now() - timezone.timedelta(days=1),
+                                              "modified_at": timezone.now() - timezone.timedelta(days=1),
+                                              "app_name": 'localhost'
+                                              })
 
-    resp = requests.post(
-        "{}/jwt/".format(JWT_SERVER_URL),
-        data={"username": username, "password": password},
-        headers=jwt_server_headers)
+    resp = requests.post(f"{JWT_SERVER_URL}/jwt/",
+                         data={"username": username, "password": password},
+                         headers=jwt_server_headers)
     if resp.status_code == status.HTTP_401_UNAUTHORIZED:
         raise LoginError("Invalid username or password")
     if resp.status_code != 200:
-        raise ServerError(f"Error {resp.status_code} from "
-                          f"authentication server: {resp.text}")
+        raise ServerError(f"Error {resp.status_code} from authentication server: {resp.text}")
     return JwtTokens(**resp.json())
 
 
