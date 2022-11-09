@@ -97,27 +97,14 @@ class DatedMeasureSerializer(BaseSerializer):
 
 
 class CohortResultSerializer(BaseSerializer):
-    owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(),
-                                       required=False)
+    owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
     result_size = serializers.IntegerField(read_only=True)
-    request = serializers.UUIDField(read_only=True, required=False,
-                                    source='request_id')
-    request_query_snapshot = PrimaryKeyRelatedFieldWithOwner(
-        queryset=RequestQuerySnapshot.objects.all(), required=True
-    )
-    dated_measure = PrimaryKeyRelatedFieldWithOwner(
-        queryset=DatedMeasure.objects.all(), required=False
-    )
-    dated_measure_global = PrimaryKeyRelatedFieldWithOwner(
-        queryset=DatedMeasure.objects.all(), required=False
-    )
-    global_estimate = serializers.BooleanField(
-        write_only=True, allow_null=True, default=True
-    )
-
-    fhir_group_id = serializers.CharField(
-        allow_blank=True, allow_null=True, required=False
-    )
+    request = serializers.UUIDField(read_only=True, required=False, source='request_id')
+    request_query_snapshot = PrimaryKeyRelatedFieldWithOwner(queryset=RequestQuerySnapshot.objects.all(), required=True)
+    dated_measure = PrimaryKeyRelatedFieldWithOwner(queryset=DatedMeasure.objects.all(), required=False)
+    dated_measure_global = PrimaryKeyRelatedFieldWithOwner(queryset=DatedMeasure.objects.all(), required=False)
+    global_estimate = serializers.BooleanField(write_only=True, allow_null=True, default=True)
+    fhir_group_id = serializers.CharField(allow_blank=True, allow_null=True, required=False)
 
     class Meta:
         model = CohortResult
@@ -147,23 +134,16 @@ class CohortResultSerializer(BaseSerializer):
                            validated_data.get('dated_measure_global', None)
                            is None)
 
-        dm = validated_data.get(
-            "dated_measure", dict(fhir_datetime=None, measure=None)
-        )
+        dm = validated_data.get("dated_measure", dict(fhir_datetime=None, measure=None))
         if not isinstance(dm, DatedMeasure):
             if "measure" in dm and dm["measure"] is None:
-                dm = DatedMeasure.objects.create(
-                    owner=rqs.owner,
-                    request_query_snapshot=rqs,
-                )
+                dm = DatedMeasure.objects.create(owner=rqs.owner, request_query_snapshot=rqs)
                 dm.save()
             else:
-                dm_serializer = DatedMeasureSerializer(
-                    data={
-                        **dm,
-                        "owner": rqs.owner.provider_username,
-                        "request_query_snapshot": rqs.uuid
-                    }, context=self.context)
+                dm_serializer = DatedMeasureSerializer(data={**dm,
+                                                             "owner": rqs.owner.provider_username,
+                                                             "request_query_snapshot": rqs.uuid
+                                                             }, context=self.context)
 
                 dm_serializer.is_valid(raise_exception=True)
                 dm = dm_serializer.save()
@@ -171,31 +151,22 @@ class CohortResultSerializer(BaseSerializer):
 
         res_dm_global: DatedMeasure = None
         if global_estimate:
-            res_dm_global: DatedMeasure = DatedMeasure.objects.create(
-                owner=rqs.owner,
-                request_query_snapshot=rqs,
-                mode=GLOBAL_DM_MODE
-            )
+            res_dm_global: DatedMeasure = DatedMeasure.objects.create(owner=rqs.owner, request_query_snapshot=rqs,
+                                                                      mode=GLOBAL_DM_MODE)
             validated_data["dated_measure_global"] = res_dm_global
 
-        result_cr: CohortResult = super(CohortResultSerializer, self) \
-            .create(validated_data=validated_data)
+        result_cr: CohortResult = super(CohortResultSerializer, self).create(validated_data=validated_data)
 
         if global_estimate:
             try:
                 from cohort.tasks import get_count_task
-                get_count_task.delay(
-                    conf.get_fhir_authorization_header(
-                        self.context.get("request", None)
-                    ),
-                    conf.format_json_request(str(rqs.serialized_query)),
-                    res_dm_global.uuid
-                )
+                get_count_task.delay(conf.get_fhir_authorization_header(self.context.get("request", None)),
+                                     conf.format_json_request(str(rqs.serialized_query)),
+                                     res_dm_global.uuid)
             except Exception as e:
-                result_cr.dated_measure_global.request_job_fail_msg \
-                    = f"INTERNAL ERROR: Could not launch FHIR cohort count: {e}"
-                result_cr.dated_measure_global \
-                    .request_job_status = JobStatus.failed.value
+                result_cr.dated_measure_global.request_job_fail_msg = f"INTERNAL ERROR: Could not launch FHIR cohort "\
+                                                                      f"count: {e}"
+                result_cr.dated_measure_global.request_job_status = JobStatus.failed.value
                 result_cr.dated_measure_global.save()
 
         # once it has been created, we launch Fhir API cohort creation
@@ -203,20 +174,13 @@ class CohortResultSerializer(BaseSerializer):
         if validated_data.get("fhir_group_id", None) is None:
             try:
                 from cohort.tasks import create_cohort_task
-                create_cohort_task.delay(
-                    conf.get_fhir_authorization_header(
-                        self.context.get("request", None)
-                    ),
-                    conf.format_json_request(str(rqs.serialized_query)),
-                    result_cr.uuid
-                )
+                create_cohort_task.delay(conf.get_fhir_authorization_header(self.context.get("request", None)),
+                                         conf.format_json_request(str(rqs.serialized_query)),
+                                         result_cr.uuid)
 
             except Exception as e:
                 result_cr.delete()
-                raise serializers.ValidationError(
-                    f"INTERNAL ERROR: Could not launch "
-                    f"FHIR cohort creation: {e}"
-                )
+                raise serializers.ValidationError(f"INTERNAL ERROR: Could not launch FHIR cohort creation: {e}")
 
         return result_cr
 

@@ -30,18 +30,12 @@ def create_cohort_task(auth_headers: dict, json_file: str, cohort_uuid: str):
     while cr is None and tries <= 5:
         cr = CohortResult.objects.filter(uuid=cohort_uuid).first()
         if cr is None:
-            log_create_task(
-                cohort_uuid, f"Error: could not find CohortResult to update"
-                             f" after {tries - 1} sec"
-            )
+            log_create_task(cohort_uuid, f"Error: could not find CohortResult to update after {tries - 1} sec")
             tries = tries + 1
             sleep(1)
 
     if cr is None:
-        log_create_task(
-            cohort_uuid, "Error: could not find CohortResult to update"
-                         " after 5 sec"
-        )
+        log_create_task(cohort_uuid, "Error: could not find CohortResult to update after 5 sec")
         return
 
     cr.create_task_id = current_task.request.id or ""
@@ -50,11 +44,8 @@ def create_cohort_task(auth_headers: dict, json_file: str, cohort_uuid: str):
     cr.dated_measure.save()
 
     log_create_task(cohort_uuid, "Asking fhir to create cohort")
-    resp = fhir_api.post_create_cohort(
-        json_file, auth_headers,
-        log_prefix=f"[CohortTask] [CohortResult uuid: {cohort_uuid}]",
-        cohort_result=cr
-    )
+    resp = fhir_api.post_create_cohort(json_file, auth_headers, cohort_result=cr,
+                                       log_prefix=f"[CohortTask] [CohortResult uuid: {cohort_uuid}]")
 
     if resp.success:
         cr.dated_measure.fhir_datetime = resp.fhir_datetime
@@ -65,28 +56,19 @@ def create_cohort_task(auth_headers: dict, json_file: str, cohort_uuid: str):
         cr.dated_measure.measure_alive = resp.count_alive
         cr.dated_measure.measure_female = resp.count_female
         cr.dated_measure.request_job_id = resp.fhir_job_id
-        # cr.dated_measure.request_job_status =
-        # resp.fhir_job_status.name.lower()
         cr.dated_measure.request_job_status = resp.fhir_job_status.value
         cr.dated_measure.request_job_duration = resp.job_duration
         cr.dated_measure.save()
-
         cr.fhir_group_id = resp.group_id
         cr.request_job_id = resp.fhir_job_id
         cr.request_job_status = resp.fhir_job_status.value
         cr.request_job_duration = resp.job_duration
         cr.save()
-
         log_create_task(cohort_uuid, "CohortResult and dated measure updated")
     else:
-        update_instance_failed(
-            cr, resp.err_msg, resp.job_duration, resp.fhir_job_id,
-            resp.fhir_job_status
-        )
-        update_instance_failed(
-            cr.dated_measure, resp.err_msg, resp.job_duration, resp.fhir_job_id,
-            resp.fhir_job_status
-        )
+        update_instance_failed(cr, resp.err_msg, resp.job_duration, resp.fhir_job_id, resp.fhir_job_status)
+        update_instance_failed(cr.dated_measure, resp.err_msg, resp.job_duration, resp.fhir_job_id,
+                               resp.fhir_job_status)
         log_create_task(cohort_uuid, resp.err_msg)
 
 
