@@ -472,4 +472,4 @@ class FolderViewSet(CustomLoggingMixin, NestedViewSetMixin, UserObjectsRestricte
     pagination_class = LimitOffsetPagination
 
     filterset_class = FolderFilter
-    search_fields = ('$name', '$description',)
+    search_fields = ('$name',)
