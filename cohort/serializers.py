@@ -311,7 +311,6 @@ class ReducedFolderSerializer(serializers.ModelSerializer):
 
 class FolderSerializer(BaseSerializer):
     owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
-    children_folders = ReducedFolderSerializer(many=True, read_only=True)
     requests = serializers.SlugRelatedField(slug_field='uuid', many=True, read_only=True)
 
     class Meta:
