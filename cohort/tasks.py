@@ -116,7 +116,7 @@ def get_count_task(auth_headers: dict, json_file: str, dm_uuid: str):
             dm.measure_max = resp.count_max
 
         dm.fhir_datetime = resp.fhir_datetime
-        dm.request_job_status = resp.fhir_job_status.name.lower()
+        dm.request_job_status = resp.fhir_job_status.value
         dm.request_job_duration = resp.job_duration
         dm.request_job_id = resp.fhir_job_id
         dm.save()

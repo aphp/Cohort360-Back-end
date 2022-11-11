@@ -147,7 +147,7 @@ class JobResponse:
             self.result: List[JobResult] = [init_result_from_response_dict(resp, jr) for jr in job_result]
         else:
             self.result: List[JobResult] = [init_result_from_response_dict(resp, job_result)]
-        if not self.result and self.status in [JobStatus.finished.name, JobStatus.failed.name]:
+        if not self.result and self.status in [JobStatus.finished.value, JobStatus.failed.value]:
             raise Exception(f"FHIR ERROR: Result is empty - {resp.text}")
 
         self.request_response: Response = resp
@@ -311,7 +311,7 @@ def post_count_cohort(json_file: str, auth_headers, log_prefix: str = "", dated_
         return FhirCountResponse(job_duration=datetime.now() - d, success=False, fhir_job_status=JobStatus.failed,
                                  err_msg=err_msg)
 
-    dated_measure.request_job_status = job.status.name.lower()
+    dated_measure.request_job_status = job.status.value
     dated_measure.request_job_id = job.job_id
     dated_measure.save()
 
@@ -445,10 +445,10 @@ def post_create_cohort(json_file: str, auth_headers, log_prefix: str = "", cohor
 
     print(f"{log_prefix} Step 3: Job created. Waiting for it to be finished")
 
-    cohort_result.request_job_status = job.status.name.lower()
+    cohort_result.request_job_status = job.status.value
     cohort_result.request_job_id = job.job_id
     cohort_result.save()
-    cohort_result.dated_measure.request_job_status = job.status.name.lower()
+    cohort_result.dated_measure.request_job_status = job.status.value
     cohort_result.dated_measure.request_job_id = job.job_id
     cohort_result.dated_measure.save()
 
