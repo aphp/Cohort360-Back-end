@@ -235,7 +235,7 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                             status.HTTP_400_BAD_REQUEST)
 
         req_dms = rqs.request.dated_measures
-        started_status = JobStatus.started.name.lower()
+        started_status = JobStatus.started.value
         started_jobs_to_cancel = req_dms.filter(request_job_status=started_status).prefetch_related('cohort',
                                                                                                     'restricted_cohort')
         for job in started_jobs_to_cancel:
@@ -251,7 +251,7 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                                             f"bound to dated-measure '{job.uuid}': {str(e)}"},
                                 status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        pending_status = JobStatus.pending.name.lower()
+        pending_status = JobStatus.pending.value
         pending_jobs_to_cancel = req_dms.filter(request_job_status=pending_status).prefetch_related('cohort',
                                                                                                     'restricted_cohort')
         for job in pending_jobs_to_cancel:

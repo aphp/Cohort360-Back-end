@@ -34,7 +34,7 @@ RQS_URL = f"{EXPLORATIONS_URL}/request-query-snapshots"
 DATED_MEASURES_URL = f"{EXPLORATIONS_URL}/dated-measures"
 COHORTS_URL = f"{EXPLORATIONS_URL}/cohorts"
 
-REQUEST_STATUS_CHOICES = [(e.name.lower(), e.name.lower()) for e in JobStatus]
+REQUEST_STATUS_CHOICES = [(e.name, e.value) for e in JobStatus]
 
 
 # TODO : test for post save0 get saved, get last_modified,
@@ -1451,7 +1451,7 @@ class DatedMeasuresDeleteTests(DatedMeasuresTests):
             created_at=timezone.now(),
             modified_at=timezone.now(),
             request_job_id="test",
-            request_job_status=JobStatus.pending.name,
+            request_job_status=JobStatus.pending.value,
             request_job_fail_msg="test",
             request_job_duration="1s",
         )
@@ -1506,7 +1506,7 @@ class DatedMeasuresUpdateTests(DatedMeasuresTests):
             created_at=timezone.now(),
             modified_at=timezone.now(),
             request_job_id="test",
-            request_job_status=JobStatus.pending.name,
+            request_job_status=JobStatus.pending.value,
             request_job_fail_msg="test",
             request_job_duration="1s",
         )
@@ -1942,7 +1942,7 @@ class CohortsDeleteTests(CohortsTests):
             created_at=timezone.now(),
             modified_at=timezone.now(),
             request_job_id="test",
-            request_job_status=JobStatus.pending.name,
+            request_job_status=JobStatus.pending.value,
             request_job_fail_msg="test",
             request_job_duration="1s",
         )
@@ -1983,7 +1983,7 @@ class CohortsUpdateTests(CohortsTests):
             created_at=timezone.now(),
             modified_at=timezone.now(),
             request_job_id="test",
-            request_job_status=JobStatus.pending.name,
+            request_job_status=JobStatus.pending.value,
             request_job_fail_msg="test",
             request_job_duration="1s",
         )
