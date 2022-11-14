@@ -1,7 +1,8 @@
 import http
+import logging as lg
 
-from django_filters import rest_framework as filters
 from django.http import HttpResponse, StreamingHttpResponse
+from django_filters import rest_framework as filters
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from hdfs import HdfsError
@@ -11,15 +12,11 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 
 from admin_cohort.models import User
-from workspaces.models import Account
 from admin_cohort.permissions import OR
 from admin_cohort.types import JobStatus
 from admin_cohort.views import CustomLoggingMixin
 from cohort.models import CohortResult
 from cohort.permissions import IsOwner
-from workspaces.conf_workspaces import get_account_groups_from_id_aph
-from workspaces.permissions import AccountPermissions
-from workspaces.views import AccountViewset
 from exports import conf_exports
 from exports.emails import check_email_address
 from exports.models import ExportRequest, ExportType
@@ -29,8 +26,10 @@ from exports.permissions import ExportRequestPermissions, \
 from exports.serializers import ExportRequestSerializer, \
     AnnexeAccountSerializer, AnnexeCohortResultSerializer, \
     ExportRequestSerializerNoReviewer
-
-import logging as lg
+from workspaces.conf_workspaces import get_account_groups_from_id_aph
+from workspaces.models import Account
+from workspaces.permissions import AccountPermissions
+from workspaces.views import AccountViewset
 
 _logger = lg.getLogger(__name__)
 
@@ -72,10 +71,6 @@ class UnixAccountViewSet(AccountViewset):
         return super(UnixAccountViewSet, self).list(request, *args, **kwargs)
 
 
-class CohortFilter(filters.FilterSet):
-    class Meta:
-        model = CohortResult
-        fields = ('owner_id',)
 
 
 class CohortViewSet(viewsets.ModelViewSet):
@@ -87,7 +82,7 @@ class CohortViewSet(viewsets.ModelViewSet):
     )
 
     swagger_tags = ['Exports - cohorts']
-    filterset_class = CohortFilter
+    filterset_fields = ("owner_id",)
     search_fields = ('$name', '$description',)
 
     def get_permissions(self):
@@ -119,12 +114,6 @@ class CohortViewSet(viewsets.ModelViewSet):
         return super(CohortViewSet, self).list(request, *args, **kwargs)
 
 
-class ExportRequestFilter(filters.FilterSet):
-    class Meta:
-        model = ExportRequest
-        fields = ('output_format', 'request_job_status', 'creator_fk')
-
-
 class ExportRequestViewset(CustomLoggingMixin, viewsets.ModelViewSet):
     serializer_class = ExportRequestSerializer
     queryset = ExportRequest.objects.all()
@@ -133,7 +122,7 @@ class ExportRequestViewset(CustomLoggingMixin, viewsets.ModelViewSet):
 
     swagger_tags = ['Exports']
     logging_methods = ['POST', 'PATCH']
-    filterset_class = ExportRequestFilter
+    filterset_fields = ['output_format', 'status', 'creator_fk']
     http_method_names = ['get', 'post', 'patch']
 
     def should_log(self, request, response):
