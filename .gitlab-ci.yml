@@ -6,6 +6,7 @@ variables:
 stages:
   - lint
   - test
+  - sast
   - deploy
 
 lint-job:
@@ -70,6 +71,6 @@ deploy-job:
     - ^feat_deploy_(\w*|\d*)
 
 sast:
-  stage: test
+  stage: sast
 include:
   - template: Security/SAST.gitlab-ci.yml
