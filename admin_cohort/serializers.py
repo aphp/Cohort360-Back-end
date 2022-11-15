@@ -39,36 +39,30 @@ class OmopBaseSerializer(BaseSerializer):
 
 
 class ReducedUserSerializer(serializers.ModelSerializer):
-    provider_source_value = serializers.CharField(
-        read_only=True, source="provider_username")
+    provider_source_value = serializers.CharField(read_only=True, source="provider_username")
 
     class Meta:
         model = User
-        fields = [
-            "provider_id",
-            "provider_username",
-            "email",
-            "firstname",
-            "lastname",
-            "provider_source_value",
-        ]
+        fields = ["provider_id",
+                  "provider_username",
+                  "email",
+                  "firstname",
+                  "lastname",
+                  "provider_source_value"]
 
 
 class OpenUserSerializer(serializers.ModelSerializer):
     displayed_name = serializers.CharField(read_only=True)
-    provider_source_value = serializers.CharField(
-        read_only=True, source="provider_username")
+    provider_source_value = serializers.CharField(read_only=True, source="provider_username")
 
     class Meta:
         model = User
-        fields = [
-            "provider_id",
-            "provider_username",
-            "firstname",
-            "lastname",
-            "provider_source_value",
-            "displayed_name",
-        ]
+        fields = ["provider_id",
+                  "provider_username",
+                  "firstname",
+                  "lastname",
+                  "provider_source_value",
+                  "displayed_name"]
 
 
 class MaintenanceValidator:
@@ -89,10 +83,8 @@ class MaintenanceValidator:
 
 
 class MaintenancePhaseSerializer(BaseSerializer):
-    maintenance_start = serializers.DateTimeField(
-        read_only=True, allow_null=True, source='start_datetime')
-    maintenance_end = serializers.DateTimeField(
-        read_only=True, allow_null=True, source='end_datetime')
+    maintenance_start = serializers.DateTimeField(read_only=True, allow_null=True, source='start_datetime')
+    maintenance_end = serializers.DateTimeField(read_only=True, allow_null=True, source='end_datetime')
     active = serializers.BooleanField(read_only=True)
 
     class Meta:
@@ -100,9 +92,7 @@ class MaintenancePhaseSerializer(BaseSerializer):
         fields = "__all__"
 
     def get_validators(self):
-        return super(MaintenancePhaseSerializer, self).get_validators() + [
-            MaintenanceValidator()
-        ]
+        return super(MaintenancePhaseSerializer, self).get_validators() + [MaintenanceValidator()]
 
 
 class UserSerializer(serializers.ModelSerializer):
