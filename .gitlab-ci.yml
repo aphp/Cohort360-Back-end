@@ -2,11 +2,14 @@ image: harbor.eds.aphp.fr/cohort360/python:3.7.10
 
 variables:
   PIP_EXTRA_CLI_PARAMETERS: "--proxy=http:\\/\\/proxym-inter.aphp.fr:8080"
+  TEMPLATE_REGISTRY_HOST: 'registry.gitlab.com'
+  SECURE_ANALYZERS_PREFIX: "$TEMPLATE_REGISTRY_HOST/security-products"
+  SAST_IMAGE_SUFFIX: ""
 
 stages:
   - lint
   - test
-  - sast
+  - compliance
   - deploy
 
 lint-job:
@@ -70,7 +73,45 @@ deploy-job:
     - develop
     - ^feat_deploy_(\w*|\d*)
 
-sast:
-  stage: sast
-include:
-  - template: Security/SAST.gitlab-ci.yml
+iac-sast:
+  stage: test
+  artifacts:
+    name: sast
+    paths:
+      - gl-sast-report.json
+    when: always
+  rules:
+    - when: never
+  # `rules` must be overridden explicitly by each child job
+  # see https://gitlab.com/gitlab-org/gitlab/-/issues/218444
+  variables:
+    SEARCH_MAX_DEPTH: 4
+  allow_failure: true
+  script:
+    - /analyzer run
+
+kics-iac-sast:
+  extends: iac-sast
+  image:
+    name: "$SAST_ANALYZER_IMAGE"
+  variables:
+    SAST_ANALYZER_IMAGE_TAG: 3
+    SAST_ANALYZER_IMAGE: "$SECURE_ANALYZERS_PREFIX/kics:$SAST_ANALYZER_IMAGE_TAG$SAST_IMAGE_SUFFIX"
+  rules:
+    - if: $SAST_DISABLED
+      when: never
+    - if: $SAST_EXCLUDED_ANALYZERS =~ /kics/
+      when: never
+    - if: $CI_COMMIT_BRANCH
+
+
+Enforce Compliance:
+  stage: Compliance
+  before_script:
+    - apk add jq
+  script:
+    - jq -r '.vulnerabilities[] | select(.severity == "Critical") | (.severity, .message, .location, .identifiers[].url)' gl-sast-report.json > results.txt
+    - jq -r '.vulnerabilities[] | select(.severity == "High") | (.severity, .message, .location, .identifiers[].url)' gl-sast-report.json >> results.txt
+    - jq -r '.vulnerabilities[] | select(.severity == "Medium") | (.severity, .message, .location, .identifiers[].url)' gl-sast-report.json >> results.txt
+    - chmod u+x check-sast-results.sh
+    - ./check-sast-results.sh
