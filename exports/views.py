@@ -120,7 +120,7 @@ class ExportRequestViewset(CustomLoggingMixin, viewsets.ModelViewSet):
 
     swagger_tags = ['Exports']
     logging_methods = ['POST', 'PATCH']
-    filterset_fields = ['output_format', 'request_job_status', 'creator_fk']
+    filterset_fields = ['output_format', 'status', 'creator_fk']
     http_method_names = ['get', 'post', 'patch']
 
     def should_log(self, request, response):
