@@ -106,7 +106,7 @@ kics-iac-sast:
 
 
 Enforce Compliance:
-  stage: Compliance
+  stage: compliance
   before_script:
     - apk add jq
   script:
