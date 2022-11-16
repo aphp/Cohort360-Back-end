@@ -71,7 +71,7 @@ class UnixAccountViewSet(AccountViewset):
         return super(UnixAccountViewSet, self).list(request, *args, **kwargs)
 
 
-class CohortFilter2(filters.FilterSet):
+class CohortFilter(filters.FilterSet):
     class Meta:
         model = CohortResult
         fields = ('owner_id',)
@@ -83,7 +83,7 @@ class CohortViewSet(viewsets.ModelViewSet):
     serializer_class = AnnexeCohortResultSerializer
     queryset = CohortResult.objects.filter(request_job_status=JobStatus.finished.value)
     swagger_tags = ['Exports - cohorts']
-    filterset_class = CohortFilter2
+    filterset_class = CohortFilter
     search_fields = ('$name', '$description')
 
     def get_permissions(self):
@@ -103,8 +103,7 @@ class CohortViewSet(viewsets.ModelViewSet):
                                                                 f"fields ({', '.join(search_fields)})",
                                                       openapi.TYPE_STRING]])))
     def list(self, request, *args, **kwargs):
-        res = super(CohortViewSet, self).list(request, *args, **kwargs)
-        return res
+        return super(CohortViewSet, self).list(request, *args, **kwargs)
 
 
 class ExportRequestFilter(filters.FilterSet):
