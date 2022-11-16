@@ -122,3 +122,24 @@ def filter_perimeter_by_top_hierarchy_perimeter_list(perimeters_filtered_by_sear
             if top_perimeter.id == perimeter.id or top_perimeter.id in above_levels_ids:
                 response_list.append(perimeter)
     return response_list
+
+
+def filter_accesses_by_search_perimeters(perimeters_filtered_by_search, top_hierarchy_accesses_list):
+    """
+    filter Accesses  with perimeters fetch by search params with hierarchy perimeter response and user roles.
+    If there is no search params it return the previous accesses response.
+    """
+    response_dico = {}
+    if not perimeters_filtered_by_search:
+        return top_hierarchy_accesses_list
+    for perimeter in perimeters_filtered_by_search:
+        above_levels_ids = get_perimeters_ids_list(perimeter.above_levels_ids)
+        for access in top_hierarchy_accesses_list:
+            top_perimeter = access.perimeter
+            if top_perimeter.id == perimeter.id or top_perimeter.id in above_levels_ids:
+                if perimeter.id not in response_dico or \
+                        (perimeter.id in response_dico and access.role.right_read_patient_nominative):
+                    response_dico[perimeter.id] = (access, perimeter)
+        if perimeter.id not in response_dico:
+            print(f"WARN: no read patient role on perimeter {perimeter.id} - {perimeter.name}")
+    return response_dico

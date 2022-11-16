@@ -13,10 +13,12 @@ from admin_cohort.views import BaseViewset, YarnReadOnlyViewsetMixin, \
 from ..models import Role, Perimeter, get_user_valid_manual_accesses_queryset, \
     get_all_perimeters_parents_queryset
 from ..serializers import PerimeterSerializer, \
-    TreefiedPerimeterSerializer, YasgTreefiedPerimeterSerializer, PerimeterLiteSerializer, DataReadRightSerializer
-from ..tools.data_right_mapping import data_read_access_mapper
+    TreefiedPerimeterSerializer, YasgTreefiedPerimeterSerializer, PerimeterLiteSerializer, DataReadRightSerializer, \
+    ReadRightPerimeter
+from ..tools.data_right_mapping import data_read_access_mapper, data_read_perimeter_dict_mapper
 from ..tools.perimeter_process import get_top_perimeter_same_level, get_top_perimeter_inf_level, \
-    filter_perimeter_by_top_hierarchy_perimeter_list, get_top_accesses_nominative, get_top_accesses_pseudo
+    filter_perimeter_by_top_hierarchy_perimeter_list, get_top_accesses_nominative, get_top_accesses_pseudo, \
+    filter_accesses_by_search_perimeters
 
 
 class PerimeterFilter(filters.FilterSet):
@@ -81,9 +83,9 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
             # Apply Distinct to list
             top_hierarchy_perimeter = list(set(top_perimeter_inf_level + top_perimeter_same_level))
 
-        perims = filter_perimeter_by_top_hierarchy_perimeter_list(perimeters_filtered_by_search,
-                                                                  top_hierarchy_perimeter)
-        return Response(PerimeterLiteSerializer(perims, many=True).data)
+        perimeters = filter_perimeter_by_top_hierarchy_perimeter_list(perimeters_filtered_by_search,
+                                                                      top_hierarchy_perimeter)
+        return Response(PerimeterLiteSerializer(perimeters, many=True).data)
 
     @swagger_auto_schema(
         method='get',
@@ -92,28 +94,56 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
                           "- all children and current perimeter are in nominative read if right read patient nominative"
                           "is at True."
                           "- Same logical for pesudo read patient right, but if there is a current or parent perimeter"
-                          "with also a nominative patient read right, it is the nominative right which win",
-        responses={'201': openapi.Response("manageable perimeters found", DataReadRightSerializer())})
-    @action(detail=False, methods=['get'], url_path="top-hierarchy/read-patient")
+                          "with also a nominative patient read right, it is the nominative right which win.",
+        responses={'201': openapi.Response("give rights in caresite perimeters found", DataReadRightSerializer())})
+    @action(detail=False, methods=['get'], url_path="top-hierarchy-read-rights")
     def get_top_read_right_accesses(self, request, *args, **kwargs):
         user_accesses = get_user_valid_manual_accesses_queryset(self.request.user)
 
+        # Case top perimeter hierarchy
         nominative_read_patient_access = user_accesses.filter(Role.is_read_patient_role_nominative("role"))
         pseudo_read_patient_access = user_accesses.filter(Role.is_read_patient_role_pseudo("role"))
-
         # Get all distinct perimeter from accesses:
         all_nominative_perimeters = list(set([access.perimeter for access in nominative_read_patient_access]))
         all_pseudo_perimeters = list(set([access.perimeter for access in pseudo_read_patient_access]))
 
-        top_nominative_accesses = get_top_accesses_nominative(nominative_read_patient_access, all_nominative_perimeters)
-
+        top_nominative_accesses = get_top_accesses_nominative(nominative_read_patient_access,
+                                                              all_nominative_perimeters)
         top_pseudo_accesses = get_top_accesses_pseudo(pseudo_read_patient_access, all_nominative_perimeters,
                                                       all_pseudo_perimeters)
-
         # Apply DataReadRight Mapping
         top_hierarchy_data_read = data_read_access_mapper(list(set(top_nominative_accesses + top_pseudo_accesses)))
-
         return Response(DataReadRightSerializer(top_hierarchy_data_read, many=True).data)
+
+    @swagger_auto_schema(
+        method='get',
+        operation_summary="With no search params:"
+                          "Get the top hierarchy perimeters on which the user has at least "
+                          "one read patient role, in nominative/pseudo_anonymize right logical:"
+                          "- all children and current perimeter are in nominative read if right read patient nominative"
+                          "is at True."
+                          "- Same logical for pesudo read patient right, but if there is a current or parent perimeter"
+                          "with also a nominative patient read right, it is the nominative right which win."
+                          "With search params on perimeters:"
+                          "give for each found perimeter max read patient right. If there is some perimeters with no "
+                          "roles, it raise an error.",
+        responses={'201': openapi.Response("give rights in caresite perimeters found", DataReadRightSerializer())})
+    @action(detail=False, methods=['get'], url_path="read-patient")
+    def get_perimeters_read_right_accesses(self, request, *args, **kwargs):
+        user_accesses = get_user_valid_manual_accesses_queryset(self.request.user)
+
+        all_read_patient_accesses = list(user_accesses.filter(Role.is_read_patient_role("role")))
+        if self.request.query_params:
+            # Case with perimeters search params
+            perimeters_filtered_by_search = self.filter_queryset(self.get_queryset())
+            if not perimeters_filtered_by_search:
+                return Response({"ERROR": "No Perimeters Found"})
+            right_dict = filter_accesses_by_search_perimeters(perimeters_filtered_by_search, all_read_patient_accesses)
+            return Response(ReadRightPerimeter(data_read_perimeter_dict_mapper(right_dict), many=True).data)
+
+        all_distinct_perimeters = list(set([access.perimeter for access in all_read_patient_accesses]))
+        right_dict = filter_accesses_by_search_perimeters(all_distinct_perimeters, all_read_patient_accesses)
+        return Response(ReadRightPerimeter(data_read_perimeter_dict_mapper(right_dict), many=True).data)
 
     @swagger_auto_schema(manual_parameters=list(map(lambda x: openapi.Parameter(name=x[0],
                                                                                 in_=openapi.IN_QUERY,

@@ -11,7 +11,7 @@ from admin_cohort.tools import join_qs
 
 
 def format_prefix(prefix: str) -> str:
-    return f"{prefix or ''}__"
+    return f"{prefix}__" if prefix else ""
 
 
 class Role(BaseModel):
@@ -79,6 +79,13 @@ class Role(BaseModel):
             [Q(**{f'{formatted_prefix}right_read_patient_pseudo_anonymised': True,
                   f'{formatted_prefix}right_read_patient_nominative': False
                   })])
+
+    @classmethod
+    def is_read_patient_role(cls, prefix: str = "") -> Q:
+        formatted_prefix = format_prefix(prefix)
+        return join_qs(
+            [Q(**{f'{formatted_prefix}right_read_patient_pseudo_anonymised': True}),
+             Q(**{f'{formatted_prefix}right_read_patient_nominative': True})])
 
     @classmethod
     def is_manage_role_any_level(cls, prefix: str = "") -> Q:
