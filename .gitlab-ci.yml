@@ -68,6 +68,3 @@ deploy-job:
     - tags
     - develop
     - ^feat_deploy_(\w*|\d*)
-
-include:
-  - template: Security/SAST.gitlab-ci.yml

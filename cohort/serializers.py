@@ -169,16 +169,15 @@ class CohortResultSerializer(BaseSerializer):
                 result_cr.dated_measure_global.request_job_status = JobStatus.failed.value
                 result_cr.dated_measure_global.save()
 
-        if validated_data.get("fhir_group_id", None) is None:
-            try:
-                from cohort.tasks import create_cohort_task
-                create_cohort_task.delay(conf.get_fhir_authorization_header(self.context.get("request", None)),
-                                         conf.format_json_request(str(rqs.serialized_query)),
-                                         result_cr.uuid)
+        try:
+            from cohort.tasks import create_cohort_task
+            create_cohort_task.delay(conf.get_fhir_authorization_header(self.context.get("request", None)),
+                                     conf.format_json_request(str(rqs.serialized_query)),
+                                     result_cr.uuid)
 
-            except Exception as e:
-                result_cr.delete()
-                raise serializers.ValidationError(f"INTERNAL ERROR: Could not launch FHIR cohort creation: {e}")
+        except Exception as e:
+            result_cr.delete()
+            raise serializers.ValidationError(f"INTERNAL ERROR: Could not launch FHIR cohort creation: {e}")
 
         return result_cr
 
