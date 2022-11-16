@@ -81,7 +81,7 @@ class CohortViewSet(viewsets.ModelViewSet):
     lookup_field = "uuid"
     http_method_names = ["get"]
     serializer_class = AnnexeCohortResultSerializer
-    queryset = CohortResult.objects.filter(request_job_status=JobStatus.finished.value)
+    queryset = CohortResult.objects.filter(request_job_status=JobStatus.finished)
     swagger_tags = ['Exports - cohorts']
     filterset_class = CohortFilter
     search_fields = ('$name', '$description')

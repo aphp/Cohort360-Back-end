@@ -34,29 +34,20 @@ def send_mail(msg: EmailMultiAlternatives):
 
 def replace_keys(txt: str, req: ExportRequest, is_html: bool = False) -> str:
     res = txt
-
     if txt.find(KEY_DOWNLOAD_URL) > -1:
-        url = f"{BACKEND_URL}/accounts/login/?next=/exports" \
-              f"/{req.id}/download/"
-
-        res = res.replace(
-            KEY_DOWNLOAD_URL,
-            f"<a href='{url}' class=3D'OWAAutoLink'>Télécharger</a>" if is_html
-            else url)
-
-    for k, v in {
-        KEY_COHORT_ID: req.cohort_id,
-        KEY_NAME: User.objects.get(provider_id=req.provider_id).displayed_name,
-        KEY_ERROR_MESSAGE: req.request_job_fail_msg,
-        KEY_CONTACT_MAIL: EMAIL_SUPPORT_CONTACT,
-        KEY_DATABASE_NAME: req.target_name,
-        KEY_DELETE_DATE: (
-                timezone.now().date()
-                + timedelta(days=int(EXPORT_DAYS_BEFORE_DELETE))
-        ).strftime("%d %B, %Y")
-    }.items():
+        url = f"{BACKEND_URL}/accounts/login/?next=/exports/{req.id}/download/"
+        res = res.replace(KEY_DOWNLOAD_URL,
+                          f"<a href='{url}' class=3D'OWAAutoLink'>Télécharger</a>" if is_html else url)
+    keys_vals = {KEY_COHORT_ID: req.cohort_id,
+                 KEY_NAME: req.creator_fk and req.creator_fk.displayed_name or None,
+                 KEY_ERROR_MESSAGE: req.request_job_fail_msg,
+                 KEY_CONTACT_MAIL: EMAIL_SUPPORT_CONTACT,
+                 KEY_DATABASE_NAME: req.target_name,
+                 KEY_DELETE_DATE: (timezone.now().date() +
+                                   timedelta(days=int(EXPORT_DAYS_BEFORE_DELETE))).strftime("%d %B, %Y")
+                 }
+    for k, v in keys_vals.items():
         res = res.replace(str(k), str(v))
-
     return res
 
 
