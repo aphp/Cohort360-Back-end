@@ -199,19 +199,6 @@ class FoldersCreateTests(FoldersTests):
                                      retrieve_filter=FolderCaseRetrieveFilter(name=self.test_name, owner=self.user2))
         self.check_create_case(case)
 
-    def test_error_create_with_same_user_name_and_parent(self):
-        # As a user, I cannot create a folder with a name already taken
-        self.check_create_case(self.basic_case.clone(
-            data=dict(owner_id=self.user1.pk,
-                      name=self.main_folder_name),
-            success=False,
-            status=status.HTTP_400_BAD_REQUEST,
-            retrieve_filter=FolderCaseRetrieveFilter(
-                name=self.test_name,
-                owner=self.user1
-            ),
-        ))
-
 
 class FoldersDeleteTests(FoldersTests):
     def setUp(self):

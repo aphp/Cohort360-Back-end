@@ -25,6 +25,7 @@ def log_create_task(id, msg):
 def create_cohort_task(auth_headers: dict, json_file: str, cohort_uuid: str):
     print(f"Task opened for cohort {cohort_uuid}")
     # in case of small lattency in database saving (when calling this task)
+    # TODO: Useful? Is the create transaction already closed?
     cr: CohortResult = None
     tries = 0
     while cr is None and tries <= 5:
