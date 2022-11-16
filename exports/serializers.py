@@ -261,8 +261,7 @@ class AnnexeAccountSerializer(serializers.ModelSerializer):
 
 
 class AnnexeCohortResultSerializer(serializers.ModelSerializer):
-    dated_measure = serializers.SlugRelatedField(read_only=True,
-                                                 slug_field='measure')
+    dated_measure = serializers.SlugRelatedField(read_only=True, slug_field='measure')
 
     class Meta:
         model = CohortResult

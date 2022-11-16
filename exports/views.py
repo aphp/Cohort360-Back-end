@@ -1,7 +1,8 @@
 import http
+import logging as lg
 
-from django_filters import rest_framework as filters
 from django.http import HttpResponse, StreamingHttpResponse
+from django_filters import rest_framework as filters
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from hdfs import HdfsError
@@ -11,15 +12,11 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 
 from admin_cohort.models import User
-from workspaces.models import Account
 from admin_cohort.permissions import OR
 from admin_cohort.types import JobStatus
 from admin_cohort.views import CustomLoggingMixin
 from cohort.models import CohortResult
 from cohort.permissions import IsOwner
-from workspaces.conf_workspaces import get_account_groups_from_id_aph
-from workspaces.permissions import AccountPermissions
-from workspaces.views import AccountViewset
 from exports import conf_exports
 from exports.emails import check_email_address
 from exports.models import ExportRequest, ExportType
@@ -29,8 +26,10 @@ from exports.permissions import ExportRequestPermissions, \
 from exports.serializers import ExportRequestSerializer, \
     AnnexeAccountSerializer, AnnexeCohortResultSerializer, \
     ExportRequestSerializerNoReviewer
-
-import logging as lg
+from workspaces.conf_workspaces import get_account_groups_from_id_aph
+from workspaces.models import Account
+from workspaces.permissions import AccountPermissions
+from workspaces.views import AccountViewset
 
 _logger = lg.getLogger(__name__)
 
@@ -82,39 +81,27 @@ class CohortViewSet(viewsets.ModelViewSet):
     lookup_field = "uuid"
     http_method_names = ["get"]
     serializer_class = AnnexeCohortResultSerializer
-    queryset = CohortResult.objects.filter(
-        request_job_status=JobStatus.finished
-    )
-
+    queryset = CohortResult.objects.filter(request_job_status=JobStatus.finished.value)
     swagger_tags = ['Exports - cohorts']
     filterset_class = CohortFilter
-    search_fields = ('$name', '$description',)
+    search_fields = ('$name', '$description')
 
     def get_permissions(self):
         return OR(AnnexesPermissions(), IsOwner())
 
     def get_queryset(self):
         user = self.request.user
-        if not can_review_transfer_jupyter(user)\
-                and not can_review_export_csv(user):
+        if not can_review_transfer_jupyter(user) and not can_review_export_csv(user):
             return self.queryset.filter(owner_id=user)
-
         return self.queryset
 
-    @swagger_auto_schema(
-        manual_parameters=list(map(
-            lambda x: openapi.Parameter(
-                name=x[0], in_=openapi.IN_QUERY, description=x[1], type=x[2],
-                pattern=x[3] if len(x) == 4 else None
-            ), [
-                ["owner_id", "Filter type",
-                 openapi.TYPE_STRING],
-                [
-                    "search",
-                    f"Will search in multiple fields "
-                    f"({', '.join(search_fields)})", openapi.TYPE_STRING
-                ],
-            ])))
+    @swagger_auto_schema(manual_parameters=list(map(lambda x: openapi.Parameter(name=x[0], in_=openapi.IN_QUERY,
+                                                                                description=x[1], type=x[2],
+                                                                                pattern=x[3] if len(x) == 4 else None),
+                                                    [["owner_id", "Filter type", openapi.TYPE_STRING],
+                                                     ["search", f"Will search in multiple "
+                                                                f"fields ({', '.join(search_fields)})",
+                                                      openapi.TYPE_STRING]])))
     def list(self, request, *args, **kwargs):
         return super(CohortViewSet, self).list(request, *args, **kwargs)
 
