@@ -117,16 +117,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
 
     @swagger_auto_schema(
         method='get',
-        operation_summary="With no search params:"
-                          "Get the top hierarchy perimeters on which the user has at least "
-                          "one read patient role, in nominative/pseudo_anonymize right logical:"
-                          "- all children and current perimeter are in nominative read if right read patient nominative"
-                          "is at True."
-                          "- Same logical for pesudo read patient right, but if there is a current or parent perimeter"
-                          "with also a nominative patient read right, it is the nominative right which win."
-                          "With search params on perimeters:"
-                          "give for each found perimeter max read patient right. If there is some perimeters with no "
-                          "roles, it raise an error.",
+        operation_summary="Give perimeters and associated read patient roles for current user",
         responses={'201': openapi.Response("give rights in caresite perimeters found", DataReadRightSerializer())})
     @action(detail=False, methods=['get'], url_path="read-patient")
     def get_perimeters_read_right_accesses(self, request, *args, **kwargs):
@@ -139,6 +130,28 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
             if not perimeters_filtered_by_search:
                 return Response({"ERROR": "No Perimeters Found"})
             right_dict = filter_accesses_by_search_perimeters(perimeters_filtered_by_search, all_read_patient_accesses)
+            return Response(ReadRightPerimeter(data_read_perimeter_dict_mapper(right_dict), many=True).data)
+
+        all_distinct_perimeters = list(set([access.perimeter for access in all_read_patient_accesses]))
+        right_dict = filter_accesses_by_search_perimeters(all_distinct_perimeters, all_read_patient_accesses)
+        return Response(ReadRightPerimeter(data_read_perimeter_dict_mapper(right_dict), many=True).data)
+
+    @swagger_auto_schema(
+        method='get',
+        operation_summary="Give perimeters and associated read patient roles for current user",
+        responses={'201': openapi.Response("give rights in caresite perimeters found", DataReadRightSerializer())})
+    @action(detail=False, methods=['get'], url_path="check-read-patient")
+    def get_read_patient_right_access(self, request, *args, **kwargs):
+        user_accesses = get_user_valid_manual_accesses_queryset(self.request.user)
+
+        all_read_patient_accesses = list(user_accesses.filter(Role.is_read_patient_role("role")))
+        if self.request.query_params:
+            # Case with perimeters search params
+            perimeters_filtered_by_search = self.filter_queryset(self.get_queryset())
+            if not perimeters_filtered_by_search:
+                return Response({"ERROR": "No Perimeters Found"})
+            right_dict = filter_accesses_by_search_perimeters(perimeters_filtered_by_search, all_read_patient_accesses)
+
             return Response(ReadRightPerimeter(data_read_perimeter_dict_mapper(right_dict), many=True).data)
 
         all_distinct_perimeters = list(set([access.perimeter for access in all_read_patient_accesses]))
