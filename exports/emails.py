@@ -39,7 +39,7 @@ def replace_keys(txt: str, req: ExportRequest, is_html: bool = False) -> str:
         res = res.replace(KEY_DOWNLOAD_URL,
                           f"<a href='{url}' class=3D'OWAAutoLink'>Télécharger</a>" if is_html else url)
     keys_vals = {KEY_COHORT_ID: req.cohort_id,
-                 KEY_NAME: req.creator_fk.displayed_name,
+                 KEY_NAME: req.creator_fk and req.creator_fk.displayed_name or None,
                  KEY_ERROR_MESSAGE: req.request_job_fail_msg,
                  KEY_CONTACT_MAIL: EMAIL_SUPPORT_CONTACT,
                  KEY_DATABASE_NAME: req.target_name,
