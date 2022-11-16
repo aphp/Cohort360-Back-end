@@ -93,6 +93,7 @@ class CohortFilter(filters.FilterSet):
     perimeters_ids = filters.CharFilter(method="perimeters_filter")
 
     ordering = OrderingFilter(fields=('-created_at',
+                                      'modified_at',
                                       'name',
                                       ('dated_measure__measure', 'result_size'),
                                       ('dated_measure__fhir_datetime', 'fhir_datetime'),
