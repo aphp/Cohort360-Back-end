@@ -78,7 +78,7 @@ class CohortFilter(filters.FilterSet):
 
 
 class CohortViewSet(viewsets.ModelViewSet):
-    lookup_field = "owner_id"
+    lookup_field = "uuid"
     http_method_names = ["get"]
     serializer_class = AnnexeCohortResultSerializer
     queryset = CohortResult.objects.filter(
