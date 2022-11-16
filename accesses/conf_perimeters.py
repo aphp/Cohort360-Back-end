@@ -4,7 +4,7 @@ import os
 from typing import List
 
 from django.db import models
-from django.db.models import Q, Max
+from django.db.models import Max
 from django.utils import timezone
 
 from accesses.models import Perimeter, Access
@@ -123,15 +123,17 @@ def get_provider_id(user_id: str) -> int:
     """"
     For one user id return the provider id associate
     """
-    p: Provider = Provider.objects.filter(Q(provider_source_value=user_id)
-                                          & (Q(valid_start_datetime__lte=timezone.now())
-                                             | Q(valid_start_datetime__isnull=True))
-                                          & (Q(valid_end_datetime__gte=timezone.now())
-                                             | Q(valid_end_datetime__isnull=True))).first()
-    if p is None:
-        from accesses.models import Profile
-        return Profile.objects.aggregate(Max("provider_id"))['provider_id__max'] + 1
-    return p.provider_id
+    # p: Provider = Provider.objects.filter(Q(provider_source_value=user_id)
+    #                                       & (Q(valid_start_datetime__lte=timezone.now())
+    #                                          | Q(valid_start_datetime__isnull=True))
+    #                                       & (Q(valid_end_datetime__gte=timezone.now())
+    #                                          | Q(valid_end_datetime__isnull=True))).first()
+    # if p is None:
+    #     from accesses.models import Profile
+    #     return Profile.objects.aggregate(Max("provider_id"))['provider_id__max'] + 1
+    # return p.provider_id
+    from accesses.models import Profile
+    return Profile.objects.aggregate(Max("provider_id"))['provider_id__max'] + 1
 
 
 def get_concept_filter_id() -> tuple:
