@@ -192,7 +192,7 @@ def psql_query_care_site_relationship(top_care_site_ids: list) -> str:
             cs.care_site_name,
             cs.care_site_short_name,
             cs.care_site_type_source_value,
-            cs.care_site_source_value,            
+            cs.care_site_source_value,
             NULL as care_site_parent_id,
             cd.cohort_definition_id as cohort_id
             FROM omop.care_site cs
