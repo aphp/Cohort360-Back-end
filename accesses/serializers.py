@@ -463,7 +463,8 @@ class PerimeterLiteSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Perimeter
-        fields = ['id', 'name', 'source_value', 'parent_id', 'type', 'inferior_levels_ids', 'cohort_id', 'full_path']
+        fields = ['id', 'name', 'source_value', 'parent_id', 'type', 'inferior_levels_ids', 'cohort_id', 'cohort_size',
+                  'full_path']
 
 
 class CareSiteSerializer(serializers.Serializer):

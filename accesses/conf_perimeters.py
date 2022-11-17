@@ -101,6 +101,7 @@ class CareSite(models.Model):
     care_site_type_source_value = models.TextField(blank=True, null=True)
     care_site_parent_id = models.BigIntegerField(null=True)
     cohort_id = models.BigIntegerField(null=True)
+    cohort_size = models.BigIntegerField(null=True)
     delete_datetime = models.DateTimeField(null=True)
     objects = OmopModelManager()
 
@@ -194,7 +195,8 @@ def psql_query_care_site_relationship(top_care_site_ids: list) -> str:
             cs.care_site_type_source_value,
             cs.care_site_source_value,            
             NULL as care_site_parent_id,
-            cd.cohort_definition_id as cohort_id
+            cd.cohort_definition_id as cohort_id,
+            cd.cohort_size as cohort_size
             FROM omop.care_site cs
             INNER JOIN omop.cohort_definition cd
             ON cd.owner_entity_id = cs.care_site_id
@@ -210,7 +212,8 @@ def psql_query_care_site_relationship(top_care_site_ids: list) -> str:
             css.care_site_type_source_value,
             css.care_site_source_value,
             CAST(frr.fact_id_2 AS BIGINT) care_site_parent_id,
-            cd.cohort_definition_id as cohort_id
+            cd.cohort_definition_id as cohort_id,
+            cd.cohort_size as cohort_size
             FROM omop.care_site css
             INNER JOIN omop.fact_relationship frr
             ON css.care_site_id=frr.fact_id_1
@@ -246,7 +249,8 @@ def map_to_perimeter(care_site_object: CareSite, relation_perimeter: RelationPer
         above_levels_ids=relation_perimeter.above_levels_ids,
         inferior_levels_ids=relation_perimeter.children,
         full_path=relation_perimeter.full_path,
-        cohort_id=care_site_object.cohort_id
+        cohort_id=care_site_object.cohort_id,
+        cohort_size=care_site_object.cohort_size
     )
 
 
@@ -269,7 +273,8 @@ def is_care_site_different_from_perimeter(care_site: CareSite, perimeter: Perime
             care_site.care_site_name != perimeter.name or \
             care_site.care_site_short_name != perimeter.short_name or \
             care_site.delete_datetime != perimeter.delete_datetime or \
-            care_site.cohort_id != perimeter.cohort_id or \
+            care_site.cohort_id != int(perimeter.cohort_id) or \
+            care_site.cohort_size != int(perimeter.cohort_size) or \
             relation_perimeter.above_levels_ids != perimeter.above_levels_ids or \
             relation_perimeter.full_path != perimeter.full_path or \
             relation_perimeter.children != perimeter.inferior_levels_ids:
@@ -438,7 +443,8 @@ def update_perimeter(list_perimeter_to_update: List[Perimeter]):
         return
     Perimeter.objects.bulk_update(list_perimeter_to_update,
                                   ["source_value", "name", "short_name", "type_source_value", "parent_id",
-                                   "above_levels_ids", "full_path", "inferior_levels_ids", "delete_datetime"])
+                                   "above_levels_ids", "full_path", "inferior_levels_ids", "delete_datetime",
+                                   "cohort_id", "cohort_size"])
 
 
 """
