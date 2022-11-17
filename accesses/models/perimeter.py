@@ -25,6 +25,7 @@ class Perimeter(BaseModel):
     inferior_levels_ids = models.TextField(blank=True, null=True)
     cohort_id = models.TextField(blank=True, null=True)
     full_path = models.TextField(blank=True, null=True)
+    cohort_id = models.TextField(blank=True, null=True)
 
     @property
     def names(self):
