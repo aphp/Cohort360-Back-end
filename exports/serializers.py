@@ -4,17 +4,15 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.request import Request
 
-from accesses.models import DataRight
-from accesses.views import build_data_rights
-from admin_cohort.models import User, JobStatus, NewJobStatus
-from cohort.models import CohortResult
 import workspaces.conf_workspaces as conf_workspaces
-from workspaces.models import Account
+from accesses.models import DataRight, build_data_rights
+from admin_cohort.models import User, JobStatus
+from cohort.models import CohortResult
 from exports import conf_exports
 from exports.emails import check_email_address
-from exports.models import ExportRequest, ExportRequestTable, \
-    VALIDATED_STATUS, ExportType
+from exports.models import ExportRequest, ExportRequestTable, ExportType
 from exports.permissions import can_review_transfer_jupyter, can_review_export
+from workspaces.models import Account
 
 
 class ExportRequestTableSerializer(serializers.ModelSerializer):
@@ -123,14 +121,10 @@ class ExportRequestSerializer(serializers.ModelSerializer):
             # Job
             "request_job_id",
             "request_job_status",
-            "new_request_job_status",
             "request_job_fail_msg",
             "request_job_duration",
             "review_request_datetime",
             "reviewer_fk",
-            # to deprecate
-            "status",
-            "status_info",
         ]
         extra_kwargs = {
             'cohort': {'required': True},
@@ -172,8 +166,8 @@ class ExportRequestSerializer(serializers.ModelSerializer):
             raise ValidationError("The owner of the request does not own the "
                                   "Cohort requested")
 
-        if cohort.new_request_job_status != NewJobStatus.finished \
-                and cohort.request_job_status != JobStatus.FINISHED:
+        if cohort.request_job_status != JobStatus.finished \
+                and cohort.request_job_status != JobStatus.finished:
             raise ValidationError('The requested cohort has not successfully '
                                   'finished.')
         validated_data['cohort_id'] = (validated_data.get('cohort_fk')
@@ -196,7 +190,7 @@ class ExportRequestSerializer(serializers.ModelSerializer):
             from exports.tasks import launch_request
             launch_request.delay(req.id)
         except Exception as e:
-            req.new_request_job_status = NewJobStatus.failed
+            req.request_job_status = JobStatus.failed
             req.request_job_fail_msg = f"INTERNAL ERROR: " \
                                        f"Could not launch celery task: {e}"
         return req
@@ -210,7 +204,7 @@ class ExportRequestSerializer(serializers.ModelSerializer):
 
         owner = validated_data.get('owner')
         if creator_is_reviewer:
-            validated_data['status'] = VALIDATED_STATUS
+            validated_data['request_job_status'] = JobStatus.validated
             validated_data['reviewer_fk'] = self.context.get('request').user
         else:
             if not conf_workspaces.is_user_bound_to_unix_account(
@@ -222,7 +216,7 @@ class ExportRequestSerializer(serializers.ModelSerializer):
             self.validate_owner_rights(validated_data)
 
     def validate_csv(self, validated_data):
-        validated_data["status"] = VALIDATED_STATUS
+        validated_data['request_job_status'] = JobStatus.validated
         creator: User = self.context.get('request').user
 
         if validated_data.get('owner').pk != creator.pk:
@@ -267,8 +261,7 @@ class AnnexeAccountSerializer(serializers.ModelSerializer):
 
 
 class AnnexeCohortResultSerializer(serializers.ModelSerializer):
-    dated_measure = serializers.SlugRelatedField(read_only=True,
-                                                 slug_field='measure')
+    dated_measure = serializers.SlugRelatedField(read_only=True, slug_field='measure')
 
     class Meta:
         model = CohortResult

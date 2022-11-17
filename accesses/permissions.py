@@ -1,36 +1,18 @@
 from rest_framework import permissions
 
-from accesses.models import Role,\
-    get_all_user_accesses_with_roles_on_perimeter, can_roles_manage_access
+from accesses.models import Role, \
+    get_all_user_managing_accesses_on_perimeter, can_roles_manage_access, \
+    Perimeter
 from admin_cohort.models import User
 from admin_cohort.permissions import get_bound_roles, \
     can_user_edit_roles, can_user_read_users
 
 
-class RolePermissions(permissions.BasePermission):
-    def has_permission(self, request, view):
-        # in list, objects will be serialized given the user's rights
-        if request.method in ["PUT", "PATCH", "POST", "DELETE"]:
-            return can_user_edit_roles(request.user.provider_username)
-        return request.method in permissions.SAFE_METHODS
-
-    def has_object_permission(self, request, view, obj):
-        if request.method in ["PUT", "PATCH", "POST"]:
-            return can_user_edit_roles(request.user.provider_username)
-        elif request.method == "GET":
-            return True
-        else:
-            return False
-
-
 def can_user_manage_access(
-        user: User, role_id: int, perimeter_id: int
+        user: User, role: Role, perimeter: Perimeter
 ) -> bool:
-    # return True
-    access_role = Role.objects.get(id=role_id)
-    user_accesses = get_all_user_accesses_with_roles_on_perimeter(user,
-                                                                  perimeter_id)
-    return can_roles_manage_access(user_accesses, access_role, perimeter_id)
+    user_accesses = get_all_user_managing_accesses_on_perimeter(user, perimeter)
+    return can_roles_manage_access(list(user_accesses), role, perimeter)
 
 
 def can_user_manage_accesses(user: User) -> bool:
@@ -110,14 +92,35 @@ def can_user_read_accesses(user: User) -> bool:
     return any([r.can_read_other_accesses for r in get_bound_roles(user)])
 
 
-def can_user_read_access(user: User, role_id: int, perimeter_id: int) -> bool:
-    # return True
-    access_role = Role.objects.get(id=role_id)
-    user_accesses = get_all_user_accesses_with_roles_on_perimeter(user,
-                                                                  perimeter_id)
+def can_user_read_access(user: User, role: Role, perimeter: Perimeter) -> bool:
+    user_accesses = get_all_user_managing_accesses_on_perimeter(user, perimeter)
     return can_roles_manage_access(
-        user_accesses, access_role, perimeter_id, just_read=True
+        list(user_accesses), role, perimeter, just_read=True
     )
+
+
+def can_user_edit_profiles(user: User) -> bool:
+    return any([r.right_edit_users for r in get_bound_roles(user)])
+
+
+def can_user_add_profiles(user: User) -> bool:
+    return any([r.right_add_users for r in get_bound_roles(user)])
+
+
+class RolePermissions(permissions.BasePermission):
+    def has_permission(self, request, view):
+        # in list, objects will be serialized given the user's rights
+        if request.method in ["PUT", "PATCH", "POST", "DELETE"]:
+            return can_user_edit_roles(request.user.provider_username)
+        return request.method in permissions.SAFE_METHODS
+
+    def has_object_permission(self, request, view, obj):
+        if request.method in ["PUT", "PATCH", "POST"]:
+            return can_user_edit_roles(request.user.provider_username)
+        elif request.method == "GET":
+            return True
+        else:
+            return False
 
 
 class AccessPermissions(permissions.BasePermission):
@@ -132,24 +135,11 @@ class AccessPermissions(permissions.BasePermission):
 
     def has_object_permission(self, request, view, obj):
         if request.method in ["PUT", "PATCH", "DELETE"]:
-            return can_user_manage_access(
-                request.user,
-                obj.role_id, obj.perimeter_id
-            )
+            return can_user_manage_access(request.user, obj.role, obj.perimeter)
         elif request.method == "GET":
-            return can_user_read_access(
-                request.user, obj.role_id, obj.perimeter_id
-            )
+            return can_user_read_access(request.user, obj.role, obj.perimeter)
         else:
             return False
-
-
-def can_user_edit_profiles(user: User) -> bool:
-    return any([r.right_edit_users for r in get_bound_roles(user)])
-
-
-def can_user_add_profiles(user: User) -> bool:
-    return any([r.right_add_users for r in get_bound_roles(user)])
 
 
 class HasUserAddingPermission(permissions.BasePermission):

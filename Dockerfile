@@ -1,9 +1,9 @@
-FROM harbor.eds.aphp.fr/cohort360/python:3.7.10
+FROM python:3.7.15
 
 WORKDIR /app
 COPY ./ ./
 
-# Install needed dependencies
+# Install needed dependencies]
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update -y && apt-get install -y nginx curl gettext locales locales-all xxd krb5-user nano cron
 

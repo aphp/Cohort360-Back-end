@@ -29,17 +29,14 @@ def get_bound_roles(user: User) -> QuerySet:
 
 
 def can_user_read_users(user: User) -> bool:
-    # return True
     return any([r.right_read_users for r in get_bound_roles(user)])
 
 
 def can_user_edit_roles(user: User) -> bool:
-    # return True
     return any([r.right_edit_roles for r in get_bound_roles(user)])
 
 
 def can_user_read_logs(user: User) -> bool:
-    # return True
     return any([
         r.right_read_logs or r.right_edit_roles
         for r in get_bound_roles(user)

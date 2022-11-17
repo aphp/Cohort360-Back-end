@@ -1,5 +1,7 @@
+import os
 import random
 from typing import List, Iterable
+from unittest import mock
 
 from rest_framework import status
 from rest_framework.test import force_authenticate
@@ -7,7 +9,7 @@ from rest_framework.test import force_authenticate
 from accesses.models import Perimeter, Access, Role
 from accesses.tests.tests_view_accesses import RightGroupForManage, \
     RIGHT_GROUPS, AccessListCase
-from accesses.views import PerimeterViewSet
+from accesses.views import PerimeterViewSet, NestedPerimeterViewSet
 from admin_cohort.settings import PERIMETERS_TYPES
 from admin_cohort.tests_tools import random_str, \
     new_user_and_profile, ViewSetTests, ListCase, \
@@ -20,6 +22,9 @@ CARE_SITES_URL = "/perimeters"
 class ObjectView(object):
     def __init__(self, d):
         self.__dict__ = d
+
+
+# TEST CASES #################################################################
 
 
 class PerimeterCaseRetrieveFilter(CaseRetrieveFilter):
@@ -42,6 +47,9 @@ class PerimeterListCase(AccessListCase):
         super(PerimeterListCase, self).__init__(**kwargs)
 
 
+# ACTUAL TESTS #################################################################
+
+
 class PerimeterTests(ViewSetTests):
     objects_url = "/perimeters/"
     retrieve_view = PerimeterViewSet.as_view({'get': 'retrieve'})
@@ -56,7 +64,6 @@ class PerimeterTests(ViewSetTests):
     model_fields = Perimeter._meta.fields
 
     restricted_list_view = PerimeterViewSet.as_view({'get': 'get_manageable'})
-    children_view = PerimeterViewSet.as_view({'get': 'children'})
 
     def setUp(self):
         super(PerimeterTests, self).setUp()
@@ -268,14 +275,13 @@ class PerimeterGetTests(PerimeterTests):
 
     def test_get_children(self):
         # As a simple user, I can get the children of a perimeter
-        children_view = PerimeterViewSet.as_view({'get': 'children'})
         [self.check_get_paged_list_case(ListCase(
-            url=f"{self.objects_url}{p.id}/children",
             status=status.HTTP_200_OK,
             success=True,
             user=self.user_no_right,
             to_find=list(p.children.all())
-        ), children_view, id=p.id) for p in [
+        ), NestedPerimeterViewSet.as_view({'get': 'list'}), parent=p.id)
+            for p in [
             self.perims[0],
             self.perims[0].children.first(),
             self.perims[0].children.first().children.first(),
@@ -360,6 +366,7 @@ class PerimeterGetManageableTests(PerimeterTests, SimplePerimSetup):
         check_list(case.to_find, res)
         [acc.delete() for acc in user_accesses]
 
+    @mock.patch.dict(os.environ, {"SERVER_VERSION": "dev"})
     def test_manageable_as_any_admin(self):
         # (tree view) As a user...
         def test_rights_group(rg: RightGroupForManage):
@@ -423,43 +430,11 @@ class PerimeterGetManageableTests(PerimeterTests, SimplePerimSetup):
                 )]
             else:
                 cases = sum([[self.simple_get_case.clone(
-                    # with the right to manage accesses on both same and
-                    # inferior levels of a perimeter P,
-                    # manageable will return the perimeter P's children
+                    # with the right to manage accesses on any perimeter,
+                    # manageable will return all perimeters
                     title=f"{rg.name}-with {right}",
                     user_rights=[right],
-                    to_find=[self.hospital2] if has_children else [],
-                ), self.simple_get_case.clone(
-                    # with the right to manage accesses on both same and
-                    # inferior levels of a perimeter P and one of its siblings,
-                    # manageable will return the two perimeters
-                    # with their children
-                    title=f"{rg.name}-with {right} - with hosp1",
-                    user_rights=[right],
-                    to_find=([self.hospital1, self.hospital2]
-                             if has_children else []),
-                    user_perimeters=[self.hospital2, self.hospital1],
-                ), self.simple_get_case.clone(
-                    # with the right to manage accesses on both same and
-                    # inferior levels of the top level,
-                    # manageable will return all perimeters
-                    title=f"{rg.name}- with {right} - on top level",
-                    user_rights=[right],
-                    to_find=([self.aphp]
-                             if has_children else []),
-                    user_perimeter=self.aphp,
-                ), self.simple_get_case.clone(
-                    # with the right to manage accesses on both same and
-                    # inferior levels of the top level,
-                    # manageable will return all perimeters
-                    # except most inferior perimeter if nb_levels=2
-                    title=f"{rg.name}- with {right} - on top level",
-                    user_rights=[right],
-                    to_find=([self.aphp]
-                             if has_children else []),
-                    user_perimeter=self.aphp,
-                    params=dict(nb_levels=2),
-                    to_exclude=[self.hospital3],
+                    to_find=[self.aphp] if has_children else [],
                 )] for right in rg.rights], [])
 
             [self.check_treefy(case, self.__class__.manageable_view)

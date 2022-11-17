@@ -37,7 +37,7 @@ class UserInfo:
         self.lastname = lastname
 
 
-class NewJobStatus(StrEnum):
+class JobStatus(StrEnum):
     new = "new"
     denied = "denied"
     validated = "validated"
@@ -48,13 +48,3 @@ class NewJobStatus(StrEnum):
     finished = "finished"
     cleaned = "cleaned"
     unknown = "unknown"
-
-
-class JobStatus(StrEnum):
-    KILLED = "killed"
-    FINISHED = "finished"
-    RUNNING = "running"
-    STARTED = "started"
-    ERROR = "error"
-    UNKNOWN = "unknown"
-    PENDING = "pending"

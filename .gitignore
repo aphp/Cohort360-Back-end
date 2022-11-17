@@ -1,13 +1,9 @@
-# configuration files
-*/conf_*
-
 # Django #
 *.log
 *.pot
 *.pyc
 __pycache__
 db.sqlite3
-media
 
 # Backup files # 
 *.bak 
@@ -119,3 +115,4 @@ GitHub.sublime-settings
 !.vscode/launch.json 
 !.vscode/extensions.json 
 .history
+/accesses/migrations/0023_caresite_concept_provider.py

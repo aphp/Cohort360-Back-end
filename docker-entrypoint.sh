@@ -1,16 +1,10 @@
 #!/usr/bin/env bash
 set -e
 
-
 mkdir -p static/ /app/log
 
 # update variables in nginx
-declare -a UrlArray=("BACK_URL_LOCAL")
-for NAME in ${UrlArray[@]}; do
-  ENV_VAR="${!NAME}"
-  ENV_VAR=$(echo $ENV_VAR | sed "s/[^a-zA-Z0-9]/\\\\&/g");
-  sed -i s/"{{"$NAME"}}"/$ENV_VAR/g /etc/nginx/sites-enabled/nginx.conf;
-done
+sed -i s/{{BACK_URL_LOCAL}}/$BACK_URL_LOCAL/g /etc/nginx/sites-enabled/nginx.conf;
 
 # restart nginx
 service nginx restart
@@ -28,6 +22,6 @@ celery worker -B -A admin_cohort --loglevel=info >> /app/log/celery.log 2>&1 &
 
 sleep 10
 
-python manage.py runserver 49040 >> /app/log/django.log 2>&1 &
+python manage.py runserver >> /app/log/django.log 2>&1 &
 
 tail -f /app/log/django.log

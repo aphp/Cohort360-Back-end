@@ -107,32 +107,8 @@ class MaintenancePhaseSerializer(BaseSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     displayed_name = serializers.CharField(read_only=True)
-    provider_source_value = serializers.CharField(
-        read_only=True, source="provider_username")
+    provider_source_value = serializers.CharField(read_only=True, source="provider_username")
 
     class Meta:
         model = User
         fields = "__all__"
-
-
-# def set_provider_name(validated_data, instance=None):
-#     if validated_data.get("provider_name", -1) != -1:
-#         return validated_data
-#
-#     new_firstname = validated_data.get("firstname", -1)
-#     new_lastname = validated_data.get("lastname", -1)
-#
-#     firstname = ""
-#     lastname = ""
-#     if instance is not None:
-#         firstname = instance.firstname
-#         lastname = instance.lastname
-#
-#     if new_firstname != -1:
-#         firstname = new_firstname if new_firstname is not None else ""
-#
-#     if new_lastname != -1:
-#         lastname = new_lastname if new_lastname is not None else ""
-#
-#     validated_data["provider_name"] = f"{firstname} {lastname.upper()}"
-#     return validated_data

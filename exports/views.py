@@ -1,7 +1,8 @@
 import http
+import logging as lg
 
-import django_filters
 from django.http import HttpResponse, StreamingHttpResponse
+from django_filters import rest_framework as filters
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from hdfs import HdfsError
@@ -10,52 +11,55 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 
-from admin_cohort.models import User, NewJobStatus
+from admin_cohort.models import User
 from admin_cohort.permissions import OR
+from admin_cohort.types import JobStatus
 from admin_cohort.views import CustomLoggingMixin
-from cohort.FhirAPi import JobStatus
 from cohort.models import CohortResult
 from cohort.permissions import IsOwner
-from workspaces.conf_workspaces import get_account_groups_from_id_aph
-from workspaces.permissions import AccountPermissions
-from workspaces.views import AccountViewset
 from exports import conf_exports
 from exports.emails import check_email_address
-from exports.models import ExportRequest, ExportType, NEW_STATUS, \
-    VALIDATED_STATUS, DENIED_STATUS
+from exports.models import ExportRequest, ExportType
 from exports.permissions import ExportRequestPermissions, \
     can_review_transfer_jupyter, can_review_export_csv, AnnexesPermissions, \
     ExportJupyterPermissions
 from exports.serializers import ExportRequestSerializer, \
     AnnexeAccountSerializer, AnnexeCohortResultSerializer, \
     ExportRequestSerializerNoReviewer
+from workspaces.conf_workspaces import get_account_groups_from_id_aph
+from workspaces.models import Account
+from workspaces.permissions import AccountPermissions
+from workspaces.views import AccountViewset
+
+_logger = lg.getLogger(__name__)
 
 
-class UserFilter(django_filters.FilterSet):
+class UnixAccountFilter(filters.FilterSet):
     def provider_source_value_filter(self, queryset, field, value):
-        return queryset.filter(
-            aphp_ldap_group_dn__in=get_account_groups_from_id_aph(value))
+        return queryset.filter(aphp_ldap_group_dn__in=get_account_groups_from_id_aph(value))
 
-    provider_source_value = django_filters.CharFilter(
-        field_name='provider_source_value',
-        method="provider_source_value_filter")
+    provider_source_value = filters.CharFilter(field_name='provider_source_value',
+                                               method="provider_source_value_filter")
 
     class Meta:
+        model = Account
         fields = ("provider_source_value",)
 
 
-class UsersViewSet(AccountViewset):
+class UnixAccountViewSet(AccountViewset):
     lookup_field = "uid"
     serializer_class = AnnexeAccountSerializer
     http_method_names = ["get"]
-    filter_class = UserFilter
+
+    swagger_tags = ['Exports - users']
+    filterset_class = UnixAccountFilter
 
     def get_permissions(self):
         return OR(AnnexesPermissions(),
                   AccountPermissions())
 
     def get_queryset(self):
-        q = super(AccountViewset, self).get_queryset()
+        q = super(UnixAccountViewSet, self).get_queryset()
         user = self.request.user
         if not can_review_transfer_jupyter(user)\
                 and not can_review_export_csv(user):
@@ -64,46 +68,48 @@ class UsersViewSet(AccountViewset):
         return q
 
     def list(self, request, *args, **kwargs):
-        return super(UsersViewSet, self).list(request, *args, **kwargs)
+        return super(UnixAccountViewSet, self).list(request, *args, **kwargs)
+
+
+class CohortFilter(filters.FilterSet):
+    class Meta:
+        model = CohortResult
+        fields = ('owner_id',)
 
 
 class CohortViewSet(viewsets.ModelViewSet):
     lookup_field = "uuid"
     http_method_names = ["get"]
     serializer_class = AnnexeCohortResultSerializer
-    queryset = CohortResult.objects.filter(
-        request_job_status=JobStatus.FINISHED)
-
-    filterset_fields = ("owner_id",)
-    search_fields = ('$name', '$description',)
+    queryset = CohortResult.objects.filter(request_job_status=JobStatus.finished)
+    swagger_tags = ['Exports - cohorts']
+    filterset_class = CohortFilter
+    search_fields = ('$name', '$description')
 
     def get_permissions(self):
         return OR(AnnexesPermissions(), IsOwner())
 
     def get_queryset(self):
         user = self.request.user
-        if not can_review_transfer_jupyter(user)\
-                and not can_review_export_csv(user):
+        if not can_review_transfer_jupyter(user) and not can_review_export_csv(user):
             return self.queryset.filter(owner_id=user)
-
         return self.queryset
 
-    @swagger_auto_schema(
-        manual_parameters=list(map(
-            lambda x: openapi.Parameter(
-                name=x[0], in_=openapi.IN_QUERY, description=x[1], type=x[2],
-                pattern=x[3] if len(x) == 4 else None
-            ), [
-                ["owner_id", "Filter type",
-                 openapi.TYPE_STRING],
-                [
-                    "search",
-                    f"Will search in multiple fields "
-                    f"({', '.join(search_fields)})", openapi.TYPE_STRING
-                ],
-            ])))
+    @swagger_auto_schema(manual_parameters=list(map(lambda x: openapi.Parameter(name=x[0], in_=openapi.IN_QUERY,
+                                                                                description=x[1], type=x[2],
+                                                                                pattern=x[3] if len(x) == 4 else None),
+                                                    [["owner_id", "Filter type", openapi.TYPE_STRING],
+                                                     ["search", f"Will search in multiple "
+                                                                f"fields ({', '.join(search_fields)})",
+                                                      openapi.TYPE_STRING]])))
     def list(self, request, *args, **kwargs):
         return super(CohortViewSet, self).list(request, *args, **kwargs)
+
+
+class ExportRequestFilter(filters.FilterSet):
+    class Meta:
+        model = ExportRequest
+        fields = ('output_format', 'request_job_status', 'creator_fk')
 
 
 class ExportRequestViewset(CustomLoggingMixin, viewsets.ModelViewSet):
@@ -111,9 +117,10 @@ class ExportRequestViewset(CustomLoggingMixin, viewsets.ModelViewSet):
     queryset = ExportRequest.objects.all()
     lookup_field = "id"
     permissions = (ExportRequestPermissions, ExportJupyterPermissions)
-    filterset_fields = ['output_format', 'status', 'creator_fk']
 
+    swagger_tags = ['Exports']
     logging_methods = ['POST', 'PATCH']
+    filterset_class = ExportRequestFilter
     http_method_names = ['get', 'post', 'patch']
 
     def should_log(self, request, response):
@@ -164,11 +171,11 @@ class ExportRequestViewset(CustomLoggingMixin, viewsets.ModelViewSet):
                                        "'right_review_transfer_jupyter'")
 
         req: ExportRequest = self.get_object()
-        if req.status == NEW_STATUS:
+        if req.request_job_status == JobStatus.new:
             req.deny(request.user)
 
             # to be deprecated
-            req.status = DENIED_STATUS
+            req.request_job_status = JobStatus.denied
             # req.reviewer_id = reviewer_id
 
             req.save()
@@ -176,8 +183,8 @@ class ExportRequestViewset(CustomLoggingMixin, viewsets.ModelViewSet):
                             status=status.HTTP_200_OK)
         else:
             raise ValidationError(f"La requête doit posséder le statut "
-                                  f"'{NEW_STATUS}' pour être refusée. "
-                                  f"Statut actuel : '{req.status}'")
+                                  f"'{JobStatus.new}' pour être refusée. "
+                                  f"Statut actuel : '{req.request_job_status}'")
 
     @action(
         detail=True, methods=['patch'], url_path="validate"
@@ -199,18 +206,14 @@ class ExportRequestViewset(CustomLoggingMixin, viewsets.ModelViewSet):
         try:
             req.validate(request.user)
 
-            # to be deprecated
-            req.status = VALIDATED_STATUS
-
-            req.save()
-
             from exports.tasks import launch_request
             launch_request.delay(req.id)
 
             return Response(self.serializer_class(req).data,
                             status=status.HTTP_200_OK)
         except Exception as e:
-            raise ValidationError(f"La requête n'a pas pu être validée: {e}")
+            _logger.exception(str(e))
+            raise ValidationError("La requête n'a pas pu être validée")
 
     @swagger_auto_schema(request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
@@ -280,7 +283,7 @@ class ExportRequestViewset(CustomLoggingMixin, viewsets.ModelViewSet):
         res: Response = super(ExportRequestViewset, self)\
             .create(request, *args, **kwargs)
         if res.status_code == http.HTTPStatus.CREATED \
-                and res.data["new_request_job_status"] != NewJobStatus.failed:
+                and res.data["request_job_status"] != JobStatus.failed:
             try:
                 email_info_request_confirmed(res.data.serializer.instance,
                                              creator.email)
@@ -296,7 +299,7 @@ class ExportRequestViewset(CustomLoggingMixin, viewsets.ModelViewSet):
     )
     def download(self, request, *args, **kwargs):
         req: ExportRequest = self.get_object()
-        if req.new_request_job_status != NewJobStatus.finished:
+        if req.request_job_status != JobStatus.finished:
             return HttpResponse("The export request you asked for is not "
                                 "done yet or has failed.",
                                 status=http.HTTPStatus.FORBIDDEN)
@@ -328,7 +331,8 @@ class ExportRequestViewset(CustomLoggingMixin, viewsets.ModelViewSet):
             # )
             return response
         except HdfsError as e:
-            return HttpResponse(e, status=http.HTTPStatus.INTERNAL_SERVER_ERROR)
+            _logger.exception(e.message)
+            return HttpResponse(e.message, status=http.HTTPStatus.INTERNAL_SERVER_ERROR)
         except conf_exports.HdfsServerUnreachableError:
             return HttpResponse(
                 "Hdfs servers are unreachable or in stand-by",

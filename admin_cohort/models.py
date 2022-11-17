@@ -5,13 +5,12 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.base_user import BaseUserManager, AbstractBaseUser
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
-from django.db.models import SET_NULL
+from django.db.models import SET_NULL, QuerySet
 from django.utils import timezone
 from safedelete import SOFT_DELETE_CASCADE
 from safedelete.models import SafeDeleteModel
 
-from admin_cohort import conf_auth
-from admin_cohort.types import UserInfo, JobStatus, NewJobStatus
+from admin_cohort.types import UserInfo, JobStatus
 
 
 class UndeletableModelManager(models.Manager):
@@ -98,14 +97,18 @@ class User(AbstractBaseUser, BaseModel):
                 if p.is_valid]
 
     @property
-    def valid_accesses(self):
-        return [a for a in
-                sum([list(p.accesses.all())
-                     for p in self.valid_profiles],
-                    list()) if a.is_valid]
+    def valid_manual_accesses_queryset(self) -> QuerySet:
+        try:
+            from accesses.models import get_user_valid_manual_accesses_queryset
+        except ImportError:
+            return QuerySet()
+        return get_user_valid_manual_accesses_queryset(self)
 
     def __str__(self):
         return f"{self.firstname} {self.lastname} ({self.provider_username})"
+
+    def __repr__(self):
+        return f"User {self})"
 
     class Meta:
         managed = True
@@ -131,11 +134,6 @@ def get_or_create_user_with_info(user_info: UserInfo) -> User:
     return user
 
 
-def get_or_create_user(jwt_access_token: str) -> User:
-    user_info = conf_auth.get_user_info(jwt_access_token=jwt_access_token)
-    return get_or_create_user_with_info(user_info)
-
-
 def get_user(user_id: str) -> User:
     user = User.objects.filter(provider_username=user_id).first()
     if user is None:
@@ -145,16 +143,8 @@ def get_user(user_id: str) -> User:
 
 class JobModel(models.Model):
     request_job_id = models.TextField(blank=True, null=True)
-    request_job_status = models.CharField(
-        max_length=10,
-        choices=[(e.value.lower(), e.value.lower()) for e in JobStatus],
-        default=JobStatus.PENDING.name.lower(), null=True
-    )
-    new_request_job_status = models.CharField(
-        max_length=10,
-        choices=[(e.value.lower(), e.value.lower()) for e in NewJobStatus],
-        default=JobStatus.PENDING.name.lower(), null=True
-    )
+    request_job_status = models.CharField(max_length=10, choices=[(e.value, e.value) for e in JobStatus],
+                                          default=JobStatus.started.value, null=True)
     request_job_fail_msg = models.TextField(blank=True, null=True)
     request_job_duration = models.TextField(blank=True, null=True)
 
@@ -162,21 +152,17 @@ class JobModel(models.Model):
         abstract = True
 
     def validate(self):
-        if self.new_request_job_status != NewJobStatus.new:
-            raise Exception(
-                f"Job can be validated only if current status is "
-                f"'{NewJobStatus.new}'. Current status is "
-                f"'{self.new_request_job_status}'")
-        self.new_request_job_status = NewJobStatus.validated
+        if self.request_job_status != JobStatus.new:
+            raise Exception(f"Job can be validated only if current status is '{JobStatus.new}'."
+                            f"Current status is '{self.request_job_status}'")
+        self.request_job_status = JobStatus.validated
         self.save()
 
     def deny(self):
-        if self.new_request_job_status != NewJobStatus.new:
-            raise Exception(
-                f"Job can be denied only if current status is "
-                f"'{NewJobStatus.new}'. Current status is "
-                f"'{self.new_request_job_status}'")
-        self.new_request_job_status = NewJobStatus.denied
+        if self.request_job_status != JobStatus.new:
+            raise Exception(f"Job can be denied only if current status is {JobStatus.new}'."
+                            f"Current status is '{self.request_job_status}'")
+        self.request_job_status = JobStatus.denied
         self.save()
 
 

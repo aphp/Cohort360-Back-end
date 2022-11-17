@@ -1,7 +1,6 @@
 import json
 from typing import List, Tuple
 
-import django_filters
 from django.contrib.auth import login
 from django.contrib.auth.views import LoginView
 from django.http import HttpRequest, HttpResponse
@@ -10,19 +9,19 @@ from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.debug import sensitive_post_parameters
+from django_filters import OrderingFilter
+from django_filters import rest_framework as filters
 from drf_yasg import openapi
 from drf_yasg.inspectors import SwaggerAutoSchema
-from rest_framework.decorators import action
-
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import viewsets, status
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework_tracking.mixins import LoggingMixin
 from rest_framework_tracking.models import APIRequestLog
 
 from accesses.models import Access, Profile
-from accesses.serializers import AccessSerializer, ProfileSerializer
+from accesses.serializers import AccessSerializer
 from admin_cohort import conf_auth
 from .MaintenanceModeMiddleware import get_next_maintenance
 from .models import User, get_user, MaintenancePhase
@@ -75,6 +74,24 @@ class BaseViewset(viewsets.ModelViewSet):
         instance.save()
 
 
+class SwaggerSimpleNestedViewSetMixin:
+    @swagger_auto_schema(auto_schema=None)
+    def retrieve(self, request, *args, **kwargs):
+        return self.retrieve(request, *args, **kwargs)
+
+    @swagger_auto_schema(auto_schema=None)
+    def destroy(self, request, *args, **kwargs):
+        return self.destroy(request, *args, **kwargs)
+
+    @swagger_auto_schema(auto_schema=None)
+    def update(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
+
+    @swagger_auto_schema(auto_schema=None)
+    def partial_update(self, request, *args, **kwargs):
+        return self.partial_update(request, *args, **kwargs)
+
+
 class CustomLoggingMixin(LoggingMixin):
     def handle_log(self):
         for f in ['data', 'errors', 'response']:
@@ -88,40 +105,28 @@ class CustomLoggingMixin(LoggingMixin):
         return super(CustomLoggingMixin, self).handle_log()
 
 
-class LogFilter(django_filters.FilterSet):
+class LogFilter(filters.FilterSet):
     def method_filter(self, queryset, field, value):
-        return queryset.filter(
-            **{f'{field}__in': str(value).upper().split(",")}
-        )
+        return queryset.filter(**{f'{field}__in': str(value).upper().split(",")})
 
     def status_code_filter(self, queryset, field, value):
-        return queryset.filter(
-            **{f'{field}__in': [int(v) for v in str(value).upper().split(",")]}
-        )
+        return queryset.filter(**{f'{field}__in': [int(v) for v in str(value).upper().split(",")]})
 
-    method = django_filters.CharFilter(method='method_filter')
-    status_code = django_filters.CharFilter(method='status_code_filter')
-    requested_at = django_filters.DateTimeFromToRangeFilter()
-    response_ms = django_filters.RangeFilter()
-    # path = django_filters.CharFilter(lookup_expr='icontains')
-    path_contains = django_filters.CharFilter(
-        field_name='path', lookup_expr='icontains'
-    )
-    response = django_filters.CharFilter(
-        field_name='response', lookup_expr='icontains'
-    )
-    errors = django_filters.CharFilter(
-        field_name='errors', lookup_expr='icontains'
-    )
-    data = django_filters.CharFilter(
-        field_name='data', lookup_expr='icontains'
-    )
+    method = filters.CharFilter(method='method_filter')
+    status_code = filters.CharFilter(method='status_code_filter')
+    requested_at = filters.DateTimeFromToRangeFilter()
+    response_ms = filters.RangeFilter()
+    # path = filters.CharFilter(lookup_expr='icontains')
+    path_contains = filters.CharFilter(field_name='path', lookup_expr='icontains')
+    response = filters.CharFilter(field_name='response', lookup_expr='icontains')
+    errors = filters.CharFilter(field_name='errors', lookup_expr='icontains')
+    data = filters.CharFilter(field_name='data', lookup_expr='icontains')
+
+    ordering = OrderingFilter(fields=('requested_at',))
 
     class Meta:
         model = APIRequestLog
-        fields = [f.name for f in APIRequestLog._meta.fields] + [
-            'path_contains'
-        ]
+        fields = [f.name for f in APIRequestLog._meta.fields] + ['path_contains']
 
 
 def log_related_names(log_data: dict):
@@ -146,10 +151,7 @@ def log_related_names(log_data: dict):
 class LoggingViewset(YarnReadOnlyViewsetMixin, viewsets.ModelViewSet):
     queryset = APIRequestLog.objects.all()
     serializer_class = APIRequestLogSerializer
-    filterset_fields = "__all__"
-    FILTERS_DEFAULT_LOOKUP_EXPR = "contains"
-    filter_class = LogFilter
-    ordering_fields = "__all__"
+    filterset_class = LogFilter
     search_fields = "__all__"
 
     permission_classes = [LogsPermission, ]
@@ -284,40 +286,21 @@ class CustomLoginView(LoginView):
     def form_valid(self, form):
         """Security check complete. Log the user in."""
         login(self.request, form.get_user())
-
-        user = UserSerializer(
-            get_user(self.request.user.provider_username)
-        ).data
-
-        valid_profiles = ProfileSerializer(
-            [ph for ph in
-             Profile.objects.filter(user_id=user["provider_username"])
-             if ph.is_valid and ph.source == MANUAL_SOURCE],
-            many=True
-        )
-
+        user = UserSerializer(get_user(self.request.user.provider_username)).data
+        user_valid_profiles_ids = [p.id for p in Profile.objects.filter(user_id=user["provider_username"],
+                                                                        source=MANUAL_SOURCE) if p.is_valid]
         # TODO for RESt API: being returned with users/:user_id/accesses
-        accesses = AccessSerializer(
-            [
-                a for a in
-                Access.objects.filter(
-                    profile_id__in=[
-                        p["id"] for p in valid_profiles.data
-                    ]).all()
-                if a.is_valid],
-            many=True
-        ).data
-        data = dict(
-            provider=user,
-            user=user,
-            session_id=self.request.session.session_key,
-            accesses=accesses,
-            jwt=dict(
-                access=self.request.jwt_session_key,
-                refresh=self.request.jwt_refresh_key,
-                last_connection=getattr(self.request, 'last_connection', dict())
-            )
-        )
+        valid_accesses = [a for a in Access.objects.filter(profile_id__in=user_valid_profiles_ids) if a.is_valid]
+        accesses = AccessSerializer(valid_accesses, many=True).data
+        data = {"provider": user,
+                "user": user,
+                "session_id": self.request.session.session_key,
+                "accesses": accesses,
+                "jwt": {"access": self.request.jwt_session_key,
+                        "refresh": self.request.jwt_refresh_key,
+                        "last_connection": getattr(self.request, 'last_connection', dict())
+                        }
+                }
         # when ready, try removing jwt field (so that does not process it,
         # because it should be done with cookies only)
         # data = dict(provider=provider,
@@ -325,23 +308,17 @@ class CustomLoginView(LoginView):
         url = self.get_redirect_url()
         return JsonResponse(data) if not url else HttpResponseRedirect(url)
 
-    @method_decorator(sensitive_post_parameters())
     @csrf_exempt
     @method_decorator(never_cache)
     def dispatch(self, request, *args, **kwargs):
-        if self.redirect_authenticated_user \
-                and self.request.user.is_authenticated:
+        if self.redirect_authenticated_user and self.request.user.is_authenticated:
             redirect_to = self.get_success_url()
             if redirect_to == self.request.path:
-                raise ValueError(
-                    "Redirection loop for authenticated user detected."
-                    " Check that your LOGIN_REDIRECT_URL doesn't "
-                    "point to a login page."
-                )
+                raise ValueError("Redirection loop for authenticated user detected. "
+                                 "Check that your LOGIN_REDIRECT_URL doesn't point to a login page.")
             return HttpResponseRedirect(redirect_to)
         if request.method.lower() in self.http_method_names:
-            handler = getattr(self, request.method.lower(),
-                              self.http_method_not_allowed)
+            handler = getattr(self, request.method.lower(), self.http_method_not_allowed)
         else:
             handler = self.http_method_not_allowed
         return handler(request, *args, **kwargs)
@@ -350,9 +327,8 @@ class CustomLoginView(LoginView):
     def post(self, request, *args, **kwargs):
         resp = super(CustomLoginView, self).post(request, *args, **kwargs)
         if getattr(request, 'jwt_server_unavailable', False):
-            return HttpResponse(
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
-                content=getattr(request, 'jwt_server_message', ""))
+            return HttpResponse(status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                                content=getattr(request, 'jwt_server_message', ""))
         return resp
 
 
@@ -412,17 +388,19 @@ class MaintenancePhaseViewSet(viewsets.ModelViewSet):
         return Response(d)
 
 
+class UserFilter(filters.FilterSet):
+    ordering = OrderingFilter(fields=('firstname', "lastname", "provider_username", "email"))
+
+    class Meta:
+        model = User
+        fields = ['firstname', "lastname", "provider_username", "email"]
+
+
 class UserViewSet(YarnReadOnlyViewsetMixin, BaseViewset):
     queryset = User.objects.all()
     lookup_field = "provider_username"
-    filterset_fields = ['firstname', "lastname", "provider_username", "email"]
-    ordering_fields = (
-        "firstname",
-        "lastname",
-        "provider_username",
-        "email",
-    )
     search_fields = ["firstname", "lastname", "provider_username", "email"]
+    filterset_class = UserFilter
 
     def get_serializer_context(self):
         return {'request': self.request}

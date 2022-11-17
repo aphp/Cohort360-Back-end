@@ -1,7 +1,8 @@
 import os
+from datetime import date, datetime, time
+
 import environ
 import pytz
-from datetime import date, datetime, time
 
 # from django.utils.datetime_safe import datetime
 
@@ -122,7 +123,7 @@ for app, example, conf in [
     ('exports', 'example_conf_exports', 'conf_exports'),
     ('workspaces', 'example.conf_workspaces', 'conf_workspaces'),
 ]:
-    p = os.path.join(app, f"{conf}.py")
+    p = os.path.join(BASE_DIR, app, f"{conf}.py")
     if app in INSTALLED_APPS and not os.path.exists(p):
         raise Exception(
             f"You want '{app}' app, but {p} file could not be found."
@@ -151,10 +152,13 @@ AUTHENTICATION_BACKENDS = [
 
 ROOT_URLCONF = 'admin_cohort.urls'
 
+MEDIA_ROOT = os.path.join(BASE_DIR, 'admin_cohort/media')
+MEDIA_URL = '/media/'
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'templates')],
+        'DIRS': [os.path.join(BASE_DIR, 'admin_cohort/templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -216,7 +220,6 @@ REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema',
     'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend',
-        'rest_framework.filters.OrderingFilter',
         'rest_framework.filters.SearchFilter'],
     'PAGE_SIZE': 100,
 }
@@ -281,17 +284,6 @@ CELERY_BEAT_SCHEDULE = {
     **CONFIG_TASKS,
 }
 
-VOTING_GITLAB = {
-    'enable': True,
-    'api_url': env("VOTING_GITLAB_API_URL"),
-    'project_id': env("VOTING_GITLAB_PROJECT_ID"),
-    'project_name': env("VOTING_GITLAB_PROJECT_NAME"),
-    'private_token': env("VOTING_GITLAB_PRIVATE_TOKEN"),
-    'authorized_labels': ['To Do', 'Doing', 'Feature request', 'Bug request'],
-}
-VOTING_ATTACHMENT_MAX_SIZE = int(env("VOTING_ATTACHMENT_MAX_SIZE"))
-VOTING_POST_LABELS = env("VOTING_AUTHORIZED_LABELS").split(",")
-
 
 # CONSTANTS
 utc = pytz.UTC
@@ -312,3 +304,7 @@ JWT_REFRESH_COOKIE = "refresh"
 # WORKSPACES
 if 'workspaces' in INCLUDED_APPS:
     RANGER_HIVE_POLICY_TYPES = env('RANGER_HIVE_POLICY_TYPES').split(",")
+
+# CUSTOM EXCEPTION REPORTER
+DEFAULT_EXCEPTION_REPORTER_FILTER = 'admin_cohort.tools.CustomExceptionReporterFilter'
+CUSTOM_SENSITIVE_POST_PARAMS = env('SENSITIVE_PARAMS').split(",")

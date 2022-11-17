@@ -45,7 +45,7 @@
 - [ ] get_all_level_children
 - [ ] can_roles_manage_access
 - [ ] get_assignable_roles_on_perimeter
-- [ ] get_all_user_accesses_with_roles_on_perimeter
+- [ ] get_all_user_managing_accesses_on_perimeter
 - [ ] get_user_valid_manual_accesses_queryset
 - [ ] get_user_dict_data_accesses
 
