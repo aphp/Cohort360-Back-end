@@ -18,7 +18,7 @@ from ..serializers import PerimeterSerializer, \
 from ..tools.data_right_mapping import data_read_access_mapper, data_read_perimeter_dict_mapper
 from ..tools.perimeter_process import get_top_perimeter_same_level, get_top_perimeter_inf_level, \
     filter_perimeter_by_top_hierarchy_perimeter_list, get_top_accesses_nominative, get_top_accesses_pseudo, \
-    filter_accesses_by_search_perimeters
+    filter_accesses_by_search_perimeters, get_read_patient_right
 
 
 class PerimeterFilter(filters.FilterSet):
@@ -138,9 +138,9 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
 
     @swagger_auto_schema(
         method='get',
-        operation_summary="Give perimeters and associated read patient roles for current user",
-        responses={'201': openapi.Response("give rights in caresite perimeters found", DataReadRightSerializer())})
-    @action(detail=False, methods=['get'], url_path="check-read-patient")
+        operation_summary="Give boolean read patient read right on one or several perimeters",
+        responses={'201': openapi.Response("give rights in caresite perimeters found", dict)})
+    @action(detail=False, methods=['get'], url_path="is-read-patient-pseudo")
     def get_read_patient_right_access(self, request, *args, **kwargs):
         user_accesses = get_user_valid_manual_accesses_queryset(self.request.user)
 
@@ -150,13 +150,13 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
             perimeters_filtered_by_search = self.filter_queryset(self.get_queryset())
             if not perimeters_filtered_by_search:
                 return Response({"ERROR": "No Perimeters Found"})
-            right_dict = filter_accesses_by_search_perimeters(perimeters_filtered_by_search, all_read_patient_accesses)
+            is_read_patient_pseudo = get_read_patient_right(perimeters_filtered_by_search, all_read_patient_accesses)
 
-            return Response(ReadRightPerimeter(data_read_perimeter_dict_mapper(right_dict), many=True).data)
+            return Response({"is_read_patient_pseudo": is_read_patient_pseudo})
 
         all_distinct_perimeters = list(set([access.perimeter for access in all_read_patient_accesses]))
-        right_dict = filter_accesses_by_search_perimeters(all_distinct_perimeters, all_read_patient_accesses)
-        return Response(ReadRightPerimeter(data_read_perimeter_dict_mapper(right_dict), many=True).data)
+        is_read_patient_pseudo = get_read_patient_right(all_distinct_perimeters, all_read_patient_accesses)
+        return Response({"is_read_patient_pseudo": is_read_patient_pseudo})
 
     @swagger_auto_schema(manual_parameters=list(map(lambda x: openapi.Parameter(name=x[0],
                                                                                 in_=openapi.IN_QUERY,

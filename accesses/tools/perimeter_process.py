@@ -127,20 +127,21 @@ def filter_perimeter_by_top_hierarchy_perimeter_list(perimeters_filtered_by_sear
 def filter_accesses_by_search_perimeters(perimeters_filtered_by_search, top_hierarchy_accesses_list):
     """
     filter Accesses  with perimeters fetch by search params with hierarchy perimeter response and user roles.
-    If there is no search params it return the previous accesses response.
+    with following rule : Read nominative > Read pseudo
+    return dict of perimeter id and tuple of access and perimeter.
     """
     response_dico = {}
     if not perimeters_filtered_by_search:
-        print(f"WARN: no perimeter found in paramters")
+        print(f"WARN: no perimeter found in parameters")
         return top_hierarchy_accesses_list
     for perimeter in perimeters_filtered_by_search:
         above_levels_ids = get_perimeters_ids_list(perimeter.above_levels_ids)
         for access in top_hierarchy_accesses_list:
             top_perimeter = access.perimeter
             if top_perimeter.id == perimeter.id or top_perimeter.id in above_levels_ids:
-                if perimeter.id not in response_dico or \
-                        (perimeter.id in response_dico and access.role.right_read_patient_nominative):
-                    response_dico[perimeter.id] = (access, perimeter)
+                response_dico[perimeter.id] = (access, perimeter)
+                if perimeter.id in response_dico and access.role.right_read_patient_nominative:
+                    break
         if perimeter.id not in response_dico:
             print(f"WARN: no read patient role on perimeter {perimeter.id} - {perimeter.name}")
     return response_dico
@@ -148,12 +149,18 @@ def filter_accesses_by_search_perimeters(perimeters_filtered_by_search, top_hier
 
 def get_read_patient_right(perimeters_filtered_by_search, top_hierarchy_accesses_list):
     """
-    filter Accesses  with perimeters fetch by search params with hierarchy perimeter response and user roles.
-    If there is no search params it return the previous accesses response.
+    for each search perimeter check of there is at least one access with read right:
+    3 response :
+    - if no right on one perimeter it raises an error
+    - if all perimeters are in nominative return is_pseudo at False
+    - else: return is_pseudo at True
     """
     is_pseudo = False
     if not perimeters_filtered_by_search:
-        raise Exception("ERROR: No perimeters in parameter for rights verification")
+        raise Exception(
+            "ERROR"
+            "|perimeter_process.py get_read_patient_right()"
+            "|No perimeters in parameter for rights verification")
     for perimeter in perimeters_filtered_by_search:
         above_levels_ids = get_perimeters_ids_list(perimeter.above_levels_ids)
         right = -1
@@ -165,9 +172,11 @@ def get_read_patient_right(perimeters_filtered_by_search, top_hierarchy_accesses
                     break
                 elif access.role.right_read_patient_pseudo_anonymised:
                     right = 0
-
         if right == -1:
-            raise Exception(f"ERROR: no read patient role on perimeter {perimeter.id} - {perimeter.name}")
+            raise Exception(
+                f"ERROR"
+                f"|perimeter_process.py get_read_patient_right()"
+                f"|No read patient role on perimeter {perimeter.id} - {perimeter.name}")
         if right == 0:
             is_pseudo = True
     return is_pseudo
