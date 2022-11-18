@@ -1,3 +1,5 @@
+from rest_framework.exceptions import ValidationError
+
 from accesses.models import Perimeter, Access
 
 
@@ -157,7 +159,7 @@ def get_read_patient_right(perimeters_filtered_by_search, top_hierarchy_accesses
     """
     is_pseudo = False
     if not perimeters_filtered_by_search:
-        raise Exception(
+        raise ValidationError(
             "ERROR"
             "|perimeter_process.py get_read_patient_right()"
             "|No perimeters in parameter for rights verification")
@@ -173,7 +175,7 @@ def get_read_patient_right(perimeters_filtered_by_search, top_hierarchy_accesses
                 elif access.role.right_read_patient_pseudo_anonymised:
                     right = 0
         if right == -1:
-            raise Exception(
+            raise ValidationError(
                 f"ERROR"
                 f"|perimeter_process.py get_read_patient_right()"
                 f"|No read patient role on perimeter {perimeter.id} - {perimeter.name}")

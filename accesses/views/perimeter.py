@@ -3,6 +3,7 @@ from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework.decorators import action
+from rest_framework.exceptions import *
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
@@ -24,7 +25,7 @@ from ..tools.perimeter_process import get_top_perimeter_same_level, get_top_peri
 class PerimeterFilter(filters.FilterSet):
     name = filters.CharFilter(lookup_expr='icontains')
     source_value = filters.CharFilter(lookup_expr='icontains')
-
+    cohort_id = filters.MultipleChoiceFilter(queryset=Perimeter.objects.all())
     ordering = OrderingFilter(fields=(('name', 'care_site_name'),
                                       ('type_source_value', 'care_site_type_source_value'),
                                       ('source_value', 'care_site_source_value')))
@@ -34,6 +35,7 @@ class PerimeterFilter(filters.FilterSet):
         fields = ("name",
                   "type_source_value",
                   "source_value",
+                  "cohort_id",
                   "id")
 
 
@@ -124,11 +126,13 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
         user_accesses = get_user_valid_manual_accesses_queryset(self.request.user)
 
         all_read_patient_accesses = list(user_accesses.filter(Role.is_read_patient_role("role")))
+        if not all_read_patient_accesses:
+            raise ValidationError("ERROR: No Accesses with read patient right found")
         if self.request.query_params:
             # Case with perimeters search params
             perimeters_filtered_by_search = self.filter_queryset(self.get_queryset())
             if not perimeters_filtered_by_search:
-                return Response({"ERROR": "No Perimeters Found"})
+                return ValidationError("ERROR: No Perimeters Found")
             right_dict = filter_accesses_by_search_perimeters(perimeters_filtered_by_search, all_read_patient_accesses)
             return Response(ReadRightPerimeter(data_read_perimeter_dict_mapper(right_dict), many=True).data)
 
@@ -149,7 +153,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
             # Case with perimeters search params
             perimeters_filtered_by_search = self.filter_queryset(self.get_queryset())
             if not perimeters_filtered_by_search:
-                return Response({"ERROR": "No Perimeters Found"})
+                return ValidationError("ERROR No Perimeters Found")
             is_read_patient_pseudo = get_read_patient_right(perimeters_filtered_by_search, all_read_patient_accesses)
 
             return Response({"is_read_patient_pseudo": is_read_patient_pseudo})
