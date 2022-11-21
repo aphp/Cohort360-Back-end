@@ -95,6 +95,7 @@ class CareSite(models.Model):
     care_site_short_name = models.TextField(blank=True, null=True)
     care_site_type_source_value = models.TextField(blank=True, null=True)
     care_site_parent_id = models.BigIntegerField(null=True)
+    cohort_id = models.BigIntegerField(null=True)
     delete_datetime = models.DateTimeField(null=True)
     objects = OmopModelManager()
 
@@ -168,10 +169,14 @@ def psql_query_care_site_relationship(top_care_site_ids: list) -> str:
             cs.care_site_short_name,
             cs.care_site_type_source_value,
             cs.care_site_source_value,
-            NULL as care_site_parent_id
+            NULL as care_site_parent_id,
+            cd.cohort_definition_id as cohort_id
             FROM omop.care_site cs
+            INNER JOIN omop.cohort_definition cd
+            ON cd.owner_entity_id = cs.care_site_id
             WHERE (cs.care_site_id IN ({str(top_care_site_ids)[1:-1]})
             AND cs.delete_datetime IS NULL
+            AND cd.delete_datetime IS NULL AND cd.owner_domain_id = 'Care_site'
             )
             UNION
             SELECT
@@ -180,10 +185,13 @@ def psql_query_care_site_relationship(top_care_site_ids: list) -> str:
             css.care_site_short_name,
             css.care_site_type_source_value,
             css.care_site_source_value,
-            CAST(frr.fact_id_2 AS BIGINT) care_site_parent_id
+            CAST(frr.fact_id_2 AS BIGINT) care_site_parent_id,
+            cd.cohort_definition_id as cohort_id
             FROM omop.care_site css
             INNER JOIN omop.fact_relationship frr
             ON css.care_site_id=frr.fact_id_1
+            INNER JOIN omop.cohort_definition cd
+            ON cd.owner_entity_id = css.care_site_id
             WHERE (
             frr.fact_id_1!=frr.fact_id_2
             AND frr.domain_concept_id_1={cs_domain_concept_id}
@@ -192,6 +200,7 @@ def psql_query_care_site_relationship(top_care_site_ids: list) -> str:
             AND css.care_site_type_source_value IN ({str(settings.PERIMETERS_TYPES)[1:-1]})
             AND css.delete_datetime IS NULL
             AND frr.delete_datetime IS NULL
+            AND cd.delete_datetime IS NULL AND cd.owner_domain_id = 'Care_site'
             ))
              SELECT DISTINCT * FROM care_sites ;"""
 
@@ -212,7 +221,8 @@ def map_to_perimeter(care_site_object: CareSite, relation_perimeter: RelationPer
         parent_id=care_site_object.care_site_parent_id,
         above_levels_ids=relation_perimeter.above_levels_ids,
         inferior_levels_ids=relation_perimeter.children,
-        full_path=relation_perimeter.full_path
+        full_path=relation_perimeter.full_path,
+        cohort_id=care_site_object.cohort_id
     )
 
 
@@ -235,6 +245,7 @@ def is_care_site_different_from_perimeter(care_site: CareSite, perimeter: Perime
             care_site.care_site_name != perimeter.name or \
             care_site.care_site_short_name != perimeter.short_name or \
             care_site.delete_datetime != perimeter.delete_datetime or \
+            care_site.cohort_id != perimeter.cohort_id or \
             relation_perimeter.above_levels_ids != perimeter.above_levels_ids or \
             relation_perimeter.full_path != perimeter.full_path or \
             relation_perimeter.children != perimeter.inferior_levels_ids:
