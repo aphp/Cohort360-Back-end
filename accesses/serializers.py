@@ -3,6 +3,7 @@ import re
 from datetime import timedelta
 from typing import Optional, List
 
+from django.db.models import Max, Q
 from django.utils import timezone
 from django.utils.datetime_safe import datetime
 from rest_framework import serializers
@@ -14,7 +15,7 @@ from admin_cohort.serializers import BaseSerializer, ReducedUserSerializer, \
     UserSerializer
 from admin_cohort.settings import MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE, \
     MODEL_MANUAL_END_DATE_DEFAULT_ON_UPDATE, MANUAL_SOURCE
-from .conf_perimeters import get_provider_id
+from .conf_perimeters import Provider
 from .models import Role, Access, Profile, Perimeter
 from .permissions import can_user_manage_access
 
@@ -192,7 +193,6 @@ def fix_profile_entries(validated_data, for_create: bool = False):
     elif manual_valid_start_datetime != -1:
         validated_data["manual_valid_start_datetime"] = manual_valid_start_datetime or \
                                                         MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE
-
     if valid_end_datetime != -1:
         if manual_valid_end_datetime != -1 and valid_end_datetime != manual_valid_end_datetime:
             raise ValidationError("Vous ne pouvez pas fournir à la fois 'valid_end_datetime'"
@@ -203,8 +203,27 @@ def fix_profile_entries(validated_data, for_create: bool = False):
     elif manual_valid_end_datetime != -1:
         validated_data["manual_valid_end_datetime"] = manual_valid_end_datetime or \
                                                       MODEL_MANUAL_END_DATE_DEFAULT_ON_UPDATE
-
     return validated_data
+
+
+# TODO: check si doit changer avec l'issue de modification du profile id par le provider_source_value (id aph du user)
+def get_provider_id(user_id: str) -> int:
+    """
+    get provider_id from OMOP DB for users issued from ORBIS.
+    for other users, get next value from provider_id sequence in OMOP DB.
+    todo: write mig file to clean DBs cf. issue #1440
+    """
+    p: Provider = Provider.objects.filter(Q(provider_source_value=user_id)
+                                          & (Q(valid_start_datetime__lte=timezone.now())
+                                             | Q(valid_start_datetime__isnull=True))
+                                          & (Q(valid_end_datetime__gte=timezone.now())
+                                             | Q(valid_end_datetime__isnull=True))).first()
+    if p:
+        return p.provider_id
+    # provider_id = Provider.objects.raw("SELECT nextval('provider_id_seq') from omop.provider_id_seq")[0]
+    # return provider_id
+    from accesses.models import Profile
+    return Profile.objects.aggregate(Max("provider_id"))['provider_id__max'] + 1
 
 
 class RoleSerializer(BaseSerializer):
@@ -281,6 +300,8 @@ class ProfileSerializer(BaseSerializer):
             if 'user_id' not in validated_data:
                 raise ValidationError("Besoin de soit 'user' soit 'user_id'.")
             user_id = validated_data.get('user_id')
+            # calling check_id_aph() a 2nd time to ensure user identity in case of a delay btw entering id_aph
+            # and click on "Valider" when adding a user as it might get deleted from AD meanwhile
             try:
                 id_details = check_id_aph(user_id)
             except Exception as e:
@@ -306,8 +327,7 @@ class ProfileSerializer(BaseSerializer):
             validated_data['user'] = user
             validated_data['provider_id'] = provider_id
             validated_data['provider_name'] = f"{validated_data.get('firstname')} {validated_data.get('lastname')}"
-        res = super(ProfileSerializer, self).create(validated_data)
-        return res
+        return super(ProfileSerializer, self).create(validated_data)
 
     def update(self, instance, validated_data):
         # can only update manual_is_active, manual_valid_start_datetime

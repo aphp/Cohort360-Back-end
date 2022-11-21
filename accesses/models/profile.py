@@ -31,10 +31,10 @@ class Profile(BaseModel):
     @property
     def is_valid(self):
         now = datetime.now().replace(tzinfo=None)
-        if self.actual_valid_start_datetime is not None:
+        if self.actual_valid_start_datetime:
             if self.actual_valid_start_datetime.replace(tzinfo=None) > now:
                 return False
-        if self.actual_valid_end_datetime is not None:
+        if self.actual_valid_end_datetime:
             if self.actual_valid_end_datetime.replace(tzinfo=None) <= now:
                 return False
         return self.actual_is_active
@@ -45,15 +45,11 @@ class Profile(BaseModel):
 
     @property
     def actual_valid_start_datetime(self) -> datetime:
-        if self.manual_valid_start_datetime is None:
-            return self.valid_start_datetime
-        return self.manual_valid_start_datetime
+        return self.manual_valid_start_datetime or self.valid_start_datetime
 
     @property
     def actual_valid_end_datetime(self) -> datetime:
-        if self.manual_valid_end_datetime is None:
-            return self.valid_end_datetime
-        return self.manual_valid_end_datetime
+        return self.manual_valid_end_datetime or self.valid_end_datetime
 
     @property
     def cdm_source(self) -> str:
