@@ -9,6 +9,7 @@ from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from admin_cohort.permissions import IsAuthenticatedReadOnly
 from admin_cohort.settings import PERIMETERS_TYPES
+from admin_cohort.tools import join_qs
 from admin_cohort.views import BaseViewset, YarnReadOnlyViewsetMixin, \
     SwaggerSimpleNestedViewSetMixin
 from ..models import Role, Perimeter, get_user_valid_manual_accesses_queryset, \
@@ -23,9 +24,17 @@ from ..tools.perimeter_process import get_top_perimeter_same_level, get_top_peri
 
 
 class PerimeterFilter(filters.FilterSet):
+
+    def multi_value_filter(self, queryset, field, value: str):
+        if value:
+            list_value = [val.strip() for val in value.split(",")]
+            return queryset.filter(join_qs([Q(**{field: value}) for value in list_value]))
+        return queryset
+
     name = filters.CharFilter(lookup_expr='icontains')
     source_value = filters.CharFilter(lookup_expr='icontains')
-    cohort_id = filters.MultipleChoiceFilter(queryset=Perimeter.objects.all())
+    cohort_id = filters.CharFilter(method="multi_value_filter", field_name="cohort_id")
+    local_id = filters.CharFilter(method="multi_value_filter", field_name="local_id")
     ordering = OrderingFilter(fields=(('name', 'care_site_name'),
                                       ('type_source_value', 'care_site_type_source_value'),
                                       ('source_value', 'care_site_source_value')))
@@ -36,6 +45,7 @@ class PerimeterFilter(filters.FilterSet):
                   "type_source_value",
                   "source_value",
                   "cohort_id",
+                  "local_id",
                   "id")
 
 
