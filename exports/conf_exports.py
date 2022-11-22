@@ -29,7 +29,6 @@ CSV_URL = f"{INFRA_API_URL}/bigdata/data_exporter/csv/"
 JOB_STATUS_URL = f"{INFRA_API_URL}/bigdata/task_status"
 HADOOP_NEW_DB_URL = f"{INFRA_API_URL}/hadoop/hive/create_base_hive"
 HADOOP_CHOWN_DB_URL = f"{INFRA_API_URL}/hadoop/hdfs/chown_directory"
-HIVE_DB_LOCATION = "/apps/hive/warehouse/bigdata"
 HIVE_DB_FOLDER = env('HIVE_DB_FOLDER')
 HIVE_EXPORTER_USER = env('HIVE_EXPORTER_USER')
 OMOP_ENVIRONMENT = env('EXPORT_OMOP_ENVIRONMENT')
@@ -75,7 +74,7 @@ def log_export_request_task(id, msg):
 
 
 def build_location(db_name: str) -> str:
-    return f"{HIVE_DB_LOCATION}/{HIVE_DB_FOLDER}/{db_name}.db"
+    return f"{HIVE_DB_FOLDER}/{db_name}.db"
 
 # API RESPONSES ###############################################################
 
