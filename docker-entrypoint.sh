@@ -22,4 +22,4 @@ celery worker -B -A admin_cohort --loglevel=info >> /app/log/celery.log 2>&1 &
 
 sleep 10
 
-gunicorn admin_cohort.wsgi
+gunicorn admin_cohort.wsgi --threads=10 --bind=unix:/appuser/admin_cohort/gunicorn.sock
