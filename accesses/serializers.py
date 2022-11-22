@@ -178,10 +178,11 @@ def fix_profile_entries(validated_data, for_create: bool = False):
         else:
             validated_data["manual_is_active"] = is_active
     elif manual_is_active != -1:
-        validated_data["manual_is_active"] = manual_is_active
+        validated_data["is_active"] = manual_is_active
     else:
         if for_create:
             validated_data["manual_is_active"] = True
+            validated_data["is_active"] = True
 
     if valid_start_datetime != -1:
         if manual_valid_start_datetime != -1 and valid_start_datetime != manual_valid_start_datetime:
