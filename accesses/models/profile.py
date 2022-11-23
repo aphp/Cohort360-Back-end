@@ -18,10 +18,11 @@ class Profile(BaseModel):
     email = models.TextField(blank=True, null=True)
     source = models.TextField(blank=True, null=True, default=MANUAL_SOURCE)
     is_active = models.BooleanField(blank=True, null=True)
+    valid_start_datetime: datetime = models.DateTimeField(blank=True, null=True)
+    valid_end_datetime: datetime = models.DateTimeField(blank=True, null=True)
+    # fields with prefix "manual_" prime over their equivalents
     manual_is_active = models.BooleanField(blank=True, null=True)
-    valid_start_datetime: datetime = models.DateTimeField(blank=True,null=True)
     manual_valid_start_datetime: datetime = models.DateTimeField(blank=True, null=True)
-    valid_end_datetime: datetime = models.DateTimeField(blank=True,null=True)
     manual_valid_end_datetime: datetime = models.DateTimeField(blank=True, null=True)
     user = models.ForeignKey(User, on_delete=CASCADE, related_name='profiles', null=True, blank=True)
 

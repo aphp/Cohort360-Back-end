@@ -165,12 +165,12 @@ def check_profile_entries(validated_data, for_update: bool = False):
 
 
 def fix_profile_entries(validated_data, for_create: bool = False):
-    is_active = validated_data.get("is_active", -1)
-    manual_is_active = validated_data.get("manual_is_active", -1)
-    valid_start_datetime = validated_data.get("valid_start_datetime", -1)
+    is_active = validated_data.pop("is_active", -1)
+    manual_is_active = validated_data.pop("manual_is_active", -1)
+    valid_start_datetime = validated_data.pop("valid_start_datetime", -1)
     manual_valid_start_datetime = validated_data.get("manual_valid_start_datetime", -1)
-    valid_end_datetime = validated_data.get("valid_end_datetime", -1)
-    manual_valid_end_datetime = validated_data.get("manual_valid_end_datetime", -1)
+    valid_end_datetime = validated_data.pop("valid_end_datetime", -1)
+    manual_valid_end_datetime = validated_data.pop("manual_valid_end_datetime", -1)
 
     if is_active != -1:
         if manual_is_active != -1 and is_active != manual_is_active:
@@ -178,11 +178,10 @@ def fix_profile_entries(validated_data, for_create: bool = False):
         else:
             validated_data["manual_is_active"] = is_active
     elif manual_is_active != -1:
-        validated_data["is_active"] = manual_is_active
+        validated_data["manual_is_active"] = manual_is_active
     else:
         if for_create:
             validated_data["manual_is_active"] = True
-            validated_data["is_active"] = True
 
     if valid_start_datetime != -1:
         if manual_valid_start_datetime != -1 and valid_start_datetime != manual_valid_start_datetime:
@@ -207,12 +206,12 @@ def fix_profile_entries(validated_data, for_create: bool = False):
     return validated_data
 
 
-# TODO: check si doit changer avec l'issue de modification du profile id par le provider_source_value (id aph du user)
 def get_provider_id(user_id: str) -> int:
     """
     get provider_id from OMOP DB for users issued from ORBIS.
     for other users, get next value from provider_id sequence in OMOP DB.
-    todo: write mig file to clean DBs cf. issue #1440
+    TODO: check si doit changer avec l'issue de modification du profile id
+          par le provider_source_value (id aph du user)
     """
     p: Provider = Provider.objects.filter(Q(provider_source_value=user_id)
                                           & (Q(valid_start_datetime__lte=timezone.now())
@@ -221,8 +220,6 @@ def get_provider_id(user_id: str) -> int:
                                              | Q(valid_end_datetime__isnull=True))).first()
     if p:
         return p.provider_id
-    # provider_id = Provider.objects.raw("SELECT nextval('provider_id_seq') from omop.provider_id_seq")[0]
-    # return provider_id
     from accesses.models import Profile
     return Profile.objects.aggregate(Max("provider_id"))['provider_id__max'] + 1
 
