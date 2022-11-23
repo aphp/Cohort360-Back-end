@@ -209,7 +209,6 @@ def fix_profile_entries(validated_data, for_create: bool = False):
 def get_provider_id(user_id: str) -> int:
     """
     get provider_id from OMOP DB for users issued from ORBIS.
-    for other users, get next value from provider_id sequence in OMOP DB.
     TODO: check si doit changer avec l'issue de modification du profile id
           par le provider_source_value (id aph du user)
     """
