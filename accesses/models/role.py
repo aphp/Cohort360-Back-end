@@ -88,6 +88,33 @@ class Role(BaseModel):
              Q(**{f'{formatted_prefix}right_read_patient_nominative': True})])
 
     @classmethod
+    def is_search_ipp_role(cls, prefix: str = "") -> Q:
+        formatted_prefix = format_prefix(prefix)
+        return join_qs([Q(**{f'{formatted_prefix}right_search_patient_with_ipp': True})])
+
+    @classmethod
+    def is_export_csv_nominative_role(cls, prefix: str = "") -> Q:
+        formatted_prefix = format_prefix(prefix)
+        return join_qs([Q(**{f'{formatted_prefix}right_export_csv_nominative': True})])
+
+    @classmethod
+    def is_export_csv_pseudo_role(cls, prefix: str = "") -> Q:
+        formatted_prefix = format_prefix(prefix)
+        return join_qs([Q(**{f'{formatted_prefix}right_export_csv_nominative': False,
+                             f'{formatted_prefix}right_export_csv_pseudo_anonymised': True})])
+
+    @classmethod
+    def is_export_jupyter_nominative_role(cls, prefix: str = "") -> Q:
+        formatted_prefix = format_prefix(prefix)
+        return join_qs([Q(**{f'{formatted_prefix}right_transfer_jupyter_nominative': True})])
+
+    @classmethod
+    def is_export_jupyter_pseudo_role(cls, prefix: str = "") -> Q:
+        formatted_prefix = format_prefix(prefix)
+        return join_qs([Q(**{f'{formatted_prefix}right_transfer_jupyter_nominative': False,
+                             f'{formatted_prefix}right_transfer_jupyter_pseudo_anonymised': True})])
+
+    @classmethod
     def is_manage_role_any_level(cls, prefix: str = "") -> Q:
         formatted_prefix = format_prefix(prefix)
         return join_qs(

@@ -16,7 +16,7 @@ class PrimaryKeyRelatedFieldWithOwner(serializers.PrimaryKeyRelatedField):
         if user is None:
             raise Exception(
                 "Internal error: No context request provided to serializer")
-        return super(PrimaryKeyRelatedFieldWithOwner, self).get_queryset()\
+        return super(PrimaryKeyRelatedFieldWithOwner, self).get_queryset() \
             .filter(owner=user)
 
 
@@ -262,7 +262,7 @@ class RequestQuerySnapshotSerializer(BaseSerializer):
         validated_data["perimeters_ids"] = conf.retrieve_perimeters(
             serialized_query)
 
-        res = super(RequestQuerySnapshotSerializer, self)\
+        res = super(RequestQuerySnapshotSerializer, self) \
             .create(validated_data=validated_data)
 
         if res.previous_snapshot is not None:
@@ -314,3 +314,8 @@ class FolderSerializer(BaseSerializer):
     class Meta:
         model = Folder
         fields = "__all__"
+
+
+class CohortRightsSerializer(serializers.Serializer):
+    cohort_id = serializers.CharField(read_only=True, allow_null=False)
+    rights = serializers.DictField(read_only=True, allow_null=True)

@@ -495,7 +495,7 @@ def delete_perimeters_and_accesses(existing_perimeters: List[Perimeter], all_val
                                                                     get_dict_deleted_care_site(),
                                                                     all_valid_care_site)
     if len(deleted_perimeters) > 0:
-        print(f"WARN: {len(deleted_perimeters)} perimeters to deleted")
+        print(f"WARN: {len(deleted_perimeters)} perimeters to deleted - {deleted_perimeters}")
         update_perimeter(deleted_perimeters)
         print("Start to close Accesses linked to removed Perimeters or with no perimeters")
         close_access(deleted_perimeters)
