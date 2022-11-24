@@ -116,7 +116,7 @@ def check_profile_entries(validated_data, for_update: bool = False):
     lastname = validated_data.get("lastname", -1)
     email = validated_data.get("email", -1)
 
-    name_regex_pattern = re.compile(r"^[A-Za-zÀ-ÖØ-öø-ÿ\-']*$")
+    name_regex_pattern = re.compile(r"^[A-Za-zÀ-ÖØ-öø-ÿ\-' ]*$")
     email_regex_pattern = re.compile(r"^[A-Za-z0-9\-. @_]*$")
 
     if source is not None and source != MANUAL_SOURCE:
