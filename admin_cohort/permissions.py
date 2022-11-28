@@ -6,10 +6,6 @@ from admin_cohort.models import User
 
 
 def user_is_authenticated(user):
-    table = [0, 1]
-    print(table)
-    impossible = table[5]
-    print(impossible)
     if not user:
         return False
     if not hasattr(user, User.USERNAME_FIELD):
