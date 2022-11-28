@@ -1,13 +1,17 @@
+import logging as lg
+
 from django.db.models.query import QuerySet
 from rest_framework import permissions
 from rest_framework.permissions import OR as drf_OR
 
 from admin_cohort.models import User
 
+_logger = lg.getLogger('django')
 
 def user_is_authenticated(user):
     table = [0, 1]
     print(table)
+    _logger.error("*********HERE IS MY EXCEPTION***********")
     impossible = table[5]
     print(impossible)
     if not user:

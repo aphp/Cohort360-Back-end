@@ -65,8 +65,8 @@ LOGGING = {
     'disable_existing_loggers': False,
     'formatters': {
         'verbose': {
-            'format': "{levelname} {asctime} module={module} "
-                      "pid={process:d} tid={thread:d} msg=`{message}`",
+            'format': "{levelname} --FROM DJANGO-- {asctime} module={module} "
+                      "pid={process:d} tid={thread:d} msg=`****** FROM DJANGO {message}`",
             'style': "{",
         }
     },
@@ -79,16 +79,25 @@ LOGGING = {
         'mail_admins': {
             'level': "ERROR",
             'class': "django.utils.log.AdminEmailHandler",
+            'include_html': True,
+        },
+        'gunicorn_errors': {
+            'level': "ERROR",
+            'class': "logging.handlers.RotatingFileHandler",
+            'formatter': "verbose",
+            'filename': "app/log/gunicorn.error.log",
+            'maxBytes': 1024 * 1024 * 100,  # 100 mb
         }
     },
     'loggers': {
         'django': {
+            'level': "INFO",
             'handlers': ['console'],
             'propagate': True,
         },
         'django.request': {
-            'handlers': ['console', 'mail_admins'],
             'level': "ERROR",
+            'handlers': ["gunicorn_errors", "mail_admins"],
             'propagate': False,
         }
     }
