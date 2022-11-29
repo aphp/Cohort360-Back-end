@@ -5,7 +5,7 @@ variables:
 
 stages:
   - lint
-#  - test
+  - test
   - deploy
 
 lint-job:
@@ -17,31 +17,31 @@ lint-job:
     - flake8 accesses/ admin_cohort/ cohort/ workspaces/ exports/ --max-line-length 150
   allow_failure: false
 
-#test-job:
-#  image: harbor.eds.aphp.fr/cohort360/python-test:3.8.1
-#  stage: test
-#  services:
-#    - postgres
-#  variables:
-#    POSTGRES_DB: portail_dev
-#    POSTGRES_USER: portail_dev_limited_rw
-#    POSTGRES_PASSWORD: portail_psswd
-#  script:
-#    - cp admin_cohort/.test.env admin_cohort/.env
-#    - pip install -r requirements.txt
-#    - coverage run --source='.' --omit="*/test*","*/migrations/*" manage.py test exports cohort workspaces
-#    - coverage xml --omit="*/test*","*/migrations/*" -o coverage.xml
-#    - coverage html --omit="*/test*","*/migrations/*" -d htmlcov
-#  artifacts:
-#    expire_in: 7 days
-#    paths:
-#      - htmlcov/
-#      - coverage.xml
-#      - report.html
-#      - report.xml
-#  only:
-#    - tags
-#    - develop
+test-job:
+  image: harbor.eds.aphp.fr/cohort360/python-test:3.8.1
+  stage: test
+  services:
+    - postgres
+  variables:
+    POSTGRES_DB: portail_dev
+    POSTGRES_USER: portail_dev_limited_rw
+    POSTGRES_PASSWORD: portail_psswd
+  script:
+    - cp admin_cohort/.test.env admin_cohort/.env
+    - pip install -r requirements.txt
+    - coverage run --source='.' --omit="*/test*","*/migrations/*" manage.py test exports cohort workspaces
+    - coverage xml --omit="*/test*","*/migrations/*" -o coverage.xml
+    - coverage html --omit="*/test*","*/migrations/*" -d htmlcov
+  artifacts:
+    expire_in: 7 days
+    paths:
+      - htmlcov/
+      - coverage.xml
+      - report.html
+      - report.xml
+  only:
+    - tags
+    - develop
 
 deploy-job:
   image: harbor.eds.aphp.fr/cohort360/kaniko:debug
