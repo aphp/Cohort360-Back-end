@@ -1,3 +1,4 @@
+from django.db.models import Q
 from django.http import QueryDict, JsonResponse, HttpResponse
 from django_filters import OrderingFilter
 from django_filters import rest_framework as filters
@@ -13,6 +14,7 @@ from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from accesses.models import get_user_valid_manual_accesses_queryset
 from admin_cohort import app
+from admin_cohort.tools import join_qs
 from admin_cohort.types import JobStatus
 from admin_cohort.views import SwaggerSimpleNestedViewSetMixin, CustomLoggingMixin
 from cohort.conf_cohort_job_api import cancel_job, get_fhir_authorization_header
@@ -20,7 +22,7 @@ from cohort.models import Request, CohortResult, RequestQuerySnapshot, DatedMeas
 from cohort.permissions import IsOwner
 from cohort.serializers import RequestSerializer, CohortResultSerializer, RequestQuerySnapshotSerializer, \
     DatedMeasureSerializer, FolderSerializer, CohortResultSerializerFullDatedMeasure, CohortRightsSerializer
-from cohort.tools import get_all_cohorts_rights
+from cohort.tools import get_all_cohorts_rights, get_dict_cohort_pop_source
 
 
 class NoUpdateViewSetMixin:
@@ -90,13 +92,16 @@ class CohortFilter(filters.FilterSet):
     def perimeters_filter(self, queryset, field, value):
         return queryset.filter(request_query_snapshot__perimeters_ids__contains=value.split(","))
 
-    def cohort_id_filter(self, queryset, field, value):
-        return queryset.filter(request_query_snapshot__fhir_group_id__contains=value.split(","))
+    def multi_value_filter(self, queryset, field, value: str):
+        if value:
+            list_value = [val.strip() for val in value.split(",")]
+            return queryset.filter(join_qs([Q(**{field: value}) for value in list_value]))
+        return queryset
 
     type = filters.AllValuesMultipleFilter()
     perimeter_id = filters.CharFilter(method="perimeter_filter")
     perimeters_ids = filters.CharFilter(method="perimeters_filter")
-    fhir_group_id = filters.CharFilter(method="cohort_id_filter")
+    fhir_group_id = filters.CharFilter(method="multi_value_filter", field_name="fhir_group_id")
 
     ordering = OrderingFilter(fields=('-created_at',
                                       'modified_at',
@@ -183,12 +188,18 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             cohorts_filtered_by_search = self.filter_queryset(self.get_queryset())
             if not cohorts_filtered_by_search:
                 return ValidationError("ERROR: No Cohort Found")
+            list_cohort_id = [cohort.fhir_group_id for cohort in cohorts_filtered_by_search]
+            cohort_dict_pop_source = get_dict_cohort_pop_source(list_cohort_id)
 
-            return Response(CohortRightsSerializer(get_all_cohorts_rights(user_accesses, cohorts_filtered_by_search)
+            return Response(CohortRightsSerializer(get_all_cohorts_rights(user_accesses, cohort_dict_pop_source)
                                                    , many=True).data)
 
         all_user_cohorts = CohortResult.objects.filter(owner=self.request.user)
-        return Response(CohortRightsSerializer(get_all_cohorts_rights(user_accesses, all_user_cohorts)
+        if not all_user_cohorts:
+            return Response("WARN: You do not have any cohort")
+        list_cohort_id = [cohort.fhir_group_id for cohort in all_user_cohorts]
+        cohort_dict_pop_source = get_dict_cohort_pop_source(list_cohort_id)
+        return Response(CohortRightsSerializer(get_all_cohorts_rights(user_accesses, cohort_dict_pop_source)
                                                , many=True).data)
 
 
