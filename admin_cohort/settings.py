@@ -83,10 +83,8 @@ LOGGING = {
         },
         'gunicorn_errors': {
             'level': "ERROR",
-            'class': "logging.handlers.RotatingFileHandler",
+            'class': "logging.StreamHandler",
             'formatter': "verbose",
-            'filename': "app/log/gunicorn.error.log",
-            'maxBytes': 1024 * 1024 * 100,  # 100 mb
         }
     },
     'loggers': {
