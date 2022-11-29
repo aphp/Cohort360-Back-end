@@ -81,11 +81,11 @@ LOGGING = {
             'class': "django.utils.log.AdminEmailHandler",
             'include_html': True,
         },
-        'gunicorn_errors': {
-            'level': "ERROR",
-            'class': "logging.StreamHandler",
-            'formatter': "verbose",
-        }
+        # 'gunicorn_errors': {
+        #     'level': "ERROR",
+        #     'class': "logging.StreamHandler",
+        #     'formatter': "verbose",
+        # }
     },
     'loggers': {
         'django': {
@@ -94,7 +94,7 @@ LOGGING = {
         },
         'django.request': {
             'level': "ERROR",
-            'handlers': ["gunicorn_errors", "mail_admins"],
+            'handlers': ["console", "mail_admins"],
             'propagate': False,
         }
     }
