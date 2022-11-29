@@ -6,5 +6,5 @@ threads = 10
 # Whether to send Django output to the error log
 capture_output = True
 
-accesslog = "app/log/gunicorn.access.log"
-errorlog = "app/log/gunicorn.error.log"
+accesslog = "/app/log/gunicorn.access.log"
+errorlog = "/app/log/gunicorn.error.log"
