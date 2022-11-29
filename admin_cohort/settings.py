@@ -65,8 +65,8 @@ LOGGING = {
     'disable_existing_loggers': False,
     'formatters': {
         'verbose': {
-            'format': "{levelname} {asctime} module={module} "
-                      "pid={process:d} tid={thread:d} msg=`{message}`",
+            'format': "{levelname} --FROM DJANGO-- {asctime} module={module} "
+                      "pid={process:d} tid={thread:d} msg=`****** FROM DJANGO {message}`",
             'style': "{",
         }
     },
