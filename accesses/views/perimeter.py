@@ -17,9 +17,9 @@ from ..models import Role, Perimeter, get_user_valid_manual_accesses_queryset, \
 from ..serializers import PerimeterSerializer, \
     TreefiedPerimeterSerializer, YasgTreefiedPerimeterSerializer, PerimeterLiteSerializer, DataReadRightSerializer, \
     ReadRightPerimeter
-from ..tools.data_right_mapping import data_read_perimeter_dict_mapper
 from ..tools.perimeter_process import get_top_perimeter_same_level, get_top_perimeter_inf_level, \
-    filter_perimeter_by_top_hierarchy_perimeter_list, filter_accesses_by_search_perimeters, get_read_patient_right
+    filter_perimeter_by_top_hierarchy_perimeter_list, filter_accesses_by_search_perimeters, get_read_patient_right, \
+    get_top_perimeter_from_read_patient_accesses
 
 
 class PerimeterFilter(filters.FilterSet):
@@ -98,7 +98,6 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
                                                                       top_hierarchy_perimeter)
         return Response(PerimeterLiteSerializer(perimeters, many=True).data)
 
-
     @swagger_auto_schema(
         method='get',
         operation_summary="Give perimeters and associated read patient roles for current user",
@@ -107,20 +106,32 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
     def get_perimeters_read_right_accesses(self, request, *args, **kwargs):
         user_accesses = get_user_valid_manual_accesses_queryset(self.request.user)
 
-        all_read_patient_accesses = list(user_accesses.filter(Role.is_read_patient_role("role")))
-        if not all_read_patient_accesses:
+        all_read_patient_nominative_accesses = user_accesses.filter(Role.is_read_patient_role_nominative("role"))
+        all_read_patient_pseudo_accesses = user_accesses.filter(Role.is_read_patient_role("role"))
+        all_read_ipp_accesses = user_accesses.filter(Role.is_search_ipp_role("role"))
+
+        if not all_read_patient_nominative_accesses and not all_read_patient_pseudo_accesses:
             raise ValidationError("ERROR: No Accesses with read patient right found")
         if self.request.query_params:
             # Case with perimeters search params
             perimeters_filtered_by_search = self.filter_queryset(self.get_queryset())
             if not perimeters_filtered_by_search:
                 return ValidationError("ERROR: No Perimeters Found")
-            right_dict = filter_accesses_by_search_perimeters(perimeters_filtered_by_search, all_read_patient_accesses)
-            return Response(ReadRightPerimeter(data_read_perimeter_dict_mapper(right_dict), many=True).data)
 
-        all_distinct_perimeters = list(set([access.perimeter for access in all_read_patient_accesses]))
-        right_dict = filter_accesses_by_search_perimeters(all_distinct_perimeters, all_read_patient_accesses)
-        return Response(ReadRightPerimeter(data_read_perimeter_dict_mapper(right_dict), many=True).data)
+            return Response(ReadRightPerimeter(
+                filter_accesses_by_search_perimeters(perimeters_filtered_by_search,
+                                                     all_read_patient_nominative_accesses,
+                                                     all_read_patient_pseudo_accesses,
+                                                     all_read_ipp_accesses), many=True).data)
+
+        all_distinct_perimeters = get_top_perimeter_from_read_patient_accesses(all_read_patient_nominative_accesses,
+                                                                               all_read_patient_pseudo_accesses)
+
+        return Response(ReadRightPerimeter(
+            filter_accesses_by_search_perimeters(all_distinct_perimeters,
+                                                 all_read_patient_nominative_accesses,
+                                                 all_read_patient_pseudo_accesses,
+                                                 all_read_ipp_accesses), many=True).data)
 
     @swagger_auto_schema(
         method='get',
