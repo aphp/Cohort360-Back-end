@@ -177,8 +177,9 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
 
     @swagger_auto_schema(
         method='get',
-        operation_summary="Give perimeters and associated read patient roles for current user",
-        responses={'201': openapi.Response("give rights in caresite perimeters found", dict)})
+        operation_summary="Give cohorts aggregation read patient rights, export csv rights and transfer jupyter rights."
+                          "It check accesses with perimeters population source for each cohort found.",
+        responses={'201': openapi.Response("give rights in caresite perimeters found", CohortRightsSerializer())})
     @action(detail=False, methods=['get'], url_path="cohort-rights")
     def get_perimeters_read_right_accesses(self, request, *args, **kwargs):
         user_accesses = get_user_valid_manual_accesses_queryset(self.request.user)

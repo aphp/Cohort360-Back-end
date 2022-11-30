@@ -90,9 +90,14 @@ def filter_perimeter_by_top_hierarchy_perimeter_list(perimeters_filtered_by_sear
 
 def get_right_boolean_for_each_accesses_list(above_levels_ids, all_read_patient_nominative_accesses,
                                              all_read_patient_pseudo_accesses, all_read_ipp_accesses):
-    nomi = False
-    pseudo = False
-    ipp = False
+    """
+    @param above_levels_ids: list of parents perimeters ids
+    @param all_read_patient_nominative_accesses:  QuerySet of accesses with nominative read patient right at True
+    @param all_read_patient_pseudo_accesses: QuerySet of accesses with nominative read patient right at True or Pseudo
+    @param all_read_ipp_accesses: QuerySet of accesses with read IPP right at True
+    @return: pseudo, nomi and ipp boolean right for the current perimeter
+    """
+    nomi, pseudo, ipp = False, False, False
     if all_read_patient_nominative_accesses.filter(perimeter_id__in=above_levels_ids):
         nomi, pseudo = True, True
     elif all_read_patient_pseudo_accesses.filter(perimeter_id__in=above_levels_ids):
@@ -123,6 +128,15 @@ def filter_accesses_by_search_perimeters(perimeters_filtered_by_search, all_read
 
 
 def get_top_perimeter_from_read_patient_accesses(accesses_nomi, accesses_pseudo):
+    """
+    Get only top hierarchy perimeters with read patient right logical:
+    for each perimeters with nominative read right we do not keep perimeter if there is one in the above nomi list
+    for each perimeters with pseudo read right we do not keep perimeter if there is one in the above list nomi or pseudo
+    or if there nominative at same level.
+    @param accesses_nomi:  QuerySet of accesses with nominative read patient right at True
+    @param accesses_pseudo: QuerySet of accesses with nominative read patient right at True or Pseudo
+    @return: Top perimeters for read patient right
+    """
     all_nomi = [access.perimeter.id for access in accesses_nomi]
     all_pseudo = [access.perimeter.id for access in accesses_pseudo]
     for access in accesses_nomi:

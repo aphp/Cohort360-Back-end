@@ -100,7 +100,8 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
 
     @swagger_auto_schema(
         method='get',
-        operation_summary="Give perimeters and associated read patient roles for current user",
+        operation_summary="Give perimeters and associated read patient roles for current user and search IPP"
+                          "If no perimeters param search ae present, it sow top hierarchy",
         responses={'201': openapi.Response("give rights in caresite perimeters found", DataReadRightSerializer())})
     @action(detail=False, methods=['get'], url_path="read-patient")
     def get_perimeters_read_right_accesses(self, request, *args, **kwargs):

@@ -35,6 +35,9 @@ settings.DATABASES.__setitem__(
 
 
 def get_dict_right_accesses(user_accesses: [Access]) -> dict:
+    """
+    mapping for read patient, export CSV and transfer Jupyter right and list of accesses
+    """
     return {READ_PATIENT_NOMI: user_accesses.filter(Role.is_read_patient_role_nominative(ROLE)),
             READ_PATIENT_PSEUDO: user_accesses.filter(Role.is_read_patient_role(ROLE)),
             EXPORT_CSV_NOMI: user_accesses.filter(Role.is_export_csv_nominative_role(ROLE)),
@@ -75,6 +78,9 @@ def dict_boolean_and(dict_1: dict, dict_2: dict):
 
 
 def get_rights_from_cohort(accesses_dict: dict, cohort_ids_pop_source: list) -> dict:
+    """
+    For cohort pop source and user accesses mapping give dict of cohort right boolean
+    """
     perimeters = Perimeter.objects.filter(cohort_id__in=cohort_ids_pop_source)
     right_dict = get_right_default_dict()
     for perimeter in perimeters:
@@ -84,6 +90,9 @@ def get_rights_from_cohort(accesses_dict: dict, cohort_ids_pop_source: list) -> 
 
 
 def get_all_cohorts_rights(user_accesses: [Access], cohort_pop_source: dict):
+    """
+    Return list of CohortRights => dict of boolean right aggregation for cohort perimeter pop source
+    """
     response_list = []
     accesses_dict = get_dict_right_accesses(user_accesses)
     for cohort_id, list_cohort_pop_source in cohort_pop_source.items():
@@ -94,6 +103,10 @@ def get_all_cohorts_rights(user_accesses: [Access], cohort_pop_source: dict):
 
 
 def psql_query_get_pop_source_from_cohort(cohorts_ids: list):
+    """
+    @param cohorts_ids: cohort id source
+    @return: mapping of cohort source in fact_id_1 and cohort id of care site (Perimeters) in fact_id_2
+    """
     domain_concept_id = env.get("DOMAIN_CONCEPT_COHORT")  # 1147323
     relationship_concept_id = env.get("FACT_RELATIONSHIP_CONCEPT_COHORT")  # 44818821
     return f"""
@@ -110,6 +123,9 @@ def psql_query_get_pop_source_from_cohort(cohorts_ids: list):
 
 
 def get_dict_cohort_pop_source(cohorts_ids: list):
+    """
+    Give the mapping of cohort_id and the list of Perimete.cohort_id population source for this cohort
+    """
     fact_relationships = FactRelationShip.objects.raw(psql_query_get_pop_source_from_cohort(cohorts_ids))
     cohort_pop_source = {}
     for fact in fact_relationships:
