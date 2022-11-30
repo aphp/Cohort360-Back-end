@@ -12,6 +12,7 @@ from admin_cohort.settings import PERIMETERS_TYPES
 from admin_cohort.tools import join_qs
 from admin_cohort.views import BaseViewset, YarnReadOnlyViewsetMixin, \
     SwaggerSimpleNestedViewSetMixin
+from cohort.tools import get_list_cohort_id_care_site
 from ..models import Role, Perimeter, get_user_valid_manual_accesses_queryset, \
     get_all_perimeters_parents_queryset
 from ..serializers import PerimeterSerializer, \
@@ -19,7 +20,7 @@ from ..serializers import PerimeterSerializer, \
     ReadRightPerimeter
 from ..tools.perimeter_process import get_top_perimeter_same_level, get_top_perimeter_inf_level, \
     filter_perimeter_by_top_hierarchy_perimeter_list, filter_accesses_by_search_perimeters, get_read_patient_right, \
-    get_top_perimeter_from_read_patient_accesses
+    get_top_perimeter_from_read_patient_accesses, is_pseudo_perimeter_in_top_perimeter
 
 
 class PerimeterFilter(filters.FilterSet):
@@ -114,7 +115,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
         if not all_read_patient_nominative_accesses and not all_read_patient_pseudo_accesses:
             raise ValidationError("ERROR: No Accesses with read patient right found")
         if self.request.query_params:
-            # Case with perimeters search params
+
             perimeters_filtered_by_search = self.filter_queryset(self.get_queryset())
             if not perimeters_filtered_by_search:
                 return ValidationError("ERROR: No Perimeters Found")
@@ -142,19 +143,31 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
     def get_read_patient_right_access(self, request, *args, **kwargs):
         user_accesses = get_user_valid_manual_accesses_queryset(self.request.user)
 
-        all_read_patient_accesses = list(user_accesses.filter(Role.is_read_patient_role("role")))
+        all_read_patient_nominative_accesses = user_accesses.filter(Role.is_read_patient_role_nominative("role"))
+        all_read_patient_pseudo_accesses = user_accesses.filter(Role.is_read_patient_role_pseudo("role"))
+
+        if not all_read_patient_nominative_accesses and not all_read_patient_nominative_accesses:
+            return ValidationError("ERROR No accesses with read patient right Found")
         if self.request.query_params:
-            # Case with perimeters search params
-            perimeters_filtered_by_search = self.filter_queryset(self.get_queryset())
+            cohort_ids = self.request.query_params.get("cohort_id")
+            if cohort_ids:
+                list_perimeter_cohort_ids = get_list_cohort_id_care_site(
+                    [int(cohort_id) for cohort_id in cohort_ids.split(",")])
+                perimeters_filtered_by_search = Perimeter.objects.filter(cohort_id__in=list_perimeter_cohort_ids)
+            else:
+                perimeters_filtered_by_search = self.filter_queryset(self.get_queryset())
+
             if not perimeters_filtered_by_search:
                 return ValidationError("ERROR No Perimeters Found")
-            is_read_patient_pseudo = get_read_patient_right(perimeters_filtered_by_search, all_read_patient_accesses)
+            is_read_patient_pseudo = get_read_patient_right(perimeters_filtered_by_search,
+                                                            all_read_patient_nominative_accesses,
+                                                            all_read_patient_pseudo_accesses)
 
             return Response({"is_read_patient_pseudo": is_read_patient_pseudo})
 
-        all_distinct_perimeters = list(set([access.perimeter for access in all_read_patient_accesses]))
-        is_read_patient_pseudo = get_read_patient_right(all_distinct_perimeters, all_read_patient_accesses)
-        return Response({"is_read_patient_pseudo": is_read_patient_pseudo})
+        return Response(
+            {"is_read_patient_pseudo": is_pseudo_perimeter_in_top_perimeter(all_read_patient_nominative_accesses,
+                                                                            all_read_patient_pseudo_accesses)})
 
     @swagger_auto_schema(manual_parameters=list(map(lambda x: openapi.Parameter(name=x[0],
                                                                                 in_=openapi.IN_QUERY,

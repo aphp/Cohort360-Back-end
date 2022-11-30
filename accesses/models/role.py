@@ -73,6 +73,12 @@ class Role(BaseModel):
         return join_qs([Q(**{f'{formatted_prefix}right_read_patient_nominative': True})])
 
     @classmethod
+    def is_read_patient_role_pseudo(cls, prefix: str = "") -> Q:
+        formatted_prefix = format_prefix(prefix)
+        return join_qs([Q(**{f'{formatted_prefix}right_read_patient_pseudo_anonymised': True,
+                             f'{formatted_prefix}right_read_patient_nominative': False})])
+
+    @classmethod
     def is_read_patient_role(cls, prefix: str = "") -> Q:
         formatted_prefix = format_prefix(prefix)
         return join_qs(

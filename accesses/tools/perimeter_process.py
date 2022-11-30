@@ -158,7 +158,8 @@ def get_top_perimeter_from_read_patient_accesses(accesses_nomi, accesses_pseudo)
     return Perimeter.objects.filter(id__in=list(set(all_nomi + all_pseudo)))
 
 
-def get_read_patient_right(perimeters_filtered_by_search, top_hierarchy_accesses_list):
+def get_read_patient_right(perimeters_filtered_by_search, all_read_patient_nominative_accesses
+                           , all_read_patient_pseudo_accesses):
     """
     for each search perimeter check of there is at least one access with read right:
     3 response :
@@ -174,20 +175,33 @@ def get_read_patient_right(perimeters_filtered_by_search, top_hierarchy_accesses
             "|No perimeters in parameter for rights verification")
     for perimeter in perimeters_filtered_by_search:
         above_levels_ids = get_perimeters_ids_list(perimeter.above_levels_ids)
-        right = -1
-        for access in top_hierarchy_accesses_list:
-            top_perimeter = access.perimeter
-            if top_perimeter.id == perimeter.id or top_perimeter.id in above_levels_ids:
-                if access.role.right_read_patient_nominative:
-                    right = 1
-                    break
-                elif access.role.right_read_patient_pseudo_anonymised:
-                    right = 0
-        if right == -1:
+        above_levels_ids.append(perimeter.id)
+        if all_read_patient_nominative_accesses.filter(perimeter_id__in=above_levels_ids):
+            pass
+        elif all_read_patient_pseudo_accesses.filter(perimeter_id__in=above_levels_ids):
+            is_pseudo = True
+        else:
             raise ValidationError(
                 f"ERROR"
                 f"|perimeter_process.py get_read_patient_right()"
                 f"|No read patient role on perimeter {perimeter.id} - {perimeter.name}")
-        if right == 0:
-            is_pseudo = True
     return is_pseudo
+
+
+def is_pseudo_perimeter_in_top_perimeter(all_read_patient_nominative_accesses, all_read_patient_pseudo_accesses):
+    """
+    if there is at least one pseudo access with perimeter in top hierarchy return pseudo, if no accesses rise error
+    else return Nomi
+    """
+    nominative_perimeters = [access.perimeter_id for access in all_read_patient_nominative_accesses]
+    for access in all_read_patient_pseudo_accesses:
+        above_levels_ids = get_perimeters_ids_list(access.perimeter.above_levels_ids)
+        above_levels_ids.append(access.perimeter.id)
+        if not [pseudo_perimeter for pseudo_perimeter in above_levels_ids if pseudo_perimeter in nominative_perimeters]:
+            return True
+    return False
+
+
+
+
+
