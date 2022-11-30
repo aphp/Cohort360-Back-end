@@ -94,15 +94,17 @@ def get_all_cohorts_rights(user_accesses: [Access], cohort_pop_source: dict):
 
 
 def psql_query_get_pop_source_from_cohort(cohorts_ids: list):
+    domain_concept_id = env.get("DOMAIN_CONCEPT_COHORT")  # 1147323
+    relationship_concept_id = env.get("FACT_RELATIONSHIP_CONCEPT_COHORT")  # 44818821
     return f"""
     SELECT fact_relationship_id,
     fact_id_1,
     fact_id_2
     FROM omop.fact_relationship
     WHERE delete_datetime IS NULL
-    AND domain_concept_id_1 = 1147323
-    AND domain_concept_id_2 = 1147323
-    AND relationship_concept_id = 44818821
+    AND domain_concept_id_1 = {domain_concept_id}
+    AND domain_concept_id_2 = {domain_concept_id}
+    AND relationship_concept_id = {relationship_concept_id}
     AND fact_id_1 IN ({str(cohorts_ids)[1:-1]})
     """
 
