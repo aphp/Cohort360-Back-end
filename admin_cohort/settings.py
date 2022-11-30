@@ -79,16 +79,22 @@ LOGGING = {
         'mail_admins': {
             'level': "ERROR",
             'class': "django.utils.log.AdminEmailHandler",
+            'include_html': True,
+        },
+        'gunicorn_errors': {
+            'level': "ERROR",
+            'class': "logging.StreamHandler",
+            'formatter': "verbose",
         }
     },
     'loggers': {
         'django': {
-            'handlers': ['console'],
+            'handlers': ["console"],
             'propagate': True,
         },
         'django.request': {
-            'handlers': ['console', 'mail_admins'],
             'level': "ERROR",
+            'handlers': ["gunicorn_errors", "mail_admins"],
             'propagate': False,
         }
     }
@@ -115,20 +121,6 @@ INSTALLED_APPS = [
 
     'admin_cohort',
 ] + INCLUDED_APPS
-
-for app, example, conf in [
-    ('admin_cohort', 'example_conf_auth', 'conf_auth'),
-    ('accesses', 'example.conf_perimeters', 'conf_perimeters'),
-    ('cohort', 'example.conf_cohort_job_api', 'conf_cohort_job_api'),
-    ('exports', 'example_conf_exports', 'conf_exports'),
-    ('workspaces', 'example.conf_workspaces', 'conf_workspaces'),
-]:
-    p = os.path.join(BASE_DIR, app, f"{conf}.py")
-    if app in INSTALLED_APPS and not os.path.exists(p):
-        raise Exception(
-            f"You want '{app}' app, but {p} file could not be found."
-            f"Check {app}.{conf} to build it.")
-
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

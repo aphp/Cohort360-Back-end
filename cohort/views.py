@@ -1,4 +1,5 @@
 from django.db.models import Q
+from django.db.models import F
 from django.http import QueryDict, JsonResponse, HttpResponse
 from django_filters import OrderingFilter
 from django_filters import rest_framework as filters
@@ -133,7 +134,8 @@ class CohortFilter(filters.FilterSet):
 
 
 class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
-    queryset = CohortResult.objects.all()
+    queryset = CohortResult.objects.select_related('request_query_snapshot__request')\
+                                   .annotate(request_id=F('request_query_snapshot__request__uuid')).all()
     serializer_class = CohortResultSerializer
     http_method_names = ['get', 'post', 'patch', 'delete']
     lookup_field = "uuid"
