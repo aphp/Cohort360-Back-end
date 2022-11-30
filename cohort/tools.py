@@ -40,8 +40,7 @@ def get_dict_right_accesses(user_accesses: [Access]) -> dict:
             EXPORT_CSV_NOMI: user_accesses.filter(Role.is_export_csv_nominative_role(ROLE)),
             EXPORT_CSV_PSEUDO: user_accesses.filter(Role.is_export_csv_pseudo_role(ROLE)),
             EXPORT_JUPYTER_NOMI: user_accesses.filter(Role.is_export_jupyter_nominative_role(ROLE)),
-            EXPORT_JUPYTER_PSEUDO: user_accesses.filter(Role.is_export_jupyter_pseudo_role(ROLE)),
-            SEARCH_IPP: user_accesses.filter(Role.is_search_ipp_role(ROLE))}
+            EXPORT_JUPYTER_PSEUDO: user_accesses.filter(Role.is_export_jupyter_pseudo_role(ROLE))}
 
 
 def is_right_on_accesses(accesses: QuerySet, perimeter_ids: [int]):
@@ -65,8 +64,7 @@ def get_right_default_dict():
             EXPORT_CSV_NOMI: True,
             EXPORT_CSV_PSEUDO: True,
             EXPORT_JUPYTER_NOMI: True,
-            EXPORT_JUPYTER_PSEUDO: True,
-            SEARCH_IPP: True}
+            EXPORT_JUPYTER_PSEUDO: True}
 
 
 def dict_boolean_and(dict_1: dict, dict_2: dict):
