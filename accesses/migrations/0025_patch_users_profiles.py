@@ -22,17 +22,17 @@ def adjust_provider_id_for_users(apps, schema_editor):
     if redundant:
         redundant_provider_id = redundant.get("provider_id")
 
-    users_having_same_provider_id = UserModel.objects.using(db_alias).filter(provider_id=redundant_provider_id).\
-        order_by('insert_datetime')
+        users_having_same_provider_id = UserModel.objects.using(db_alias).filter(provider_id=redundant_provider_id).\
+            order_by('insert_datetime')
 
-    # the 1st user can keep his provider_id since it's already incremented
-    for u in users_having_same_provider_id[1:]:
-        p = ProfileModel.objects.using(db_alias).get(user_id=u.provider_username)
-        u.provider_id = redundant_provider_id + 1
-        p.provider_id = redundant_provider_id + 1
-        u.save()
-        p.save()
-        redundant_provider_id += 1
+        # the 1st user can keep his provider_id since it's already incremented
+        for u in users_having_same_provider_id[1:]:
+            p = ProfileModel.objects.using(db_alias).get(user_id=u.provider_username)
+            u.provider_id = redundant_provider_id + 1
+            p.provider_id = redundant_provider_id + 1
+            u.save()
+            p.save()
+            redundant_provider_id += 1
 
 
 class Migration(migrations.Migration):
