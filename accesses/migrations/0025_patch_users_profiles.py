@@ -39,7 +39,7 @@ class Migration(migrations.Migration):
     dependencies = [('accesses', '0023_auto_20221115_1538')]
 
     operations = [migrations.RunPython(code=adjust_provider_id_for_users),
-                  migrations.RunSQL(sql=""" UPDATE accesses_profile
+                  migrations.RunSQL(sql=""" UPDATE accesses.accesses_profile
                                             SET provider_name = firstname||' '||lastname
                                             WHERE provider_name IS NULL; """)
                   ]
