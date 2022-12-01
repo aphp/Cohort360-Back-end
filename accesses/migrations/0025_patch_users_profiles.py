@@ -17,8 +17,10 @@ def adjust_provider_id_for_users(apps, schema_editor):
         p.save()
 
     # 2. adjust provider_id in "user" with respect to insert_datetime asc and update corresponding profiles
-    redundant_provider_id = UserModel.objects.using(db_alias).values("provider_id").\
-        annotate(total=Count("provider_id")).order_by("-total").first().get("provider_id")
+    redundant = UserModel.objects.using(db_alias).values("provider_id").\
+        annotate(total=Count("provider_id")).order_by("-total").first()
+    if redundant:
+        redundant_provider_id = redundant.get("provider_id")
 
     users_having_same_provider_id = UserModel.objects.using(db_alias).filter(provider_id=redundant_provider_id).\
         order_by('insert_datetime')
@@ -37,7 +39,7 @@ class Migration(migrations.Migration):
     dependencies = [('accesses', '0023_auto_20221115_1538')]
 
     operations = [migrations.RunPython(code=adjust_provider_id_for_users),
-                  migrations.RunSQL(sql=""" UPDATE accesses.accesses_profile
+                  migrations.RunSQL(sql=""" UPDATE accesses_profile
                                             SET provider_name = firstname||' '||lastname
-                                            WHERE provider_nme IS NULL; """)
+                                            WHERE provider_name IS NULL; """)
                   ]
