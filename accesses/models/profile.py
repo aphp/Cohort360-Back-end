@@ -17,21 +17,14 @@ class Profile(BaseModel):
     lastname = models.TextField(blank=True, null=True)
     email = models.TextField(blank=True, null=True)
     source = models.TextField(blank=True, null=True, default=MANUAL_SOURCE)
-
     is_active = models.BooleanField(blank=True, null=True)
+    valid_start_datetime: datetime = models.DateTimeField(blank=True, null=True)
+    valid_end_datetime: datetime = models.DateTimeField(blank=True, null=True)
+    # fields with prefix "manual_" prime over their equivalents
     manual_is_active = models.BooleanField(blank=True, null=True)
-    valid_start_datetime: datetime = models.DateTimeField(blank=True,
-                                                          null=True)
-    manual_valid_start_datetime: datetime = models.DateTimeField(
-        blank=True, null=True)
-    valid_end_datetime: datetime = models.DateTimeField(blank=True,
-                                                        null=True)
-    manual_valid_end_datetime: datetime = models.DateTimeField(
-        blank=True, null=True)
-
-    user = models.ForeignKey(User, on_delete=CASCADE,
-                             related_name='profiles',
-                             null=True, blank=True)
+    manual_valid_start_datetime: datetime = models.DateTimeField(blank=True, null=True)
+    manual_valid_end_datetime: datetime = models.DateTimeField(blank=True, null=True)
+    user = models.ForeignKey(User, on_delete=CASCADE, related_name='profiles', null=True, blank=True)
 
     class Meta:
         managed = True
@@ -39,34 +32,29 @@ class Profile(BaseModel):
     @property
     def is_valid(self):
         now = datetime.now().replace(tzinfo=None)
-        if self.actual_valid_start_datetime is not None:
+        if self.actual_valid_start_datetime:
             if self.actual_valid_start_datetime.replace(tzinfo=None) > now:
                 return False
-        if self.actual_valid_end_datetime is not None:
+        if self.actual_valid_end_datetime:
             if self.actual_valid_end_datetime.replace(tzinfo=None) <= now:
                 return False
         return self.actual_is_active
 
     @property
     def actual_is_active(self):
-        return self.is_active if self.manual_is_active is None \
-            else self.manual_is_active
+        return self.is_active if self.manual_is_active is None else self.manual_is_active
 
     @property
     def actual_valid_start_datetime(self) -> datetime:
-        return self.valid_start_datetime \
-            if self.manual_valid_start_datetime is None \
-            else self.manual_valid_start_datetime
+        return self.manual_valid_start_datetime or self.valid_start_datetime
 
     @property
     def actual_valid_end_datetime(self) -> datetime:
-        return self.valid_end_datetime \
-            if self.manual_valid_end_datetime is None \
-            else self.manual_valid_end_datetime
+        return self.manual_valid_end_datetime or self.valid_end_datetime
 
     @property
     def cdm_source(self) -> str:
-        return str(self.source)
+        return self.source
 
     @classmethod
     def Q_is_valid(cls, field_prefix: str = '') -> Q:
@@ -83,27 +71,21 @@ class Profile(BaseModel):
         # now = datetime.now().replace(tzinfo=None)
         now = timezone.now()
         field_prefix = f"{field_prefix}__" if field_prefix else ""
-        fields = dict(
-            valid_start=f"{field_prefix}valid_start_datetime",
-            manual_valid_start=f"{field_prefix}manual_valid_start_datetime",
-            valid_end=f"{field_prefix}valid_end_datetime",
-            manual_valid_end=f"{field_prefix}manual_valid_end_datetime",
-            active=f"{field_prefix}is_active",
-            manual_active=f"{field_prefix}manual_is_active",
-        )
-        q_actual_start_is_none = Q(**{
-            fields['valid_start']: None,
-            fields['manual_valid_start']: None
-        })
+        fields = {"valid_start": f"{field_prefix}valid_start_datetime",
+                  "manual_valid_start": f"{field_prefix}manual_valid_start_datetime",
+                  "valid_end": f"{field_prefix}valid_end_datetime",
+                  "manual_valid_end": f"{field_prefix}manual_valid_end_datetime",
+                  "active": f"{field_prefix}is_active",
+                  "manual_active": f"{field_prefix}manual_is_active"
+                  }
+        q_actual_start_is_none = Q(**{fields['valid_start']: None,
+                                      fields['manual_valid_start']: None})
         q_start_lte_now = ((Q(**{fields['manual_valid_start']: None})
                             & Q(**{f"{fields['valid_start']}__lte": now}))
-                           | Q(
-                    **{f"{fields['manual_valid_start']}__lte": now}))
+                           | Q(**{f"{fields['manual_valid_start']}__lte": now}))
 
-        q_actual_end_is_none = Q(**{
-            fields['valid_end']: None,
-            fields['manual_valid_end']: None
-        })
+        q_actual_end_is_none = Q(**{fields['valid_end']: None,
+                                    fields['manual_valid_end']: None})
         q_end_gte_now = ((Q(**{fields['manual_valid_end']: None})
                           & Q(**{f"{fields['valid_end']}__gte": now}))
                          | Q(**{f"{fields['manual_valid_end']}__gte": now}))
