@@ -4,7 +4,6 @@ import os
 from typing import List
 
 from django.db import models
-from django.db.models import Q, Max
 from django.utils import timezone
 
 from accesses.models import Perimeter, Access
@@ -35,19 +34,15 @@ It is a mono-hierarchy => one parent maximum for 1.n children
 # SETTINGS CONFIGURATION ###############################################################################################
 env = os.environ
 # Configuration of OMOP connexion
-settings.DATABASES.__setitem__(
-    'omop', {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': env.get("DB_OMOP_NAME"),
-        'USER': env.get("DB_OMOP_USER"),
-        'PASSWORD': env.get("DB_OMOP_PASSWORD"),
-        'HOST': env.get("DB_OMOP_HOST"),
-        'PORT': env.get("DB_OMOP_PORT"),
-        'DISABLE_SERVER_SIDE_CURSORS': True,
-        'OPTIONS': {
-            'options': f"-c search_path={env.get('DB_OMOP_SCHEMA')},public"
-        },
-    }, )
+settings.DATABASES.__setitem__('omop', {'ENGINE': 'django.db.backends.postgresql',
+                                        'NAME': env.get("DB_OMOP_NAME"),
+                                        'USER': env.get("DB_OMOP_USER"),
+                                        'PASSWORD': env.get("DB_OMOP_PASSWORD"),
+                                        'HOST': env.get("DB_OMOP_HOST"),
+                                        'PORT': env.get("DB_OMOP_PORT"),
+                                        'DISABLE_SERVER_SIDE_CURSORS': True,
+                                        'OPTIONS': {'options': f"-c search_path={env.get('DB_OMOP_SCHEMA')},public"}
+                                        })
 
 # CLASS DEFINITION ####################################################################################################
 """
@@ -114,25 +109,6 @@ class RelationPerimeter:
         self.above_levels_ids = above_levels_ids
         self.children = children
         self.full_path = full_path
-
-
-# FUNCTION DEFINITION #################################################################################################
-
-# TODO: check si doit changer avec l'issue de modification du profile id par le provider_source_value (code aph du user)
-# TODO: qu'est ce que ça fiche ici, à déplacer dans le script appelé
-def get_provider_id(user_id: str) -> int:
-    """"
-    For one user id return the provider id associate
-    """
-    p: Provider = Provider.objects.filter(Q(provider_source_value=user_id)
-                                          & (Q(valid_start_datetime__lte=timezone.now())
-                                             | Q(valid_start_datetime__isnull=True))
-                                          & (Q(valid_end_datetime__gte=timezone.now())
-                                             | Q(valid_end_datetime__isnull=True))).first()
-    if p is None:
-        from accesses.models import Profile
-        return Profile.objects.aggregate(Max("provider_id"))['provider_id__max'] + 1
-    return p.provider_id
 
 
 def get_concept_filter_id() -> tuple:

@@ -299,14 +299,6 @@ class RequestSerializer(BaseSerializer):
         ]
 
 
-class ReducedFolderSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Folder
-        fields = "__all__"
-        # exclude = ["owner"]
-        read_only_fields = ["owner"]
-
-
 class FolderSerializer(BaseSerializer):
     owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
     requests = serializers.SlugRelatedField(slug_field='uuid', many=True, read_only=True)
