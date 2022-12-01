@@ -35,11 +35,19 @@ def adjust_provider_id_for_users(apps, schema_editor):
             redundant_provider_id += 1
 
 
+def adjust_provider_name_for_profiles(apps, schema_editor):
+    ProfileModel = apps.get_model('accesses', 'Profile')
+    db_alias = schema_editor.connection.alias
+
+    profiles_without_provider_name = ProfileModel.objects.using(db_alias).filter(provider_name__isnull=True)
+    for p in profiles_without_provider_name:
+        p.provider_name = f"{p.firstname} {p.lastname}"
+        p.save()
+
+
 class Migration(migrations.Migration):
     dependencies = [('accesses', '0023_auto_20221115_1538')]
 
     operations = [migrations.RunPython(code=adjust_provider_id_for_users),
-                  migrations.RunSQL(sql=""" UPDATE accesses.accesses_profile
-                                            SET provider_name = firstname||' '||lastname
-                                            WHERE provider_name IS NULL; """)
+                  migrations.RunPython(code=adjust_provider_name_for_profiles),
                   ]
