@@ -24,4 +24,4 @@ sleep 10
 
 gunicorn admin_cohort.wsgi --config .conf/gunicorn.conf.py
 
-tail -f /app/log/gunicorn.error.log
+tail -f /app/log/gunicorn.log

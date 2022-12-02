@@ -46,7 +46,7 @@ def adjust_provider_name_for_profiles(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-    dependencies = [('accesses', '0023_auto_20221115_1538')]
+    dependencies = [('accesses', '0024_auto_20221117_0938')]
 
     operations = [migrations.RunPython(code=adjust_provider_id_for_users),
                   migrations.RunPython(code=adjust_provider_name_for_profiles),
