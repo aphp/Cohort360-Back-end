@@ -1,3 +1,4 @@
+from django.db.models import Q
 from django.db.models import F
 from django.http import QueryDict, JsonResponse, HttpResponse
 from django_filters import OrderingFilter
@@ -12,14 +13,17 @@ from rest_framework.relations import RelatedField
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
+from accesses.models import get_user_valid_manual_accesses_queryset
 from admin_cohort import app
+from admin_cohort.tools import join_qs
 from admin_cohort.types import JobStatus
 from admin_cohort.views import SwaggerSimpleNestedViewSetMixin, CustomLoggingMixin
 from cohort.conf_cohort_job_api import cancel_job, get_fhir_authorization_header
 from cohort.models import Request, CohortResult, RequestQuerySnapshot, DatedMeasure, Folder, User
 from cohort.permissions import IsOwner
 from cohort.serializers import RequestSerializer, CohortResultSerializer, RequestQuerySnapshotSerializer, \
-    DatedMeasureSerializer, FolderSerializer, CohortResultSerializerFullDatedMeasure
+    DatedMeasureSerializer, FolderSerializer, CohortResultSerializerFullDatedMeasure, CohortRightsSerializer
+from cohort.tools import get_all_cohorts_rights, get_dict_cohort_pop_source
 
 
 class NoUpdateViewSetMixin:
@@ -56,7 +60,7 @@ class UserObjectsRestrictedViewSet(BaseViewSet):
     # todo : remove when front is ready
     #  (front should not post with '_id' fields)
     def initial(self, request, *args, **kwargs):
-        super(UserObjectsRestrictedViewSet, self)\
+        super(UserObjectsRestrictedViewSet, self) \
             .initial(request, *args, **kwargs)
 
         s = self.get_serializer_class()()
@@ -89,9 +93,16 @@ class CohortFilter(filters.FilterSet):
     def perimeters_filter(self, queryset, field, value):
         return queryset.filter(request_query_snapshot__perimeters_ids__contains=value.split(","))
 
+    def multi_value_filter(self, queryset, field, value: str):
+        if value:
+            list_value = [val.strip() for val in value.split(",")]
+            return queryset.filter(join_qs([Q(**{field: value}) for value in list_value]))
+        return queryset
+
     type = filters.AllValuesMultipleFilter()
     perimeter_id = filters.CharFilter(method="perimeter_filter")
     perimeters_ids = filters.CharFilter(method="perimeters_filter")
+    fhir_group_id = filters.CharFilter(method="multi_value_filter", field_name="fhir_group_id")
 
     ordering = OrderingFilter(fields=('-created_at',
                                       'modified_at',
@@ -164,6 +175,36 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             return HttpResponse(status=status.HTTP_204_NO_CONTENT)
         return JsonResponse(data={"jobs_count": jobs_count}, status=status.HTTP_200_OK)
 
+    @swagger_auto_schema(
+        method='get',
+        operation_summary="Give cohorts aggregation read patient rights, export csv rights and transfer jupyter rights."
+                          "It check accesses with perimeters population source for each cohort found.",
+        responses={'201': openapi.Response("give rights in caresite perimeters found", CohortRightsSerializer())})
+    @action(detail=False, methods=['get'], url_path="cohort-rights")
+    def get_perimeters_read_right_accesses(self, request, *args, **kwargs):
+        user_accesses = get_user_valid_manual_accesses_queryset(self.request.user)
+
+        if not user_accesses:
+            raise ValidationError("ERROR: No Accesses  found")
+        if self.request.query_params:
+            # Case with perimeters search params
+            cohorts_filtered_by_search = self.filter_queryset(self.get_queryset())
+            if not cohorts_filtered_by_search:
+                return ValidationError("ERROR: No Cohort Found")
+            list_cohort_id = [cohort.fhir_group_id for cohort in cohorts_filtered_by_search]
+            cohort_dict_pop_source = get_dict_cohort_pop_source(list_cohort_id)
+
+            return Response(CohortRightsSerializer(get_all_cohorts_rights(user_accesses, cohort_dict_pop_source)
+                                                   , many=True).data)
+
+        all_user_cohorts = CohortResult.objects.filter(owner=self.request.user)
+        if not all_user_cohorts:
+            return Response("WARN: You do not have any cohort")
+        list_cohort_id = [cohort.fhir_group_id for cohort in all_user_cohorts]
+        cohort_dict_pop_source = get_dict_cohort_pop_source(list_cohort_id)
+        return Response(CohortRightsSerializer(get_all_cohorts_rights(user_accesses, cohort_dict_pop_source)
+                                               , many=True).data)
+
 
 class NestedCohortResultViewSet(SwaggerSimpleNestedViewSetMixin,
                                 CohortResultViewSet):
@@ -213,7 +254,7 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                 'message': "Cannot delete a Dated measure "
                            "that is bound to a cohort result"
             }, status=status.HTTP_403_FORBIDDEN)
-        return super(DatedMeasureViewSet, self)\
+        return super(DatedMeasureViewSet, self) \
             .destroy(request, *args, **kwargs)
 
     @action(methods=['post'], detail=False, url_path='create-unique')
@@ -417,7 +458,7 @@ class NestedRqsViewSet(SwaggerSimpleNestedViewSetMixin,
         if 'previous_snapshot' in kwargs:
             request.data["previous_snapshot"] = kwargs['previous_snapshot']
 
-        return super(NestedRqsViewSet, self)\
+        return super(NestedRqsViewSet, self) \
             .create(request, *args, **kwargs)
 
 
@@ -452,7 +493,7 @@ class NestedRequestViewSet(SwaggerSimpleNestedViewSetMixin, RequestViewSet):
         if 'parent_folder' in kwargs:
             request.data["parent_folder"] = kwargs['parent_folder']
 
-        return super(NestedRequestViewSet, self)\
+        return super(NestedRequestViewSet, self) \
             .create(request, *args, **kwargs)
 
 

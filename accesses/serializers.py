@@ -409,7 +409,8 @@ class PerimeterLiteSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Perimeter
-        fields = ['id', 'name', 'source_value', 'parent_id', 'type', 'inferior_levels_ids', 'full_path']
+        fields = ['id', 'name', 'source_value', 'parent_id', 'type', 'inferior_levels_ids', 'cohort_id', 'cohort_size',
+                  'full_path']
 
 
 class CareSiteSerializer(serializers.Serializer):
@@ -591,3 +592,11 @@ class DataReadRightSerializer(serializers.Serializer):
     right_read_patient_nominative = serializers.BooleanField(read_only=True, allow_null=True)
     right_read_patient_pseudo_anonymised = serializers.BooleanField(read_only=True, allow_null=True)
     read_role = serializers.CharField(read_only=True, allow_null=True)
+
+
+class ReadRightPerimeter(serializers.Serializer):
+    perimeter = PerimeterLiteSerializer(allow_null=True, required=False)
+    read_role = serializers.CharField(read_only=True, allow_null=True)
+    right_read_patient_nominative = serializers.BooleanField(read_only=True, allow_null=True)
+    right_read_patient_pseudo_anonymised = serializers.BooleanField(read_only=True, allow_null=True)
+    right_search_patient_with_ipp = serializers.BooleanField(read_only=True, allow_null=True)
