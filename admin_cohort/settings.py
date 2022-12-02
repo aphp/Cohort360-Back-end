@@ -173,11 +173,6 @@ DATABASES = {
         'PASSWORD': env("DB_AUTH_PASSWORD"),
         'HOST': env("DB_AUTH_HOST"),
         'PORT': env("DB_AUTH_PORT"),
-        'OPTIONS': {
-            'options': f"-c search_path="
-                       f"{','.join(env('DB_SCHEMAS').split(';'))},"
-                       f"public"
-        },
         'TEST': {
             'NAME': 'test_portail',
         }
