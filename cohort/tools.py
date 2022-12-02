@@ -135,6 +135,7 @@ def get_list_cohort_id_care_site(cohorts_ids: list):
         cohort_pop_source.append(fact.fact_id_2)
     return cohort_pop_source
 
+
 def get_dict_cohort_pop_source(cohorts_ids: list):
     """
     Give the mapping of cohort_id and the list of Perimete.cohort_id population source for this cohort

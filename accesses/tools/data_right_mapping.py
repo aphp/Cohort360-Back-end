@@ -36,5 +36,3 @@ class PerimeterReadRight:
             self.read_role = "READ_PATIENT_NOMINATIVE"
         elif pseudo:
             self.read_role = "READ_PATIENT_PSEUDO_ANONYMIZE"
-
-

@@ -158,8 +158,8 @@ def get_top_perimeter_from_read_patient_accesses(accesses_nomi, accesses_pseudo)
     return Perimeter.objects.filter(id__in=list(set(all_nomi + all_pseudo)))
 
 
-def get_read_patient_right(perimeters_filtered_by_search, all_read_patient_nominative_accesses
-                           , all_read_patient_pseudo_accesses):
+def get_read_patient_right(perimeters_filtered_by_search, all_read_patient_nominative_accesses,
+                           all_read_patient_pseudo_accesses):
     """
     for each search perimeter check of there is at least one access with read right:
     3 response :
@@ -200,8 +200,3 @@ def is_pseudo_perimeter_in_top_perimeter(all_read_patient_nominative_accesses, a
         if not [pseudo_perimeter for pseudo_perimeter in above_levels_ids if pseudo_perimeter in nominative_perimeters]:
             return True
     return False
-
-
-
-
-

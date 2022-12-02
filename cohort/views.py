@@ -1,5 +1,5 @@
-from django.db.models import Q
 from django.db.models import F
+from django.db.models import Q
 from django.http import QueryDict, JsonResponse, HttpResponse
 from django_filters import OrderingFilter
 from django_filters import rest_framework as filters
@@ -194,16 +194,16 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             list_cohort_id = [cohort.fhir_group_id for cohort in cohorts_filtered_by_search]
             cohort_dict_pop_source = get_dict_cohort_pop_source(list_cohort_id)
 
-            return Response(CohortRightsSerializer(get_all_cohorts_rights(user_accesses, cohort_dict_pop_source)
-                                                   , many=True).data)
+            return Response(CohortRightsSerializer(get_all_cohorts_rights(user_accesses, cohort_dict_pop_source),
+                                                   many=True).data)
 
         all_user_cohorts = CohortResult.objects.filter(owner=self.request.user)
         if not all_user_cohorts:
             return Response("WARN: You do not have any cohort")
         list_cohort_id = [cohort.fhir_group_id for cohort in all_user_cohorts]
         cohort_dict_pop_source = get_dict_cohort_pop_source(list_cohort_id)
-        return Response(CohortRightsSerializer(get_all_cohorts_rights(user_accesses, cohort_dict_pop_source)
-                                               , many=True).data)
+        return Response(CohortRightsSerializer(get_all_cohorts_rights(user_accesses, cohort_dict_pop_source),
+                                               many=True).data)
 
 
 class NestedCohortResultViewSet(SwaggerSimpleNestedViewSetMixin,
