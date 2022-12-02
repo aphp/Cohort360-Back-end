@@ -122,6 +122,19 @@ def psql_query_get_pop_source_from_cohort(cohorts_ids: list):
     """
 
 
+def get_list_cohort_id_care_site(cohorts_ids: list):
+    """
+    Give the list of cohort_id and the list of Perimete.cohort_id population source for cohort users and remove
+    cohort user ids
+    """
+    fact_relationships = FactRelationShip.objects.raw(psql_query_get_pop_source_from_cohort(cohorts_ids))
+    cohort_pop_source = cohorts_ids.copy()
+    for fact in fact_relationships:
+        if fact.fact_id_1 in cohort_pop_source:
+            cohort_pop_source.remove(fact.fact_id_1)
+        cohort_pop_source.append(fact.fact_id_2)
+    return cohort_pop_source
+
 def get_dict_cohort_pop_source(cohorts_ids: list):
     """
     Give the mapping of cohort_id and the list of Perimete.cohort_id population source for this cohort
