@@ -7,4 +7,4 @@ threads = 10
 capture_output = True
 
 accesslog = "/app/log/gunicorn.access.log"
-errorlog = "/app/log/gunicorn.error.log"
+errorlog = "/app/log/gunicorn.log"
