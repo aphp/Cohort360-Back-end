@@ -24,10 +24,10 @@ from ..tools.perimeter_process import get_top_perimeter_same_level, get_top_peri
 
 class PerimeterFilter(filters.FilterSet):
 
-    def multi_value_filter(self, queryset, field, value: str):
-        if value:
-            list_value = [val.strip() for val in value.split(",")]
-            return queryset.filter(join_qs([Q(**{field: value}) for value in list_value]))
+    def multi_value_filter(self, queryset, field, field_value: str):
+        if field_value:
+            strip_field_values = [value.strip() for value in field_value.split(",")]
+            return queryset.filter(join_qs([Q(**{field: value}) for value in strip_field_values]))
         return queryset
 
     name = filters.CharFilter(lookup_expr='icontains')
@@ -137,7 +137,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
     @swagger_auto_schema(
         method='get',
         operation_summary="Give boolean read patient read right on one or several perimeters",
-        responses={'201': openapi.Response("give rights in caresite perimeters found", dict)})
+        responses={'201': openapi.Response("give rights in caresite perimeters found")})
     @action(detail=False, methods=['get'], url_path="is-read-patient-pseudo")
     def get_read_patient_right_access(self, request, *args, **kwargs):
         user_accesses = get_user_valid_manual_accesses_queryset(self.request.user)
