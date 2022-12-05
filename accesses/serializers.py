@@ -3,6 +3,7 @@ import re
 from datetime import timedelta
 from typing import Optional, List
 
+from django.db.models import Max, Q
 from django.utils import timezone
 from django.utils.datetime_safe import datetime
 from rest_framework import serializers
@@ -14,11 +15,11 @@ from admin_cohort.serializers import BaseSerializer, ReducedUserSerializer, \
     UserSerializer
 from admin_cohort.settings import MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE, \
     MODEL_MANUAL_END_DATE_DEFAULT_ON_UPDATE, MANUAL_SOURCE
-from .conf_perimeters import get_provider_id
+from .conf_perimeters import Provider
 from .models import Role, Access, Profile, Perimeter
 from .permissions import can_user_manage_access
 
-_logger = lg.getLogger(__name__)
+_logger = lg.getLogger('django.request')
 
 
 def check_date_rules(
@@ -110,8 +111,7 @@ def fix_csh_dates(validated_data, for_update: bool = False):
 
 
 def check_profile_entries(validated_data, for_update: bool = False):
-    source = validated_data.pop("source",
-                                validated_data.pop('cdm_source', None))
+    source = validated_data.pop("source", validated_data.pop('cdm_source', MANUAL_SOURCE))
     firstname = validated_data.get("firstname", -1)
     lastname = validated_data.get("lastname", -1)
     email = validated_data.get("email", -1)
@@ -119,31 +119,21 @@ def check_profile_entries(validated_data, for_update: bool = False):
     name_regex_pattern = re.compile(r"^[A-Za-zÀ-ÖØ-öø-ÿ\-' ]*$")
     email_regex_pattern = re.compile(r"^[A-Za-z0-9\-. @_]*$")
 
-    if source is not None and source != MANUAL_SOURCE:
-        raise ValidationError(
-            f"Vous ne pouvez pas définir source sur autre chose que "
-            f"{MANUAL_SOURCE}"
-        )
+    if source != MANUAL_SOURCE:
+        raise ValidationError(f"Vous ne pouvez pas définir source sur autre chose que {MANUAL_SOURCE}")
 
     if firstname != -1:
-        if firstname is not None and not name_regex_pattern.match(firstname):
-            raise ValidationError(
-                f"Le prénom fourni ({firstname}) est invalide. Doit uniquement"
-                f" comporter des lettres et des caractères ' et - "
-            )
-
+        if firstname and not name_regex_pattern.match(firstname):
+            raise ValidationError(f"Le prénom fourni ({firstname}) est invalide. Doit uniquement "
+                                  f"comporter des lettres et des caractères ' et - ")
     if lastname != -1:
-        if lastname is not None and not name_regex_pattern.match(lastname):
-            raise ValidationError(
-                f"Le nom de famille fourni ({lastname}) est invalide. Doit "
-                f"uniquement comporter des lettres et des caractères ' et - ")
-
+        if lastname and not name_regex_pattern.match(lastname):
+            raise ValidationError(f"Le nom de famille fourni ({lastname}) est invalide. Doit "
+                                  f"uniquement comporter des lettres et des caractères ' et - ")
     if email != -1:
-        if email is not None and not email_regex_pattern.match(email):
-            raise ValidationError(
-                f"L'adresse email fournie ({email}) est invalide. Doit "
-                f"uniquement comporter des lettres, "
-                f"chiffres et caractères @_-.")
+        if email and not email_regex_pattern.match(email):
+            raise ValidationError(f"L'adresse email fournie ({email}) est invalide. Doit "
+                                  f"uniquement comporter des lettres, chiffres et caractères @_-.")
 
     user: User = validated_data.get("user", None)
 
@@ -151,22 +141,16 @@ def check_profile_entries(validated_data, for_update: bool = False):
     # else for update we cannot update it
     if for_update:
         return
-    if user is None:
+    if user:
         provider_id = validated_data.get("provider_id", -1)
         if provider_id != -1:
-            user: User = User.objects.filter(
-                provider_id=provider_id).first()
-            if user is None:
-                raise ValidationError(
-                    f"L'utilisateur avec provider_id='{provider_id}' est "
-                    f"introuvable."
-                )
+            user: User = User.objects.filter(provider_id=provider_id).first()
+            if not user:
+                raise ValidationError(f"L'utilisateur avec provider_id='{provider_id}' est introuvable.")
             validated_data['user'] = user
-
         # this means the user actually needs to create a new user
         else:
-            user_id: str = validated_data.get(
-                "user_id", validated_data.get("provider_source_value", None))
+            user_id: str = validated_data.get("user_id", validated_data.get("provider_source_value", None))
             if not user_id:
                 raise ValidationError("Aucun user ni user_id n'a été fourni.")
             user: User = User.objects.filter(provider_username=user_id).first()
@@ -176,31 +160,21 @@ def check_profile_entries(validated_data, for_update: bool = False):
                 # we prepare user_id for creating a User
                 validated_data['user_id'] = user_id
 
-    if user is not None \
-            and any([p.source == MANUAL_SOURCE for p in user.valid_profiles]):
-        raise ValidationError(
-            f"L'utilisateur fourni pour le profile possède déjà un "
-            f"profile de source {MANUAL_SOURCE}."
-        )
+    if user and any([p.source == MANUAL_SOURCE for p in user.valid_profiles]):
+        raise ValidationError(f"L'utilisateur fourni pour le profil possède déjà un profil de source {MANUAL_SOURCE}.")
 
 
 def fix_profile_entries(validated_data, for_create: bool = False):
     is_active = validated_data.pop("is_active", -1)
     manual_is_active = validated_data.pop("manual_is_active", -1)
     valid_start_datetime = validated_data.pop("valid_start_datetime", -1)
-    manual_valid_start_datetime = validated_data.get(
-        "manual_valid_start_datetime", -1
-    )
+    manual_valid_start_datetime = validated_data.get("manual_valid_start_datetime", -1)
     valid_end_datetime = validated_data.pop("valid_end_datetime", -1)
-    manual_valid_end_datetime = validated_data.pop(
-        "manual_valid_end_datetime", -1
-    )
+    manual_valid_end_datetime = validated_data.pop("manual_valid_end_datetime", -1)
 
     if is_active != -1:
         if manual_is_active != -1 and is_active != manual_is_active:
-            raise ValidationError(
-                "Vous ne pouvez pas fournir à la fois 'is_active'"
-                " et 'manual_is_active' différents")
+            raise ValidationError("Vous ne pouvez pas fournir à la fois 'is_active' et 'manual_is_active' différents")
         else:
             validated_data["manual_is_active"] = is_active
     elif manual_is_active != -1:
@@ -210,35 +184,43 @@ def fix_profile_entries(validated_data, for_create: bool = False):
             validated_data["manual_is_active"] = True
 
     if valid_start_datetime != -1:
-        if manual_valid_start_datetime != -1 \
-                and valid_start_datetime != manual_valid_start_datetime:
-            raise ValidationError(
-                "Vous ne pouvez pas fournir à la fois 'valid_start_datetime'"
-                " et 'manual_valid_start_datetime' différents"
-            )
+        if manual_valid_start_datetime != -1 and valid_start_datetime != manual_valid_start_datetime:
+            raise ValidationError("Vous ne pouvez pas fournir à la fois 'valid_start_datetime'"
+                                  " et 'manual_valid_start_datetime' différents")
         else:
-            validated_data["manual_valid_start_datetime"] = \
-                valid_start_datetime if valid_start_datetime is not None else MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE
+            validated_data["manual_valid_start_datetime"] = valid_start_datetime or \
+                                                            MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE
     elif manual_valid_start_datetime != -1:
-        validated_data["manual_valid_start_datetime"] = manual_valid_start_datetime if \
-            manual_valid_start_datetime is not None else MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE
-
+        validated_data["manual_valid_start_datetime"] = manual_valid_start_datetime or \
+                                                        MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE
     if valid_end_datetime != -1:
-        if manual_valid_end_datetime != -1 \
-                and valid_end_datetime != manual_valid_end_datetime:
-            raise ValidationError(
-                "Vous ne pouvez pas fournir à la fois 'valid_end_datetime'"
-                " et 'manual_valid_end_datetime' différents"
-            )
+        if manual_valid_end_datetime != -1 and valid_end_datetime != manual_valid_end_datetime:
+            raise ValidationError("Vous ne pouvez pas fournir à la fois 'valid_end_datetime'"
+                                  " et 'manual_valid_end_datetime' différents")
         else:
-            validated_data["manual_valid_end_datetime"] = valid_end_datetime \
-                if valid_end_datetime is not None \
-                else MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE
+            validated_data["manual_valid_end_datetime"] = valid_end_datetime or \
+                                                          MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE
     elif manual_valid_end_datetime != -1:
-        validated_data["manual_valid_end_datetime"] = manual_valid_end_datetime if \
-            manual_valid_end_datetime is not None else MODEL_MANUAL_END_DATE_DEFAULT_ON_UPDATE
-
+        validated_data["manual_valid_end_datetime"] = manual_valid_end_datetime or \
+                                                      MODEL_MANUAL_END_DATE_DEFAULT_ON_UPDATE
     return validated_data
+
+
+def get_provider_id(user_id: str) -> int:
+    """
+    get provider_id from OMOP DB for users issued from ORBIS.
+    TODO: check si doit changer avec l'issue de modification du profile id
+          par le provider_source_value (id aph du user)
+    """
+    p: Provider = Provider.objects.filter(Q(provider_source_value=user_id)
+                                          & (Q(valid_start_datetime__lte=timezone.now())
+                                             | Q(valid_start_datetime__isnull=True))
+                                          & (Q(valid_end_datetime__gte=timezone.now())
+                                             | Q(valid_end_datetime__isnull=True))).first()
+    if p:
+        return p.provider_id
+    from accesses.models import Profile
+    return Profile.objects.aggregate(Max("provider_id"))['provider_id__max'] + 1
 
 
 class RoleSerializer(BaseSerializer):
@@ -276,60 +258,36 @@ class ReducedProfileSerializer(serializers.ModelSerializer):
 
 class ProfileSerializer(BaseSerializer):
     provider = ReducedUserSerializer(read_only=True, source='user')
-    user = serializers.PrimaryKeyRelatedField(
-        required=False, queryset=User.objects.all())
+    user = serializers.PrimaryKeyRelatedField(required=False, queryset=User.objects.all())
     is_valid = serializers.BooleanField(read_only=True)
+    is_active = serializers.BooleanField(required=False, default=True)
     actual_is_active = serializers.BooleanField(read_only=True)
     actual_valid_start_datetime = serializers.DateTimeField(read_only=True)
     actual_valid_end_datetime = serializers.DateTimeField(read_only=True)
-
     provider_history_id = serializers.IntegerField(required=False, source='id')
-
-    cdm_source = serializers.CharField(read_only=True,
-                                       allow_null=True, source='source')
-    provider_source_value = serializers.CharField(source='user_id',
-                                                  required=False)
+    cdm_source = serializers.CharField(read_only=True, allow_null=True, source='source')
+    provider_source_value = serializers.CharField(source='user_id', required=False)
     user_id = serializers.CharField(required=False)
-
-    is_active = serializers.BooleanField(required=False, default=True)
-
-    # new syntax
-    read_only_fields_if_not_manual = [
-        "id",
-        "provider_name",
-        "year_of_birth",
-        "gender_concept_id",
-        "provider_source_value",
-        "firstname",
-        "lastname",
-        "email",
-    ]
 
     class Meta:
         model = Profile
         fields = '__all__'
-        read_only_fields = [
-            "id",
-            # "source",
-            # "is_active",
-            # "valid_start_datetime",
-            # "valid_end_datetime",
-            "creation_datetime",
-            "modified_datetime",
-            "provider",
-            "is_valid",
-            "actual_is_active",
-            "actual_valid_start_datetime",
-            "actual_valid_end_datetime",
-        ]
-        extra_kwargs = {
-            'valid_start_datetime': {'write_only': True},
-            'valid_end_datetime': {'write_only': True},
-            'is_active': {'write_only': True},
-            'manual_valid_start_datetime': {'write_only': True},
-            'manual_valid_end_datetime': {'write_only': True},
-            'manual_is_active': {'write_only': True}
-        }
+        read_only_fields = ["id",
+                            "creation_datetime",
+                            "modified_datetime",
+                            "provider",
+                            "is_valid",
+                            "actual_is_active",
+                            "actual_valid_start_datetime",
+                            "actual_valid_end_datetime"
+                            ]
+        extra_kwargs = {'valid_start_datetime': {'write_only': True},
+                        'valid_end_datetime': {'write_only': True},
+                        'is_active': {'write_only': True},
+                        'manual_valid_start_datetime': {'write_only': True},
+                        'manual_valid_end_datetime': {'write_only': True},
+                        'manual_is_active': {'write_only': True}
+                        }
 
     def create(self, validated_data):
         check_profile_entries(validated_data)
@@ -338,60 +296,50 @@ class ProfileSerializer(BaseSerializer):
         if 'user' not in validated_data:
             if 'user_id' not in validated_data:
                 raise ValidationError("Besoin de soit 'user' soit 'user_id'.")
-
             user_id = validated_data.get('user_id')
-
+            # calling check_id_aph() a 2nd time to ensure user identity in case of a delay btw entering id_aph
+            # and click on "Valider" when adding a user as it might get deleted from AD meanwhile
             try:
                 id_details = check_id_aph(user_id)
             except Exception as e:
                 _logger.exception(str(e))
                 raise ValidationError("Echec de la vérification de l'identifiant")
 
-            if id_details is None:
-                raise ValidationError(
-                    "Le Provider_source_value/user_id indiqué n'appartient à "
-                    "aucun utilisateur dans la base de données de référence")
-
+            if not id_details:
+                raise ValidationError("Le Provider_source_value/user_id indiqué n'appartient à "
+                                      "aucun utilisateur dans la base de données de référence")
             try:
                 provider_id = get_provider_id(user_id)
             except Exception:
-                raise ValidationError(
-                    "Le provider_id de ce nouvel utilisateur "
-                    "n'a pas pu être trouvé dans la base Omop."
-                )
+                raise ValidationError("Le provider_id de ce nouvel utilisateur "
+                                      "n'a pas pu être trouvé dans la base OMOP.")
 
-            user = User(
-                provider_username=user_id,
-                email=validated_data.get('email'),
-                firstname=validated_data.get('firstname'),
-                lastname=validated_data.get('lastname'),
-                provider_id=provider_id
-            )
+            user_data = {"provider_username": user_id,
+                         "email": validated_data.get('email'),
+                         "firstname": validated_data.get('firstname'),
+                         "lastname": validated_data.get('lastname'),
+                         "provider_id": provider_id}
+            user = User(**user_data)
             user.save()
-
             validated_data['user'] = user
-
+            validated_data['provider_id'] = provider_id
+            validated_data['provider_name'] = f"{validated_data.get('firstname')} {validated_data.get('lastname')}"
         return super(ProfileSerializer, self).create(validated_data)
 
     def update(self, instance, validated_data):
         # can only update manual_is_active, manual_valid_start_datetime
         # and manual_valid_end_datetime if ph not manual
-        if instance.source != MANUAL_SOURCE:
-            validated_data = fix_profile_entries(validated_data)
-        else:
+        if instance.source == MANUAL_SOURCE:
             check_profile_entries(validated_data, True)
-            validated_data = fix_profile_entries(validated_data)
-
-        return super(ProfileSerializer, self) \
-            .update(instance, validated_data)
+        validated_data = fix_profile_entries(validated_data)
+        return super(ProfileSerializer, self).update(instance, validated_data)
 
 
 class ProfileCheckSerializer(serializers.Serializer):
     firstname = serializers.CharField(read_only=True, allow_null=True)
     lastname = serializers.CharField(read_only=True, allow_null=True)
     user_id = serializers.CharField(read_only=True, allow_null=True)
-    provider_source_value = serializers.CharField(
-        read_only=True, allow_null=True, source='user_id')
+    provider_source_value = serializers.CharField(read_only=True, allow_null=True, source='user_id')
     email = serializers.CharField(read_only=True, allow_null=True)
     user = UserSerializer(read_only=True, allow_null=True)
     manual_profile = ProfileSerializer(read_only=True, allow_null=True)
@@ -401,8 +349,7 @@ class ProfileCheckSerializer(serializers.Serializer):
 
 class TreefiedPerimeterSerializer(serializers.ModelSerializer):
     parent_id = serializers.CharField(read_only=True, allow_null=True)
-    names = serializers.DictField(allow_null=True, read_only=True,
-                                  child=serializers.CharField())
+    names = serializers.DictField(allow_null=True, read_only=True, child=serializers.CharField())
     type = serializers.CharField(allow_null=True, source='type_source_value')
 
     class Meta:
@@ -411,8 +358,7 @@ class TreefiedPerimeterSerializer(serializers.ModelSerializer):
 
     def get_fields(self):
         fields = super(TreefiedPerimeterSerializer, self).get_fields()
-        fields['children'] = TreefiedPerimeterSerializer(
-            many=True, source='prefetched_children', required=False)
+        fields['children'] = TreefiedPerimeterSerializer(many=True, source='prefetched_children', required=False)
         return fields
 
 
@@ -463,7 +409,8 @@ class PerimeterLiteSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Perimeter
-        fields = ['id', 'name', 'source_value', 'parent_id', 'type', 'inferior_levels_ids', 'full_path']
+        fields = ['id', 'name', 'source_value', 'parent_id', 'type', 'inferior_levels_ids', 'cohort_id', 'cohort_size',
+                  'full_path']
 
 
 class CareSiteSerializer(serializers.Serializer):
@@ -645,3 +592,11 @@ class DataReadRightSerializer(serializers.Serializer):
     right_read_patient_nominative = serializers.BooleanField(read_only=True, allow_null=True)
     right_read_patient_pseudo_anonymised = serializers.BooleanField(read_only=True, allow_null=True)
     read_role = serializers.CharField(read_only=True, allow_null=True)
+
+
+class ReadRightPerimeter(serializers.Serializer):
+    perimeter = PerimeterLiteSerializer(allow_null=True, required=False)
+    read_role = serializers.CharField(read_only=True, allow_null=True)
+    right_read_patient_nominative = serializers.BooleanField(read_only=True, allow_null=True)
+    right_read_patient_pseudo_anonymised = serializers.BooleanField(read_only=True, allow_null=True)
+    right_search_patient_with_ipp = serializers.BooleanField(read_only=True, allow_null=True)

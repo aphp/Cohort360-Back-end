@@ -70,14 +70,11 @@ class UserManager(BaseUserManager):
 
 class User(AbstractBaseUser, BaseModel):
     USERNAME_FIELD = "provider_username"
-    provider_username = models.CharField(unique=True, primary_key=True,
-                                         null=False, max_length=30)
-    email = models.EmailField('email address', max_length=254,
-                              unique=True, null=True)
+    provider_username = models.CharField(unique=True, primary_key=True, null=False, max_length=30)
+    email = models.EmailField('email address', max_length=254, unique=True, null=True)
     firstname = models.TextField(blank=True, null=True)
     lastname = models.TextField(blank=True, null=True)
     provider_id = models.BigIntegerField(blank=True, null=True)
-
     password = None
 
     @property

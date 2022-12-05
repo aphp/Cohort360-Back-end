@@ -4,7 +4,6 @@ import os
 from typing import List
 
 from django.db import models
-from django.db.models import Q, Max
 from django.utils import timezone
 
 from accesses.models import Perimeter, Access
@@ -35,19 +34,15 @@ It is a mono-hierarchy => one parent maximum for 1.n children
 # SETTINGS CONFIGURATION ###############################################################################################
 env = os.environ
 # Configuration of OMOP connexion
-settings.DATABASES.__setitem__(
-    'omop', {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': env.get("DB_OMOP_NAME"),
-        'USER': env.get("DB_OMOP_USER"),
-        'PASSWORD': env.get("DB_OMOP_PASSWORD"),
-        'HOST': env.get("DB_OMOP_HOST"),
-        'PORT': env.get("DB_OMOP_PORT"),
-        'DISABLE_SERVER_SIDE_CURSORS': True,
-        'OPTIONS': {
-            'options': f"-c search_path={env.get('DB_OMOP_SCHEMA')},public"
-        },
-    }, )
+settings.DATABASES.__setitem__('omop', {'ENGINE': 'django.db.backends.postgresql',
+                                        'NAME': env.get("DB_OMOP_NAME"),
+                                        'USER': env.get("DB_OMOP_USER"),
+                                        'PASSWORD': env.get("DB_OMOP_PASSWORD"),
+                                        'HOST': env.get("DB_OMOP_HOST"),
+                                        'PORT': env.get("DB_OMOP_PORT"),
+                                        'DISABLE_SERVER_SIDE_CURSORS': True,
+                                        'OPTIONS': {'options': f"-c search_path={env.get('DB_OMOP_SCHEMA')},public"}
+                                        })
 
 # CLASS DEFINITION ####################################################################################################
 """
@@ -101,6 +96,7 @@ class CareSite(models.Model):
     care_site_type_source_value = models.TextField(blank=True, null=True)
     care_site_parent_id = models.BigIntegerField(null=True)
     cohort_id = models.BigIntegerField(null=True)
+    cohort_size = models.BigIntegerField(null=True)
     delete_datetime = models.DateTimeField(null=True)
     objects = OmopModelManager()
 
@@ -114,25 +110,6 @@ class RelationPerimeter:
         self.above_levels_ids = above_levels_ids
         self.children = children
         self.full_path = full_path
-
-
-# FUNCTION DEFINITION #################################################################################################
-
-# TODO: check si doit changer avec l'issue de modification du profile id par le provider_source_value (code aph du user)
-# TODO: qu'est ce que ça fiche ici, à déplacer dans le script appelé
-def get_provider_id(user_id: str) -> int:
-    """"
-    For one user id return the provider id associate
-    """
-    p: Provider = Provider.objects.filter(Q(provider_source_value=user_id)
-                                          & (Q(valid_start_datetime__lte=timezone.now())
-                                             | Q(valid_start_datetime__isnull=True))
-                                          & (Q(valid_end_datetime__gte=timezone.now())
-                                             | Q(valid_end_datetime__isnull=True))).first()
-    if p is None:
-        from accesses.models import Profile
-        return Profile.objects.aggregate(Max("provider_id"))['provider_id__max'] + 1
-    return p.provider_id
 
 
 def get_concept_filter_id() -> tuple:
@@ -194,7 +171,8 @@ def psql_query_care_site_relationship(top_care_site_ids: list) -> str:
             cs.care_site_type_source_value,
             cs.care_site_source_value,
             NULL as care_site_parent_id,
-            cd.cohort_definition_id as cohort_id
+            cd.cohort_definition_id as cohort_id,
+            cd.cohort_size as cohort_size
             FROM omop.care_site cs
             INNER JOIN omop.cohort_definition cd
             ON cd.owner_entity_id = cs.care_site_id
@@ -210,7 +188,8 @@ def psql_query_care_site_relationship(top_care_site_ids: list) -> str:
             css.care_site_type_source_value,
             css.care_site_source_value,
             CAST(frr.fact_id_2 AS BIGINT) care_site_parent_id,
-            cd.cohort_definition_id as cohort_id
+            cd.cohort_definition_id as cohort_id,
+            cd.cohort_size as cohort_size
             FROM omop.care_site css
             INNER JOIN omop.fact_relationship frr
             ON css.care_site_id=frr.fact_id_1
@@ -246,7 +225,8 @@ def map_to_perimeter(care_site_object: CareSite, relation_perimeter: RelationPer
         above_levels_ids=relation_perimeter.above_levels_ids,
         inferior_levels_ids=relation_perimeter.children,
         full_path=relation_perimeter.full_path,
-        cohort_id=care_site_object.cohort_id
+        cohort_id=care_site_object.cohort_id,
+        cohort_size=care_site_object.cohort_size
     )
 
 
@@ -269,7 +249,8 @@ def is_care_site_different_from_perimeter(care_site: CareSite, perimeter: Perime
             care_site.care_site_name != perimeter.name or \
             care_site.care_site_short_name != perimeter.short_name or \
             care_site.delete_datetime != perimeter.delete_datetime or \
-            care_site.cohort_id != perimeter.cohort_id or \
+            care_site.cohort_id != int(perimeter.cohort_id) or \
+            care_site.cohort_size != int(perimeter.cohort_size) or \
             relation_perimeter.above_levels_ids != perimeter.above_levels_ids or \
             relation_perimeter.full_path != perimeter.full_path or \
             relation_perimeter.children != perimeter.inferior_levels_ids:
@@ -438,7 +419,8 @@ def update_perimeter(list_perimeter_to_update: List[Perimeter]):
         return
     Perimeter.objects.bulk_update(list_perimeter_to_update,
                                   ["source_value", "name", "short_name", "type_source_value", "parent_id",
-                                   "above_levels_ids", "full_path", "inferior_levels_ids", "delete_datetime"])
+                                   "above_levels_ids", "full_path", "inferior_levels_ids", "delete_datetime",
+                                   "cohort_id", "cohort_size"])
 
 
 """
@@ -489,7 +471,7 @@ def delete_perimeters_and_accesses(existing_perimeters: List[Perimeter], all_val
                                                                     get_dict_deleted_care_site(),
                                                                     all_valid_care_site)
     if len(deleted_perimeters) > 0:
-        print(f"WARN: {len(deleted_perimeters)} perimeters to deleted")
+        print(f"WARN: {len(deleted_perimeters)} perimeters to deleted - {deleted_perimeters}")
         update_perimeter(deleted_perimeters)
         print("Start to close Accesses linked to removed Perimeters or with no perimeters")
         close_access(deleted_perimeters)

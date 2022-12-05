@@ -31,7 +31,7 @@ from workspaces.models import Account
 from workspaces.permissions import AccountPermissions
 from workspaces.views import AccountViewset
 
-_logger = lg.getLogger(__name__)
+_logger = lg.getLogger('django.request')
 
 
 class UnixAccountFilter(filters.FilterSet):
