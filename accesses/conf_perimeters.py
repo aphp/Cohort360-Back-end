@@ -249,8 +249,8 @@ def is_care_site_different_from_perimeter(care_site: CareSite, perimeter: Perime
             care_site.care_site_name != perimeter.name or \
             care_site.care_site_short_name != perimeter.short_name or \
             care_site.delete_datetime != perimeter.delete_datetime or \
-            care_site.cohort_id != int(perimeter.cohort_id) or \
-            care_site.cohort_size != int(perimeter.cohort_size) or \
+            str(care_site.cohort_id) != perimeter.cohort_id or \
+            str(care_site.cohort_size) != perimeter.cohort_size or \
             relation_perimeter.above_levels_ids != perimeter.above_levels_ids or \
             relation_perimeter.full_path != perimeter.full_path or \
             relation_perimeter.children != perimeter.inferior_levels_ids:
