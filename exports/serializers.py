@@ -111,10 +111,10 @@ class ExportRequestSerializer(serializers.ModelSerializer):
                         'owner': {'required': True}
                         }
 
-    def create_tables(self, tables, req):
+    def create_tables(self, tables, er):
         for table in tables:
             # table["export_request"] = req #.id
-            ExportRequestTable.objects.create(export_request=req, **table)
+            ExportRequestTable.objects.create(export_request=er, **table)
 
     def validate_owner_rights(self, validated_data):
         cont_req: Request = self.context.get('request')
@@ -129,14 +129,13 @@ class ExportRequestSerializer(serializers.ModelSerializer):
         owner: User = validated_data.get('owner')
         check_email_address(owner)
         cohort: CohortResult = validated_data.get('cohort_fk')
-
         creator_is_reviewer = can_review_transfer_jupyter(self.context.get('request').user)
 
         if not creator_is_reviewer and cohort.owner.pk != owner.pk:
-            raise ValidationError("The owner of the request does not own the Cohort requested")
+            raise ValidationError("The cohort does not belong to the request owner!")
 
-        if cohort.request_job_status != JobStatus.finished and cohort.request_job_status != JobStatus.finished:
-            raise ValidationError('The requested cohort has not successfully finished.')
+        if cohort.request_job_status != JobStatus.finished:
+            raise ValidationError('The requested cohort has not finished successfully.')
 
         validated_data['cohort_id'] = validated_data.get('cohort_fk').fhir_group_id
 
@@ -149,21 +148,20 @@ class ExportRequestSerializer(serializers.ModelSerializer):
             self.validate_csv(validated_data)
 
         tables = validated_data.pop("tables", [])
-        req = super(ExportRequestSerializer, self).create(validated_data)
-
-        self.create_tables(tables, req)
+        er = super(ExportRequestSerializer, self).create(validated_data)
+        self.create_tables(tables, er)
         try:
             from exports.tasks import launch_request
-            launch_request.delay(req.id)
+            launch_request.delay(er.id)
         except Exception as e:
-            req.request_job_status = JobStatus.failed
-            req.request_job_fail_msg = f"INTERNAL ERROR: Could not launch celery task: {e}"
-        return req
+            er.request_job_status = JobStatus.failed
+            er.request_job_fail_msg = f"INTERNAL ERROR: Could not launch Celery task: {e}"
+        return er
 
     def validate_sql_hive(self, validated_data, creator_is_reviewer: bool):
-        target_unix_account: Account = validated_data.get('target_unix_account', None)
-        if target_unix_account is None:
-            raise ValidationError("Pour une demande d'export hive, il faut fournir target_unix_account")
+        target_unix_account = validated_data.get('target_unix_account')
+        if target_unix_account:
+            raise ValidationError("Pour une demande d'export HIVE, il faut fournir target_unix_account")
 
         owner = validated_data.get('owner')
         if creator_is_reviewer:
@@ -182,10 +180,9 @@ class ExportRequestSerializer(serializers.ModelSerializer):
         if validated_data.get('owner').pk != creator.pk:
             raise ValidationError(f"Dans le cas d'une demande d'export CSV, vous ne pouvez pas "
                                   f"générer de demande d'export pour un autre provider_id que le vôtre."
-                                  f"vous êtes connecté.e en tant que {creator.displayed_name}")
+                                  f"Vous êtes connectés en tant que {creator.displayed_name}")
         if not validated_data.get('nominative'):
             raise ValidationError("Actuellement, la demande d'export CSV en pseudo-anonymisée n'est pas possible.")
-
         self.validate_owner_rights(validated_data)
 
     def update(self, instance, validated_data):

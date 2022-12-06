@@ -1,10 +1,12 @@
 import enum
 import json
+import logging
+import os
 from typing import Dict, List
 
-import environ
 import requests
 import simplejson
+from django.conf import settings
 from hdfs import HdfsError
 from hdfs.ext.kerberos import KerberosClient
 from requests import Response
@@ -16,16 +18,18 @@ from admin_cohort.tools import prettify_dict
 from .models import ExportRequest
 from .types import ApiJobResponse, HdfsServerUnreachableError
 
-env = environ.Env()
+logger = logging.getLogger('django')
+
+env = os.environ
 
 # EXPORTS JOBS ################################################################
 
 INFRA_EXPORT_TOKEN = env('INFRA_EXPORT_TOKEN')
 INFRA_HADOOP_TOKEN = env('INFRA_HADOOP_TOKEN')
 
-INFRA_API_URL = f"{env('INFRA_API_URL')}"
+INFRA_API_URL = env('INFRA_API_URL')
 EXPORT_HIVE_URL = f"{INFRA_API_URL}/bigdata/data_exporter/hive/"
-CSV_URL = f"{INFRA_API_URL}/bigdata/data_exporter/csv/"
+EXPORT_CSV_URL = f"{INFRA_API_URL}/bigdata/data_exporter/csv/"
 JOB_STATUS_URL = f"{INFRA_API_URL}/bigdata/task_status"
 HADOOP_NEW_DB_URL = f"{INFRA_API_URL}/hadoop/hive/create_base_hive"
 HADOOP_CHOWN_DB_URL = f"{INFRA_API_URL}/hadoop/hdfs/chown_directory"
@@ -35,22 +39,14 @@ OMOP_ENVIRONMENT = env('EXPORT_OMOP_ENVIRONMENT')
 
 
 class ApiJobStatutes(enum.Enum):
-    #: Task state is unknown (assumed pending since you know the id).
-    pending = 'PENDING'
-    #: Task was received by a worker (only used in events).
-    received = 'RECEIVED'
-    #: Task was started by a worker (:setting:`task_track_started`).
-    started = 'STARTED'
-    #: Task succeeded
-    success = 'SUCCESS'
-    #: Task failed
-    failure = 'FAILURE'
-    #: Task was revoked.
-    revoked = 'REVOKED'
-    #: Task was rejected (only used in events).
-    rejected = 'REJECTED'
-    #: Task is waiting for retry.
-    retry = 'RETRY'
+    pending = 'PENDING'     # Task state is unknown (assumed pending since you know the id).
+    received = 'RECEIVED'   # Task was received by a worker (only used in events).
+    started = 'STARTED'     # Task was started by a worker (:setting:`task_track_started`).
+    success = 'SUCCESS'     # Task succeeded
+    failure = 'FAILURE'     # Task failed
+    revoked = 'REVOKED'     # Task was revoked.
+    rejected = 'REJECTED'   # Task was rejected (only used in events).
+    retry = 'RETRY'         # Task is waiting for retry.
     ignored = 'IGNORED'
 
 
@@ -68,7 +64,7 @@ dct_api_to_job_status = {ApiJobStatutes.pending.value: JobStatus.pending,
 
 
 def log_export_request_task(id, msg):
-    print(f"[ExportTask] [ExportRequest: {id}] {msg}")
+    logger.info(f"[ExportTask] [ExportRequest: {id}] {msg}")
 
 
 def build_location(db_name: str) -> str:
@@ -170,13 +166,19 @@ def post_export_hive(er: ExportRequest) -> str:
     """
     log_export_request_task(er.id, f"Asking for export to {er.target_name}")
 
-    tables: List[str] = [t.omop_table_name for t in er.tables.all()]
-    params = dict(user=er.target_unix_account.name,
-                  cohort_id=er.cohort_fk.fhir_group_id,
-                  tables=",".join(tables),
-                  is_pseudo=not er.nominative,
-                  database_name=er.target_name,
-                  environment=OMOP_ENVIRONMENT)
+    tables = ",".join([t.omop_table_name for t in er.tables.all()])
+    params = {"cohort_id": er.cohort_fk.fhir_group_id,
+              "tables": tables,
+              "database_name": er.target_name,
+              # todo: "user": er.target_unix_account.name,
+              "environment": OMOP_ENVIRONMENT,
+              "file_path": er.target_full_path,
+              "no_date_shift": not er.nominative and er.shift_dates,
+              "overwrite": True,    # todo: add field in C360 Frontend
+              "user_for_pseudo": not er.nominative and er.owner.provider_username,
+              "is_debug": settings.DEBUG,
+              "is_test": settings.DEBUG,
+              }
     resp = requests.post(EXPORT_HIVE_URL, params=params, headers={'auth-token': INFRA_EXPORT_TOKEN})
 
     res = check_resp(resp, EXPORT_HIVE_URL)
@@ -190,18 +192,21 @@ def post_export_csv(er: ExportRequest) -> str:
     @param er:
     @return: the id of the asynchronous task generated
     """
-    log_export_request_task(er.id, f"Asking for export to {er.target_name}")
+    log_export_request_task(er.id, f"Asking to export for {er.target_name}")
 
-    tables: List[str] = [t.omop_table_name for t in er.tables.all()]
-    params = dict(user="None",
-                  cohort_id=er.cohort_fk.fhir_group_id,
-                  tables=",".join(tables),
-                  compressed_file_path=er.target_full_path,
-                  is_pseudo=not er.nominative,
-                  environment=OMOP_ENVIRONMENT)
-    resp = requests.post(CSV_URL, params=params, headers={'auth-token': INFRA_EXPORT_TOKEN})
-
-    res = check_resp(resp, CSV_URL)
+    tables = ",".join([t.omop_table_name for t in er.tables.all()])
+    params = {"cohort_id": er.cohort_fk.fhir_group_id,
+              "tables": tables,
+              "environment": OMOP_ENVIRONMENT,
+              "file_path": er.target_full_path,
+              "no_date_shift": not er.nominative and er.shift_dates,
+              "overwrite": True,    # todo: add field in C360 Frontend
+              "user_for_pseudo": not er.nominative and er.owner.provider_username,
+              "is_debug": settings.DEBUG,
+              "is_test": settings.DEBUG,
+              }
+    resp = requests.post(EXPORT_CSV_URL, params=params, headers={'auth-token': INFRA_EXPORT_TOKEN})
+    res = check_resp(resp, EXPORT_CSV_URL)
     return PostJobResponse(**res).task_id
 
 
