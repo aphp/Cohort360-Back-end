@@ -174,7 +174,7 @@ def post_export_hive(er: ExportRequest) -> str:
               "environment": OMOP_ENVIRONMENT,
               "file_path": er.target_full_path,
               "no_date_shift": not er.nominative and er.shift_dates,
-              "overwrite": True,    # todo: add field in C360 Frontend
+              "overwrite": False,
               "user_for_pseudo": not er.nominative and er.owner.provider_username,
               "is_debug": settings.DEBUG,
               "is_test": settings.DEBUG,
@@ -200,7 +200,7 @@ def post_export_csv(er: ExportRequest) -> str:
               "environment": OMOP_ENVIRONMENT,
               "file_path": er.target_full_path,
               "no_date_shift": not er.nominative and er.shift_dates,
-              "overwrite": True,    # todo: add field in C360 Frontend
+              "overwrite": False,
               "user_for_pseudo": not er.nominative and er.owner.provider_username,
               "is_debug": settings.DEBUG,
               "is_test": settings.DEBUG,
