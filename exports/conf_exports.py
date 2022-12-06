@@ -54,17 +54,15 @@ class ApiJobStatutes(enum.Enum):
     ignored = 'IGNORED'
 
 
-dct_api_to_job_status = {
-    ApiJobStatutes.pending.value: JobStatus.pending,
-    ApiJobStatutes.received.value: JobStatus.pending,
-    ApiJobStatutes.started.value: JobStatus.started,
-    ApiJobStatutes.success.value: JobStatus.finished,
-    ApiJobStatutes.failure.value: JobStatus.failed,
-    ApiJobStatutes.revoked.value: JobStatus.cancelled,
-    ApiJobStatutes.rejected.value: JobStatus.failed,
-    ApiJobStatutes.retry.value: JobStatus.pending,
-    ApiJobStatutes.ignored.value: JobStatus.failed,
-}
+dct_api_to_job_status = {ApiJobStatutes.pending.value: JobStatus.pending,
+                         ApiJobStatutes.received.value: JobStatus.pending,
+                         ApiJobStatutes.started.value: JobStatus.started,
+                         ApiJobStatutes.success.value: JobStatus.finished,
+                         ApiJobStatutes.failure.value: JobStatus.failed,
+                         ApiJobStatutes.revoked.value: JobStatus.cancelled,
+                         ApiJobStatutes.rejected.value: JobStatus.failed,
+                         ApiJobStatutes.retry.value: JobStatus.pending,
+                         ApiJobStatutes.ignored.value: JobStatus.failed}
 
 # TOOLS ###############################################################
 
@@ -82,25 +80,23 @@ def build_location(db_name: str) -> str:
 class JobResult:
     def __init__(self, **kwargs):
         try:
-            self.status: ApiJobStatutes = ApiJobStatutes[
-                kwargs.get('status', None)]
+            self.status: ApiJobStatutes = ApiJobStatutes[kwargs.get('status')]
         except ValueError:
-            raise Exception(f"Status received from Infra API is not expected: "
-                            f"{kwargs.get('status', None)}")
-        self.ret_code: int = kwargs.get('ret_code', None)
-        self.out: str = kwargs.get('out', None)
-        self.err: str = kwargs.get('err', None)
+            raise Exception(f"Status received from Infra API is not expected: {kwargs.get('status')}")
+        self.ret_code: int = kwargs.get('ret_code')
+        self.out: str = kwargs.get('out')
+        self.err: str = kwargs.get('err')
 
 
 class JobStatusResponse:
     def __init__(self, **kwargs):
-        self.task_status: str = kwargs.get('task_status', None)
+        self.task_status: str = kwargs.get('task_status')
         if 'task_result' not in kwargs:
-            raise Exception(f"Response from Infra API is missing 'task_result'."
-                            f" What was received : {kwargs}")
-        self.task_result: JobResult = JobResult(
-            **kwargs.get('task_result')) \
-            if kwargs.get('task_result') is not None else None
+            raise Exception(f"Response from Infra API is missing 'task_result'. What was received : {kwargs}")
+        if kwargs.get('task_result'):
+            self.task_result: JobResult = JobResult(**kwargs.get('task_result'))
+        else:
+            self.task_result = None
 
 
 class PostJobResponse:
@@ -109,7 +105,7 @@ class PostJobResponse:
             raise Exception(f"Response from Infra API not expected: "
                             f"missing 'task_id' - "
                             f"received : {prettify_dict(kwargs)}")
-        self.task_id: str = kwargs.get('task_id', None)
+        self.task_id: str = kwargs.get('task_id')
 
 
 class HadoopApiResponse:
@@ -125,20 +121,18 @@ class HadoopApiResponse:
 
     @property
     def detail_err(self) -> str:
-        return f"status was {self.status} and ret_code {self.ret_code}.\n" \
+        return f"status was {self.status} and ret_code {self.ret_code}.\n"\
                f"err returned is : {self.err}"
 
 
 def check_resp(resp: Response, url: str) -> Dict:
     if not status.is_success(resp.status_code):
         raise Exception(f"Connection error ({url}) : status code {resp.text}")
-
     try:
         return resp.json()
     except (simplejson.JSONDecodeError, json.JSONDecodeError, ValueError):
         raise Exception(f"Response from Infra API ({url}) not readable: "
-                        f"status code {resp.status_code} - "
-                        f"{resp.text}")
+                        f"status code {resp.status_code} - {resp.text}")
 
 # API REQUESTS ###############################################################
 
@@ -151,8 +145,7 @@ def post_hadoop(url: str, data: dict):
     @param data: data to post
     @return:
     """
-    resp = requests.post(url, params=data,
-                         headers={'auth-token': INFRA_HADOOP_TOKEN})
+    resp = requests.post(url, params=data, headers={'auth-token': INFRA_HADOOP_TOKEN})
 
     status_code_msg = f"(http status {resp.status_code})"
 
@@ -178,19 +171,13 @@ def post_export_hive(er: ExportRequest) -> str:
     log_export_request_task(er.id, f"Asking for export to {er.target_name}")
 
     tables: List[str] = [t.omop_table_name for t in er.tables.all()]
-
-    resp = requests.post(
-        EXPORT_HIVE_URL,
-        params=dict(
-            user=er.target_unix_account.name,
-            cohort_id=er.cohort_fk.fhir_group_id,
-            tables=",".join(tables),
-            is_pseudo=not er.nominative,
-            database_name=er.target_name,
-            environment=OMOP_ENVIRONMENT,
-        ),
-        headers={'auth-token': INFRA_EXPORT_TOKEN}
-    )
+    params = dict(user=er.target_unix_account.name,
+                  cohort_id=er.cohort_fk.fhir_group_id,
+                  tables=",".join(tables),
+                  is_pseudo=not er.nominative,
+                  database_name=er.target_name,
+                  environment=OMOP_ENVIRONMENT)
+    resp = requests.post(EXPORT_HIVE_URL, params=params, headers={'auth-token': INFRA_EXPORT_TOKEN})
 
     res = check_resp(resp, EXPORT_HIVE_URL)
     return PostJobResponse(**res).task_id
@@ -206,19 +193,13 @@ def post_export_csv(er: ExportRequest) -> str:
     log_export_request_task(er.id, f"Asking for export to {er.target_name}")
 
     tables: List[str] = [t.omop_table_name for t in er.tables.all()]
-
-    resp = requests.post(
-        CSV_URL,
-        params=dict(
-            user="None",
-            cohort_id=er.cohort_fk.fhir_group_id,
-            tables=",".join(tables),
-            compressed_file_path=er.target_full_path,
-            is_pseudo=not er.nominative,
-            environment=OMOP_ENVIRONMENT,
-        ),
-        headers={'auth-token': INFRA_EXPORT_TOKEN}
-    )
+    params = dict(user="None",
+                  cohort_id=er.cohort_fk.fhir_group_id,
+                  tables=",".join(tables),
+                  compressed_file_path=er.target_full_path,
+                  is_pseudo=not er.nominative,
+                  environment=OMOP_ENVIRONMENT)
+    resp = requests.post(CSV_URL, params=params, headers={'auth-token': INFRA_EXPORT_TOKEN})
 
     res = check_resp(resp, CSV_URL)
     return PostJobResponse(**res).task_id
@@ -231,14 +212,10 @@ def get_job_status(export_job_id: str) -> ApiJobResponse:
     @param er: ExpRequest to get info about
     @return: ApiJobResponse: info about the job
     """
-    resp = requests.get(
-        url=JOB_STATUS_URL, params=dict(
-            task_uuid=export_job_id,
-            return_out_logs=False,
-            return_err_logs=False,
-        ),
-        headers={'auth-token': INFRA_EXPORT_TOKEN}
-    )
+    params = dict(task_uuid=export_job_id,
+                  return_out_logs=False,
+                  return_err_logs=False)
+    resp = requests.get(url=JOB_STATUS_URL, params=params, headers={'auth-token': INFRA_EXPORT_TOKEN})
 
     res = check_resp(resp, JOB_STATUS_URL)
 
@@ -249,16 +226,13 @@ def get_job_status(export_job_id: str) -> ApiJobResponse:
     err = ""
     if j_status == JobStatus.unknown:
         err = f"Job status unknown : {jsr.task_status}."
-        if jsr.task_result is not None:
+        if jsr.task_result:
             jsr.task_result.err = err
 
-    if jsr.task_result is not None:
+    if jsr.task_result:
         err = f"{jsr.task_result.ret_code} - {jsr.task_result.err}"
-
-    return ApiJobResponse(
-        status=j_status,
-        output=jsr.task_result.out if jsr.task_result is not None else "",
-        err=err)
+    output = jsr.task_result and jsr.task_result.out or ""
+    return ApiJobResponse(status=j_status, output=output, err=err)
 
 # PROCESSES ###############################################################
 
@@ -271,32 +245,29 @@ def prepare_hive_db(er: ExportRequest):
     @return:
     """
     location = build_location(er.target_name)
-    log_export_request_task(er.id, f"Creating database with name "
-                                   f"'{er.target_name}', location: {location}")
+    log_export_request_task(er.id, f"Creating DB with name '{er.target_name}', location: {location}")
 
     try:
-        post_hadoop(
-            HADOOP_NEW_DB_URL,
-            dict(name=er.target_name, location=location, if_not_exists=False))
+        data = {"name": er.target_name,
+                "location": location,
+                "if_not_exists": False}
+        post_hadoop(url=HADOOP_NEW_DB_URL, data=data)
     except Exception as e:
         raise Exception(f"Error while creating Database using Infra API: {e}")
 
-    log_export_request_task(er.id, f"Database '{er.target_name}' created. "
-                                   f"Now allocating rights "
-                                   f"to {HIVE_EXPORTER_USER}.")
+    log_export_request_task(er.id, f"DB '{er.target_name}' created. Now allocating rights to {HIVE_EXPORTER_USER}.")
 
     try:
-        post_hadoop(
-            HADOOP_CHOWN_DB_URL,
-            dict(location=location, uid=HIVE_EXPORTER_USER,
-                 gid="hdfs", recursive=True))
+        data = {"location": location,
+                "uid": HIVE_EXPORTER_USER,
+                "gid": "hdfs",
+                "recursive": True}
+        post_hadoop(url=HADOOP_CHOWN_DB_URL, data=data)
     except Exception as e:
-        raise Exception(f"Error while attributing rights on "
-                        f"database '{er.target_name}' using Infra API: {e}")
+        raise Exception(f"Error while attributing rights on DB '{er.target_name}' using Infra API: {e}")
 
-    log_export_request_task(er.id, f"Database '{er.target_name}' "
-                                   f"attributed to {HIVE_EXPORTER_USER} "
-                                   f"and hdfs. Now asking for export.")
+    log_export_request_task(er.id, f"DB '{er.target_name}' attributed to {HIVE_EXPORTER_USER} and HDFS."
+                                   f"Now asking for export.")
 
 
 def prepare_for_export(er: ExportRequest):
@@ -306,7 +277,6 @@ def prepare_for_export(er: ExportRequest):
     @return:
     """
     from exports.models import ExportType
-
     if er.output_format == ExportType.HIVE:
         prepare_hive_db(er)
     else:
@@ -320,12 +290,10 @@ def post_export(er: ExportRequest) -> str:
     @return:
     """
     from exports.models import ExportType
-
     if er.output_format == ExportType.HIVE:
         task_id = post_export_hive(er)
     else:
         task_id = post_export_csv(er)
-
     return task_id
 
 
@@ -337,22 +305,18 @@ def conclude_export_hive(er: ExportRequest):
     @return:
     """
     location = build_location(er.target_name)
-    log_export_request_task(
-        er.id,
-        f"Allocating database rights with name '{er.target_name} to user "
-        f"{er.target_unix_account.name}'")
-
+    log_export_request_task(er.id, f"Allocating database rights with name '{er.target_name} to user "
+                                   f"{er.target_unix_account.name}'")
     try:
-        post_hadoop(HADOOP_CHOWN_DB_URL,
-                    dict(
-                        location=location, uid=er.target_unix_account.name,
-                        gid="hdfs", recursive=True))
+        data = {"location": location,
+                "uid": er.target_unix_account.name,
+                "gid": "hdfs",
+                "recursive": True}
+        post_hadoop(url=HADOOP_CHOWN_DB_URL, data=data)
     except Exception as e:
-        raise Exception(f"Error while attributing rights on "
-                        f"database '{er.target_name}' using Infra API: {e}")
+        raise Exception(f"Error while attributing rights on database '{er.target_name}' using Infra API: {e}")
 
-    log_export_request_task(er.id, f"Database '{er.target_name}' attributed to "
-                                   f"{er.target_unix_account.name}. "
+    log_export_request_task(er.id, f"DB '{er.target_name}' attributed to {er.target_unix_account.name}."
                                    f"Conclusion finished.")
 
 
@@ -367,7 +331,6 @@ def conclude_export(er: ExportRequest):
     @return:
     """
     from exports.models import ExportType
-
     if er.output_format == ExportType.HIVE:
         conclude_export_hive(er)
     else:
@@ -383,19 +346,11 @@ def get_fhir_organization_members(obj: dict) -> List[str]:
     # a member is expected to be like this:
     # { 'entity': { 'display' : 'Organizations-or-Group/id' }}
     members = obj.get("member", [])
-    res = [
-        o.get('entity') for o in members
-        if isinstance(o, dict) and isinstance(o.get('entity'), dict)
-    ]
-    res = [o.get('display', "").split("/")[-1]
-           for o in res
-           if isinstance(o.get('display'), str)
-           and o.get('display').startswith("Organization")]
-
-    if not len(res):
-        return []
-
-    return res
+    entities = [m.get('entity')
+                for m in members if isinstance(m, dict) and isinstance(m.get('entity'), dict)]
+    res = [e.get('display', "").split("/")[-1]
+           for e in entities if isinstance(e.get('display'), str) and e.get('display').startswith("Organization")]
+    return res or []
 
 
 def get_cohort_perimeters(cohort_id: int, token: str) -> List[str]:
@@ -407,64 +362,44 @@ def get_cohort_perimeters(cohort_id: int, token: str) -> List[str]:
     @return: list of perimeter ids
     """
 
-    resp = requests.get(
-        url=f"{FHIR_URL}/fhir/Group?_id={cohort_id}",
-        headers={'Authorization': f"Bearer {token}"}
-    )
+    resp = requests.get(url=f"{FHIR_URL}/fhir/Group?_id={cohort_id}", headers={'Authorization': f"Bearer {token}"})
 
     if resp.status_code == 401:
         raise ValidationError("Token error with FHIR api")
-
     try:
         res = resp.json()
     except Exception as e:
-        raise Exception(f"Error: response from FHIR server not readable ({e})."
-                        f"\nFull content: {resp.content}")
+        raise Exception(f"Error: response from FHIR server not readable ({e}).\nFull content: {resp.content}")
 
     if resp.status_code != 200:
         if resp.status_code == 500:
             issues = res.get('issue', [])
-            if not len(issues) or not isinstance(issues[0], dict):
-                err = f'could not read FHIR response: {str(res)}'
+            if not issues or not isinstance(issues[0], dict):
+                err = f"Could not read FHIR response: {str(res)}"
             else:
                 issue = issues[0]
-                err = issue.get(
-                    'diagnostics', 'could not read FHIR response: ' + str(res)
-                )
+                err = issue.get("Diagnostics", f"Could not read FHIR response: {str(res)}")
             raise ValidationError(f"Error with FHIR api checking: {err}")
 
-        raise ValidationError(
-            f"Error {resp.status_code} with FHIR api checking: {res['error']}. "
-            f"Url called: {resp.url}"
-        )
-
+        raise ValidationError(f"Error {resp.status_code} with FHIR api checking: {res['error']}."
+                              f"Called URL: {resp.url}")
     entry = res.get('entry', [])
-    if not len(entry):
-        raise ValidationError(
-            f"Entry field is empty on FHIR response, it means the provider "
-            f"has no right on the cohort '{cohort_id}'."
-        )
+    if not entry:
+        raise ValidationError(f"Entry field is empty on FHIR response, it means the provider "
+                              f"has no right on the cohort '{cohort_id}'.")
     if not isinstance(entry[0], dict):
-        raise ValidationError(
-            f"Could not read FHIR response, missing entry field: {str(res)}"
-        )
+        raise ValidationError(f"Could not read FHIR response, missing entry field: {str(res)}")
 
-    resource = entry[0].get('resource', None)
+    resource = entry[0].get('resource')
     if not isinstance(resource, dict):
-        raise ValidationError(
-            f"Could not read FHIR response, missing resource "
-            f"field in entry: {str(res)}"
-        )
+        raise ValidationError(f"Could not read FHIR response, missing resource field in entry: {str(res)}")
 
     parent_perim_ids = get_fhir_organization_members(resource)
 
-    if not len(parent_perim_ids):
-        raise ValidationError(
-            f"Could not read FHIR response, no member found with "
-            f"entity.display starting with 'Organization' in resource: "
-            f"{prettify_dict(resource)}.\n Full response : {prettify_dict(res)}"
-        )
-
+    if not parent_perim_ids:
+        raise ValidationError(f"Could not read FHIR response, no member found with "
+                              f"entity.display starting with 'Organization' in resource: "
+                              f"{prettify_dict(resource)}.\n Full response : {prettify_dict(res)}")
     return parent_perim_ids
 
 
@@ -473,17 +408,14 @@ def get_cohort_perimeters(cohort_id: int, token: str) -> List[str]:
 HDFS_SERVERS = env("HDFS_SERVERS").split(',')
 
 
-HDFS_CLIENTS_DICT = {
-    'current': HDFS_SERVERS[0],
-    HDFS_SERVERS[0]: KerberosClient(HDFS_SERVERS[0])
-}
+HDFS_CLIENTS_DICT = {'current': HDFS_SERVERS[0],
+                     HDFS_SERVERS[0]: KerberosClient(HDFS_SERVERS[0])
+                     }
 
 
 def try_other_hdfs_servers():
-    for server in [s for s in HDFS_SERVERS
-                   if s != HDFS_CLIENTS_DICT['current']]:
+    for server in [s for s in HDFS_SERVERS if s != HDFS_CLIENTS_DICT['current']]:
         cl = KerberosClient(server)
-
         try:
             cl.status('/')
         except HdfsError:
@@ -492,7 +424,6 @@ def try_other_hdfs_servers():
             HDFS_CLIENTS_DICT[server] = KerberosClient(server)
             HDFS_CLIENTS_DICT['current'] = server
             return cl
-
     raise HdfsServerUnreachableError()
 
 
@@ -512,16 +443,8 @@ def build_path(file_name: str) -> str:
 
 def stream_gen(file_name: str):
     file_path = build_path(file_name)
-    with get_client().read(
-            hdfs_path=file_path,
-            offset=0,
-            length=None,  # entire file
-            # buffer_size=buffer_size,
-            encoding=None,
-            chunk_size=1000000,  # chunk_size,
-            delimiter=None,
-            progress=None
-    ) as f:
+    with get_client().read(hdfs_path=file_path, offset=0, length=None, encoding=None, chunk_size=1000000,
+                           delimiter=None, progress=None) as f:
         for chunk in f:
             yield chunk
 
