@@ -24,18 +24,18 @@ env = os.environ
 
 # EXPORTS JOBS ################################################################
 
-INFRA_EXPORT_TOKEN = env('INFRA_EXPORT_TOKEN')
-INFRA_HADOOP_TOKEN = env('INFRA_HADOOP_TOKEN')
+INFRA_EXPORT_TOKEN = env.get('INFRA_EXPORT_TOKEN')
+INFRA_HADOOP_TOKEN = env.get('INFRA_HADOOP_TOKEN')
 
-INFRA_API_URL = env('INFRA_API_URL')
+INFRA_API_URL = env.get('INFRA_API_URL')
 EXPORT_HIVE_URL = f"{INFRA_API_URL}/bigdata/data_exporter/hive/"
 EXPORT_CSV_URL = f"{INFRA_API_URL}/bigdata/data_exporter/csv/"
 JOB_STATUS_URL = f"{INFRA_API_URL}/bigdata/task_status"
 HADOOP_NEW_DB_URL = f"{INFRA_API_URL}/hadoop/hive/create_base_hive"
 HADOOP_CHOWN_DB_URL = f"{INFRA_API_URL}/hadoop/hdfs/chown_directory"
-HIVE_DB_FOLDER = env('HIVE_DB_FOLDER')
-HIVE_EXPORTER_USER = env('HIVE_EXPORTER_USER')
-OMOP_ENVIRONMENT = env('EXPORT_OMOP_ENVIRONMENT')
+HIVE_DB_FOLDER = env.get('HIVE_DB_FOLDER')
+HIVE_EXPORTER_USER = env.get('HIVE_EXPORTER_USER')
+OMOP_ENVIRONMENT = env.get('EXPORT_OMOP_ENVIRONMENT')
 
 
 class ApiJobStatutes(enum.Enum):
@@ -297,7 +297,7 @@ def conclude_export(er: ExportRequest):
 
 # FHIR PERIMETERS #############################################################
 
-FHIR_URL = env("FHIR_URL")
+FHIR_URL = env.get("FHIR_URL")
 
 
 def get_fhir_organization_members(obj: dict) -> List[str]:
@@ -363,7 +363,7 @@ def get_cohort_perimeters(cohort_id: int, token: str) -> List[str]:
 
 # FILES EXTRACT ###############################################################
 
-HDFS_SERVERS = env("HDFS_SERVERS").split(',')
+HDFS_SERVERS = env.get("HDFS_SERVERS").split(',')
 
 
 HDFS_CLIENTS_DICT = {'current': HDFS_SERVERS[0],
