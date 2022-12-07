@@ -213,7 +213,7 @@ def post_export_csv(er: ExportRequest) -> str:
             user="None",
             cohort_id=er.cohort_fk.fhir_group_id,
             tables=",".join(tables),
-            compressed_file_path=er.target_full_path,
+            file_path=er.target_full_path,
             is_pseudo=not er.nominative,
             environment=OMOP_ENVIRONMENT,
         ),
