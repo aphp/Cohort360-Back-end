@@ -154,49 +154,6 @@ def post_hadoop(url: str, data: dict):
         raise Exception(f"{status_code_msg} {resp.text}")
 
 
-def prepare_export_payload(er: ExportRequest) -> str:
-    log_export_request_task(er.id, f"Asking to export for {er.target_name}")
-    tables = ",".join([t.omop_table_name for t in er.tables.all()])
-    params = {"cohort_id": er.cohort_fk.fhir_group_id,
-              "tables": tables,
-              "environment": OMOP_ENVIRONMENT,
-              "no_date_shift": not er.nominative and er.shift_dates,
-              "overwrite": False,
-              "user_for_pseudo": not er.nominative and er.target_unix_account.name or None,
-              "is_debug": settings.DEBUG,
-              "is_test": settings.DEBUG}
-    headers = {'auth-token': INFRA_EXPORT_TOKEN}
-    return params, headers
-
-
-def post_export_hive(er: ExportRequest) -> str:
-    """
-    Asks Infra API to start a job of exporting data to a database built
-    for the ExportRequest
-    @param er:
-    @return: id of the generated async task
-    """
-    params, headers = prepare_export_payload(er)
-    params.update({"database_name": er.target_name})
-    resp = requests.post(EXPORT_HIVE_URL, params=params, headers=headers)
-    res = check_resp(resp, EXPORT_HIVE_URL)
-    return PostJobResponse(**res).task_id
-
-
-def post_export_csv(er: ExportRequest) -> str:
-    """
-    Asks Infra API to start a job of exporting csv data
-    for the ExportRequest
-    @param er:
-    @return: id of the generated async task
-    """
-    params, headers = prepare_export_payload(er)
-    params.update({"file_path": er.target_full_path})
-    resp = requests.post(EXPORT_CSV_URL, params=params, headers=headers)
-    res = check_resp(resp, EXPORT_CSV_URL)
-    return PostJobResponse(**res).task_id
-
-
 def get_job_status(export_job_id: str) -> ApiJobResponse:
     """
     Returns the status of the job of the ExpRequest, and returns it
@@ -276,11 +233,27 @@ def post_export(er: ExportRequest) -> str:
     @param er:
     @return:
     """
+    log_export_request_task(er.id, f"Asking to export for {er.target_name}")
+
+    tables = ",".join([t.omop_table_name for t in er.tables.all()])
+    params = {"cohort_id": er.cohort_fk.fhir_group_id,
+              "tables": tables,
+              "environment": OMOP_ENVIRONMENT,
+              "no_date_shift": not er.nominative and er.shift_dates,
+              "overwrite": False,
+              "user_for_pseudo": not er.nominative and er.target_unix_account.name or None,
+              "is_debug": settings.DEBUG,
+              "is_test": settings.DEBUG
+              }
     if er.output_format == ExportType.HIVE:
-        task_id = post_export_hive(er)
+        url = EXPORT_HIVE_URL
+        params.update({"database_name": er.target_name})
     else:
-        task_id = post_export_csv(er)
-    return task_id
+        url = EXPORT_CSV_URL
+        params.update({"file_path": er.target_full_path})
+    resp = requests.post(url, params=params, headers={'auth-token': INFRA_EXPORT_TOKEN})
+    res = check_resp(resp, url)
+    return PostJobResponse(**res).task_id
 
 
 def conclude_export_hive(er: ExportRequest):
