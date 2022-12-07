@@ -16,7 +16,7 @@ from rest_framework.exceptions import ValidationError
 from admin_cohort.models import JobStatus
 from admin_cohort.tools import prettify_dict
 from .models import ExportRequest
-from .types import ApiJobResponse, HdfsServerUnreachableError
+from .types import ApiJobResponse, HdfsServerUnreachableError, ExportType
 
 logger = logging.getLogger('django')
 
@@ -142,19 +142,31 @@ def post_hadoop(url: str, data: dict):
     @return:
     """
     resp = requests.post(url, params=data, headers={'auth-token': INFRA_HADOOP_TOKEN})
-
     status_code_msg = f"(http status {resp.status_code})"
-
     if status.is_success(resp.status_code):
         try:
             res = HadoopApiResponse(**resp.json())
         except Exception as e:
             raise Exception(f"{status_code_msg} response incomplete -> {e}")
-
         if res.has_failed:
             raise Exception(f"{status_code_msg} - {res.detail_err}")
     else:
         raise Exception(f"{status_code_msg} {resp.text}")
+
+
+def prepare_export_payload(er: ExportRequest) -> str:
+    log_export_request_task(er.id, f"Asking to export for {er.target_name}")
+    tables = ",".join([t.omop_table_name for t in er.tables.all()])
+    params = {"cohort_id": er.cohort_fk.fhir_group_id,
+              "tables": tables,
+              "environment": OMOP_ENVIRONMENT,
+              "no_date_shift": not er.nominative and er.shift_dates,
+              "overwrite": False,
+              "user_for_pseudo": not er.nominative and er.target_unix_account.name or None,
+              "is_debug": settings.DEBUG,
+              "is_test": settings.DEBUG}
+    headers = {'auth-token': INFRA_EXPORT_TOKEN}
+    return params, headers
 
 
 def post_export_hive(er: ExportRequest) -> str:
@@ -162,25 +174,11 @@ def post_export_hive(er: ExportRequest) -> str:
     Asks Infra API to start a job of exporting data to a database built
     for the ExportRequest
     @param er:
-    @return: the id of the asynchronous task generated
+    @return: id of the generated async task
     """
-    log_export_request_task(er.id, f"Asking for export to {er.target_name}")
-
-    tables = ",".join([t.omop_table_name for t in er.tables.all()])
-    params = {"cohort_id": er.cohort_fk.fhir_group_id,
-              "tables": tables,
-              "database_name": er.target_name,
-              # todo: "user": er.target_unix_account.name,
-              "environment": OMOP_ENVIRONMENT,
-              "file_path": er.target_full_path,
-              "no_date_shift": not er.nominative and er.shift_dates,
-              "overwrite": False,
-              "user_for_pseudo": not er.nominative and er.owner.provider_username,
-              "is_debug": settings.DEBUG,
-              "is_test": settings.DEBUG,
-              }
-    resp = requests.post(EXPORT_HIVE_URL, params=params, headers={'auth-token': INFRA_EXPORT_TOKEN})
-
+    params, headers = prepare_export_payload(er)
+    params.update({"database_name": er.target_name})
+    resp = requests.post(EXPORT_HIVE_URL, params=params, headers=headers)
     res = check_resp(resp, EXPORT_HIVE_URL)
     return PostJobResponse(**res).task_id
 
@@ -190,22 +188,11 @@ def post_export_csv(er: ExportRequest) -> str:
     Asks Infra API to start a job of exporting csv data
     for the ExportRequest
     @param er:
-    @return: the id of the asynchronous task generated
+    @return: id of the generated async task
     """
-    log_export_request_task(er.id, f"Asking to export for {er.target_name}")
-
-    tables = ",".join([t.omop_table_name for t in er.tables.all()])
-    params = {"cohort_id": er.cohort_fk.fhir_group_id,
-              "tables": tables,
-              "environment": OMOP_ENVIRONMENT,
-              "file_path": er.target_full_path,
-              "no_date_shift": not er.nominative and er.shift_dates,
-              "overwrite": False,
-              "user_for_pseudo": not er.nominative and er.owner.provider_username,
-              "is_debug": settings.DEBUG,
-              "is_test": settings.DEBUG,
-              }
-    resp = requests.post(EXPORT_CSV_URL, params=params, headers={'auth-token': INFRA_EXPORT_TOKEN})
+    params, headers = prepare_export_payload(er)
+    params.update({"file_path": er.target_full_path})
+    resp = requests.post(EXPORT_CSV_URL, params=params, headers=headers)
     res = check_resp(resp, EXPORT_CSV_URL)
     return PostJobResponse(**res).task_id
 
@@ -217,15 +204,12 @@ def get_job_status(export_job_id: str) -> ApiJobResponse:
     @param er: ExpRequest to get info about
     @return: ApiJobResponse: info about the job
     """
-    params = dict(task_uuid=export_job_id,
-                  return_out_logs=False,
-                  return_err_logs=False)
+    params = {"task_uuid": export_job_id,
+              "return_out_logs": False,
+              "return_err_logs": False}
     resp = requests.get(url=JOB_STATUS_URL, params=params, headers={'auth-token': INFRA_EXPORT_TOKEN})
-
     res = check_resp(resp, JOB_STATUS_URL)
-
     jsr = JobStatusResponse(**res)
-
     j_status = dct_api_to_job_status.get(jsr.task_status, JobStatus.unknown)
 
     err = ""
@@ -233,7 +217,6 @@ def get_job_status(export_job_id: str) -> ApiJobResponse:
         err = f"Job status unknown : {jsr.task_status}."
         if jsr.task_result:
             jsr.task_result.err = err
-
     if jsr.task_result:
         err = f"{jsr.task_result.ret_code} - {jsr.task_result.err}"
     output = jsr.task_result and jsr.task_result.out or ""
@@ -245,7 +228,7 @@ def get_job_status(export_job_id: str) -> ApiJobResponse:
 def prepare_hive_db(er: ExportRequest):
     """
     Ask Infra API to create a database that will receive exported data, and
-    allocates Infra server's user an ownership to it to allow exporting
+    grants Infra server's user ownership of it to allow exporting
     @param er:
     @return:
     """
@@ -260,7 +243,7 @@ def prepare_hive_db(er: ExportRequest):
     except Exception as e:
         raise Exception(f"Error while creating Database using Infra API: {e}")
 
-    log_export_request_task(er.id, f"DB '{er.target_name}' created. Now allocating rights to {HIVE_EXPORTER_USER}.")
+    log_export_request_task(er.id, f"DB '{er.target_name}' created. Now granting rights to {HIVE_EXPORTER_USER}.")
 
     try:
         data = {"location": location,
@@ -281,7 +264,6 @@ def prepare_for_export(er: ExportRequest):
     @param er:
     @return:
     """
-    from exports.models import ExportType
     if er.output_format == ExportType.HIVE:
         prepare_hive_db(er)
     else:
@@ -294,7 +276,6 @@ def post_export(er: ExportRequest) -> str:
     @param er:
     @return:
     """
-    from exports.models import ExportType
     if er.output_format == ExportType.HIVE:
         task_id = post_export_hive(er)
     else:
@@ -335,7 +316,6 @@ def conclude_export(er: ExportRequest):
     @param er:
     @return:
     """
-    from exports.models import ExportType
     if er.output_format == ExportType.HIVE:
         conclude_export_hive(er)
     else:
@@ -414,8 +394,7 @@ HDFS_SERVERS = env("HDFS_SERVERS").split(',')
 
 
 HDFS_CLIENTS_DICT = {'current': HDFS_SERVERS[0],
-                     HDFS_SERVERS[0]: KerberosClient(HDFS_SERVERS[0])
-                     }
+                     HDFS_SERVERS[0]: KerberosClient(HDFS_SERVERS[0])}
 
 
 def try_other_hdfs_servers():
