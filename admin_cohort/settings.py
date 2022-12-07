@@ -247,6 +247,7 @@ EMAIL_REGEX_CHECK = env("EMAIL_REGEX_CHECK",
 
 EXPORT_CSV_PATH = env('EXPORT_CSV_PATH')
 EXPORT_DAYS_BEFORE_DELETE = int(env("EXPORT_DAYS_BEFORE_DELETE", default=7))
+EXPORT_CHECK_JOBS_MINUTES_AGO = int(env("EXPORT_CHECK_MINUTES_AGO", default=10))
 
 # Celery
 CELERY_BROKER_URL = env("CELERY_BROKER_URL")  # 'redis://localhost:6380'
@@ -267,11 +268,11 @@ if len(env('LOCAL_TASKS', default='')) > 0:
 CELERY_BEAT_SCHEDULE = {
     'task-check-jobs': {
         'task': 'exports.tasks.check_jobs',
-        'schedule': 60,
+        'schedule': int(env("TASK_CHECK_JOBS_SCHEDULE", default=60)),
     },
     'task-clean-jobs': {
         'task': 'exports.tasks.clean_jobs',
-        'schedule': 3600,
+        'schedule': int(env("TASK_CLEAN_JOBS_SCHEDULE", default=3600)),
     },
     **CONFIG_TASKS,
 }

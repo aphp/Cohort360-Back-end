@@ -112,12 +112,9 @@ def send_failed_email(req: ExportRequest, email_address: str):
 
 
 def send_success_email(req: ExportRequest, email_address: str):
-    html_path = f"exports/email_templates/resultat_requete_succes" \
-                f"{'_hive' if req.output_format == ExportType.HIVE else ''}" \
-                f".html"
-    txt_path = f"exports/email_templates/resultat_requete_succes" \
-               f"{'_hive' if req.output_format == ExportType.HIVE else ''}" \
-               f".txt"
+    hive_suffix = req.output_format == ExportType.HIVE and '_hive' or ''
+    html_path = f"exports/email_templates/resultat_requete_succes{hive_suffix}.html"
+    txt_path = f"exports/email_templates/resultat_requete_succes{hive_suffix}.txt"
 
     with open(html_path) as f:
         html_content = "\n".join(f.readlines())
@@ -175,12 +172,10 @@ def email_info_request_confirmed(req: ExportRequest, email_address: str):
     @return:
     @rtype:
     """
-    html_path = f"exports/email_templates/confirmation_de_requete" \
-                f"{'_hive' if req.output_format == ExportType.HIVE else ''}" \
-                f".html"
-    txt_path = f"exports/email_templates/confirmation_de_requete" \
-               f"{'_hive' if req.output_format == ExportType.HIVE else ''}" \
-               f".txt"
+    hive_suffix = req.output_format == ExportType.HIVE and '_hive' or ''
+    html_path = f"exports/email_templates/confirmation_de_requete{hive_suffix}.html"
+    txt_path = f"exports/email_templates/confirmation_de_requete{hive_suffix}.txt"
+
     with open(html_path) as f:
         html_content = "\n".join(f.readlines())
 

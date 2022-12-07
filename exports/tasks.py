@@ -1,7 +1,10 @@
-from datetime import timedelta, datetime
+import logging
 import time
+from datetime import timedelta, datetime
 from typing import List
+
 from celery import shared_task
+from django.conf import settings
 from django.utils import timezone
 
 from admin_cohort.celery import app
@@ -9,10 +12,11 @@ from admin_cohort.settings import EXPORT_CSV_PATH
 from admin_cohort.types import JobStatus
 from exports import conf_exports
 from exports.emails import email_info_request_done, email_info_request_deleted
-from exports.types import HdfsServerUnreachableError,\
-    ApiJobResponse
 from exports.models import ExportRequest, ExportType
+from exports.types import HdfsServerUnreachableError, \
+    ApiJobResponse
 
+logger = logging.getLogger('django.request')
 
 def log_export_request_task(id, msg):
     print(f"[ExportTask] [ExportRequest: {id}] {msg}")
@@ -157,21 +161,22 @@ def check_jobs():
     the ExportRequest with 'is_user_notified'
     @return: None
     """
-    reqs = list(ExportRequest.objects.filter(
-        request_job_status__in=[
-            JobStatus.finished.value, JobStatus.failed.value,
-            JobStatus.cancelled.value, JobStatus.denied.value],
-        output_format=ExportType.CSV.value,
-        is_user_notified=False
-    ))
-
-    for req in reqs:
+    statuses = [JobStatus.finished,
+                JobStatus.failed,
+                JobStatus.cancelled,
+                JobStatus.denied]
+    dt_minutes_ago = datetime.now() - timedelta(minutes=settings.EXPORT_CHECK_JOBS_MINUTES_AGO)
+    ers = ExportRequest.objects.filter(request_job_status__in=statuses,
+                                       output_format=ExportType.CSV,
+                                       is_user_notified=False,
+                                       insert_datetime__lte=dt_minutes_ago)
+    for er in ers:
         try:
-            email_info_request_done(req)
-            req.is_user_notified = True
-            req.save()
+            email_info_request_done(er)
+            er.is_user_notified = True
+            er.save()
         except Exception as e:
-            print(e)
+            logger.exception(e, exc_info=True)
 
 
 @app.task()
