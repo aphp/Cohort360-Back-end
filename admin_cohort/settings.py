@@ -265,10 +265,10 @@ if len(env('LOCAL_TASKS', default='')) > 0:
     ])
 
 CELERY_BEAT_SCHEDULE = {
-    # 'task-check-jobs': {
-    #     'task': 'exports.tasks.check_jobs',
-    #     'schedule': 60,
-    # },
+    'task-check-jobs': {
+        'task': 'exports.tasks.check_jobs',
+        'schedule': 60,
+    },
     'task-clean-jobs': {
         'task': 'exports.tasks.clean_jobs',
         'schedule': 3600,
