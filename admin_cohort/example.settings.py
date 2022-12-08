@@ -1,6 +1,7 @@
 import os
-import pytz
 from datetime import date, datetime, time
+
+import pytz
 
 # from django.utils.datetime_safe import datetime
 
@@ -247,7 +248,7 @@ EMAIL_SENDER_ADDRESS = ""
 EMAIL_REGEX_CHECK = ""
 
 EXPORT_CSV_PATH = ""
-EXPORT_DAYS_BEFORE_DELETE = 7
+DAYS_TO_CLEAN_REQUESTS = 7
 
 # Celery
 CELERY_BROKER_URL = ""  # 'redis://localhost:6380'
@@ -263,7 +264,7 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': 60,
     },
     'task-clean-jobs': {
-        'task': 'exports.tasks.clean_jobs',
+        'task': 'exports.tasks.clean_export_requests',
         'schedule': 3600,
     },
 }

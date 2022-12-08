@@ -246,7 +246,7 @@ EMAIL_REGEX_CHECK = env("EMAIL_REGEX_CHECK",
                         default=r"^[\w.+-]+@[\w-]+\.[\w]+$")
 
 EXPORT_CSV_PATH = env('EXPORT_CSV_PATH')
-EXPORT_DAYS_BEFORE_DELETE = int(env("EXPORT_DAYS_BEFORE_DELETE", default=7))
+DAYS_TO_CLEAN_REQUESTS = int(env("DAYS_TO_CLEAN_REQUESTS", default=7))
 
 # Celery
 CELERY_BROKER_URL = env("CELERY_BROKER_URL")  # 'redis://localhost:6380'
@@ -268,7 +268,7 @@ CELERY_BEAT_SCHEDULE = {
     #     'schedule': int(env("TASK_CHECK_JOBS_SCHEDULE", default=60)),
     # },
     'task-clean-jobs': {
-        'task': 'exports.tasks.clean_jobs',
+        'task': 'exports.tasks.clean_export_requests',
         'schedule': int(env("TASK_CLEAN_JOBS_SCHEDULE", default=3600)),
     },
     **CONFIG_TASKS,
