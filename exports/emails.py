@@ -1,6 +1,8 @@
 import locale
+import logging
 import re
 from datetime import timedelta
+from smtplib import SMTPException
 from typing import Tuple
 
 from django.core.mail import EmailMultiAlternatives
@@ -26,6 +28,9 @@ KEY_CONTACT_MAIL = "KEY_CONTACT_MAIL"
 KEY_CONTENT = "KEY_CONTENT"
 KEY_DELETE_DATE = "KEY_DELETE_DATE"
 KEY_DATABASE_NAME = "KEY_DATABASE_NAME"
+
+
+logger = logging.getLogger('django.request')
 
 
 def send_mail(msg: EmailMultiAlternatives):
@@ -104,12 +109,6 @@ def send_failed_email(req: ExportRequest, email_address: str):
     msg.attach_file('exports/email_templates/logoCohort360.png')
     send_mail(msg)
 
-    # send_mail(
-    #     subject, replace_keys(txt_mail, req), from_email,
-    #     [email_address], fail_silently=False,
-    #     html_message=replace_keys(html_mail, req, True)
-    # )
-
 
 def send_success_email(req: ExportRequest, email_address: str):
     hive_suffix = req.output_format == ExportType.HIVE and '_hive' or ''
@@ -138,12 +137,6 @@ def send_success_email(req: ExportRequest, email_address: str):
     msg.attach_file('exports/email_templates/logoCohort360.png')
     send_mail(msg)
 
-    # send_mail(
-    #     subject, replace_keys(txt_mail, req),
-    #     from_email, [email_address], fail_silently=False,
-    #     html_message=replace_keys(html_mail, req, True)
-    # )
-
 
 def email_info_request_done(req: ExportRequest):
     """
@@ -155,11 +148,16 @@ def email_info_request_done(req: ExportRequest):
     @rtype:
     """
     check_email_address(req.owner)
-
-    if req.request_job_status == JobStatus.finished:
-        send_success_email(req, req.owner.email)
-    elif req.request_job_status in [JobStatus.failed, JobStatus.cancelled]:
-        send_failed_email(req, req.owner.email)
+    try:
+        if req.request_job_status == JobStatus.finished:
+            send_success_email(req, req.owner.email)
+        elif req.request_job_status in [JobStatus.failed, JobStatus.cancelled]:
+            send_failed_email(req, req.owner.email)
+    except SMTPException:
+        logger.exception(f"Could not send export email - request status: {req.request_job_status}")
+        # todo: check if needs other actions
+    req.is_user_notified = True
+    req.save()
 
 
 def email_info_request_confirmed(req: ExportRequest, email_address: str):
@@ -202,13 +200,6 @@ def email_info_request_confirmed(req: ExportRequest, email_address: str):
     msg.attach_file('exports/email_templates/logoCohort360.png')
     send_mail(msg)
 
-    # send_mail(
-    #     subject, replace_keys(txt_mail, req), from_email,
-    #     [email], fail_silently=False,
-    #     html_message=replace_keys(html_mail, req, True)
-    # )
-    return
-
 
 def email_info_request_deleted(req: ExportRequest, email_address: str):
     """
@@ -241,9 +232,3 @@ def email_info_request_deleted(req: ExportRequest, email_address: str):
     msg.attach_alternative(replace_keys(html_mail, req, True), "text/html")
     msg.attach_file('exports/email_templates/logoCohort360.png')
     send_mail(msg)
-
-    # send_mail(
-    #     subject, replace_keys(txt_mail, req), from_email, [email_address],
-    #     fail_silently=False, html_message=replace_keys(html_mail, req, True)
-    # )
-    return
