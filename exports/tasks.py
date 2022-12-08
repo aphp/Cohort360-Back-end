@@ -4,7 +4,6 @@ from datetime import timedelta, datetime
 from typing import List
 
 from celery import shared_task
-from django.conf import settings
 from django.utils import timezone
 
 from admin_cohort.celery import app
@@ -152,39 +151,35 @@ def launch_request(er_id: int):
     email_info_request_done(er)
 
 
-@app.task()
-def check_jobs():
-    """
-    Queries ExportRequest that have csv output, have finished
-    and whom the owner has not been notified yet.
-    Will warn the owner by email and update
-    the ExportRequest with 'is_user_notified'
-    @return: None
-    """
-    statuses = [JobStatus.finished,
-                JobStatus.failed,
-                JobStatus.cancelled,
-                JobStatus.denied]
-    dt_minutes_ago = datetime.now() - timedelta(minutes=settings.EXPORT_CHECK_JOBS_MINUTES_AGO)
-    ers = ExportRequest.objects.filter(request_job_status__in=statuses,
-                                       output_format=ExportType.CSV,
-                                       is_user_notified=False,
-                                       insert_datetime__lte=dt_minutes_ago)
-    for er in ers:
-        try:
-            email_info_request_done(er)
-            er.is_user_notified = True
-            er.save()
-        except Exception as e:
-            logger.exception(e, exc_info=True)
+# @app.task()
+# def check_jobs():
+#     """
+#     Queries ExportRequest that have csv output, have finished
+#     and whom the owner has not been notified yet.
+#     Will warn the owner by email and update
+#     the ExportRequest with 'is_user_notified'
+#     @return: None
+#     """
+#     statuses = [JobStatus.finished,
+#                 JobStatus.failed,
+#                 JobStatus.cancelled,
+#                 JobStatus.denied]
+#     ers = ExportRequest.objects.filter(request_job_status__in=statuses,
+#                                        output_format=ExportType.CSV,
+#                                        is_user_notified=False)
+#     for er in ers:
+#         try:
+#             email_info_request_done(er)
+#         except Exception as e:
+#             logger.exception(e, exc_info=True)
 
 
 @app.task()
-def clean_jobs():
+def clean_jobs():   # todo: rename function and var EXPORT_DAYS_BEFORE_DELETE
     """
     Queries ExportRequest that have csv output,
     have finished for a number of days and whom the owner has been notified.
-    Will delete its content taht was stored, warn the owner by email,
+    Will delete its content that was stored, warn the owner by email,
     and update cleaned_at values
     @return: None
     """
