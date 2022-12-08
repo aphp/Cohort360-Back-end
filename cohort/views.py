@@ -190,7 +190,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             # Case with perimeters search params
             cohorts_filtered_by_search = self.filter_queryset(self.get_queryset())
             if not cohorts_filtered_by_search:
-                return ValidationError("ERROR: No Cohort Found")
+                raise ValidationError("ERROR: No Cohort Found")
             list_cohort_id = [cohort.fhir_group_id for cohort in cohorts_filtered_by_search]
             cohort_dict_pop_source = get_dict_cohort_pop_source(list_cohort_id)
 
