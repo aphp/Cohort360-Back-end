@@ -118,7 +118,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
 
             perimeters_filtered_by_search = self.filter_queryset(self.get_queryset())
             if not perimeters_filtered_by_search:
-                return ValidationError("ERROR: No Perimeters Found")
+                raise ValidationError("ERROR: No Perimeters Found")
 
             return Response(ReadRightPerimeter(
                 filter_accesses_by_search_perimeters(perimeters_filtered_by_search,
@@ -147,7 +147,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
         all_read_patient_pseudo_accesses = user_accesses.filter(Role.is_read_patient_role_pseudo("role"))
 
         if not all_read_patient_nominative_accesses and not all_read_patient_nominative_accesses:
-            return ValidationError("ERROR No accesses with read patient right Found")
+            raise ValidationError("ERROR No accesses with read patient right Found")
         if self.request.query_params:
             cohort_ids = self.request.query_params.get("cohort_id")
             if cohort_ids:
@@ -158,7 +158,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
                 perimeters_filtered_by_search = self.filter_queryset(self.get_queryset())
 
             if not perimeters_filtered_by_search:
-                return ValidationError("ERROR No Perimeters Found")
+                raise ValidationError("ERROR No Perimeters Found")
             is_read_patient_pseudo = get_read_patient_right(perimeters_filtered_by_search,
                                                             all_read_patient_nominative_accesses,
                                                             all_read_patient_pseudo_accesses)
