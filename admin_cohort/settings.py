@@ -247,7 +247,6 @@ EMAIL_REGEX_CHECK = env("EMAIL_REGEX_CHECK",
 
 EXPORT_CSV_PATH = env('EXPORT_CSV_PATH')
 EXPORT_DAYS_BEFORE_DELETE = int(env("EXPORT_DAYS_BEFORE_DELETE", default=7))
-EXPORT_CHECK_JOBS_MINUTES_AGO = int(env("EXPORT_CHECK_MINUTES_AGO", default=10))
 
 # Celery
 CELERY_BROKER_URL = env("CELERY_BROKER_URL")  # 'redis://localhost:6380'
@@ -258,18 +257,16 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_TASK_ALWAYS_EAGER = False
 
 CONFIG_TASKS = {}
-if len(env('LOCAL_TASKS', default='')) > 0:
-    CONFIG_TASKS = dict([
-        (name, {'task': t, 'schedule': int(s)})
-        for (name, t, s) in [task.split(',') for task
-                             in env('LOCAL_TASKS').split(';')]
-    ])
+if env('LOCAL_TASKS', default=''):
+    CONFIG_TASKS = dict([(name, {'task': t, 'schedule': int(s)})
+                         for (name, t, s) in [task.split(',')
+                                              for task in env('LOCAL_TASKS').split(';')]])
 
 CELERY_BEAT_SCHEDULE = {
-    'task-check-jobs': {
-        'task': 'exports.tasks.check_jobs',
-        'schedule': int(env("TASK_CHECK_JOBS_SCHEDULE", default=60)),
-    },
+    # 'task-check-jobs': {
+    #     'task': 'exports.tasks.check_jobs',
+    #     'schedule': int(env("TASK_CHECK_JOBS_SCHEDULE", default=60)),
+    # },
     'task-clean-jobs': {
         'task': 'exports.tasks.clean_jobs',
         'schedule': int(env("TASK_CLEAN_JOBS_SCHEDULE", default=3600)),
