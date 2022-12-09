@@ -83,7 +83,6 @@ class CohortFilter(filters.FilterSet):
     # ?min_created_at=2015-04-23
     min_fhir_datetime = filters.IsoDateTimeFilter(field_name='dated_measure__fhir_datetime', lookup_expr="gte")
     max_fhir_datetime = filters.IsoDateTimeFilter(field_name='dated_measure__fhir_datetime', lookup_expr="lte")
-    request_job_status = filters.AllValuesMultipleFilter()
     request_id = filters.CharFilter(field_name='request_query_snapshot__request__pk')
 
     # unused, untested
@@ -95,14 +94,15 @@ class CohortFilter(filters.FilterSet):
 
     def multi_value_filter(self, queryset, field, value: str):
         if value:
-            list_value = [val.strip() for val in value.split(",")]
-            return queryset.filter(join_qs([Q(**{field: value}) for value in list_value]))
+            sub_values = [val.strip() for val in value.split(",")]
+            return queryset.filter(join_qs([Q(**{field: value}) for value in sub_values]))
         return queryset
 
     type = filters.AllValuesMultipleFilter()
     perimeter_id = filters.CharFilter(method="perimeter_filter")
     perimeters_ids = filters.CharFilter(method="perimeters_filter")
     fhir_group_id = filters.CharFilter(method="multi_value_filter", field_name="fhir_group_id")
+    status = filters.CharFilter(method="multi_value_filter", field_name="request_job_status")
 
     ordering = OrderingFilter(fields=('-created_at',
                                       'modified_at',
@@ -126,7 +126,7 @@ class CohortFilter(filters.FilterSet):
                   'request_query_snapshot',
                   'request_query_snapshot__request',
                   'request_id',
-                  'request_job_status',
+                  'status',
                   # unused, untested
                   'type',
                   'perimeter_id',
