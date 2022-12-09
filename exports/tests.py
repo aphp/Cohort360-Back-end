@@ -18,7 +18,7 @@ from admin_cohort.tools import prettify_json
 from cohort.models import CohortResult, RequestQuerySnapshot, Request, Folder, \
     DatedMeasure
 from exports.models import ExportRequest, ExportRequestTable, ExportType
-from exports.tasks import clean_export_requests
+from exports.tasks import delete_export_requests_csv_files
 from exports.views import ExportRequestViewset
 from workspaces.models import Account
 
@@ -603,49 +603,20 @@ class ExportsJobsTests(ExportsWithSimpleSetUp):
         #         is_user_notified=False,
         #     )
 
-    # @mock.patch('exports.emails.send_failed_email')
-    # @mock.patch('exports.emails.send_success_email')
-    # @mock.patch('exports.emails.EMAIL_REGEX_CHECK', r"^[\w.+-]+@test\.com$")
-    # def test_task_check_jobs(
-    #         self, mock_send_success_email: MagicMock,
-    #         mock_send_failed_email: MagicMock
-    # ):
-    #     # todo : test with denied/not validated
-    #     mock_send_success_email.return_value = None
-    #     mock_send_failed_email.return_value = None
-    #
-    #     check_jobs()
-    #
-    #     mock_send_failed_email.assert_called_once_with(
-    #         self.user1_exp_req_fail, self.user1.email
-    #     )
-    #     mock_send_success_email.assert_called_once_with(
-    #         self.user1_exp_req_succ, self.user1.email,
-    #     )
-    #
-    #     updated_req_1 = ExportRequest.objects.get(pk=self.user1_exp_req_fail.id)
-    #     updated_req_2 = ExportRequest.objects.get(pk=self.user1_exp_req_succ.id)
-    #     [self.assertTrue(er.is_user_notified) for er in [updated_req_1,
-    #                                                      updated_req_2]]
-    #     self.assertEqual(updated_req_1.request_job_status,
-    #                      JobStatus.failed)
-    #     self.assertEqual(updated_req_2.request_job_status,
-    #                      JobStatus.finished)
-
     @mock.patch('exports.emails.send_mail')
     @mock.patch('exports.conf_exports.delete_file')
-    def test_task_clean_export_requests(self, mock_delete_hdfs_file, mock_send_mail):
-        from admin_cohort.settings import DAYS_TO_CLEAN_REQUESTS
+    def test_task_delete_export_requests_csv_files(self, mock_delete_hdfs_file, mock_send_mail):
+        from admin_cohort.settings import DAYS_TO_DELETE_CSV_FILES
 
         mock_delete_hdfs_file.return_value = None
         mock_send_mail.return_value = None
 
         self.user1_exp_req_succ.review_request_datetime = (
-                timezone.now() - timedelta(days=DAYS_TO_CLEAN_REQUESTS))
+                timezone.now() - timedelta(days=DAYS_TO_DELETE_CSV_FILES))
         self.user1_exp_req_succ.is_user_notified = True
         self.user1_exp_req_succ.save()
 
-        clean_export_requests()
+        delete_export_requests_csv_files()
 
         deleted_ers = list(
             ExportRequest.objects.filter(cleaned_at__isnull=False))

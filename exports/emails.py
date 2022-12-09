@@ -11,7 +11,7 @@ from rest_framework.exceptions import ValidationError
 
 from admin_cohort.models import User
 from admin_cohort.settings import EMAIL_BACK_HOST_URL, EMAIL_SENDER_ADDRESS, \
-    EMAIL_SUPPORT_CONTACT, DAYS_TO_CLEAN_REQUESTS, EMAIL_REGEX_CHECK
+    EMAIL_SUPPORT_CONTACT, DAYS_TO_DELETE_CSV_FILES, EMAIL_REGEX_CHECK
 from admin_cohort.types import JobStatus
 from exports.models import ExportRequest, ExportType
 
@@ -49,7 +49,7 @@ def replace_keys(txt: str, req: ExportRequest, is_html: bool = False) -> str:
                  KEY_CONTACT_MAIL: EMAIL_SUPPORT_CONTACT,
                  KEY_DATABASE_NAME: req.target_name,
                  KEY_DELETE_DATE: (timezone.now().date() +
-                                   timedelta(days=int(DAYS_TO_CLEAN_REQUESTS))).strftime("%d %B, %Y")
+                                   timedelta(days=int(DAYS_TO_DELETE_CSV_FILES))).strftime("%d %B, %Y")
                  }
     for k, v in keys_vals.items():
         res = res.replace(str(k), str(v))
@@ -153,9 +153,11 @@ def email_info_request_done(req: ExportRequest):
             send_success_email(req, req.owner.email)
         elif req.request_job_status in [JobStatus.failed, JobStatus.cancelled]:
             send_failed_email(req, req.owner.email)
-    except SMTPException:
-        logger.exception(f"Could not send export email - request status: {req.request_job_status}")
-        # todo: check if needs other actions
+    except (SMTPException, TimeoutError):
+        logger.exception(f"Could not send export email - request status: {req.request_job_status} "
+                         f"Mark it as {JobStatus.failed}")
+        req.request_job_status = JobStatus.failed
+        return
     req.is_user_notified = True
     req.save()
 

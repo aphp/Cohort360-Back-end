@@ -151,31 +151,8 @@ def launch_request(er_id: int):
     email_info_request_done(er)
 
 
-# @app.task()
-# def check_jobs():
-#     """
-#     Queries ExportRequest that have csv output, have finished
-#     and whom the owner has not been notified yet.
-#     Will warn the owner by email and update
-#     the ExportRequest with 'is_user_notified'
-#     @return: None
-#     """
-#     statuses = [JobStatus.finished,
-#                 JobStatus.failed,
-#                 JobStatus.cancelled,
-#                 JobStatus.denied]
-#     ers = ExportRequest.objects.filter(request_job_status__in=statuses,
-#                                        output_format=ExportType.CSV,
-#                                        is_user_notified=False)
-#     for er in ers:
-#         try:
-#             email_info_request_done(er)
-#         except Exception as e:
-#             logger.exception(e, exc_info=True)
-
-
 @app.task()
-def clean_export_requests():
+def delete_export_requests_csv_files():
     """
     Get export requests with: CSV output, finished for a number of days
     and the owner has been notified.
@@ -183,7 +160,7 @@ def clean_export_requests():
     and update cleaned_at field
     @return: None
     """
-    d = timezone.now() - timedelta(days=settings.DAYS_TO_CLEAN_REQUESTS)
+    d = timezone.now() - timedelta(days=settings.DAYS_TO_DELETE_CSV_FILES)
     ers = ExportRequest.objects.filter(request_job_status=JobStatus.finished,
                                        output_format=ExportType.CSV,
                                        is_user_notified=True,
