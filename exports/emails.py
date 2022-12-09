@@ -158,6 +158,7 @@ def email_info_request_done(req: ExportRequest):
         logger.exception(f"{except_msg} - Mark it as '{JobStatus.failed}'")
         req.request_job_status = JobStatus.failed
         req.request_job_fail_msg = except_msg
+        req.save()
         return
     req.is_user_notified = True
     req.save()
