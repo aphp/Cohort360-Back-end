@@ -3,10 +3,9 @@ from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework.decorators import action
-from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
-
+from django.http import Http404
 from admin_cohort.permissions import IsAuthenticatedReadOnly
 from admin_cohort.settings import PERIMETERS_TYPES
 from admin_cohort.tools import join_qs
@@ -113,12 +112,12 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
         all_read_ipp_accesses = user_accesses.filter(Role.is_search_ipp_role("role"))
 
         if not all_read_patient_nominative_accesses and not all_read_patient_pseudo_accesses:
-            raise ValidationError("ERROR: No Accesses with read patient right found")
+            raise Http404("ERROR: No Accesses with read patient right found")
         if self.request.query_params:
 
             perimeters_filtered_by_search = self.filter_queryset(self.get_queryset())
             if not perimeters_filtered_by_search:
-                raise ValidationError("ERROR: No Perimeters Found")
+                raise Http404("ERROR: No Perimeters Found")
 
             return Response(ReadRightPerimeter(
                 filter_accesses_by_search_perimeters(perimeters_filtered_by_search,
@@ -147,7 +146,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
         all_read_patient_pseudo_accesses = user_accesses.filter(Role.is_read_patient_role_pseudo("role"))
 
         if not all_read_patient_nominative_accesses and not all_read_patient_nominative_accesses:
-            raise ValidationError("ERROR No accesses with read patient right Found")
+            raise Http404("ERROR No accesses with read patient right Found")
         if self.request.query_params:
             cohort_ids = self.request.query_params.get("cohort_id")
             if cohort_ids:
@@ -158,7 +157,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
                 perimeters_filtered_by_search = self.filter_queryset(self.get_queryset())
 
             if not perimeters_filtered_by_search:
-                raise ValidationError("ERROR No Perimeters Found")
+                raise Http404("ERROR No Perimeters Found")
             is_read_patient_pseudo = get_read_patient_right(perimeters_filtered_by_search,
                                                             all_read_patient_nominative_accesses,
                                                             all_read_patient_pseudo_accesses)
