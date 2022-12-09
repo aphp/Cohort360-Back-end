@@ -154,9 +154,10 @@ def email_info_request_done(req: ExportRequest):
         elif req.request_job_status in [JobStatus.failed, JobStatus.cancelled]:
             send_failed_email(req, req.owner.email)
     except (SMTPException, TimeoutError):
-        logger.exception(f"Could not send export email - request status: {req.request_job_status} "
-                         f"Mark it as {JobStatus.failed}")
+        except_msg = f"Could not send export email - request status was '{req.request_job_status}'"
+        logger.exception(f"{except_msg} - Mark it as '{JobStatus.failed}'")
         req.request_job_status = JobStatus.failed
+        req.request_job_fail_msg = except_msg
         return
     req.is_user_notified = True
     req.save()
