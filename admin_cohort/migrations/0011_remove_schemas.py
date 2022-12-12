@@ -9,7 +9,7 @@ db_owner = env.get('DB_AUTH_USER')
 
 def move_tables_to_public_schema(apps, schema_editor):
     with connection.cursor() as cr:
-        q = """ SELECT table_schema, table_name FROM information_schema.tables 
+        q = """ SELECT table_schema, table_name FROM information_schema.tables
                 WHERE table_type='BASE TABLE' AND table_schema NOT IN ('public', 'information_schema', 'pg_catalog')
                 ORDER BY table_schema, table_name;
             """
