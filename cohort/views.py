@@ -1,13 +1,15 @@
+import logging
+
 from django.db.models import F
 from django.db.models import Q
-from django.http import QueryDict, JsonResponse, HttpResponse
+from django.http import Http404
+from django.http import QueryDict, JsonResponse, HttpResponse, HttpResponseServerError
 from django_filters import OrderingFilter
 from django_filters import rest_framework as filters
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from django.http import Http404
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.relations import RelatedField
 from rest_framework.response import Response
@@ -24,6 +26,8 @@ from cohort.permissions import IsOwner
 from cohort.serializers import RequestSerializer, CohortResultSerializer, RequestQuerySnapshotSerializer, \
     DatedMeasureSerializer, FolderSerializer, CohortResultSerializerFullDatedMeasure, CohortRightsSerializer
 from cohort.tools import get_all_cohorts_rights, get_dict_cohort_pop_source
+
+_logger = logging.getLogger('django.request')
 
 
 class NoUpdateViewSetMixin:
@@ -244,18 +248,13 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
 
     filterset_class = DMFilter
     pagination_class = LimitOffsetPagination
-    search_fields = []
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        if CohortResult.objects.filter(
-                dated_measure__uuid=instance.uuid).first() is not None:
-            return Response({
-                'message': "Cannot delete a Dated measure "
-                           "that is bound to a cohort result"
-            }, status=status.HTTP_403_FORBIDDEN)
-        return super(DatedMeasureViewSet, self) \
-            .destroy(request, *args, **kwargs)
+        if CohortResult.objects.filter(dated_measure__uuid=instance.uuid).first():
+            return Response({'message': "Cannot delete a DatedMeasure bound to a CohortResult"},
+                            status=status.HTTP_403_FORBIDDEN)
+        return super(DatedMeasureViewSet, self).destroy(request, *args, **kwargs)
 
     @action(methods=['post'], detail=False, url_path='create-unique')
     def create_unique(self, request, *args, **kwargs):
@@ -263,53 +262,35 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         Demande à l'API FHIR d'annuler tous les jobs de calcul de count liés à
         une construction de Requête avant d'en créer un nouveau
         """
-        # TODO : test
-        if 'request_query_snapshot' in kwargs:
+        if "request_query_snapshot" in kwargs:
             rqs_id = kwargs['request_query_snapshot']
         elif "request_query_snapshot_id" in request.data:
-            rqs_id = request.data.get('request_query_snapshot_id')
+            rqs_id = request.data.get("request_query_snapshot_id")
         else:
-            return Response(dict(message="'request_query_snapshot_id' not provided"), status.HTTP_400_BAD_REQUEST)
+            return Response({"message": "'request_query_snapshot_id' not provided"}, status.HTTP_400_BAD_REQUEST)
 
-        headers = get_fhir_authorization_header(request)
         try:
             rqs: RequestQuerySnapshot = RequestQuerySnapshot.objects.get(pk=rqs_id)
         except RequestQuerySnapshot.DoesNotExist:
-            return Response({"message": "No existing request_query_snapshot to 'request_query_snapshot_id' provided"},
-                            status.HTTP_400_BAD_REQUEST)
+            return Response({"message": "Invalid 'request_query_snapshot_id'"}, status.HTTP_400_BAD_REQUEST)
 
-        req_dms = rqs.request.dated_measures
-        started_status = JobStatus.started.value
-        started_jobs_to_cancel = req_dms.filter(request_job_status=started_status).prefetch_related('cohort',
-                                                                                                    'restricted_cohort')
-        for job in started_jobs_to_cancel:
-            if len(job.cohort.all()) or len(job.restricted_cohort.all()):
-                # if the started dated measure is bound to a cohort, don't cancel it
-                continue
+        dms_jobs = rqs.request.dated_measures.filter(request_job_status__in=[JobStatus.started, JobStatus.pending])\
+                                             .prefetch_related('cohort', 'restricted_cohort')
+        for job in dms_jobs:
+            if job.cohort.all() or job.restricted_cohort.all():
+                continue    # if the dated measure is bound to a cohort, don't cancel it
+            job_status = job.request_job_status
             try:
-                job_status = cancel_job(job.request_job_id, headers)
-                job.request_job_status = job_status.value
+                if job_status == JobStatus.started:
+                    headers = get_fhir_authorization_header(request)
+                    new_status = cancel_job(job.request_job_id, headers)
+                else:
+                    app.control.revoke(job.count_task_id)
+                job.request_job_status = job_status == JobStatus.started and new_status or JobStatus.cancelled
                 job.save()
             except Exception as e:
-                return Response({"message": f"Error while cancelling job '{job.request_job_id}', "
-                                            f"bound to dated-measure '{job.uuid}': {str(e)}"},
-                                status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        pending_status = JobStatus.pending.value
-        pending_jobs_to_cancel = req_dms.filter(request_job_status=pending_status).prefetch_related('cohort',
-                                                                                                    'restricted_cohort')
-        for job in pending_jobs_to_cancel:
-            if len(job.cohort.all()) or len(job.restricted_cohort.all()):
-                # if the pending dated measure is bound to a cohort, don't cancel it
-                continue
-            try:
-                app.control.revoke(job.count_task_id)
-                # revoke(task_id=job.count_task_id, terminate=True)
-                job.request_job_status = (JobStatus.cancelled.value)
-                job.save()
-            except Exception as e:
-                return Response({"message": str(e)}, status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+                _logger.exception(f"Error while cancelling {status} job [{job.uuid}] - {e}")
+                return HttpResponseServerError()
         return self.create(request, *args, **kwargs)
 
     def update(self, request, *args, **kwargs):
@@ -324,15 +305,9 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         # TODO : test
         instance: DatedMeasure = self.get_object()
         try:
-            cancel_job(
-                instance.request_job_id,
-                get_fhir_authorization_header(request)
-            )
+            cancel_job(instance.request_job_id, get_fhir_authorization_header(request))
         except Exception as e:
-            return Response(
-                dict(message=str(e)),
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            return Response(dict(message=str(e)), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class NestedDatedMeasureViewSet(SwaggerSimpleNestedViewSetMixin,
