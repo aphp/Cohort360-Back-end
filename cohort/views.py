@@ -1,5 +1,6 @@
 from django.db.models import F
 from django.db.models import Q
+from django.http import Http404
 from django.http import QueryDict, JsonResponse, HttpResponse
 from django_filters import OrderingFilter
 from django_filters import rest_framework as filters
@@ -7,7 +8,7 @@ from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from django.http import Http404
+from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.relations import RelatedField
 from rest_framework.response import Response
@@ -413,25 +414,19 @@ class RequestQuerySnapshotViewSet(
     @action(detail=True, methods=['post'], permission_classes=(IsOwner,),
             url_path="share")
     def share(self, request, *args, **kwargs):
-        recipients = request.data.get('recipients', None)
-        if recipients is None:
-            raise Http404("'recipients' doit être fourni")
+        recipients = request.data.get('recipients')
+        if not recipients:
+            raise ValidationError("'recipients' doit être fourni")
 
         recipients = recipients.split(",")
         name = request.data.get('name', None)
 
         users = User.objects.filter(pk__in=recipients)
         users_ids = [str(u.pk) for u in users]
-        errors = []
+        errors = [r for r in recipients if r not in users_ids]
 
-        for r in recipients:
-            if r not in users_ids:
-                errors.append(r)
-
-        if len(errors):
-            raise Http404(
-                f"Les utilisateur.rices avec les ids suivants "
-                f"n'ont pas été trouvés: {','.join(errors)}")
+        if errors:
+            raise ValidationError(f"Les utilisateurs avec les IDs suivants n'ont pas été trouvés: {','.join(errors)}")
 
         rqs: RequestQuerySnapshot = self.get_object()
         rqss = rqs.share(users, name)
