@@ -1,5 +1,3 @@
-# written by HT on 2022-11-25
-
 import os
 
 from django.db import connection, migrations
@@ -16,7 +14,6 @@ def move_tables_to_public_schema(apps, schema_editor):
         cr.execute(q)
         for i in cr.fetchall():
             q_alter_table = f"ALTER TABLE {i[0]}.{i[1]} SET SCHEMA public;"
-            print(f"{q_alter_table=}")
             cr.execute(q_alter_table)
 
 
