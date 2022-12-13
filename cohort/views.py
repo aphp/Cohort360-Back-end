@@ -2,7 +2,7 @@ import logging
 
 from django.db.models import F
 from django.db.models import Q
-from django.http import Http404
+from django.http import Http404, HttpResponseBadRequest
 from django.http import QueryDict, JsonResponse, HttpResponse, HttpResponseServerError
 from django_filters import OrderingFilter
 from django_filters import rest_framework as filters
@@ -258,21 +258,22 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
 
     @action(methods=['post'], detail=False, url_path='create-unique')
     def create_unique(self, request, *args, **kwargs):
-        """
-        Demande à l'API FHIR d'annuler tous les jobs de calcul de count liés à
-        une construction de Requête avant d'en créer un nouveau
+        """ Demande à l'API FHIR d'annuler tous les jobs de calcul de count liés à
+            une construction de Requête avant d'en créer un nouveau
         """
         if "request_query_snapshot" in kwargs:
             rqs_id = kwargs['request_query_snapshot']
         elif "request_query_snapshot_id" in request.data:
             rqs_id = request.data.get("request_query_snapshot_id")
         else:
-            return Response({"message": "'request_query_snapshot_id' not provided"}, status.HTTP_400_BAD_REQUEST)
+            _logger.exception("'request_query_snapshot_id' not provided")
+            return HttpResponseBadRequest()
 
         try:
             rqs: RequestQuerySnapshot = RequestQuerySnapshot.objects.get(pk=rqs_id)
         except RequestQuerySnapshot.DoesNotExist:
-            return Response({"message": "Invalid 'request_query_snapshot_id'"}, status.HTTP_400_BAD_REQUEST)
+            _logger.exception("Invalid 'request_query_snapshot_id'")
+            return HttpResponseBadRequest()
 
         dms_jobs = rqs.request.dated_measures.filter(request_job_status__in=[JobStatus.started, JobStatus.pending])\
                                              .prefetch_related('cohort', 'restricted_cohort')
