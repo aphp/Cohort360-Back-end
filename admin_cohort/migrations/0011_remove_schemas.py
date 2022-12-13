@@ -34,8 +34,7 @@ class Migration(migrations.Migration):
         this mig does the following:
             1. move all tables from custom schemas to public
             2. move all sequences from custom schemas to public
-            3. move all indexes from custom schemas to public
-            4. drop custom schemas
+            3. drop custom schemas
     """
     dependencies = [('admin_cohort', '0010_delete_provider')]
 
