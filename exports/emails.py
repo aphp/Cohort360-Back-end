@@ -1,6 +1,8 @@
 import locale
+import logging
 import re
 from datetime import timedelta
+from smtplib import SMTPException
 from typing import Tuple
 
 from django.core.mail import EmailMultiAlternatives
@@ -9,7 +11,7 @@ from rest_framework.exceptions import ValidationError
 
 from admin_cohort.models import User
 from admin_cohort.settings import EMAIL_BACK_HOST_URL, EMAIL_SENDER_ADDRESS, \
-    EMAIL_SUPPORT_CONTACT, EXPORT_DAYS_BEFORE_DELETE, EMAIL_REGEX_CHECK
+    EMAIL_SUPPORT_CONTACT, DAYS_TO_DELETE_CSV_FILES, EMAIL_REGEX_CHECK
 from admin_cohort.types import JobStatus
 from exports.models import ExportRequest, ExportType
 
@@ -28,6 +30,9 @@ KEY_DELETE_DATE = "KEY_DELETE_DATE"
 KEY_DATABASE_NAME = "KEY_DATABASE_NAME"
 
 
+logger = logging.getLogger('django.request')
+
+
 def send_mail(msg: EmailMultiAlternatives):
     msg.send()
 
@@ -44,7 +49,7 @@ def replace_keys(txt: str, req: ExportRequest, is_html: bool = False) -> str:
                  KEY_CONTACT_MAIL: EMAIL_SUPPORT_CONTACT,
                  KEY_DATABASE_NAME: req.target_name,
                  KEY_DELETE_DATE: (timezone.now().date() +
-                                   timedelta(days=int(EXPORT_DAYS_BEFORE_DELETE))).strftime("%d %B, %Y")
+                                   timedelta(days=int(DAYS_TO_DELETE_CSV_FILES))).strftime("%d %B, %Y")
                  }
     for k, v in keys_vals.items():
         res = res.replace(str(k), str(v))
@@ -104,20 +109,11 @@ def send_failed_email(req: ExportRequest, email_address: str):
     msg.attach_file('exports/email_templates/logoCohort360.png')
     send_mail(msg)
 
-    # send_mail(
-    #     subject, replace_keys(txt_mail, req), from_email,
-    #     [email_address], fail_silently=False,
-    #     html_message=replace_keys(html_mail, req, True)
-    # )
-
 
 def send_success_email(req: ExportRequest, email_address: str):
-    html_path = f"exports/email_templates/resultat_requete_succes" \
-                f"{'_hive' if req.output_format == ExportType.HIVE else ''}" \
-                f".html"
-    txt_path = f"exports/email_templates/resultat_requete_succes" \
-               f"{'_hive' if req.output_format == ExportType.HIVE else ''}" \
-               f".txt"
+    hive_suffix = req.output_format == ExportType.HIVE and '_hive' or ''
+    html_path = f"exports/email_templates/resultat_requete_succes{hive_suffix}.html"
+    txt_path = f"exports/email_templates/resultat_requete_succes{hive_suffix}.txt"
 
     with open(html_path) as f:
         html_content = "\n".join(f.readlines())
@@ -141,12 +137,6 @@ def send_success_email(req: ExportRequest, email_address: str):
     msg.attach_file('exports/email_templates/logoCohort360.png')
     send_mail(msg)
 
-    # send_mail(
-    #     subject, replace_keys(txt_mail, req),
-    #     from_email, [email_address], fail_silently=False,
-    #     html_message=replace_keys(html_mail, req, True)
-    # )
-
 
 def email_info_request_done(req: ExportRequest):
     """
@@ -158,11 +148,20 @@ def email_info_request_done(req: ExportRequest):
     @rtype:
     """
     check_email_address(req.owner)
-
-    if req.request_job_status == JobStatus.finished:
-        send_success_email(req, req.owner.email)
-    elif req.request_job_status in [JobStatus.failed, JobStatus.cancelled]:
-        send_failed_email(req, req.owner.email)
+    try:
+        if req.request_job_status == JobStatus.finished:
+            send_success_email(req, req.owner.email)
+        elif req.request_job_status in [JobStatus.failed, JobStatus.cancelled]:
+            send_failed_email(req, req.owner.email)
+    except (SMTPException, TimeoutError):
+        except_msg = f"Could not send export email - request status was '{req.request_job_status}'"
+        logger.exception(f"{except_msg} - Mark it as '{JobStatus.failed}'")
+        req.request_job_status = JobStatus.failed
+        req.request_job_fail_msg = except_msg
+        req.save()
+        return
+    req.is_user_notified = True
+    req.save()
 
 
 def email_info_request_confirmed(req: ExportRequest, email_address: str):
@@ -175,12 +174,10 @@ def email_info_request_confirmed(req: ExportRequest, email_address: str):
     @return:
     @rtype:
     """
-    html_path = f"exports/email_templates/confirmation_de_requete" \
-                f"{'_hive' if req.output_format == ExportType.HIVE else ''}" \
-                f".html"
-    txt_path = f"exports/email_templates/confirmation_de_requete" \
-               f"{'_hive' if req.output_format == ExportType.HIVE else ''}" \
-               f".txt"
+    hive_suffix = req.output_format == ExportType.HIVE and '_hive' or ''
+    html_path = f"exports/email_templates/confirmation_de_requete{hive_suffix}.html"
+    txt_path = f"exports/email_templates/confirmation_de_requete{hive_suffix}.txt"
+
     with open(html_path) as f:
         html_content = "\n".join(f.readlines())
 
@@ -206,13 +203,6 @@ def email_info_request_confirmed(req: ExportRequest, email_address: str):
     msg.attach_alternative(replace_keys(html_mail, req, True), "text/html")
     msg.attach_file('exports/email_templates/logoCohort360.png')
     send_mail(msg)
-
-    # send_mail(
-    #     subject, replace_keys(txt_mail, req), from_email,
-    #     [email], fail_silently=False,
-    #     html_message=replace_keys(html_mail, req, True)
-    # )
-    return
 
 
 def email_info_request_deleted(req: ExportRequest, email_address: str):
@@ -246,9 +236,3 @@ def email_info_request_deleted(req: ExportRequest, email_address: str):
     msg.attach_alternative(replace_keys(html_mail, req, True), "text/html")
     msg.attach_file('exports/email_templates/logoCohort360.png')
     send_mail(msg)
-
-    # send_mail(
-    #     subject, replace_keys(txt_mail, req), from_email, [email_address],
-    #     fail_silently=False, html_message=replace_keys(html_mail, req, True)
-    # )
-    return
