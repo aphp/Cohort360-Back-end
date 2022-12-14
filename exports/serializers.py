@@ -160,7 +160,7 @@ class ExportRequestSerializer(serializers.ModelSerializer):
 
     def validate_sql_hive(self, validated_data, creator_is_reviewer: bool):
         target_unix_account = validated_data.get('target_unix_account')
-        if target_unix_account:
+        if not target_unix_account:
             raise ValidationError("Pour une demande d'export HIVE, il faut fournir target_unix_account")
 
         owner = validated_data.get('owner')

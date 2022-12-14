@@ -96,7 +96,7 @@ class CohortFilter(filters.FilterSet):
     def multi_value_filter(self, queryset, field, value: str):
         if value:
             sub_values = [val.strip() for val in value.split(",")]
-            return queryset.filter(join_qs([Q(**{field: value}) for value in sub_values]))
+            return queryset.filter(join_qs([Q(**{field: v}) for v in sub_values]))
         return queryset
 
     type = filters.AllValuesMultipleFilter()
@@ -127,6 +127,7 @@ class CohortFilter(filters.FilterSet):
                   'request_query_snapshot',
                   'request_query_snapshot__request',
                   'request_id',
+                  'request_job_status',
                   'status',
                   # unused, untested
                   'type',
