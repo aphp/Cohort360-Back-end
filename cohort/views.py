@@ -1,5 +1,6 @@
 from django.db.models import F
 from django.db.models import Q
+from django.http import Http404
 from django.http import QueryDict, JsonResponse, HttpResponse
 from django_filters import OrderingFilter
 from django_filters import rest_framework as filters
@@ -7,7 +8,7 @@ from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from django.http import Http404
+from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.relations import RelatedField
 from rest_framework.response import Response
@@ -83,7 +84,6 @@ class CohortFilter(filters.FilterSet):
     # ?min_created_at=2015-04-23
     min_fhir_datetime = filters.IsoDateTimeFilter(field_name='dated_measure__fhir_datetime', lookup_expr="gte")
     max_fhir_datetime = filters.IsoDateTimeFilter(field_name='dated_measure__fhir_datetime', lookup_expr="lte")
-    request_job_status = filters.AllValuesMultipleFilter()
     request_id = filters.CharFilter(field_name='request_query_snapshot__request__pk')
 
     # unused, untested
@@ -95,14 +95,15 @@ class CohortFilter(filters.FilterSet):
 
     def multi_value_filter(self, queryset, field, value: str):
         if value:
-            list_value = [val.strip() for val in value.split(",")]
-            return queryset.filter(join_qs([Q(**{field: value}) for value in list_value]))
+            sub_values = [val.strip() for val in value.split(",")]
+            return queryset.filter(join_qs([Q(**{field: v}) for v in sub_values]))
         return queryset
 
     type = filters.AllValuesMultipleFilter()
     perimeter_id = filters.CharFilter(method="perimeter_filter")
     perimeters_ids = filters.CharFilter(method="perimeters_filter")
     fhir_group_id = filters.CharFilter(method="multi_value_filter", field_name="fhir_group_id")
+    status = filters.CharFilter(method="multi_value_filter", field_name="request_job_status")
 
     ordering = OrderingFilter(fields=('-created_at',
                                       'modified_at',
@@ -127,6 +128,7 @@ class CohortFilter(filters.FilterSet):
                   'request_query_snapshot__request',
                   'request_id',
                   'request_job_status',
+                  'status',
                   # unused, untested
                   'type',
                   'perimeter_id',
@@ -413,25 +415,19 @@ class RequestQuerySnapshotViewSet(
     @action(detail=True, methods=['post'], permission_classes=(IsOwner,),
             url_path="share")
     def share(self, request, *args, **kwargs):
-        recipients = request.data.get('recipients', None)
-        if recipients is None:
-            raise Http404("'recipients' doit être fourni")
+        recipients = request.data.get('recipients')
+        if not recipients:
+            raise ValidationError("'recipients' doit être fourni")
 
         recipients = recipients.split(",")
         name = request.data.get('name', None)
 
         users = User.objects.filter(pk__in=recipients)
         users_ids = [str(u.pk) for u in users]
-        errors = []
+        errors = [r for r in recipients if r not in users_ids]
 
-        for r in recipients:
-            if r not in users_ids:
-                errors.append(r)
-
-        if len(errors):
-            raise Http404(
-                f"Les utilisateur.rices avec les ids suivants "
-                f"n'ont pas été trouvés: {','.join(errors)}")
+        if errors:
+            raise ValidationError(f"Les utilisateurs avec les IDs suivants n'ont pas été trouvés: {','.join(errors)}")
 
         rqs: RequestQuerySnapshot = self.get_object()
         rqss = rqs.share(users, name)
