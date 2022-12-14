@@ -599,7 +599,7 @@ class RqsTests(RequestsTests):
                          "created_at", "modified_at", "deleted", ]
     manual_dupplicated_fields = []
 
-    objects_url = "cohort/request-query-snapshots/"
+    objects_url = "cohort/request-query-snapshots"
     retrieve_view = RequestQuerySnapshotViewSet.as_view({'get': 'retrieve'})
     list_view = RequestQuerySnapshotViewSet.as_view({'get': 'list'})
     create_view = RequestQuerySnapshotViewSet.as_view({'post': 'create'})
@@ -1039,11 +1039,9 @@ class RqsShareTests(RqsTests):
 
     def test_error_missing_recipients(self):
         # As a user, I cannot share a RQS without recipients
-        self.check_share_case(self.basic_case.clone(
-            status=status.HTTP_400_BAD_REQUEST,
-            success=False,
-            recipients=None
-        ))
+        self.check_share_case(self.basic_case.clone(status=status.HTTP_400_BAD_REQUEST,
+                                                    success=False,
+                                                    recipients=None))
 
 
 class RqsDeleteTests(RqsTests):
