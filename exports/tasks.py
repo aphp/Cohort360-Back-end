@@ -3,6 +3,7 @@ import time
 from datetime import timedelta, datetime
 
 from celery import shared_task
+from django.conf import settings
 from django.utils import timezone
 
 from admin_cohort.celery import app
@@ -11,8 +12,8 @@ from admin_cohort.types import JobStatus
 from exports import conf_exports
 from exports.emails import email_info_request_done, email_info_request_deleted
 from exports.models import ExportRequest, ExportType
-from exports.types import HdfsServerUnreachableError, \
-    ApiJobResponse
+from exports.types import HdfsServerUnreachableError, ApiJobResponse
+
 
 logger_info = logging.getLogger('django')
 logger = logging.getLogger('django.request')
@@ -137,50 +138,24 @@ def launch_request(er_id: int):
 
 
 @app.task()
-def check_jobs():
+def delete_export_requests_csv_files():
     """
-    Queries ExportRequest that have csv output, have finished
-    and whom the owner has not been notified yet.
-    Will warn the owner by email and update
-    the ExportRequest with 'is_user_notified'
+    Get export requests with: CSV output, finished for a number of days
+    and the owner has been notified.
+    Delete content that was stored, notify the owner by email,
+    and update cleaned_at field
     @return: None
     """
-    statuses = [JobStatus.finished,
-                JobStatus.failed,
-                JobStatus.cancelled,
-                JobStatus.denied]
-    ers = ExportRequest.objects.filter(request_job_status__in=statuses,
-                                       output_format=ExportType.CSV,
-                                       is_user_notified=False)
-    for er in ers:
-        try:
-            email_info_request_done(er)
-            er.is_user_notified = True
-            er.save()
-        except Exception as e:
-            logger.exception(e, exc_info=True)
-
-
-@app.task()
-def clean_jobs():
-    """
-    Queries ExportRequest that have csv output,
-    have finished for a number of days and whom the owner has been notified.
-    Will delete its content taht was stored, warn the owner by email,
-    and update cleaned_at values
-    @return: None
-    """
-    from admin_cohort.settings import EXPORT_DAYS_BEFORE_DELETE
-    d = timezone.now() - timedelta(days=EXPORT_DAYS_BEFORE_DELETE)
+    d = timezone.now() - timedelta(days=settings.DAYS_TO_DELETE_CSV_FILES)
     ers = ExportRequest.objects.filter(request_job_status=JobStatus.finished,
                                        output_format=ExportType.CSV,
                                        is_user_notified=True,
-                                       cleaned_at__isnull=True,
-                                       review_request_datetime__lte=d)
+                                       review_request_datetime__lte=d,
+                                       cleaned_at__isnull=True)
     for er in ers:
         user = er.owner
         if not user:
-            logger.error(f"ExportRequest '{er.id}' has no owner")
+            logger.error(f"ExportRequest {er.id} has no owner")
             continue
         try:
             conf_exports.delete_file(er.target_full_path)
@@ -188,7 +163,6 @@ def clean_jobs():
             er.cleaned_at = timezone.now()
             er.save()
         except HdfsServerUnreachableError:
-            msg = "HDFS servers are unreachable or in stand-by",
-            logger.error(f"ExportRequest '{er.id}' - Error: {msg}")
+            logger.exception(f"ExportRequest {er.id} - HDFS servers are unreachable or in stand-by")
         except Exception as e:
-            logger.exception(f"ExportRequest '{er.id}': {e}", exc_info=True)
+            logger.exception(f"ExportRequest {er.id}: {e}")
