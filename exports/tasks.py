@@ -1,6 +1,7 @@
-from datetime import timedelta, datetime
+import logging
 import time
-from typing import List
+from datetime import timedelta, datetime
+
 from celery import shared_task
 from django.utils import timezone
 
@@ -9,17 +10,19 @@ from admin_cohort.settings import EXPORT_CSV_PATH
 from admin_cohort.types import JobStatus
 from exports import conf_exports
 from exports.emails import email_info_request_done, email_info_request_deleted
-from exports.types import HdfsServerUnreachableError,\
-    ApiJobResponse
 from exports.models import ExportRequest, ExportType
+from exports.types import HdfsServerUnreachableError, \
+    ApiJobResponse
+
+logger_info = logging.getLogger('django')
+logger = logging.getLogger('django.request')
 
 
-def log_export_request_task(id, msg):
-    print(f"[ExportTask] [ExportRequest: {id}] {msg}")
+def log_export_request_task(er_id, msg):
+    logger_info.info(f"[ExportTask] [ExportRequest: {er_id}] {msg}")
 
 
-def manage_exception(er: ExportRequest, e: Exception, msg: str,
-                     start: datetime):
+def manage_exception(er: ExportRequest, e: Exception, msg: str, start: datetime):
     """
     Will update er with context msg and exception e,
     new 'failed' status if not done yet and job_duration given start datetime
@@ -32,9 +35,7 @@ def manage_exception(er: ExportRequest, e: Exception, msg: str,
     """
     err_msg = f"{msg}: {e}"
     er.request_job_fail_msg = err_msg
-    if er.request_job_status in [
-        JobStatus.pending, JobStatus.validated, JobStatus.new
-    ]:
+    if er.request_job_status in [JobStatus.pending, JobStatus.validated, JobStatus.new]:
         er.request_job_status = JobStatus.failed
     er.request_job_duration = timezone.now() - start
     er.save()
@@ -57,15 +58,10 @@ def wait_for_job(er: ExportRequest):
 
     while errs < 5 and not status_resp.has_ended:
         time.sleep(5)
-        log_export_request_task(
-            er.id, f"Asking for status of job {er.request_job_id}.")
+        log_export_request_task(er.id, f"Asking for status of job {er.request_job_id}.")
         try:
-            status_resp: ApiJobResponse = conf_exports.get_job_status(
-                er.request_job_id)
-            log_export_request_task(
-                er.id,
-                f"Status received: {status_resp.status} - "
-                + (f"Err: {status_resp.err}" if status_resp.err else ""))
+            status_resp: ApiJobResponse = conf_exports.get_job_status(er.request_job_id)
+            log_export_request_task(er.id, f"Status received: {status_resp.status} - Err: {status_resp.err or ''}")
             if er.request_job_status != status_resp.status:
                 er.request_job_status = status_resp.status
                 er.save()
@@ -75,7 +71,7 @@ def wait_for_job(er: ExportRequest):
             err_msg = str(e)
 
     if status_resp.status != JobStatus.finished:
-        raise Exception(status_resp.err or "no 'err' value returned.")
+        raise Exception(status_resp.err or "No 'err' value returned.")
     elif errs >= 5:
         raise Exception(f"5 times internal error during task -> {err_msg}")
 
@@ -91,47 +87,40 @@ def launch_request(er_id: int):
     @return: None
     """
     try:
-        er: ExportRequest = ExportRequest.objects.get(pk=er_id)
+        er = ExportRequest.objects.get(pk=er_id)
     except Exception as e:
-        log_export_request_task(
-            er_id,
-            f"Could not find export request to launch with id {er_id}: {e}")
+        log_export_request_task(er_id, f"Could not find export request to launch with ID {er_id}: {e}")
         return
-
-    t = timezone.now()
+    now = timezone.now()
     log_export_request_task(er.id, "Sending request to Infra API.")
     if er.output_format == ExportType.CSV:
-        er.target_name = f"{er.owner.pk}" \
-                         f"_{timezone.now().strftime('%Y%m%d_%H%M%S%f')}"
+        er.target_name = f"{er.owner.pk}_{now.strftime('%Y%m%d_%H%M%S%f')}"
         er.target_location = EXPORT_CSV_PATH
     else:
-        er.target_name = f"{er.target_unix_account.name}" \
-                         f"_{timezone.now().strftime('%Y%m%d_%H%M%S%f')}"
-
+        er.target_name = f"{er.target_unix_account.name}_{now.strftime('%Y%m%d_%H%M%S%f')}"
     er.save()
 
     try:
         conf_exports.prepare_for_export(er)
     except Exception as e:
-        manage_exception(er, e, f"Error while preparing for export {er.id}", t)
+        manage_exception(er, e, f"Error while preparing for export {er.id}", now)
         return
 
     try:
         job_id = conf_exports.post_export(er)
     except Exception as e:
-        manage_exception(er, e, f"Could not post export {er.id}", t)
+        manage_exception(er, e, f"Could not post export {er.id}", now)
         return
 
     er.request_job_status = JobStatus.pending
     er.request_job_id = job_id
     er.save()
-    log_export_request_task(er.id, f"Request sent, job {job_id} is now "
-                                   f"{JobStatus.pending}")
+    log_export_request_task(er.id, f"Request sent, job {job_id} is now {JobStatus.pending}")
 
     try:
         wait_for_job(er)
     except Exception as e:
-        manage_exception(er, e, f"Failure during export job {er.id}", t)
+        manage_exception(er, e, f"Failure during export job {er.id}", now)
         return
 
     log_export_request_task(er.id, "Export job finished, now concluding.")
@@ -139,12 +128,11 @@ def launch_request(er_id: int):
     try:
         conf_exports.conclude_export(er)
     except Exception as e:
-        manage_exception(er, e, f"Could not conclude export {er.id}", t)
+        manage_exception(er, e, f"Could not conclude export {er.id}", now)
         return
 
-    er.request_job_duration = timezone.now() - t
+    er.request_job_duration = timezone.now() - now
     er.save()
-
     email_info_request_done(er)
 
 
@@ -157,21 +145,20 @@ def check_jobs():
     the ExportRequest with 'is_user_notified'
     @return: None
     """
-    reqs = list(ExportRequest.objects.filter(
-        request_job_status__in=[
-            JobStatus.finished.value, JobStatus.failed.value,
-            JobStatus.cancelled.value, JobStatus.denied.value],
-        output_format=ExportType.CSV.value,
-        is_user_notified=False
-    ))
-
-    for req in reqs:
+    statuses = [JobStatus.finished,
+                JobStatus.failed,
+                JobStatus.cancelled,
+                JobStatus.denied]
+    ers = ExportRequest.objects.filter(request_job_status__in=statuses,
+                                       output_format=ExportType.CSV,
+                                       is_user_notified=False)
+    for er in ers:
         try:
-            email_info_request_done(req)
-            req.is_user_notified = True
-            req.save()
+            email_info_request_done(er)
+            er.is_user_notified = True
+            er.save()
         except Exception as e:
-            print(e)
+            logger.exception(e, exc_info=True)
 
 
 @app.task()
@@ -184,31 +171,24 @@ def clean_jobs():
     @return: None
     """
     from admin_cohort.settings import EXPORT_DAYS_BEFORE_DELETE
-    q = ExportRequest.objects.all()
-    reqs: List[ExportRequest] = list(q.filter(
-        request_job_status=JobStatus.finished.value
-    ).filter(
-        output_format=ExportType.CSV.value,
-        is_user_notified=True,
-        review_request_datetime__lte=(
-            timezone.now() - timedelta(days=EXPORT_DAYS_BEFORE_DELETE)),
-        cleaned_at__isnull=True,
-    ))
-
-    for req in reqs:
-        user = req.owner
-
-        if user is None:
-            print(f"Error with req {req.id}: has no owner")
+    d = timezone.now() - timedelta(days=EXPORT_DAYS_BEFORE_DELETE)
+    ers = ExportRequest.objects.filter(request_job_status=JobStatus.finished,
+                                       output_format=ExportType.CSV,
+                                       is_user_notified=True,
+                                       cleaned_at__isnull=True,
+                                       review_request_datetime__lte=d)
+    for er in ers:
+        user = er.owner
+        if not user:
+            logger.error(f"ExportRequest '{er.id}' has no owner")
             continue
         try:
-            conf_exports.delete_file(req.target_full_path)
-            email_info_request_deleted(req, user.email)
-
-            req.cleaned_at = timezone.now()
-            req.save()
+            conf_exports.delete_file(er.target_full_path)
+            email_info_request_deleted(er, user.email)
+            er.cleaned_at = timezone.now()
+            er.save()
         except HdfsServerUnreachableError:
-            msg = "Hdfs servers are unreachable or in stand-by",
-            print(f"Error with req {req.id}: {msg}")
+            msg = "HDFS servers are unreachable or in stand-by",
+            logger.error(f"ExportRequest '{er.id}' - Error: {msg}")
         except Exception as e:
-            print(f"Error with req {req.id}: {e}")
+            logger.exception(f"ExportRequest '{er.id}': {e}", exc_info=True)
