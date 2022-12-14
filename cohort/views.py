@@ -1,5 +1,6 @@
 from django.db.models import F
 from django.db.models import Q
+from django.http import Http404
 from django.http import QueryDict, JsonResponse, HttpResponse
 from django_filters import OrderingFilter
 from django_filters import rest_framework as filters
@@ -185,12 +186,12 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         user_accesses = get_user_valid_manual_accesses_queryset(self.request.user)
 
         if not user_accesses:
-            raise ValidationError("ERROR: No Accesses  found")
+            raise Http404("ERROR: No Accesses found")
         if self.request.query_params:
             # Case with perimeters search params
             cohorts_filtered_by_search = self.filter_queryset(self.get_queryset())
             if not cohorts_filtered_by_search:
-                return ValidationError("ERROR: No Cohort Found")
+                raise Http404("ERROR: No Cohort Found")
             list_cohort_id = [cohort.fhir_group_id for cohort in cohorts_filtered_by_search]
             cohort_dict_pop_source = get_dict_cohort_pop_source(list_cohort_id)
 
@@ -413,8 +414,8 @@ class RequestQuerySnapshotViewSet(
     @action(detail=True, methods=['post'], permission_classes=(IsOwner,),
             url_path="share")
     def share(self, request, *args, **kwargs):
-        recipients = request.data.get('recipients', None)
-        if recipients is None:
+        recipients = request.data.get('recipients')
+        if not recipients:
             raise ValidationError("'recipients' doit être fourni")
 
         recipients = recipients.split(",")
@@ -422,16 +423,10 @@ class RequestQuerySnapshotViewSet(
 
         users = User.objects.filter(pk__in=recipients)
         users_ids = [str(u.pk) for u in users]
-        errors = []
+        errors = [r for r in recipients if r not in users_ids]
 
-        for r in recipients:
-            if r not in users_ids:
-                errors.append(r)
-
-        if len(errors):
-            raise ValidationError(
-                f"Les utilisateur.rices avec les ids suivants "
-                f"n'ont pas été trouvés: {','.join(errors)}")
+        if errors:
+            raise ValidationError(f"Les utilisateurs avec les IDs suivants n'ont pas été trouvés: {','.join(errors)}")
 
         rqs: RequestQuerySnapshot = self.get_object()
         rqss = rqs.share(users, name)
