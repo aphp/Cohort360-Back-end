@@ -25,9 +25,3 @@ chmod 666 /app/log/celery.log
 celery worker -beat -A admin_cohort --concurrency=10 --loglevel INFO --logfile /app/log/celery.log --detach --uid=nobody --gid=nogroup
 
 gunicorn admin_cohort.wsgi --config .conf/gunicorn.conf.py
-
-# Wait for any process to exit
-wait -n
-
-# Exit with status of process that exited first
-exit $?
