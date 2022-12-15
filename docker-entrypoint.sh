@@ -22,7 +22,7 @@ chmod 666 /app/log/celery.log
 
 # See https://docs.celeryq.dev/en/stable/reference/cli.html#celery-worker for configuration
 # and https://stackoverflow.com/a/59659476 for superuser privileges
-celery worker -beat -A admin_cohort --loglevel INFO --logfile /app/log/celery.log --uid=nobody --gid=nogroup &
+celery worker -beat -A admin_cohort --loglevel=INFO --logfile=/app/log/celery.log --uid=nobody --gid=nogroup &
 
 gunicorn admin_cohort.wsgi --config .conf/gunicorn.conf.py &
 
@@ -31,4 +31,3 @@ wait -n
 
 # Exit with status of process that exited first
 exit $?
-
