@@ -7,7 +7,7 @@ from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import ValidationError
+from django.http import Http404
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.relations import RelatedField
 from rest_framework.response import Response
@@ -185,12 +185,12 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         user_accesses = get_user_valid_manual_accesses_queryset(self.request.user)
 
         if not user_accesses:
-            raise ValidationError("ERROR: No Accesses  found")
+            raise Http404("ERROR: No Accesses found")
         if self.request.query_params:
             # Case with perimeters search params
             cohorts_filtered_by_search = self.filter_queryset(self.get_queryset())
             if not cohorts_filtered_by_search:
-                return ValidationError("ERROR: No Cohort Found")
+                raise Http404("ERROR: No Cohort Found")
             list_cohort_id = [cohort.fhir_group_id for cohort in cohorts_filtered_by_search]
             cohort_dict_pop_source = get_dict_cohort_pop_source(list_cohort_id)
 
@@ -415,7 +415,7 @@ class RequestQuerySnapshotViewSet(
     def share(self, request, *args, **kwargs):
         recipients = request.data.get('recipients', None)
         if recipients is None:
-            raise ValidationError("'recipients' doit être fourni")
+            raise Http404("'recipients' doit être fourni")
 
         recipients = recipients.split(",")
         name = request.data.get('name', None)
@@ -429,7 +429,7 @@ class RequestQuerySnapshotViewSet(
                 errors.append(r)
 
         if len(errors):
-            raise ValidationError(
+            raise Http404(
                 f"Les utilisateur.rices avec les ids suivants "
                 f"n'ont pas été trouvés: {','.join(errors)}")
 
