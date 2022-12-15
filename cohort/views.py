@@ -291,7 +291,11 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                 job.request_job_status = job_status == JobStatus.started and new_status or JobStatus.cancelled
                 job.save()
             except Exception as e:
-                _logger.exception(f"Error while cancelling {status} job [{job.uuid}] - {e}")
+                msg = f"Error while cancelling {status} job [{job.uuid}] - {e}"
+                _logger.exception(msg)
+                job.request_job_status = JobStatus.failed
+                job.request_job_fail_msg = msg
+                job.save()
                 return HttpResponseServerError()
         return self.create(request, *args, **kwargs)
 
