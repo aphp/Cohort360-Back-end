@@ -14,7 +14,7 @@ from rest_framework.request import Request
 from admin_cohort.types import JobStatus
 from cohort.FhirAPi import FhirCountResponse, FhirCohortResponse, FhirValidateResponse
 
-_logger = logging.getLogger('django.request')
+_logger = logging.getLogger('django')
 
 COHORT_REQUEST_BUILDER_URL = os.environ.get('COHORT_REQUEST_BUILDER_URL')
 JOBS_API = f"{COHORT_REQUEST_BUILDER_URL}/jobs"
@@ -217,7 +217,8 @@ def cancel_job(job_id: str, auth_headers) -> JobStatus:
     if 'status' not in result:
         raise Exception(f"FHIR ERROR: could not read status from response; {result}")
 
-    s = result.get('status', "").lower()
+    # s = result.get('status', "").lower()
+    s = fhir_to_job_status().get(result.get('status'))
     try:
         new_status = JobStatus(s)
     except ValueError:

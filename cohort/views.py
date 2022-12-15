@@ -2,7 +2,7 @@ import logging
 
 from django.db.models import F
 from django.db.models import Q
-from django.http import QueryDict, JsonResponse, HttpResponse, Http404, HttpResponseServerError
+from django.http import QueryDict, JsonResponse, HttpResponse, Http404, HttpResponseServerError, HttpResponseBadRequest
 from django_filters import OrderingFilter
 from django_filters import rest_framework as filters
 from drf_yasg import openapi
