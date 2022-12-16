@@ -20,7 +20,7 @@ cron
 
 # See https://docs.celeryq.dev/en/stable/reference/cli.html#celery-worker for configuration
 #celery worker -beat -A admin_cohort --loglevel=INFO --logfile=/app/log/celery.log &
-celery worker -B -A admin_cohort --loglevel=info >> /app/log/celery.log 2>&1 &
+celery worker -B -A admin_cohort --loglevel=info  --logfile=/app/log/celery.log &
 sleep 10
 gunicorn admin_cohort.wsgi --config .conf/gunicorn.conf.py
 tail -f /app/log/gunicorn.log
