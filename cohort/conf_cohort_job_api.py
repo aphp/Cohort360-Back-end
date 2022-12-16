@@ -217,7 +217,8 @@ def cancel_job(job_id: str, auth_headers) -> JobStatus:
     if 'status' not in result:
         raise Exception(f"FHIR ERROR: could not read status from response ; {result}")
 
-    s = result.get('status', "").lower()
+    # s = result.get('status', "").lower()
+    s = fhir_to_job_status().get(result.get('status'))
     try:
         new_status = JobStatus(s)
     except ValueError:
