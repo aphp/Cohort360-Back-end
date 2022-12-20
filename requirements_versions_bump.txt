@@ -1,0 +1,9 @@
+
+1. change version comparaison sign in requirements.txt from == (or ~=) to >= to target the latest version.
+    $ sed -i 's/[~=]=/>=/' requirements.txt
+
+2. ensure venv is activated and install dependencies
+    (venv) $ pip install --upgrade --force-reinstall -r requirements.txt
+
+3. freeze the new dependencies in a separate file to notice the diff with requirements.txt
+    (venv) $ pip freeze > requirements_upgraded.txt
