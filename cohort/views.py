@@ -139,8 +139,8 @@ class CohortFilter(filters.FilterSet):
 
 
 class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
-    queryset = CohortResult.objects.select_related('request_query_snapshot__request')\
-                                   .annotate(request_id=F('request_query_snapshot__request__uuid')).all()
+    queryset = CohortResult.objects.select_related('request_query_snapshot__request') \
+        .annotate(request_id=F('request_query_snapshot__request__uuid')).all()
     serializer_class = CohortResultSerializer
     http_method_names = ['get', 'post', 'patch', 'delete']
     lookup_field = "uuid"
@@ -196,7 +196,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             cohorts_filtered_by_search = self.filter_queryset(self.get_queryset())
             if not cohorts_filtered_by_search:
                 raise Http404("ERROR: No Cohort Found")
-            list_cohort_id = [cohort.fhir_group_id for cohort in cohorts_filtered_by_search]
+            list_cohort_id = [cohort.fhir_group_id for cohort in cohorts_filtered_by_search if cohort.fhir_group_id]
             cohort_dict_pop_source = get_dict_cohort_pop_source(list_cohort_id)
 
             return Response(CohortRightsSerializer(get_all_cohorts_rights(user_accesses, cohort_dict_pop_source),
@@ -205,7 +205,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         all_user_cohorts = CohortResult.objects.filter(owner=self.request.user)
         if not all_user_cohorts:
             return Response("WARN: You do not have any cohort")
-        list_cohort_id = [cohort.fhir_group_id for cohort in all_user_cohorts]
+        list_cohort_id = [cohort.fhir_group_id for cohort in all_user_cohorts if cohort.fhir_group_id]
         cohort_dict_pop_source = get_dict_cohort_pop_source(list_cohort_id)
         return Response(CohortRightsSerializer(get_all_cohorts_rights(user_accesses, cohort_dict_pop_source),
                                                many=True).data)
@@ -276,11 +276,11 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             _logger.exception("Invalid 'request_query_snapshot_id'")
             return HttpResponseBadRequest()
 
-        dms_jobs = rqs.request.dated_measures.filter(request_job_status__in=[JobStatus.started, JobStatus.pending])\
-                                             .prefetch_related('cohort', 'restricted_cohort')
+        dms_jobs = rqs.request.dated_measures.filter(request_job_status__in=[JobStatus.started, JobStatus.pending]) \
+            .prefetch_related('cohort', 'restricted_cohort')
         for job in dms_jobs:
             if job.cohort.all() or job.restricted_cohort.all():
-                continue    # if the dated measure is bound to a cohort, don't cancel it
+                continue  # if the dated measure is bound to a cohort, don't cancel it
             job_status = job.request_job_status
             try:
                 if job_status == JobStatus.started:
