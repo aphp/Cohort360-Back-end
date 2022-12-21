@@ -1180,53 +1180,6 @@ class DatedMeasuresGetTests(DatedMeasuresTests):
         )
         self.check_retrieve_case(case)
 
-    def test_list_with_filters(self):
-        # As a user, I can list the DMs I own applying filters
-        basic_case = ListCase(user=self.user1, success=True,
-                              status=status.HTTP_200_OK)
-        rqs = self.user1.user_request_query_snapshots.first()
-        req = rqs.request
-        first_dm = self.user1.user_request_query_results.first()
-        cases = [
-            basic_case.clone(
-                params=dict(count_task_id=first_dm.count_task_id),
-                to_find=[first_dm],
-            ),
-            basic_case.clone(
-                params=dict(mode=DATED_MEASURE_MODE_CHOICES[0][0]),
-                to_find=[dm for dm in
-                         self.user1.user_request_query_results.all()
-                         if dm.mode == DATED_MEASURE_MODE_CHOICES[0][0]],
-            ),
-            basic_case.clone(
-                params=dict(request_query_snapshot=rqs.pk),
-                to_find=list(rqs.dated_measures.all()),
-            ),
-            basic_case.clone(
-                params=dict(request_query_snapshot__request=req.pk),
-                to_find=sum((list(rqs.dated_measures.all())
-                             for rqs in req.query_snapshots.all()), []),
-            ),
-            basic_case.clone(
-                params=dict(request_id=req.pk),
-                to_find=sum((list(rqs.dated_measures.all())
-                             for rqs in req.query_snapshots.all()), []),
-            ),
-        ]
-        [self.check_get_paged_list_case(case) for case in cases]
-
-    def test_rest_get_list_from_rqs(self):
-        # As a user, I can get the list of DMs from the RQS it is bound to
-        rqs = self.user1.user_request_query_snapshots.first()
-
-        self.check_get_paged_list_case(ListCase(
-            status=status.HTTP_200_OK,
-            success=True,
-            user=self.user1,
-            to_find=list(rqs.dated_measures.all())
-        ), NestedDatedMeasureViewSet.as_view({'get': 'list'}),
-            request_query_snapshot=rqs.pk)
-
 
 class DMCaseRetrieveFilter(CaseRetrieveFilter):
     def __init__(self, request_query_snapshot__pk: str = "", **kwargs):
