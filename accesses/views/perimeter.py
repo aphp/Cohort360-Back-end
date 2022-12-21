@@ -11,6 +11,7 @@ from admin_cohort.settings import PERIMETERS_TYPES
 from admin_cohort.tools import join_qs
 from admin_cohort.views import BaseViewset, YarnReadOnlyViewsetMixin, \
     SwaggerSimpleNestedViewSetMixin
+from cohort.models import CohortResult
 from cohort.tools import get_list_cohort_id_care_site
 from ..models import Role, Perimeter, get_user_valid_manual_accesses_queryset, \
     get_all_perimeters_parents_queryset
@@ -150,8 +151,9 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
         if self.request.query_params:
             cohort_ids = self.request.query_params.get("cohort_id")
             if cohort_ids:
+                all_user_cohorts = CohortResult.objects.filter(owner=self.request.user)
                 list_perimeter_cohort_ids = get_list_cohort_id_care_site(
-                    [int(cohort_id) for cohort_id in cohort_ids.split(",")])
+                    [int(cohort_id) for cohort_id in cohort_ids.split(",")], all_user_cohorts)
                 perimeters_filtered_by_search = Perimeter.objects.filter(cohort_id__in=list_perimeter_cohort_ids)
             else:
                 perimeters_filtered_by_search = self.filter_queryset(self.get_queryset())
