@@ -1,11 +1,12 @@
 from coverage.annotate import os
 from django.db import models
 from django.db.models import QuerySet
-
+from django.http import Http404
 from accesses.conf_perimeters import OmopModelManager
 from accesses.models import Perimeter, Access, Role
 from accesses.tools.perimeter_process import get_perimeters_ids_list
 from admin_cohort import settings
+from cohort.models import CohortResult
 
 ROLE = "role"
 READ_PATIENT_NOMI = "read_patient_nomi"
@@ -122,7 +123,7 @@ def psql_query_get_pop_source_from_cohort(cohorts_ids: list):
     """
 
 
-def get_list_cohort_id_care_site(cohorts_ids: list):
+def get_list_cohort_id_care_site(cohorts_ids: list, all_user_cohorts: [CohortResult]):
     """
     Give the list of cohort_id and the list of Perimete.cohort_id population source for cohort users and remove
     cohort user ids
@@ -130,6 +131,8 @@ def get_list_cohort_id_care_site(cohorts_ids: list):
     fact_relationships = FactRelationShip.objects.raw(psql_query_get_pop_source_from_cohort(cohorts_ids))
     cohort_pop_source = cohorts_ids.copy()
     for fact in fact_relationships:
+        if len(all_user_cohorts.filter(fhir_group_id=fact.fact_id_1)) == 0:
+            raise Http404(f"Issue in cohort's belonging user: {fact.fact_id_1} is not user cohort")
         if fact.fact_id_1 in cohort_pop_source:
             cohort_pop_source.remove(fact.fact_id_1)
         cohort_pop_source.append(fact.fact_id_2)
