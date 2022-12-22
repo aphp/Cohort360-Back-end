@@ -6,7 +6,6 @@ from typing import Dict, List
 
 import requests
 import simplejson
-from django.conf import settings
 from hdfs import HdfsError
 from hdfs.ext.kerberos import KerberosClient
 from requests import Response
@@ -242,8 +241,6 @@ def post_export(er: ExportRequest) -> str:
               "no_date_shift": not er.nominative and er.shift_dates,
               "overwrite": False,
               "user_for_pseudo": not er.nominative and er.target_unix_account.name or None,
-              "is_debug": settings.DEBUG,
-              "is_test": settings.DEBUG
               }
     if er.output_format == ExportType.HIVE:
         url = EXPORT_HIVE_URL
