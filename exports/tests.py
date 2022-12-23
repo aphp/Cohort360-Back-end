@@ -10,17 +10,15 @@ from rest_framework.test import force_authenticate
 
 from accesses.models import Access, Role
 from admin_cohort.models import User, JobStatus
-from admin_cohort.tests_tools import new_user_and_profile, \
-    ViewSetTestsWithBasicPerims, random_str, CreateCase, \
-    CaseRetrieveFilter, ListCase, RequestCase, RetrieveCase, PatchCase, \
-    DeleteCase
+from admin_cohort.tests_tools import new_user_and_profile, ViewSetTestsWithBasicPerims, random_str, CreateCase, \
+    CaseRetrieveFilter, ListCase, RequestCase, RetrieveCase, PatchCase, DeleteCase
 from admin_cohort.tools import prettify_json
-from cohort.models import CohortResult, RequestQuerySnapshot, Request, Folder, \
-    DatedMeasure
-from exports.models import ExportRequest, ExportRequestTable, ExportType
-from exports.tasks import delete_export_requests_csv_files
-from exports.views import ExportRequestViewset
+from cohort.models import CohortResult, RequestQuerySnapshot, Request, Folder, DatedMeasure
 from workspaces.models import Account
+from .models import ExportRequest, ExportRequestTable
+from .tasks import delete_export_requests_csv_files
+from .types import ExportType
+from .views import ExportRequestViewSet
 
 EXPORTS_URL = "/exports"
 
@@ -126,11 +124,11 @@ class ExportsTests(ViewSetTestsWithBasicPerims):
     ]
 
     objects_url = "/exports/"
-    retrieve_view = ExportRequestViewset.as_view({'get': 'retrieve'})
-    list_view = ExportRequestViewset.as_view({'get': 'list'})
-    create_view = ExportRequestViewset.as_view({'post': 'create'})
-    delete_view = ExportRequestViewset.as_view({'delete': 'destroy'})
-    update_view = ExportRequestViewset.as_view({'patch': 'partial_update'})
+    retrieve_view = ExportRequestViewSet.as_view({'get': 'retrieve'})
+    list_view = ExportRequestViewSet.as_view({'get': 'list'})
+    create_view = ExportRequestViewSet.as_view({'post': 'create'})
+    delete_view = ExportRequestViewSet.as_view({'delete': 'destroy'})
+    update_view = ExportRequestViewSet.as_view({'patch': 'partial_update'})
     model = ExportRequest
     model_objects = ExportRequest.objects
     model_fields = ExportRequest._meta.fields
@@ -438,7 +436,7 @@ class DownloadCase(RequestCase):
 
 
 class ExportsRetrieveTests(ExportsWithSimpleSetUp):
-    download_view = ExportRequestViewset.as_view({'get': 'download'})
+    download_view = ExportRequestViewSet.as_view({'get': 'download'})
 
     def setUp(self):
         super(ExportsRetrieveTests, self).setUp()
@@ -1054,8 +1052,8 @@ class ValidateCase(RequestCase):
 
 
 class ExportsValidateDenyTests(ExportsWithSimpleSetUp):
-    deny_view = ExportRequestViewset.as_view({'patch': 'deny'})
-    validate_view = ExportRequestViewset.as_view({'patch': 'validate'})
+    deny_view = ExportRequestViewSet.as_view({'patch': 'deny'})
+    validate_view = ExportRequestViewSet.as_view({'patch': 'validate'})
 
     def setUp(self):
         super(ExportsValidateDenyTests, self).setUp()
@@ -1210,7 +1208,7 @@ class ExportsDeleteNotAllowedTests(ExportsNotAllowedTests):
 
 
 class ExportsUpdateNotAllowedTests(ExportsNotAllowedTests):
-    update_view = ExportRequestViewset.as_view({'update': 'update'})
+    update_view = ExportRequestViewSet.as_view({'update': 'update'})
 
     def test_error_update_request(self):
         [self.check_patch_case(PatchCase(

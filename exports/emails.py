@@ -10,10 +10,11 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from admin_cohort.models import User
-from admin_cohort.settings import EMAIL_BACK_HOST_URL, EMAIL_SENDER_ADDRESS, \
-    EMAIL_SUPPORT_CONTACT, DAYS_TO_DELETE_CSV_FILES, EMAIL_REGEX_CHECK
+from admin_cohort.settings import EMAIL_BACK_HOST_URL, EMAIL_SENDER_ADDRESS, EMAIL_SUPPORT_CONTACT, \
+    DAYS_TO_DELETE_CSV_FILES, EMAIL_REGEX_CHECK
 from admin_cohort.types import JobStatus
-from exports.models import ExportRequest, ExportType
+from .models import ExportRequest
+from .types import ExportType
 
 locale.setlocale(locale.LC_ALL, 'fr_FR.utf8')
 

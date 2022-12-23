@@ -9,10 +9,11 @@ from accesses.models import DataRight, build_data_rights
 from admin_cohort.models import User, JobStatus
 from cohort.models import CohortResult
 from exports import conf_exports
-from exports.emails import check_email_address
-from exports.models import ExportRequest, ExportRequestTable, ExportType
-from exports.permissions import can_review_transfer_jupyter, can_review_export
 from workspaces.models import Account
+from .emails import check_email_address
+from .models import ExportRequest, ExportRequestTable
+from .permissions import can_review_transfer_jupyter, can_review_export
+from .types import ExportType
 
 
 class ExportRequestTableSerializer(serializers.ModelSerializer):
