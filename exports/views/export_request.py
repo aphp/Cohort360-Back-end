@@ -1,6 +1,7 @@
 import http
 import logging as lg
 
+from django.db.models import Q
 from django.http import HttpResponse, StreamingHttpResponse
 from django_filters import rest_framework as filters
 from drf_yasg import openapi
@@ -12,6 +13,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 
 from admin_cohort.models import User
+from admin_cohort.tools import join_qs
 from admin_cohort.types import JobStatus
 from admin_cohort.views import CustomLoggingMixin
 from cohort.models import CohortResult
@@ -20,7 +22,7 @@ from exports.emails import check_email_address
 from exports.models import ExportRequest
 from exports.permissions import ExportRequestPermissions, ExportJupyterPermissions, can_review_transfer_jupyter, \
     can_review_export_csv
-from exports.serializers import ExportRequestSerializer, ExportRequestSerializerNoReviewer
+from exports.serializers import ExportRequestSerializer, ExportRequestSerializerNoReviewer, ExportRequestListSerializer
 from exports.tasks import launch_request
 from exports.types import ExportType
 
@@ -28,20 +30,32 @@ _logger = lg.getLogger('django.request')
 
 
 class ExportRequestFilter(filters.FilterSet):
+
+    def multi_fields_filter(self, queryset, field, value: str):
+        if value:
+            return queryset.filter(join_qs([Q(cohort_fk__owner__firstname__icontains=value),
+                                            Q(cohort_fk__owner__lastname__icontains=value)]))
+        return queryset
+
+    cohort_name = filters.CharFilter(field_name="cohort_fk__name", lookup_expr='icontains')
+    cohort_owner = filters.CharFilter(method="multi_fields_filter")
+
     class Meta:
         model = ExportRequest
-        fields = ('output_format', 'request_job_status', 'creator_fk')
+        fields = ('output_format', 'request_job_status', 'cohort_name', 'cohort_owner',
+                  'creator_fk', 'target_unix_account', 'insert_datetime')
 
 
 class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
-    serializer_class = ExportRequestSerializer
     queryset = ExportRequest.objects.all()
+    serializer_class = ExportRequestSerializer
     lookup_field = "id"
     permissions = (ExportRequestPermissions, ExportJupyterPermissions)
     swagger_tags = ['Exports']
-    logging_methods = ['POST', 'PATCH']
     filterset_class = ExportRequestFilter
     http_method_names = ['get', 'post', 'patch']
+    logging_methods = ['POST', 'PATCH']
+    search_fields = ("motivation", "output_format")
 
     def should_log(self, request, response):
         act = getattr(getattr(request, "parser_context", {}).get("view", {}), "action", "")
@@ -64,8 +78,14 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
             types.append(ExportType.CSV)
         if can_review_transfer_jupyter(reviewer):
             types.extend([ExportType.PSQL, ExportType.HIVE])
-
         return q.filter(owner=self.request.user) | q.filter(output_format__in=types)
+
+    def list(self, request, *args, **kwargs):
+        q = self.filter_queryset(self.queryset)
+        if not q:
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        serializer = ExportRequestListSerializer(q, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['patch'], url_path="deny")
     def deny(self, request, *args, **kwargs):
