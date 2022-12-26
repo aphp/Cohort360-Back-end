@@ -41,7 +41,12 @@ settings.DATABASES.__setitem__('omop', {'ENGINE': 'django.db.backends.postgresql
                                         'HOST': env.get("DB_OMOP_HOST"),
                                         'PORT': env.get("DB_OMOP_PORT"),
                                         'DISABLE_SERVER_SIDE_CURSORS': True,
-                                        'OPTIONS': {'options': f"-c search_path={env.get('DB_OMOP_SCHEMA')},public"}
+                                        'OPTIONS': {'options': f"-c search_path={env.get('DB_OMOP_SCHEMA')},public"},
+                                        'ATOMIC_REQUESTS': True,
+                                        'AUTOCOMMIT': True,
+                                        'TIME_ZONE': 'UTC',
+                                        'CONN_HEALTH_CHECKS': False,
+                                        'CONN_MAX_AGE': 0,
                                         })
 
 # CLASS DEFINITION ####################################################################################################
