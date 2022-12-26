@@ -9,7 +9,7 @@ def show_diff(old, future):
 
 
 if __name__ == '__main__':
-    old = "requirements.txt"
-    future = "requirements_upgraded.txt"
-    show_diff(old, future)
+    old_file = "requirements_old.txt"
+    future_file = "requirements.txt"
+    show_diff(old_file, future_file)
 

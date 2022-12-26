@@ -2,8 +2,23 @@
 1. change version comparaison sign in requirements.txt from == (or ~=) to >= to target the latest version.
     $ sed -i 's/[~=]=/>=/' requirements.txt
 
-2. ensure venv is activated and install dependencies
+2. ensure venv py3.11 is activated and install dependencies
     (venv) $ pip install --upgrade --force-reinstall -r requirements.txt
+    Errors:
+        .distutils module not found
+            sudo apt install python3.11-distutils
+        . kerberos
+            $ sudo apt-get install python3.11-dev
+            $ sudo apt-get install -y libkrb5-dev gcc
+            -> then retry:
+                $ pip install --upgrade --force-reinstall -r requirements.txt
+
+
 
 3. freeze the new dependencies in a separate file to notice the diff with requirements.txt
     (venv) $ pip freeze > requirements_upgraded.txt
+
+
+
+
+
