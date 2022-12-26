@@ -29,9 +29,9 @@ from exports.serializers import ExportRequestSerializer, \
 from workspaces.conf_workspaces import get_account_groups_from_id_aph
 from workspaces.models import Account
 from workspaces.permissions import AccountPermissions
-from workspaces.views import AccountViewset
+from workspaces.views import AccountViewSet
 
-_logger = lg.getLogger(__name__)
+_logger = lg.getLogger('django.request')
 
 
 class UnixAccountFilter(filters.FilterSet):
@@ -46,7 +46,7 @@ class UnixAccountFilter(filters.FilterSet):
         fields = ("provider_source_value",)
 
 
-class UnixAccountViewSet(AccountViewset):
+class UnixAccountViewSet(AccountViewSet):
     lookup_field = "uid"
     serializer_class = AnnexeAccountSerializer
     http_method_names = ["get"]

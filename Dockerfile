@@ -8,7 +8,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update -y && apt-get install -y nginx curl gettext locales locales-all xxd krb5-user nano cron
 
 # Configure the nginx inside the docker image
-COPY docker/nginx.conf /etc/nginx/sites-enabled/
+COPY .conf/nginx.conf /etc/nginx/
 
 # Install requirement for python
 RUN pip install -r requirements.txt

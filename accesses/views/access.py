@@ -1,14 +1,14 @@
+import urllib
 from functools import reduce
 from typing import List
 
-from django_filters import rest_framework as filters
 from django.db.models import Q, BooleanField, When, Case, Value, \
     QuerySet
 from django.db.models.functions import Coalesce
-from django.utils import timezone
-
 from django.http import Http404
+from django.utils import timezone
 from django_filters import OrderingFilter
+from django_filters import rest_framework as filters
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
@@ -17,17 +17,15 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import AND
 from rest_framework.response import Response
 from rest_framework.status import HTTP_403_FORBIDDEN
-import urllib
 
-
-from ..models import Role, Access, get_user_valid_manual_accesses_queryset,\
-    intersect_queryset_criteria, build_data_rights
-from ..permissions import AccessPermissions
-from ..serializers import AccessSerializer, DataRightSerializer
 from admin_cohort.permissions import IsAuthenticated
 from admin_cohort.settings import PERIMETERS_TYPES
 from admin_cohort.tools import join_qs
 from admin_cohort.views import BaseViewset, CustomLoggingMixin
+from ..models import Role, Access, get_user_valid_manual_accesses_queryset, \
+    intersect_queryset_criteria, build_data_rights
+from ..permissions import AccessPermissions
+from ..serializers import AccessSerializer, DataRightSerializer
 
 
 class AccessFilter(filters.FilterSet):
@@ -98,11 +96,10 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
     def get_queryset(self) -> QuerySet:
         q = super(AccessViewSet, self).get_queryset()
 
-        accesses = self.request.user.valid_manual_accesses_queryset \
-            .select_related("role")
+        accesses = self.request.user.valid_manual_accesses_queryset.select_related("role")
 
         to_exclude = [a.accesses_criteria_to_exclude for a in accesses]
-        if len(to_exclude):
+        if to_exclude:
             to_exclude = reduce(intersect_queryset_criteria, to_exclude)
 
             qs = []
@@ -113,9 +110,8 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
                 if 'perimeter_not' in cs:
                     exc_q = exc_q & ~Q(perimeter_id__in=cs['perimeter_not'])
                 if 'perimeter_not_child' in cs:
-                    exc_q = exc_q & ~join_qs([Q(
-                        **{'perimeter__' + i * 'parent__' + 'id__in': (
-                            cs['perimeter_not_child'])})
+                    exc_q = exc_q & ~join_qs([
+                        Q(**{'perimeter__' + i * 'parent__' + 'id__in': (cs['perimeter_not_child'])})
                         for i in range(1, len(PERIMETERS_TYPES))])
 
                 qs.append(exc_q)

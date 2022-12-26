@@ -1,4 +1,8 @@
-from django.http import QueryDict, JsonResponse, HttpResponse
+import logging
+
+from django.db.models import F
+from django.db.models import Q
+from django.http import QueryDict, JsonResponse, HttpResponse, Http404, HttpResponseServerError, HttpResponseBadRequest
 from django_filters import OrderingFilter
 from django_filters import rest_framework as filters
 from drf_yasg import openapi
@@ -11,14 +15,19 @@ from rest_framework.relations import RelatedField
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
+from accesses.models import get_user_valid_manual_accesses_queryset
 from admin_cohort import app
+from admin_cohort.tools import join_qs
 from admin_cohort.types import JobStatus
 from admin_cohort.views import SwaggerSimpleNestedViewSetMixin, CustomLoggingMixin
 from cohort.conf_cohort_job_api import cancel_job, get_fhir_authorization_header
 from cohort.models import Request, CohortResult, RequestQuerySnapshot, DatedMeasure, Folder, User
 from cohort.permissions import IsOwner
 from cohort.serializers import RequestSerializer, CohortResultSerializer, RequestQuerySnapshotSerializer, \
-    DatedMeasureSerializer, FolderSerializer, CohortResultSerializerFullDatedMeasure
+    DatedMeasureSerializer, FolderSerializer, CohortResultSerializerFullDatedMeasure, CohortRightsSerializer
+from cohort.tools import get_all_cohorts_rights, get_dict_cohort_pop_source
+
+_logger = logging.getLogger('django.request')
 
 
 class NoUpdateViewSetMixin:
@@ -55,7 +64,7 @@ class UserObjectsRestrictedViewSet(BaseViewSet):
     # todo : remove when front is ready
     #  (front should not post with '_id' fields)
     def initial(self, request, *args, **kwargs):
-        super(UserObjectsRestrictedViewSet, self)\
+        super(UserObjectsRestrictedViewSet, self) \
             .initial(request, *args, **kwargs)
 
         s = self.get_serializer_class()()
@@ -78,7 +87,6 @@ class CohortFilter(filters.FilterSet):
     # ?min_created_at=2015-04-23
     min_fhir_datetime = filters.IsoDateTimeFilter(field_name='dated_measure__fhir_datetime', lookup_expr="gte")
     max_fhir_datetime = filters.IsoDateTimeFilter(field_name='dated_measure__fhir_datetime', lookup_expr="lte")
-    request_job_status = filters.AllValuesMultipleFilter()
     request_id = filters.CharFilter(field_name='request_query_snapshot__request__pk')
 
     # unused, untested
@@ -88,9 +96,17 @@ class CohortFilter(filters.FilterSet):
     def perimeters_filter(self, queryset, field, value):
         return queryset.filter(request_query_snapshot__perimeters_ids__contains=value.split(","))
 
+    def multi_value_filter(self, queryset, field, value: str):
+        if value:
+            sub_values = [val.strip() for val in value.split(",")]
+            return queryset.filter(join_qs([Q(**{field: v}) for v in sub_values]))
+        return queryset
+
     type = filters.AllValuesMultipleFilter()
     perimeter_id = filters.CharFilter(method="perimeter_filter")
     perimeters_ids = filters.CharFilter(method="perimeters_filter")
+    fhir_group_id = filters.CharFilter(method="multi_value_filter", field_name="fhir_group_id")
+    status = filters.CharFilter(method="multi_value_filter", field_name="request_job_status")
 
     ordering = OrderingFilter(fields=('-created_at',
                                       'modified_at',
@@ -115,6 +131,7 @@ class CohortFilter(filters.FilterSet):
                   'request_query_snapshot__request',
                   'request_id',
                   'request_job_status',
+                  'status',
                   # unused, untested
                   'type',
                   'perimeter_id',
@@ -122,7 +139,8 @@ class CohortFilter(filters.FilterSet):
 
 
 class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
-    queryset = CohortResult.objects.all()
+    queryset = CohortResult.objects.select_related('request_query_snapshot__request') \
+        .annotate(request_id=F('request_query_snapshot__request__uuid')).all()
     serializer_class = CohortResultSerializer
     http_method_names = ['get', 'post', 'patch', 'delete']
     lookup_field = "uuid"
@@ -161,6 +179,36 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         if not jobs_count:
             return HttpResponse(status=status.HTTP_204_NO_CONTENT)
         return JsonResponse(data={"jobs_count": jobs_count}, status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(
+        method='get',
+        operation_summary="Give cohorts aggregation read patient rights, export csv rights and transfer jupyter rights."
+                          "It check accesses with perimeters population source for each cohort found.",
+        responses={'201': openapi.Response("give rights in caresite perimeters found", CohortRightsSerializer())})
+    @action(detail=False, methods=['get'], url_path="cohort-rights")
+    def get_perimeters_read_right_accesses(self, request, *args, **kwargs):
+        user_accesses = get_user_valid_manual_accesses_queryset(self.request.user)
+
+        if not user_accesses:
+            raise Http404("ERROR: No Accesses found")
+        if self.request.query_params:
+            # Case with perimeters search params
+            cohorts_filtered_by_search = self.filter_queryset(self.get_queryset())
+            if not cohorts_filtered_by_search:
+                raise Http404("ERROR: No Cohort Found")
+            list_cohort_id = [cohort.fhir_group_id for cohort in cohorts_filtered_by_search if cohort.fhir_group_id]
+            cohort_dict_pop_source = get_dict_cohort_pop_source(list_cohort_id)
+
+            return Response(CohortRightsSerializer(get_all_cohorts_rights(user_accesses, cohort_dict_pop_source),
+                                                   many=True).data)
+
+        all_user_cohorts = CohortResult.objects.filter(owner=self.request.user)
+        if not all_user_cohorts:
+            return Response("WARN: You do not have any cohort")
+        list_cohort_id = [cohort.fhir_group_id for cohort in all_user_cohorts if cohort.fhir_group_id]
+        cohort_dict_pop_source = get_dict_cohort_pop_source(list_cohort_id)
+        return Response(CohortRightsSerializer(get_all_cohorts_rights(user_accesses, cohort_dict_pop_source),
+                                               many=True).data)
 
 
 class NestedCohortResultViewSet(SwaggerSimpleNestedViewSetMixin,
@@ -201,72 +249,54 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
 
     filterset_class = DMFilter
     pagination_class = LimitOffsetPagination
-    search_fields = []
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        if CohortResult.objects.filter(
-                dated_measure__uuid=instance.uuid).first() is not None:
-            return Response({
-                'message': "Cannot delete a Dated measure "
-                           "that is bound to a cohort result"
-            }, status=status.HTTP_403_FORBIDDEN)
-        return super(DatedMeasureViewSet, self)\
-            .destroy(request, *args, **kwargs)
+        if CohortResult.objects.filter(dated_measure__uuid=instance.uuid).first():
+            return Response({'message': "Cannot delete a DatedMeasure bound to a CohortResult"},
+                            status=status.HTTP_403_FORBIDDEN)
+        return super(DatedMeasureViewSet, self).destroy(request, *args, **kwargs)
 
     @action(methods=['post'], detail=False, url_path='create-unique')
     def create_unique(self, request, *args, **kwargs):
+        """ Demande à l'API FHIR d'annuler tous les jobs de calcul de count liés à
+            une construction de Requête avant d'en créer un nouveau
         """
-        Demande à l'API FHIR d'annuler tous les jobs de calcul de count liés à
-        une construction de Requête avant d'en créer un nouveau
-        """
-        # TODO : test
-        if 'request_query_snapshot' in kwargs:
+        if "request_query_snapshot" in kwargs:
             rqs_id = kwargs['request_query_snapshot']
         elif "request_query_snapshot_id" in request.data:
-            rqs_id = request.data.get('request_query_snapshot_id')
+            rqs_id = request.data.get("request_query_snapshot_id")
         else:
-            return Response(dict(message="'request_query_snapshot_id' not provided"), status.HTTP_400_BAD_REQUEST)
+            _logger.exception("'request_query_snapshot_id' not provided")
+            return HttpResponseBadRequest()
 
-        headers = get_fhir_authorization_header(request)
         try:
             rqs: RequestQuerySnapshot = RequestQuerySnapshot.objects.get(pk=rqs_id)
         except RequestQuerySnapshot.DoesNotExist:
-            return Response({"message": "No existing request_query_snapshot to 'request_query_snapshot_id' provided"},
-                            status.HTTP_400_BAD_REQUEST)
+            _logger.exception("Invalid 'request_query_snapshot_id'")
+            return HttpResponseBadRequest()
 
-        req_dms = rqs.request.dated_measures
-        started_status = JobStatus.started.value
-        started_jobs_to_cancel = req_dms.filter(request_job_status=started_status).prefetch_related('cohort',
-                                                                                                    'restricted_cohort')
-        for job in started_jobs_to_cancel:
-            if len(job.cohort.all()) or len(job.restricted_cohort.all()):
-                # if the started dated measure is bound to a cohort, don't cancel it
-                continue
+        dms_jobs = rqs.request.dated_measures.filter(request_job_status__in=[JobStatus.started, JobStatus.pending]) \
+            .prefetch_related('cohort', 'restricted_cohort')
+        for job in dms_jobs:
+            if job.cohort.all() or job.restricted_cohort.all():
+                continue  # if the dated measure is bound to a cohort, don't cancel it
+            job_status = job.request_job_status
             try:
-                job_status = cancel_job(job.request_job_id, headers)
-                job.request_job_status = job_status.value
+                if job_status == JobStatus.started:
+                    headers = get_fhir_authorization_header(request)
+                    new_status = cancel_job(job.request_job_id, headers)
+                else:
+                    app.control.revoke(job.count_task_id)
+                job.request_job_status = job_status == JobStatus.started and new_status or JobStatus.cancelled
                 job.save()
             except Exception as e:
-                return Response({"message": f"Error while cancelling job '{job.request_job_id}', "
-                                            f"bound to dated-measure '{job.uuid}': {str(e)}"},
-                                status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        pending_status = JobStatus.pending.value
-        pending_jobs_to_cancel = req_dms.filter(request_job_status=pending_status).prefetch_related('cohort',
-                                                                                                    'restricted_cohort')
-        for job in pending_jobs_to_cancel:
-            if len(job.cohort.all()) or len(job.restricted_cohort.all()):
-                # if the pending dated measure is bound to a cohort, don't cancel it
-                continue
-            try:
-                app.control.revoke(job.count_task_id)
-                # revoke(task_id=job.count_task_id, terminate=True)
-                job.request_job_status = (JobStatus.cancelled.value)
+                msg = f"Error while cancelling {status} job [{job.request_job_id}] DM [{job.uuid}] - {e}"
+                _logger.exception(msg)
+                job.request_job_status = JobStatus.failed
+                job.request_job_fail_msg = msg
                 job.save()
-            except Exception as e:
-                return Response({"message": str(e)}, status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+                return HttpResponseServerError()
         return self.create(request, *args, **kwargs)
 
     def update(self, request, *args, **kwargs):
@@ -281,15 +311,9 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         # TODO : test
         instance: DatedMeasure = self.get_object()
         try:
-            cancel_job(
-                instance.request_job_id,
-                get_fhir_authorization_header(request)
-            )
+            cancel_job(instance.request_job_id, get_fhir_authorization_header(request))
         except Exception as e:
-            return Response(
-                dict(message=str(e)),
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            return Response(dict(message=str(e)), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class NestedDatedMeasureViewSet(SwaggerSimpleNestedViewSetMixin,
@@ -370,8 +394,8 @@ class RequestQuerySnapshotViewSet(
     @action(detail=True, methods=['post'], permission_classes=(IsOwner,),
             url_path="share")
     def share(self, request, *args, **kwargs):
-        recipients = request.data.get('recipients', None)
-        if recipients is None:
+        recipients = request.data.get('recipients')
+        if not recipients:
             raise ValidationError("'recipients' doit être fourni")
 
         recipients = recipients.split(",")
@@ -379,16 +403,10 @@ class RequestQuerySnapshotViewSet(
 
         users = User.objects.filter(pk__in=recipients)
         users_ids = [str(u.pk) for u in users]
-        errors = []
+        errors = [r for r in recipients if r not in users_ids]
 
-        for r in recipients:
-            if r not in users_ids:
-                errors.append(r)
-
-        if len(errors):
-            raise ValidationError(
-                f"Les utilisateur.rices avec les ids suivants "
-                f"n'ont pas été trouvés: {','.join(errors)}")
+        if errors:
+            raise ValidationError(f"Les utilisateurs avec les IDs suivants n'ont pas été trouvés: {','.join(errors)}")
 
         rqs: RequestQuerySnapshot = self.get_object()
         rqss = rqs.share(users, name)
@@ -415,7 +433,7 @@ class NestedRqsViewSet(SwaggerSimpleNestedViewSetMixin,
         if 'previous_snapshot' in kwargs:
             request.data["previous_snapshot"] = kwargs['previous_snapshot']
 
-        return super(NestedRqsViewSet, self)\
+        return super(NestedRqsViewSet, self) \
             .create(request, *args, **kwargs)
 
 
@@ -450,7 +468,7 @@ class NestedRequestViewSet(SwaggerSimpleNestedViewSetMixin, RequestViewSet):
         if 'parent_folder' in kwargs:
             request.data["parent_folder"] = kwargs['parent_folder']
 
-        return super(NestedRequestViewSet, self)\
+        return super(NestedRequestViewSet, self) \
             .create(request, *args, **kwargs)
 
 

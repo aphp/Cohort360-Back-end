@@ -1,4 +1,7 @@
+from rest_framework.exceptions import ValidationError
+
 from accesses.models import Perimeter, Access
+from accesses.tools.data_right_mapping import PerimeterReadRight
 
 
 def get_perimeters_ids_list(str_ids: str) -> [int]:
@@ -39,45 +42,6 @@ def get_top_perimeter_same_level(accesses_same_levels: [Access], all_distinct_pe
         if is_perimeter_in_top_hierarchy(above_list, all_distinct_perimeters):
             response_list.append(perimeter)
     return response_list
-
-
-def get_top_accesses_nominative(accesses_nominative: [Access], all_nominative_perimeters: [Perimeter]) -> [Access]:
-    """
-    Check if current access is top read nominative right accesses perimeter hierarchy,
-    and return list of top accesses.
-    """
-    accesses_dictionary = {}
-    for access in accesses_nominative:
-        perimeter: Perimeter = access.perimeter
-        if perimeter is None:
-            pass
-        above_list = get_perimeters_ids_list(perimeter.above_levels_ids)
-        if is_perimeter_in_top_hierarchy(above_list, all_nominative_perimeters):
-            accesses_dictionary[perimeter.id] = access
-
-    return list(accesses_dictionary.values())
-
-
-def get_top_accesses_pseudo(accesses_pseudo: [Access], all_nominative_perimeters: [Perimeter],
-                            all_pseudo_perimeters: [Perimeter]) -> [Access]:
-    """
-    return top of only pseudo read patient right accesses with (read_pseudo: True AND read_nominative:False)
-    check in first time if pseudo access is top of all pseudo accesses in hierarchy perimeter
-    In second time, it checks if there is no Nominative access in current ou parent perimeter level:
-    The rule must be => a read nominative right win vs read pseudo right
-    A nominative right on one perimeter at True give nominative right for all children of these perimeters.
-    """
-    accesses_dictionary = {}
-    for access in accesses_pseudo:
-        perimeter = access.perimeter
-        if perimeter is None:
-            pass
-        above_list = get_perimeters_ids_list(perimeter.above_levels_ids)
-        # if pseudo is top of all pseudo read accesses AND is not child of read nominative accesses
-        if is_perimeter_in_top_hierarchy(above_list, all_pseudo_perimeters) and \
-                is_perimeter_in_top_hierarchy([perimeter.id] + above_list, all_nominative_perimeters):
-            accesses_dictionary[perimeter.id] = access
-    return list(accesses_dictionary.values())
 
 
 def get_top_perimeter_inf_level(accesses_inf_levels: [Access], all_distinct_perimeters: [Perimeter],
@@ -122,3 +86,117 @@ def filter_perimeter_by_top_hierarchy_perimeter_list(perimeters_filtered_by_sear
             if top_perimeter.id == perimeter.id or top_perimeter.id in above_levels_ids:
                 response_list.append(perimeter)
     return response_list
+
+
+def get_right_boolean_for_each_accesses_list(above_levels_ids, all_read_patient_nominative_accesses,
+                                             all_read_patient_pseudo_accesses, all_read_ipp_accesses):
+    """
+    @param above_levels_ids: list of parents perimeters ids
+    @param all_read_patient_nominative_accesses:  QuerySet of accesses with nominative read patient right at True
+    @param all_read_patient_pseudo_accesses: QuerySet of accesses with nominative read patient right at True or Pseudo
+    @param all_read_ipp_accesses: QuerySet of accesses with read IPP right at True
+    @return: pseudo, nomi and ipp boolean right for the current perimeter
+    """
+    nomi, pseudo, ipp = False, False, False
+    if all_read_patient_nominative_accesses.filter(perimeter_id__in=above_levels_ids):
+        nomi, pseudo = True, True
+    elif all_read_patient_pseudo_accesses.filter(perimeter_id__in=above_levels_ids):
+        pseudo = True
+    if all_read_ipp_accesses.filter(perimeter_id__in=above_levels_ids):
+        ipp = True
+    return pseudo, nomi, ipp
+
+
+def filter_accesses_by_search_perimeters(perimeters_filtered_by_search, all_read_patient_nominative_accesses,
+                                         all_read_patient_pseudo_accesses, all_read_ipp_accesses) -> list:
+    """
+    filter Accesses  with perimeters fetch by search params with hierarchy perimeter response and user roles.
+    with following rule : Read nominative > Read pseudo
+    return dict of perimeter id and tuple of access and perimeter.
+    """
+    perimeter_read_right_list = []
+    for perimeter in perimeters_filtered_by_search:
+        above_levels_ids = get_perimeters_ids_list(perimeter.above_levels_ids)
+        above_levels_ids.append(perimeter.id)
+        pseudo, nomi, ipp = get_right_boolean_for_each_accesses_list(above_levels_ids,
+                                                                     all_read_patient_nominative_accesses,
+                                                                     all_read_patient_pseudo_accesses,
+                                                                     all_read_ipp_accesses)
+        data_read = PerimeterReadRight(pseudo=pseudo, nomi=nomi, ipp=ipp, perimeter=perimeter)
+        perimeter_read_right_list.append(data_read)
+    return perimeter_read_right_list
+
+
+def get_top_perimeter_from_read_patient_accesses(accesses_nomi, accesses_pseudo):
+    """
+    Get only top hierarchy perimeters with read patient right logical:
+    for each perimeters with nominative read right we do not keep perimeter if there is one in the above nomi list
+    for each perimeters with pseudo read right we do not keep perimeter if there is one in the above list nomi or pseudo
+    or if there nominative at same level.
+    @param accesses_nomi:  QuerySet of accesses with nominative read patient right at True
+    @param accesses_pseudo: QuerySet of accesses with nominative read patient right at True or Pseudo
+    @return: Top perimeters for read patient right
+    """
+    all_nomi = [access.perimeter.id for access in accesses_nomi]
+    all_pseudo = [access.perimeter.id for access in accesses_pseudo]
+    for access in accesses_nomi:
+        perimeter = access.perimeter
+        above_levels_ids = get_perimeters_ids_list(perimeter.above_levels_ids)
+        for above_perimeter in above_levels_ids:
+            if above_perimeter in all_nomi and perimeter.id in all_nomi:
+                all_nomi.remove(perimeter.id)
+                break
+    for access in accesses_pseudo:
+        perimeter = access.perimeter
+        above_levels_ids = get_perimeters_ids_list(perimeter.above_levels_ids)
+        for above_perimeter in above_levels_ids:
+            if (above_perimeter in all_pseudo or above_perimeter in all_nomi or perimeter.id in all_nomi) \
+                    and perimeter.id in all_pseudo:
+                all_pseudo.remove(perimeter.id)
+                break
+
+    return Perimeter.objects.filter(id__in=list(set(all_nomi + all_pseudo)))
+
+
+def get_read_patient_right(perimeters_filtered_by_search, all_read_patient_nominative_accesses,
+                           all_read_patient_pseudo_accesses):
+    """
+    for each search perimeter check of there is at least one access with read right:
+    3 response :
+    - if no right on one perimeter it raises an error
+    - if all perimeters are in nominative return is_pseudo at False
+    - else: return is_pseudo at True
+    """
+    is_pseudo = False
+    if not perimeters_filtered_by_search:
+        raise ValidationError(
+            "ERROR"
+            "|perimeter_process.py get_read_patient_right()"
+            "|No perimeters in parameter for rights verification")
+    for perimeter in perimeters_filtered_by_search:
+        above_levels_ids = get_perimeters_ids_list(perimeter.above_levels_ids)
+        above_levels_ids.append(perimeter.id)
+        if all_read_patient_nominative_accesses.filter(perimeter_id__in=above_levels_ids):
+            pass
+        elif all_read_patient_pseudo_accesses.filter(perimeter_id__in=above_levels_ids):
+            is_pseudo = True
+        else:
+            raise ValidationError(
+                f"ERROR"
+                f"|perimeter_process.py get_read_patient_right()"
+                f"|No read patient role on perimeter {perimeter.id} - {perimeter.name}")
+    return is_pseudo
+
+
+def is_pseudo_perimeter_in_top_perimeter(all_read_patient_nominative_accesses, all_read_patient_pseudo_accesses):
+    """
+    if there is at least one pseudo access with perimeter in top hierarchy return pseudo, if no accesses rise error
+    else return Nomi
+    """
+    nominative_perimeters = [access.perimeter_id for access in all_read_patient_nominative_accesses]
+    for access in all_read_patient_pseudo_accesses:
+        above_levels_ids = get_perimeters_ids_list(access.perimeter.above_levels_ids)
+        above_levels_ids.append(access.perimeter.id)
+        if not [pseudo_perimeter for pseudo_perimeter in above_levels_ids if pseudo_perimeter in nominative_perimeters]:
+            return True
+    return False

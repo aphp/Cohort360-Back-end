@@ -406,65 +406,42 @@ class UserViewSet(YarnReadOnlyViewsetMixin, BaseViewset):
         return {'request': self.request}
 
     def get_permissions(self):
-        return OR(IsAuthenticatedReadOnly(), )
+        return OR(IsAuthenticatedReadOnly())
 
     def get_serializer(self, *args, **kwargs):
-        return UserSerializer(*args, **kwargs) \
-            if can_user_read_users(self.request.user) \
-            else OpenUserSerializer(*args, **kwargs)
+        if can_user_read_users(self.request.user):
+            return UserSerializer(*args, **kwargs)
+        return OpenUserSerializer(*args, **kwargs)
 
     def get_queryset(self):
         # todo : to test manualonly
         manual_only = self.request.GET.get("manual_only", None)
         if not manual_only:
             return super(UserViewSet, self).get_queryset()
-
         return User.objects.filter(profiles__source='Manual').distinct()
 
-    @swagger_auto_schema(
-        manual_parameters=list(map(
-            lambda x: openapi.Parameter(
-                name=x[0], in_=openapi.IN_QUERY, description=x[1], type=x[2],
-                pattern=x[3] if len(x) == 4 else None
-            ), [
-                [
-                    "manual_only",
-                    "If True, only returns providers with a manual "
-                    "provider_history",
-                    openapi.TYPE_BOOLEAN
-                ],
-                ["firstname", "Search type", openapi.TYPE_STRING],
-                ["lastname", "Filter type", openapi.TYPE_STRING],
-                ["provider_username", "Search type", openapi.TYPE_STRING],
-                ["provider_source_value", "Search type", openapi.TYPE_STRING],
-                ["email", "Search type", openapi.TYPE_STRING],
-                [
-                    "ordering",
-                    "Which field to use when ordering the results "
-                    "(firstname, lastname, "
-                    "provider_username (provider_source_value), email)",
-                    openapi.TYPE_STRING
-                ],
-                [
-                    "search",
-                    "A search term on multiple fields ("
-                    "firstname, lastname, "
-                    "provider_username (provider_source_value), email)",
-                    openapi.TYPE_STRING
-                ],
-                [
-                    "page", "A page number within the paginated result set.",
-                    openapi.TYPE_INTEGER
-                ],
-            ])))
+    @swagger_auto_schema(manual_parameters=list(map(lambda x: openapi.Parameter(name=x[0], in_=openapi.IN_QUERY,
+                                                                                description=x[1], type=x[2],
+                                                                                pattern=x[3] if len(x) == 4 else None),
+                                                    [["manual_only", "If True, only returns providers with a manual "
+                                                                     "provider_history", openapi.TYPE_BOOLEAN],
+                                                     ["firstname", "Search type", openapi.TYPE_STRING],
+                                                     ["lastname", "Filter type", openapi.TYPE_STRING],
+                                                     ["provider_username", "Search type", openapi.TYPE_STRING],
+                                                     ["provider_source_value", "Search type", openapi.TYPE_STRING],
+                                                     ["email", "Search type", openapi.TYPE_STRING],
+                                                     ["ordering", "Which field to use when ordering the results "
+                                                                  "(firstname, lastname, "
+                                                                  "provider_username (provider_source_value), email)",
+                                                      openapi.TYPE_STRING],
+                                                     ["search", "A search term on multiple fields (firstname, lastname,"
+                                                                " provider_username (provider_source_value), email)",
+                                                      openapi.TYPE_STRING],
+                                                     ["page", "A page number within the paginated result set.",
+                                                      openapi.TYPE_INTEGER]])))
     def list(self, request, *args, **kwargs):
         # todo: double check
         if 'provider_source_value' in self.request.GET:
             request.GET._mutable = True
-            self.request.GET['provider_username'] = \
-                self.request.GET.get('provider_source_value')
-        if 'provider_source_value' in self.request.GET.get('ordering', ''):
-            self.request.GET['ordering'] = \
-                self.request.GET.get('ordering') \
-                    .replace('provider_source_value', 'provider_username')
+            self.request.GET['provider_username'] = self.request.GET.get('provider_source_value')
         return super(UserViewSet, self).list(request, *args, **kwargs)

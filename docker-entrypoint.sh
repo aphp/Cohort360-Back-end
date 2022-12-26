@@ -4,7 +4,7 @@ set -e
 mkdir -p static/ /app/log
 
 # update variables in nginx
-sed -i s/{{BACK_URL_LOCAL}}/$BACK_URL_LOCAL/g /etc/nginx/sites-enabled/nginx.conf;
+sed -i s/{{BACK_URL_LOCAL}}/$BACK_URL_LOCAL/g /etc/nginx/nginx.conf;
 
 # restart nginx
 service nginx restart
@@ -18,10 +18,15 @@ kinit $KERBEROS_USER -k -t akouachi.keytab
 crontab -l | { cat; echo "0 0 * * */1 /usr/bin/kinit akouachi@EDS.APHP.FR -k -t /app/akouachi.keytab"; } | crontab -
 cron
 
-celery worker -B -A admin_cohort --loglevel=info >> /app/log/celery.log 2>&1 &
-
+# See https://docs.celeryq.dev/en/stable/reference/cli.html#celery-worker for configuration
+#celery worker -beat -A admin_cohort --loglevel=INFO --logfile=/app/log/celery.log &
+celery worker -B -A admin_cohort --loglevel=info  --logfile=/app/log/celery.log &
 sleep 10
+gunicorn admin_cohort.wsgi --config .conf/gunicorn.conf.py
+tail -f /app/log/gunicorn.log
 
-python manage.py runserver >> /app/log/django.log 2>&1 &
+# Wait for any process to exit
+wait -n
 
-tail -f /app/log/django.log
+# Exit with status of process that exited first
+exit $?
