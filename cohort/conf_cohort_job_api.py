@@ -6,6 +6,7 @@ from typing import List, Tuple, Dict
 
 import simplejson
 from django.db.models import Model
+from django.utils import timezone
 from django.utils.datetime_safe import datetime
 from requests import Response
 from rest_framework import status
@@ -347,7 +348,7 @@ def post_count_cohort(json_file: str, auth_headers, log_prefix: str = "", dated_
         return FhirCountResponse(fhir_job_id=job.job_id, job_duration=datetime.now() - d, success=False,
                                  fhir_job_status=JobStatus.failed, err_msg=err_msg)
 
-    return FhirCountResponse(fhir_datetime=datetime.now(),
+    return FhirCountResponse(fhir_datetime=timezone.now(),
                              fhir_job_id=job.job_id,
                              job_duration=datetime.now() - d,
                              success=True,
@@ -483,7 +484,7 @@ def post_create_cohort(json_file: str, auth_headers, log_prefix: str = "", cohor
                                   fhir_job_status=JobStatus.failed, err_msg=err_msg)
 
     return FhirCohortResponse(fhir_job_id=job.job_id,
-                              fhir_datetime=datetime.now(),
+                              fhir_datetime=timezone.now(),
                               job_duration=datetime.now() - d,
                               success=True,
                               count=job_result.count,

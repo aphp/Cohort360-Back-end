@@ -5,7 +5,6 @@ import environ
 import jwt
 import requests
 from django.utils import timezone
-from django.utils.translation import ugettext_lazy as _
 from rest_framework import status, HTTP_HEADER_ENCODING
 from rest_framework_simplejwt.exceptions import AuthenticationFailed
 
@@ -54,11 +53,8 @@ def get_raw_token(header: bytes) -> Union[str, None]:
         return None
 
     if len(parts) != 2:
-        raise AuthenticationFailed(
-            _('Authorization header must contain '
-              'two space-delimited values'),
-            code='bad_authorization_header',
-        )
+        raise AuthenticationFailed('Authorization header must contain two space-delimited values',
+                                   code='bad_authorization_header')
 
     res = parts[1]
     return res if not isinstance(res, bytes) else res.decode('utf-8')

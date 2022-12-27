@@ -12,7 +12,7 @@ environ.Env.read_env()
 
 SERVER_VERSION = env("SERVER_VERSION")
 BACK_URL = env("BACK_URL")
-FRONT_URLS = env("FRONT_URLS").split(',')
+FRONT_URLS = [f"http://{u}" for u in env("FRONT_URLS").split(',')]
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = env("DJANGO_SECRET_KEY")
@@ -25,36 +25,28 @@ print(f"DEBUG: {DEBUG}")
 CORS_ORIGIN_ALLOW_ALL = DEBUG
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 if SERVER_VERSION == "dev":
-    CORS_ORIGIN_WHITELIST = [
-        "http://localhost:3000",
-        "http://" + env("SERVER_IP")
-    ]
-    CSRF_TRUSTED_ORIGINS = [
-        "localhost:3000",
-        env("SERVER_IP")
-    ]
+    CORS_ORIGIN_WHITELIST = ["http://localhost:3000",
+                             f"http://{env('SERVER_IP')}"]
+
+    CSRF_TRUSTED_ORIGINS = ["http://localhost:3000",
+                            f"http://{env('SERVER_IP')}"]
 
 elif SERVER_VERSION == "prod":
-    CORS_ORIGIN_WHITELIST = [
-        "http://localhost:3000",
-        BACK_URL,
-        "http://localhost:49033",
-    ] + FRONT_URLS
-    CSRF_TRUSTED_ORIGINS = [
-        BACK_URL,
-        "http://localhost:49033",
-        env("SERVER_IP")
-    ] + FRONT_URLS
+    CORS_ORIGIN_WHITELIST = ["http://localhost:3000",
+                             "http://localhost:49033",
+                             f"http://{env('BACK_URL')}"] + FRONT_URLS
 
-CORS_ALLOW_HEADERS = [
-    'access-control-allow-origin',
-    'content-type',
-    'Authorization',
-    'X-CSRFToken'
-    ]
+    CSRF_TRUSTED_ORIGINS = ["http://localhost:49033",
+                            f"http://{env('BACK_URL')}",
+                            f"http://{env('SERVER_IP')}"] + FRONT_URLS
+
+CORS_ALLOW_HEADERS = ['access-control-allow-origin',
+                      'content-type',
+                      'Authorization',
+                      'X-CSRFToken']
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0',
-                 BACK_URL, env.get_value('BACK_URL_LOCAL', default='')]
+                 BACK_URL, env('BACK_URL_LOCAL', default='')]
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
@@ -135,6 +127,8 @@ MIDDLEWARE = [
     'admin_cohort.AuthMiddleware.CustomJwtSessionMiddleware',
     "django_cprofile_middleware.middleware.ProfilerMiddleware",
 ]
+
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
 DJANGO_CPROFILE_MIDDLEWARE_REQUIRE_STAFF = False
 

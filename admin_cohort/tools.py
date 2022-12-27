@@ -6,7 +6,7 @@ from typing import List, Union, Iterable
 
 from django.conf import settings
 from django.db.models import Q
-from django.views.debug import SafeExceptionReporterFilter, CLEANSED_SUBSTITUTE
+from django.views.debug import SafeExceptionReporterFilter
 
 
 def prettify_dict(obj: Union[dict, list]) -> str:
@@ -61,5 +61,5 @@ class CustomExceptionReporterFilter(SafeExceptionReporterFilter):
         post_params = immutable_post_params.copy()
         for param_name in settings.CUSTOM_SENSITIVE_POST_PARAMS:
             if param_name in post_params:
-                post_params[param_name] = CLEANSED_SUBSTITUTE
+                post_params[param_name] = self.cleansed_substitute
         return post_params

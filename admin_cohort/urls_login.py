@@ -13,8 +13,8 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-from django.conf.urls import url
 from django.contrib.auth import views
+from django.urls import re_path
 from rest_framework.routers import DefaultRouter
 
 from admin_cohort.views import CustomLoginView, redirect_token_refresh_view
@@ -22,7 +22,7 @@ from admin_cohort.views import CustomLoginView, redirect_token_refresh_view
 router = DefaultRouter()
 
 app_name = 'rest_framework'
-urlpatterns = [url(r'^login/$', CustomLoginView.as_view(template_name='login.html'), name='login'),
-               url(r'^refresh/$', redirect_token_refresh_view, name='token_refresh'),
-               url(r'^logout/$', views.LogoutView.as_view(), name='logout')
+urlpatterns = [re_path(r'^login/$', CustomLoginView.as_view(template_name='login.html'), name='login'),
+               re_path(r'^refresh/$', redirect_token_refresh_view, name='token_refresh'),
+               re_path(r'^logout/$', views.LogoutView.as_view(), name='logout')
                ]

@@ -2,6 +2,7 @@ from coverage.annotate import os
 from django.db import models
 from django.db.models import QuerySet
 from django.http import Http404
+
 from accesses.conf_perimeters import OmopModelManager
 from accesses.models import Perimeter, Access, Role
 from accesses.tools.perimeter_process import get_perimeters_ids_list
@@ -32,6 +33,11 @@ settings.DATABASES.__setitem__(
         'OPTIONS': {
             'options': f"-c search_path={env.get('DB_OMOP_SCHEMA')},public"
         },
+        'ATOMIC_REQUESTS': True,
+        'AUTOCOMMIT': True,
+        'TIME_ZONE': 'UTC',
+        'CONN_HEALTH_CHECKS': False,
+        'CONN_MAX_AGE': 0,
     }, )
 
 
