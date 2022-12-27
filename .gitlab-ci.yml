@@ -1,4 +1,4 @@
-image: harbor.eds.aphp.fr/cohort360/python:3.7.10
+image: harbor.eds.aphp.fr/cohort360/python:3.11.1
 
 variables:
   PIP_EXTRA_CLI_PARAMETERS: "--proxy=http:\\/\\/proxym-inter.aphp.fr:8080"
@@ -18,7 +18,7 @@ lint-job:
   allow_failure: false
 
 test-job:
-  image: harbor.eds.aphp.fr/cohort360/python-test:3.8.1
+  image: harbor.eds.aphp.fr/cohort360/python-test:3.11.1
   stage: test
   services:
     - postgres
