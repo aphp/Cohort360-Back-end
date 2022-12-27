@@ -6,7 +6,6 @@ from django.http import Http404
 from accesses.conf_perimeters import OmopModelManager
 from accesses.models import Perimeter, Access, Role
 from accesses.tools.perimeter_process import get_perimeters_ids_list
-from admin_cohort import settings
 from cohort.models import CohortResult
 
 ROLE = "role"
@@ -18,27 +17,7 @@ EXPORT_JUPYTER_NOMI = "export_jupyter_nomi"
 EXPORT_JUPYTER_PSEUDO = "export_jupyter_pseudo"
 SEARCH_IPP = "search_ipp"
 
-# SETTINGS CONFIGURATION ###############################################################################################
 env = os.environ
-# Configuration of OMOP connexion
-settings.DATABASES.__setitem__(
-    'omop', {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': env.get("DB_OMOP_NAME"),
-        'USER': env.get("DB_OMOP_USER"),
-        'PASSWORD': env.get("DB_OMOP_PASSWORD"),
-        'HOST': env.get("DB_OMOP_HOST"),
-        'PORT': env.get("DB_OMOP_PORT"),
-        'DISABLE_SERVER_SIDE_CURSORS': True,
-        'OPTIONS': {
-            'options': f"-c search_path={env.get('DB_OMOP_SCHEMA')},public"
-        },
-        'ATOMIC_REQUESTS': True,
-        'AUTOCOMMIT': True,
-        'TIME_ZONE': 'UTC',
-        'CONN_HEALTH_CHECKS': False,
-        'CONN_MAX_AGE': 0,
-    }, )
 
 
 def get_dict_right_accesses(user_accesses: [Access]) -> dict:
