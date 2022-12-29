@@ -88,16 +88,18 @@ if not DEBUG:
     LOGGING["loggers"]["error"]["handlers"] = ["error_handler", "mail_admins"]
 
     info_handler = {'level': "INFO",
-                    'class': "logging.FileHandler",
-                    'filename': "app/log/django.log",
+                    'class': "logging.handlers.RotatingFileHandler",
+                    'filename': "/app/log/django.log",
+                    'maxBytes': 100 * 1024 * 1024,
+                    'backupCount': 5,
                     'formatter': "verbose"
                     }
-    error_handler = {'level': "ERROR",
-                     'class': "logging.FileHandler",
-                     'filename': "app/log/django.error.log",
-                     'formatter': "verbose"
-                     }
-    LOGGING["handlers"].update({"info_handler": info_handler, "error_handler": error_handler})
+    error_handler = info_handler.copy()
+    error_handler.update({'level': "ERROR",
+                          'filename': "/app/log/django.error.log"
+                          })
+    LOGGING["handlers"].update({"info_handler": info_handler,
+                                "error_handler": error_handler})
 
 
 # Application definition
