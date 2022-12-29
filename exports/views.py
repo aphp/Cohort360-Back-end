@@ -31,7 +31,7 @@ from workspaces.models import Account
 from workspaces.permissions import AccountPermissions
 from workspaces.views import AccountViewSet
 
-_logger = lg.getLogger('django.request')
+_log = lg.getLogger('error')
 
 
 class UnixAccountFilter(filters.FilterSet):
@@ -212,7 +212,7 @@ class ExportRequestViewset(CustomLoggingMixin, viewsets.ModelViewSet):
             return Response(self.serializer_class(req).data,
                             status=status.HTTP_200_OK)
         except Exception as e:
-            _logger.exception(str(e))
+            _log.exception(str(e))
             raise ValidationError("La requête n'a pas pu être validée")
 
     @swagger_auto_schema(request_body=openapi.Schema(
@@ -331,7 +331,7 @@ class ExportRequestViewset(CustomLoggingMixin, viewsets.ModelViewSet):
             # )
             return response
         except HdfsError as e:
-            _logger.exception(e.message)
+            _log.exception(e.message)
             return HttpResponse(e.message, status=http.HTTPStatus.INTERNAL_SERVER_ERROR)
         except conf_exports.HdfsServerUnreachableError:
             return HttpResponse(

@@ -14,13 +14,12 @@ from exports.emails import email_info_request_done, email_info_request_deleted
 from exports.models import ExportRequest, ExportType
 from exports.types import HdfsServerUnreachableError, ApiJobResponse
 
-
-logger_info = logging.getLogger('django')
-logger = logging.getLogger('django.request')
+_log_info = logging.getLogger('info')
+_log_err = logging.getLogger('error')
 
 
 def log_export_request_task(er_id, msg):
-    logger_info.info(f"[ExportTask] [ExportRequest: {er_id}] {msg}")
+    _log_info.info(f"[ExportTask] [ExportRequest: {er_id}] {msg}")
 
 
 def manage_exception(er: ExportRequest, e: Exception, msg: str, start: datetime):
@@ -155,7 +154,7 @@ def delete_export_requests_csv_files():
     for er in ers:
         user = er.owner
         if not user:
-            logger.error(f"ExportRequest {er.id} has no owner")
+            _log_err.error(f"ExportRequest {er.id} has no owner")
             continue
         try:
             conf_exports.delete_file(er.target_full_path)
@@ -163,6 +162,6 @@ def delete_export_requests_csv_files():
             er.cleaned_at = timezone.now()
             er.save()
         except HdfsServerUnreachableError:
-            logger.exception(f"ExportRequest {er.id} - HDFS servers are unreachable or in stand-by")
+            _log_err.exception(f"ExportRequest {er.id} - HDFS servers are unreachable or in stand-by")
         except Exception as e:
-            logger.exception(f"ExportRequest {er.id}: {e}")
+            _log_err.exception(f"ExportRequest {er.id}: {e}")

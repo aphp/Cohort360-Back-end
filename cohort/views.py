@@ -27,7 +27,7 @@ from cohort.serializers import RequestSerializer, CohortResultSerializer, Reques
     DatedMeasureSerializer, FolderSerializer, CohortResultSerializerFullDatedMeasure, CohortRightsSerializer
 from cohort.tools import get_all_cohorts_rights, get_dict_cohort_pop_source
 
-_logger = logging.getLogger('django.request')
+_log = logging.getLogger('error')
 
 
 class NoUpdateViewSetMixin:
@@ -267,13 +267,13 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         elif "request_query_snapshot_id" in request.data:
             rqs_id = request.data.get("request_query_snapshot_id")
         else:
-            _logger.exception("'request_query_snapshot_id' not provided")
+            _log.exception("'request_query_snapshot_id' not provided")
             return HttpResponseBadRequest()
 
         try:
             rqs: RequestQuerySnapshot = RequestQuerySnapshot.objects.get(pk=rqs_id)
         except RequestQuerySnapshot.DoesNotExist:
-            _logger.exception("Invalid 'request_query_snapshot_id'")
+            _log.exception("Invalid 'request_query_snapshot_id'")
             return HttpResponseBadRequest()
 
         dms_jobs = rqs.request.dated_measures.filter(request_job_status__in=[JobStatus.started, JobStatus.pending]) \
@@ -292,7 +292,7 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                 job.save()
             except Exception as e:
                 msg = f"Error while cancelling {status} job [{job.request_job_id}] DM [{job.uuid}] - {e}"
-                _logger.exception(msg)
+                _log.exception(msg)
                 job.request_job_status = JobStatus.failed
                 job.request_job_fail_msg = msg
                 job.save()
