@@ -1,4 +1,4 @@
-import logging as lg
+import logging
 import re
 from datetime import timedelta
 from typing import Optional, List
@@ -19,7 +19,7 @@ from .conf_perimeters import Provider
 from .models import Role, Access, Profile, Perimeter
 from .permissions import can_user_manage_access
 
-_log = lg.getLogger('error')
+_log = logging.getLogger('error')
 
 
 def check_date_rules(

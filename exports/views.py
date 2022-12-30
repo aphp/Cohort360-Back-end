@@ -1,5 +1,5 @@
 import http
-import logging as lg
+import logging
 
 from django.http import HttpResponse, StreamingHttpResponse
 from django_filters import rest_framework as filters
@@ -31,7 +31,7 @@ from workspaces.models import Account
 from workspaces.permissions import AccountPermissions
 from workspaces.views import AccountViewSet
 
-_log = lg.getLogger('error')
+_log = logging.getLogger('error')
 
 
 class UnixAccountFilter(filters.FilterSet):
