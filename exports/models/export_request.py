@@ -1,11 +1,10 @@
 from django.db import models
 from django.db.models import CASCADE, SET_NULL
 
-from admin_cohort.models import User, BaseModel, JobModelWithReview
+from admin_cohort.models import JobModelWithReview, BaseModel, User
 from cohort.models import CohortResult
 from exports.types import ExportType
 from workspaces.models import Account
-
 
 OUTPUT_FORMATS = [(ExportType.CSV.value, ExportType.CSV.value),
                   (ExportType.HIVE.value, ExportType.HIVE.value),
@@ -45,13 +44,3 @@ class ExportRequest(JobModelWithReview, BaseModel, models.Model):
         if self.target_location and self.target_name:
             return f"{self.target_location}/{self.target_name}.zip"
         return ""
-
-
-class ExportRequestTable(models.Model):
-    export_request_table_id = models.BigAutoField(primary_key=True)
-    omop_table_name = models.TextField()
-    source_table_name = models.TextField(null=True)
-    export_request = models.ForeignKey(ExportRequest, related_name="tables", on_delete=CASCADE)
-
-    class Meta:
-        db_table = 'export_request_table'

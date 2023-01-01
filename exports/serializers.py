@@ -9,10 +9,11 @@ from accesses.models import DataRight, build_data_rights
 from admin_cohort.models import User, JobStatus
 from cohort.models import CohortResult
 from exports import conf_exports
-from exports.emails import check_email_address
-from exports.models import ExportRequest, ExportRequestTable, ExportType
-from exports.permissions import can_review_transfer_jupyter, can_review_export
 from workspaces.models import Account
+from .emails import check_email_address
+from .models import ExportRequest, ExportRequestTable
+from .permissions import can_review_transfer_jupyter, can_review_export
+from .types import ExportType
 
 
 class ExportRequestTableSerializer(serializers.ModelSerializer):
@@ -70,15 +71,37 @@ class ReviewFilteredPrimaryKeyRelatedField(serializers.PrimaryKeyRelatedField):
             return q.filter(owner=creator)
 
 
+class ExportRequestListSerializer(serializers.ModelSerializer):
+    owner = serializers.SerializerMethodField()
+    cohort_name = serializers.SerializerMethodField()
+    patients_count = serializers.SerializerMethodField()
+    target_env = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ExportRequest
+        fields = ("owner", "output_format", "cohort_id", "cohort_name", "patients_count",
+                  "insert_datetime", "request_job_status", "target_env", "target_name")
+
+    def get_owner(self, er):
+        return er.owner.displayed_name
+
+    def get_cohort_name(self, er):
+        return er.cohort_fk.name
+
+    def get_patients_count(self, er):
+        return er.cohort_fk.dated_measure.measure
+
+    def get_target_env(self, er):
+        if er.target_unix_account:
+            return er.target_unix_account.name
+        return ""
+
+
 class ExportRequestSerializer(serializers.ModelSerializer):
     tables = ExportRequestTableSerializer(many=True)
     cohort = ReviewFilteredPrimaryKeyRelatedField(queryset=CohortResult.objects.all(), source='cohort_fk')
-    reviewer_fk = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), allow_null=True, allow_empty=True,
-                                                     required=False)
+    reviewer_fk = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), allow_null=True, required=False)
     cohort_id = serializers.IntegerField(required=False)
-    # after database fusion
-    # creator = ReducedUserSerializer(allow_null=True, read_only=True)
-    # reviewer = ReducedUserSerializer(allow_null=True, read_only=True)
 
     class Meta:
         model = ExportRequest

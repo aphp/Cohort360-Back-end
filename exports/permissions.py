@@ -3,17 +3,15 @@ from rest_framework.exceptions import PermissionDenied
 
 from admin_cohort.models import User
 from admin_cohort.permissions import user_is_authenticated, get_bound_roles
-from exports.models import ExportType
+from exports.types import ExportType
 
 
 def can_export_psql_nomi(user: User):
-    return any([r.right_transfer_jupyter_nominative
-                for r in get_bound_roles(user)])
+    return any([r.right_transfer_jupyter_nominative for r in get_bound_roles(user)])
 
 
 def can_export_psql_pseudo(user: User):
-    return any([r.right_transfer_jupyter_pseudo_anonymised
-                for r in get_bound_roles(user)])
+    return any([r.right_transfer_jupyter_pseudo_anonymised for r in get_bound_roles(user)])
 
 
 def can_review_transfer_jupyter(user: User) -> bool:
@@ -27,8 +25,7 @@ def can_review_transfer_jupyter(user: User) -> bool:
     @return: if user can manage at least one type of accesses
     @rtype: bool
     """
-    return any([r.right_review_transfer_jupyter
-                for r in get_bound_roles(user)])
+    return any([r.right_review_transfer_jupyter for r in get_bound_roles(user)])
 
 
 def can_review_export_csv(user: User) -> bool:
@@ -60,7 +57,7 @@ def can_review_export(user: User) -> bool:
 
 
 class ExportJupyterPermissions(permissions.BasePermission):
-    message = "Cannot create a non-CSV export request for another user " \
+    message = "Cannot create a non-CSV export request for another user "\
               "without an access with right_review_transfer_jupyter."
 
     def has_permission(self, request, view):
@@ -83,14 +80,10 @@ class ExportRequestPermissions(permissions.BasePermission):
         if request.method == "POST":
             if request.data.get('nominative', False):
                 if not can_export_psql_nomi(request.user):
-                    raise PermissionDenied(
-                        "L'utilisateur destinataire n'a pas le "
-                        "droit d'export nominatif")
+                    raise PermissionDenied("L'utilisateur destinataire n'a pas le droit d'export nominatif")
             else:
                 if not can_export_psql_pseudo(request.user):
-                    raise PermissionDenied(
-                        "L'utilisateur destinataire n'a pas le "
-                        "droit d'export pseudonymisé")
+                    raise PermissionDenied("L'utilisateur destinataire n'a pas le droit d'export pseudonymisé")
 
         return user_is_authenticated(request.user)
 
@@ -104,9 +97,9 @@ class ExportRequestPermissions(permissions.BasePermission):
 class AnnexesPermissions(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.method == "GET" \
-               and user_is_authenticated(request.user) and \
-               (can_review_transfer_jupyter(request.user)
-                or can_review_export_csv(request.user))
+               and user_is_authenticated(request.user) \
+               and (can_review_transfer_jupyter(request.user)
+                    or can_review_export_csv(request.user))
 
     def has_object_permission(self, request, view, obj):
         return user_is_authenticated(request.user) \
