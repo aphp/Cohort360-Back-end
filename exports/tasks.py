@@ -10,9 +10,9 @@ from admin_cohort.celery import app
 from admin_cohort.settings import EXPORT_CSV_PATH
 from admin_cohort.types import JobStatus
 from exports import conf_exports
-from exports.emails import email_info_request_done, email_info_request_deleted
-from exports.models import ExportRequest, ExportType
-from exports.types import HdfsServerUnreachableError, ApiJobResponse
+from .emails import email_info_request_done, email_info_request_deleted
+from .models import ExportRequest
+from .types import ExportType, HdfsServerUnreachableError, ApiJobResponse
 
 _log_info = logging.getLogger('info')
 _log_err = logging.getLogger('error')
