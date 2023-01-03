@@ -43,7 +43,7 @@ class ExportRequestFilter(filters.FilterSet):
     class Meta:
         model = ExportRequest
         fields = ('output_format', 'request_job_status', 'cohort_name', 'cohort_owner',
-                  'creator_fk', 'target_unix_account', 'insert_datetime')
+                  'creator_fk', 'target_unix_account', 'insert_datetime', 'owner')
 
 
 class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
@@ -82,10 +82,11 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         q = self.filter_queryset(self.queryset)
-        if not q:
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        serializer = ExportRequestListSerializer(q, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        page = self.paginate_queryset(q)
+        if page:
+            serializer = ExportRequestListSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=['patch'], url_path="deny")
     def deny(self, request, *args, **kwargs):

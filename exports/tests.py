@@ -341,37 +341,32 @@ class ExportsListTests(ExportsTests):
     def test_list_requests_as_jup_reviewer(self):
         base_results = self.user1_reqs + self.user2_reqs
 
-        self.check_get_paged_list_case(ListCase(
-            to_find=[e for e in base_results
-                     if e.output_format == ExportType.HIVE],
-            page_size=100,
-            user=self.user_jup_reviewer,
-            status=status.HTTP_200_OK,
-            success=True,
-        ))
+        self.check_get_paged_list_case(ListCase(to_find=[e for e in base_results if e.output_format == ExportType.HIVE],
+                                                page_size=100,
+                                                user=self.user_jup_reviewer,
+                                                status=status.HTTP_200_OK,
+                                                success=True,
+                                                params={"output_format": ExportType.HIVE}))
 
     def test_list_requests_as_csv_reviewer(self):
         base_results = self.user1_reqs + self.user2_reqs
 
-        self.check_get_paged_list_case(ListCase(
-            to_find=[e for e in base_results
-                     if e.output_format == ExportType.CSV],
-            page_size=100,
-            user=self.user_csv_reviewer,
-            status=status.HTTP_200_OK,
-            success=True,
-        ))
+        self.check_get_paged_list_case(ListCase(to_find=[e for e in base_results if e.output_format == ExportType.CSV],
+                                                page_size=100,
+                                                user=self.user_csv_reviewer,
+                                                status=status.HTTP_200_OK,
+                                                success=True,
+                                                params={"output_format": ExportType.CSV}))
 
     def test_list_requests_as_user1(self):
         base_results = self.user1_reqs
 
-        self.check_get_paged_list_case(ListCase(
-            to_find=base_results,
-            page_size=100,
-            user=self.user1,
-            status=status.HTTP_200_OK,
-            success=True,
-        ))
+        self.check_get_paged_list_case(ListCase(to_find=base_results,
+                                                page_size=100,
+                                                user=self.user1,
+                                                status=status.HTTP_200_OK,
+                                                success=True,
+                                                params={"owner": self.user1.pk}))
 
     def test_list_requests_as_full_reviewer_with_filters(self):
         # As a user with right_read_admin_accesses_same_level on a
