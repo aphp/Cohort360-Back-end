@@ -50,6 +50,9 @@ ALLOWED_HOSTS = ['localhost',
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
+CSRF_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_SECURE = not DEBUG
+
 ADMINS = [a.split(',') for a in env("ADMINS").split(';')]
 
 LOGGING = {'version': 1,
