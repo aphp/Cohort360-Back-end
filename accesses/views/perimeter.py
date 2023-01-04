@@ -170,7 +170,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
         operation_summary="Give boolean read patient read right (Nomi or Pseudo) on one or several perimeters",
         responses={'201': openapi.Response("give rights in caresite perimeters found")})
     @action(detail=False, methods=['get'], url_path="is-one-read-patient-right")
-    def get_read_patient_right_access(self, request, *args, **kwargs):
+    def get_read_one_nominative_patient_right_access(self, request, *args, **kwargs):
         user_accesses = get_user_valid_manual_accesses_queryset(self.request.user)
 
         all_read_patient_nominative_accesses = user_accesses.filter(Role.is_read_patient_role_nominative("role"))
