@@ -53,7 +53,7 @@ class AccountViewSet(YarnReadOnlyViewsetMixin, viewsets.ModelViewSet):
     def get_queryset(self):
         q = super(AccountViewSet, self).get_queryset()
         user: User = self.request.user
-        if not can_user_read_unix_accounts(user):
+        if not user.is_anonymous and not can_user_read_unix_accounts(user):
             ad_groups = get_account_groups_from_id_aph(user.provider_username)
             return q.filter(aphp_ldap_group_dn__in=ad_groups)
         return q
