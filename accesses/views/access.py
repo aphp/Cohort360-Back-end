@@ -269,7 +269,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
     def data_rights(self, request, *args, **kwargs):
         param_perimeters = self.request.GET.get('perimeters_ids', self.request.GET.get('care-site-ids'))
         pop_children = self.request.GET.get('pop_children', self.request.GET.get('pop-children'))
-        if not param_perimeters and not pop_children:
+        if param_perimeters is None and pop_children is None:
             return Response("Cannot have both 'perimeters-ids/care-site-ids' and 'pop-children' at null "
                             "(would return rights on all Perimeters).",
                             status=HTTP_403_FORBIDDEN)
