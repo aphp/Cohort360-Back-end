@@ -1,5 +1,5 @@
 import http
-import logging as lg
+import logging
 
 from django.db.models import Q
 from django.http import HttpResponse, StreamingHttpResponse
@@ -26,7 +26,7 @@ from exports.serializers import ExportRequestSerializer, ExportRequestSerializer
 from exports.tasks import launch_request
 from exports.types import ExportType
 
-_logger = lg.getLogger('django.request')
+_log = logging.getLogger('error')
 
 
 class ExportRequestFilter(filters.FilterSet):
@@ -126,7 +126,7 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
             launch_request.delay(req.id)
             return Response(self.serializer_class(req).data, status=status.HTTP_200_OK)
         except Exception as e:
-            _logger.exception(str(e))
+            _log.exception(str(e))
             raise ValidationError("La requête n'a pas pu être validée")
 
     @swagger_auto_schema(
@@ -224,7 +224,7 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
             # )
             return response
         except HdfsError as e:
-            _logger.exception(e.message)
+            _log.exception(e.message)
             return HttpResponse(e.message, status=http.HTTPStatus.INTERNAL_SERVER_ERROR)
         except conf_exports.HdfsServerUnreachableError:
             return HttpResponse("HDFS servers are unreachable or in stand-by",

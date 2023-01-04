@@ -15,7 +15,7 @@ from rest_framework.request import Request
 from admin_cohort.types import JobStatus
 from cohort.FhirAPi import FhirCountResponse, FhirCohortResponse, FhirValidateResponse
 
-_logger = logging.getLogger('django')
+_log = logging.getLogger('info')
 
 COHORT_REQUEST_BUILDER_URL = os.environ.get('COHORT_REQUEST_BUILDER_URL')
 JOBS_API = f"{COHORT_REQUEST_BUILDER_URL}/jobs"
@@ -139,7 +139,7 @@ class JobResponse:
         self.context: str = kwargs.get('context')
         self.status: JobStatus = fhir_to_job_status().get(kwargs.get('status'))
         if not self.status:
-            _logger.info(f"Expected Error: status is None : {resp.json()}")
+            _log.info(f"Expected Error: status is None : {resp.json()}")
         self.job_id: str = kwargs.get('jobId')
         self.context_id: str = kwargs.get('contextId')
 
@@ -227,7 +227,7 @@ def cancel_job(job_id: str, auth_headers) -> JobStatus:
 
     if new_status not in [JobStatus.cancelled, JobStatus.finished]:
         raise Exception(f"DATA ERROR: status returned by FHIR is neither KILLED or FINISHED -> {result}")
-    _logger.info(f"QueryServer Job {job_id} cancelled.")
+    _log.info(f"QueryServer Job {job_id} cancelled.")
     return new_status
 
 

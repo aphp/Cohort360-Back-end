@@ -1,4 +1,4 @@
-import logging as lg
+import logging
 import re
 from datetime import timedelta
 from typing import Optional, List
@@ -19,7 +19,7 @@ from .conf_perimeters import Provider
 from .models import Role, Access, Profile, Perimeter
 from .permissions import can_user_manage_access
 
-_logger = lg.getLogger('django.request')
+_log = logging.getLogger('error')
 
 
 def check_date_rules(
@@ -309,7 +309,7 @@ class ProfileSerializer(BaseSerializer):
             try:
                 id_details = check_id_aph(user_id)
             except Exception as e:
-                _logger.exception(str(e))
+                _log.exception(str(e))
                 raise ValidationError("Echec de la vérification de l'identifiant")
 
             if not id_details:

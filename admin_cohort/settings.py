@@ -57,38 +57,53 @@ SESSION_COOKIE_SECURE = not DEBUG
 
 ADMINS = [a.split(',') for a in env("ADMINS").split(';')]
 
-LOGGING = {'version': 1,
-           'disable_existing_loggers': False,
-           'formatters': {
-                          'verbose': {'format': "{levelname} {asctime} module={module} "
-                                                "pid={process:d} tid={thread:d} msg=`{message}`",
-                                      'style': "{"
-                                      }
-                          },
-           'handlers': {
-                        'console': {'level': "INFO",
-                                    'class': "logging.StreamHandler",
-                                    'formatter': "verbose"
-                                    },
-                        'mail_admins': {'level': "ERROR",
-                                        'class': "django.utils.log.AdminEmailHandler",
-                                        'include_html': True
-                                        },
-                        'gunicorn_errors': {'level': "ERROR",
-                                            'class': "logging.StreamHandler",
-                                            'formatter': "verbose"
-                                            }
-                        },
-           'loggers': {
-                       'django': {'handlers': ["console"],
-                                  'propagate': True
-                                  },
-                       'django.request': {'level': "ERROR",
-                                          'handlers': ["gunicorn_errors", "mail_admins"],
-                                          'propagate': False
-                                          }
-                       }
-           }
+LOGGING = dict(version=1,
+               disable_existing_loggers=False,
+               loggers={
+                   'info': {
+                       'level': "INFO",
+                       'handlers': ["console"],
+                       'propagate': True
+                   },
+                   'error': {
+                       'level': "ERROR",
+                       'handlers': ["console"],
+                       'propagate': True
+                   }},
+               handlers={
+                   'console': {
+                       'level': "INFO",
+                       'class': "logging.StreamHandler",
+                       'stream': "ext://sys.stdout",
+                       'formatter': "verbose"
+                   },
+                   'mail_admins': {
+                       'level': "ERROR",
+                       'class': "django.utils.log.AdminEmailHandler",
+                       'include_html': True
+                   }},
+               formatters={
+                   'verbose': {
+                       'format': "{levelname} {asctime} module={module} pid={process:d} tid={thread:d} msg=`{message}`",
+                       'style': "{"
+                   }
+               })
+if not DEBUG:
+    LOGGING["loggers"]["info"]["handlers"] = ["info_handler"]
+    LOGGING["loggers"]["error"]["handlers"] = ["error_handler", "mail_admins"]
+
+    info_handler = {'level': "INFO",
+                    'class': "logging.FileHandler",
+                    'filename': "/app/log/django.log",
+                    'formatter': "verbose"
+                    }
+    error_handler = info_handler.copy()
+    error_handler.update({'level': "ERROR",
+                          'filename': "/app/log/django.error.log"
+                          })
+    LOGGING["handlers"].update({"info_handler": info_handler,
+                                "error_handler": error_handler})
+
 
 # Application definition
 INCLUDED_APPS = env('INCLUDED_APPS').split(",")
