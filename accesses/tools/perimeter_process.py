@@ -183,7 +183,8 @@ def get_read_patient_right(perimeters_filtered_by_search, all_read_patient_nomin
                 f"|No read patient role on perimeter {perimeter.id} - {perimeter.name}")
     return is_pseudo
 
-def get_perimeters_filtered_by_search(cohort_ids,owner_id, default_perimeters):
+
+def get_perimeters_filtered_by_search(cohort_ids, owner_id, default_perimeters):
     if cohort_ids:
         all_user_cohorts = CohortResult.objects.filter(owner=owner_id)
         list_perimeter_cohort_ids = get_list_cohort_id_care_site(
@@ -191,9 +192,12 @@ def get_perimeters_filtered_by_search(cohort_ids,owner_id, default_perimeters):
         return Perimeter.objects.filter(cohort_id__in=list_perimeter_cohort_ids)
     else:
         return default_perimeters
-def is_at_least_one_read_Nomitative_right(perimeters_filtered_by_search, all_read_patient_nominative_accesses,
-                           all_read_patient_pseudo_accesses):
-    """_
+
+
+def is_at_least_one_read_Nomitative_right(perimeters_filtered_by_search,
+                                          all_read_patient_nominative_accesses,
+                                          all_read_patient_pseudo_accesses):
+    """
     Loop in perimeters, if we found at least one read patient right at Nominative it will return True.
     If there is at least on pseudo and no nominative it will return False.
     Else if there are no rights
