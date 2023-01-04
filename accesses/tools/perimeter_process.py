@@ -1,3 +1,4 @@
+from django.http import Http404
 from rest_framework.exceptions import ValidationError
 
 from accesses.models import Perimeter, Access, Role, get_user_valid_manual_accesses_queryset
@@ -5,7 +6,6 @@ from accesses.tools.data_right_mapping import PerimeterReadRight
 from cohort.models import CohortResult
 from cohort.tools import get_list_cohort_id_care_site
 from commons.tools import cast_string_to_ids_list
-from django.http import Http404
 
 
 def is_perimeter_in_top_hierarchy(above_list: [int], all_distinct_perimeters: [Perimeter]) -> bool:
@@ -203,21 +203,26 @@ def get_read_nominative_boolean_from_specific_logic_function(request, filter_que
                                                              all_read_patient_pseudo_accesses,
                                                              right_perimeter_compute_function) -> bool:
     """
-        It takes in input users acesses with read patient right, the initial request  and the specific function to apply to find global read patient right
-        On perimeters or cohorts.
-        The right_perimeter_compute_function can be used to find right for all cohorts in "is-read-patient-pseudo" or at least on one perimeter in
-        "is-one-read-patient-right"
+        It takes in input users acesses with read patient right, the initial request  and the specific function to
+        apply to find global read patient right on perimeters or cohorts.
+        The right_perimeter_compute_function can be used to find right for all cohorts in "is-read-patient-pseudo" or
+        at least on one perimeter in "is-one-read-patient-right"
     """
 
-    perimeters_filtered_by_search = get_perimeters_filtered_by_search(request.query_params.get("cohort_id"), request.user, filter_queryset)
+    perimeters_filtered_by_search = get_perimeters_filtered_by_search(request.query_params.get("cohort_id"),
+                                                                      request.user,
+                                                                      filter_queryset)
     if not perimeters_filtered_by_search:
         raise Http404("ERROR No Perimeters Found")
-    return right_perimeter_compute_function(perimeters_filtered_by_search, all_read_patient_nominative_accesses, all_read_patient_pseudo_accesses)
+    return right_perimeter_compute_function(perimeters_filtered_by_search,
+                                            all_read_patient_nominative_accesses,
+                                            all_read_patient_pseudo_accesses)
 
 
 def get_all_read_patient_accesses(user) -> tuple:
     """
-        Return a tuple of accesses QuerySet, one with read patient nominative role right at True and the other with read patient pseudo only at True
+        Return a tuple of accesses QuerySet, one with read patient nominative role right at True and the other with
+        read patient pseudo only at True
         If both are empty there is an issue with user right, it will raise an error
     """
     user_accesses = get_user_valid_manual_accesses_queryset(user)
