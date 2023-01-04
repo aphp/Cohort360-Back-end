@@ -20,7 +20,8 @@ from ..serializers import PerimeterSerializer, \
 from ..tools.perimeter_process import get_top_perimeter_same_level, get_top_perimeter_inf_level, \
     filter_perimeter_by_top_hierarchy_perimeter_list, filter_accesses_by_search_perimeters, get_read_patient_right, \
     get_top_perimeter_from_read_patient_accesses, is_pseudo_perimeter_in_top_perimeter, \
-    is_at_least_one_read_Nomitative_right, get_perimeters_filtered_by_search
+    is_at_least_one_read_Nomitative_right, get_perimeters_filtered_by_search, \
+    get_read_nominative_boolean_from_specific_logic_function, get_all_read_patient_accesses
 
 
 class PerimeterFilter(filters.FilterSet):
@@ -141,29 +142,17 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
         responses={'201': openapi.Response("give rights in caresite perimeters found")})
     @action(detail=False, methods=['get'], url_path="is-read-patient-pseudo")
     def get_read_patient_right_access(self, request, *args, **kwargs):
-        user_accesses = get_user_valid_manual_accesses_queryset(self.request.user)
-
-        all_read_patient_nominative_accesses = user_accesses.filter(Role.is_read_patient_role_nominative("role"))
-        all_read_patient_pseudo_accesses = user_accesses.filter(Role.is_read_patient_role_pseudo("role"))
-
-        if not all_read_patient_nominative_accesses and not all_read_patient_nominative_accesses:
-            raise Http404("ERROR No accesses with read patient right Found")
+        all_read_patient_nominative_accesses, all_read_patient_pseudo_accesses = get_all_read_patient_accesses(self.request.user)
         if self.request.query_params:
-            perimeters_filtered_by_search = get_perimeters_filtered_by_search(
-                self.request.query_params.get("cohort_id"),
-                self.request.user,
-                self.filter_queryset(self.get_queryset()))
-            if not perimeters_filtered_by_search:
-                raise Http404("ERROR No Perimeters Found")
-            is_read_patient_pseudo = get_read_patient_right(perimeters_filtered_by_search,
-                                                            all_read_patient_nominative_accesses,
-                                                            all_read_patient_pseudo_accesses)
+            is_read_patient_nominative = get_read_nominative_boolean_from_specific_logic_function(self.request,
+                                                                                                  self.filter_queryset(self.get_queryset()),
+                                                                                                  all_read_patient_nominative_accesses,
+                                                                                                  all_read_patient_pseudo_accesses,
+                                                                                                  get_read_patient_right)
 
-            return Response({"is_read_patient_pseudo": is_read_patient_pseudo})
-
+            return Response({"is_read_patient_pseudo": not is_read_patient_nominative})
         return Response(
-            {"is_read_patient_pseudo": is_pseudo_perimeter_in_top_perimeter(all_read_patient_nominative_accesses,
-                                                                            all_read_patient_pseudo_accesses)})
+            {"is_read_patient_pseudo": is_pseudo_perimeter_in_top_perimeter(all_read_patient_nominative_accesses, all_read_patient_pseudo_accesses)})
 
     @swagger_auto_schema(
         method='get',
@@ -171,24 +160,15 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
         responses={'201': openapi.Response("give rights in caresite perimeters found")})
     @action(detail=False, methods=['get'], url_path="is-one-read-patient-right")
     def get_read_one_nominative_patient_right_access(self, request, *args, **kwargs):
-        user_accesses = get_user_valid_manual_accesses_queryset(self.request.user)
-
-        all_read_patient_nominative_accesses = user_accesses.filter(Role.is_read_patient_role_nominative("role"))
-        all_read_patient_pseudo_accesses = user_accesses.filter(Role.is_read_patient_role_pseudo("role"))
-
-        if not all_read_patient_nominative_accesses and not all_read_patient_nominative_accesses:
-            raise Http404("ERROR No accesses with read patient right Found")
-
+        all_read_patient_nominative_accesses, all_read_patient_pseudo_accesses = get_all_read_patient_accesses(
+            self.request.user)
         if self.request.query_params:
-            perimeters_filtered_by_search = get_perimeters_filtered_by_search(
-                self.request.query_params.get("cohort_id"),
-                self.request.user,
-                self.filter_queryset(self.get_queryset()))
-            if not perimeters_filtered_by_search:
-                raise Http404("ERROR No Perimeters Found")
-            is_read_patient_nominative = is_at_least_one_read_Nomitative_right(perimeters_filtered_by_search,
-                                                                               all_read_patient_nominative_accesses,
-                                                                               all_read_patient_pseudo_accesses)
+            is_read_patient_nominative = get_read_nominative_boolean_from_specific_logic_function(self.request,
+                                                                                                  self.filter_queryset(
+                                                                                                      self.get_queryset()),
+                                                                                                  all_read_patient_nominative_accesses,
+                                                                                                  all_read_patient_pseudo_accesses,
+                                                                                                  is_at_least_one_read_Nomitative_right)
             return Response({"is_one_read_nominative_patient_right": is_read_patient_nominative})
         else:
             raise Http404("ERROR at least one search params is required!")
