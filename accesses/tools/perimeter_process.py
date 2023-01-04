@@ -186,6 +186,9 @@ def get_read_patient_right(perimeters_filtered_by_search, all_read_patient_nomin
 
 
 def get_perimeters_filtered_by_search(cohort_ids, owner_id, default_perimeters):
+    """
+        Get for any cohort id type (Care_site, Provider) Perimeters from the cohort source population.
+    """
     if cohort_ids:
         all_user_cohorts = CohortResult.objects.filter(owner=owner_id)
         list_perimeter_cohort_ids = get_list_cohort_id_care_site(
@@ -199,16 +202,24 @@ def get_read_nominative_boolean_from_specific_logic_function(request, filter_que
                                                              all_read_patient_nominative_accesses,
                                                              all_read_patient_pseudo_accesses,
                                                              right_perimeter_compute_function) -> bool:
-    perimeters_filtered_by_search = get_perimeters_filtered_by_search(request.query_params.get("cohort_id"),
-                                                                      request.user, filter_queryset)
+    """
+        It takes in input users acesses with read patient right, the initial request  and the specific function to apply to find global read patient right
+        On perimeters or cohorts.
+        The right_perimeter_compute_function can be used to find right for all cohorts in "is-read-patient-pseudo" or at least on one perimeter in
+        "is-one-read-patient-right"
+    """
+
+    perimeters_filtered_by_search = get_perimeters_filtered_by_search(request.query_params.get("cohort_id"), request.user, filter_queryset)
     if not perimeters_filtered_by_search:
         raise Http404("ERROR No Perimeters Found")
-    return right_perimeter_compute_function(perimeters_filtered_by_search,
-                                            all_read_patient_nominative_accesses,
-                                            all_read_patient_pseudo_accesses)
+    return right_perimeter_compute_function(perimeters_filtered_by_search, all_read_patient_nominative_accesses, all_read_patient_pseudo_accesses)
 
 
 def get_all_read_patient_accesses(user) -> tuple:
+    """
+        Return a tuple of accesses QuerySet, one with read patient nominative role right at True and the other with read patient pseudo only at True
+        If both are empty there is an issue with user right, it will raise an error
+    """
     user_accesses = get_user_valid_manual_accesses_queryset(user)
     all_read_patient_nominative_accesses = user_accesses.filter(Role.is_read_patient_role_nominative("role"))
     all_read_patient_pseudo_accesses = user_accesses.filter(Role.is_read_patient_role_pseudo("role"))
