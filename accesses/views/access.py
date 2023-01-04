@@ -94,13 +94,14 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
 
     def get_queryset(self) -> QuerySet:
         q = super(AccessViewSet, self).get_queryset()
-
-        accesses = self.request.user.valid_manual_accesses_queryset.select_related("role")
-
+        user = self.request.user
+        if not user.is_anonymous:
+            accesses = user.valid_manual_accesses_queryset.select_related("role")
+        else:
+            accesses = []
         to_exclude = [a.accesses_criteria_to_exclude for a in accesses]
         if to_exclude:
             to_exclude = reduce(intersect_queryset_criteria, to_exclude)
-
             qs = []
             for cs in to_exclude:
                 exc_q = Q(**dict((f'role__{r}', v)
@@ -109,12 +110,11 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
                 if 'perimeter_not' in cs:
                     exc_q = exc_q & ~Q(perimeter_id__in=cs['perimeter_not'])
                 if 'perimeter_not_child' in cs:
-                    exc_q = exc_q & ~join_qs([
-                        Q(**{'perimeter__' + i * 'parent__' + 'id__in': (cs['perimeter_not_child'])})
-                        for i in range(1, len(PERIMETERS_TYPES))])
+                    exc_q = exc_q & ~join_qs([Q(**{f"perimeter__{i * 'parent__'}id__in": (cs['perimeter_not_child'])})
+                                              for i in range(1, len(PERIMETERS_TYPES))])
 
                 qs.append(exc_q)
-            q = q.exclude(join_qs(qs)) if len(qs) else q
+            q = qs and q.exclude(join_qs(qs)) or q
         return q
 
     def filter_queryset(self, queryset):
@@ -208,21 +208,11 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
     def close(self, request, *args, **kwargs):
         instance = self.get_object()
         if instance.actual_end_datetime:
-            if not getattr(instance.actual_end_datetime, "tzinfo", None):
-                end_datetime = timezone.get_current_timezone().localize(instance.actual_end_datetime)
-            else:
-                end_datetime = instance.actual_end_datetime
-
-            if end_datetime < timezone.now():
+            if instance.actual_end_datetime < timezone.now():
                 return Response("L'accès est déjà clôturé.", status=status.HTTP_403_FORBIDDEN)
 
         if instance.actual_start_datetime:
-            if not getattr(instance.actual_start_datetime, "tzinfo", None):
-                start_datetime = timezone.get_current_timezone().localize(instance.actual_start_datetime)
-            else:
-                start_datetime = instance.actual_start_datetime
-
-            if start_datetime > timezone.now():
+            if instance.actual_start_datetime > timezone.now():
                 return Response("L'accès n'a pas encore commencé, il ne peut pas être déjà fermé."
                                 "Il peut cependant être supprimé, avec la méthode DELETE.",
                                 status=status.HTTP_403_FORBIDDEN)
@@ -233,12 +223,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         if instance.actual_start_datetime:
-            if getattr(instance.actual_start_datetime, "tzinfo", None):
-                start_datetime = timezone.get_current_timezone().localize(instance.actual_start_datetime)
-            else:
-                start_datetime = instance.actual_start_datetime
-
-            if start_datetime < timezone.now():
+            if instance.actual_start_datetime < timezone.now():
                 return Response("L'accès est déjà/a déjà été activé, il ne peut plus être supprimé.",
                                 status=status.HTTP_403_FORBIDDEN)
         self.perform_destroy(instance)

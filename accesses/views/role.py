@@ -36,7 +36,7 @@ class RoleViewSet(CustomLoggingMixin, BaseViewset):
         return [AND(IsAuthenticated(), RolePermissions())]
 
     @action(url_path="users", detail=True, methods=['get'], permission_classes=(IsAuthenticated,))
-    def users(self, request, *args, **kwargs):
+    def users_within_role(self, request, *args, **kwargs):
         role = self.get_object()
         users_perimeters = []
         valid_accesses = [a for a in role.accesses.all() if a.is_valid]
@@ -75,5 +75,4 @@ class RoleViewSet(CustomLoggingMixin, BaseViewset):
         if page:
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
-        serializer = self.get_serializer(q, many=True)
-        return Response(serializer.data)
+        return Response(status=status.HTTP_204_NO_CONTENT)
