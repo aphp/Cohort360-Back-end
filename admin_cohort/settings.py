@@ -93,8 +93,10 @@ if not DEBUG:
     LOGGING["loggers"]["error"]["handlers"] = ["error_handler", "mail_admins"]
 
     info_handler = {'level': "INFO",
-                    'class': "logging.FileHandler",
+                    'class': "logging.handlers.RotatingFileHandler",
                     'filename': "/app/log/django.log",
+                    'maxBytes': 100 * 1024 * 1024,
+                    "backupCount": 100_000,
                     'formatter': "verbose"
                     }
     error_handler = info_handler.copy()
