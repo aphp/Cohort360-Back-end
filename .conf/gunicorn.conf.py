@@ -30,13 +30,17 @@ logconfig_dict = dict(
             "stream": "ext://sys.stdout"
         },
         "access_file": {
-            "class": "logging.FileHandler",
+            "class": "logging.handlers.RotatingFileHandler",
             "filename": "/app/log/gunicorn.access.log",
+            "maxBytes": 100 * 1024 * 1024,
+            "backupCount": 100_000,
             "formatter": "generic",
         },
         "error_file": {
-            "class": "logging.FileHandler",
+            "class": "logging.handlers.RotatingFileHandler",
             "filename": "/app/log/gunicorn.error.log",
+            "maxBytes": 100 * 1024 * 1024,
+            "backupCount": 100_000,
             "formatter": "generic",
         },
     },
