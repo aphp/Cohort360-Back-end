@@ -31,18 +31,7 @@ It is a mono-hierarchy => one parent maximum for 1.n children
 3) We save all perimeters objects in that order
 """
 
-# SETTINGS CONFIGURATION ###############################################################################################
 env = os.environ
-# Configuration of OMOP connexion
-settings.DATABASES.__setitem__('omop', {'ENGINE': 'django.db.backends.postgresql',
-                                        'NAME': env.get("DB_OMOP_NAME"),
-                                        'USER': env.get("DB_OMOP_USER"),
-                                        'PASSWORD': env.get("DB_OMOP_PASSWORD"),
-                                        'HOST': env.get("DB_OMOP_HOST"),
-                                        'PORT': env.get("DB_OMOP_PORT"),
-                                        'DISABLE_SERVER_SIDE_CURSORS': True,
-                                        'OPTIONS': {'options': f"-c search_path={env.get('DB_OMOP_SCHEMA')},public"}
-                                        })
 
 # CLASS DEFINITION ####################################################################################################
 """

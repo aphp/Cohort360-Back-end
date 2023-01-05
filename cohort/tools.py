@@ -2,11 +2,11 @@ from coverage.annotate import os
 from django.db import models
 from django.db.models import QuerySet
 from django.http import Http404
+
 from accesses.conf_perimeters import OmopModelManager
 from accesses.models import Perimeter, Access, Role
-from accesses.tools.perimeter_process import get_perimeters_ids_list
-from admin_cohort import settings
 from cohort.models import CohortResult
+from commons.tools import cast_string_to_ids_list
 
 ROLE = "role"
 READ_PATIENT_NOMI = "read_patient_nomi"
@@ -17,22 +17,7 @@ EXPORT_JUPYTER_NOMI = "export_jupyter_nomi"
 EXPORT_JUPYTER_PSEUDO = "export_jupyter_pseudo"
 SEARCH_IPP = "search_ipp"
 
-# SETTINGS CONFIGURATION ###############################################################################################
 env = os.environ
-# Configuration of OMOP connexion
-settings.DATABASES.__setitem__(
-    'omop', {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': env.get("DB_OMOP_NAME"),
-        'USER': env.get("DB_OMOP_USER"),
-        'PASSWORD': env.get("DB_OMOP_PASSWORD"),
-        'HOST': env.get("DB_OMOP_HOST"),
-        'PORT': env.get("DB_OMOP_PORT"),
-        'DISABLE_SERVER_SIDE_CURSORS': True,
-        'OPTIONS': {
-            'options': f"-c search_path={env.get('DB_OMOP_SCHEMA')},public"
-        },
-    }, )
 
 
 def get_dict_right_accesses(user_accesses: [Access]) -> dict:
@@ -54,7 +39,7 @@ def is_right_on_accesses(accesses: QuerySet, perimeter_ids: [int]):
 
 
 def get_max_perimeter_dict_right(perimeter: Perimeter, accesses: dict):
-    above_levels_ids = get_perimeters_ids_list(perimeter.above_levels_ids)
+    above_levels_ids = cast_string_to_ids_list(perimeter.above_levels_ids)
     above_levels_ids.append(perimeter.id)
     perimeter_dict_right = {}
     for key, value in accesses.items():

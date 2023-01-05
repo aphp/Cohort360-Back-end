@@ -1,6 +1,10 @@
+import logging
+
 from admin_cohort import conf_auth
 from admin_cohort.conf_auth import LoginError, ServerError, JwtTokens
 from admin_cohort.models import User, get_or_create_user_with_info
+
+_log = logging.getLogger('error')
 
 
 def get_or_create_user(jwt_access_token: str) -> User:
@@ -14,12 +18,14 @@ class AuthBackend:
         try:
             tokens: JwtTokens = conf_auth.check_ids(username=username,
                                                     password=password)
-        except LoginError:
-            return None
+        except LoginError as e:
+            _log.exception(f"LoginError for user '{username}' - {e}")
+            return
         except ServerError as e:
+            _log.exception(f"ServerError while authenticating user '{username}' - {e}")
             request.jwt_server_unavailable = True
             request.jwt_server_message = str(e)
-            return None
+            return
 
         try:
             user = User.objects.get(provider_username=username)

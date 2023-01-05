@@ -478,21 +478,15 @@ class ViewSetTests(BaseTests):
                 getattr(new_obj, f), getattr(obj, f), case.description
             ) for f in [fd.name for fd in self.model_fields]]
 
-    def check_get_paged_list_case(
-            self, case: ListCase, other_view: any = None, **view_kwargs):
-        request = self.factory.get(
-            path=case.url or self.objects_url,
-            data=[] if case.url else case.params)
+    def check_get_paged_list_case(self, case: ListCase, other_view: any = None, **view_kwargs):
+        request = self.factory.get(path=case.url or self.objects_url,
+                                   data=[] if case.url else case.params)
         force_authenticate(request, case.user)
-        response = other_view(request, **view_kwargs) if other_view else \
-            self.__class__.list_view(request)
+        response = other_view(request, **view_kwargs) if other_view else self.__class__.list_view(request)
 
         response.render()
-        self.assertEqual(
-            response.status_code, case.status,
-            msg=(f"{case.title}: "
-                 + prettify_json(response.content) if response.content else ""),
-        )
+        self.assertEqual(response.status_code, case.status,
+                         msg=(f"{case.title}: " + prettify_json(response.content) if response.content else ""))
 
         if not case.success:
             self.assertNotIn('results', response.data, f"Case {case.title}")

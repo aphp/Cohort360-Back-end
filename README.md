@@ -53,28 +53,28 @@ _The following guide is valid for Unix like platforms. Another guide will be ava
 
 ### Prerequisites
 
-* Python (_version 3.8_)
+* Python (_version 3.11_)
   ```sh
   sudo apt-get update
-  sudo apt-get install python3.8
+  sudo apt-get install python3.11
   ```
-If you have already an higher version of python already installed:
+If you already have a different version of Python installed, consider adding the _deadsnakes_ repo:
 ```sh
 sudo apt update && sudo apt upgrade
 sudo apt install software-properties-common -y
 sudo add-apt-repository ppa:deadsnakes/ppa -y
 sudo apt update
-sudo apt install python3.8 -y
-python3.8 --version
+sudo apt install python3.11 -y
+python3.11 --version
 ```
   
 * PostgreSQL
   ```sh
   sudo apt-get install postgresql postgresql-contrib
   ```
-* Install python3.8-dev:
+* Install python3.11-dev:
     ```sh
-    sudo apt-get install python3.8-dev
+    sudo apt-get install python3.11-dev
     ```
 * Kerberos authentication development library
   ```sh
@@ -91,7 +91,7 @@ python3.8 --version
 2. Prepare a virtual environment
    ```sh
    pip install virtualenv
-   virtualenv -p python3.8 venv
+   virtualenv -p python3.11 venv
    source venv/bin/activate
    pip install -r requirements.txt
    ```

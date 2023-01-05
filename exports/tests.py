@@ -9,18 +9,16 @@ from rest_framework import status
 from rest_framework.test import force_authenticate
 
 from accesses.models import Access, Role
-from admin_cohort.tests_tools import new_user_and_profile, \
-    ViewSetTestsWithBasicPerims, random_str, CreateCase, \
-    CaseRetrieveFilter, ListCase, RequestCase, RetrieveCase, PatchCase, \
-    DeleteCase
-from admin_cohort.tools import prettify_json
-from cohort.models import CohortResult, RequestQuerySnapshot, Request, Folder, \
-    DatedMeasure
-from workspaces.models import Account
-from exports.models import ExportRequest, ExportRequestTable, ExportType
-from exports.tasks import check_jobs, clean_jobs
-from exports.views import ExportRequestViewset
 from admin_cohort.models import User, JobStatus
+from admin_cohort.tests_tools import new_user_and_profile, ViewSetTestsWithBasicPerims, random_str, CreateCase, \
+    CaseRetrieveFilter, ListCase, RequestCase, RetrieveCase, PatchCase, DeleteCase
+from admin_cohort.tools import prettify_json
+from cohort.models import CohortResult, RequestQuerySnapshot, Request, Folder, DatedMeasure
+from workspaces.models import Account
+from .models import ExportRequest, ExportRequestTable
+from .tasks import delete_export_requests_csv_files
+from .types import ExportType
+from .views import ExportRequestViewSet
 
 EXPORTS_URL = "/exports"
 
@@ -126,11 +124,11 @@ class ExportsTests(ViewSetTestsWithBasicPerims):
     ]
 
     objects_url = "/exports/"
-    retrieve_view = ExportRequestViewset.as_view({'get': 'retrieve'})
-    list_view = ExportRequestViewset.as_view({'get': 'list'})
-    create_view = ExportRequestViewset.as_view({'post': 'create'})
-    delete_view = ExportRequestViewset.as_view({'delete': 'destroy'})
-    update_view = ExportRequestViewset.as_view({'patch': 'partial_update'})
+    retrieve_view = ExportRequestViewSet.as_view({'get': 'retrieve'})
+    list_view = ExportRequestViewSet.as_view({'get': 'list'})
+    create_view = ExportRequestViewSet.as_view({'post': 'create'})
+    delete_view = ExportRequestViewSet.as_view({'delete': 'destroy'})
+    update_view = ExportRequestViewSet.as_view({'patch': 'partial_update'})
     model = ExportRequest
     model_objects = ExportRequest.objects
     model_fields = ExportRequest._meta.fields
@@ -343,37 +341,32 @@ class ExportsListTests(ExportsTests):
     def test_list_requests_as_jup_reviewer(self):
         base_results = self.user1_reqs + self.user2_reqs
 
-        self.check_get_paged_list_case(ListCase(
-            to_find=[e for e in base_results
-                     if e.output_format == ExportType.HIVE],
-            page_size=100,
-            user=self.user_jup_reviewer,
-            status=status.HTTP_200_OK,
-            success=True,
-        ))
+        self.check_get_paged_list_case(ListCase(to_find=[e for e in base_results if e.output_format == ExportType.HIVE],
+                                                page_size=100,
+                                                user=self.user_jup_reviewer,
+                                                status=status.HTTP_200_OK,
+                                                success=True,
+                                                params={"output_format": ExportType.HIVE}))
 
     def test_list_requests_as_csv_reviewer(self):
         base_results = self.user1_reqs + self.user2_reqs
 
-        self.check_get_paged_list_case(ListCase(
-            to_find=[e for e in base_results
-                     if e.output_format == ExportType.CSV],
-            page_size=100,
-            user=self.user_csv_reviewer,
-            status=status.HTTP_200_OK,
-            success=True,
-        ))
+        self.check_get_paged_list_case(ListCase(to_find=[e for e in base_results if e.output_format == ExportType.CSV],
+                                                page_size=100,
+                                                user=self.user_csv_reviewer,
+                                                status=status.HTTP_200_OK,
+                                                success=True,
+                                                params={"output_format": ExportType.CSV}))
 
     def test_list_requests_as_user1(self):
         base_results = self.user1_reqs
 
-        self.check_get_paged_list_case(ListCase(
-            to_find=base_results,
-            page_size=100,
-            user=self.user1,
-            status=status.HTTP_200_OK,
-            success=True,
-        ))
+        self.check_get_paged_list_case(ListCase(to_find=base_results,
+                                                page_size=100,
+                                                user=self.user1,
+                                                status=status.HTTP_200_OK,
+                                                success=True,
+                                                params={"owner": self.user1.pk}))
 
     def test_list_requests_as_full_reviewer_with_filters(self):
         # As a user with right_read_admin_accesses_same_level on a
@@ -438,7 +431,7 @@ class DownloadCase(RequestCase):
 
 
 class ExportsRetrieveTests(ExportsWithSimpleSetUp):
-    download_view = ExportRequestViewset.as_view({'get': 'download'})
+    download_view = ExportRequestViewSet.as_view({'get': 'download'})
 
     def setUp(self):
         super(ExportsRetrieveTests, self).setUp()
@@ -603,49 +596,20 @@ class ExportsJobsTests(ExportsWithSimpleSetUp):
         #         is_user_notified=False,
         #     )
 
-    @mock.patch('exports.emails.send_failed_email')
-    @mock.patch('exports.emails.send_success_email')
-    @mock.patch('exports.emails.EMAIL_REGEX_CHECK', r"^[\w.+-]+@test\.com$")
-    def test_task_check_jobs(
-            self, mock_send_success_email: MagicMock,
-            mock_send_failed_email: MagicMock
-    ):
-        # todo : test with denied/not validated
-        mock_send_success_email.return_value = None
-        mock_send_failed_email.return_value = None
-
-        check_jobs()
-
-        mock_send_failed_email.assert_called_once_with(
-            self.user1_exp_req_fail, self.user1.email
-        )
-        mock_send_success_email.assert_called_once_with(
-            self.user1_exp_req_succ, self.user1.email,
-        )
-
-        updated_req_1 = ExportRequest.objects.get(pk=self.user1_exp_req_fail.id)
-        updated_req_2 = ExportRequest.objects.get(pk=self.user1_exp_req_succ.id)
-        [self.assertTrue(er.is_user_notified) for er in [updated_req_1,
-                                                         updated_req_2]]
-        self.assertEqual(updated_req_1.request_job_status,
-                         JobStatus.failed)
-        self.assertEqual(updated_req_2.request_job_status,
-                         JobStatus.finished)
-
     @mock.patch('exports.emails.send_mail')
     @mock.patch('exports.conf_exports.delete_file')
-    def test_task_clean_jobs(self, mock_delete_hdfs_file, mock_send_mail):
-        from admin_cohort.settings import EXPORT_DAYS_BEFORE_DELETE
+    def test_task_delete_export_requests_csv_files(self, mock_delete_hdfs_file, mock_send_mail):
+        from admin_cohort.settings import DAYS_TO_DELETE_CSV_FILES
 
         mock_delete_hdfs_file.return_value = None
         mock_send_mail.return_value = None
 
         self.user1_exp_req_succ.review_request_datetime = (
-                timezone.now() - timedelta(days=EXPORT_DAYS_BEFORE_DELETE))
+                timezone.now() - timedelta(days=DAYS_TO_DELETE_CSV_FILES))
         self.user1_exp_req_succ.is_user_notified = True
         self.user1_exp_req_succ.save()
 
-        clean_jobs()
+        delete_export_requests_csv_files()
 
         deleted_ers = list(
             ExportRequest.objects.filter(cleaned_at__isnull=False))
@@ -1083,8 +1047,8 @@ class ValidateCase(RequestCase):
 
 
 class ExportsValidateDenyTests(ExportsWithSimpleSetUp):
-    deny_view = ExportRequestViewset.as_view({'patch': 'deny'})
-    validate_view = ExportRequestViewset.as_view({'patch': 'validate'})
+    deny_view = ExportRequestViewSet.as_view({'patch': 'deny'})
+    validate_view = ExportRequestViewSet.as_view({'patch': 'validate'})
 
     def setUp(self):
         super(ExportsValidateDenyTests, self).setUp()
@@ -1239,7 +1203,7 @@ class ExportsDeleteNotAllowedTests(ExportsNotAllowedTests):
 
 
 class ExportsUpdateNotAllowedTests(ExportsNotAllowedTests):
-    update_view = ExportRequestViewset.as_view({'update': 'update'})
+    update_view = ExportRequestViewSet.as_view({'update': 'update'})
 
     def test_error_update_request(self):
         [self.check_patch_case(PatchCase(

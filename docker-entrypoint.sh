@@ -18,10 +18,15 @@ kinit $KERBEROS_USER -k -t akouachi.keytab
 crontab -l | { cat; echo "0 0 * * */1 /usr/bin/kinit akouachi@EDS.APHP.FR -k -t /app/akouachi.keytab"; } | crontab -
 cron
 
-celery worker -B -A admin_cohort --loglevel=info >> /app/log/celery.log 2>&1 &
-
+# See https://docs.celeryq.dev/en/stable/reference/cli.html#celery-worker for configuration
+#celery worker -beat -A admin_cohort --loglevel=INFO --logfile=/app/log/celery.log &
+celery -A admin_cohort worker -B --loglevel=info  --logfile=/app/log/celery.log &
 sleep 10
-
 gunicorn admin_cohort.wsgi --config .conf/gunicorn.conf.py
-
 tail -f /app/log/gunicorn.log
+
+# Wait for any process to exit
+wait -n
+
+# Exit with status of process that exited first
+exit $?

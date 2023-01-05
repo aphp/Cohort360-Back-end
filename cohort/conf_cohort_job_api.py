@@ -1,10 +1,12 @@
 import json
+import logging
+import os
 import time
 from typing import List, Tuple, Dict
 
-import environ
 import simplejson
 from django.db.models import Model
+from django.utils import timezone
 from django.utils.datetime_safe import datetime
 from requests import Response
 from rest_framework import status
@@ -13,8 +15,9 @@ from rest_framework.request import Request
 from admin_cohort.types import JobStatus
 from cohort.FhirAPi import FhirCountResponse, FhirCohortResponse, FhirValidateResponse
 
-env = environ.Env()
-COHORT_REQUEST_BUILDER_URL = f"{env('COHORT_REQUEST_BUILDER_URL')}"
+_log = logging.getLogger('info')
+
+COHORT_REQUEST_BUILDER_URL = os.environ.get('COHORT_REQUEST_BUILDER_URL')
 JOBS_API = f"{COHORT_REQUEST_BUILDER_URL}/jobs"
 CREATE_COHORT_API = f"{COHORT_REQUEST_BUILDER_URL}/create"
 GET_COUNT_API = f"{COHORT_REQUEST_BUILDER_URL}/count"
@@ -132,12 +135,11 @@ class JobResponse:
     def __init__(self, resp: Response, **kwargs):
         self.duration: str = kwargs.get('duration')
         self.class_path: str = kwargs.get('classPath')
-        start_time: str = kwargs.get('startTime')
-        self.start_time: datetime = parse_date(start_time) if start_time else None
+        self.start_time: datetime = kwargs.get('startTime') and parse_date(kwargs.get('startTime')) or None
         self.context: str = kwargs.get('context')
         self.status: JobStatus = fhir_to_job_status().get(kwargs.get('status'))
-        if self.status is None:
-            print(f"ERROR EXPECTED : status is None : {resp.json()}")
+        if not self.status:
+            _log.info(f"Expected Error: status is None : {resp.json()}")
         self.job_id: str = kwargs.get('jobId')
         self.context_id: str = kwargs.get('contextId')
 
@@ -147,7 +149,7 @@ class JobResponse:
             self.result: List[JobResult] = [init_result_from_response_dict(resp, jr) for jr in job_result]
         else:
             self.result: List[JobResult] = [init_result_from_response_dict(resp, job_result)]
-        if not self.result and self.status in [JobStatus.finished.value, JobStatus.failed.value]:
+        if not self.result and self.status in [JobStatus.finished, JobStatus.failed]:
             raise Exception(f"FHIR ERROR: Result is empty - {resp.text}")
 
         self.request_response: Response = resp
@@ -194,7 +196,7 @@ def cancel_job(job_id: str, auth_headers) -> JobStatus:
     try:
         resp = requests.patch(f"{JOBS_API}/{job_id}/{FHIR_CANCEL_ACTION}", headers=auth_headers)
     except Exception as e:
-        raise Exception(f"INTERNAL ERROR: {e}")
+        raise Exception(f"Error while cancelling job on FHIR: {e}")
 
     try:
         result = resp.json()
@@ -211,13 +213,12 @@ def cancel_job(job_id: str, auth_headers) -> JobStatus:
         # But given our dated_measure had no data as if it was finished,
         # we consider it killed
         raise Exception(f"INTERNAL CONNECTION ERROR {resp.status_code}: "
-                        f"{result.get('error', 'no error')} ; "
-                        f"{result.get('message', 'no message')}")
+                        f"{result.get('error', 'no error')} - {result.get('message', 'no message')}")
 
     if 'status' not in result:
-        raise Exception(f"FHIR ERROR: could not read status from response ; {result}")
+        raise Exception(f"FHIR ERROR: could not read status from response; {result}")
 
-    s = result.get('status', "").lower()
+    s = fhir_to_job_status().get(result.get('status'))
     try:
         new_status = JobStatus(s)
     except ValueError:
@@ -226,7 +227,7 @@ def cancel_job(job_id: str, auth_headers) -> JobStatus:
 
     if new_status not in [JobStatus.cancelled, JobStatus.finished]:
         raise Exception(f"DATA ERROR: status returned by FHIR is neither KILLED or FINISHED -> {result}")
-    print(f"QueryServer Job {job_id} cancelled.")
+    _log.info(f"QueryServer Job {job_id} cancelled.")
     return new_status
 
 
@@ -347,7 +348,7 @@ def post_count_cohort(json_file: str, auth_headers, log_prefix: str = "", dated_
         return FhirCountResponse(fhir_job_id=job.job_id, job_duration=datetime.now() - d, success=False,
                                  fhir_job_status=JobStatus.failed, err_msg=err_msg)
 
-    return FhirCountResponse(fhir_datetime=datetime.now(),
+    return FhirCountResponse(fhir_datetime=timezone.now(),
                              fhir_job_id=job.job_id,
                              job_duration=datetime.now() - d,
                              success=True,
@@ -483,7 +484,7 @@ def post_create_cohort(json_file: str, auth_headers, log_prefix: str = "", cohor
                                   fhir_job_status=JobStatus.failed, err_msg=err_msg)
 
     return FhirCohortResponse(fhir_job_id=job.job_id,
-                              fhir_datetime=datetime.now(),
+                              fhir_datetime=timezone.now(),
                               job_duration=datetime.now() - d,
                               success=True,
                               count=job_result.count,
