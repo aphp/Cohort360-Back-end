@@ -1,6 +1,5 @@
 from django.db.models import Q
 from django_filters import rest_framework as filters
-from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.decorators import action
@@ -12,10 +11,10 @@ from admin_cohort.models import User
 from admin_cohort.permissions import IsAuthenticated, can_user_read_users
 from admin_cohort.settings import MANUAL_SOURCE
 from admin_cohort.views import BaseViewset, CustomLoggingMixin
+from . import swagger_metadata
 from ..models import Profile
 from ..permissions import ProfilePermissions, HasUserAddingPermission
-from ..serializers import ProfileSerializer, ReducedProfileSerializer, \
-    ProfileCheckSerializer
+from ..serializers import ProfileSerializer, ReducedProfileSerializer, ProfileCheckSerializer
 
 
 class ProfileFilter(filters.FilterSet):
@@ -52,38 +51,11 @@ class ProfileViewSet(CustomLoggingMixin, BaseViewset):
             return ReducedProfileSerializer
         return ProfileSerializer
 
-    @swagger_auto_schema(manual_parameters=list(map(lambda x: openapi.Parameter(name=x[0], in_=openapi.IN_QUERY,
-                                                                                description=x[1], type=x[2],
-                                                                                pattern=x[3] if len(x) == 4 else None),
-                                                    [["provider_source_value", "(to deprecate -> user) Search type",
-                                                      openapi.TYPE_STRING, r"\d{1,7}"],
-                                                     ["user", "Filter type (User's id)", openapi.TYPE_STRING,
-                                                      r"\d{1,7}"],
-                                                     ["provider_name", "Search type", openapi.TYPE_STRING],
-                                                     ["email", "Search type", openapi.TYPE_STRING],
-                                                     ["lastname", "Search type", openapi.TYPE_STRING],
-                                                     ["firstname", "Search type", openapi.TYPE_STRING],
-                                                     ["provider_history_id", "(to deprecate -> id) Filter type",
-                                                      openapi.TYPE_INTEGER],
-                                                     ["id", "Filter type", openapi.TYPE_INTEGER],
-                                                     ["provider_id", "Filter type", openapi.TYPE_INTEGER],
-                                                     ["cdm_source", "(to deprecate -> source) Filter type "
-                                                                    "('MANUAL', 'ORBIS', etc.)", openapi.TYPE_STRING],
-                                                     ["source", "Filter type ('MANUAL', 'ORBIS', etc.)",
-                                                      openapi.TYPE_STRING],
-                                                     ["is_active", "Filter type", openapi.TYPE_BOOLEAN],
-                                                     ["search", "Filter on several fields (provider_source_value, "
-                                                                "provider_name, lastname, firstname, email)",
-                                                      openapi.TYPE_STRING]])))
+    @swagger_auto_schema(manual_parameters=swagger_metadata.profile_list_manual_parameters)
     def list(self, request, *args, **kwargs):
         return super(ProfileViewSet, self).list(request, *args, **kwargs)
 
-    @swagger_auto_schema(request_body=openapi.Schema(type=openapi.TYPE_OBJECT,
-                                                     properties={"firstname": openapi.Schema(type=openapi.TYPE_STRING),
-                                                                 "lastname": openapi.Schema(type=openapi.TYPE_STRING),
-                                                                 "email": openapi.Schema(type=openapi.TYPE_STRING),
-                                                                 "is_active": openapi.Schema(type=openapi.TYPE_BOOLEAN)
-                                                                 }))
+    @swagger_auto_schema(request_body=swagger_metadata.profile_partial_update_request_body)
     def partial_update(self, request, *args, **kwargs):
         return super(ProfileViewSet, self).partial_update(request, *args, **kwargs)
 
@@ -91,17 +63,7 @@ class ProfileViewSet(CustomLoggingMixin, BaseViewset):
     def update(self, request, *args, **kwargs):
         return super(ProfileViewSet, self).update(request, *args, **kwargs)
 
-    @swagger_auto_schema(request_body=openapi.Schema(type=openapi.TYPE_OBJECT,
-                                                     properties={"firstname": openapi.Schema(type=openapi.TYPE_STRING),
-                                                                 "lastname": openapi.Schema(type=openapi.TYPE_STRING),
-                                                                 "email": openapi.Schema(type=openapi.TYPE_STRING),
-                                                                 "provider_id": openapi.Schema(
-                                                                     type=openapi.TYPE_INTEGER,
-                                                                     description="(to deprecate)"),
-                                                                 "user": openapi.Schema(type=openapi.TYPE_STRING),
-                                                                 "provider_source_value": openapi.Schema(
-                                                                     type=openapi.TYPE_STRING,
-                                                                     description="(to deprecate)")}))
+    @swagger_auto_schema(request_body=swagger_metadata.profile_create_request_body)
     def create(self, request, *args, **kwargs):
         return super(ProfileViewSet, self).create(request, *args, **kwargs)
 
@@ -109,14 +71,9 @@ class ProfileViewSet(CustomLoggingMixin, BaseViewset):
         instance.entry_deleted_by = self.request.user.provider_username
         return super(ProfileViewSet, self).perform_destroy(instance)
 
-    @swagger_auto_schema(request_body=openapi.Schema(type=openapi.TYPE_OBJECT,
-                                                     properties={"provider_source_value": openapi.Schema(
-                                                                 type=openapi.TYPE_STRING,
-                                                                 description="(to deprecate, use 'user_id' instead)"),
-                                                                 "user_id": openapi.Schema(type=openapi.TYPE_STRING)}),
-                         responses={'201': openapi.Response("User found", ProfileCheckSerializer()),
-                                    '204': openapi.Response("No user found")})
-    @action(detail=False, methods=['post'], permission_classes=(HasUserAddingPermission,), url_path="check")
+    @swagger_auto_schema(request_body=swagger_metadata.check_existing_user_request_body,
+                         responses=swagger_metadata.check_existing_user_responses)
+    @action(url_path="check", detail=False, methods=['post'], permission_classes=(HasUserAddingPermission,))
     def check_existing_user(self, request, *args, **kwargs):
         from admin_cohort.serializers import UserSerializer
 

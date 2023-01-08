@@ -1,6 +1,5 @@
 from django_filters import OrderingFilter
 from django_filters import rest_framework as filters
-from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.decorators import action
@@ -10,6 +9,7 @@ from rest_framework.response import Response
 
 from admin_cohort.permissions import IsAuthenticated
 from admin_cohort.views import BaseViewset, CustomLoggingMixin
+from . import swagger_metadata
 from ..models import Role, get_assignable_roles_on_perimeter, Perimeter
 from ..permissions import RolePermissions
 from ..serializers import RoleSerializer, UsersInRoleSerializer
@@ -53,13 +53,8 @@ class RoleViewSet(CustomLoggingMixin, BaseViewset):
             return Response(data=data, status=status.HTTP_200_OK)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @swagger_auto_schema(method='get',
-                         operation_summary="Get roles that the user can assign to a user on the perimeter provided.",
-                         manual_parameters=[openapi.Parameter(name="care_site_id", in_=openapi.IN_QUERY,
-                                                              description="(to deprecate -> perimeter_id) Required",
-                                                              type=openapi.TYPE_INTEGER),
-                                            openapi.Parameter(name="perimeter_id", in_=openapi.IN_QUERY,
-                                                              description="Required", type=openapi.TYPE_INTEGER)])
+    @swagger_auto_schema(method='get', operation_summary=swagger_metadata.assignable_op_summary,
+                         manual_parameters=swagger_metadata.assignable_manual_parameters)
     @action(url_path="assignable", detail=False, methods=['get'], permission_classes=(IsAuthenticated,))
     def assignable(self, request, *args, **kwargs):
         perim_id = self.request.GET.get("perimeter_id", self.request.GET.get("care_site_id"))

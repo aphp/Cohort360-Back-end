@@ -1,22 +1,19 @@
 from django.db.models import Q
+from django.http import Http404
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
-from django.http import Http404
+
 from admin_cohort.permissions import IsAuthenticatedReadOnly
 from admin_cohort.settings import PERIMETERS_TYPES
 from admin_cohort.tools import join_qs
-from admin_cohort.views import BaseViewset, YarnReadOnlyViewsetMixin, \
-    SwaggerSimpleNestedViewSetMixin
-
-from ..models import Role, Perimeter, get_user_valid_manual_accesses_queryset, \
-    get_all_perimeters_parents_queryset
-from ..serializers import PerimeterSerializer, \
-    TreefiedPerimeterSerializer, YasgTreefiedPerimeterSerializer, PerimeterLiteSerializer, DataReadRightSerializer, \
-    ReadRightPerimeter
+from admin_cohort.views import BaseViewset, YarnReadOnlyViewsetMixin, SwaggerSimpleNestedViewSetMixin
+from . import swagger_metadata
+from ..models import Role, Perimeter, get_user_valid_manual_accesses_queryset, get_all_perimeters_parents_queryset
+from ..serializers import PerimeterSerializer, TreefiedPerimeterSerializer, PerimeterLiteSerializer, ReadRightPerimeter
 from ..tools.perimeter_process import get_top_perimeter_same_level, get_top_perimeter_inf_level, \
     filter_perimeter_by_top_hierarchy_perimeter_list, filter_accesses_by_search_perimeters, get_read_patient_right, \
     get_top_perimeter_from_read_patient_accesses, is_pseudo_perimeter_in_top_perimeter, \
@@ -61,11 +58,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
                      "type_source_value",
                      "source_value"]
 
-    @swagger_auto_schema(method='get',
-                         operation_summary="Get the top hierarchy perimeters on which the user has at least "
-                                           "one role that allows to give accesses."
-                                           "- Same level right give access to current perimeter and lower levels."
-                                           "- Inferior level right give only access to children of current perimeter.",
+    @swagger_auto_schema(method='get', operation_summary=swagger_metadata.get_manageable_op_summary,
                          responses={'201': openapi.Response("manageable perimeters found", PerimeterLiteSerializer())})
     @action(detail=False, methods=['get'], url_path="manageable")
     def get_manageable(self, request, *args, **kwargs):
@@ -99,11 +92,8 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
                                                                       top_hierarchy_perimeter)
         return Response(PerimeterLiteSerializer(perimeters, many=True).data)
 
-    @swagger_auto_schema(
-        method='get',
-        operation_summary="Give perimeters and associated read patient roles for current user and search IPP"
-                          "If no perimeters param search ae present, it sow top hierarchy",
-        responses={'201': openapi.Response("give rights in caresite perimeters found", DataReadRightSerializer())})
+    @swagger_auto_schema(method='get', operation_summary=swagger_metadata.get_perimeters_read_right_accesses_op_summary,
+                         responses=swagger_metadata.get_perimeters_read_right_accesses_responses)
     @action(detail=False, methods=['get'], url_path="read-patient")
     def get_perimeters_read_right_accesses(self, request, *args, **kwargs):
         user_accesses = get_user_valid_manual_accesses_queryset(self.request.user)
@@ -135,10 +125,9 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
                                                  all_read_patient_pseudo_accesses,
                                                  all_read_ipp_accesses), many=True).data)
 
-    @swagger_auto_schema(
-        method='get',
-        operation_summary="Give boolean read patient pseudo read right for all perimeters searched",
-        responses={'201': openapi.Response("give rights in caresite perimeters found")})
+    @swagger_auto_schema(method='get',
+                         operation_summary="Give boolean read patient pseudo read right for all perimeters searched",
+                         responses={'201': openapi.Response("give rights in caresite perimeters found")})
     @action(detail=False, methods=['get'], url_path="is-read-patient-pseudo")
     def get_read_patient_right_access(self, request, *args, **kwargs):
         user_accesses = get_user_valid_manual_accesses_queryset(self.request.user)
@@ -165,10 +154,10 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
             {"is_read_patient_pseudo": is_pseudo_perimeter_in_top_perimeter(all_read_patient_nominative_accesses,
                                                                             all_read_patient_pseudo_accesses)})
 
-    @swagger_auto_schema(
-        method='get',
-        operation_summary="Give boolean read patient read right (Nomi or Pseudo) on one or several perimeters",
-        responses={'201': openapi.Response("give rights in caresite perimeters found")})
+    @swagger_auto_schema(method='get',
+                         operation_summary="Give boolean read patient read right (Nomi or Pseudo) on one or "
+                                           "several perimeters",
+                         responses={'201': openapi.Response("give rights in caresite perimeters found")})
     @action(detail=False, methods=['get'], url_path="is-one-read-patient-right")
     def get_read_one_nominative_patient_right_access(self, request, *args, **kwargs):
         user_accesses = get_user_valid_manual_accesses_queryset(self.request.user)
@@ -193,28 +182,13 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
         else:
             raise Http404("ERROR at least one search params is required!")
 
-    @swagger_auto_schema(manual_parameters=list(map(lambda x: openapi.Parameter(name=x[0],
-                                                                                in_=openapi.IN_QUERY,
-                                                                                description=x[1],
-                                                                                type=x[2],
-                                                                                pattern=x[3] if len(x) == 4 else None),
-                                                    [["ordering", "'field' or '-field' in care_site_name, "
-                                                                  "care_site_type_source_value, care_site_source_value",
-                                                      openapi.TYPE_STRING],
-                                                     ["search", "Will search in multiple fields (care_site_name, "
-                                                                "care_site_type_source_value, care_site_source_value)",
-                                                      openapi.TYPE_STRING],
-                                                     ["treefy", "If true, returns a tree-organised json, else a list",
-                                                      openapi.TYPE_BOOLEAN]])))
+    @swagger_auto_schema(manual_parameters=swagger_metadata.perimeter_list_manual_parameters)
     def list(self, request, *args, **kwargs):
         treefy = request.GET.get("treefy", None)
         if str(treefy).lower() == 'true':
             return self.treefied(request, *args, **kwargs)
         return super(PerimeterViewSet, self).list(request, *args, **kwargs)
 
-    @swagger_auto_schema(operation_description="Test",
-                         responses={'201': openapi.Response("Perimeters found", YasgTreefiedPerimeterSerializer),
-                                    '401': openapi.Response("Not authenticated")})
     @action(detail=False, methods=['get'], url_path="treefied")
     def treefied(self, request, *args, **kwargs):
         # in that case, for each perimeter filtered, we want to show the
@@ -240,10 +214,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
 class NestedPerimeterViewSet(SwaggerSimpleNestedViewSetMixin, PerimeterViewSet):
     @swagger_auto_schema(auto_schema=None)
     def get_manageable(self, request, *args, **kwargs):
-        return super(NestedPerimeterViewSet, self).get_manageable(
-            request, *args, **kwargs)
+        return super(NestedPerimeterViewSet, self).get_manageable(request, *args, **kwargs)
 
-    @swagger_auto_schema(auto_schema=None)
     def treefied(self, request, *args, **kwargs):
-        return super(NestedPerimeterViewSet, self).treefied(
-            request, *args, **kwargs)
+        return super(NestedPerimeterViewSet, self).treefied(request, *args, **kwargs)

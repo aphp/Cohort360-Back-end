@@ -1,8 +1,7 @@
 import urllib
 from functools import reduce
 
-from django.db.models import Q, BooleanField, When, Case, Value, \
-    QuerySet
+from django.db.models import Q, BooleanField, When, Case, Value, QuerySet
 from django.db.models.functions import Coalesce
 from django.http import Http404
 from django.utils import timezone
@@ -21,9 +20,9 @@ from admin_cohort.permissions import IsAuthenticated
 from admin_cohort.settings import PERIMETERS_TYPES
 from admin_cohort.tools import join_qs
 from admin_cohort.views import BaseViewset, CustomLoggingMixin
-from . import swagger_data
-from ..models import Role, Access, get_user_valid_manual_accesses_queryset, \
-    intersect_queryset_criteria, build_data_rights
+from . import swagger_metadata
+from ..models import Role, Access, get_user_valid_manual_accesses_queryset, intersect_queryset_criteria, \
+    build_data_rights
 from ..permissions import AccessPermissions
 from ..serializers import AccessSerializer, DataRightSerializer
 
@@ -131,28 +130,11 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
                                                 )
         return super(AccessViewSet, self).filter_queryset(queryset)
 
-    @swagger_auto_schema(manual_parameters=swagger_data.accesses_list)
+    @swagger_auto_schema(manual_parameters=swagger_metadata.access_list_manual_parameters)
     def list(self, request, *args, **kwargs):
         return super(AccessViewSet, self).list(request, *args, **kwargs)
 
-    @swagger_auto_schema(request_body=openapi.Schema(
-        type=openapi.TYPE_OBJECT,
-        properties={"provider_history_id": openapi.Schema(type=openapi.TYPE_INTEGER,
-                                                          description="(to deprecate -> profile_id) Correspond à "
-                                                                      "Provider_history_id"),
-                    "profile_id": openapi.Schema(type=openapi.TYPE_INTEGER, description="Correspond à un profile_id"),
-                    "care_site_id": openapi.Schema(type=openapi.TYPE_INTEGER, description="2deprecate -> perimeter_id"),
-                    "perimeter_id": openapi.Schema(type=openapi.TYPE_INTEGER),
-                    "role_id": openapi.Schema(type=openapi.TYPE_INTEGER),
-                    "start_datetime": openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME,
-                                                     description="Doit être dans le futur.\nSi vide ou null, sera "
-                                                                 "défini à now().\nDoit contenir la timezone ou bien "
-                                                                 "sera considéré comme UTC."),
-                    "end_datetime": openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME,
-                                                   description="Doit être dans le futur. \nSi vide ou null, sera "
-                                                               "défini à start_datetime + 1 un an.\nDoit contenir la "
-                                                               "timezone ou bien sera considéré comme UTC.")},
-        required=['profile', 'perimeter', 'role']))
+    @swagger_auto_schema(request_body=swagger_metadata.access_create_request_body)
     def create(self, request, *args, **kwargs):
         if "care_site_id" not in request.data and 'perimeter_id' not in request.data:
             return Response({"response": "perimeter_id is required"}, status=status.HTTP_404_NOT_FOUND)
@@ -163,18 +145,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
     def dispatch(self, request, *args, **kwargs):
         return super(AccessViewSet, self).dispatch(request, *args, **kwargs)
 
-    @swagger_auto_schema(request_body=openapi.Schema(
-        type=openapi.TYPE_OBJECT,
-        properties={"start_datetime": openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME,
-                                                     description="Doit être dans le futur.\nNe peut pas être modifié "
-                                                                 "si start_datetime actuel est déja passé.\nSera mis à "
-                                                                 "now() si null.\nDoit contenir la timezone ou bien "
-                                                                 "sera considéré comme UTC."),
-                    "end_datetime": openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME,
-                                                   description="Doit être dans le futur.\nNe peut pas être modifié si "
-                                                               "end_datetime actuel est déja passé.\nNe peut pas être "
-                                                               "mise à null.\nDoit contenir la timezone ou bien sera "
-                                                               "considéré comme UTC.")}))
+    @swagger_auto_schema(request_body=swagger_metadata.access_partial_update_request_body)
     def partial_update(self, request, *args, **kwargs):
         return super(AccessViewSet, self).partial_update(request, *args, **kwargs)
 
@@ -182,8 +153,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
     def update(self, request, *args, **kwargs):
         return super(AccessViewSet, self).update(request, *args, **kwargs)
 
-    @swagger_auto_schema(request_body=openapi.Schema(type=openapi.TYPE_STRING, properties={}),
-                         method="PATCH",
+    @swagger_auto_schema(request_body=openapi.Schema(type=openapi.TYPE_STRING, properties={}), method="PATCH",
                          operation_summary="Will set end_datetime to now, to close the access.")
     @action(url_path="close", detail=True, methods=['patch'], permission_classes=(IsAuthenticated,))
     def close(self, request, *args, **kwargs):
@@ -229,23 +199,9 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
         serializer = self.get_serializer(q, many=True)
         return Response(serializer.data)
 
-    @swagger_auto_schema(operation_description="Returns particular type of objects, describing the data rights that a "
-                                               "user has on a care-sites. AT LEAST one parameter is necessary",
-                         manual_parameters=[i for i in map(lambda x: openapi.Parameter(
-                             name=x[0], in_=openapi.IN_QUERY, description=x[1], type=x[2],
-                             pattern=x[3] if len(x) == 4 else None),
-                                                           [["care-site-ids", "(to deprecate -> perimeters_ids) List "
-                                                                              "of care-sites to limit the result on. "
-                                                                              "Sep: ','", openapi.TYPE_STRING],
-                                                            ["perimeters_ids", "List of perimeters to limit the result "
-                                                                               "on. Sep: ','", openapi.TYPE_STRING],
-                                                            ["pop-children", "2deprecate(pop_children) If True, keeps "
-                                                                             "only the biggest parents for each right",
-                                                             openapi.TYPE_BOOLEAN],
-                                                            ["pop_children", "If True, keeps only the biggest parents "
-                                                                             "for each right", openapi.TYPE_BOOLEAN]])],
-                         responses={200: openapi.Response('Rights found', DataRightSerializer),
-                                    403: openapi.Response('perimeters_ids and pop_children are both null')})
+    @swagger_auto_schema(operation_description=swagger_metadata.data_right_op_desc,
+                         manual_parameters=swagger_metadata.data_right_manual_parameters,
+                         responses=swagger_metadata.data_right_responses)
     @action(url_path="my-rights", detail=False, methods=['get'], filter_backends=[], pagination_class=None)
     def data_rights(self, request, *args, **kwargs):
         param_perimeters = self.request.GET.get('perimeters_ids', self.request.GET.get('care-site-ids'))
