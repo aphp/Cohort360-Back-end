@@ -21,6 +21,7 @@ from admin_cohort.permissions import IsAuthenticated
 from admin_cohort.settings import PERIMETERS_TYPES
 from admin_cohort.tools import join_qs
 from admin_cohort.views import BaseViewset, CustomLoggingMixin
+from . import swagger_data
 from ..models import Role, Access, get_user_valid_manual_accesses_queryset, \
     intersect_queryset_criteria, build_data_rights
 from ..permissions import AccessPermissions
@@ -130,27 +131,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
                                                 )
         return super(AccessViewSet, self).filter_queryset(queryset)
 
-    @swagger_auto_schema(manual_parameters=list(map(lambda x: openapi.Parameter(name=x[0], in_=openapi.IN_QUERY,
-                                                                                description=x[1], type=x[2],
-                                                                                pattern=x[3] if len(x) == 4 else None),
-                                                    [["perimeter_id", "Filter type", openapi.TYPE_STRING],
-                                                     ["target_perimeter_id", "Filter type. Used to also get accesses on"
-                                                                             " parents of this perimeter",
-                                                      openapi.TYPE_STRING],
-                                                     ["profile_email", "Search type", openapi.TYPE_STRING],
-                                                     ["profile_name", "Search type", openapi.TYPE_STRING],
-                                                     ["profile_lastname", "Search type", openapi.TYPE_STRING],
-                                                     ["profile_firstname", "Search type", openapi.TYPE_STRING],
-                                                     ["profile_user_id", "Search type", openapi.TYPE_STRING,
-                                                      r'\d{1,7}'],
-                                                     ["profile_id", "Filter type", openapi.TYPE_STRING],
-                                                     ["search", "Will search in multiple fields (perimeter_name, "
-                                                                "provider_name, lastname, firstname, "
-                                                                "provider_source_value, email)", openapi.TYPE_STRING],
-                                                     ["ordering", "To sort the result. Can be care_site_name, "
-                                                                  "role_name, start_datetime, end_datetime, is_valid. "
-                                                                  "Use -field for descending order",
-                                                      openapi.TYPE_STRING]])))
+    @swagger_auto_schema(manual_parameters=swagger_data.accesses_list)
     def list(self, request, *args, **kwargs):
         return super(AccessViewSet, self).list(request, *args, **kwargs)
 
