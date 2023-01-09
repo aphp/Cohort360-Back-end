@@ -115,4 +115,7 @@ GitHub.sublime-settings
 !.vscode/launch.json 
 !.vscode/extensions.json 
 .history
+
 /accesses/migrations/0023_caresite_concept_provider.py
+
+log

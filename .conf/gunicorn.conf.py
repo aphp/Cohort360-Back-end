@@ -21,8 +21,7 @@ logconfig_dict = dict(
             "handlers": ["access_file"],
             "propagate": True,
             "qualname": "gunicorn.access"
-        }
-    },
+        }},
     handlers={
         "console": {
             "class": "logging.StreamHandler",
@@ -31,19 +30,18 @@ logconfig_dict = dict(
         },
         "access_file": {
             "class": "logging.handlers.RotatingFileHandler",
-            "filename": "/app/log/gunicorn.access.log",
+            "filename": "log/gunicorn.access.log",
             "maxBytes": 100 * 1024 * 1024,
-            "backupCount": 100_000,
-            "formatter": "generic",
+            "backupCount": 1000,
+            "formatter": "generic"
         },
         "error_file": {
             "class": "logging.handlers.RotatingFileHandler",
-            "filename": "/app/log/gunicorn.error.log",
+            "filename": "log/gunicorn.error.log",
             "maxBytes": 100 * 1024 * 1024,
-            "backupCount": 100_000,
-            "formatter": "generic",
-        },
-    },
+            "backupCount": 1000,
+            "formatter": "generic"
+        }},
     formatters={
         "generic": {
             "format": "%(asctime)s [%(process)d] [%(levelname)s] %(message)s",

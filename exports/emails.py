@@ -31,7 +31,7 @@ KEY_DELETE_DATE = "KEY_DELETE_DATE"
 KEY_DATABASE_NAME = "KEY_DATABASE_NAME"
 
 
-_log = logging.getLogger('error')
+_log = logging.getLogger('django.request')
 
 
 def send_mail(msg: EmailMultiAlternatives):

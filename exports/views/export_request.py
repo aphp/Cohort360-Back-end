@@ -26,7 +26,7 @@ from exports.serializers import ExportRequestSerializer, ExportRequestSerializer
 from exports.tasks import launch_request
 from exports.types import ExportType
 
-_log = logging.getLogger('error')
+_log = logging.getLogger('django.request')
 
 
 class ExportRequestFilter(filters.FilterSet):

@@ -27,7 +27,7 @@ from cohort.serializers import RequestSerializer, CohortResultSerializer, Reques
     DatedMeasureSerializer, FolderSerializer, CohortResultSerializerFullDatedMeasure, CohortRightsSerializer
 from cohort.tools import get_all_cohorts_rights, get_dict_cohort_pop_source
 
-_log = logging.getLogger('error')
+_log = logging.getLogger('django.request')
 
 
 class NoUpdateViewSetMixin:
