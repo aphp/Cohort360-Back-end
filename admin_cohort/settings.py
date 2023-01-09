@@ -62,13 +62,13 @@ LOGGING = dict(version=1,
                loggers={
                    'info': {
                        'level': "INFO",
-                       'handlers': ["console"],
+                       'handlers': ['console', 'info_handler'],
                        'propagate': True
                    },
-                   'error': {
+                   'django.request': {
                        'level': "ERROR",
-                       'handlers': ["console", "mail_admins"],
-                       'propagate': True
+                       'handlers': ['console', 'error_handler', 'mail_admins'],
+                       'propagate': False,
                    }},
                handlers={
                    'console': {
@@ -77,6 +77,22 @@ LOGGING = dict(version=1,
                        'stream': "ext://sys.stdout",
                        'formatter': "verbose"
                    },
+                   'info_handler': {
+                       'level': "INFO",
+                       'class': "logging.handlers.RotatingFileHandler",
+                       'filename': "log/django.log",
+                       'maxBytes': 100 * 1024 * 1024,
+                       'backupCount': 1000,
+                       'formatter': "verbose"
+                    },
+                   'error_handler': {
+                       'level': "ERROR",
+                       'class': "logging.handlers.RotatingFileHandler",
+                       'filename': "log/django.error.log",
+                       'maxBytes': 100 * 1024 * 1024,
+                       'backupCount': 1000,
+                       'formatter': "verbose"
+                    },
                    'mail_admins': {
                        'level': "ERROR",
                        'class': "django.utils.log.AdminEmailHandler",
@@ -88,23 +104,6 @@ LOGGING = dict(version=1,
                        'style': "{"
                    }
                })
-if not DEBUG:
-    LOGGING["loggers"]["info"]["handlers"] = ["info_handler"]
-    LOGGING["loggers"]["error"]["handlers"] = ["error_handler", "mail_admins"]
-
-    info_handler = {'level': "INFO",
-                    'class': "logging.handlers.RotatingFileHandler",
-                    'filename': "/app/log/django.log",
-                    'maxBytes': 100 * 1024 * 1024,
-                    "backupCount": 100_000,
-                    'formatter': "verbose"
-                    }
-    error_handler = info_handler.copy()
-    error_handler.update({'level': "ERROR",
-                          'filename': "/app/log/django.error.log"
-                          })
-    LOGGING["handlers"].update({"info_handler": info_handler,
-                                "error_handler": error_handler})
 
 
 # Application definition
