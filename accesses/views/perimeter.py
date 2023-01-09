@@ -1,8 +1,8 @@
 from django.db.models import Q
-from django.http import Http404
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
+from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
@@ -13,11 +13,14 @@ from admin_cohort.tools import join_qs
 from admin_cohort.views import BaseViewset, YarnReadOnlyViewsetMixin, SwaggerSimpleNestedViewSetMixin
 from . import swagger_metadata
 from ..models import Role, Perimeter, get_user_valid_manual_accesses_queryset, get_all_perimeters_parents_queryset
-from ..serializers import PerimeterSerializer, TreefiedPerimeterSerializer, PerimeterLiteSerializer, ReadRightPerimeter
+from ..serializers import PerimeterSerializer, TreefiedPerimeterSerializer, PerimeterLiteSerializer, \
+    ReadRightPerimeterSerializer
 from ..tools.perimeter_process import get_top_perimeter_same_level, get_top_perimeter_inf_level, \
-    filter_perimeter_by_top_hierarchy_perimeter_list, filter_accesses_by_search_perimeters, get_read_patient_right, \
-    get_top_perimeter_from_read_patient_accesses, is_pseudo_perimeter_in_top_perimeter, \
-    is_at_least_one_read_Nomitative_right, get_perimeters_filtered_by_search
+    filter_perimeter_by_top_hierarchy_perimeter_list, \
+    filter_accesses_by_search_perimeters, get_read_patient_right, \
+    get_top_perimeter_from_read_patient_accesses, \
+    is_pseudo_perimeter_in_top_perimeter, is_at_least_one_read_Nomitative_right, \
+    get_perimeters_filtered_by_search
 
 
 class PerimeterFilter(filters.FilterSet):
@@ -58,8 +61,9 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
                      "type_source_value",
                      "source_value"]
 
-    @swagger_auto_schema(method='get', operation_summary=swagger_metadata.get_manageable_op_summary,
-                         responses={'201': openapi.Response("manageable perimeters found", PerimeterLiteSerializer())})
+    @swagger_auto_schema(method='get',
+                         operation_summary=swagger_metadata.get_manageable_op_summary,
+                         responses=swagger_metadata.get_manageable_responses)
     @action(detail=False, methods=['get'], url_path="manageable")
     def get_manageable(self, request, *args, **kwargs):
         user_accesses = get_user_valid_manual_accesses_queryset(self.request.user)
@@ -69,7 +73,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
         if self.request.query_params:
             perimeters_filtered_by_search = self.filter_queryset(self.get_queryset())
             if not perimeters_filtered_by_search:
-                return Response({"WARN": "No Perimeters Found"})
+                return Response(data="No Perimeters Found", status=status.HTTP_404_NOT_FOUND)
 
         if user_accesses.filter(Role.is_manage_role_any_level("role")).count():
             # if edit on any level, we don't care about perimeters' accesses; return the top perimeter hierarchy:
@@ -90,9 +94,11 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
 
         perimeters = filter_perimeter_by_top_hierarchy_perimeter_list(perimeters_filtered_by_search,
                                                                       top_hierarchy_perimeter)
-        return Response(PerimeterLiteSerializer(perimeters, many=True).data)
+        return Response(data=PerimeterLiteSerializer(perimeters, many=True).data,
+                        status=status.HTTP_200_OK)
 
-    @swagger_auto_schema(method='get', operation_summary=swagger_metadata.get_perimeters_read_right_accesses_op_summary,
+    @swagger_auto_schema(method='get',
+                         operation_summary=swagger_metadata.get_perimeters_read_right_accesses_op_summary,
                          responses=swagger_metadata.get_perimeters_read_right_accesses_responses)
     @action(detail=False, methods=['get'], url_path="read-patient")
     def get_perimeters_read_right_accesses(self, request, *args, **kwargs):
@@ -103,31 +109,26 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
         all_read_ipp_accesses = user_accesses.filter(Role.is_search_ipp_role("role"))
 
         if not all_read_patient_nominative_accesses and not all_read_patient_pseudo_accesses:
-            raise Http404("ERROR: No Accesses with read patient right found")
+            return Response(data="No Accesses with read patient right found", status=status.HTTP_404_NOT_FOUND)
+
         if self.request.query_params:
-
-            perimeters_filtered_by_search = self.filter_queryset(self.get_queryset())
-            if not perimeters_filtered_by_search:
-                raise Http404("ERROR: No Perimeters Found")
-
-            return Response(ReadRightPerimeter(
-                filter_accesses_by_search_perimeters(perimeters_filtered_by_search,
-                                                     all_read_patient_nominative_accesses,
-                                                     all_read_patient_pseudo_accesses,
-                                                     all_read_ipp_accesses), many=True).data)
-
-        all_distinct_perimeters = get_top_perimeter_from_read_patient_accesses(all_read_patient_nominative_accesses,
-                                                                               all_read_patient_pseudo_accesses)
-
-        return Response(ReadRightPerimeter(
-            filter_accesses_by_search_perimeters(all_distinct_perimeters,
-                                                 all_read_patient_nominative_accesses,
-                                                 all_read_patient_pseudo_accesses,
-                                                 all_read_ipp_accesses), many=True).data)
+            perimeters = self.filter_queryset(self.get_queryset())
+            if not perimeters:
+                return Response(data="No Perimeters Found", status=status.HTTP_404_NOT_FOUND)
+        else:
+            perimeters = get_top_perimeter_from_read_patient_accesses(all_read_patient_nominative_accesses,
+                                                                      all_read_patient_pseudo_accesses)
+        filtered_accesses = filter_accesses_by_search_perimeters(perimeters,
+                                                                 all_read_patient_nominative_accesses,
+                                                                 all_read_patient_pseudo_accesses,
+                                                                 all_read_ipp_accesses)
+        return Response(data=ReadRightPerimeterSerializer(filtered_accesses, many=True).data,
+                        status=status.HTTP_200_OK)
 
     @swagger_auto_schema(method='get',
                          operation_summary="Give boolean read patient pseudo read right for all perimeters searched",
-                         responses={'201': openapi.Response("give rights in caresite perimeters found")})
+                         responses={'200': openapi.Response("give rights in caresite perimeters found"),
+                                    '404': openapi.Response("Return HTTP404 if no perimeters or accesses found")})
     @action(detail=False, methods=['get'], url_path="is-read-patient-pseudo")
     def get_read_patient_right_access(self, request, *args, **kwargs):
         user_accesses = get_user_valid_manual_accesses_queryset(self.request.user)
@@ -136,14 +137,16 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
         all_read_patient_pseudo_accesses = user_accesses.filter(Role.is_read_patient_role_pseudo("role"))
 
         if not all_read_patient_nominative_accesses and not all_read_patient_nominative_accesses:
-            raise Http404("ERROR No accesses with read patient right Found")
+            return Response(data="No accesses with read patient right Found", status=status.HTTP_404_NOT_FOUND)
+
         if self.request.query_params:
             perimeters_filtered_by_search = get_perimeters_filtered_by_search(
                 self.request.query_params.get("cohort_id"),
                 self.request.user,
                 self.filter_queryset(self.get_queryset()))
             if not perimeters_filtered_by_search:
-                raise Http404("ERROR No Perimeters Found")
+                return Response(data="No Perimeters Found", status=status.HTTP_404_NOT_FOUND)
+
             is_read_patient_pseudo = get_read_patient_right(perimeters_filtered_by_search,
                                                             all_read_patient_nominative_accesses,
                                                             all_read_patient_pseudo_accesses)
@@ -157,7 +160,8 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
     @swagger_auto_schema(method='get',
                          operation_summary="Give boolean read patient read right (Nomi or Pseudo) on one or "
                                            "several perimeters",
-                         responses={'201': openapi.Response("give rights in caresite perimeters found")})
+                         responses={'200': openapi.Response("give rights in caresite perimeters found"),
+                                    '404': openapi.Response("Return HTTP404 if no perimeters or accesses found")})
     @action(detail=False, methods=['get'], url_path="is-one-read-patient-right")
     def get_read_one_nominative_patient_right_access(self, request, *args, **kwargs):
         user_accesses = get_user_valid_manual_accesses_queryset(self.request.user)
@@ -166,7 +170,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
         all_read_patient_pseudo_accesses = user_accesses.filter(Role.is_read_patient_role_pseudo("role"))
 
         if not all_read_patient_nominative_accesses and not all_read_patient_nominative_accesses:
-            raise Http404("ERROR No accesses with read patient right Found")
+            return Response(data="No accesses with read patient right Found", status=status.HTTP_404_NOT_FOUND)
 
         if self.request.query_params:
             perimeters_filtered_by_search = get_perimeters_filtered_by_search(
@@ -174,13 +178,14 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
                 self.request.user,
                 self.filter_queryset(self.get_queryset()))
             if not perimeters_filtered_by_search:
-                raise Http404("ERROR No Perimeters Found")
+                return Response(data="No Perimeters Found", status=status.HTTP_404_NOT_FOUND)
             is_read_patient_nominative = is_at_least_one_read_Nomitative_right(perimeters_filtered_by_search,
                                                                                all_read_patient_nominative_accesses,
                                                                                all_read_patient_pseudo_accesses)
-            return Response({"is_one_read_nominative_patient_right": is_read_patient_nominative})
+            return Response(data={"is_one_read_nominative_patient_right": is_read_patient_nominative},
+                            status=status.HTTP_200_OK)
         else:
-            raise Http404("ERROR at least one search params is required!")
+            return Response(data="At least one search param is required!", status=status.HTTP_404_NOT_FOUND)
 
     @swagger_auto_schema(manual_parameters=swagger_metadata.perimeter_list_manual_parameters)
     def list(self, request, *args, **kwargs):

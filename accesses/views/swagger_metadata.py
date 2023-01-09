@@ -1,6 +1,7 @@
 from drf_yasg import openapi
 
-from accesses.serializers import DataRightSerializer, DataReadRightSerializer, ProfileCheckSerializer
+from accesses.serializers import DataRightSerializer, ReadRightPerimeterSerializer, ProfileCheckSerializer, \
+    PerimeterLiteSerializer
 
 # ************************************* access
 
@@ -75,12 +76,18 @@ get_manageable_op_summary = "Get the top hierarchy perimeters on which the user 
                             "give accesses. 1. Same level right give access to current perimeter and lower levels."\
                             "2. Inferior level right give only access to children of current perimeter."
 
-get_perimeters_read_right_accesses_op_summary = "Give perimeters and associated read patient roles for current user "\
-                                                "and search IPP If no perimeters param search are present, it "\
-                                                "shows top hierarchy"
+get_manageable_responses = {'200': openapi.Response("Manageable perimeters found", PerimeterLiteSerializer()),
+                            '404': openapi.Response("Return HTTP404 if no perimeters found")
+                            }
 
-get_perimeters_read_right_accesses_responses = {'201': openapi.Response("give rights in caresite perimeters found",
-                                                                        DataReadRightSerializer())}
+get_perimeters_read_right_accesses_op_summary = "Return a list of perimeters associated with read patient rights and "\
+                                                "search by IPP right for current user."\
+                                                "If no perimeters were provided as filters, return top hierarchy"
+
+get_perimeters_read_right_accesses_responses = {'200': openapi.Response("Return rights over found perimeters",
+                                                                        ReadRightPerimeterSerializer()),
+                                                '404': openapi.Response("Return HTTP404 if no perimeters or accesses")
+                                                }
 
 perimeter_list_manual_parameters = list(map(
     lambda x: openapi.Parameter(name=x[0], in_=openapi.IN_QUERY, description=x[1], type=x[2],

@@ -5,8 +5,8 @@ from django.http import Http404
 
 from accesses.conf_perimeters import OmopModelManager
 from accesses.models import Perimeter, Access, Role
+from accesses.tools.utils import cast_string_to_ids_list
 from cohort.models import CohortResult
-from commons.tools import cast_string_to_ids_list
 
 ROLE = "role"
 READ_PATIENT_NOMI = "read_patient_nomi"
@@ -110,7 +110,7 @@ def psql_query_get_pop_source_from_cohort(cohorts_ids: list):
 
 def get_list_cohort_id_care_site(cohorts_ids: list, all_user_cohorts: [CohortResult]):
     """
-    Give the list of cohort_id and the list of Perimete.cohort_id population source for cohort users and remove
+    Give the list of cohort_id and the list of Perimeter.cohort_id population source for cohort users and remove
     cohort user ids
     """
     fact_relationships = FactRelationShip.objects.raw(psql_query_get_pop_source_from_cohort(cohorts_ids))

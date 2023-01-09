@@ -601,7 +601,7 @@ class DataReadRightSerializer(serializers.Serializer):
     read_role = serializers.CharField(read_only=True, allow_null=True)
 
 
-class ReadRightPerimeter(serializers.Serializer):
+class ReadRightPerimeterSerializer(serializers.Serializer):
     perimeter = PerimeterLiteSerializer(allow_null=True, required=False)
     read_role = serializers.CharField(read_only=True, allow_null=True)
     right_read_patient_nominative = serializers.BooleanField(read_only=True, allow_null=True)

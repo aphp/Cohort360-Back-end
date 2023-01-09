@@ -2,7 +2,7 @@ import logging
 
 from django.db.models import F
 from django.db.models import Q
-from django.http import QueryDict, JsonResponse, HttpResponse, Http404, HttpResponseServerError, HttpResponseBadRequest
+from django.http import QueryDict, JsonResponse, HttpResponse, HttpResponseServerError, HttpResponseBadRequest
 from django_filters import OrderingFilter
 from django_filters import rest_framework as filters
 from drf_yasg import openapi
@@ -184,28 +184,25 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         method='get',
         operation_summary="Give cohorts aggregation read patient rights, export csv rights and transfer jupyter rights."
                           "It check accesses with perimeters population source for each cohort found.",
-        responses={'201': openapi.Response("give rights in caresite perimeters found", CohortRightsSerializer())})
+        responses={'200': openapi.Response("give rights in caresite perimeters found", CohortRightsSerializer())})
     @action(detail=False, methods=['get'], url_path="cohort-rights")
-    def get_perimeters_read_right_accesses(self, request, *args, **kwargs):
+    def get_cohorts_read_right_accesses(self, request, *args, **kwargs):
         user_accesses = get_user_valid_manual_accesses_queryset(self.request.user)
 
         if not user_accesses:
-            raise Http404("ERROR: No Accesses found")
+            return Response(data="No Accesses Found", status=status.HTTP_404_NOT_FOUND)
         if self.request.query_params:
             # Case with perimeters search params
             cohorts_filtered_by_search = self.filter_queryset(self.get_queryset())
             if not cohorts_filtered_by_search:
-                raise Http404("ERROR: No Cohort Found")
+                return Response("No Cohort Found", status=status.HTTP_404_NOT_FOUND)
             list_cohort_id = [cohort.fhir_group_id for cohort in cohorts_filtered_by_search if cohort.fhir_group_id]
-            cohort_dict_pop_source = get_dict_cohort_pop_source(list_cohort_id)
+        else:
+            all_user_cohorts = CohortResult.objects.filter(owner=self.request.user)
+            if not all_user_cohorts:
+                return Response("No Cohort Found", status=status.HTTP_404_NOT_FOUND)
+            list_cohort_id = [cohort.fhir_group_id for cohort in all_user_cohorts if cohort.fhir_group_id]
 
-            return Response(CohortRightsSerializer(get_all_cohorts_rights(user_accesses, cohort_dict_pop_source),
-                                                   many=True).data)
-
-        all_user_cohorts = CohortResult.objects.filter(owner=self.request.user)
-        if not all_user_cohorts:
-            return Response("WARN: You do not have any cohort")
-        list_cohort_id = [cohort.fhir_group_id for cohort in all_user_cohorts if cohort.fhir_group_id]
         cohort_dict_pop_source = get_dict_cohort_pop_source(list_cohort_id)
         return Response(CohortRightsSerializer(get_all_cohorts_rights(user_accesses, cohort_dict_pop_source),
                                                many=True).data)

@@ -2,9 +2,9 @@ from rest_framework.exceptions import ValidationError
 
 from accesses.models import Perimeter, Access
 from accesses.tools.data_right_mapping import PerimeterReadRight
+from accesses.tools.utils import cast_string_to_ids_list
 from cohort.models import CohortResult
 from cohort.tools import get_list_cohort_id_care_site
-from commons.tools import cast_string_to_ids_list
 
 
 def is_perimeter_in_top_hierarchy(above_list: [int], all_distinct_perimeters: [Perimeter]) -> bool:
