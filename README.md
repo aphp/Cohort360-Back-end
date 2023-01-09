@@ -114,9 +114,12 @@ python3.11 --version
    \q
    ```
 4. Configuration : 
-- create a **.env** file (admin_cohort/.env) following **admin_cohort/.env.example** format
+- Create a **.env** file (admin_cohort/.env) following **admin_cohort/.env.example** format
 
-5. Django migrations files are already included per application. Next, run migrations to create the database tables
+5. Logs
+- Create a directory **log** in the project directory to store log files.
+
+6. Django migrations files are already included per application. Next, run migrations to create the database tables
    ```sh
    source venv/bin/activate
    python manage.py migrate

@@ -15,7 +15,7 @@ from .models import ExportRequest
 from .types import ExportType, HdfsServerUnreachableError, ApiJobResponse
 
 _log_info = logging.getLogger('info')
-_log_err = logging.getLogger('error')
+_log_err = logging.getLogger('django.request')
 
 
 def log_export_request_task(er_id, msg):
