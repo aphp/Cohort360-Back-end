@@ -67,7 +67,7 @@ LOGGING = dict(version=1,
                    },
                    'error': {
                        'level': "ERROR",
-                       'handlers': ["console"],
+                       'handlers': ["console", "mail_admins"],
                        'propagate': True
                    }},
                handlers={
