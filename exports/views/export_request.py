@@ -80,6 +80,8 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
             types.extend([ExportType.PSQL, ExportType.HIVE])
         return q.filter(owner=self.request.user) | q.filter(output_format__in=types)
 
+    @swagger_auto_schema(responses={'200': openapi.Response("List of export requests", ExportRequestListSerializer()),
+                                    '204': openapi.Response("HTTP_204 if no export requests found")})
     def list(self, request, *args, **kwargs):
         q = self.filter_queryset(self.queryset)
         page = self.paginate_queryset(q)

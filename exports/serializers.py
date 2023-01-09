@@ -86,10 +86,12 @@ class ExportRequestListSerializer(serializers.ModelSerializer):
         return er.owner.displayed_name
 
     def get_cohort_name(self, er):
-        return er.cohort_fk.name
+        cohort = CohortResult.objects.filter(fhir_group_id=er.cohort_id).first()
+        return cohort and cohort.name or ""
 
     def get_patients_count(self, er):
-        return er.cohort_fk.dated_measure.measure
+        cohort = CohortResult.objects.filter(fhir_group_id=er.cohort_id).first()
+        return cohort and cohort.dated_measure.measure or ""
 
     def get_target_env(self, er):
         if er.target_unix_account:
