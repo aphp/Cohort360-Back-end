@@ -4,7 +4,7 @@ from celery import shared_task, current_task
 
 import cohort.conf_cohort_job_api as fhir_api
 from admin_cohort.models import JobStatus
-from cohort.models import CohortResult, DatedMeasure, GLOBAL_DM_MODE
+from cohort.models import DatedMeasure, CohortResult, GLOBAL_DM_MODE
 
 
 def update_instance_failed(

@@ -16,7 +16,7 @@ from admin_cohort.models import User
 from admin_cohort.tools import join_qs
 from admin_cohort.types import JobStatus
 from admin_cohort.views import CustomLoggingMixin
-from cohort.models import CohortResult
+from cohort.models.cohort_result import CohortResult
 from exports import conf_exports
 from exports.emails import check_email_address
 from exports.models import ExportRequest

@@ -1,6 +1,6 @@
 Nous vous confirmons la réception de votre demande d'export de données vers Hive concernant la cohorte numéro KEY_COHORT_ID.
 
 Vous serez informé.e par email lorsque les données seront disponibles dans votre espace Jupyter.
-Un délai de 24 h maximum peut s'appliquer en fonction du volume des données.
+Un délai de 24h maximum peut s'appliquer en fonction du volume des données.
 
 Pour toute question, contactez le support Cohort360 à KEY_CONTACT_MAIL

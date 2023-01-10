@@ -13,12 +13,12 @@ from admin_cohort.models import User, JobStatus
 from admin_cohort.tests_tools import new_user_and_profile, ViewSetTestsWithBasicPerims, random_str, CreateCase, \
     CaseRetrieveFilter, ListCase, RequestCase, RetrieveCase, PatchCase, DeleteCase
 from admin_cohort.tools import prettify_json
-from cohort.models import CohortResult, RequestQuerySnapshot, Request, Folder, DatedMeasure
+from cohort.models import RequestQuerySnapshot, Request, Folder, DatedMeasure, CohortResult
+from exports.models import ExportRequest, ExportRequestTable
+from exports.tasks import delete_export_requests_csv_files
+from exports.types import ExportType
+from exports.views import ExportRequestViewSet
 from workspaces.models import Account
-from .models import ExportRequest, ExportRequestTable
-from .tasks import delete_export_requests_csv_files
-from .types import ExportType
-from .views import ExportRequestViewSet
 
 EXPORTS_URL = "/exports"
 

@@ -3,11 +3,10 @@ import json
 from rest_framework import serializers
 
 import cohort.conf_cohort_job_api as conf
+from admin_cohort.models import User
 from admin_cohort.serializers import BaseSerializer, OpenUserSerializer
 from admin_cohort.types import JobStatus
-from cohort.models import Request, CohortResult, RequestQuerySnapshot, \
-    DatedMeasure, Folder, GLOBAL_DM_MODE
-from cohort.models import User
+from cohort.models import Request, RequestQuerySnapshot, DatedMeasure, Folder, CohortResult, GLOBAL_DM_MODE
 
 
 class PrimaryKeyRelatedFieldWithOwner(serializers.PrimaryKeyRelatedField):

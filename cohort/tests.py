@@ -10,22 +10,17 @@ from rest_framework.test import force_authenticate
 
 from admin_cohort.models import User
 from admin_cohort.settings import SHARED_FOLDER_NAME
-from admin_cohort.tests_tools import ViewSetTests, new_random_user, \
-    random_str, ListCase, RetrieveCase, CreateCase, CaseRetrieveFilter, \
-    DeleteCase, PatchCase, RequestCase
+from admin_cohort.tests_tools import ViewSetTests, new_random_user, random_str, ListCase, RetrieveCase, CreateCase, \
+    CaseRetrieveFilter, DeleteCase, PatchCase, RequestCase
 from admin_cohort.tools import prettify_json
 from admin_cohort.types import JobStatus
-from cohort.FhirAPi import FhirValidateResponse, FhirCountResponse, \
-    FhirCohortResponse
-from cohort.models import Request, RequestQuerySnapshot, DatedMeasure, \
-    CohortResult, Folder, REQUEST_DATA_TYPE_CHOICES, \
-    PATIENT_REQUEST_TYPE, DATED_MEASURE_MODE_CHOICES, SNAPSHOT_DM_MODE, \
-    GLOBAL_DM_MODE
+from cohort.FhirAPi import FhirValidateResponse, FhirCountResponse, FhirCohortResponse
+from cohort.models import Request, RequestQuerySnapshot, DatedMeasure, Folder, CohortResult, REQUEST_DATA_TYPE_CHOICES, \
+    PATIENT_REQUEST_TYPE, DATED_MEASURE_MODE_CHOICES, SNAPSHOT_DM_MODE, GLOBAL_DM_MODE
 from cohort.tasks import get_count_task, create_cohort_task
-from cohort.views import RequestViewSet, RequestQuerySnapshotViewSet, \
-    DatedMeasureViewSet, CohortResultViewSet, FolderViewSet, \
-    NestedRequestViewSet, NestedRqsViewSet, NestedDatedMeasureViewSet, \
-    NestedCohortResultViewSet
+from cohort.views import RequestViewSet, RequestQuerySnapshotViewSet, DatedMeasureViewSet, FolderViewSet, \
+    CohortResultViewSet, NestedCohortResultViewSet, NestedRequestViewSet, NestedRqsViewSet, \
+    NestedDatedMeasureViewSet
 
 EXPLORATIONS_URL = "/cohort"
 FOLDERS_URL = f"{EXPLORATIONS_URL}/folders"
