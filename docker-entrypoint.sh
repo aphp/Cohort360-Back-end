@@ -19,7 +19,7 @@ crontab -l | { cat; echo "0 0 * * */1 /usr/bin/kinit akouachi@EDS.APHP.FR -k -t 
 cron
 
 # See https://docs.celeryq.dev/en/stable/reference/cli.html#celery-worker for configuration
-celery -A admin_cohort worker -B
+celery -A admin_cohort worker -B --loglevel=INFO --logfile=/app/log/celery.log &
 sleep 10
 gunicorn admin_cohort.wsgi --config .conf/gunicorn.conf.py
 tail -f /app/log/gunicorn.log
