@@ -3,7 +3,7 @@ import logging
 
 from django.db.models import Q
 from django.http import HttpResponse, StreamingHttpResponse
-from django_filters import rest_framework as filters
+from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from hdfs import HdfsError
@@ -37,8 +37,26 @@ class ExportRequestFilter(filters.FilterSet):
                                             Q(cohort_fk__owner__lastname__icontains=value)]))
         return queryset
 
+    def multi_value_filter(self, queryset, field, value: str):
+        if value:
+            sub_values = [val.strip() for val in value.split(",")]
+            return queryset.filter(join_qs([Q(**{field: v}) for v in sub_values]))
+        return queryset
+
     cohort_name = filters.CharFilter(field_name="cohort_fk__name", lookup_expr='icontains')
+    insert_datetime_gte = filters.DateTimeFilter(field_name="insert_datetime", lookup_expr='gte')
+    insert_datetime_lte = filters.DateTimeFilter(field_name="insert_datetime", lookup_expr='lte')
     cohort_owner = filters.CharFilter(method="multi_fields_filter")
+    output_format = filters.CharFilter(method="multi_value_filter", field_name="output_format")
+    request_job_status = filters.CharFilter(method="multi_value_filter", field_name="request_job_status")
+
+    ordering = OrderingFilter(fields=('insert_datetime',
+                                      'output_format',
+                                      'owner'))
+    # add:
+    #   limit
+    #   pagination
+    #   offset
 
     class Meta:
         model = ExportRequest
