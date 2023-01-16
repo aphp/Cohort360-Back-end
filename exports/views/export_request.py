@@ -10,6 +10,7 @@ from hdfs import HdfsError
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 
 from admin_cohort.models import User
@@ -52,11 +53,7 @@ class ExportRequestFilter(filters.FilterSet):
 
     ordering = OrderingFilter(fields=('insert_datetime',
                                       'output_format',
-                                      'owner'))
-    # add:
-    #   limit
-    #   pagination
-    #   offset
+                                      ('owner__firstname', 'owner')))
 
     class Meta:
         model = ExportRequest
@@ -70,10 +67,13 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
     lookup_field = "id"
     permissions = (ExportRequestPermissions, ExportJupyterPermissions)
     swagger_tags = ['Exports']
+    pagination_class = LimitOffsetPagination
     filterset_class = ExportRequestFilter
     http_method_names = ['get', 'post', 'patch']
     logging_methods = ['POST', 'PATCH']
-    search_fields = ("motivation", "output_format")
+    search_fields = ("owner__firstname", "owner__lastname", "output_format",
+                     "cohort_fk__name", "request_job_status", "target_name",
+                     "target_unix_account__name")
 
     def should_log(self, request, response):
         act = getattr(getattr(request, "parser_context", {}).get("view", {}), "action", "")
