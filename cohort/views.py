@@ -57,19 +57,14 @@ class UserObjectsRestrictedViewSet(BaseViewSet):
         if type(request.data) == QueryDict:
             request.data._mutable = True
         request.data['owner'] = request.data.get('owner', request.user.pk)
-
-        return super(UserObjectsRestrictedViewSet, self).create(
-            request, *args, **kwargs)
+        return super(UserObjectsRestrictedViewSet, self).create(request, *args, **kwargs)
 
     # todo : remove when front is ready
     #  (front should not post with '_id' fields)
     def initial(self, request, *args, **kwargs):
-        super(UserObjectsRestrictedViewSet, self) \
-            .initial(request, *args, **kwargs)
-
+        super(UserObjectsRestrictedViewSet, self).initial(request, *args, **kwargs)
         s = self.get_serializer_class()()
-        primary_key_fields = [f.field_name for f in s._writable_fields
-                              if isinstance(f, RelatedField)]
+        primary_key_fields = [f.field_name for f in s._writable_fields if isinstance(f, RelatedField)]
 
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
@@ -140,7 +135,7 @@ class CohortFilter(filters.FilterSet):
 
 class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     queryset = CohortResult.objects.select_related('request_query_snapshot__request') \
-        .annotate(request_id=F('request_query_snapshot__request__uuid')).all()
+                                   .annotate(request_id=F('request_query_snapshot__request__uuid')).all()
     serializer_class = CohortResultSerializer
     http_method_names = ['get', 'post', 'patch', 'delete']
     lookup_field = "uuid"
@@ -150,12 +145,12 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     search_fields = ('$name', '$description')
 
     def get_serializer_class(self):
-        if self.request.method in ["POST", "PUT", "PATCH"] and "dated_measure" in self.request.data \
-                and isinstance(self.request.data["dated_measure"], dict):
+        if self.request.method in ["POST", "PUT", "PATCH"] \
+                and "dated_measure" in self.request.data \
+                and isinstance(self.request.data["dated_measure"], dict) \
+                or self.request.method == "GET":
             return CohortResultSerializerFullDatedMeasure
-        if self.request.method == "GET":
-            return CohortResultSerializerFullDatedMeasure
-        return super(CohortResultViewSet, self).get_serializer_class()
+        return self.serializer_class
 
     def create(self, request, *args, **kwargs):
         if type(request.data) == QueryDict:
@@ -343,10 +338,7 @@ class RQSFilter(filters.FilterSet):
                   'previous_snapshot', 'request', 'request__parent_folder')
 
 
-class RequestQuerySnapshotViewSet(
-    NestedViewSetMixin, NoUpdateViewSetMixin,
-    UserObjectsRestrictedViewSet
-):
+class RequestQuerySnapshotViewSet(NestedViewSetMixin, NoUpdateViewSetMixin, UserObjectsRestrictedViewSet):
     queryset = RequestQuerySnapshot.objects.all()
     serializer_class = RequestQuerySnapshotSerializer
     http_method_names = ['get', 'post']
@@ -357,18 +349,16 @@ class RequestQuerySnapshotViewSet(
     filterset_class = RQSFilter
     search_fields = ('$serialized_query',)
 
-    @action(detail=True, methods=['post'], permission_classes=(IsOwner,),
-            url_path="save")
+    @action(detail=True, methods=['post'], permission_classes=(IsOwner,), url_path="save")
     def save(self, req, request_query_snapshot_uuid):
         # unused, untested
         try:
-            rqs = RequestQuerySnapshot.objects.get(
-                uuid=request_query_snapshot_uuid)
+            rqs = RequestQuerySnapshot.objects.get(uuid=request_query_snapshot_uuid)
         except RequestQuerySnapshot.DoesNotExist:
-            return Response({"response": "request_query_snapshot not found"},
+            return Response(data={"response": "request_query_snapshot not found"},
                             status=status.HTTP_404_NOT_FOUND)
         rqs.save_snapshot()
-        return Response({'response': "Query successful!"},
+        return Response(data={'response': "Query successful!"},
                         status=status.HTTP_200_OK)
 
     @swagger_auto_schema(
