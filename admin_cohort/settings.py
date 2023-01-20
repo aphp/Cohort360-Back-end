@@ -267,3 +267,6 @@ if 'workspaces' in INCLUDED_APPS:
 # CUSTOM EXCEPTION REPORTER
 DEFAULT_EXCEPTION_REPORTER_FILTER = 'admin_cohort.tools.CustomExceptionReporterFilter'
 CUSTOM_SENSITIVE_POST_PARAMS = env('SENSITIVE_PARAMS').split(",")
+
+# COHORTS +20k
+COHORT_LIMIT = int(env("COHORT_LIMIT", default=20_000))
