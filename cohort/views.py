@@ -152,21 +152,6 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             return CohortResultSerializerFullDatedMeasure
         return self.serializer_class
 
-    def create(self, request, *args, **kwargs):
-        if type(request.data) == QueryDict:
-            request.data._mutable = True
-        # todo remove possibility to post _id when Front is ready
-        if 'dated_measure_id' not in request.data:
-            if 'dated_measure' in request.data:
-                dated_measure = request.data['dated_measure']
-                if isinstance(dated_measure, dict):
-                    if "request_query_snapshot" in request.data:
-                        dated_measure["request_query_snapshot"] = request.data["request_query_snapshot"]
-        else:
-            request.data['dated_measure'] = request.data['dated_measure_id']
-
-        return super(CohortResultViewSet, self).create(request, *args, **kwargs)
-
     @action(methods=['get'], detail=False, url_path='jobs/active')
     def get_active_jobs(self, request, *args, **kwargs):
         active_statuses = [JobStatus.new, JobStatus.validated, JobStatus.started, JobStatus.pending]
