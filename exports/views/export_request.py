@@ -13,6 +13,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 
 from admin_cohort.models import User
+from admin_cohort.settings import COHORT_LIMIT
 from admin_cohort.tools import join_qs
 from admin_cohort.types import JobStatus
 from admin_cohort.views import CustomLoggingMixin
@@ -164,6 +165,22 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
         # Local imports for mocking these functions during tests
         from exports.emails import email_info_request_confirmed
 
+        if 'cohort_fk' in request.data:
+            request.data['cohort'] = request.data.get('cohort_fk')
+        elif 'cohort_id' in request.data:
+            try:
+                request.data['cohort'] = CohortResult.objects.get(fhir_group_id=request.data.get('cohort_id')).uuid
+            except Exception:
+                pass
+        else:
+            return Response(data="'cohort_fk' or 'cohort_id' is required",
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        cohort_size = CohortResult.objects.get(uuid=request.data.get('cohort')).result_size
+        if cohort_size > COHORT_LIMIT:
+            return Response(data=f"Cannot export this large cohort. Current size limit: {COHORT_LIMIT}",
+                            status=status.HTTP_400_BAD_REQUEST)
+
         creator: User = request.user
         check_email_address(creator)
 
@@ -175,16 +192,6 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
             request.data['provider_id'] = User.objects.get(pk=owner_id).provider_id
         except Exception:
             pass
-
-        if 'cohort_fk' in request.data:
-            request.data['cohort'] = request.data.get('cohort_fk')
-        elif 'cohort_id' in request.data:
-            try:
-                request.data['cohort'] = CohortResult.objects.get(fhir_group_id=request.data.get('cohort_id')).uuid
-            except Exception:
-                pass
-        else:
-            raise ValidationError("'cohort_fk' or 'cohort_id' is required")
 
         request.data['provider_source_value'] = owner_id
         request.data['creator_fk'] = creator.pk
