@@ -55,7 +55,8 @@ def fhir_to_job_status() -> Dict[str, JobStatus]:
             "STARTED": JobStatus.started,
             "ERROR": JobStatus.failed,
             "UNKNOWN": JobStatus.unknown,
-            "PENDING": JobStatus.pending}
+            "PENDING": JobStatus.pending    # SJS does not include PENDING, has RESTARTING though!
+            }
 
 
 def format_json_request(json_req: str) -> str:
@@ -231,10 +232,10 @@ def cancel_job(job_id: str, auth_headers) -> JobStatus:
     return new_status
 
 
-def create_count_job(json_file: str, auth_headers, global_estimate) -> Tuple[Response, dict]:
+def create_count_job(json_query: str, auth_headers, global_estimate) -> Tuple[Response, dict]:
     """
-    :param json_file:
-    :type json_file:
+    :param json_query:
+    :type json_query:
     :param auth_headers:
     :type auth_headers:
     :return:
@@ -244,7 +245,7 @@ def create_count_job(json_file: str, auth_headers, global_estimate) -> Tuple[Res
     import requests
 
     try:
-        resp = requests.post(GET_GLOBAL_COUNT_API if global_estimate else GET_COUNT_API, json=json.loads(json_file),
+        resp = requests.post(GET_GLOBAL_COUNT_API if global_estimate else GET_COUNT_API, json=json.loads(json_query),
                              headers=auth_headers)
     except Exception as e:
         raise Exception(f"INTERNAL ERROR: {e}")
@@ -262,13 +263,13 @@ def create_count_job(json_file: str, auth_headers, global_estimate) -> Tuple[Res
     return resp, result
 
 
-def post_count_cohort(json_file: str, auth_headers, log_prefix: str = "", dated_measure: Model = None,
+def post_count_cohort(json_query: str, auth_headers, log_prefix: str = "", dated_measure: Model = None,
                       global_estimate: bool = False) -> FhirCountResponse:
     """
     Called to ask a FHIR API to compute the size of a given cohort
-    the request in the json_file
-    :param: json_file:
-    :type json_file:
+    the request in the json_query
+    :param: json_query:
+    :type json_query:
     :param auth_headers:
     :type auth_headers:
     :param log_prefix:
@@ -287,7 +288,7 @@ def post_count_cohort(json_file: str, auth_headers, log_prefix: str = "", dated_
                                  err_msg="No dated_measure was provided to be updated during the process")
 
     try:
-        resp, result = create_count_job(json_file, auth_headers, global_estimate)
+        resp, result = create_count_job(json_query, auth_headers, global_estimate)
     except Exception as e:
         return FhirCountResponse(job_duration=datetime.now() - d, success=False, fhir_job_status=JobStatus.failed,
                                  err_msg=str(e))
@@ -363,10 +364,10 @@ def post_count_cohort(json_file: str, auth_headers, log_prefix: str = "", dated_
                              fhir_job_status=job.status)
 
 
-def create_cohort_job(json_file: str, auth_headers) -> Tuple[Response, dict]:
+def create_cohort_job(json_query: str, auth_headers) -> Tuple[Response, dict]:
     """
-    :param json_file:
-    :type json_file:
+    :param json_query:
+    :type json_query:
     :param auth_headers:
     :type auth_headers:
     :return:
@@ -376,7 +377,7 @@ def create_cohort_job(json_file: str, auth_headers) -> Tuple[Response, dict]:
     import requests
 
     try:
-        resp = requests.post(CREATE_COHORT_API, json=json.loads(json_file), headers=auth_headers)
+        resp = requests.post(CREATE_COHORT_API, json=json.loads(json_query), headers=auth_headers)
     except Exception as e:
         raise Exception(f"INTERNAL ERROR: {e}")
 
@@ -394,13 +395,13 @@ def create_cohort_job(json_file: str, auth_headers) -> Tuple[Response, dict]:
     return resp, result
 
 
-def post_create_cohort(json_file: str, auth_headers, log_prefix: str = "", cohort_result: Model = None
+def post_create_cohort(json_query: str, auth_headers, log_prefix: str = "", cohort_result: Model = None
                        ) -> FhirCohortResponse:
     """
     Called to ask a Fhir API to create a cohort given the request
-    in the json_file
-    :param json_file:
-    :type json_file:
+    in the json_query
+    :param json_query:
+    :type json_query:
     :param auth_headers:
     :type auth_headers:
     :param log_prefix:
@@ -419,7 +420,7 @@ def post_create_cohort(json_file: str, auth_headers, log_prefix: str = "", cohor
                                   err_msg="No dated_measure was provided to be updated during the process")
 
     try:
-        resp, result = create_cohort_job(json_file, auth_headers)
+        resp, result = create_cohort_job(json_query, auth_headers)
     except Exception as e:
         return FhirCohortResponse(job_duration=datetime.now() - d, success=False, fhir_job_status=JobStatus.failed,
                                   err_msg=str(e))
@@ -435,10 +436,10 @@ def post_create_cohort(json_file: str, auth_headers, log_prefix: str = "", cohor
         job_result = job.result[0]
         reason = job_result.message
         if not reason:
-            if not job_result.stack:
-                reason = f"message and stack message are empty. Full result: {resp.text}"
-            else:
+            if job_result.stack:
                 reason = f"message is empty. Stack message: {job_result.stack}"
+            else:
+                reason = f"message and stack message are empty. Full result: {resp.text}"
 
         err_msg = f"FHIR ERROR {job.request_response.status_code}: {reason}"
         return FhirCohortResponse(job_duration=datetime.now() - d, success=False, fhir_job_status=JobStatus.failed,
@@ -492,11 +493,11 @@ def post_create_cohort(json_file: str, auth_headers, log_prefix: str = "", cohor
                               fhir_job_status=job.status)
 
 
-def post_validate_cohort(json_file: str, auth_headers) -> FhirValidateResponse:
+def post_validate_cohort(json_query: str, auth_headers) -> FhirValidateResponse:
     """
-    Called to ask a Fhir API to validate the format of the json_file
-    :param json_file:
-    :type json_file:
+    Called to ask a Fhir API to validate the format of the json_query
+    :param json_query:
+    :type json_query:
     :param auth_headers:
     :type auth_headers:
     :return:
@@ -508,7 +509,7 @@ def post_validate_cohort(json_file: str, auth_headers) -> FhirValidateResponse:
     # import requests
     #
     # try:
-    #     resp = requests.post(VALIDATE_QUERY_API, json=json.loads(json_file), headers=auth_headers)
+    #     resp = requests.post(VALIDATE_QUERY_API, json=json.loads(json_query), headers=auth_headers)
     # except Exception as e:
     #     err_msg = f"INTERNAL ERROR: {e}"
     #     return FhirValidateResponse(success=False, err_msg=err_msg)

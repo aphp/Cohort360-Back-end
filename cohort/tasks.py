@@ -22,7 +22,7 @@ def log_create_task(id, msg):
 
 
 @shared_task
-def create_cohort_task(auth_headers: dict, json_file: str, cohort_uuid: str):
+def create_cohort_task(auth_headers: dict, json_query: str, cohort_uuid: str):
     print(f"Task opened for cohort {cohort_uuid}")
     # in case of small lattency in database saving (when calling this task)
     # TODO: Useful? Is the create transaction already closed?
@@ -45,7 +45,7 @@ def create_cohort_task(auth_headers: dict, json_file: str, cohort_uuid: str):
     cr.dated_measure.save()
 
     log_create_task(cohort_uuid, "Asking fhir to create cohort")
-    resp = fhir_api.post_create_cohort(json_file, auth_headers, cohort_result=cr,
+    resp = fhir_api.post_create_cohort(json_query, auth_headers, cohort_result=cr,
                                        log_prefix=f"[CohortTask] [CohortResult uuid: {cohort_uuid}]")
 
     if resp.success:
@@ -78,7 +78,7 @@ def log_count_task(dm_id, msg):
 
 
 @shared_task
-def get_count_task(auth_headers: dict, json_file: str, dm_uuid: str):
+def get_count_task(auth_headers: dict, json_query: str, dm_uuid: str):
     # in case of small lattency in database saving (when calling this task)
     dm: DatedMeasure = None
     tries = 0
@@ -101,7 +101,7 @@ def get_count_task(auth_headers: dict, json_file: str, dm_uuid: str):
 
     log_count_task(dm_uuid, f"Asking FHIR to get {'global ' if global_estimate else ''}count")
     log_prefix = f"[{'global' if global_estimate else ''}CountTask] [DM uuid: {dm_uuid}]"
-    resp = fhir_api.post_count_cohort(json_file, auth_headers, log_prefix=log_prefix, dated_measure=dm,
+    resp = fhir_api.post_count_cohort(json_query, auth_headers, log_prefix=log_prefix, dated_measure=dm,
                                       global_estimate=global_estimate)
 
     if resp.success:
