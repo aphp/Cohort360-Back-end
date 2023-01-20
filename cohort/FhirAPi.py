@@ -26,7 +26,12 @@ class FhirCountResponse(FhirValidateResponse):
         self.fhir_job_id = fhir_job_id
 
 
-class FhirCohortResponse(FhirCountResponse):
-    def __init__(self, group_id: str = "", **kwargs):
+class FhirCohortResponse(FhirValidateResponse):
+    def __init__(self, group_id: str = "", count: int = 0, fhir_datetime=None, fhir_job_id: str = "", job_duration=None,
+                 **kwargs):
         super(FhirCohortResponse, self).__init__(**kwargs)
+        self.count = count
         self.group_id = group_id
+        self.fhir_datetime = fhir_datetime
+        self.job_duration = job_duration
+        self.fhir_job_id = fhir_job_id
