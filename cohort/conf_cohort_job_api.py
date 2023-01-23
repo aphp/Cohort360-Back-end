@@ -110,14 +110,9 @@ class JobResult:
         self.source: str = kwargs.get('source')
         # count
         if "group.count" in kwargs:
-            self.count = kwargs.get("group.count", None)
+            self.count = kwargs.get("group.count")
         else:
-            self.count = kwargs.get("count", None)
-        self.count_male = kwargs.get("count_male")
-        self.count_unknown = kwargs.get("count_unknown")
-        self.count_deceased = kwargs.get("count_deceased")
-        self.count_alive = kwargs.get("count_alive")
-        self.count_female = kwargs.get("count_female")
+            self.count = kwargs.get("count")
         self.count_min = kwargs.get("minimum")
         self.count_max = kwargs.get("maximum")
         # cohort
@@ -353,11 +348,6 @@ def post_count_cohort(json_file: str, auth_headers, log_prefix: str = "", dated_
                              job_duration=datetime.now() - d,
                              success=True,
                              count=job_result.count,
-                             count_male=job_result.count_male,
-                             count_unknown=job_result.count_unknown,
-                             count_deceased=job_result.count_deceased,
-                             count_alive=job_result.count_alive,
-                             count_female=job_result.count_female,
                              count_min=job_result.count_min,
                              count_max=job_result.count_max,
                              fhir_job_status=job.status)

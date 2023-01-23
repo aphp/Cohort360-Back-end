@@ -1082,8 +1082,6 @@ class DatedMeasuresTests(RqsTests):
     unupdatable_fields = ["owner", "request_query_snapshot", "uuid",
                           "mode", "count_task_id", "fhir_datetime",
                           "measure", "measure_min", "measure_max",
-                          "measure_male", "measure_unknown", "measure_deceased",
-                          "measure_alive", "measure_female",
                           "created_at", "modified_at", "deleted"]
     unsettable_default_fields = dict(
         request_job_status=JobStatus.started)
@@ -1254,11 +1252,6 @@ class DatedMeasuresCreateTests(DatedMeasuresTests):
                 'measure': 1,
                 'measure_min': 1,
                 'measure_max': 1,
-                'measure_male': 1,
-                'measure_unknown': 1,
-                'measure_deceased': 1,
-                'measure_alive': 1,
-                'measure_female': 1,
                 'fhir_datetime': timezone.now(),
             },
             mock_task_called=False,
@@ -1379,11 +1372,6 @@ class DatedMeasuresDeleteTests(DatedMeasuresTests):
             measure=1,
             measure_min=1,
             measure_max=1,
-            measure_male=1,
-            measure_unknown=1,
-            measure_deceased=1,
-            measure_alive=1,
-            measure_female=1,
             count_task_id="test",
             mode=DATED_MEASURE_MODE_CHOICES[0][0],
             created_at=timezone.now(),
@@ -1434,11 +1422,6 @@ class DatedMeasuresUpdateTests(DatedMeasuresTests):
             measure=1,
             measure_min=1,
             measure_max=1,
-            measure_male=1,
-            measure_unknown=1,
-            measure_deceased=1,
-            measure_alive=1,
-            measure_female=1,
             count_task_id="test",
             mode=DATED_MEASURE_MODE_CHOICES[0][0],
             created_at=timezone.now(),
@@ -1987,29 +1970,26 @@ class TasksTests(DatedMeasuresTests):
             dated_measure=self.user1_req1_snap1_empty_dm
         )
 
-        self.basic_count_data_response = dict(
-            count=self.test_count,
-            count_male=self.test_count,
-            count_unknown=self.test_count,
-            count_deceased=self.test_count,
-            count_alive=self.test_count,
-            count_female=self.test_count,
-            count_min=self.test_count,
-            count_max=self.test_count,
-            fhir_datetime=self.test_datetime,
-            fhir_job_id=self.test_job_id,
-            job_duration=self.test_job_duration,
-            success=True,
-            fhir_job_status=self.test_job_status_finished
-        )
-        self.basic_create_data_response = {
-            **self.basic_count_data_response,
-            'group_id': self.test_job_id,
-        }
+        self.basic_response_common_data = {"count": self.test_count,
+                                           "fhir_datetime": self.test_datetime,
+                                           "fhir_job_id": self.test_job_id,
+                                           "job_duration": self.test_job_duration,
+                                           "success": True,
+                                           "fhir_job_status": self.test_job_status_finished,
+                                           }
+        self.basic_response_count_data = {**self.basic_response_common_data,
+                                          "count_max": self.test_count,
+                                          "count_min": self.test_count
+                                          }
+        self.basic_response_create_data = {**self.basic_response_common_data,
+                                           "group_id": self.test_job_id,
+                                           }
 
     @mock.patch('cohort.tasks.fhir_api')
     def test_get_count_task(self, mock_fhir_api: MagicMock):
-        mock_fhir_api.post_count_cohort.return_value = FhirCountResponse(**self.basic_count_data_response)
+        mock_fhir_api.post_count_cohort.return_value = FhirCountResponse(
+            **self.basic_count_data_response
+        )
         get_count_task({}, "{}", self.user1_req1_snap1_empty_dm.uuid)
 
         new_dm = DatedMeasure.objects.filter(
@@ -2017,11 +1997,6 @@ class TasksTests(DatedMeasuresTests):
             measure_min__isnull=True,
             measure_max__isnull=True,
             measure=self.test_count,
-            measure_male=self.test_count,
-            measure_unknown=self.test_count,
-            measure_deceased=self.test_count,
-            measure_alive=self.test_count,
-            measure_female=self.test_count,
             fhir_datetime=self.test_datetime,
             request_job_duration=self.test_job_duration,
             request_job_status=self.test_job_status_finished,
@@ -2033,7 +2008,7 @@ class TasksTests(DatedMeasuresTests):
     @mock.patch('cohort.tasks.fhir_api')
     def test_get_count_global_task(self, mock_fhir_api):
         mock_fhir_api.post_count_cohort.return_value = FhirCountResponse(
-            **self.basic_count_data_response
+            **self.basic_response_count_data
         )
         get_count_task({}, "{}", self.user1_req1_snap1_empty_global_dm.uuid)
 
@@ -2042,11 +2017,6 @@ class TasksTests(DatedMeasuresTests):
             measure__isnull=True,
             measure_min=self.test_count,
             measure_max=self.test_count,
-            measure_male__isnull=True,
-            measure_unknown__isnull=True,
-            measure_deceased__isnull=True,
-            measure_alive__isnull=True,
-            measure_female__isnull=True,
             fhir_datetime=self.test_datetime,
             request_job_duration=self.test_job_duration,
             request_job_status=self.test_job_status_finished,
@@ -2075,11 +2045,6 @@ class TasksTests(DatedMeasuresTests):
             measure__isnull=True,
             measure_min__isnull=True,
             measure_max__isnull=True,
-            measure_male__isnull=True,
-            measure_unknown__isnull=True,
-            measure_deceased__isnull=True,
-            measure_alive__isnull=True,
-            measure_female__isnull=True,
             request_job_id=self.test_job_id,
             request_job_duration=self.test_job_duration,
             request_job_status=job_status,
@@ -2094,7 +2059,9 @@ class TasksTests(DatedMeasuresTests):
 
     @mock.patch('cohort.tasks.fhir_api')
     def test_create_cohort_task(self, mock_fhir_api):
-        mock_fhir_api.post_create_cohort.return_value = FhirCohortResponse(**self.basic_create_data_response)
+        mock_fhir_api.post_create_cohort.return_value = FhirCohortResponse(
+            **self.basic_response_create_data
+        )
         create_cohort_task({}, "{}", self.user1_req1_snap1_empty_cohort.uuid)
 
         new_cr = CohortResult.objects.filter(
@@ -2103,11 +2070,6 @@ class TasksTests(DatedMeasuresTests):
             dated_measure__measure=self.test_count,
             dated_measure__measure_min__isnull=True,
             dated_measure__measure_max__isnull=True,
-            dated_measure__measure_male=self.test_count,
-            dated_measure__measure_unknown=self.test_count,
-            dated_measure__measure_deceased=self.test_count,
-            dated_measure__measure_alive=self.test_count,
-            dated_measure__measure_female=self.test_count,
 
             dated_measure__fhir_datetime=self.test_datetime,
             dated_measure__request_job_duration=self.test_job_duration,
@@ -2142,11 +2104,6 @@ class TasksTests(DatedMeasuresTests):
             dated_measure__measure__isnull=True,
             dated_measure__measure_min__isnull=True,
             dated_measure__measure_max__isnull=True,
-            dated_measure__measure_male__isnull=True,
-            dated_measure__measure_unknown__isnull=True,
-            dated_measure__measure_deceased__isnull=True,
-            dated_measure__measure_alive__isnull=True,
-            dated_measure__measure_female__isnull=True,
             dated_measure__fhir_datetime__isnull=True,
             dated_measure__request_job_duration=self.test_job_duration,
             dated_measure__request_job_status=JobStatus.failed.value,

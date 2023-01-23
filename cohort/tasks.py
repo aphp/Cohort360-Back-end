@@ -102,11 +102,6 @@ def get_count_task(auth_headers: dict, json_file: str, dm_uuid: str):
     if resp.success:
         if not global_estimate:
             dm.measure = resp.count
-            dm.measure_male = resp.count_male
-            dm.measure_unknown = resp.count_unknown
-            dm.measure_deceased = resp.count_deceased
-            dm.measure_alive = resp.count_alive
-            dm.measure_female = resp.count_female
         else:
             dm.measure_min = resp.count_min
             dm.measure_max = resp.count_max
