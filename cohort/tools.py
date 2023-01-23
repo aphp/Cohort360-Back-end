@@ -96,8 +96,7 @@ def psql_query_get_pop_source_from_cohort(cohorts_ids: list):
     domain_concept_id = env.get("DOMAIN_CONCEPT_COHORT")  # 1147323
     relationship_concept_id = env.get("FACT_RELATIONSHIP_CONCEPT_COHORT")  # 44818821
     return f"""
-    SELECT fact_relationship_id,
-    fact_id_1,
+    SELECT fact_id_1,
     fact_id_2
     FROM omop.fact_relationship
     WHERE delete_datetime IS NULL
@@ -148,7 +147,6 @@ class CohortRights:
 
 
 class FactRelationShip(models.Model):
-    fact_relationship_id = models.BigIntegerField(primary_key=True)
     fact_id_1 = models.BigIntegerField()
     fact_id_2 = models.BigIntegerField()
     objects = OmopModelManager()
@@ -156,3 +154,4 @@ class FactRelationShip(models.Model):
     class Meta:
         managed = False
         db_table = 'fact_relationship'
+        unique_together = ('fact_id_1', 'fact_id_2')
