@@ -1989,13 +1989,13 @@ class TasksTests(DatedMeasuresTests):
 
         self.basic_count_data_response = dict(
             count=self.test_count,
-            count_max=self.test_count,
-            count_min=self.test_count,
             count_male=self.test_count,
-            count_alive=self.test_count,
-            count_female=self.test_count,
             count_unknown=self.test_count,
             count_deceased=self.test_count,
+            count_alive=self.test_count,
+            count_female=self.test_count,
+            count_min=self.test_count,
+            count_max=self.test_count,
             fhir_datetime=self.test_datetime,
             fhir_job_id=self.test_job_id,
             job_duration=self.test_job_duration,
@@ -2009,9 +2009,7 @@ class TasksTests(DatedMeasuresTests):
 
     @mock.patch('cohort.tasks.fhir_api')
     def test_get_count_task(self, mock_fhir_api: MagicMock):
-        mock_fhir_api.post_count_cohort.return_value = FhirCountResponse(
-            **self.basic_count_data_response
-        )
+        mock_fhir_api.post_count_cohort.return_value = FhirCountResponse(**self.basic_count_data_response)
         get_count_task({}, "{}", self.user1_req1_snap1_empty_dm.uuid)
 
         new_dm = DatedMeasure.objects.filter(
@@ -2096,9 +2094,7 @@ class TasksTests(DatedMeasuresTests):
 
     @mock.patch('cohort.tasks.fhir_api')
     def test_create_cohort_task(self, mock_fhir_api):
-        mock_fhir_api.post_create_cohort.return_value = FhirCohortResponse(
-            **self.basic_create_data_response
-        )
+        mock_fhir_api.post_create_cohort.return_value = FhirCohortResponse(**self.basic_create_data_response)
         create_cohort_task({}, "{}", self.user1_req1_snap1_empty_cohort.uuid)
 
         new_cr = CohortResult.objects.filter(
@@ -2117,14 +2113,11 @@ class TasksTests(DatedMeasuresTests):
             dated_measure__request_job_duration=self.test_job_duration,
             dated_measure__request_job_status=self.test_job_status_finished,
             dated_measure__request_job_id=self.test_job_id,
-            # dated_measure__count_task_id=(self.user1_req1_snap1_empty_dm
-            #                               .count_task_id),
 
             request_job_status=self.test_job_status_finished,
             fhir_group_id=self.test_job_id,
             request_job_id=self.test_job_id,
             request_job_duration=self.test_job_duration,
-            # create_task_id=self.user1_req1_snap1_empty_cohort.create_task_id
         ).first()
         self.assertIsNotNone(new_cr)
 
