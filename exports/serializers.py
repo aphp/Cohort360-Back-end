@@ -83,7 +83,7 @@ class ExportRequestListSerializer(serializers.ModelSerializer):
                   "insert_datetime", "request_job_status", "target_env", "target_name")
 
     def get_owner(self, er):
-        return er.owner.displayed_name
+        return er.owner and er.owner.displayed_name or ""
 
     def get_cohort_name(self, er):
         cohort = CohortResult.objects.filter(fhir_group_id=er.cohort_id).first()
@@ -94,9 +94,7 @@ class ExportRequestListSerializer(serializers.ModelSerializer):
         return cohort and cohort.dated_measure.measure or ""
 
     def get_target_env(self, er):
-        if er.target_unix_account:
-            return er.target_unix_account.name
-        return ""
+        return er.target_unix_account and er.target_unix_account.name or ""
 
 
 class ExportRequestSerializer(serializers.ModelSerializer):

@@ -3,13 +3,14 @@ import logging
 
 from django.db.models import Q
 from django.http import HttpResponse, StreamingHttpResponse
-from django_filters import rest_framework as filters
+from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from hdfs import HdfsError
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 
 from admin_cohort.models import User
@@ -37,8 +38,22 @@ class ExportRequestFilter(filters.FilterSet):
                                             Q(cohort_fk__owner__lastname__icontains=value)]))
         return queryset
 
+    def multi_value_filter(self, queryset, field, value: str):
+        if value:
+            sub_values = [val.strip() for val in value.split(",")]
+            return queryset.filter(join_qs([Q(**{field: v}) for v in sub_values]))
+        return queryset
+
     cohort_name = filters.CharFilter(field_name="cohort_fk__name", lookup_expr='icontains')
+    insert_datetime_gte = filters.DateTimeFilter(field_name="insert_datetime", lookup_expr='gte')
+    insert_datetime_lte = filters.DateTimeFilter(field_name="insert_datetime", lookup_expr='lte')
     cohort_owner = filters.CharFilter(method="multi_fields_filter")
+    output_format = filters.CharFilter(method="multi_value_filter", field_name="output_format")
+    request_job_status = filters.CharFilter(method="multi_value_filter", field_name="request_job_status")
+
+    ordering = OrderingFilter(fields=('insert_datetime',
+                                      'output_format',
+                                      ('owner__firstname', 'owner')))
 
     class Meta:
         model = ExportRequest
@@ -52,10 +67,13 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
     lookup_field = "id"
     permissions = (ExportRequestPermissions, ExportJupyterPermissions)
     swagger_tags = ['Exports']
+    pagination_class = LimitOffsetPagination
     filterset_class = ExportRequestFilter
     http_method_names = ['get', 'post', 'patch']
     logging_methods = ['POST', 'PATCH']
-    search_fields = ("motivation", "output_format")
+    search_fields = ("owner__firstname", "owner__lastname", "output_format",
+                     "cohort_fk__name", "request_job_status", "target_name",
+                     "target_unix_account__name")
 
     def should_log(self, request, response):
         act = getattr(getattr(request, "parser_context", {}).get("view", {}), "action", "")
