@@ -5,7 +5,6 @@ from rest_framework.exceptions import ValidationError
 
 import cohort.conf_cohort_job_api as conf
 from admin_cohort.serializers import BaseSerializer, OpenUserSerializer
-from admin_cohort.settings import COHORT_LIMIT
 from admin_cohort.types import JobStatus
 from cohort.models import Request, CohortResult, RequestQuerySnapshot, DatedMeasure, Folder, GLOBAL_DM_MODE
 from cohort.models import User
@@ -121,8 +120,8 @@ class CohortResultSerializer(BaseSerializer):
                                                     mode=GLOBAL_DM_MODE)
             validated_data["dated_measure_global"] = dm_global
 
-        if validated_data['dated_measure'].measure > COHORT_LIMIT:
-            validated_data['request_job_status'] = JobStatus.long_pending
+        # if validated_data['dated_measure'].measure > COHORT_LIMIT:
+        #     validated_data['request_job_status'] = JobStatus.long_pending
 
         cohort_result: CohortResult = super(CohortResultSerializer, self).create(validated_data=validated_data)
 
@@ -138,9 +137,10 @@ class CohortResultSerializer(BaseSerializer):
                 dm_global.save()
 
         try:
-            from cohort.kafka.producer import push_cohort_creation_to_queue
-            push_cohort_creation_to_queue(cohort_result_uuid=cohort_result.uuid,
-                                          json_query=rqs.serialized_query)
+            from cohort.tasks import create_cohort_task
+            create_cohort_task.delay(conf.get_fhir_authorization_header(self.context.get("request")),
+                                     conf.format_json_request(str(rqs.serialized_query)),
+                                     cohort_result.uuid)
         except Exception as e:
             cohort_result.delete()
             raise ValidationError(f"Error on pushing new message to the queue: {e}")

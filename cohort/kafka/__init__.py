@@ -1,7 +1,0 @@
-import logging
-
-SERVERS = ["localhost:9092"]
-COHORT_CREATION_REQUEST_TOPIC = "COHORT_CREATION_REQUEST_TOPIC"
-COHORT_CREATION_RESPONSE_TOPIC = "COHORT_CREATION_RESPONSE_TOPIC"
-
-_logger = logging.getLogger("django.request")
