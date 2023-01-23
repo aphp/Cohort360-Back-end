@@ -24,4 +24,3 @@ class FhirCohortResponse(FhirValidateResponse):
     def __init__(self, group_id: str = "", **kwargs):
         super(FhirCohortResponse, self).__init__(**kwargs)
         self.group_id = group_id
-
