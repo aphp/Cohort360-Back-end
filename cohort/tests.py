@@ -1987,9 +1987,7 @@ class TasksTests(DatedMeasuresTests):
 
     @mock.patch('cohort.tasks.fhir_api')
     def test_get_count_task(self, mock_fhir_api: MagicMock):
-        mock_fhir_api.post_count_cohort.return_value = FhirCountResponse(
-            **self.basic_count_data_response
-        )
+        mock_fhir_api.post_count_cohort.return_value = FhirCountResponse(**self.basic_response_count_data)
         get_count_task({}, "{}", self.user1_req1_snap1_empty_dm.uuid)
 
         new_dm = DatedMeasure.objects.filter(
