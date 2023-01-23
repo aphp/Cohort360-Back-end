@@ -51,11 +51,6 @@ def create_cohort_task(auth_headers: dict, json_query: str, cohort_uuid: str):
     if resp.success:
         cr.dated_measure.fhir_datetime = resp.fhir_datetime
         cr.dated_measure.measure = resp.count
-        cr.dated_measure.measure_male = resp.count_male
-        cr.dated_measure.measure_unknown = resp.count_unknown
-        cr.dated_measure.measure_deceased = resp.count_deceased
-        cr.dated_measure.measure_alive = resp.count_alive
-        cr.dated_measure.measure_female = resp.count_female
         cr.dated_measure.request_job_id = resp.fhir_job_id
         cr.dated_measure.request_job_status = resp.fhir_job_status.value
         cr.dated_measure.request_job_duration = resp.job_duration
@@ -79,7 +74,7 @@ def log_count_task(dm_id, msg):
 
 @shared_task
 def get_count_task(auth_headers: dict, json_query: str, dm_uuid: str):
-    # in case of small lattency in database saving (when calling this task)
+    # in case of small latency in database saving (when calling this task)
     dm: DatedMeasure = None
     tries = 0
     while dm is None and tries <= 5:
@@ -107,11 +102,6 @@ def get_count_task(auth_headers: dict, json_query: str, dm_uuid: str):
     if resp.success:
         if not global_estimate:
             dm.measure = resp.count
-            dm.measure_male = resp.count_male
-            dm.measure_unknown = resp.count_unknown
-            dm.measure_deceased = resp.count_deceased
-            dm.measure_alive = resp.count_alive
-            dm.measure_female = resp.count_female
         else:
             dm.measure_min = resp.count_min
             dm.measure_max = resp.count_max
