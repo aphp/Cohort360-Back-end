@@ -10,13 +10,11 @@ from rest_framework.test import force_authenticate
 
 from admin_cohort.models import User
 from admin_cohort.settings import SHARED_FOLDER_NAME
-from admin_cohort.tests_tools import ViewSetTests, new_random_user, \
-    random_str, ListCase, RetrieveCase, CreateCase, CaseRetrieveFilter, \
-    DeleteCase, PatchCase, RequestCase
+from admin_cohort.tests_tools import ViewSetTests, new_random_user, random_str, ListCase, RetrieveCase, CreateCase, \
+    CaseRetrieveFilter, DeleteCase, PatchCase, RequestCase
 from admin_cohort.tools import prettify_json
 from admin_cohort.types import JobStatus
-from cohort.FhirAPi import FhirValidateResponse, FhirCountResponse, \
-    FhirCohortResponse
+from cohort.crb_responses import CRBValidateResponse, CRBCountResponse, CRBCohortResponse
 from cohort.models import Request, RequestQuerySnapshot, DatedMeasure, \
     CohortResult, Folder, REQUEST_DATA_TYPE_CHOICES, \
     PATIENT_REQUEST_TYPE, DATED_MEASURE_MODE_CHOICES, SNAPSHOT_DM_MODE, \
@@ -781,8 +779,8 @@ class RqsGetTests(RqsTests):
 
 
 class RqsCreateTests(RqsTests):
-    @mock.patch('cohort.serializers.conf.get_fhir_authorization_header')
-    @mock.patch('cohort.serializers.conf.post_validate_cohort')
+    @mock.patch('cohort.serializers.cohort_job_api.get_authorization_header')
+    @mock.patch('cohort.serializers.cohort_job_api.post_validate_cohort')
     def check_create_case_with_mock(
             self, case: RqsCreateCase, mock_validate: MagicMock,
             mock_header: MagicMock, other_view: any, view_kwargs: dict):
@@ -843,7 +841,7 @@ class RqsCreateTests(RqsTests):
             data=self.basic_data,
             retrieve_filter=RQSCaseRetrieveFilter(
                 serialized_query=self.test_query),
-            mock_fhir_resp=FhirValidateResponse(True),
+            mock_fhir_resp=CRBValidateResponse(True),
             mock_fhir_called=True,
         )
         self.basic_err_case = self.basic_case.clone(
@@ -934,7 +932,7 @@ class RqsCreateTests(RqsTests):
         # As a user, I cannot create a RQS if the query server deny the query
         # or the query is not a json
         cases = (self.basic_err_case.clone(
-            mock_fhir_resp=FhirValidateResponse(False),
+            mock_fhir_resp=CRBValidateResponse(False),
             mock_fhir_called=True,
         ), self.basic_err_case.clone(
             data={**self.basic_data, 'serialized_query': "not_json"},
@@ -1190,8 +1188,7 @@ class DMCreateCase(CreateCase):
 
 
 class DatedMeasuresCreateTests(DatedMeasuresTests):
-    @mock.patch('cohort.serializers.conf.get_fhir_authorization_header')
-    @mock.patch('cohort.serializers.conf.format_json_request')
+    @mock.patch('cohort.serializers.cohort_job_api.get_authorization_header')
     @mock.patch('cohort.tasks.get_count_task.delay')
     def check_create_case_with_mock(
             self, case: DMCreateCase, mock_task: MagicMock,
@@ -1631,8 +1628,7 @@ class CohortCreateCase(CreateCase):
 
 
 class CohortsCreateTests(CohortsTests):
-    @mock.patch('cohort.serializers.conf.get_fhir_authorization_header')
-    @mock.patch('cohort.serializers.conf.format_json_request')
+    @mock.patch('cohort.serializers.cohort_job_api.get_authorization_header')
     @mock.patch('cohort.tasks.create_cohort_task.delay')
     @mock.patch('cohort.tasks.get_count_task.delay')
     def check_create_case_with_mock(
@@ -1985,9 +1981,9 @@ class TasksTests(DatedMeasuresTests):
                                            "group_id": self.test_job_id,
                                            }
 
-    @mock.patch('cohort.tasks.fhir_api')
-    def test_get_count_task(self, mock_fhir_api: MagicMock):
-        mock_fhir_api.post_count_cohort.return_value = FhirCountResponse(**self.basic_response_count_data)
+    @mock.patch('cohort.tasks.cohort_job_api')
+    def test_get_count_task(self, mock_crb_api: MagicMock):
+        mock_crb_api.post_count_cohort.return_value = CRBCountResponse(**self.basic_response_count_data)
         get_count_task({}, "{}", self.user1_req1_snap1_empty_dm.uuid)
 
         new_dm = DatedMeasure.objects.filter(
@@ -2003,9 +1999,9 @@ class TasksTests(DatedMeasuresTests):
         ).first()
         self.assertIsNotNone(new_dm)
 
-    @mock.patch('cohort.tasks.fhir_api')
-    def test_get_count_global_task(self, mock_fhir_api):
-        mock_fhir_api.post_count_cohort.return_value = FhirCountResponse(
+    @mock.patch('cohort.tasks.cohort_job_api')
+    def test_get_count_global_task(self, mock_crb_api):
+        mock_crb_api.post_count_cohort.return_value = CRBCountResponse(
             **self.basic_response_count_data
         )
         get_count_task({}, "{}", self.user1_req1_snap1_empty_global_dm.uuid)
@@ -2023,12 +2019,12 @@ class TasksTests(DatedMeasuresTests):
         ).first()
         self.assertIsNotNone(new_dm)
 
-    @mock.patch('cohort.tasks.fhir_api')
-    def test_failed_get_count_task(self, mock_fhir_api):
+    @mock.patch('cohort.tasks.cohort_job_api')
+    def test_failed_get_count_task(self, mock_crb_api):
         test_err_msg = "Error"
         job_status = JobStatus.failed
 
-        mock_fhir_api.post_count_cohort.return_value = FhirCountResponse(
+        mock_crb_api.post_count_cohort.return_value = CRBCountResponse(
             fhir_job_id=self.test_job_id,
             job_duration=self.test_job_duration,
             fhir_job_status=job_status,
@@ -2055,9 +2051,9 @@ class TasksTests(DatedMeasuresTests):
         self.assertIsNone(new_dm.measure)
         self.assertIsNone(new_dm.fhir_datetime)
 
-    @mock.patch('cohort.tasks.fhir_api')
-    def test_create_cohort_task(self, mock_fhir_api):
-        mock_fhir_api.post_create_cohort.return_value = FhirCohortResponse(
+    @mock.patch('cohort.tasks.cohort_job_api')
+    def test_create_cohort_task(self, mock_crb_api):
+        mock_crb_api.post_create_cohort.return_value = CRBCohortResponse(
             **self.basic_response_create_data
         )
         create_cohort_task({}, "{}", self.user1_req1_snap1_empty_cohort.uuid)
@@ -2081,12 +2077,12 @@ class TasksTests(DatedMeasuresTests):
         ).first()
         self.assertIsNotNone(new_cr)
 
-    @mock.patch('cohort.tasks.fhir_api')
-    def test_failed_create_cohort_task(self, mock_fhir_api):
+    @mock.patch('cohort.tasks.cohort_job_api')
+    def test_failed_create_cohort_task(self, mock_crb_api):
         test_err_msg = "Error"
         job_status = JobStatus.failed
 
-        mock_fhir_api.post_create_cohort.return_value = FhirCohortResponse(
+        mock_crb_api.post_create_cohort.return_value = CRBCohortResponse(
             fhir_job_id=self.test_job_id,
             job_duration=self.test_job_duration,
             fhir_job_status=job_status,

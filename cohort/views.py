@@ -20,11 +20,12 @@ from admin_cohort import app
 from admin_cohort.tools import join_qs
 from admin_cohort.types import JobStatus
 from admin_cohort.views import SwaggerSimpleNestedViewSetMixin, CustomLoggingMixin
-from cohort.conf_cohort_job_api import cancel_job, get_fhir_authorization_header
+from cohort.conf_cohort_job_api import cancel_job, get_authorization_header
 from cohort.models import Request, CohortResult, RequestQuerySnapshot, DatedMeasure, Folder, User
 from cohort.permissions import IsOwner
 from cohort.serializers import RequestSerializer, CohortResultSerializer, RequestQuerySnapshotSerializer, \
-    DatedMeasureSerializer, FolderSerializer, CohortResultSerializerFullDatedMeasure, CohortRightsSerializer
+    DatedMeasureSerializer, FolderSerializer, CohortResultSerializerFullDatedMeasure, \
+    CohortRightsSerializer
 from cohort.tools import get_all_cohorts_rights, get_dict_cohort_pop_source
 
 _log = logging.getLogger('django.request')
@@ -264,7 +265,7 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             job_status = job.request_job_status
             try:
                 if job_status == JobStatus.started:
-                    headers = get_fhir_authorization_header(request)
+                    headers = get_authorization_header(request)
                     new_status = cancel_job(job.request_job_id, headers)
                 else:
                     app.control.revoke(job.count_task_id)
@@ -291,7 +292,7 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         # TODO : test
         instance: DatedMeasure = self.get_object()
         try:
-            cancel_job(instance.request_job_id, get_fhir_authorization_header(request))
+            cancel_job(instance.request_job_id, get_authorization_header(request))
         except Exception as e:
             return Response(dict(message=str(e)), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
