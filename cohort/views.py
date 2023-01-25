@@ -213,17 +213,21 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     @swagger_auto_schema(
         method='patch',
         operation_summary="Path to Update status of cohort list, used by ETL to update big cohorts",
-        responses={'201': openapi.Response("Cohort update success", CohortRightsSerializer())})
+        responses={'201': openapi.Response("Cohort update success")})
     @action(detail=False, methods=['patch'], url_path="status")
     def patch_cohort_status(self, request, *args, **kwargs):
         body = self.request.data
-        COHORT_LIST = "cohort_list"
-        STATUS = "status"
-        if COHORT_LIST in body and STATUS in body:
-            id_list = [int(i) for i in body[COHORT_LIST].split(",")]
-            CohortResult.objects.filter(fhir_group_id__in=id_list).update(request_job_status=body[STATUS])
-            return Response(f"COHORTS PATCH SUCCESS")
-        return Response("NO COHORTS PATCH")
+        FHIR_GROUP_ID = "fhir_group_id"
+        REQUEST_JOB_STATUS = "request_job_status"
+        if FHIR_GROUP_ID in body and REQUEST_JOB_STATUS in body:
+            id_list = [int(i) for i in body[FHIR_GROUP_ID].split(",")]
+            request_status = body[REQUEST_JOB_STATUS]
+            CohortResult.objects.filter(fhir_group_id__in=id_list).update(request_job_status=request_status)
+            return Response({"response": f"Cohorts {id_list} are updated with status: '{request_status}'"},
+                            status=status.HTTP_200_OK)
+        return Response({"response": f"Cohort update not possible: valid body is missing. "
+                                     f"Following json key are needed: {FHIR_GROUP_ID}, {REQUEST_JOB_STATUS}"},
+                        status=status.HTTP_400_BAD_REQUEST)
 
 
 class NestedCohortResultViewSet(SwaggerSimpleNestedViewSetMixin,
