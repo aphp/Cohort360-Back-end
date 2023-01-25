@@ -184,9 +184,9 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         method='get',
         operation_summary="Give cohorts aggregation read patient rights, export csv rights and transfer jupyter rights."
                           "It check accesses with perimeters population source for each cohort found.",
-        responses={'201': openapi.Response("give rights in caresite perimeters found", CohortRightsSerializer())})
+        responses={'201': openapi.Response("Cohorts rights found", CohortRightsSerializer())})
     @action(detail=False, methods=['get'], url_path="cohort-rights")
-    def get_perimeters_read_right_accesses(self, request, *args, **kwargs):
+    def get_cohort_right_accesses(self, request, *args, **kwargs):
         user_accesses = get_user_valid_manual_accesses_queryset(self.request.user)
 
         if not user_accesses:
@@ -209,6 +209,21 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         cohort_dict_pop_source = get_dict_cohort_pop_source(list_cohort_id)
         return Response(CohortRightsSerializer(get_all_cohorts_rights(user_accesses, cohort_dict_pop_source),
                                                many=True).data)
+
+    @swagger_auto_schema(
+        method='patch',
+        operation_summary="Path to Update status of cohort list, used by ETL to update big cohorts",
+        responses={'201': openapi.Response("Cohort update success", CohortRightsSerializer())})
+    @action(detail=False, methods=['patch'], url_path="status")
+    def patch_cohort_status(self, request, *args, **kwargs):
+        body = self.request.data
+        COHORT_LIST = "cohort_list"
+        STATUS = "status"
+        if COHORT_LIST in body and STATUS in body:
+            id_list = [int(i) for i in body[COHORT_LIST].split(",")]
+            CohortResult.objects.filter(fhir_group_id__in=id_list).update(request_job_status=body[STATUS])
+            return Response(f"COHORTS PATCH SUCCESS")
+        return Response("NO COHORTS PATCH")
 
 
 class NestedCohortResultViewSet(SwaggerSimpleNestedViewSetMixin,

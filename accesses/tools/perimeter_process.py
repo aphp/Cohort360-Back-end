@@ -210,8 +210,7 @@ def get_read_nominative_boolean_from_specific_logic_function(request, filter_que
     """
 
     perimeters_filtered_by_search = get_perimeters_filtered_by_search(request.query_params.get("cohort_id"),
-                                                                      request.user,
-                                                                      filter_queryset)
+                                                                      request.user, filter_queryset)
     if not perimeters_filtered_by_search:
         raise Http404("ERROR No Perimeters Found")
     return right_perimeter_compute_function(perimeters_filtered_by_search,
