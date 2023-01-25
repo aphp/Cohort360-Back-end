@@ -20,7 +20,7 @@ from admin_cohort import app
 from admin_cohort.tools import join_qs
 from admin_cohort.types import JobStatus
 from admin_cohort.views import SwaggerSimpleNestedViewSetMixin, CustomLoggingMixin
-from cohort.conf_cohort_job_api import cancel_job, get_authorization_header
+from cohort.conf_cohort_job_api import cancel_job, get_authorization_header, fhir_to_job_status
 from cohort.models import Request, CohortResult, RequestQuerySnapshot, DatedMeasure, Folder, User
 from cohort.permissions import IsOwner
 from cohort.serializers import RequestSerializer, CohortResultSerializer, RequestQuerySnapshotSerializer, \
@@ -190,6 +190,19 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         cohort_dict_pop_source = get_dict_cohort_pop_source(list_cohort_id)
         return Response(CohortRightsSerializer(get_all_cohorts_rights(user_accesses, cohort_dict_pop_source),
                                                many=True).data)
+
+    @action(methods=['get'], detail=False, url_path='delayed/(?P<uuid>[^/.]+)',
+            permission_classes=(None,))
+    def update_delayed_cohorts(self, request, *args, **kwargs):
+        try:
+            cohort = CohortResult.objects.get(uuid=kwargs.get("uuid"))
+        except CohortResult.DoesNotExist:
+            return HttpResponseBadRequest(content="Invalid cohort uuid")
+        job_status = fhir_to_job_status().get(request.data.get("status"))
+        cohort.request_job_status = job_status
+        cohort.fhir_group_id = request.data.get("group.id")
+        cohort.save()
+        return Response(data="CohortResult updated", status=status.HTTP_200_OK)
 
 
 class NestedCohortResultViewSet(SwaggerSimpleNestedViewSetMixin,
