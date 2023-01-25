@@ -18,9 +18,11 @@ class AuthBackend:
         try:
             tokens: JwtTokens = conf_auth.check_ids(username=username,
                                                     password=password)
-        except LoginError:
+        except LoginError as e:
+            _log.exception(f"LoginError for user '{username}' - {e}")
             return
         except ServerError as e:
+            _log.exception(f"ServerError while authenticating user '{username}' - {e}")
             request.jwt_server_unavailable = True
             request.jwt_server_message = str(e)
             return
