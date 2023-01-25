@@ -114,7 +114,7 @@ python3.11 --version
    \q
    ```
 4. Configuration : 
-- Create a **.env** file (admin_cohort/.env) following **admin_cohort/.env.example** format
+- Create a **.env** file (admin_cohort/.env) following **.conf/.env.example** format
 
 5. Logs
 - Create a directory **log** in the project directory to store log files.
