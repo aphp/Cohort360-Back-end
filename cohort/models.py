@@ -10,7 +10,7 @@ from django.db import models
 
 from admin_cohort.models import CohortBaseModel
 from admin_cohort.models import User, JobModel
-from admin_cohort.settings import SHARED_FOLDER_NAME
+from admin_cohort.settings import SHARED_FOLDER_NAME, COHORT_LIMIT
 
 COHORT_TYPE_CHOICES = [("IMPORT_I2B2", "Previous cohorts imported from i2b2.",),
                        ("MY_ORGANIZATIONS", "Organizations in which I work (care sites "
@@ -174,12 +174,12 @@ class CohortResult(CohortBaseModel, JobModel):
     dated_measure_global = models.ForeignKey(DatedMeasure, related_name="restricted_cohort", null=True,
                                              on_delete=models.SET_NULL)
     create_task_id = models.TextField(blank=True)
-
-    # will depend on the right (pseudo-anonymised or nominative) you
-    # have on the care_site
-    # unused untested
     type = models.CharField(max_length=20, choices=COHORT_TYPE_CHOICES, default=MY_COHORTS_COHORT_TYPE)
 
     @property
     def result_size(self):
         return self.dated_measure.measure
+
+    @property
+    def exportable(self):
+        return self.result_size < COHORT_LIMIT

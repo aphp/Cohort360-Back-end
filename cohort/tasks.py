@@ -31,7 +31,7 @@ def create_cohort_task(auth_headers: dict, json_query: str, cohort_uuid: str):
         log_create_task(cohort_uuid, "Error: could not find CohortResult to update after 5 sec")
         return
 
-    log_create_task(cohort_uuid, "Asking fhir to create cohort")
+    log_create_task(cohort_uuid, "Asking CRB to create cohort")
     resp = cohort_job_api.post_create_cohort(json_query=json_query,
                                              auth_headers=auth_headers,
                                              cohort_result=cohort_result,
@@ -75,7 +75,7 @@ def get_count_task(auth_headers: dict, json_query: str, dm_uuid: str):
 
     global_estimate = dm.mode == GLOBAL_DM_MODE
 
-    log_count_task(dm_uuid, f"Asking FHIR to get {'global ' if global_estimate else ''}count")
+    log_count_task(dm_uuid, f"Asking CRB to get {'global ' if global_estimate else ''}count")
     log_prefix = f"[{'global' if global_estimate else ''}CountTask] [DM uuid: {dm_uuid}]"
 
     resp = cohort_job_api.post_count_cohort(json_query=json_query,

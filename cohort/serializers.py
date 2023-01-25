@@ -90,6 +90,7 @@ class CohortResultSerializer(BaseSerializer):
     dated_measure_global = PrimaryKeyRelatedFieldWithOwner(queryset=DatedMeasure.objects.all(), required=False)
     global_estimate = serializers.BooleanField(write_only=True, allow_null=True, default=True)
     fhir_group_id = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    exportable = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = CohortResult
