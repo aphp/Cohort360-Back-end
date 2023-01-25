@@ -32,6 +32,7 @@ class ShareCase(RequestCase):
         d.pop('title', None)
         return d
 
+
 class RequestCaseRetrieveFilter(CaseRetrieveFilter):
     def __init__(self, name: str = "", **kwargs):
         self.name = name

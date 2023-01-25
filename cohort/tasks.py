@@ -16,7 +16,7 @@ def log_create_task(cr_uuid, msg):
 
 @shared_task
 def create_cohort_task(auth_headers: dict, json_query: str, cohort_uuid: str):
-    log_create_task(cohort_uuid, f"Task opened for cohort creation")
+    log_create_task(cohort_uuid, "Task opened for cohort creation")
     # TODO: Useful? Is the create transaction already closed? latency in database saving (when calling this task)
     cohort_result: CohortResult = None
     tries = 0
