@@ -72,8 +72,8 @@ class DatedMeasureSerializer(BaseSerializer):
         if measure is None:
             try:
                 from cohort.tasks import get_count_task
-                auth_header = cohort_job_api.get_authorization_header(self.context.get("request", None))
-                json_query = str(rqs.serialized_query)
+                auth_header = cohort_job_api.get_authorization_header(self.context.get("request"))
+                json_query = cohort_job_api.format_json_query(rqs.serialized_query)
                 get_count_task.delay(auth_header, json_query, res_dm.uuid)
             except Exception as e:
                 res_dm.delete()
@@ -133,9 +133,9 @@ class CohortResultSerializer(BaseSerializer):
 
         try:
             from cohort.tasks import create_cohort_task
-            create_cohort_task.delay(cohort_job_api.get_authorization_header(self.context.get("request")),
-                                     str(rqs.serialized_query),
-                                     cohort_result.uuid)
+            auth_header = cohort_job_api.get_authorization_header(self.context.get("request"))
+            json_query = cohort_job_api.format_json_query(rqs.serialized_query)
+            create_cohort_task.delay(auth_header, json_query, cohort_result.uuid)
         except Exception as e:
             cohort_result.delete()
             raise ValidationError(f"Error on pushing new message to the queue: {e}")
