@@ -8,6 +8,7 @@ from admin_cohort.serializers import BaseSerializer, OpenUserSerializer
 from admin_cohort.types import JobStatus
 from cohort.models import Request, CohortResult, RequestQuerySnapshot, DatedMeasure, Folder, GLOBAL_DM_MODE
 from cohort.models import User
+from cohort.tools import retrieve_perimeters
 
 
 class PrimaryKeyRelatedFieldWithOwner(serializers.PrimaryKeyRelatedField):
@@ -203,7 +204,7 @@ class RequestQuerySnapshotSerializer(BaseSerializer):
             raise ValidationError(f"Serialized_query, after formatting, is not accepted by "
                                   f"FHIR server: {validate_resp.err_msg}")
 
-        validated_data["perimeters_ids"] = cohort_job_api.retrieve_perimeters(serialized_query)
+        validated_data["perimeters_ids"] = retrieve_perimeters(serialized_query)
 
         res = super(RequestQuerySnapshotSerializer, self).create(validated_data=validated_data)
 

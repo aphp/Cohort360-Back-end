@@ -192,9 +192,10 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         return Response(CohortRightsSerializer(get_all_cohorts_rights(user_accesses, cohort_dict_pop_source),
                                                many=True).data)
 
-    @action(methods=['patch'], detail=False, url_path='delayed/(?P<uuid>[^/.]+)')
-    def update_delayed_cohorts(self, request, *args, **kwargs):
+    @action(methods=['patch'], detail=False, url_path='in_progress/(?P<uuid>[^/.]+)')
+    def update_in_progress_cohort(self, request, *args, **kwargs):
         # todo: add a token for SJS and get around jwt verification
+        # todo: check all needed data is sent
         try:
             cohort = CohortResult.objects.get(uuid=kwargs.get("uuid"))
         except CohortResult.DoesNotExist:
@@ -202,8 +203,14 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         job_status = fhir_to_job_status().get(request.data.get("status"))
         cohort.request_job_status = job_status
         cohort.fhir_group_id = request.data.get("group.id")
-        cohort.request_job_duration = str(dt.now(tz=timezone.utc) - cohort.created_at)
+        if job_status in (JobStatus.finished, JobStatus.failed):
+            duration = str(dt.now(tz=timezone.utc) - cohort.created_at)
+        else:
+            duration = None
+        cohort.request_job_duration = duration
+        cohort.dated_measure.measure = request.data.get("group.count")
         cohort.save()
+        cohort.dated_measure.save()
         return Response(data="CohortResult updated", status=status.HTTP_200_OK)
 
 

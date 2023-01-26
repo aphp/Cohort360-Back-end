@@ -1,3 +1,6 @@
+import json
+import logging
+
 from coverage.annotate import os
 from django.db import models
 from django.db.models import QuerySet
@@ -156,3 +159,36 @@ class FactRelationShip(models.Model):
     class Meta:
         managed = False
         db_table = 'fact_relationship'
+
+
+def retrieve_perimeters(json_req: str) -> [str]:
+    """
+    Called to retrieve care_site_ids (perimeters) from a Json request
+    :param json_req:
+    :type json_req:
+    :return:
+    :rtype:
+    """
+    # sourcePopulation:{caresiteCohortList: [...ids]}
+    try:
+        req = json.loads(json_req)
+        ids = req["sourcePopulation"]["caresiteCohortList"]
+        assert isinstance(ids, list)
+        str_ids = []
+        for i in ids:
+            str_ids.append(str(i))
+            assert str(i).isnumeric()
+        return str_ids
+    except Exception:
+        return None
+
+
+_log = logging.getLogger('celery.app')
+
+
+def log_count_task(dm_uuid, msg, global_estimate=False):
+    _log.info(f"{'Global' if global_estimate else ''}Count Task [DM: {dm_uuid}] {msg}")
+
+
+def log_create_task(cr_uuid, msg):
+    _log.info(f"Cohort Create Task [CR: {cr_uuid}] {msg}")

@@ -1,22 +1,17 @@
-import json
-import logging
 import os
 import time
 from typing import List, Tuple, Dict
 
 import simplejson
-from django.db.models import Model
 from django.utils import timezone
 from django.utils.datetime_safe import datetime
 from requests import Response
 from rest_framework import status
 from rest_framework.request import Request
 
-from admin_cohort.settings import COHORT_LIMIT
 from admin_cohort.types import JobStatus
 from cohort.crb_responses import CRBCountResponse, CRBCohortResponse, CRBValidateResponse
-
-_log = logging.getLogger('celery.app')
+from cohort.tools import log_count_task, log_create_task
 
 COHORT_REQUEST_BUILDER_URL = os.environ.get('COHORT_REQUEST_BUILDER_URL')
 JOBS_API = f"{COHORT_REQUEST_BUILDER_URL}/jobs"
@@ -57,28 +52,6 @@ def fhir_to_job_status() -> Dict[str, JobStatus]:
             }
 
 
-def retrieve_perimeters(json_req: str) -> [str]:
-    """
-    Called to retrieve care_site_ids (perimeters) from a Json request
-    :param json_req:
-    :type json_req:
-    :return:
-    :rtype:
-    """
-    # sourcePopulation:{caresiteCohortList: [...ids]}
-    try:
-        req = json.loads(json_req)
-        ids = req["sourcePopulation"]["caresiteCohortList"]
-        assert isinstance(ids, list)
-        str_ids = []
-        for i in ids:
-            str_ids.append(str(i))
-            assert str(i).isnumeric()
-        return str_ids
-    except Exception:
-        return None
-
-
 def get_authorization_header(request: Request) -> dict:
     key = request.jwt_session_key or request.META.get("HTTP_AUTHORIZATION")
     return {"Authorization": f"Bearer {key}"}
@@ -111,7 +84,7 @@ class JobResponse:
         self.context: str = kwargs.get('context')
         self.status: JobStatus = fhir_to_job_status().get(kwargs.get('status'))
         if not self.status:
-            _log.info(f"Expected Error: status is None : {resp.json()}")
+            raise ValueError(f"Expected valid status value, got None : {resp.json()}")
         self.job_id: str = kwargs.get('jobId')
         self.context_id: str = kwargs.get('contextId')
 
@@ -123,10 +96,6 @@ class JobResponse:
         if not self.result and self.status in [JobStatus.finished, JobStatus.failed]:
             raise Exception(f"FHIR ERROR: Result is empty - {resp.text}")
         self.request_response: Response = resp
-
-
-def init_job_from_response(resp: Response, result: dict) -> JobResponse:
-    return JobResponse(resp, **result)
 
 
 def get_job(job_id: str, auth_headers) -> Tuple[Response, dict]:
@@ -144,7 +113,7 @@ def get_job(job_id: str, auth_headers) -> Tuple[Response, dict]:
         raise Exception(f"INTERNAL CONNECTION ERROR {resp.status_code}: "
                         f"{result.get('error', 'no error')} ; "
                         f"{result.get('message', 'no message')}")
-    return resp, result
+    return JobResponse(resp, **result)
 
 
 def cancel_job(job_id: str, auth_headers) -> JobStatus:
@@ -189,7 +158,6 @@ def cancel_job(job_id: str, auth_headers) -> JobStatus:
 
     if new_status not in [JobStatus.cancelled, JobStatus.finished]:
         raise Exception(f"DATA ERROR: status returned by FHIR is neither KILLED or FINISHED -> {result}")
-    _log.info(f"QueryServer Job {job_id} cancelled.")
     return new_status
 
 
@@ -215,17 +183,10 @@ def create_count_job(json_query: str, auth_headers, global_estimate) -> Tuple[Re
     return resp, result
 
 
-def post_count_cohort(json_query: str, auth_headers, log_prefix: str = "", dated_measure: Model = None,
-                      global_estimate: bool = False) -> CRBCountResponse:
+def post_count_cohort(auth_headers: str, json_query: str, dm_uuid: str, global_estimate=False) -> CRBCountResponse:
     from datetime import datetime
-
     d = datetime.now()
-    _log.info(f"{log_prefix} Step 1: Posting count request")
-    if dated_measure is None:
-        return CRBCountResponse(success=False,
-                                job_duration=datetime.now() - d,
-                                fhir_job_status=JobStatus.failed,
-                                err_msg="No dated_measure was provided to be updated during the process")
+    log_count_task(dm_uuid, "Step 1: Posting count request", global_estimate=global_estimate)
 
     try:
         resp, result = create_count_job(json_query, auth_headers, global_estimate)
@@ -235,9 +196,9 @@ def post_count_cohort(json_query: str, auth_headers, log_prefix: str = "", dated
                                 fhir_job_status=JobStatus.failed,
                                 err_msg=str(e))
 
-    _log.info(f"{log_prefix} Step 2: Response being processed")
+    log_count_task(dm_uuid, "Step 2: Response being processed", global_estimate=global_estimate)
     try:
-        job = init_job_from_response(resp, result)
+        job = JobResponse(resp, **result)
     except Exception as e:
         return CRBCountResponse(success=False,
                                 job_duration=datetime.now() - d,
@@ -252,28 +213,23 @@ def post_count_cohort(json_query: str, auth_headers, log_prefix: str = "", dated
                 reason = f'message and stack message are empty. Full result: {resp.text}'
             else:
                 reason = f'message is empty. Stack message: {job_result.stack}'
-
         err_msg = f"FHIR ERROR {job.request_response.status_code}: {reason}"
         return CRBCountResponse(success=False,
                                 job_duration=datetime.now() - d,
                                 fhir_job_status=JobStatus.failed,
                                 err_msg=err_msg)
 
-    dated_measure.request_job_status = job.status
-    dated_measure.request_job_id = job.job_id
-    dated_measure.save()
-
+    log_count_task(dm_uuid, "Step 3: Job created. Waiting for it to be finished", global_estimate=global_estimate)
     errors_count = 0
-    _log.info(f"{log_prefix} Step 3: Job created. Waiting for it to be finished")
     while job.status not in [JobStatus.cancelled, JobStatus.finished, JobStatus.failed]:
         time.sleep(2)
         try:
-            res, result = get_job(job.job_id, auth_headers=auth_headers)
-            job = init_job_from_response(resp=res, result=result)
-            _log.info(f"{log_prefix} Step 3.x: Job created. Status: {job.status}.")
+            job = get_job(job.job_id, auth_headers=auth_headers)
+            log_count_task(dm_uuid, "Step 3.x: Job created. Status: {job.status}.", global_estimate=global_estimate)
         except Exception as e:
             errors_count += 1
-            _log.info(f"{log_prefix} Step 3.x: Error {errors_count} found on getting status : {e}. Waiting 10s.")
+            log_count_task(dm_uuid, f"Step 3.x: Error {errors_count} found on getting status : {e}.",
+                           global_estimate=global_estimate)
             if errors_count > 5:
                 return CRBCountResponse(success=False,
                                         job_duration=datetime.now() - d,
@@ -281,22 +237,16 @@ def post_count_cohort(json_query: str, auth_headers, log_prefix: str = "", dated
                                         err_msg=f"5 errors in a row while getting job status : {e}")
             time.sleep(10)
 
-    _log.info(f"{log_prefix} Step 4: Job ended, returning result.")
-    if job.status == JobStatus.cancelled:
+    log_count_task(dm_uuid, "Step 4: Job ended, returning result.", global_estimate=global_estimate)
+    if job.status in (JobStatus.cancelled, JobStatus.failed):
         return CRBCountResponse(success=False,
                                 job_duration=datetime.now() - d,
-                                fhir_job_status=JobStatus.cancelled,
-                                err_msg="Job was cancelled")
-
-    if job.status == JobStatus.failed:
-        return CRBCountResponse(success=False,
-                                job_duration=datetime.now() - d,
-                                fhir_job_status=JobStatus.failed,
-                                err_msg=job.result[0].message)
+                                fhir_job_status=job.status,
+                                err_msg=job.status == JobStatus.failed and job.result[0].message or "Job cancelled")
 
     job_result = job.result[0]
     if job_result.count is None and job_result.count_max is None:
-        err_msg = f"INTERNAL ERROR: format of received response not anticipated: {result}"
+        err_msg = f"INTERNAL ERROR: format of received response not anticipated: {job_result}"
         return CRBCountResponse(success=False,
                                 fhir_job_id=job.job_id,
                                 job_duration=datetime.now() - d,
@@ -325,95 +275,28 @@ def create_cohort_job(json_query: str, auth_headers) -> Tuple[Response, dict]:
         result = resp.json()
     except Exception:
         raise Exception(f"INTERNAL ERROR {resp.status_code}: could not read result from "
-                        f"request to FHIR ({resp.text or str(resp)})")
+                        f"request to CRB ({resp.text or str(resp)})")
     if resp.status_code != 200:
         raise Exception(f"INTERNAL CONNECTION ERROR {resp.status_code}: "
                         f"{result.get('error', 'no error')}, {result.get('message', 'no message')}")
     return resp, result
 
 
-def post_create_cohort(json_query: str, auth_headers, log_prefix: str = "", cohort_result=None) -> CRBCohortResponse:
-    from datetime import datetime
-    d = datetime.now()
-    _log.info(f"{log_prefix} Step 1: Post cohort creation request to CRB")
+def post_create_cohort(auth_headers: str, json_query: str, cr_uuid: str) -> CRBCohortResponse:
+    log_create_task(cr_uuid, "Step 1: Post cohort creation request to CRB")
     try:
         resp, result = create_cohort_job(json_query, auth_headers)
     except Exception as e:
-        return CRBCohortResponse(success=False,
-                                 job_duration=datetime.now() - d,
-                                 fhir_job_status=JobStatus.failed,
-                                 err_msg=str(e))
+        return CRBCohortResponse(success=False, fhir_job_status=JobStatus.failed, err_msg=str(e))
 
-    _log.info(f"{log_prefix} Step 2: Response being processed")
+    log_create_task(cr_uuid, "Step 2: Processing CRB response")
     try:
-        job = init_job_from_response(resp=resp, result=result)
+        job = JobResponse(resp, **result)
     except Exception as e:
-        return CRBCohortResponse(success=False,
-                                 job_duration=datetime.now() - d,
-                                 fhir_job_status=JobStatus.failed,
-                                 err_msg=str(e))
+        return CRBCohortResponse(success=False, fhir_job_status=JobStatus.failed, err_msg=str(e))
 
-    if job.status == JobStatus.failed:      # 2b removed possibly
-        job_result = job.result[0]
-        reason = job_result.message
-        if not reason:
-            if job_result.stack:
-                reason = f"message is empty. Stack message: {job_result.stack}"
-            else:
-                reason = f"message and stack message are empty. Full result: {resp.text}"
-        return CRBCohortResponse(success=False,
-                                 fhir_job_status=JobStatus.failed,
-                                 job_duration=datetime.now() - d,
-                                 err_msg=f"FHIR ERROR {job.request_response.status_code}: {reason}")
-
-    _log.info(f"{log_prefix} Step 3: Job created. Waiting for it to be finished")
-
-    count = cohort_result.dated_measure.measure
-    if count >= COHORT_LIMIT:
-        return CRBCohortResponse(success=True,
-                                 fhir_job_id=job.job_id,
-                                 fhir_datetime=timezone.now(),
-                                 fhir_job_status=JobStatus.long_pending,
-                                 # job_duration="NA",
-                                 count=count)
-    errors_count = 0
-    while job.status not in [JobStatus.cancelled, JobStatus.finished, JobStatus.failed]:
-        time.sleep(5)
-        try:
-            res, result = get_job(job.job_id, auth_headers=auth_headers)
-            job = init_job_from_response(res, result)
-        except Exception as e:
-            errors_count += 1
-            _log.info(f"{log_prefix} Step 3.x: Error {errors_count} found on getting status : {e}")
-            if errors_count > 5:
-                return CRBCohortResponse(success=False,
-                                         job_duration=datetime.now() - d,
-                                         fhir_job_status=JobStatus.failed,
-                                         err_msg=f"5 errors in a row while getting job status : {e}")
-            time.sleep(15)
-
-    _log.info(f"{log_prefix} Step 4: Job stopped, returning result.")
-    if job.status in (JobStatus.cancelled, JobStatus.failed):
-        return CRBCohortResponse(success=False,
-                                 job_duration=datetime.now() - d,
-                                 fhir_job_status=job.status,
-                                 err_msg=job.status == JobStatus.failed and job.result[0].message or "Job cancelled")
-
-    job_result = job.result[0]
-    if not job_result.group_id or job_result.count is None:
-        return CRBCohortResponse(success=False,
-                                 fhir_job_id=job.job_id,
-                                 job_duration=datetime.now() - d,
-                                 fhir_job_status=JobStatus.failed,
-                                 err_msg=f"INTERNAL ERROR: missing result count or group.id: {result}")
-
-    return CRBCohortResponse(success=True,
-                             fhir_job_id=job.job_id,
-                             fhir_datetime=timezone.now(),
-                             fhir_job_status=job.status,
-                             job_duration=datetime.now() - d,
-                             count=job_result.count,
-                             group_id=job_result.group_id)
+    log_create_task(cr_uuid, "Step 3: SJS job created. Will be notified later by callback")
+    return CRBCohortResponse(success=True, fhir_job_id=job.job_id)
 
 
 def post_validate_cohort(json_query: str, auth_headers) -> CRBValidateResponse:

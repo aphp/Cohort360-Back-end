@@ -1,22 +1,16 @@
-import logging
 from time import sleep
 
 from celery import shared_task, current_task
 
 import cohort.conf_cohort_job_api as cohort_job_api
 from admin_cohort.models import JobStatus
+from admin_cohort.settings import COHORT_LIMIT
 from cohort.models import CohortResult, DatedMeasure, GLOBAL_DM_MODE
-
-_log = logging.getLogger("celery.app")
-
-
-def log_create_task(cr_uuid, msg):
-    _log.info(f"[CohortTask] [CohortResult uuid: {cr_uuid}] {msg}")
+from cohort.tools import log_count_task, log_create_task
 
 
 @shared_task
 def create_cohort_task(auth_headers: dict, json_query: str, cohort_uuid: str):
-    log_create_task(cohort_uuid, "Task opened for cohort creation")
     # TODO: Useful? Is the create transaction already closed? latency in database saving (when calling this task)
     cohort_result: CohortResult = None
     tries = 0
@@ -32,25 +26,18 @@ def create_cohort_task(auth_headers: dict, json_query: str, cohort_uuid: str):
         return
 
     log_create_task(cohort_uuid, "Asking CRB to create cohort")
-    resp = cohort_job_api.post_create_cohort(json_query=json_query,
-                                             auth_headers=auth_headers,
-                                             cohort_result=cohort_result,
-                                             log_prefix=f"[CohortTask] [CohortResult uuid: {cohort_uuid}]")
+    resp = cohort_job_api.post_create_cohort(auth_headers=auth_headers, json_query=json_query, cr_uuid=cohort_uuid)
 
     cohort_result.create_task_id = current_task.request.id or ""
-    cohort_result.request_job_id = resp.fhir_job_id
-    cohort_result.request_job_status = resp.fhir_job_status
-    cohort_result.request_job_duration = resp.job_duration
     if resp.success:
-        cohort_result.fhir_group_id = resp.group_id
+        cohort_result.request_job_id = resp.fhir_job_id
+        count = cohort_result.dated_measure.measure
+        cohort_result.request_job_status = count >= COHORT_LIMIT and JobStatus.long_pending or JobStatus.pending
     else:
+        cohort_result.request_job_status = JobStatus.failed
         cohort_result.request_job_fail_msg = resp.err_msg
     cohort_result.save()
-    log_create_task(cohort_uuid, resp.success and "CohortResult and DatedMeasure updated" or resp.err_msg)
-
-
-def log_count_task(dm_uuid, msg):
-    _log.info(f"[CountTask] [DM uuid: {dm_uuid}] {msg}")
+    log_create_task(cohort_uuid, resp.success and "CohortResult updated" or resp.err_msg)
 
 
 @shared_task
@@ -76,13 +63,11 @@ def get_count_task(auth_headers: dict, json_query: str, dm_uuid: str):
     global_estimate = dm.mode == GLOBAL_DM_MODE
 
     log_count_task(dm_uuid, f"Asking CRB to get {'global ' if global_estimate else ''}count")
-    log_prefix = f"[{'global' if global_estimate else ''}CountTask] [DM uuid: {dm_uuid}]"
 
     resp = cohort_job_api.post_count_cohort(json_query=json_query,
                                             auth_headers=auth_headers,
-                                            dated_measure=dm,
-                                            global_estimate=global_estimate,
-                                            log_prefix=log_prefix)
+                                            dated_measure=dm_uuid,
+                                            global_estimate=global_estimate)
     if resp.success:
         if not global_estimate:
             dm.measure = resp.count
