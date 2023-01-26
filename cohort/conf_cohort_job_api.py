@@ -90,7 +90,6 @@ def format_json_query(json_query: str) -> str:
 
 class JobResult:
     def __init__(self, resp: Response, **kwargs):
-        self._type: str = kwargs.get('_type')
         self.source: str = kwargs.get('source')
         self.count = kwargs.get("group.count", kwargs.get("count"))
         self.count_min = kwargs.get("minimum")
@@ -375,7 +374,7 @@ def post_create_cohort(json_query: str, auth_headers, log_prefix: str = "", coho
                                  fhir_job_id=job.job_id,
                                  fhir_datetime=timezone.now(),
                                  fhir_job_status=JobStatus.long_pending,
-                                 job_duration=datetime.now() - d,
+                                 # job_duration="NA",
                                  count=count)
     errors_count = 0
     while job.status not in [JobStatus.cancelled, JobStatus.finished, JobStatus.failed]:
