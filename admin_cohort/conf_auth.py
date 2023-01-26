@@ -1,4 +1,5 @@
 import json
+import logging
 from typing import Optional, Union
 
 import environ
@@ -33,6 +34,7 @@ OIDC_AUDIENCES = env("OIDC_AUDIENCES").split(';')
 
 JWT_AUTH_MODE = "jwt"
 OIDC_AUTH_MODE = "oidc"
+_log = logging.getLogger('info')
 
 
 def get_raw_token(header: bytes) -> Union[str, None]:
@@ -131,13 +133,21 @@ def get_user_info(jwt_access_token: str) -> UserInfo:
     raise ValueError("Invalid JWT Access Token")
 
 
+def is_etl_token(token: str) -> bool:
+    return token == env("ETL_TOKEN")
+
+
 def verify_jwt(access_token: str, auth_method: str = JWT_AUTH_MODE
                ) -> Union[None, UserInfo]:
     if SERVER_VERSION.lower() == "dev":
         return
 
+    if is_etl_token(access_token):
+        _log.info("*** ETL TOKEN CONNEXION *** ")
+        return UserInfo("SOLR-ETL", "mister.solr.etl@aphp.fr", "SolR", "ETL")
     auth_method = auth_method or JWT_AUTH_MODE
     if auth_method.lower() == JWT_AUTH_MODE:
+        _log.info("** JWT TOKNE CONNEXION ***")
         url = f"{JWT_SERVER_URL}/jwt/verify/"
         resp = requests.post(url, data={"token": access_token},
                              headers=jwt_server_headers)
@@ -154,6 +164,7 @@ def verify_jwt(access_token: str, auth_method: str = JWT_AUTH_MODE
         raise ValueError("Invalid JWT Access Token")
 
     elif auth_method.lower() == OIDC_AUTH_MODE:
+        _log.info("** OIDC TOKEN CONNEXION ***")
         resp = requests.get(OIDC_CERTS_URL)
 
         if resp.status_code != status.HTTP_200_OK:
