@@ -166,9 +166,9 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         method='get',
         operation_summary="Give cohorts aggregation read patient rights, export csv rights and transfer jupyter rights."
                           "It check accesses with perimeters population source for each cohort found.",
-        responses={'201': openapi.Response("give rights in caresite perimeters found", CohortRightsSerializer())})
+        responses={'201': openapi.Response("Cohorts rights found", CohortRightsSerializer())})
     @action(detail=False, methods=['get'], url_path="cohort-rights")
-    def get_perimeters_read_right_accesses(self, request, *args, **kwargs):
+    def get_cohort_right_accesses(self, request, *args, **kwargs):
         user_accesses = get_user_valid_manual_accesses_queryset(self.request.user)
 
         if not user_accesses:
@@ -191,6 +191,25 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         cohort_dict_pop_source = get_dict_cohort_pop_source(list_cohort_id)
         return Response(CohortRightsSerializer(get_all_cohorts_rights(user_accesses, cohort_dict_pop_source),
                                                many=True).data)
+
+    @swagger_auto_schema(
+        method='patch',
+        operation_summary="Path to Update status of cohort list, used by ETL to update big cohorts",
+        responses={'201': openapi.Response("Cohort update success")})
+    @action(detail=False, methods=['patch'], url_path="status")
+    def patch_cohort_status(self, request, *args, **kwargs):
+        body = self.request.data
+        FHIR_GROUP_ID = "fhir_group_id"
+        REQUEST_JOB_STATUS = "request_job_status"
+        if FHIR_GROUP_ID in body and REQUEST_JOB_STATUS in body:
+            id_list = [int(i) for i in body[FHIR_GROUP_ID].split(",")]
+            request_status = body[REQUEST_JOB_STATUS]
+            CohortResult.objects.filter(fhir_group_id__in=id_list).update(request_job_status=request_status)
+            return Response({"response": f"Cohorts {id_list} are updated with status: '{request_status}'"},
+                            status=status.HTTP_200_OK)
+        return Response({"response": f"Cohort update not possible: valid body is missing. "
+                                     f"Following json key are needed: {FHIR_GROUP_ID}, {REQUEST_JOB_STATUS}"},
+                        status=status.HTTP_400_BAD_REQUEST)
 
     @action(methods=['patch'], detail=False, url_path='in_progress/(?P<uuid>[^/.]+)')
     def update_in_progress_cohort(self, request, *args, **kwargs):
