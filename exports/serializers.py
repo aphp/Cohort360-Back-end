@@ -7,7 +7,7 @@ from rest_framework.request import Request
 import workspaces.conf_workspaces as conf_workspaces
 from accesses.models import DataRight, build_data_rights
 from admin_cohort.models import User, JobStatus
-from cohort.models.cohort_result import CohortResult
+from cohort.models import CohortResult
 from exports import conf_exports
 from workspaces.models import Account
 from .emails import check_email_address

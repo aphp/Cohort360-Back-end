@@ -9,8 +9,7 @@ from django.db import models
 
 from admin_cohort.models import CohortBaseModel, User
 from admin_cohort.settings import SHARED_FOLDER_NAME
-from cohort.models.folder import Folder
-from cohort.models.request import Request
+from cohort.models import Request, Folder
 
 
 class RequestQuerySnapshot(CohortBaseModel):

@@ -7,12 +7,8 @@ import cohort.conf_cohort_job_api as cohort_job_api
 from admin_cohort.models import User
 from admin_cohort.serializers import BaseSerializer, OpenUserSerializer
 from admin_cohort.types import JobStatus
-from cohort.models import GLOBAL_DM_MODE
-from cohort.models.cohort_result import CohortResult
-from cohort.models.dated_measure import DatedMeasure
-from cohort.models.folder import Folder
-from cohort.models.request import Request
-from cohort.models.request_query_snapshot import RequestQuerySnapshot
+from cohort.models import CohortResult, DatedMeasure, Folder, Request, RequestQuerySnapshot
+from cohort.models.dated_measure import GLOBAL_DM_MODE
 from cohort.tools import retrieve_perimeters
 
 

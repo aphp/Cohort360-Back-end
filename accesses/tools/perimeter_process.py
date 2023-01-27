@@ -3,7 +3,7 @@ from rest_framework.exceptions import ValidationError
 
 from accesses.models import Perimeter, Access, Role, get_user_valid_manual_accesses_queryset
 from accesses.tools.data_right_mapping import PerimeterReadRight
-from cohort.models.cohort_result import CohortResult
+from cohort.models import CohortResult
 from cohort.tools import get_list_cohort_id_care_site
 from commons.tools import cast_string_to_ids_list
 

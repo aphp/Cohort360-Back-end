@@ -5,7 +5,7 @@ from rest_framework import viewsets
 
 from admin_cohort.permissions import OR
 from admin_cohort.types import JobStatus
-from cohort.models.cohort_result import CohortResult
+from cohort.models import CohortResult
 from cohort.permissions import IsOwner
 from exports.permissions import AnnexesPermissions, can_review_transfer_jupyter, can_review_export_csv
 from exports.serializers import AnnexeCohortResultSerializer

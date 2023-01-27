@@ -16,7 +16,7 @@ from admin_cohort.tools import join_qs
 from admin_cohort.types import JobStatus
 from admin_cohort.views import SwaggerSimpleNestedViewSetMixin
 from cohort.conf_cohort_job_api import fhir_to_job_status
-from cohort.models.cohort_result import CohortResult
+from cohort.models import CohortResult
 from cohort.serializers import CohortResultSerializer, CohortResultSerializerFullDatedMeasure, CohortRightsSerializer
 from cohort.tools import get_dict_cohort_pop_source, get_all_cohorts_rights
 from cohort.views.shared import UserObjectsRestrictedViewSet

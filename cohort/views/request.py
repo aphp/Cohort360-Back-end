@@ -4,7 +4,7 @@ from rest_framework.pagination import LimitOffsetPagination
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from admin_cohort.views import SwaggerSimpleNestedViewSetMixin
-from cohort.models.request import Request
+from cohort.models import Request
 from cohort.serializers import RequestSerializer
 from cohort.views.shared import UserObjectsRestrictedViewSet
 

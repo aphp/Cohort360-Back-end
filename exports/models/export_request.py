@@ -2,7 +2,7 @@ from django.db import models
 from django.db.models import CASCADE, SET_NULL
 
 from admin_cohort.models import JobModelWithReview, BaseModel, User
-from cohort.models.cohort_result import CohortResult
+from cohort.models import CohortResult
 from exports.types import ExportType
 from workspaces.models import Account
 

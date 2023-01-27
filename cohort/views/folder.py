@@ -3,7 +3,7 @@ from rest_framework.pagination import LimitOffsetPagination
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from admin_cohort.views import CustomLoggingMixin
-from cohort.models.folder import Folder
+from cohort.models import Folder
 from cohort.serializers import FolderSerializer
 from cohort.views.shared import UserObjectsRestrictedViewSet
 

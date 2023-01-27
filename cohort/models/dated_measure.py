@@ -3,8 +3,12 @@ from __future__ import annotations
 from django.db import models
 
 from admin_cohort.models import CohortBaseModel, JobModel, User
-from cohort.models import DATED_MEASURE_MODE_CHOICES, SNAPSHOT_DM_MODE
-from cohort.models.request_query_snapshot import RequestQuerySnapshot
+from cohort.models import RequestQuerySnapshot
+
+SNAPSHOT_DM_MODE = "Snapshot"
+GLOBAL_DM_MODE = "Global"
+DATED_MEASURE_MODE_CHOICES = [(SNAPSHOT_DM_MODE, SNAPSHOT_DM_MODE),
+                              (GLOBAL_DM_MODE, GLOBAL_DM_MODE)]
 
 
 class DatedMeasure(CohortBaseModel, JobModel):

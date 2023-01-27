@@ -11,7 +11,7 @@ from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from admin_cohort.models import User
 from admin_cohort.views import SwaggerSimpleNestedViewSetMixin
-from cohort.models.request_query_snapshot import RequestQuerySnapshot
+from cohort.models import RequestQuerySnapshot
 from cohort.permissions import IsOwner
 from cohort.serializers import RequestQuerySnapshotSerializer
 from cohort.views.shared import UserObjectsRestrictedViewSet
