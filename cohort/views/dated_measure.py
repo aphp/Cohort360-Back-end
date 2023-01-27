@@ -13,9 +13,11 @@ from admin_cohort import app
 from admin_cohort.types import JobStatus
 from admin_cohort.views import SwaggerSimpleNestedViewSetMixin
 from cohort.conf_cohort_job_api import get_authorization_header, cancel_job
-from cohort.models import DatedMeasure, CohortResult, RequestQuerySnapshot
+from cohort.models.cohort_result import CohortResult
+from cohort.models.dated_measure import DatedMeasure
+from cohort.models.request_query_snapshot import RequestQuerySnapshot
 from cohort.serializers import DatedMeasureSerializer
-from cohort.views import UserObjectsRestrictedViewSet
+from cohort.views.shared import UserObjectsRestrictedViewSet
 
 _log = logging.getLogger('django.request')
 

@@ -1,7 +1,7 @@
 from datetime import datetime as dt, timezone
 
 from django.db.models import Q, F
-from django.http import HttpResponse, JsonResponse, Http404, HttpResponseBadRequest, QueryDict
+from django.http import HttpResponse, JsonResponse, Http404, QueryDict
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
@@ -16,10 +16,10 @@ from admin_cohort.tools import join_qs
 from admin_cohort.types import JobStatus
 from admin_cohort.views import SwaggerSimpleNestedViewSetMixin
 from cohort.conf_cohort_job_api import fhir_to_job_status
-from cohort.models import CohortResult
+from cohort.models.cohort_result import CohortResult
 from cohort.serializers import CohortResultSerializer, CohortResultSerializerFullDatedMeasure, CohortRightsSerializer
 from cohort.tools import get_dict_cohort_pop_source, get_all_cohorts_rights
-from cohort.views import UserObjectsRestrictedViewSet
+from cohort.views.shared import UserObjectsRestrictedViewSet
 
 
 class CohortFilter(filters.FilterSet):
@@ -138,7 +138,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                                                many=True).data)
 
     @swagger_auto_schema(method='get',
-                         operation_summary="Used by SJS to update an in-progress cohort",
+                         operation_summary="Used by SJS to update a cohort being created",
                          responses={'200': openapi.Response("Cohort updated successfully"),
                                     '400': openapi.Response("Bad Request")})
     @action(methods=['get'], detail=False, url_path='progressing/(?P<uuid>[^/.]+)')
@@ -148,7 +148,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         try:
             cohort = CohortResult.objects.get(uuid=kwargs.get("uuid"))
         except CohortResult.DoesNotExist:
-            return HttpResponseBadRequest(content="Invalid cohort uuid")
+            return Response(data="Invalid cohort uuid", status=status.HTTP_400_BAD_REQUEST)
         job_status = fhir_to_job_status().get(request.data.get("status"))
         cohort.request_job_status = job_status
         cohort.fhir_group_id = request.data.get("group.id")
@@ -162,14 +162,16 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         cohort.dated_measure.save()
         return Response(data="CohortResult updated", status=status.HTTP_200_OK)
 
-    @swagger_auto_schema(operation_summary="Used by ETL to update statuses of large cohorts",
+    @swagger_auto_schema(method='patch',
+                         operation_summary="Used by ETL to update statuses of large cohorts",
                          responses={'200': openapi.Response("Cohorts updated successfully"),
                                     '400': openapi.Response("Bad Request")})
-    def partial_update(self, request, *args, **kwargs):
+    @action(methods=['patch'], detail=False)
+    def update_large_cohorts(self, request, *args, **kwargs):
         # todo: request data must be a list of JSONs [{group_id: status}, ...]
-        body = self.request.data
-        group_id = body.get("fhir_group_id")
-        job_status = body.get("request_job_status")
+        data = self.request.data
+        group_id = data.get("fhir_group_id")
+        job_status = data.get("request_job_status")
         if group_id and job_status:
             id_list = [int(i) for i in group_id.split(",")]
             CohortResult.objects.filter(fhir_group_id__in=id_list).update(request_job_status=job_status)

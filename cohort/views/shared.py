@@ -1,21 +1,8 @@
 from django.http import QueryDict
-from rest_framework import status, viewsets
+from rest_framework import viewsets
 from rest_framework.relations import RelatedField
-from rest_framework.response import Response
 
 from cohort.permissions import IsOwner
-
-
-class NoUpdateViewSetMixin:
-    def update(self, request, *args, **kwargs):
-        return Response(
-            {"response": "request_query_snapshot manual update not possible"},
-            status=status.HTTP_400_BAD_REQUEST)
-
-    def partial_update(self, request, *args, **kwargs):
-        return Response(
-            {"response": "request_query_snapshot manual update not possible"},
-            status=status.HTTP_400_BAD_REQUEST)
 
 
 class BaseViewSet(viewsets.ModelViewSet):

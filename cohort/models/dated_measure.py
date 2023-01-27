@@ -3,7 +3,8 @@ from __future__ import annotations
 from django.db import models
 
 from admin_cohort.models import CohortBaseModel, JobModel, User
-from cohort.models import RequestQuerySnapshot, DATED_MEASURE_MODE_CHOICES, SNAPSHOT_DM_MODE
+from cohort.models import DATED_MEASURE_MODE_CHOICES, SNAPSHOT_DM_MODE
+from cohort.models.request_query_snapshot import RequestQuerySnapshot
 
 
 class DatedMeasure(CohortBaseModel, JobModel):

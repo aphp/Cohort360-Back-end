@@ -4,7 +4,7 @@ from typing import List
 
 from django.db import migrations
 
-from cohort.models import CohortResult
+from cohort.models.cohort_result import CohortResult
 
 
 class JobStatus(str, Enum):

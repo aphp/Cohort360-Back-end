@@ -11,10 +11,20 @@ from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from admin_cohort.models import User
 from admin_cohort.views import SwaggerSimpleNestedViewSetMixin
-from cohort.models import RequestQuerySnapshot
+from cohort.models.request_query_snapshot import RequestQuerySnapshot
 from cohort.permissions import IsOwner
 from cohort.serializers import RequestQuerySnapshotSerializer
-from cohort.views import NoUpdateViewSetMixin, UserObjectsRestrictedViewSet
+from cohort.views.shared import UserObjectsRestrictedViewSet
+
+
+class NoUpdateViewSetMixin:
+    def update(self, request, *args, **kwargs):
+        return Response(data={"response": "request_query_snapshot manual update not possible"},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    def partial_update(self, request, *args, **kwargs):
+        return Response(data={"response": "request_query_snapshot manual update not possible"},
+                        status=status.HTTP_400_BAD_REQUEST)
 
 
 class RQSFilter(filters.FilterSet):

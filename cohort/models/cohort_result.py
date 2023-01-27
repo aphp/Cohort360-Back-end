@@ -4,7 +4,9 @@ from django.db import models
 
 from admin_cohort.models import CohortBaseModel, JobModel, User
 from admin_cohort.settings import COHORT_LIMIT
-from cohort.models import DatedMeasure, RequestQuerySnapshot, COHORT_TYPE_CHOICES, MY_COHORTS_COHORT_TYPE
+from cohort.models import COHORT_TYPE_CHOICES, MY_COHORTS_COHORT_TYPE
+from cohort.models.dated_measure import DatedMeasure
+from cohort.models.request_query_snapshot import RequestQuerySnapshot
 
 
 class CohortResult(CohortBaseModel, JobModel):

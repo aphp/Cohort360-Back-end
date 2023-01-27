@@ -8,7 +8,7 @@ from django.http import Http404
 
 from accesses.conf_perimeters import OmopModelManager
 from accesses.models import Perimeter, Access, Role
-from cohort.models import CohortResult
+from cohort.models.cohort_result import CohortResult
 from commons.tools import cast_string_to_ids_list
 
 ROLE = "role"

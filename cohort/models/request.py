@@ -5,7 +5,12 @@ from functools import reduce
 from django.db import models
 
 from admin_cohort.models import CohortBaseModel, User
-from cohort.models import DatedMeasure, Folder, RequestQuerySnapshot, REQUEST_DATA_TYPE_CHOICES, PATIENT_REQUEST_TYPE
+from cohort.models import REQUEST_DATA_TYPE_CHOICES, PATIENT_REQUEST_TYPE
+# from cohort.models.dated_measure import DatedMeasure
+from cohort.models.folder import Folder
+
+
+# from cohort.models.request_query_snapshot import RequestQuerySnapshot
 
 
 class Request(CohortBaseModel):
@@ -19,7 +24,8 @@ class Request(CohortBaseModel):
                                   default=None)
 
     def last_request_snapshot(self):
-        return RequestQuerySnapshot.objects.filter(request__uuid=self.uuid).latest('created_at')
+        # return RequestQuerySnapshot.objects.filter(request__uuid=self.uuid).latest('created_at')
+        return self.query_snapshots.latest('created_at')
 
     def saved_snapshot(self):
         return self.query_snapshots.filter(saved=True).first()
@@ -27,5 +33,10 @@ class Request(CohortBaseModel):
     @property
     def dated_measures(self):
         return reduce(lambda a, b: a | b,
-                      [rqs.dated_measures.all() for rqs in self.query_snapshots.all()],
-                      DatedMeasure.objects.none())
+                      [rqs.dated_measures.all() for rqs in self.query_snapshots.all()])
+                      # DatedMeasure.objects.none())
+
+# request
+# request_query_snapshot
+# dated_measure
+# cohort_result
