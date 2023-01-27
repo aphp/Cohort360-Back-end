@@ -5,7 +5,8 @@ from celery import shared_task, current_task
 import cohort.conf_cohort_job_api as cohort_job_api
 from admin_cohort.models import JobStatus
 from admin_cohort.settings import COHORT_LIMIT
-from cohort.models import CohortResult, DatedMeasure, GLOBAL_DM_MODE
+from cohort.models import CohortResult, DatedMeasure
+from cohort.models.dated_measure import GLOBAL_DM_MODE
 from cohort.tools import log_count_task, log_create_task
 
 

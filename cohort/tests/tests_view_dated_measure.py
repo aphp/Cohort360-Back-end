@@ -12,7 +12,8 @@ from admin_cohort.tests_tools import random_str, ListCase, RetrieveCase, CaseRet
     PatchCase
 from admin_cohort.tools import prettify_json
 from admin_cohort.types import JobStatus
-from cohort.models import DatedMeasure, RequestQuerySnapshot, DATED_MEASURE_MODE_CHOICES, CohortResult
+from cohort.models import DatedMeasure, RequestQuerySnapshot, CohortResult
+from cohort.models.dated_measure import DATED_MEASURE_MODE_CHOICES
 from cohort.tests.tests_view_rqs import RqsTests
 from cohort.views import DatedMeasureViewSet, NestedDatedMeasureViewSet
 

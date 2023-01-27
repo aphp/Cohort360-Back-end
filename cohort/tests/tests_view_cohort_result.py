@@ -9,7 +9,8 @@ from rest_framework import status
 
 from admin_cohort.tests_tools import random_str, ListCase, RetrieveCase, CaseRetrieveFilter, CreateCase, PatchCase
 from admin_cohort.types import JobStatus
-from cohort.models import CohortResult, RequestQuerySnapshot, DatedMeasure, SNAPSHOT_DM_MODE, GLOBAL_DM_MODE
+from cohort.models import CohortResult, RequestQuerySnapshot, DatedMeasure
+from cohort.models.dated_measure import GLOBAL_DM_MODE, SNAPSHOT_DM_MODE
 from cohort.tests.tests_view_dated_measure import DatedMeasuresTests, DMDeleteCase
 from cohort.views import CohortResultViewSet, NestedCohortResultViewSet
 

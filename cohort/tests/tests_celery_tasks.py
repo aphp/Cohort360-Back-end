@@ -5,7 +5,8 @@ from django.utils import timezone
 
 from admin_cohort.types import JobStatus
 from cohort.crb_responses import CRBCountResponse, CRBCohortResponse
-from cohort.models import DatedMeasure, GLOBAL_DM_MODE, CohortResult
+from cohort.models import DatedMeasure, CohortResult
+from cohort.models.dated_measure import GLOBAL_DM_MODE
 from cohort.tasks import get_count_task, create_cohort_task
 from cohort.tests.tests_view_dated_measure import DatedMeasuresTests
 
@@ -144,13 +145,6 @@ class TasksTests(DatedMeasuresTests):
         new_cr = CohortResult.objects.filter(
             pk=self.user1_req1_snap1_empty_cohort.pk,
             dated_measure=self.user1_req1_snap1_empty_dm,
-            # dated_measure__measure=self.test_count,
-            # dated_measure__measure_min__isnull=True,
-            # dated_measure__measure_max__isnull=True,
-            # dated_measure__fhir_datetime=self.test_datetime,
-            # dated_measure__request_job_duration=self.test_job_duration,
-            # dated_measure__request_job_status=self.test_job_status_finished,
-            # dated_measure__request_job_id=self.test_job_id,
             request_job_status=self.test_job_status_finished,
             fhir_group_id=self.test_job_id,
             request_job_id=self.test_job_id,
@@ -173,14 +167,6 @@ class TasksTests(DatedMeasuresTests):
         new_cr = CohortResult.objects.filter(
             pk=self.user1_req1_snap1_empty_cohort.pk,
             dated_measure=self.user1_req1_snap1_empty_dm,
-            # dated_measure__measure__isnull=True,
-            # dated_measure__measure_min__isnull=True,
-            # dated_measure__measure_max__isnull=True,
-            # dated_measure__fhir_datetime__isnull=True,
-            # dated_measure__request_job_duration=self.test_job_duration,
-            # dated_measure__request_job_status=JobStatus.failed.value,
-            # dated_measure__request_job_fail_msg=test_err_msg,
-            # dated_measure__request_job_id=self.test_job_id,
             request_job_status=JobStatus.failed.value,
             request_job_fail_msg=test_err_msg,
             fhir_group_id="",

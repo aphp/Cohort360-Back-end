@@ -1,4 +1,5 @@
 from datetime import datetime as dt, timezone
+from typing import List
 
 from django.db.models import Q, F
 from django.http import HttpResponse, JsonResponse, Http404, QueryDict
@@ -143,19 +144,19 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                                     '400': openapi.Response("Bad Request")})
     @action(methods=['get'], detail=False, url_path='progressing/(?P<uuid>[^/.]+)')
     def sjs_callback_progressing_cohort(self, request, *args, **kwargs):
-        # todo: add a token for SJS and get around jwt verification
         # todo: check all needed data is sent
         try:
             cohort = CohortResult.objects.get(uuid=kwargs.get("uuid"))
         except CohortResult.DoesNotExist:
             return Response(data="Invalid cohort uuid", status=status.HTTP_400_BAD_REQUEST)
+
         job_status = fhir_to_job_status().get(request.data.get("status"))
-        cohort.request_job_status = job_status
-        cohort.fhir_group_id = request.data.get("group.id")
         if job_status in (JobStatus.finished, JobStatus.failed):
             duration = str(dt.now(tz=timezone.utc) - cohort.created_at)
         else:
             duration = None
+        cohort.request_job_status = job_status
+        cohort.fhir_group_id = request.data.get("group.id")
         cohort.request_job_duration = duration
         cohort.dated_measure.measure = request.data.get("group.count")
         cohort.save()
@@ -168,17 +169,17 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                                     '400': openapi.Response("Bad Request")})
     @action(methods=['patch'], detail=False)
     def update_large_cohorts(self, request, *args, **kwargs):
-        # todo: request data must be a list of JSONs [{group_id: status}, ...]
         data = self.request.data
-        group_id = data.get("fhir_group_id")
         job_status = data.get("request_job_status")
-        if group_id and job_status:
-            id_list = [int(i) for i in group_id.split(",")]
-            CohortResult.objects.filter(fhir_group_id__in=id_list).update(request_job_status=job_status)
-            return Response(data=f"Cohorts {id_list} are updated with status: '{job_status}'",
-                            status=status.HTTP_200_OK)
-        return Response(data=f"Missing fhir_group_id and/or request_job_status",
-                        status=status.HTTP_400_BAD_REQUEST)
+        fhir_group_ids: List[str] = data.get("fhir_group_id").split(",")
+
+        if not job_status or any([not group_id.isnumeric() for group_id in fhir_group_ids]):
+            return Response(data=f"Missing fhir_group_id and/or request_job_status",
+                            status=status.HTTP_400_BAD_REQUEST)
+        CohortResult.objects.filter(fhir_group_id__in=fhir_group_ids)\
+                            .update(request_job_status=job_status)
+        return Response(data=f"Updated cohorts {fhir_group_ids} with status: '{job_status}'",
+                        status=status.HTTP_200_OK)
 
 
 class NestedCohortResultViewSet(SwaggerSimpleNestedViewSetMixin,
