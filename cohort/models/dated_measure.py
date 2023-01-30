@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from datetime import datetime as dt, timedelta, timezone as tz
+
 from django.db import models
 
 from admin_cohort.models import CohortBaseModel, JobModel, User
+from admin_cohort.settings import LAST_COUNT_VALIDITY
 from cohort.models import RequestQuerySnapshot
 
 SNAPSHOT_DM_MODE = "Snapshot"
@@ -23,3 +26,8 @@ class DatedMeasure(CohortBaseModel, JobModel):
     measure_max = models.BigIntegerField(null=True, blank=False)
     count_task_id = models.TextField(blank=True)
     mode = models.CharField(max_length=20, choices=DATED_MEASURE_MODE_CHOICES, default=SNAPSHOT_DM_MODE, null=True)
+
+    @property
+    def count_outdated(self):
+        delta = timedelta(hours=LAST_COUNT_VALIDITY)
+        return dt.now(tz=tz.utc) - self.created_at > delta

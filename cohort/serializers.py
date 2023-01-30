@@ -39,6 +39,7 @@ class DatedMeasureSerializer(BaseSerializer):
     owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
     request = serializers.UUIDField(read_only=True, required=False, source='request_query_snapshot__request__pk')
     request_query_snapshot = PrimaryKeyRelatedFieldWithOwner(queryset=RequestQuerySnapshot.objects.all())
+    count_outdated = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = DatedMeasure

@@ -269,4 +269,5 @@ DEFAULT_EXCEPTION_REPORTER_FILTER = 'admin_cohort.tools.CustomExceptionReporterF
 SENSITIVE_PARAMS = env('SENSITIVE_PARAMS').split(",")
 
 # COHORTS +20k
+LAST_COUNT_VALIDITY = int(env("LAST_COUNT_VALIDITY", default=24))    # in hours
 COHORT_LIMIT = int(env("COHORT_LIMIT", default=20_000))

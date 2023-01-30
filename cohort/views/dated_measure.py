@@ -27,12 +27,11 @@ class DMFilter(filters.FilterSet):
     class Meta:
         model = DatedMeasure
         fields = ('uuid',
-                  'request_query_snapshot',
                   'mode',
+                  'request_id',
                   'count_task_id',
-                  'request_query_snapshot__request',
-                  'request_id'
-                  )
+                  'request_query_snapshot',
+                  'request_query_snapshot__request')
 
 
 class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
@@ -41,22 +40,18 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     http_method_names = ['get', 'post', 'patch', 'delete']
     lookup_field = "uuid"
     swagger_tags = ['Cohort - dated-measures']
-
     filterset_class = DMFilter
     pagination_class = LimitOffsetPagination
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         if CohortResult.objects.filter(dated_measure__uuid=instance.uuid).first():
-            return Response({'message': "Cannot delete a DatedMeasure bound to a CohortResult"},
+            return Response(data={'message': "Cannot delete a DatedMeasure bound to a CohortResult"},
                             status=status.HTTP_403_FORBIDDEN)
         return super(DatedMeasureViewSet, self).destroy(request, *args, **kwargs)
 
     @action(methods=['post'], detail=False, url_path='create-unique')
     def create_unique(self, request, *args, **kwargs):
-        """ Demande à l'API FHIR d'annuler tous les jobs de calcul de count liés à
-            une construction de Requête avant d'en créer un nouveau
-        """
         if "request_query_snapshot" in kwargs:
             rqs_id = kwargs['request_query_snapshot']
         elif "request_query_snapshot_id" in request.data:
@@ -95,14 +90,11 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         return self.create(request, *args, **kwargs)
 
     def update(self, request, *args, **kwargs):
-        return Response("Updating a dated measure is not allowed",
+        return Response(data="Updating a DatedMeasure is not allowed",
                         status=status.HTTP_403_FORBIDDEN)
 
     @action(methods=['patch'], detail=True, url_path='abort')
     def abort(self, request, *args, **kwargs):
-        """
-        Demande à l'API FHIR d'annuler le job de calcul de count d'une requête
-        """
         # TODO : test
         instance: DatedMeasure = self.get_object()
         try:
@@ -111,8 +103,7 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             return Response(dict(message=str(e)), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class NestedDatedMeasureViewSet(SwaggerSimpleNestedViewSetMixin,
-                                DatedMeasureViewSet):
+class NestedDatedMeasureViewSet(SwaggerSimpleNestedViewSetMixin, DatedMeasureViewSet):
     @swagger_auto_schema(auto_schema=None)
     def abort(self, request, *args, **kwargs):
         return self.abort(self, request, *args, **kwargs)
@@ -120,10 +111,6 @@ class NestedDatedMeasureViewSet(SwaggerSimpleNestedViewSetMixin,
     def create(self, request, *args, **kwargs):
         if type(request.data) == QueryDict:
             request.data._mutable = True
-
         if 'request_query_snapshot' in kwargs:
-            request.data["request_query_snapshot"] \
-                = kwargs['request_query_snapshot']
-
-        return super(NestedDatedMeasureViewSet, self).create(
-            request, *args, **kwargs)
+            request.data["request_query_snapshot"] = kwargs['request_query_snapshot']
+        return super(NestedDatedMeasureViewSet, self).create(request, *args, **kwargs)
