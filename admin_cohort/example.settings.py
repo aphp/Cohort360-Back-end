@@ -143,7 +143,7 @@ MIDDLEWARE = [
 DJANGO_CPROFILE_MIDDLEWARE_REQUIRE_STAFF = False
 
 AUTHENTICATION_BACKENDS = [
-    'admin_cohort.backends.AuthBackend',
+    'admin_cohort.auth_backend.AuthBackend',
 ]
 
 ROOT_URLCONF = 'admin_cohort.urls'

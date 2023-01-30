@@ -37,5 +37,7 @@ class AuthBackend:
         return user
 
     def get_user(self, user_id) -> User:
-        user: User = User.objects.get(provider_username=user_id)
-        return user
+        try:
+            return User.objects.get(provider_username=user_id)
+        except User.DoesNotExist:
+            return None
