@@ -194,6 +194,7 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
             return Response(data="'cohort_fk' or 'cohort_id' is required",
                             status=status.HTTP_400_BAD_REQUEST)
 
+        # todo: remove when front disables export button based on cohort's `exportable` field
         cohort_size = CohortResult.objects.get(uuid=request.data.get('cohort')).result_size
         if cohort_size > COHORT_LIMIT:
             return Response(data=f"Cannot export this large cohort. Current size limit: {COHORT_LIMIT}",

@@ -596,13 +596,13 @@ class ExportsJobsTests(ExportsWithSimpleSetUp):
         #         is_user_notified=False,
         #     )
 
-    @mock.patch('exports.emails.send_mail')
+    @mock.patch('exports.emails.send_email')
     @mock.patch('exports.conf_exports.delete_file')
-    def test_task_delete_export_requests_csv_files(self, mock_delete_hdfs_file, mock_send_mail):
+    def test_task_delete_export_requests_csv_files(self, mock_delete_hdfs_file, mock_send_email):
         from admin_cohort.settings import DAYS_TO_DELETE_CSV_FILES
 
         mock_delete_hdfs_file.return_value = None
-        mock_send_mail.return_value = None
+        mock_send_email.return_value = None
 
         self.user1_exp_req_succ.review_request_datetime = (
                 timezone.now() - timedelta(days=DAYS_TO_DELETE_CSV_FILES))
@@ -657,17 +657,17 @@ class ExportsCreateTests(ExportsTests):
     @mock.patch('exports.conf_exports.get_cohort_perimeters')
     @mock.patch('exports.emails.EMAIL_REGEX_CHECK', REGEX_TEST_EMAIL)
     def check_create_case(self, case: ExportCreateCase, mock_perim: MagicMock,
-                          mock_send_mail: MagicMock, mock_task: MagicMock):
+                          mock_send_email: MagicMock, mock_task: MagicMock):
         mock_task.return_value = None
         mock_perim.return_value = case.mock_perim_resp
-        mock_send_mail.return_value = None
+        mock_send_email.return_value = None
 
         super(ExportsCreateTests, self).check_create_case(case)
 
         mock_perim.assert_called() if case.mock_perim_called \
             else mock_perim.assert_not_called()
-        mock_send_mail.assert_called() if case.success \
-            else mock_send_mail.assert_not_called()
+        mock_send_email.assert_called() if case.success \
+            else mock_send_email.assert_not_called()
         mock_task.assert_called() if case.success \
             else mock_task.assert_not_called()
 
