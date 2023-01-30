@@ -1,15 +1,20 @@
 import json
 import logging
+from collections import defaultdict
+from typing import List
 
 from coverage.annotate import os
+from django.core.mail import EmailMultiAlternatives
 from django.db import models
 from django.db.models import QuerySet
 from django.http import Http404
 
 from accesses.conf_perimeters import OmopModelManager
 from accesses.models import Perimeter, Access, Role
+from admin_cohort.settings import EMAIL_SENDER_ADDRESS
 from cohort.models import CohortResult
 from commons.tools import cast_string_to_ids_list
+from exports.emails import get_base_templates, KEY_CONTENT, KEY_NAME
 
 ROLE = "role"
 READ_PATIENT_NOMI = "read_patient_nomi"
@@ -192,3 +197,37 @@ def log_count_task(dm_uuid, msg, global_estimate=False):
 
 def log_create_task(cr_uuid, msg):
     _log.info(f"Cohort Create Task [CR: {cr_uuid}] {msg}")
+
+
+def send_email_notif_about_large_cohorts(fhir_group_ids: List[str]):
+    # todo: group cohorts by user
+    html_path = f"cohort/email_templates/large_cohorts_finished.html"
+    text_path = f"cohort/email_templates/large_cohorts_finished.txt"
+
+    with open(html_path) as f:
+        html_content = "\n".join(f.readlines())
+
+    with open(text_path) as f:
+        text_content = "\n".join(f.readlines())
+
+    html_mail, txt_mail = get_base_templates()
+    html_mail = html_mail.replace(KEY_CONTENT, html_content)
+    text_mail = txt_mail.replace(KEY_CONTENT, text_content)
+
+    cohorts_per_user = defaultdict(list)
+    for c in CohortResult.objects.filter(fhir_group_id__in=fhir_group_ids):
+        key = (c.owner.email, f"{c.owner.firstname} {c.owner.lastname}")
+        cohorts_per_user[key].append((c.name, c.fhir_group_id))
+
+    for user in cohorts_per_user:
+        cohorts = cohorts_per_user[user]
+        subject = len(cohorts) > 1 and "Vos cohortes sont prêtes" or "Votre cohorte est prête"
+        text_body = text_mail.replace(KEY_NAME, user[1])
+        html_body = html_mail.replace(KEY_NAME, user[1])
+        msg = EmailMultiAlternatives(subject=subject,
+                                     body=text_body,
+                                     from_email=EMAIL_SENDER_ADDRESS,
+                                     to=[user])
+        msg.attach_alternative(content=html_body, mimetype="text/html")
+        msg.attach_file('exports/email_templates/logoCohort360.png')
+        msg.send()

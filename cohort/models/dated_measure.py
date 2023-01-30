@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from datetime import datetime as dt, timedelta, timezone as tz
+from datetime import timedelta
 
 from django.db import models
+from from django.utils import timezone
 
 from admin_cohort.models import CohortBaseModel, JobModel, User
 from admin_cohort.settings import LAST_COUNT_VALIDITY
@@ -30,4 +31,4 @@ class DatedMeasure(CohortBaseModel, JobModel):
     @property
     def count_outdated(self):
         delta = timedelta(hours=LAST_COUNT_VALIDITY)
-        return dt.now(tz=tz.utc) - self.created_at > delta
+        return timezone.now() - self.created_at > delta
