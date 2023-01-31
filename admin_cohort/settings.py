@@ -12,6 +12,7 @@ environ.Env.read_env()
 
 SERVER_VERSION = env("SERVER_VERSION")
 BACK_URL = env("BACK_URL")
+FRONT_URL = env("FRONT_URL")
 FRONT_URLS = [f"http://{u}" for u in env("FRONT_URLS").split(',')]
 
 # SECURITY WARNING: keep the secret key used in production secret!

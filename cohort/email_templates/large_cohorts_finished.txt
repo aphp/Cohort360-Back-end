@@ -1,16 +1,4 @@
-Votre export de données concernant la cohorte numéro KEY_COHORT_ID a été généré avec succès.
-<br>
-<br>
-Téléchargez les fichiers en suivant le lien ci-dessous en utilisant votre code APH et mot de passe de session Windows :
-<br>
-<br>
-KEY_DOWNLOAD_URL
-<br>
-<br>
-Pour une première utilisation, vous trouverez à <a href="https://gitlab.eds.aphp.fr/public-resources/eds-doc/-/wikis/Export">ce lien</a> une aide pour l'ouverture des fichiers.
-<br>
-<br>
-Les fichiers d'export seront disponibles au téléchargement pendant 7 jours, jusqu'au KEY_DELETE_DATE. Passé cette date, le téléchargement des fichiers ne sera plus possible.
-<br>
-<br>
-Pour toute question, contactez le support Cohort360 à l'adresse <a href="mailto:KEY_CONTACT_MAIL">KEY_CONTACT_MAIL</a>
+KEY_EMAIL_BODY
+
+
+Pour toute question, contactez le support Cohort360 à l'adresse KEY_CONTACT_MAIL

@@ -188,7 +188,6 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                         status=status.HTTP_200_OK)
 
 
-
 class NestedCohortResultViewSet(SwaggerSimpleNestedViewSetMixin, CohortResultViewSet):
     def create(self, request, *args, **kwargs):
         if type(request.data) == QueryDict:
