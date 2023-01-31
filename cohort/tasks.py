@@ -65,9 +65,9 @@ def get_count_task(auth_headers: dict, json_query: str, dm_uuid: str):
 
     log_count_task(dm_uuid, f"Asking CRB to get {'global ' if global_estimate else ''}count")
 
-    resp = cohort_job_api.post_count_cohort(json_query=json_query,
-                                            auth_headers=auth_headers,
-                                            dated_measure=dm_uuid,
+    resp = cohort_job_api.post_count_cohort(auth_headers=auth_headers,
+                                            json_query=json_query,
+                                            dm_uuid=dm_uuid,
                                             global_estimate=global_estimate)
     if resp.success:
         if not global_estimate:

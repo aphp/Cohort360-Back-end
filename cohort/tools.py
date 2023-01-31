@@ -236,14 +236,12 @@ def get_multi_cohort_email_data(cohorts):
 
 
 def send_email_notif_about_large_cohorts(fhir_group_ids: List[str]):
-    # todo: group cohorts by user
-    html_path = f"cohort/email_templates/large_cohorts_finished.html"
-    txt_path = f"cohort/email_templates/large_cohorts_finished.txt"
+    template_path = f"cohort/email_templates/large_cohorts_finished"
 
-    with open(html_path) as f:
+    with open(f"{template_path}.html") as f:
         html_content = "\n".join(f.readlines())
 
-    with open(txt_path) as f:
+    with open(f"{template_path}.txt") as f:
         txt_content = "\n".join(f.readlines())
 
     html_mail, txt_mail = get_base_templates()

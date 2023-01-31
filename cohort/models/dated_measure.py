@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 from django.db import models
-from from django.utils import timezone
+from django.utils import timezone
 
 from admin_cohort.models import CohortBaseModel, JobModel, User
 from admin_cohort.settings import LAST_COUNT_VALIDITY
