@@ -99,9 +99,6 @@ class CohortResultSerializer(BaseSerializer):
         fields = "__all__"
         read_only_fields = ["create_task_id",
                             "request_job_id",
-                            "request_job_status",
-                            "request_job_fail_msg",
-                            "request_job_duration",
                             "type"]
 
     def update(self, instance, validated_data):

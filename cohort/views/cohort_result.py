@@ -138,40 +138,69 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         return Response(CohortRightsSerializer(get_all_cohorts_rights(user_accesses, cohort_dict_pop_source),
                                                many=True).data)
 
-    @swagger_auto_schema(method='get',
-                         operation_summary="Used by SJS to update a cohort being created",
+    # @swagger_auto_schema(method='get',
+    #                      operation_summary="Used by SJS to update a cohort being created",
+    #                      responses={'200': openapi.Response("Cohort updated successfully"),
+    #                                 '400': openapi.Response("Bad Request")})
+    # @action(methods=['get'], detail=False, url_path='created/(?P<uuid>[^/.]+)')
+    # def callback_for_created_cohort(self, request, *args, **kwargs):
+    #     try:
+    #         cohort = CohortResult.objects.get(uuid=kwargs.get("uuid"))
+    #     except CohortResult.DoesNotExist:
+    #         return Response(data="Invalid cohort uuid", status=status.HTTP_400_BAD_REQUEST)
+    #
+    #     data = self.request.data
+    #     job_status = fhir_to_job_status().get(data.get("job_status"))
+    #
+    #     if not job_status:
+    #         return Response(data=f"Invalid job status: {data.get('status')}", status=status.HTTP_400_BAD_REQUEST)
+    #
+    #     if job_status in (JobStatus.finished, JobStatus.failed):
+    #         duration = str(timezone.now() - cohort.created_at)
+    #         request_job_fail_msg = job_status == JobStatus.failed and "Received a failed status from SJS" or ""
+    #     else:
+    #         duration = None
+    #         request_job_fail_msg = ""
+    #     cohort.request_job_status = job_status
+    #     cohort.request_job_duration = duration
+    #     cohort.request_job_fail_msg = request_job_fail_msg
+    #     cohort.fhir_group_id = data.get("group.id")
+    #     cohort.dated_measure.measure = data.get("group.count")
+    #     cohort.save()
+    #     cohort.dated_measure.save()
+    #     return Response(data="CohortResult updated", status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(operation_summary="Used by Front to update cohort's name, description and favorite"
+                                           "and by SJS to update cohort's request_job_status, request_job_duration and "
+                                           "fhir_group_id. Also update count on DM",
                          responses={'200': openapi.Response("Cohort updated successfully"),
                                     '400': openapi.Response("Bad Request")})
-    @action(methods=['get'], detail=False, url_path='created/(?P<uuid>[^/.]+)')
-    def callback_for_created_cohort(self, request, *args, **kwargs):
-        try:
-            cohort = CohortResult.objects.get(uuid=kwargs.get("uuid"))
-        except CohortResult.DoesNotExist:
-            return Response(data="Invalid cohort uuid", status=status.HTTP_400_BAD_REQUEST)
+    def partial_update(self, request, *args, **kwargs):
+        data = request.data
+        cohort = self.get_object()
 
-        data = self.request.data
-        job_status = fhir_to_job_status().get(data.get("status"))
-
-        if not job_status:
-            return Response(data=f"Invalid job status: {data.get('status')}", status=status.HTTP_400_BAD_REQUEST)
-
-        if job_status in (JobStatus.finished, JobStatus.failed):
-            duration = str(timezone.now() - cohort.created_at)
-        else:
-            duration = None
-        cohort.request_job_status = job_status
-        cohort.request_job_duration = duration
-        cohort.fhir_group_id = data.get("group.id")
-        cohort.dated_measure.measure = data.get("group.count")
-        cohort.save()
-        cohort.dated_measure.save()
-        return Response(data="CohortResult updated", status=status.HTTP_200_OK)
+        if "job_status" in data:
+            job_status = fhir_to_job_status().get(data.pop("job_status"))
+            if not job_status:
+                return Response(data=f"Invalid job status: {data.get('status')}",
+                                status=status.HTTP_400_BAD_REQUEST)
+            data["request_job_status"] = job_status
+            if job_status in (JobStatus.finished, JobStatus.failed):
+                data["request_job_duration"] = str(timezone.now() - cohort.created_at)
+                if job_status == JobStatus.failed:
+                    data["request_job_fail_msg"] = "Received a failed status from SJS"
+        if "group.id" in data:
+            data["fhir_group_id"] = data.pop("group.id")
+        if "group.count" in data:
+            cohort.dated_measure.measure = data.pop("group.count")
+            cohort.dated_measure.save()
+        return super(CohortResultViewSet, self).partial_update(request, *args, **kwargs)
 
     @swagger_auto_schema(method='patch',
                          operation_summary="Used by ETL to update statuses of large cohorts",
                          responses={'200': openapi.Response("Cohorts updated successfully"),
                                     '400': openapi.Response("Bad Request")})
-    @action(methods=['patch'], detail=False)
+    @action(methods=['patch'], detail=False, url_path="delayed")
     def callback_for_large_cohorts(self, request, *args, **kwargs):
         data = self.request.data
         job_status = data.get("request_job_status")

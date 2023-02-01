@@ -48,7 +48,8 @@ def fhir_to_job_status() -> Dict[str, JobStatus]:
             "STARTED": JobStatus.started,
             "ERROR": JobStatus.failed,
             "UNKNOWN": JobStatus.unknown,
-            "PENDING": JobStatus.pending    # SJS does not include PENDING, has RESTARTING though!
+            "PENDING": JobStatus.pending,
+            "LONG_PENDING": JobStatus.long_pending
             }
 
 
