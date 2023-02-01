@@ -19,7 +19,7 @@ from admin_cohort.views import SwaggerSimpleNestedViewSetMixin
 from cohort.conf_cohort_job_api import fhir_to_job_status
 from cohort.models import CohortResult
 from cohort.serializers import CohortResultSerializer, CohortResultSerializerFullDatedMeasure, CohortRightsSerializer
-from cohort.tools import get_dict_cohort_pop_source, get_all_cohorts_rights, send_email_notif_about_large_cohorts
+from cohort.tools import get_dict_cohort_pop_source, get_all_cohorts_rights, send_email_notif_about_large_cohort
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
 
@@ -108,11 +108,11 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             return HttpResponse(status=status.HTTP_204_NO_CONTENT)
         return JsonResponse(data={"jobs_count": jobs_count}, status=status.HTTP_200_OK)
 
-    @swagger_auto_schema(
-        method='get',
-        operation_summary="Give cohorts aggregation read patient rights, export csv rights and transfer jupyter rights."
-                          "It check accesses with perimeters population source for each cohort found.",
-        responses={'201': openapi.Response("Cohorts rights found", CohortRightsSerializer())})
+    @swagger_auto_schema(method='get',
+                         operation_summary="Give cohorts aggregation read patient rights, export csv rights and "
+                                           "transfer jupyter rights. It check accesses with perimeters population "
+                                           "source for each cohort found.",
+                         responses={'201': openapi.Response("Cohorts rights found", CohortRightsSerializer())})
     @action(detail=False, methods=['get'], url_path="cohort-rights")
     def get_cohort_right_accesses(self, request, *args, **kwargs):
         user_accesses = get_user_valid_manual_accesses_queryset(self.request.user)
@@ -138,14 +138,16 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         return Response(CohortRightsSerializer(get_all_cohorts_rights(user_accesses, cohort_dict_pop_source),
                                                many=True).data)
 
-    @swagger_auto_schema(operation_summary="Used by Front to update cohort's name, description and favorite"
-                                           "and by SJS to update cohort's request_job_status, request_job_duration and "
-                                           "fhir_group_id. Also update count on DM",
-                         responses={'200': openapi.Response("Cohort updated successfully"),
+    @swagger_auto_schema(operation_summary="Used by Front to update cohort's name, description and favorite."
+                                           "By SJS to update cohort's request_job_status, request_job_duration and "
+                                           "fhir_group_id. Also update count on DM."
+                                           "By ETL to update request_job_status on delayed large cohorts",
+                         responses={'200': openapi.Response("Cohort updated successfully", CohortRightsSerializer()),
                                     '400': openapi.Response("Bad Request")})
     def partial_update(self, request, *args, **kwargs):
         data = request.data
         cohort = self.get_object()
+        job_status_updated_from_etl = "request_job_status" in data
 
         if "job_status" in data:
             job_status = fhir_to_job_status().get(data.pop("job_status"))
@@ -162,26 +164,10 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         if "group.count" in data:
             cohort.dated_measure.measure = data.pop("group.count")
             cohort.dated_measure.save()
+
+        if job_status_updated_from_etl:
+            send_email_notif_about_large_cohort(cohort.name, cohort.fhir_group_id, cohort.owner)
         return super(CohortResultViewSet, self).partial_update(request, *args, **kwargs)
-
-    @swagger_auto_schema(method='patch',
-                         operation_summary="Used by ETL to update statuses of large cohorts",
-                         responses={'200': openapi.Response("Cohorts updated successfully"),
-                                    '400': openapi.Response("Bad Request")})
-    @action(methods=['patch'], detail=False, url_path="delayed")
-    def callback_for_large_cohorts(self, request, *args, **kwargs):
-        data = self.request.data
-        job_status = data.get("request_job_status")
-        fhir_group_ids: List[str] = data.get("fhir_group_id").split(",")
-
-        if not job_status or any([not group_id.isnumeric() for group_id in fhir_group_ids]):
-            return Response(data=f"Missing fhir_group_id and/or request_job_status",
-                            status=status.HTTP_400_BAD_REQUEST)
-        CohortResult.objects.filter(fhir_group_id__in=fhir_group_ids) \
-                            .update(request_job_status=job_status)
-        send_email_notif_about_large_cohorts(fhir_group_ids=fhir_group_ids)
-        return Response(data=f"Updated cohorts {fhir_group_ids} with status: '{job_status}'",
-                        status=status.HTTP_200_OK)
 
 
 class NestedCohortResultViewSet(SwaggerSimpleNestedViewSetMixin, CohortResultViewSet):

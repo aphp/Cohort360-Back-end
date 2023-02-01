@@ -1,7 +1,5 @@
 import json
 import logging
-from collections import defaultdict
-from typing import List
 
 from coverage.annotate import os
 from django.core.mail import EmailMultiAlternatives
@@ -11,6 +9,7 @@ from django.http import Http404
 
 from accesses.conf_perimeters import OmopModelManager
 from accesses.models import Perimeter, Access, Role
+from admin_cohort.models import User
 from admin_cohort.settings import EMAIL_SENDER_ADDRESS, FRONT_URL, EMAIL_SUPPORT_CONTACT
 from cohort.models import CohortResult
 from commons.tools import cast_string_to_ids_list
@@ -206,41 +205,15 @@ def get_single_cohort_email_data(cohort_name, cohort_id):
     subject = "Votre cohorte est prête"
     cohort_link = f"{FRONT_URL}/cohort/{cohort_id}"
     html_body = f'Votre cohorte <a href="{cohort_link}">{cohort_name}</a> a été créée avec succès.'
-    txt_body = f"Votre cohorte {cohort_name} a été créée avec succès. \n {cohort_link}"
+    txt_body = f"Votre cohorte {cohort_name} a été créée avec succès.\n {cohort_link}"
     return subject, html_body, txt_body
 
 
-def get_multi_cohort_email_data(cohorts):
-    subject = "Vos cohortes sont prêtes"
-    html_body = """ Vos cohortes ont été créées avec succès:
-                    <br>
-                    <ul>
-                        KEY_COHORTS_ITEMS
-                    </ul>
-                """
-    txt_body = """ Vos cohortes ont été créées avec succès:
-                   KEY_COHORTS_ITEMS
-               """
-    html_items, txt_items = [], []
-    for c in cohorts:
-        cohort_name = c[0]
-        cohort_link = f"{FRONT_URL}/cohort/{c[1]}"
-        li = f'<li> <a href="{cohort_link}">{cohort_name}</a> </li>'
-        html_items.append(li)
-
-        item = f"- {cohort_name} {5*' '} {cohort_link}"
-        txt_items.append(item)
-    html_body = html_body.replace(KEY_COHORTS_ITEMS, "".join(html_items))
-    txt_body = txt_body.replace(KEY_COHORTS_ITEMS, "\n".join(txt_items))
-    return subject, html_body, txt_body
-
-
-def send_email_notif_about_large_cohorts(fhir_group_ids: List[str]):
-    template_path = f"cohort/email_templates/large_cohorts_finished"
+def send_email_notif_about_large_cohort(cohort_name: str, cohort_fhir_group_id: str, cohort_owner: User):
+    template_path = f"cohort/email_templates/large_cohort_finished"
 
     with open(f"{template_path}.html") as f:
         html_content = "\n".join(f.readlines())
-
     with open(f"{template_path}.txt") as f:
         txt_content = "\n".join(f.readlines())
 
@@ -248,32 +221,20 @@ def send_email_notif_about_large_cohorts(fhir_group_ids: List[str]):
     html_mail = html_mail.replace(KEY_CONTENT, html_content)
     txt_mail = txt_mail.replace(KEY_CONTENT, txt_content)
 
-    cohorts_per_user = defaultdict(list)
-    for c in CohortResult.objects.filter(fhir_group_id__in=fhir_group_ids):
-        key = (f"{c.owner.firstname} {c.owner.lastname}", c.owner.email)
-        cohorts_per_user[key].append((c.name, c.fhir_group_id))
+    subject, html_body, txt_body = get_single_cohort_email_data(cohort_name, cohort_fhir_group_id)
+    owner_fullname, owner_email = cohort_owner.displayed_name, cohort_owner.email
 
-    for user in cohorts_per_user:
-        cohorts = cohorts_per_user[user]
+    html_mail = html_mail.replace(KEY_NAME, owner_fullname)\
+                         .replace(KEY_EMAIL_BODY, html_body)\
+                         .replace(KEY_CONTACT_MAIL, EMAIL_SUPPORT_CONTACT)
+    txt_mail = txt_mail.replace(KEY_NAME, owner_fullname)\
+                       .replace(KEY_EMAIL_BODY, txt_body)\
+                       .replace(KEY_CONTACT_MAIL, EMAIL_SUPPORT_CONTACT)
 
-        if len(cohorts) == 1:
-            cohort_data = cohorts[0]
-            subject, html_body, txt_body = get_single_cohort_email_data(*cohort_data)
-        else:
-            subject, html_body, txt_body = get_multi_cohort_email_data(cohorts=cohorts)
-
-        user_fullname, user_email = user
-        html_mail = html_mail.replace(KEY_NAME, user_fullname)\
-                             .replace(KEY_EMAIL_BODY, html_body)\
-                             .replace(KEY_CONTACT_MAIL, EMAIL_SUPPORT_CONTACT)
-        txt_mail = txt_mail.replace(KEY_NAME, user_fullname)\
-                           .replace(KEY_EMAIL_BODY, txt_body)\
-                           .replace(KEY_CONTACT_MAIL, EMAIL_SUPPORT_CONTACT)
-
-        msg = EmailMultiAlternatives(subject=subject,
-                                     body=txt_mail,
-                                     from_email=EMAIL_SENDER_ADDRESS,
-                                     to=[user_email])
-        msg.attach_alternative(content=html_mail, mimetype="text/html")
-        msg.attach_file('exports/email_templates/logoCohort360.png')
-        msg.send()
+    msg = EmailMultiAlternatives(subject=subject,
+                                 body=txt_mail,
+                                 from_email=EMAIL_SENDER_ADDRESS,
+                                 to=[owner_email])
+    msg.attach_alternative(content=html_mail, mimetype="text/html")
+    msg.attach_file('exports/email_templates/logoCohort360.png')
+    msg.send()
