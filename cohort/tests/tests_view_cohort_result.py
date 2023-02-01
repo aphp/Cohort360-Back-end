@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 
 from django.utils import timezone
 from rest_framework import status
+from rest_framework.test import force_authenticate
 
 from admin_cohort.tests_tools import random_str, ListCase, RetrieveCase, CaseRetrieveFilter, CreateCase, PatchCase
 from admin_cohort.types import JobStatus
@@ -18,8 +19,7 @@ from cohort.views import CohortResultViewSet, NestedCohortResultViewSet
 class CohortsTests(DatedMeasuresTests):
     unupdatable_fields = ["owner", "request_query_snapshot", "uuid",
                           "type", "create_task_id", "dated_measure",
-                          "request_job_id", "request_job_status",
-                          "request_job_fail_msg", "request_job_duration",
+                          "request_job_id",
                           "created_at", "modified_at", "deleted"]
     unsettable_default_fields = dict(request_job_status=JobStatus.started)
     unsettable_fields = ["owner", "uuid", "create_task_id",
@@ -31,8 +31,7 @@ class CohortsTests(DatedMeasuresTests):
     list_view = CohortResultViewSet.as_view({'get': 'list'})
     create_view = CohortResultViewSet.as_view({'post': 'create'})
     delete_view = CohortResultViewSet.as_view({'delete': 'destroy'})
-    update_view = CohortResultViewSet.as_view(
-        {'patch': 'partial_update'})
+    update_view = CohortResultViewSet.as_view({'patch': 'partial_update'})
     model = CohortResult
     model_objects = CohortResult.objects
     model_fields = CohortResult._meta.fields
@@ -394,76 +393,93 @@ class CohortsUpdateTests(CohortsTests):
     def setUp(self):
         super(CohortsUpdateTests, self).setUp()
         self.user1_req1_snap1_dm: DatedMeasure = DatedMeasure.objects.create(
-            owner=self.user1,
-            request_query_snapshot=self.user1_req1_snap1,
-            measure=1,
-            fhir_datetime=timezone.now(),
-        )
-        self.basic_data = dict(
-            owner=self.user1,
-            request_query_snapshot=self.user1_req1_snap1,
-            dated_measure=self.user1_req1_snap1_dm,
-            create_task_id="test",
-            created_at=timezone.now(),
-            modified_at=timezone.now(),
-            request_job_id="test",
-            request_job_status=JobStatus.pending.value,
-            request_job_fail_msg="test",
-            request_job_duration="1s",
-        )
-        self.basic_case = PatchCase(
-            initial_data=self.basic_data,
-            status=status.HTTP_200_OK,
-            success=True,
-            user=self.user1,
-            data_to_update={},
-        )
-        self.basic_err_case = self.basic_case.clone(
-            status=status.HTTP_400_BAD_REQUEST,
-            success=False,
-        )
+                                                                        owner=self.user1,
+                                                                        request_query_snapshot=self.user1_req1_snap1,
+                                                                        measure=1,
+                                                                        fhir_datetime=timezone.now())
+        self.basic_data = dict(owner=self.user1,
+                               request_query_snapshot=self.user1_req1_snap1,
+                               dated_measure=self.user1_req1_snap1_dm,
+                               create_task_id="test",
+                               created_at=timezone.now(),
+                               modified_at=timezone.now(),
+                               request_job_id="test",
+                               request_job_status=JobStatus.pending.value,
+                               request_job_fail_msg="test",
+                               request_job_duration="1s")
+
+        self.basic_case = PatchCase(initial_data=self.basic_data,
+                                    status=status.HTTP_200_OK,
+                                    success=True,
+                                    user=self.user1,
+                                    data_to_update={})
+
+        self.basic_err_case = self.basic_case.clone(status=status.HTTP_400_BAD_REQUEST,
+                                                    success=False)
 
     def test_update_cohort_as_owner(self):
         # As a user, I can patch a CR I own
-        self.check_patch_case(self.basic_case.clone(
-            data_to_update=dict(
-                name="new_name",
-                description="new_desc",
-                # read_only
-                create_task_id="test_task_id",
-                request_job_id="test_job_id",
-                request_job_status=JobStatus.finished,
-                request_job_fail_msg="test_fail_msg",
-                request_job_duration=1001,
-                created_at=timezone.now() + timedelta(hours=1),
-                modified_at=timezone.now() + timedelta(hours=1),
-                deleted=timezone.now() + timedelta(hours=1),
-            )
-        ))
+        data_to_update = dict(name="new_name",
+                              description="new_desc",
+                              request_job_status=JobStatus.finished,
+                              request_job_fail_msg="test_fail_msg",
+                              request_job_duration='1001',
+                              # read_only
+                              create_task_id="test_task_id",
+                              request_job_id="test_job_id",
+                              created_at=timezone.now() + timedelta(hours=1),
+                              modified_at=timezone.now() + timedelta(hours=1),
+                              deleted=timezone.now() + timedelta(hours=1)
+                              )
+        self.check_patch_case(self.basic_case.clone(data_to_update=data_to_update))
 
     def test_error_update_cohort_as_not_owner(self):
         # As a user, I cannot update another user's cohort result
-        self.check_patch_case(self.basic_err_case.clone(
-            data_to_update=dict(
-                name="new_name",
-            ),
-            user=self.user2,
-            status=status.HTTP_404_NOT_FOUND,
-        ))
+        case = self.basic_err_case.clone(data_to_update=dict(name="new_name"),
+                                         user=self.user2,
+                                         status=status.HTTP_404_NOT_FOUND)
+        self.check_patch_case(case)
 
     def test_error_update_cohort_forbidden_fields(self):
-        user1_req1_snap1_dm2: DatedMeasure = DatedMeasure.objects.create(
-            owner=self.user1,
-            request_query_snapshot=self.user1_req1_snap1,
-            measure=2,
-            fhir_datetime=timezone.now(),
-        )
-
-        cases = [self.basic_err_case.clone(
-            data_to_update={k: v},
-        ) for (k, v) in dict(
-            owner=self.user2.pk,
-            request_query_snapshot=self.user1_req1_branch1_snap2.pk,
-            dated_measure=user1_req1_snap1_dm2.pk
-        ).items()]
+        user1_req1_snap1_dm2: DatedMeasure = DatedMeasure.objects.create(owner=self.user1,
+                                                                         request_query_snapshot=self.user1_req1_snap1,
+                                                                         measure=2,
+                                                                         fhir_datetime=timezone.now())
+        cases = [self.basic_err_case.clone(data_to_update={k: v})
+                 for k, v in dict(owner=self.user2.pk,
+                                  request_query_snapshot=self.user1_req1_branch1_snap2.pk,
+                                  dated_measure=user1_req1_snap1_dm2.pk).items()]
         [self.check_patch_case(case) for case in cases]
+
+    def test_update_cohort_status_by_sjs_callback(self):
+        # test cohort gets updated with data from SJS
+        new_cohort: CohortResult = self.model_objects.create(**self.basic_data)
+        data_to_update = {'job_status': 'FINISHED',
+                          'group.id': '123456',
+                          'group.count': 10500}
+
+        request = self.factory.patch(self.objects_url, data=data_to_update, format='json')
+        force_authenticate(request, new_cohort.owner)
+        response = self.__class__.update_view(request, **{self.model._meta.pk.name: new_cohort.uuid})
+        response.render()
+
+        self.assertEqual(response.data.get("request_job_status"), JobStatus.finished)
+        self.assertEqual(response.data.get("fhir_group_id"), data_to_update['group.id'])
+        self.assertEqual(response.data.get("result_size"), data_to_update['group.count'])
+
+    def test_error_update_cohort_status_by_sjs_callback(self):
+        # test getting http_400_bad_request
+        invalid_status = 'INVALID_STATUS'
+        case = self.basic_err_case.clone(data_to_update={'request_job_status': invalid_status})
+        self.check_patch_case(case)
+
+    @mock.patch('cohort.views.cohort_result.send_email_notif_about_large_cohort')
+    def test_update_large_cohort_status_by_etl_callback(self, mock_send_email_notif: MagicMock):
+        # test request_job_status gets updated and send_email is called
+        mock_send_email_notif.assert_called_once()
+
+        case = self.basic_case.clone(data_to_update={'request_job_status': 'finished'})
+        self.check_patch_case(case)
+
+    def test_update_small_cohort_fhir_info(self):
+        pass
