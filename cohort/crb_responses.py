@@ -21,6 +21,7 @@ class CRBCountResponse(CRBResponse):
 
 
 class CRBCohortResponse(CRBResponse):
+    # todo: 2b refactored as group.id no longer needed. we get it via the SJS and ETL callback
     def __init__(self, group_id: str = "", **kwargs):
         super(CRBCohortResponse, self).__init__(**kwargs)
         self.group_id = group_id

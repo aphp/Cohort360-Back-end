@@ -143,8 +143,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                          responses={'200': openapi.Response("Cohort updated successfully"),
                                     '400': openapi.Response("Bad Request")})
     @action(methods=['get'], detail=False, url_path='created/(?P<uuid>[^/.]+)')
-    def callback_to_created_cohort(self, request, *args, **kwargs):
-        # todo: check all needed data is sent
+    def callback_for_created_cohort(self, request, *args, **kwargs):
         try:
             cohort = CohortResult.objects.get(uuid=kwargs.get("uuid"))
         except CohortResult.DoesNotExist:
@@ -161,8 +160,8 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         else:
             duration = None
         cohort.request_job_status = job_status
-        cohort.fhir_group_id = data.get("group.id")
         cohort.request_job_duration = duration
+        cohort.fhir_group_id = data.get("group.id")
         cohort.dated_measure.measure = data.get("group.count")
         cohort.save()
         cohort.dated_measure.save()
@@ -173,7 +172,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                          responses={'200': openapi.Response("Cohorts updated successfully"),
                                     '400': openapi.Response("Bad Request")})
     @action(methods=['patch'], detail=False)
-    def callback_large_cohorts(self, request, *args, **kwargs):
+    def callback_for_large_cohorts(self, request, *args, **kwargs):
         data = self.request.data
         job_status = data.get("request_job_status")
         fhir_group_ids: List[str] = data.get("fhir_group_id").split(",")

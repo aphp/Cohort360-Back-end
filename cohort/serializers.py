@@ -44,7 +44,6 @@ class DatedMeasureSerializer(BaseSerializer):
     class Meta:
         model = DatedMeasure
         fields = "__all__"
-        optional = []
         read_only_fields = ["count_task_id",
                             "request_job_id",
                             "request_job_status",
@@ -60,28 +59,28 @@ class DatedMeasureSerializer(BaseSerializer):
         return super(DatedMeasureSerializer, self).update(instance, validated_data)
 
     def create(self, validated_data):
-        rqs = validated_data.get("request_query_snapshot", None)
-        measure = validated_data.get("measure", None)
-        fhir_datetime = validated_data.get("fhir_datetime", None)
+        rqs = validated_data.get("request_query_snapshot")
+        measure = validated_data.get("measure")
+        fhir_datetime = validated_data.get("fhir_datetime")
 
-        if rqs is None:
+        if not rqs:
             raise ValidationError("You have to provide a request_query_snapshot_id to bind the dated measure to it")
 
-        if (measure is not None and fhir_datetime is None) or (measure is None and fhir_datetime is not None):
+        if (measure and not fhir_datetime) or (not measure and fhir_datetime):
             raise ValidationError("If you provide measure or fhir_datetime, you have to provide the other")
 
-        res_dm = super(DatedMeasureSerializer, self).create(validated_data=validated_data)
+        dm = super(DatedMeasureSerializer, self).create(validated_data=validated_data)
 
-        if measure is None:
+        if not measure:
             try:
                 from cohort.tasks import get_count_task
                 auth_header = cohort_job_api.get_authorization_header(self.context.get("request"))
                 json_query = cohort_job_api.format_json_query(rqs.serialized_query)
-                get_count_task.delay(auth_header, json_query, res_dm.uuid)
+                get_count_task.delay(auth_header, json_query, dm.uuid)
             except Exception as e:
-                res_dm.delete()
+                dm.delete()
                 raise ValidationError(f"INTERNAL ERROR: Could not launch FHIR cohort count: {e}")
-        return res_dm
+        return dm
 
 
 class CohortResultSerializer(BaseSerializer):

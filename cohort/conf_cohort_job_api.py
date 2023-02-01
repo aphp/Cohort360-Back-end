@@ -161,7 +161,7 @@ def cancel_job(job_id: str, auth_headers) -> JobStatus:
     return new_status
 
 
-def create_count_job(json_query: str, auth_headers, global_estimate) -> Tuple[Response, dict]:
+def create_count_job(auth_headers: dict, json_query: str, global_estimate) -> Tuple[Response, dict]:
     import json
     import requests
 
@@ -183,13 +183,13 @@ def create_count_job(json_query: str, auth_headers, global_estimate) -> Tuple[Re
     return resp, result
 
 
-def post_count_cohort(auth_headers: str, json_query: str, dm_uuid: str, global_estimate=False) -> CRBCountResponse:
+def post_count_cohort(auth_headers: dict, json_query: str, dm_uuid: str, global_estimate=False) -> CRBCountResponse:
     from datetime import datetime
     d = datetime.now()
     log_count_task(dm_uuid, "Step 1: Posting count request", global_estimate=global_estimate)
 
     try:
-        resp, result = create_count_job(json_query, auth_headers, global_estimate)
+        resp, result = create_count_job(auth_headers, json_query, global_estimate)
     except Exception as e:
         return CRBCountResponse(success=False,
                                 job_duration=datetime.now() - d,
@@ -263,7 +263,7 @@ def post_count_cohort(auth_headers: str, json_query: str, dm_uuid: str, global_e
                             fhir_job_status=job.status)
 
 
-def create_cohort_job(json_query: str, auth_headers) -> Tuple[Response, dict]:
+def create_cohort_job(auth_headers: dict, json_query: str) -> Tuple[Response, dict]:
     import json
     import requests
 
@@ -271,6 +271,7 @@ def create_cohort_job(json_query: str, auth_headers) -> Tuple[Response, dict]:
         resp = requests.post(url=CREATE_COHORT_API, json=json.loads(json_query), headers=auth_headers)
     except Exception as e:
         raise Exception(f"INTERNAL ERROR: {e}")
+    result = {}
     try:
         result = resp.json()
     except Exception:
@@ -282,10 +283,10 @@ def create_cohort_job(json_query: str, auth_headers) -> Tuple[Response, dict]:
     return resp, result
 
 
-def post_create_cohort(auth_headers: str, json_query: str, cr_uuid: str) -> CRBCohortResponse:
+def post_create_cohort(auth_headers: dict, json_query: str, cr_uuid: str) -> CRBCohortResponse:
     log_create_task(cr_uuid, "Step 1: Post cohort creation request to CRB")
     try:
-        resp, result = create_cohort_job(json_query, auth_headers)
+        resp, result = create_cohort_job(auth_headers, json_query)
     except Exception as e:
         return CRBCohortResponse(success=False, fhir_job_status=JobStatus.failed, err_msg=str(e))
 

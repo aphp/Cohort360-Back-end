@@ -27,7 +27,9 @@ def create_cohort_task(auth_headers: dict, json_query: str, cohort_uuid: str):
         return
 
     log_create_task(cohort_uuid, "Asking CRB to create cohort")
-    resp = cohort_job_api.post_create_cohort(auth_headers=auth_headers, json_query=json_query, cr_uuid=cohort_uuid)
+    resp = cohort_job_api.post_create_cohort(auth_headers=auth_headers,
+                                             json_query=json_query,
+                                             cr_uuid=cohort_uuid)
 
     cohort_result.create_task_id = current_task.request.id or ""
     if resp.success:
@@ -53,7 +55,7 @@ def get_count_task(auth_headers: dict, json_query: str, dm_uuid: str):
             tries = tries + 1
             sleep(1)
 
-    if dm is None:
+    if not dm:
         log_count_task(dm_uuid, "Error: could not find DatedMeasure to update")
         return
 
