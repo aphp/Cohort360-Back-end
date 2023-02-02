@@ -3,7 +3,7 @@ from typing import List, Tuple
 
 from django.contrib.auth import login
 from django.contrib.auth.views import LoginView
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest
 from django.http import HttpResponseRedirect, Http404, JsonResponse
 from django.utils import timezone
 from django.utils.decorators import method_decorator
@@ -327,8 +327,8 @@ class CustomLoginView(LoginView):
     def post(self, request, *args, **kwargs):
         resp = super(CustomLoginView, self).post(request, *args, **kwargs)
         if getattr(request, 'jwt_server_unavailable', False):
-            return HttpResponse(status=status.HTTP_503_SERVICE_UNAVAILABLE,
-                                content=getattr(request, 'jwt_server_message', ""))
+            return Response(data=getattr(request, 'jwt_server_message', ""),
+                            status=status.HTTP_503_SERVICE_UNAVAILABLE)
         return resp
 
 
