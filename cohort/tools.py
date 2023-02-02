@@ -210,7 +210,7 @@ def get_single_cohort_email_data(cohort_name, cohort_id):
 
 
 def send_email_notif_about_large_cohort(cohort_name: str, cohort_fhir_group_id: str, cohort_owner: User):
-    template_path = f"cohort/email_templates/large_cohort_finished"
+    template_path = "cohort/email_templates/large_cohort_finished"
 
     with open(f"{template_path}.html") as f:
         html_content = "\n".join(f.readlines())

@@ -1,5 +1,3 @@
-from typing import List
-
 from django.db.models import Q, F
 from django.http import HttpResponse, JsonResponse, Http404, QueryDict
 from django_filters import rest_framework as filters, OrderingFilter
