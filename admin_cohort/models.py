@@ -140,7 +140,7 @@ def get_user(user_id: str) -> User:
 
 class JobModel(models.Model):
     request_job_id = models.TextField(blank=True, null=True)
-    request_job_status = models.CharField(max_length=10, choices=[(e.value, e.value) for e in JobStatus],
+    request_job_status = models.CharField(max_length=15, choices=[(e.value, e.value) for e in JobStatus],
                                           default=JobStatus.started.value, null=True)
     request_job_fail_msg = models.TextField(blank=True, null=True)
     request_job_duration = models.TextField(blank=True, null=True)

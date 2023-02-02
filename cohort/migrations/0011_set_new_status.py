@@ -3,7 +3,7 @@ from typing import List
 
 from django.db import migrations
 
-from cohort.models import DatedMeasure, CohortResult
+from cohort.models import CohortResult, DatedMeasure
 
 
 class NewJobStatus(str, Enum):
