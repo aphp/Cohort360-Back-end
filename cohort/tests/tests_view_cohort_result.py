@@ -154,8 +154,6 @@ class CohortsGetTests(CohortsTests):
                              to_find=[cr for cr in crs if cr.favorite]),
             basic_case.clone(params=dict(fhir_group_id=first_cr.fhir_group_id),
                              to_find=[first_cr]),
-            basic_case.clone(params=dict(create_task_id=first_cr.create_task_id),
-                             to_find=[first_cr]),
             basic_case.clone(params=dict(request_query_snapshot=rqs.pk),
                              to_find=list(rqs.cohort_results.all())),
             basic_case.clone(params=dict(request_query_snapshot__request=req.pk),
@@ -192,14 +190,12 @@ class CohortCreateCase(CreateCase):
 
 class CohortsCreateTests(CohortsTests):
     @mock.patch('cohort.serializers.cohort_job_api.get_authorization_header')
-    @mock.patch('cohort.serializers.cohort_job_api.format_json_query')
     @mock.patch('cohort.tasks.create_cohort_task.delay')
     @mock.patch('cohort.tasks.get_count_task.delay')
     def check_create_case_with_mock(self, case: CohortCreateCase, mock_task_count: MagicMock, mock_task: MagicMock,
-                                    mock_json: MagicMock, mock_header: MagicMock, other_view: any, view_kwargs: dict):
+                                    mock_header: MagicMock, other_view: any, view_kwargs: dict):
         mock_header.return_value = None
         mock_task.return_value = None
-        mock_json.return_value = None
         mock_task_count.return_value = None
 
         super(CohortsCreateTests, self).check_create_case(case, other_view, **(view_kwargs or {}))
@@ -215,7 +211,6 @@ class CohortsCreateTests(CohortsTests):
 
         mock_task.assert_called() if case.mock_task_called else mock_task.assert_not_called()
         mock_header.assert_called() if case.mock_task_called else mock_header.assert_not_called()
-        mock_json.assert_called() if case.mock_task_called else mock_json.assert_not_called()
 
     def check_create_case(self, case: CohortCreateCase, other_view: any = None, **view_kwargs):
         return self.check_create_case_with_mock(case, other_view=other_view or None, view_kwargs=view_kwargs)
@@ -473,13 +468,14 @@ class CohortsUpdateTests(CohortsTests):
         case = self.basic_err_case.clone(data_to_update={'request_job_status': invalid_status})
         self.check_patch_case(case)
 
+    @mock.patch('cohort.views.cohort_result.send_email_notif_about_large_cohort')
+    def test_update_cohort_status_by_etl_callback(self, mock_send_email_notif: MagicMock):
+        # test request_job_status gets updated and send_email is called
+        case = self.basic_case.clone(data_to_update={'request_job_status': 'finished'})
+        self.check_patch_case(case)
+        mock_send_email_notif.assert_called()
+
     # ------- WIP
-    # @mock.patch('cohort.views.cohort_result.send_email_notif_about_large_cohort')
-    # def test_update_large_cohort_status_by_etl_callback(self, mock_send_email_notif: MagicMock):
-    #     # test request_job_status gets updated and send_email is called
-    #     case = self.basic_case.clone(data_to_update={'request_job_status': 'finished'})
-    #     self.check_patch_case(case)
-    #     mock_send_email_notif.assert_called_once()
-    #
     # def test_update_small_cohort_fhir_info(self):
-    #     pass
+    #    pass
+

@@ -131,19 +131,16 @@ class DMCreateCase(CreateCase):
 
 class DatedMeasuresCreateTests(DatedMeasuresTests):
     @mock.patch('cohort.serializers.cohort_job_api.get_authorization_header')
-    @mock.patch('cohort.serializers.cohort_job_api.format_json_query')
     @mock.patch('cohort.tasks.get_count_task.delay')
-    def check_create_case_with_mock(self, case: DMCreateCase, mock_task: MagicMock, mock_json: MagicMock,
-                                    mock_header: MagicMock, other_view: any, view_kwargs: dict):
+    def check_create_case_with_mock(self, case: DMCreateCase, mock_task: MagicMock, mock_header: MagicMock,
+                                    other_view: any, view_kwargs: dict):
         mock_header.return_value = None
         mock_task.return_value = None
-        mock_json.return_value = None
 
         super(DatedMeasuresCreateTests, self).check_create_case(case, other_view, **(view_kwargs or {}))
 
         mock_task.assert_called() if case.mock_task_called else mock_task.assert_not_called()
         mock_header.assert_called() if case.mock_task_called else mock_header.assert_not_called()
-        mock_json.assert_called() if case.mock_task_called else mock_json.assert_not_called()
 
     def check_create_case(self, case: DMCreateCase, other_view: any = None,
                           **view_kwargs):

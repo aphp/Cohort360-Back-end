@@ -75,8 +75,7 @@ class DatedMeasureSerializer(BaseSerializer):
             try:
                 from cohort.tasks import get_count_task
                 auth_header = cohort_job_api.get_authorization_header(self.context.get("request"))
-                json_query = cohort_job_api.format_json_query(rqs.serialized_query)
-                get_count_task.delay(auth_header, json_query, dm.uuid)
+                get_count_task.delay(auth_header, rqs.serialized_query, dm.uuid)
             except Exception as e:
                 dm.delete()
                 raise ValidationError(f"INTERNAL ERROR: Could not launch FHIR cohort count: {e}")
@@ -134,8 +133,7 @@ class CohortResultSerializer(BaseSerializer):
         try:
             from cohort.tasks import create_cohort_task
             auth_header = cohort_job_api.get_authorization_header(self.context.get("request"))
-            json_query = cohort_job_api.format_json_query(rqs.serialized_query)
-            create_cohort_task.delay(auth_header, json_query, cohort_result.uuid)
+            create_cohort_task.delay(auth_header, rqs.serialized_query, cohort_result.uuid)
         except Exception as e:
             cohort_result.delete()
             raise ValidationError(f"Error on pushing new message to the queue: {e}")

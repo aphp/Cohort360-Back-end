@@ -141,7 +141,6 @@ def verify_jwt(access_token: str, auth_method: str = JWT_AUTH_MODE) -> Union[Non
                         lastname="SERVER")
     auth_method = auth_method or JWT_AUTH_MODE
     if auth_method.lower() == JWT_AUTH_MODE:
-        _log.info("** JWT TOKEN CONNEXION ***")
         url = f"{JWT_SERVER_URL}/jwt/verify/"
         resp = requests.post(url=url,
                              data={"token": access_token},

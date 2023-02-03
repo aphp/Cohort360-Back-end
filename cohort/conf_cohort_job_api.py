@@ -60,10 +60,6 @@ def get_authorization_header(request: Request) -> dict:
     return {"Authorization": f"Bearer {key}"}
 
 
-def format_json_query(json_query: str) -> str:
-    return json_query
-
-
 class JobResult:
     def __init__(self, resp: Response, **kwargs):
         self.source: str = kwargs.get('source')

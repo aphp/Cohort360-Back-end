@@ -145,6 +145,17 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                                            "By SJS to update cohort's request_job_status, request_job_duration and "
                                            "fhir_group_id. Also update count on DM."
                                            "By ETL to update request_job_status on delayed large cohorts",
+                         request_body=openapi.Schema(
+                             type=openapi.TYPE_OBJECT,
+                             properties={"job_status": openapi.Schema(type=openapi.TYPE_STRING,
+                                                                      description="For SJS callback"),
+                                         "group.id": openapi.Schema(type=openapi.TYPE_STRING,
+                                                                    description="For SJS callback"),
+                                         "group.count": openapi.Schema(type=openapi.TYPE_STRING,
+                                                                       description="For SJS callback"),
+                                         "request_job_status": openapi.Schema(type=openapi.TYPE_STRING,
+                                                                              description="For ETL callback")},
+                             required=['job_status', 'group.id', 'group.count', 'request_job_status']),
                          responses={'200': openapi.Response("Cohort updated successfully", CohortRightsSerializer()),
                                     '400': openapi.Response("Bad Request")})
     def partial_update(self, request, *args, **kwargs):
