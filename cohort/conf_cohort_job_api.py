@@ -1,11 +1,13 @@
+import json
 import os
 import time
 from typing import List, Tuple, Dict
 
+import requests
+from requests import Response
 import simplejson
 from django.utils import timezone
 from django.utils.datetime_safe import datetime
-from requests import Response
 from rest_framework import status
 from rest_framework.request import Request
 
@@ -100,7 +102,6 @@ class JobResponse:
 
 
 def get_job(job_id: str, auth_headers) -> Tuple[Response, dict]:
-    import requests
     try:
         resp = requests.get(f"{JOBS_API}/{job_id}", headers=auth_headers)
     except Exception as e:
@@ -122,7 +123,6 @@ def cancel_job(job_id: str, auth_headers) -> JobStatus:
     Sends a request to FHIR API to abort a job
     Its status will be then set to KILLED if it was not FINISHED already
     """
-    import requests
     if not job_id:
         raise Exception("INTERNAL ERROR: no job_id provided")
     try:
@@ -163,9 +163,6 @@ def cancel_job(job_id: str, auth_headers) -> JobStatus:
 
 
 def create_count_job(auth_headers: dict, json_query: str, global_estimate) -> Tuple[Response, dict]:
-    import json
-    import requests
-
     try:
         resp = requests.post(url=GLOBAL_COUNT_API if global_estimate else COUNT_API,
                              json=json.loads(json_query),
@@ -264,12 +261,9 @@ def post_count_cohort(auth_headers: dict, json_query: str, dm_uuid: str, global_
                             fhir_job_status=job.status)
 
 
-def create_cohort_job(auth_headers: dict, json_query: str) -> Tuple[Response, dict]:
-    import json
-    import requests
-
+def create_cohort_job(auth_headers: dict, json_query: dict) -> Tuple[Response, dict]:
     try:
-        resp = requests.post(url=CREATE_COHORT_API, json=json.loads(json_query), headers=auth_headers)
+        resp = requests.post(url=CREATE_COHORT_API, json=json_query, headers=auth_headers)
     except Exception as e:
         raise Exception(f"INTERNAL ERROR: {e}")
     result = {}
@@ -287,8 +281,10 @@ def create_cohort_job(auth_headers: dict, json_query: str) -> Tuple[Response, di
 def post_create_cohort(auth_headers: dict, json_query: str, cr_uuid: str) -> CRBCohortResponse:
     log_create_task(cr_uuid, "Step 1: Post cohort creation request to CRB")
     try:
+        json_query = json.loads(json_query)
+        json_query["cohortUuid"] = cr_uuid
         resp, result = create_cohort_job(auth_headers, json_query)
-    except Exception as e:
+    except (json.JSONDecodeError, TypeError, Exception) as e:
         return CRBCohortResponse(success=False, fhir_job_status=JobStatus.failed, err_msg=str(e))
 
     log_create_task(cr_uuid, "Step 2: Processing CRB response")
@@ -306,9 +302,6 @@ def post_validate_cohort(json_query: str, auth_headers) -> CRBValidateResponse:
     return CRBValidateResponse(success=True)
 
     # todo
-    # import json
-    # import requests
-    #
     # try:
     #     resp = requests.post(VALIDATE_QUERY_API, json=json.loads(json_query), headers=auth_headers)
     # except Exception as e:

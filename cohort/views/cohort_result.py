@@ -1,3 +1,5 @@
+import logging
+
 from django.db.models import Q, F
 from django.http import HttpResponse, JsonResponse, Http404, QueryDict
 from django_filters import rest_framework as filters, OrderingFilter
@@ -19,6 +21,9 @@ from cohort.models import CohortResult
 from cohort.serializers import CohortResultSerializer, CohortResultSerializerFullDatedMeasure, CohortRightsSerializer
 from cohort.tools import get_dict_cohort_pop_source, get_all_cohorts_rights, send_email_notif_about_large_cohort
 from cohort.views.shared import UserObjectsRestrictedViewSet
+
+
+_log = logging.getLogger('info')
 
 
 class CohortFilter(filters.FilterSet):
@@ -145,7 +150,9 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     def partial_update(self, request, *args, **kwargs):
         data = request.data
         cohort = self.get_object()
-        job_status_updated_from_etl = "request_job_status" in data
+        sjs_data_keys = ("job_status", "group.id", "group.count")
+        update_from_sjs = all([key in data for key in sjs_data_keys])
+        update_from_etl = "request_job_status" in data
 
         if "job_status" in data:
             job_status = fhir_to_job_status().get(data.pop("job_status"))
@@ -163,9 +170,14 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             cohort.dated_measure.measure = data.pop("group.count")
             cohort.dated_measure.save()
 
-        if job_status_updated_from_etl:
-            send_email_notif_about_large_cohort(cohort.name, cohort.fhir_group_id, cohort.owner)
-        return super(CohortResultViewSet, self).partial_update(request, *args, **kwargs)
+        resp = super(CohortResultViewSet, self).partial_update(request, *args, **kwargs)
+
+        if status.is_success(resp.status_code):
+            if update_from_sjs:
+                _log.info("CohortResult successfully updated from SJS")
+            if update_from_etl:
+                send_email_notif_about_large_cohort(cohort.name, cohort.fhir_group_id, cohort.owner)
+        return resp
 
 
 class NestedCohortResultViewSet(SwaggerSimpleNestedViewSetMixin, CohortResultViewSet):

@@ -190,15 +190,16 @@ def retrieve_perimeters(json_req: str) -> [str]:
         return None
 
 
-_log = logging.getLogger('celery.app')
+_logger = logging.getLogger('info')
+_celery_logger = logging.getLogger('celery.app')
 
 
 def log_count_task(dm_uuid, msg, global_estimate=False):
-    _log.info(f"{'Global' if global_estimate else ''}Count Task [DM: {dm_uuid}] {msg}")
+    _celery_logger.info(f"{'Global' if global_estimate else ''}Count Task [DM: {dm_uuid}] {msg}")
 
 
 def log_create_task(cr_uuid, msg):
-    _log.info(f"Cohort Create Task [CR: {cr_uuid}] {msg}")
+    _celery_logger.info(f"Cohort Create Task [CR: {cr_uuid}] {msg}")
 
 
 def get_single_cohort_email_data(cohort_name, cohort_id):
@@ -238,3 +239,4 @@ def send_email_notif_about_large_cohort(cohort_name: str, cohort_fhir_group_id: 
     msg.attach_alternative(content=html_mail, mimetype="text/html")
     msg.attach_file('exports/email_templates/logoCohort360.png')
     msg.send()
+    _logger.info(f"Notification email sent to user: {owner_fullname}. Cohort [{cohort_name} - {cohort_fhir_group_id}]")
