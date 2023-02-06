@@ -18,6 +18,7 @@ from admin_cohort.types import JobStatus
 from admin_cohort.views import SwaggerSimpleNestedViewSetMixin
 from cohort.conf_cohort_job_api import fhir_to_job_status
 from cohort.models import CohortResult
+from cohort.permissions import SJSandETLCallbackPermission
 from cohort.serializers import CohortResultSerializer, CohortResultSerializerFullDatedMeasure, CohortRightsSerializer
 from cohort.tools import get_dict_cohort_pop_source, get_all_cohorts_rights, send_email_notif_about_large_cohort
 from cohort.views.shared import UserObjectsRestrictedViewSet
@@ -94,6 +95,18 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     pagination_class = LimitOffsetPagination
     filterset_class = CohortFilter
     search_fields = ('$name', '$description')
+
+    def get_permissions(self):
+        sjs_etl_users = ["SparkJS", "SOLR-ETL"]
+        if self.request.method == "PATCH" and self.request.user.provider_username in sjs_etl_users:
+            return [SJSandETLCallbackPermission()]
+        return super(CohortResultViewSet, self).get_permissions()
+
+    def get_queryset(self):
+        sjs_etl_users = ["SparkJS", "SOLR-ETL"]
+        if self.request.method == "PATCH" and self.request.user.provider_username in sjs_etl_users:
+            return self.queryset
+        return super(CohortResultViewSet, self).get_queryset()
 
     def get_serializer_class(self):
         if self.request.method in ["POST", "PUT", "PATCH"] \

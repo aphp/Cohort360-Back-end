@@ -6,11 +6,7 @@ from admin_cohort.models import User
 
 
 def user_is_authenticated(user):
-    if not user:
-        return False
-    if not hasattr(user, User.USERNAME_FIELD):
-        return False
-    return True
+    return user and hasattr(user, User.USERNAME_FIELD)
 
 
 def get_bound_roles(user: User) -> QuerySet:
