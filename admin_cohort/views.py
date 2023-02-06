@@ -3,7 +3,6 @@ from typing import List, Tuple
 
 from django.contrib.auth import login
 from django.contrib.auth.views import LoginView
-from django.http import HttpRequest
 from django.http import HttpResponseRedirect, Http404, JsonResponse
 from django.utils import timezone
 from django.utils.decorators import method_decorator
