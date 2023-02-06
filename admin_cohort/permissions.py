@@ -3,6 +3,7 @@ from rest_framework import permissions
 from rest_framework.permissions import OR as drf_OR
 
 from admin_cohort.models import User
+from commons.constants import SOLR_ETL_PROVIDER_NAME
 
 
 def user_is_authenticated(user):
@@ -29,7 +30,7 @@ def can_user_read_users(user: User) -> bool:
 
 
 def can_user_edit_roles(user: User) -> bool:
-    return any([r.right_edit_roles for r in get_bound_roles(user)])
+    return user.provider_username == SOLR_ETL_PROVIDER_NAME or any([r.right_edit_roles for r in get_bound_roles(user)])
 
 
 def can_user_read_logs(user: User) -> bool:
