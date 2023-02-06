@@ -478,4 +478,3 @@ class CohortsUpdateTests(CohortsTests):
     # ------- WIP
     # def test_update_small_cohort_fhir_info(self):
     #    pass
-
