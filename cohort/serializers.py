@@ -40,6 +40,7 @@ class DatedMeasureSerializer(BaseSerializer):
     request = serializers.UUIDField(read_only=True, required=False, source='request_query_snapshot__request__pk')
     request_query_snapshot = PrimaryKeyRelatedFieldWithOwner(queryset=RequestQuerySnapshot.objects.all())
     count_outdated = serializers.BooleanField(read_only=True)
+    cohort_limit = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = DatedMeasure
@@ -129,7 +130,6 @@ class CohortResultSerializer(BaseSerializer):
                 dm_global.request_job_fail_msg = f"ERROR: Could not launch FHIR cohort count: {e}"
                 dm_global.request_job_status = JobStatus.failed
                 dm_global.save()
-
         try:
             from cohort.tasks import create_cohort_task
             auth_header = cohort_job_api.get_authorization_header(self.context.get("request"))

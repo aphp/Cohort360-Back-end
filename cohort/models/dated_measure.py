@@ -6,7 +6,7 @@ from django.db import models
 from django.utils import timezone
 
 from admin_cohort.models import CohortBaseModel, JobModel, User
-from admin_cohort.settings import LAST_COUNT_VALIDITY
+from admin_cohort.settings import LAST_COUNT_VALIDITY, COHORT_LIMIT
 from cohort.models import RequestQuerySnapshot
 
 SNAPSHOT_DM_MODE = "Snapshot"
@@ -32,3 +32,7 @@ class DatedMeasure(CohortBaseModel, JobModel):
     def count_outdated(self):
         delta = timedelta(hours=LAST_COUNT_VALIDITY)
         return timezone.now() - self.created_at > delta
+
+    @property
+    def cohort_limit(self):
+        return COHORT_LIMIT
