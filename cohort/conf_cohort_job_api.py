@@ -4,7 +4,7 @@ import time
 from typing import List, Tuple, Dict
 
 import requests
-from requests import Response
+from requests import Response, JSONDecodeError, HTTPError
 import simplejson
 from django.utils import timezone
 from django.utils.datetime_safe import datetime
@@ -89,11 +89,11 @@ class JobResponse:
 
         job_result = kwargs.get('result', [])
         if isinstance(job_result, list):
-            self.result: List[JobResult] = [init_result_from_response_dict(resp, jr) for jr in job_result]
+            self.result: List[JobResult] = [JobResult(resp, **jr) for jr in job_result]
         else:
-            self.result: List[JobResult] = [init_result_from_response_dict(resp, job_result)]
+            self.result: List[JobResult] = [JobResult(resp, **job_result)]
         if not self.result and self.status in [JobStatus.finished, JobStatus.failed]:
-            raise Exception(f"FHIR ERROR: Result is empty - {resp.text}")
+            raise ValueError(f"CRB ERROR: Result is empty - {resp.text}")
         self.request_response: Response = resp
 
 
@@ -159,16 +159,13 @@ def cancel_job(job_id: str, auth_headers) -> JobStatus:
 
 
 def create_count_job(auth_headers: dict, json_query: str, global_estimate) -> Tuple[Response, dict]:
-    try:
-        resp = requests.post(url=GLOBAL_COUNT_API if global_estimate else COUNT_API,
-                             json=json.loads(json_query),
-                             headers=auth_headers)
-    except Exception as e:
-        raise Exception(f"INTERNAL ERROR: {e}")
-
+    resp = requests.post(url=GLOBAL_COUNT_API if global_estimate else COUNT_API,
+                         json=json.loads(json_query),
+                         headers=auth_headers)
+    resp.raise_for_status()
     try:
         result = resp.json()
-    except (simplejson.JSONDecodeError, json.JSONDecodeError, ValueError):
+    except JSONDecodeError:
         raise Exception(f"QUERY SERVER ERROR {resp.status_code}: {resp}")
 
     if resp.status_code != 200:
@@ -258,19 +255,14 @@ def post_count_cohort(auth_headers: dict, json_query: str, dm_uuid: str, global_
 
 
 def create_cohort_job(auth_headers: dict, json_query: dict) -> Tuple[Response, dict]:
-    try:
-        resp = requests.post(url=CREATE_COHORT_API, json=json_query, headers=auth_headers)
-    except Exception as e:
-        raise Exception(f"INTERNAL ERROR: {e}")
+    resp = requests.post(url=CREATE_COHORT_API, json=json_query, headers=auth_headers)
+    resp.raise_for_status()
     result = {}
     try:
         result = resp.json()
-    except Exception:
+    except JSONDecodeError:
         raise Exception(f"INTERNAL ERROR {resp.status_code}: could not read result from "
                         f"request to CRB ({resp.text or str(resp)})")
-    if resp.status_code != 200:
-        raise Exception(f"INTERNAL CONNECTION ERROR {resp.status_code}: "
-                        f"{result.get('error', 'no error')}, {result.get('message', 'no message')}")
     return resp, result
 
 
@@ -280,13 +272,13 @@ def post_create_cohort(auth_headers: dict, json_query: str, cr_uuid: str) -> CRB
         json_query = json.loads(json_query)
         json_query["cohortUuid"] = cr_uuid
         resp, result = create_cohort_job(auth_headers, json_query)
-    except (json.JSONDecodeError, TypeError, Exception) as e:
+    except (json.JSONDecodeError, TypeError, HTTPError) as e:
         return CRBCohortResponse(success=False, fhir_job_status=JobStatus.failed, err_msg=str(e))
 
     log_create_task(cr_uuid, "Step 2: Processing CRB response")
     try:
         job = JobResponse(resp, **result)
-    except Exception as e:
+    except ValueError as e:
         return CRBCohortResponse(success=False, fhir_job_status=JobStatus.failed, err_msg=str(e))
 
     log_create_task(cr_uuid, "Step 3: SJS job created. Will be notified later by callback")
