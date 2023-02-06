@@ -11,8 +11,6 @@ from rest_framework_simplejwt.exceptions import AuthenticationFailed
 
 from admin_cohort.settings import SERVER_VERSION
 from admin_cohort.types import IdResp, ServerError, JwtTokens, LoginError, UserInfo
-from commons.constants import SOLR_ETL_PROVIDER_NAME, SOLR_ETL_EMAIL, SOLR_ETL_TOKEN_NAME, SOLR_ETL_NAME, \
-    SOLR_ETL_LASTNAME
 
 env = environ.Env()
 
@@ -129,15 +127,15 @@ def get_user_info(jwt_access_token: str) -> UserInfo:
 def verify_jwt(access_token: str, auth_method: str = JWT_AUTH_MODE) -> Union[None, UserInfo]:
     if SERVER_VERSION.lower() == "dev":
         return
-    if access_token == env(SOLR_ETL_TOKEN_NAME):
+    if access_token == env("ETL_TOKEN"):
         _log.info("*** ETL TOKEN CONNEXION *** ")
-        return UserInfo(username=SOLR_ETL_PROVIDER_NAME,
-                        email=SOLR_ETL_EMAIL,
-                        firstname=SOLR_ETL_NAME,
-                        lastname=SOLR_ETL_LASTNAME)
+        return UserInfo(username="SOLR_ETL",
+                        email="solr.etl@aphp.fr",
+                        firstname="Solr",
+                        lastname="ETL")
     if access_token == env("SJS_TOKEN"):
         _log.info("*** SJS TOKEN CONNEXION *** ")
-        return UserInfo(username="SparkJS",
+        return UserInfo(username="SPARK_JOB_SERVER",
                         email="spark.jobserver@aphp.fr",
                         firstname="SparkJob",
                         lastname="SERVER")

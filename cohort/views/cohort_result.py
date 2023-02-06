@@ -13,6 +13,7 @@ from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from accesses.models import get_user_valid_manual_accesses_queryset
+from admin_cohort.settings import SJS_USERNAME, ETL_USERNAME
 from admin_cohort.tools import join_qs
 from admin_cohort.types import JobStatus
 from admin_cohort.views import SwaggerSimpleNestedViewSetMixin
@@ -97,13 +98,13 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     search_fields = ('$name', '$description')
 
     def get_permissions(self):
-        sjs_etl_users = ["SparkJS", "SOLR-ETL"]
+        sjs_etl_users = [SJS_USERNAME, ETL_USERNAME]
         if self.request.method == "PATCH" and self.request.user.provider_username in sjs_etl_users:
             return [SJSandETLCallbackPermission()]
         return super(CohortResultViewSet, self).get_permissions()
 
     def get_queryset(self):
-        sjs_etl_users = ["SparkJS", "SOLR-ETL"]
+        sjs_etl_users = [SJS_USERNAME, ETL_USERNAME]
         if self.request.method == "PATCH" and self.request.user.provider_username in sjs_etl_users:
             return self.queryset
         return super(CohortResultViewSet, self).get_queryset()

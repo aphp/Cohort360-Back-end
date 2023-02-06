@@ -345,19 +345,6 @@ def redirect_token_refresh_view(request):
     return JsonResponse(data=res.__dict__)
 
 
-# to deprecate
-def maintenance_view(request: HttpRequest):
-    q = (
-            MaintenancePhase.objects.filter(start_datetime__gte=timezone.now())
-            |
-            MaintenancePhase.objects.filter(
-                start_datetime__lte=timezone.now(),
-                end_datetime__gte=timezone.now())
-    ).order_by('start_datetime').first()
-    return JsonResponse(MaintenancePhaseSerializer(q).data,
-                        status=status.HTTP_200_OK)
-
-
 class MaintenancePhaseViewSet(viewsets.ModelViewSet):
     queryset = MaintenancePhase.objects.all()
     ordering_fields = ("start_datetime", "end_datetime")

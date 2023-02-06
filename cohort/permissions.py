@@ -2,6 +2,7 @@ from rest_framework import permissions
 from rest_framework.permissions import OR as drf_OR
 
 from admin_cohort.permissions import user_is_authenticated
+from admin_cohort.settings import ETL_USERNAME, SJS_USERNAME
 
 
 class IsAdmin(permissions.BasePermission):
@@ -35,7 +36,7 @@ class SJSandETLCallbackPermission(permissions.BasePermission):
         return user_is_authenticated(request.user)
 
     def has_object_permission(self, request, view, obj):
-        sjs_etl_users = ["SparkJS", "SOLR-ETL"]
+        sjs_etl_users = [SJS_USERNAME, ETL_USERNAME]
         return user_is_authenticated(request.user)\
             and request.method == "PATCH"\
             and request.user.provider_username in sjs_etl_users
