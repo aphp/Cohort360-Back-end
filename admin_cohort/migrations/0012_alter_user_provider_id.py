@@ -16,6 +16,6 @@ class Migration(migrations.Migration):
         ),
         migrations.RunSQL(
             "UPDATE user "
-            "SET provider_id=user_id"
+            "SET provider_id=provider_username"
         )
     ]

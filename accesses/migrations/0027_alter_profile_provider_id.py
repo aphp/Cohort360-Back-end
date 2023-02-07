@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
 def update_provider_id_by_user_id(apps, schema_editor):
     profiles = Profile.objects.all()
     for profil in profiles:
-        profil.provider_id = profil.user.provider_id
+        profil.provider_id = profil.user.provider_username
         profil.save()
 
     operations = [
