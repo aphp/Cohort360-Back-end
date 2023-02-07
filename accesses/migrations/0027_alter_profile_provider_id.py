@@ -2,7 +2,7 @@
 
 from django.db import migrations, models
 
-from accesses.models import *
+from accesses.models import Profile
 
 
 class Migration(migrations.Migration):
@@ -13,9 +13,9 @@ class Migration(migrations.Migration):
 
 def update_provider_id_by_user_id(apps, schema_editor):
     profiles = Profile.objects.all()
-    for profil in profiles:
-        profil.provider_id = profil.user.provider_username
-        profil.save()
+    for profile in profiles:
+        profile.provider_id = profile.user.provider_username
+        profile.save()
 
     operations = [
         migrations.AlterField(
