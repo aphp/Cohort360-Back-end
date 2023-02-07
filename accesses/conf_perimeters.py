@@ -66,7 +66,7 @@ Model Provider (= User informations)
 
 
 class Provider(models.Model):
-    provider_id = models.TextField(primary_key=True)
+    provider_id = models.CharField(primary_key=True)
     provider_source_value = models.TextField()
     valid_start_datetime = models.DateTimeField()
     valid_end_datetime = models.DateTimeField()
