@@ -129,13 +129,13 @@ def verify_jwt(access_token: str, auth_method: str = JWT_AUTH_MODE) -> Union[Non
         return
     if access_token == env("ETL_TOKEN"):
         _log.info("*** ETL TOKEN CONNEXION *** ")
-        return UserInfo(username="SOLR-ETL",
-                        email="mister.solr.etl@aphp.fr",
+        return UserInfo(username="SOLR_ETL",
+                        email="solr.etl@aphp.fr",
                         firstname="Solr",
                         lastname="ETL")
     if access_token == env("SJS_TOKEN"):
         _log.info("*** SJS TOKEN CONNEXION *** ")
-        return UserInfo(username="SparkJS",
+        return UserInfo(username="SPARK_JOB_SERVER",
                         email="spark.jobserver@aphp.fr",
                         firstname="SparkJob",
                         lastname="SERVER")

@@ -5,7 +5,6 @@ from typing import List, Tuple, Dict
 
 import requests
 from requests import Response, JSONDecodeError, HTTPError
-import simplejson
 from django.utils import timezone
 from django.utils.datetime_safe import datetime
 from rest_framework import status

@@ -69,7 +69,7 @@ LOGGING = dict(version=1,
                    'django.request': {
                        'level': "ERROR",
                        'handlers': ['console', 'error_handler', 'mail_admins'],
-                       'propagate': False,
+                       'propagate': False
                    }},
                handlers={
                    'console': {
@@ -81,7 +81,7 @@ LOGGING = dict(version=1,
                    'info_handler': {
                        'level': "INFO",
                        'class': "logging.handlers.RotatingFileHandler",
-                       'filename': "log/django.log",
+                       'filename': BASE_DIR / "log/django.log",
                        'maxBytes': 100 * 1024 * 1024,
                        'backupCount': 1000,
                        'formatter': "verbose"
@@ -89,7 +89,7 @@ LOGGING = dict(version=1,
                    'error_handler': {
                        'level': "ERROR",
                        'class': "logging.handlers.RotatingFileHandler",
-                       'filename': "log/django.error.log",
+                       'filename': BASE_DIR / "log/django.error.log",
                        'maxBytes': 100 * 1024 * 1024,
                        'backupCount': 1000,
                        'formatter': "verbose"
@@ -272,3 +272,6 @@ SENSITIVE_PARAMS = env('SENSITIVE_PARAMS').split(",")
 # COHORTS +20k
 LAST_COUNT_VALIDITY = int(env("LAST_COUNT_VALIDITY", default=24))    # in hours
 COHORT_LIMIT = int(env("COHORT_LIMIT", default=20_000))
+
+SJS_USERNAME = env("SJS_USERNAME", default="SPARK_JOB_SERVER")
+ETL_USERNAME = env("ETL_USERNAME", default="SOLR_ETL")
