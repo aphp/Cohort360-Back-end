@@ -31,7 +31,7 @@ class ExportRequest(JobModelWithReview, BaseModel, models.Model):
     # to deprecated
     # to remove when infra is ready
     cohort_id = models.BigIntegerField(null=False)
-    provider_id = models.BigIntegerField(null=True)
+    provider_id = models.CharField(max_length=25, blank=True, null=True)
 
     class Meta:
         db_table = 'export_request'
