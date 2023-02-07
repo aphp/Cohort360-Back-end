@@ -208,7 +208,7 @@ def get_user_data_accesses_queryset(u: User) -> QuerySet:
 
 
 class DataRight:
-    def __init__(self, perimeter_id: int, user_id: str, provider_id: int,
+    def __init__(self, perimeter_id: int, user_id: str, provider_id: str,
                  acc_ids: List[int] = None,
                  pseudo: bool = False, nomi: bool = False,
                  exp_pseudo: bool = False, exp_nomi: bool = False,
