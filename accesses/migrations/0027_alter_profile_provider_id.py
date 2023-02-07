@@ -21,7 +21,7 @@ def update_provider_id_by_user_id(apps, schema_editor):
         migrations.AlterField(
             model_name="profile",
             name="provider_id",
-            field=models.TextField(blank=True, null=True),
+            field=models.CharField(blank=True, null=True),
         ),
         migrations.RunPython(update_provider_id_by_user_id),
     ]
