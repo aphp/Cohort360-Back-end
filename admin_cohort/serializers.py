@@ -11,7 +11,7 @@ class UserDetailsSerializer(serializers.Serializer):
     lastname = serializers.CharField()
     displayed_name = serializers.CharField()
     email = serializers.CharField()
-    provider_id = serializers.IntegerField()
+    provider_id = serializers.CharField()
 
 
 class APIRequestLogSerializer(serializers.ModelSerializer):
