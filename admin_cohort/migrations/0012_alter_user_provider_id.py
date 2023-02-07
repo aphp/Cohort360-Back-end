@@ -12,10 +12,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name="user",
             name="provider_id",
-            field=models.CharField(blank=True, null=True),
+            field=models.CharField(blank=True, max_length=25, null=True),
         ),
-        migrations.RunSQL(
-            "UPDATE user "
-            "SET provider_id=provider_username"
-        )
+        migrations.RunSQL('UPDATE "user" SET provider_id=provider_username')
     ]

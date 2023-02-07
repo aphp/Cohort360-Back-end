@@ -11,7 +11,7 @@ from admin_cohort.settings import MANUAL_SOURCE
 
 class Profile(BaseModel):
     id = models.AutoField(blank=True, null=False, primary_key=True)
-    provider_id = models.CharField(blank=True, null=True)
+    provider_id = models.CharField(max_length=25, blank=True, null=True)
     provider_name = models.TextField(blank=True, null=True)
     firstname = models.TextField(blank=True, null=True)
     lastname = models.TextField(blank=True, null=True)

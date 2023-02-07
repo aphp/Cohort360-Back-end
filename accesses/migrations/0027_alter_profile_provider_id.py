@@ -5,10 +5,10 @@ from django.db import migrations, models
 from accesses.models import Profile
 
 
-def update_provider_id_by_user_id(schema_editor):
+def update_provider_id_by_user_id(apps, schema_editor):
     profiles = Profile.objects.all()
     for profile in profiles:
-        profile.provider_id = profile.user.provider_username
+        profile.provider_id = profile.user_id
         profile.save()
 
 
@@ -20,7 +20,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name="profile",
             name="provider_id",
-            field=models.CharField(blank=True, null=True),
+            field=models.CharField(blank=True, max_length=25, null=True),
         ),
         migrations.RunPython(update_provider_id_by_user_id),
     ]
