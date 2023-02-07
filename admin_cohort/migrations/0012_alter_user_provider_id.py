@@ -14,4 +14,8 @@ class Migration(migrations.Migration):
             name="provider_id",
             field=models.TextField(blank=True, null=True),
         ),
+        migrations.RunSQL(
+            "UPDATE user "
+            "SET provider_id=user_id"
+        )
     ]

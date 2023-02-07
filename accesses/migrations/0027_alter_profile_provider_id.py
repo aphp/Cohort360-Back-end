@@ -2,11 +2,20 @@
 
 from django.db import migrations, models
 
+from accesses.models import *
+
 
 class Migration(migrations.Migration):
     dependencies = [
         ("accesses", "0026_caresite_concept_provider_alter_access_perimeter"),
     ]
+
+
+def update_provider_id_by_user_id(apps, schema_editor):
+    profiles = Profile.objects.all()
+    for profil in profiles:
+        profil.provider_id = profil.user.provider_id
+        profil.save()
 
     operations = [
         migrations.AlterField(
@@ -14,4 +23,5 @@ class Migration(migrations.Migration):
             name="provider_id",
             field=models.TextField(blank=True, null=True),
         ),
+        migrations.RunPython(update_provider_id_by_user_id),
     ]
