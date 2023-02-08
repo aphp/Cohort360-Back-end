@@ -2,6 +2,7 @@ from django.db.models import Q
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
+from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
@@ -101,39 +102,33 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
         return Response(PerimeterLiteSerializer(perimeters, many=True).data)
 
     @swagger_auto_schema(method='get',
-                         operation_summary="Give perimeters and associated read patient roles for current user and search IPP"
-                                           "If no perimeters param search ae present, it sow top hierarchy",
-                         responses={'201': openapi.Response("give rights in caresite perimeters found", DataReadRightSerializer())})
+                         operation_summary="Return perimeters and associated read patient rights for current user."
+                                           "If perimeters are not filtered, return top hierarchy perimeters",
+                         responses={'200': openapi.Response("Rights per perimeter", DataReadRightSerializer())})
     @action(detail=False, methods=['get'], url_path="read-patient")
     def get_perimeters_read_right_accesses(self, request, *args, **kwargs):
         user_accesses = get_user_valid_manual_accesses_queryset(self.request.user)
-
         all_read_patient_nominative_accesses = user_accesses.filter(Role.is_read_patient_role_nominative("role"))
         all_read_patient_pseudo_accesses = user_accesses.filter(Role.is_read_patient_role("role"))
         all_read_ipp_accesses = user_accesses.filter(Role.is_search_ipp_role("role"))
 
         if not all_read_patient_nominative_accesses and not all_read_patient_pseudo_accesses:
-            raise Http404("ERROR: No Accesses with read patient right found")
+            raise Http404("ERROR: No accesses with read patient right found")
+
         if self.request.query_params:
-
-            perimeters_filtered_by_search = self.filter_queryset(self.get_queryset())
-            if not perimeters_filtered_by_search:
-                raise Http404("ERROR: No Perimeters Found")
-
-            return Response(ReadRightPerimeter(
-                filter_accesses_by_search_perimeters(perimeters_filtered_by_search,
-                                                     all_read_patient_nominative_accesses,
-                                                     all_read_patient_pseudo_accesses,
-                                                     all_read_ipp_accesses), many=True).data)
-
-        all_distinct_perimeters = get_top_perimeter_from_read_patient_accesses(all_read_patient_nominative_accesses,
-                                                                               all_read_patient_pseudo_accesses)
-
-        return Response(ReadRightPerimeter(
-            filter_accesses_by_search_perimeters(all_distinct_perimeters,
-                                                 all_read_patient_nominative_accesses,
-                                                 all_read_patient_pseudo_accesses,
-                                                 all_read_ipp_accesses), many=True).data)
+            perimeters = self.filter_queryset(self.get_queryset())
+        else:
+            perimeters = get_top_perimeter_from_read_patient_accesses(all_read_patient_nominative_accesses,
+                                                                      all_read_patient_pseudo_accesses)
+        filtered_accesses = filter_accesses_by_search_perimeters(perimeters,
+                                                                 all_read_patient_nominative_accesses,
+                                                                 all_read_patient_pseudo_accesses,
+                                                                 all_read_ipp_accesses)
+        page = self.paginate_queryset(filtered_accesses)
+        if page:
+            serializer = ReadRightPerimeter(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @swagger_auto_schema(method='get',
                          operation_summary="Give boolean read patient pseudo read right for all perimeters searched",
