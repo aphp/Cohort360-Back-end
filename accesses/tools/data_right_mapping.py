@@ -3,11 +3,7 @@ from accesses.models import Perimeter
 
 # ------------------------- CLASS DEFINITION -------------------------
 class DataReadRight:
-    def __init__(self, user_id: str, provider_id: int, pseudo: bool = False, nomi: bool = False,
-                 **kwargs):
-        """
-        @return: a default DataRight as required by the serializer
-        """
+    def __init__(self, user_id: str, provider_id: str, pseudo: bool = False, nomi: bool = False, **kwargs):
         if 'perimeter' in kwargs:
             self.perimeter: Perimeter = kwargs['perimeter']
         self.provider_id = provider_id
