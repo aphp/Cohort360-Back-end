@@ -66,7 +66,7 @@ Model Provider (= User informations)
 
 
 class Provider(models.Model):
-    provider_id = models.IntegerField(primary_key=True)
+    provider_id = models.CharField(primary_key=True, max_length=25)
     provider_source_value = models.TextField()
     valid_start_datetime = models.DateTimeField()
     valid_end_datetime = models.DateTimeField()
@@ -164,7 +164,7 @@ def psql_query_care_site_relationship(top_care_site_ids: list) -> str:
             cd.cohort_size as cohort_size
             FROM omop.care_site cs
             INNER JOIN omop.cohort_definition cd
-            ON CAST(cd.owner_entity_id as BIGINT) = cs.care_site_id
+            ON cd.owner_entity_id = CAST(cs.care_site_id AS VARCHAR)
             WHERE (cs.care_site_id IN ({str(top_care_site_ids)[1:-1]})
             AND cs.delete_datetime IS NULL
             AND cd.delete_datetime IS NULL AND cd.owner_domain_id = 'Care_site'
@@ -183,7 +183,7 @@ def psql_query_care_site_relationship(top_care_site_ids: list) -> str:
             INNER JOIN omop.fact_relationship frr
             ON css.care_site_id=frr.fact_id_1
             INNER JOIN omop.cohort_definition cd
-            ON CAST(cd.owner_entity_id as BIGINT) = css.care_site_id
+            ON cd.owner_entity_id = CAST(css.care_site_id AS VARCHAR)
             WHERE (
             frr.fact_id_1!=frr.fact_id_2
             AND frr.domain_concept_id_1={cs_domain_concept_id}

@@ -171,7 +171,7 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
                                                                               description="Default at False"),
                                                 'cohort_fk': openapi.Schema(type=openapi.TYPE_STRING,
                                                                             description="Pk for a CohortResult"),
-                                                'provider_id': openapi.Schema(type=openapi.TYPE_INTEGER,
+                                                'provider_id': openapi.Schema(type=openapi.TYPE_STRING,
                                                                               description='Deprecated'),
                                                 'owner': openapi.Schema(type=openapi.TYPE_STRING,
                                                                         description="Pk for user that will receive the "

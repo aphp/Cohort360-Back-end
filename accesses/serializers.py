@@ -315,21 +315,16 @@ class ProfileSerializer(BaseSerializer):
             if not id_details:
                 raise ValidationError("Le Provider_source_value/user_id indiqué n'appartient à "
                                       "aucun utilisateur dans la base de données de référence")
-            try:
-                provider_id = get_provider_id(user_id)
-            except Exception:
-                raise ValidationError("Le provider_id de ce nouvel utilisateur "
-                                      "n'a pas pu être trouvé dans la base OMOP.")
 
             user_data = {"provider_username": user_id,
                          "email": validated_data.get('email'),
                          "firstname": validated_data.get('firstname'),
                          "lastname": validated_data.get('lastname'),
-                         "provider_id": provider_id}
+                         "provider_id": user_id}
             user = User(**user_data)
             user.save()
             validated_data['user'] = user
-            validated_data['provider_id'] = provider_id
+            validated_data['provider_id'] = user_id
             validated_data['provider_name'] = f"{validated_data.get('firstname')} {validated_data.get('lastname')}"
         return super(ProfileSerializer, self).create(validated_data)
 
