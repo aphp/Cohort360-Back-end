@@ -1,12 +1,19 @@
+import json
+import logging
+
 from coverage.annotate import os
+from django.core.mail import EmailMultiAlternatives
 from django.db import models
 from django.db.models import QuerySet
 from django.http import Http404
 
 from accesses.conf_perimeters import OmopModelManager
 from accesses.models import Perimeter, Access, Role
+from admin_cohort.models import User
+from admin_cohort.settings import EMAIL_SENDER_ADDRESS, FRONT_URL, EMAIL_SUPPORT_CONTACT
 from cohort.models import CohortResult
 from commons.tools import cast_string_to_ids_list
+from exports.emails import get_base_templates, KEY_CONTENT, KEY_NAME, KEY_CONTACT_MAIL
 
 ROLE = "role"
 READ_PATIENT_NOMI = "read_patient_nomi"
@@ -16,6 +23,9 @@ EXPORT_CSV_PSEUDO = "export_csv_pseudo"
 EXPORT_JUPYTER_NOMI = "export_jupyter_nomi"
 EXPORT_JUPYTER_PSEUDO = "export_jupyter_pseudo"
 SEARCH_IPP = "search_ipp"
+
+KEY_COHORTS_ITEMS = "KEY_COHORTS_ITEMS"
+KEY_EMAIL_BODY = "KEY_EMAIL_BODY"
 
 env = os.environ
 
@@ -156,3 +166,77 @@ class FactRelationShip(models.Model):
     class Meta:
         managed = False
         db_table = 'fact_relationship'
+
+
+def retrieve_perimeters(json_req: str) -> [str]:
+    """
+    Called to retrieve care_site_ids (perimeters) from a Json request
+    :param json_req:
+    :type json_req:
+    :return:
+    :rtype:
+    """
+    # sourcePopulation:{caresiteCohortList: [...ids]}
+    try:
+        req = json.loads(json_req)
+        ids = req["sourcePopulation"]["caresiteCohortList"]
+        assert isinstance(ids, list)
+        str_ids = []
+        for i in ids:
+            str_ids.append(str(i))
+            assert str(i).isnumeric()
+        return str_ids
+    except Exception:
+        return None
+
+
+_logger = logging.getLogger('info')
+_celery_logger = logging.getLogger('celery.app')
+
+
+def log_count_task(dm_uuid, msg, global_estimate=False):
+    _celery_logger.info(f"{'Global' if global_estimate else ''}Count Task [DM: {dm_uuid}] {msg}")
+
+
+def log_create_task(cr_uuid, msg):
+    _celery_logger.info(f"Cohort Create Task [CR: {cr_uuid}] {msg}")
+
+
+def get_single_cohort_email_data(cohort_name, cohort_id):
+    subject = "Votre cohorte est prête"
+    cohort_link = f"{FRONT_URL}/cohort/{cohort_id}"
+    html_body = f'Votre cohorte <a href="{cohort_link}">{cohort_name}</a> a été créée avec succès.'
+    txt_body = f"Votre cohorte {cohort_name} a été créée avec succès.\n {cohort_link}"
+    return subject, html_body, txt_body
+
+
+def send_email_notif_about_large_cohort(cohort_name: str, cohort_fhir_group_id: str, cohort_owner: User):
+    template_path = "cohort/email_templates/large_cohort_finished"
+
+    with open(f"{template_path}.html") as f:
+        html_content = "\n".join(f.readlines())
+    with open(f"{template_path}.txt") as f:
+        txt_content = "\n".join(f.readlines())
+
+    html_mail, txt_mail = get_base_templates()
+    html_mail = html_mail.replace(KEY_CONTENT, html_content)
+    txt_mail = txt_mail.replace(KEY_CONTENT, txt_content)
+
+    subject, html_body, txt_body = get_single_cohort_email_data(cohort_name, cohort_fhir_group_id)
+    owner_fullname, owner_email = cohort_owner.displayed_name, cohort_owner.email
+
+    html_mail = html_mail.replace(KEY_NAME, owner_fullname)\
+                         .replace(KEY_EMAIL_BODY, html_body)\
+                         .replace(KEY_CONTACT_MAIL, EMAIL_SUPPORT_CONTACT)
+    txt_mail = txt_mail.replace(KEY_NAME, owner_fullname)\
+                       .replace(KEY_EMAIL_BODY, txt_body)\
+                       .replace(KEY_CONTACT_MAIL, EMAIL_SUPPORT_CONTACT)
+
+    msg = EmailMultiAlternatives(subject=subject,
+                                 body=txt_mail,
+                                 from_email=EMAIL_SENDER_ADDRESS,
+                                 to=[owner_email])
+    msg.attach_alternative(content=html_mail, mimetype="text/html")
+    msg.attach_file('exports/email_templates/logoCohort360.png')
+    msg.send()
+    _logger.info(f"Notification email sent to user: {owner_fullname}. Cohort [{cohort_name} - {cohort_fhir_group_id}]")

@@ -3,14 +3,11 @@ from rest_framework import permissions
 from rest_framework.permissions import OR as drf_OR
 
 from admin_cohort.models import User
+from admin_cohort.settings import ETL_USERNAME
 
 
 def user_is_authenticated(user):
-    if not user:
-        return False
-    if not hasattr(user, User.USERNAME_FIELD):
-        return False
-    return True
+    return user and hasattr(user, User.USERNAME_FIELD)
 
 
 def get_bound_roles(user: User) -> QuerySet:
@@ -47,7 +44,8 @@ class MaintenancePermission(permissions.BasePermission):
     def has_permission(self, request, view):
         if request.method in permissions.SAFE_METHODS:
             return True
-        return can_user_edit_roles(request.user.provider_username)
+        user = request.user
+        return user_is_authenticated(user) and (can_user_edit_roles(user) or user.provider_username == ETL_USERNAME)
 
 
 class LogsPermission(permissions.BasePermission):

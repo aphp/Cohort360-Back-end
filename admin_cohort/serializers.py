@@ -3,7 +3,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework_tracking.models import APIRequestLog
 
 from admin_cohort.models import MaintenancePhase
-from cohort.models import User
+from admin_cohort.models import User
 
 
 class UserDetailsSerializer(serializers.Serializer):
@@ -11,7 +11,7 @@ class UserDetailsSerializer(serializers.Serializer):
     lastname = serializers.CharField()
     displayed_name = serializers.CharField()
     email = serializers.CharField()
-    provider_id = serializers.IntegerField()
+    provider_id = serializers.CharField()
 
 
 class APIRequestLogSerializer(serializers.ModelSerializer):

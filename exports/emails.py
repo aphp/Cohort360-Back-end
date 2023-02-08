@@ -34,7 +34,7 @@ KEY_DATABASE_NAME = "KEY_DATABASE_NAME"
 _log = logging.getLogger('django.request')
 
 
-def send_mail(msg: EmailMultiAlternatives):
+def send_email(msg: EmailMultiAlternatives):
     msg.send()
 
 
@@ -108,7 +108,7 @@ def send_failed_email(req: ExportRequest, email_address: str):
 
     msg.attach_alternative(replace_keys(html_mail, req, True), "text/html")
     msg.attach_file('exports/email_templates/logoCohort360.png')
-    send_mail(msg)
+    send_email(msg)
 
 
 def send_success_email(req: ExportRequest, email_address: str):
@@ -136,7 +136,7 @@ def send_success_email(req: ExportRequest, email_address: str):
 
     msg.attach_alternative(replace_keys(html_mail, req, True), "text/html")
     msg.attach_file('exports/email_templates/logoCohort360.png')
-    send_mail(msg)
+    send_email(msg)
 
 
 def email_info_request_done(req: ExportRequest):
@@ -203,7 +203,7 @@ def email_info_request_confirmed(req: ExportRequest, email_address: str):
 
     msg.attach_alternative(replace_keys(html_mail, req, True), "text/html")
     msg.attach_file('exports/email_templates/logoCohort360.png')
-    send_mail(msg)
+    send_email(msg)
 
 
 def email_info_request_deleted(req: ExportRequest, email_address: str):
@@ -236,4 +236,4 @@ def email_info_request_deleted(req: ExportRequest, email_address: str):
 
     msg.attach_alternative(replace_keys(html_mail, req, True), "text/html")
     msg.attach_file('exports/email_templates/logoCohort360.png')
-    send_mail(msg)
+    send_email(msg)

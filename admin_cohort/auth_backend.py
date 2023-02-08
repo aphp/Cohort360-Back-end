@@ -21,7 +21,6 @@ class AuthBackend:
         except LoginError:
             return
         except ServerError as e:
-            _log.exception(f"ServerError while authenticating user '{username}' - {e}")
             request.jwt_server_unavailable = True
             request.jwt_server_message = str(e)
             return

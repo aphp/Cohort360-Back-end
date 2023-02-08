@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('cohort', '0023_remove_measure_xxx_fields'),
+        ('cohort', '0024_remove_measure_xxx_fields'),
     ]
 
     operations = [
