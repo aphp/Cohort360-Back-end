@@ -1,4 +1,7 @@
 # https://docs.gunicorn.org/en/stable/settings.html#workers
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 workers = 7
 threads = 10
@@ -29,17 +32,13 @@ logconfig_dict = dict(
             "stream": "ext://sys.stdout"
         },
         "access_file": {
-            "class": "logging.handlers.RotatingFileHandler",
-            "filename": "log/gunicorn.access.log",
-            "maxBytes": 100 * 1024 * 1024,
-            "backupCount": 1000,
+            "class": "logging.FileHandler",
+            "filename": BASE_DIR / "log/gunicorn.access.log",
             "formatter": "generic"
         },
         "error_file": {
-            "class": "logging.handlers.RotatingFileHandler",
-            "filename": "log/gunicorn.error.log",
-            "maxBytes": 100 * 1024 * 1024,
-            "backupCount": 1000,
+            "class": "logging.FileHandler",
+            "filename": BASE_DIR / "log/gunicorn.error.log",
             "formatter": "generic"
         }},
     formatters={
