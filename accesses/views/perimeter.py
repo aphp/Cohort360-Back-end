@@ -184,7 +184,6 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
             return self.treefied(request, *args, **kwargs)
         return super(PerimeterViewSet, self).list(request, *args, **kwargs)
 
-
     @swagger_auto_schema(operation_description="Test",
                          responses={'201': openapi.Response("Perimeters found", YasgTreefiedPerimeterSerializer),
                                     '401': openapi.Response("Not authenticated")})
