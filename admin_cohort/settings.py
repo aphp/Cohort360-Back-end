@@ -80,18 +80,14 @@ LOGGING = dict(version=1,
                    },
                    'info_handler': {
                        'level': "INFO",
-                       'class': "logging.handlers.RotatingFileHandler",
+                       'class': "logging.FileHandler",
                        'filename': BASE_DIR / "log/django.log",
-                       'maxBytes': 100 * 1024 * 1024,
-                       'backupCount': 1000,
                        'formatter': "verbose"
                     },
                    'error_handler': {
                        'level': "ERROR",
-                       'class': "logging.handlers.RotatingFileHandler",
+                       'class': "logging.FileHandler",
                        'filename': BASE_DIR / "log/django.error.log",
-                       'maxBytes': 100 * 1024 * 1024,
-                       'backupCount': 1000,
                        'formatter': "verbose"
                     },
                    'mail_admins': {
