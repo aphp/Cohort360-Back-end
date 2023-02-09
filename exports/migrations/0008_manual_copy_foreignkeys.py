@@ -65,14 +65,14 @@ class Migration(migrations.Migration):
             'UPDATE export_request er '
             'SET creator_fk_id=('
             'SELECT u.provider_username FROM "user" u '
-            'WHERE u.provider_id=er.provider_id'
+            'WHERE u.provider_id=CAST(er.provider_id as VARCHAR)'
             ')'
         ),
         migrations.RunSQL(
             'UPDATE export_request er '
             'SET owner_id=('
             'SELECT u.provider_username FROM "user" u '
-            'WHERE u.provider_id=er.provider_id'
+            'WHERE u.provider_id=CAST(er.provider_id as VARCHAR)'
             ')'
         ),
         migrations.RunSQL(

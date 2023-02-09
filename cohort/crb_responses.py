@@ -1,7 +1,7 @@
 from admin_cohort.types import JobStatus
 
 
-class FhirValidateResponse:
+class CRBResponse:
     def __init__(self, success: bool = False, err_msg: str = "", fhir_job_status: JobStatus = JobStatus.new,
                  fhir_datetime=None, fhir_job_id: str = "", job_duration=None, count: int = None):
         self.success = success
@@ -13,14 +13,21 @@ class FhirValidateResponse:
         self.count = count
 
 
-class FhirCountResponse(FhirValidateResponse):
+class CRBCountResponse(CRBResponse):
     def __init__(self, count_min: int = None, count_max: int = None, **kwargs):
-        super(FhirCountResponse, self).__init__(**kwargs)
+        super(CRBCountResponse, self).__init__(**kwargs)
         self.count_min = count_min
         self.count_max = count_max
 
 
-class FhirCohortResponse(FhirValidateResponse):
+class CRBCohortResponse(CRBResponse):
+    # todo: 2b refactored as group.id no longer needed. we get it via the SJS and ETL callback
     def __init__(self, group_id: str = "", **kwargs):
-        super(FhirCohortResponse, self).__init__(**kwargs)
+        super(CRBCohortResponse, self).__init__(**kwargs)
         self.group_id = group_id
+
+
+class CRBValidateResponse:
+    def __init__(self, success: bool = False, err_msg: str = ""):
+        self.success = success
+        self.err_msg = err_msg

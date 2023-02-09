@@ -12,6 +12,7 @@ environ.Env.read_env()
 
 SERVER_VERSION = env("SERVER_VERSION")
 BACK_URL = env("BACK_URL")
+FRONT_URL = env("FRONT_URL")
 FRONT_URLS = [f"http://{u}" for u in env("FRONT_URLS").split(',')]
 
 # SECURITY WARNING: keep the secret key used in production secret!
@@ -68,7 +69,7 @@ LOGGING = dict(version=1,
                    'django.request': {
                        'level': "ERROR",
                        'handlers': ['console', 'error_handler', 'mail_admins'],
-                       'propagate': False,
+                       'propagate': False
                    }},
                handlers={
                    'console': {
@@ -263,3 +264,10 @@ if 'workspaces' in INCLUDED_APPS:
 # CUSTOM EXCEPTION REPORTER
 DEFAULT_EXCEPTION_REPORTER_FILTER = 'admin_cohort.tools.CustomExceptionReporterFilter'
 SENSITIVE_PARAMS = env('SENSITIVE_PARAMS').split(",")
+
+# COHORTS +20k
+LAST_COUNT_VALIDITY = int(env("LAST_COUNT_VALIDITY", default=24))    # in hours
+COHORT_LIMIT = int(env("COHORT_LIMIT", default=20_000))
+
+SJS_USERNAME = env("SJS_USERNAME", default="SPARK_JOB_SERVER")
+ETL_USERNAME = env("ETL_USERNAME", default="SOLR_ETL")

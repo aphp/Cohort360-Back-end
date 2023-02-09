@@ -39,6 +39,7 @@ class JobStatus(StrEnum):
     denied = "denied"
     validated = "validated"
     pending = "pending"
+    long_pending = "long_pending"
     started = "started"
     failed = "failed"
     cancelled = "cancelled"

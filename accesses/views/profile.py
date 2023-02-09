@@ -66,7 +66,7 @@ class ProfileViewSet(CustomLoggingMixin, BaseViewset):
                                                      ["provider_history_id", "(to deprecate -> id) Filter type",
                                                       openapi.TYPE_INTEGER],
                                                      ["id", "Filter type", openapi.TYPE_INTEGER],
-                                                     ["provider_id", "Filter type", openapi.TYPE_INTEGER],
+                                                     ["provider_id", "Filter type", openapi.TYPE_STRING],
                                                      ["cdm_source", "(to deprecate -> source) Filter type "
                                                                     "('MANUAL', 'ORBIS', etc.)", openapi.TYPE_STRING],
                                                      ["source", "Filter type ('MANUAL', 'ORBIS', etc.)",
@@ -96,7 +96,7 @@ class ProfileViewSet(CustomLoggingMixin, BaseViewset):
                                                                  "lastname": openapi.Schema(type=openapi.TYPE_STRING),
                                                                  "email": openapi.Schema(type=openapi.TYPE_STRING),
                                                                  "provider_id": openapi.Schema(
-                                                                     type=openapi.TYPE_INTEGER,
+                                                                     type=openapi.TYPE_STRING,
                                                                      description="(to deprecate)"),
                                                                  "user": openapi.Schema(type=openapi.TYPE_STRING),
                                                                  "provider_source_value": openapi.Schema(
