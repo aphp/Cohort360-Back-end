@@ -178,16 +178,19 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         update_from_sjs = all([key in data for key in sjs_data_keys])
         update_from_etl = "request_job_status" in data
 
+        _log.info(f"data : {data}")
         if "job_status" in data:
-            job_status = fhir_to_job_status().get(data.pop("job_status"))
-            if not job_status:
-                return Response(data=f"Invalid job status: {data.get('status')}",
-                                status=status.HTTP_400_BAD_REQUEST)
-            data["request_job_status"] = job_status
-            if job_status in (JobStatus.finished, JobStatus.failed):
-                data["request_job_duration"] = str(timezone.now() - cohort.created_at)
-                if job_status == JobStatus.failed:
-                    data["request_job_fail_msg"] = "Received a failed status from SJS"
+            jstat = data.pop("job_status")
+            if jstat:
+                job_status = fhir_to_job_status().get(jstat)
+                if not job_status:
+                    return Response(data=f"Invalid job status: {data.get('status')}",
+                                    status=status.HTTP_400_BAD_REQUEST)
+                data["request_job_status"] = job_status
+                if job_status in (JobStatus.finished, JobStatus.failed):
+                    data["request_job_duration"] = str(timezone.now() - cohort.created_at)
+                    if job_status == JobStatus.failed:
+                        data["request_job_fail_msg"] = "Received a failed status from SJS"
         if "group.id" in data:
             data["fhir_group_id"] = data.pop("group.id")
         if "group.count" in data:
