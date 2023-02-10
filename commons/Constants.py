@@ -1,0 +1,7 @@
+FHIR_GROUP_ID = "fhir_group_id"
+JOB_STATUS = "job_status"
+REQUEST_JOB_STATUS = "request_job_status"
+REQUEST_JOB_DURATION = "request_job_duration"
+REQUEST_JOB_FAIL_MSG = "request_job_fail_msg"
+GROUP_DOT_ID = "group.id"
+GROUP_DOT_COUNT = "group.count"
