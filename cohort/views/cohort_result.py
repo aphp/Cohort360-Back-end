@@ -2,8 +2,8 @@ import logging
 
 from django.db.models import Q, F
 from django.http import HttpResponse, JsonResponse, Http404, QueryDict
-from django_filters import rest_framework as filters, OrderingFilter
 from django.utils import timezone
+from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
@@ -23,7 +23,6 @@ from cohort.permissions import SJSandETLCallbackPermission
 from cohort.serializers import CohortResultSerializer, CohortResultSerializerFullDatedMeasure, CohortRightsSerializer
 from cohort.tools import get_dict_cohort_pop_source, get_all_cohorts_rights, send_email_notif_about_large_cohort
 from cohort.views.shared import UserObjectsRestrictedViewSet
-
 
 _log = logging.getLogger('info')
 
@@ -99,13 +98,13 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
 
     def get_permissions(self):
         sjs_etl_users = [SJS_USERNAME, ETL_USERNAME]
-        if self.request.method == "PATCH" and self.request.user.provider_username in sjs_etl_users:
+        if self.request.method in ("GET", "PATCH") and self.request.user.provider_username in sjs_etl_users:
             return [SJSandETLCallbackPermission()]
         return super(CohortResultViewSet, self).get_permissions()
 
     def get_queryset(self):
         sjs_etl_users = [SJS_USERNAME, ETL_USERNAME]
-        if self.request.method == "PATCH" and self.request.user.provider_username in sjs_etl_users:
+        if self.request.method in ("GET", "PATCH") and self.request.user.provider_username in sjs_etl_users:
             return self.queryset
         return super(CohortResultViewSet, self).get_queryset()
 
