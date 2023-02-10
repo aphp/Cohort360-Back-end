@@ -37,9 +37,8 @@ class SJSandETLCallbackPermission(permissions.BasePermission):
 
     def has_object_permission(self, request, view, obj):
         sjs_etl_users = [SJS_USERNAME, ETL_USERNAME]
-        return user_is_authenticated(request.user)\
-            and request.method == "PATCH"\
-            and request.user.provider_username in sjs_etl_users
+        return user_is_authenticated(request.user) and request.method in ("GET", "PATCH") \
+               and request.user.provider_username in sjs_etl_users
 
 
 def OR(*perms):
