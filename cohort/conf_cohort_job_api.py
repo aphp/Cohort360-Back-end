@@ -4,9 +4,9 @@ import time
 from typing import List, Tuple, Dict
 
 import requests
-from requests import Response, JSONDecodeError, HTTPError
 from django.utils import timezone
 from django.utils.datetime_safe import datetime
+from requests import Response, JSONDecodeError, HTTPError
 from rest_framework import status
 from rest_framework.request import Request
 
@@ -80,7 +80,7 @@ class JobResponse:
         self.class_path: str = kwargs.get('classPath')
         self.start_time: datetime = kwargs.get('startTime') and parse_date(kwargs.get('startTime')) or None
         self.context: str = kwargs.get('context')
-        self.status: JobStatus = fhir_to_job_status().get(kwargs.get('status'))
+        self.status: JobStatus = fhir_to_job_status().get(kwargs.get('status').upper())
         if not self.status:
             raise ValueError(f"Expected valid status value, got None : {resp.json()}")
         self.job_id: str = kwargs.get('jobId')
@@ -145,7 +145,7 @@ def cancel_job(job_id: str, auth_headers) -> JobStatus:
     if 'status' not in result:
         raise Exception(f"FHIR ERROR: could not read status from response; {result}")
 
-    s = fhir_to_job_status().get(result.get('status'))
+    s = fhir_to_job_status().get(result.get('status').upper())
     try:
         new_status = JobStatus(s)
     except ValueError:
