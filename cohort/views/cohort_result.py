@@ -178,7 +178,13 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         update_from_sjs = all([key in data for key in sjs_data_keys])
         update_from_etl = "request_job_status" in data
         if "job_status" in data:
-            job_status = fhir_to_job_status().get(data.pop("job_status").upper())
+            jstat = data.pop("job_status")
+            _log.info(f"******* jstat: {jstat}")
+            if type(jstat) == list:
+                jstat = "".join(jstat)
+            _log.info(f"******* data : {data}")
+            _log.info(f"******* jstat clean: {jstat}")
+            job_status = fhir_to_job_status().get(jstat.upper())
             if not job_status:
                 return Response(data=f"Invalid job status: {data.get('status')}",
                                 status=status.HTTP_400_BAD_REQUEST)
