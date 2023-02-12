@@ -1,15 +1,27 @@
-from setup_logging import SHARED_QUEUE
-# from pathlib import Path
-#
-# BASE_DIR = Path(__file__).resolve().parent.parent
+import gunicorn.app.base
 
-workers = 7
-threads = 10
+from admin_cohort.settings import SHARED_QUEUE
+from admin_cohort.wsgi import application
+from setup_logging import setup_logging
 
-# capture_output = True
 
-# accesslog = str(BASE_DIR / "log/gunicorn.access.log")
-# errorlog = str(BASE_DIR / "log/gunicorn.error.log")
+
+
+class DjangoWSGI(gunicorn.app.base.BaseApplication):
+    def __init__(self, app, options=None):
+        self.options = options or {}
+        self.application = app
+        super().__init__()
+
+    def load_config(self):
+        config = {key: value for key, value in self.options.items()
+                  if key in self.cfg.settings and value is not None}
+        for key, value in config.items():
+            self.cfg.set(key.lower(), value)
+
+    def load(self):
+        return self.application
+
 
 logconfig_dict = dict(
     version=1,
@@ -52,3 +64,11 @@ logconfig_dict = dict(
         }
     }
 )
+
+if __name__ == '__main__':
+    options = {'workers': 7,
+               'threads': 10,
+               'logconfig_dict': logconfig_dict
+               }
+    setup_logging(queue=SHARED_QUEUE)
+    DjangoWSGI(application, options).run()

@@ -21,8 +21,11 @@ cron
 # See https://docs.celeryq.dev/en/stable/reference/cli.html#celery-worker for configuration
 celery -A admin_cohort worker -B --loglevel=INFO --logfile=/app/log/celery.log &
 sleep 10
-gunicorn admin_cohort.wsgi --config .conf/gunicorn.conf.py
-tail -f /app/log/gunicorn.log
+
+#gunicorn admin_cohort.wsgi --config .conf/gunicorn.conf.py
+python server.py
+
+tail -f /app/log/django.error.log
 
 # Wait for any process to exit
 wait -n

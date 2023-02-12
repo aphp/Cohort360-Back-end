@@ -29,10 +29,12 @@ if SERVER_VERSION == "dev":
                              f"http://{env('SERVER_IP')}"]
 
     CSRF_TRUSTED_ORIGINS = ["http://localhost:3000",
+                            "http://localhost:8001",
                             f"http://{env('SERVER_IP')}"]
 
 elif SERVER_VERSION == "prod":
     CORS_ORIGIN_WHITELIST = ["http://localhost:3000",
+                             "http://localhost:8001",
                              "http://localhost:49033",
                              f"http://{env('BACK_URL')}"] + FRONT_URLS
 
@@ -58,36 +60,78 @@ SESSION_COOKIE_SECURE = not DEBUG
 
 ADMINS = [a.split(',') for a in env("ADMINS").split(';')]
 
+# LOGGING = dict(version=1,
+#                disable_existing_loggers=False,
+#                loggers={
+#                    'info': {
+#                        'level': "INFO",
+#                        'handlers': ['info_handler'],
+#                        'propagate': True
+#                    },
+#                    'django.request': {
+#                        'level': "ERROR",
+#                        # 'handlers': ['console', 'error_handler', 'mail_admins'],
+#                        # 'handlers': ['error_handler', 'mail_admins'],
+#                        'handlers': ['error_handler'],
+#                        'propagate': False
+#                    }},
+#                handlers={
+#                    'info_handler': {
+#                        'level': "INFO",
+#                        # 'class': "logging.FileHandler",
+#                        # 'filename': BASE_DIR / "log/django.log",
+#                        'class': "logging.StreamHandler",
+#                        'stream': "ext://sys.stdout",
+#                        'formatter': "verbose"
+#                     },
+#                    'error_handler': {
+#                        'level': "ERROR",
+#                        # 'class': "logging.FileHandler",
+#                        # 'filename': BASE_DIR / "log/django.error.log",
+#                        'class': "logging.StreamHandler",
+#                        'stream': "ext://sys.stderr",
+#                        'formatter': "verbose"
+#                     },
+#                    'mail_admins': {
+#                        'level': "ERROR",
+#                        'class': "django.utils.log.AdminEmailHandler",
+#                        'include_html': True
+#                    }},
+#                formatters={
+#                    'verbose': {
+#                        'format': "{levelname} {asctime} module={module} pid={process:d} tid={thread:d} msg=`{message}`",
+#                        'style': "{"
+#                    }
+#                })
+from multiprocessing import Queue
+SHARED_QUEUE = Queue()
+
 LOGGING = dict(version=1,
                disable_existing_loggers=False,
                loggers={
-                   'info': {
+                    'info': {
                        'level': "INFO",
-                       'handlers': ['console', 'info_handler'],
-                       'propagate': True
-                   },
-                   'django.request': {
-                       'level': "ERROR",
-                       'handlers': ['console', 'error_handler', 'mail_admins'],
+                       'handlers': ['info_handler'],
                        'propagate': False
-                   }},
+                    },
+                    'django.request': {
+                       'level': "ERROR",
+                       # 'handlers': ['console', 'error_handler', 'mail_admins'],
+                       # 'handlers': ['error_handler', 'mail_admins'],
+                       'handlers': ['error_handler'],
+                       'propagate': False
+                    }},
                handlers={
-                   'console': {
-                       'level': "INFO",
-                       'class': "logging.StreamHandler",
-                       'stream': "ext://sys.stdout",
-                       'formatter': "verbose"
-                   },
                    'info_handler': {
                        'level': "INFO",
-                       'class': "logging.FileHandler",
-                       'filename': BASE_DIR / "log/django.log",
+                       'class': "logging.handlers.QueueHandler",
+                       'queue': SHARED_QUEUE,
                        'formatter': "verbose"
                     },
                    'error_handler': {
                        'level': "ERROR",
-                       'class': "logging.FileHandler",
-                       'filename': BASE_DIR / "log/django.error.log",
+                       'class': "logging.handlers.QueueHandler",
+                       'queue': SHARED_QUEUE,
                        'formatter': "verbose"
                     },
                    'mail_admins': {
@@ -101,7 +145,6 @@ LOGGING = dict(version=1,
                        'style': "{"
                    }
                })
-
 
 # Application definition
 INCLUDED_APPS = env('INCLUDED_APPS').split(",")
