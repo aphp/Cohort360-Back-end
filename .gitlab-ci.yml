@@ -5,7 +5,7 @@ variables:
 
 stages:
   - lint
-  - -sonarqube-check
+  - sonarqube-check
   - test
   - deploy
 
