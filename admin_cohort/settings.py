@@ -1,4 +1,5 @@
 from datetime import date, datetime, time
+from logging.handlers import DEFAULT_TCP_LOGGING_PORT
 from pathlib import Path
 
 import environ
@@ -103,7 +104,6 @@ ADMINS = [a.split(',') for a in env("ADMINS").split(';')]
 #                        'style': "{"
 #                    }
 #                })
-from setup_logging import SHARED_QUEUE
 
 LOGGING = dict(version=1,
                disable_existing_loggers=False,
@@ -115,22 +115,22 @@ LOGGING = dict(version=1,
                     },
                     'django.request': {
                        'level': "ERROR",
-                       # 'handlers': ['console', 'error_handler', 'mail_admins'],
-                       # 'handlers': ['error_handler', 'mail_admins'],
-                       'handlers': ['error_handler'],
+                       'handlers': ['error_handler'],   # ['error_handler', 'mail_admins']
                        'propagate': False
                     }},
                handlers={
                    'info_handler': {
                        'level': "INFO",
-                       'class': "logging.handlers.QueueHandler",
-                       'queue': SHARED_QUEUE,
+                       'class': "logging.handlers.SocketHandler",
+                       'host': "localhost",
+                       'port': DEFAULT_TCP_LOGGING_PORT,
                        'formatter': "verbose"
                     },
                    'error_handler': {
                        'level': "ERROR",
-                       'class': "logging.handlers.QueueHandler",
-                       'queue': SHARED_QUEUE,
+                       'class': "logging.handlers.SocketHandler",
+                       'host': "localhost",
+                       'port': DEFAULT_TCP_LOGGING_PORT,
                        'formatter': "verbose"
                     },
                    'mail_admins': {
