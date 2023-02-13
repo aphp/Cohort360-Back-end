@@ -63,12 +63,12 @@ def log_listener_process(queue: Queue):
             traceback.print_exc(file=sys.stderr)
 
 
-def setup_logging(queue):
-    logger_p = Process(target=log_listener_process, args=(queue,))
+def setup_logging():
+    logger_p = Process(target=log_listener_process, args=(SHARED_QUEUE,))
     logger_p.start()
     print(f"************ {logger_p.pid=}")
+    logger_p.join()
 
 
-# if __name__ == "__main__":
-#     """ run gunicorn command here ?"""
-#     setup_logging()
+if __name__ == "__main__":
+    setup_logging()

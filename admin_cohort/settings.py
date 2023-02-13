@@ -103,8 +103,7 @@ ADMINS = [a.split(',') for a in env("ADMINS").split(';')]
 #                        'style': "{"
 #                    }
 #                })
-from multiprocessing import Queue
-SHARED_QUEUE = Queue()
+from setup_logging import SHARED_QUEUE
 
 LOGGING = dict(version=1,
                disable_existing_loggers=False,

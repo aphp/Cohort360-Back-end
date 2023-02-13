@@ -5,8 +5,6 @@ from admin_cohort.wsgi import application
 from setup_logging import setup_logging
 
 
-
-
 class DjangoWSGI(gunicorn.app.base.BaseApplication):
     def __init__(self, app, options=None):
         self.options = options or {}
