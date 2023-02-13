@@ -80,7 +80,7 @@ class JobResponse:
         self.class_path: str = kwargs.get('classPath')
         self.start_time: datetime = kwargs.get('startTime') and parse_date(kwargs.get('startTime')) or None
         self.context: str = kwargs.get('context')
-        self.status: JobStatus = fhir_to_job_status().get(kwargs.get('status').upper())
+        self.status: JobStatus = fhir_to_job_status().get(kwargs.get('status', '').upper())
         if not self.status:
             raise ValueError(f"Expected valid status value, got None : {resp.json()}")
         self.job_id: str = kwargs.get('jobId')
@@ -96,7 +96,7 @@ class JobResponse:
         self.request_response: Response = resp
 
 
-def get_job(job_id: str, auth_headers) -> Tuple[Response, dict]:
+def get_job(job_id: str, auth_headers) -> JobResponse:
     try:
         resp = requests.get(f"{JOBS_API}/{job_id}", headers=auth_headers)
     except Exception as e:
