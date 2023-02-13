@@ -115,7 +115,7 @@ LOGGING = dict(version=1,
                     },
                     'django.request': {
                        'level': "ERROR",
-                       'handlers': ['error_handler'],   # ['error_handler', 'mail_admins']
+                       'handlers': ['error_handler', 'mail_admins'],
                        'propagate': False
                     }},
                handlers={
