@@ -33,8 +33,6 @@ sonarqube-check:
   script:
     - sonar-scanner
   allow_failure: true
-  only:
-    - develop
 
 test-job:
   image: harbor.eds.aphp.fr/cohort360/python-test:3.11.1
