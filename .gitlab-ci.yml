@@ -5,8 +5,8 @@ variables:
 
 stages:
   - lint
-  - sonarqube-check
   - test
+  - sonarqube-check
   - deploy
 
 lint-job:
@@ -17,21 +17,6 @@ lint-job:
     - echo "test lint"
     - flake8 accesses/ admin_cohort/ cohort/ workspaces/ exports/ --max-line-length 150
   allow_failure: false
-
-sonarqube-check:
-  image:
-    name: sonarsource/sonar-scanner-cli:latest
-    entrypoint: [ "" ]
-  stage: sonarqube-check
-  variables:
-    SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"  # Defines the location of the analysis task cache
-    GIT_DEPTH: "0"  # Tells git to fetch all the branches of the project, required by the analysis task
-  cache:
-    key: "${CI_JOB_NAME}"
-    paths:
-      - .sonar/cache
-  script:
-    - sonar-scanner
 
 test-job:
   image: harbor.eds.aphp.fr/cohort360/python-test:3.11.1
@@ -59,6 +44,25 @@ test-job:
   only:
     - tags
     - develop
+
+sonarqube-check:
+  image:
+    name: sonarsource/sonar-scanner-cli:latest
+    entrypoint: [ "" ]
+  needs:
+    - test-job
+  dependencies:
+    - test-job
+  stage: sonarqube-check
+  variables:
+    SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"  # Defines the location of the analysis task cache
+    GIT_DEPTH: "0"  # Tells git to fetch all the branches of the project, required by the analysis task
+  cache:
+    key: "${CI_JOB_NAME}"
+    paths:
+      - .sonar/cache
+  script:
+    - sonar-scanner
 
 deploy-job:
   image: harbor.eds.aphp.fr/cohort360/kaniko:debug
