@@ -99,15 +99,18 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     filterset_class = CohortFilter
     search_fields = ('$name', '$description')
 
+    def is_sjs_or_etl_user(self):
+        return self.request.method in ("GET", "PATCH") and \
+               self.request.user.is_authenticated and \
+               self.request.user.provider_username in [SJS_USERNAME, ETL_USERNAME]
+
     def get_permissions(self):
-        sjs_etl_users = [SJS_USERNAME, ETL_USERNAME]
-        if self.request.method in ("GET", "PATCH") and self.request.user.provider_username in sjs_etl_users:
+        if self.is_sjs_or_etl_user():
             return [SJSandETLCallbackPermission()]
         return super(CohortResultViewSet, self).get_permissions()
 
     def get_queryset(self):
-        sjs_etl_users = [SJS_USERNAME, ETL_USERNAME]
-        if self.request.method in ("GET", "PATCH") and self.request.user.provider_username in sjs_etl_users:
+        if self.is_sjs_or_etl_user():
             return self.queryset
         return super(CohortResultViewSet, self).get_queryset()
 
