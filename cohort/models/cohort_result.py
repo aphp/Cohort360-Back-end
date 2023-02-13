@@ -28,4 +28,5 @@ class CohortResult(CohortBaseModel, JobModel):
 
     @property
     def exportable(self):
-        return self.result_size < COHORT_LIMIT
+        cohort_size = self.result_size
+        return cohort_size and cohort_size < COHORT_LIMIT or False
