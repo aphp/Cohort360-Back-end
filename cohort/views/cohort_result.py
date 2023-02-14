@@ -25,7 +25,7 @@ from cohort.tools import get_dict_cohort_pop_source, get_all_cohorts_rights, sen
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
 
-_log = logging.getLogger('info')
+_logger = logging.getLogger('info')
 
 
 class CohortFilter(filters.FilterSet):
@@ -199,7 +199,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
 
         if status.is_success(resp.status_code):
             if update_from_sjs:
-                _log.info("CohortResult successfully updated from SJS")
+                _logger.info("CohortResult successfully updated from SJS")
             if update_from_etl:
                 send_email_notif_about_large_cohort(cohort.name, cohort.fhir_group_id, cohort.owner)
         return resp

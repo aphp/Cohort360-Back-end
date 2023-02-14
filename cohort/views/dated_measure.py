@@ -17,7 +17,7 @@ from cohort.models import CohortResult, DatedMeasure, RequestQuerySnapshot
 from cohort.serializers import DatedMeasureSerializer
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
-_log = logging.getLogger('django.request')
+_logger = logging.getLogger('django.request')
 
 
 class DMFilter(filters.FilterSet):
@@ -57,13 +57,13 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         elif "request_query_snapshot_id" in request.data:
             rqs_id = request.data.get("request_query_snapshot_id")
         else:
-            _log.exception("'request_query_snapshot_id' not provided")
+            _logger.exception("'request_query_snapshot_id' not provided")
             return HttpResponseBadRequest()
 
         try:
             rqs: RequestQuerySnapshot = RequestQuerySnapshot.objects.get(pk=rqs_id)
         except RequestQuerySnapshot.DoesNotExist:
-            _log.exception("Invalid 'request_query_snapshot_id'")
+            _logger.exception("Invalid 'request_query_snapshot_id'")
             return HttpResponseBadRequest()
 
         dms_jobs = rqs.request.dated_measures.filter(request_job_status__in=[JobStatus.started, JobStatus.pending]) \
@@ -82,7 +82,7 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                 job.save()
             except Exception as e:
                 msg = f"Error while cancelling {status} job [{job.request_job_id}] DM [{job.uuid}] - {e}"
-                _log.exception(msg)
+                _logger.exception(msg)
                 job.request_job_status = JobStatus.failed
                 job.request_job_fail_msg = msg
                 job.save()

@@ -17,7 +17,7 @@ from admin_cohort.tools import prettify_dict
 from .models import ExportRequest
 from .types import ApiJobResponse, HdfsServerUnreachableError, ExportType
 
-_log = logging.getLogger('info')
+_logger = logging.getLogger('info')
 
 env = os.environ
 
@@ -63,7 +63,7 @@ dct_api_to_job_status = {ApiJobStatutes.pending.value: JobStatus.pending,
 
 
 def log_export_request_task(id, msg):
-    _log.info(f"[ExportTask] [ExportRequest: {id}] {msg}")
+    _logger.info(f"[ExportTask] [ExportRequest: {id}] {msg}")
 
 
 def build_location(db_name: str) -> str:

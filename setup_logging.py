@@ -89,7 +89,6 @@ def main():
     logging.basicConfig(level=logging.INFO,
                         format=fmt,
                         handlers=configure_handlers())
-    print('Starting TCP socket server...')
     tcp_server = LogRecordSocketReceiver()
     tcp_server.serve_until_stopped()
 

@@ -31,7 +31,7 @@ KEY_DELETE_DATE = "KEY_DELETE_DATE"
 KEY_DATABASE_NAME = "KEY_DATABASE_NAME"
 
 
-_log = logging.getLogger('django.request')
+_logger = logging.getLogger('django.request')
 
 
 def send_email(msg: EmailMultiAlternatives):
@@ -156,7 +156,7 @@ def email_info_request_done(req: ExportRequest):
             send_failed_email(req, req.owner.email)
     except (SMTPException, TimeoutError):
         except_msg = f"Could not send export email - request status was '{req.request_job_status}'"
-        _log.exception(f"{except_msg} - Mark it as '{JobStatus.failed}'")
+        _logger.exception(f"{except_msg} - Mark it as '{JobStatus.failed}'")
         req.request_job_status = JobStatus.failed
         req.request_job_fail_msg = except_msg
         req.save()
