@@ -5,7 +5,6 @@ from accesses.models import Perimeter, Access, Role, get_user_valid_manual_acces
 from accesses.tools.data_right_mapping import PerimeterReadRight
 from cohort.models import CohortResult
 from cohort.tools import get_list_cohort_id_care_site
-from commons.tools import cast_string_to_ids_list
 
 
 def is_perimeter_in_top_hierarchy(above_list: [int], all_distinct_perimeters: [Perimeter]) -> bool:
@@ -35,7 +34,7 @@ def get_top_perimeter_same_level(accesses_same_levels: [Access], all_distinct_pe
         perimeter = access.perimeter
         if perimeter is None:
             pass
-        above_list = cast_string_to_ids_list(perimeter.above_levels_ids)
+        above_list = perimeter.above_levels
         if is_perimeter_in_top_hierarchy(above_list, all_distinct_perimeters):
             response_list.append(perimeter)
     return response_list
@@ -54,13 +53,13 @@ def get_top_perimeter_inf_level(accesses_inf_levels: [Access], all_distinct_peri
         perimeter = access.perimeter
         if perimeter is None:
             pass
-        above_list = cast_string_to_ids_list(perimeter.above_levels_ids)
+        above_list = perimeter.above_levels
         if is_perimeter_in_top_hierarchy(above_list, all_distinct_perimeters) and \
                 is_perimeter_in_top_hierarchy([perimeter.id], same_level_perimeters_response):
             if perimeter.inferior_levels_ids is None:
                 print("WARN: No lower levels perimeters found! ")
                 pass
-            children_list = cast_string_to_ids_list(perimeter.inferior_levels_ids)
+            children_list = perimeter.inferior_levels
             if len(children_list) == 0:
                 pass
             children_perimeters = Perimeter.objects.filter(id__in=children_list)
@@ -78,7 +77,7 @@ def filter_perimeter_by_top_hierarchy_perimeter_list(perimeters_filtered_by_sear
     if not perimeters_filtered_by_search:
         return top_hierarchy_perimeter_list
     for perimeter in perimeters_filtered_by_search:
-        above_levels_ids = cast_string_to_ids_list(perimeter.above_levels_ids)
+        above_levels_ids = perimeter.above_levels
         for top_perimeter in top_hierarchy_perimeter_list:
             if top_perimeter.id == perimeter.id or top_perimeter.id in above_levels_ids:
                 response_list.append(perimeter)
@@ -113,7 +112,7 @@ def filter_accesses_by_search_perimeters(perimeters_filtered_by_search, all_read
     """
     perimeter_read_right_list = []
     for perimeter in perimeters_filtered_by_search:
-        above_levels_ids = cast_string_to_ids_list(perimeter.above_levels_ids)
+        above_levels_ids = perimeter.above_levels
         above_levels_ids.append(perimeter.id)
         pseudo, nomi, ipp = get_right_boolean_for_each_accesses_list(above_levels_ids,
                                                                      all_read_patient_nominative_accesses,
@@ -138,14 +137,14 @@ def get_top_perimeter_from_read_patient_accesses(accesses_nomi, accesses_pseudo)
     all_pseudo = [access.perimeter.id for access in accesses_pseudo]
     for access in accesses_nomi:
         perimeter = access.perimeter
-        above_levels_ids = cast_string_to_ids_list(perimeter.above_levels_ids)
+        above_levels_ids = perimeter.above_levels
         for above_perimeter in above_levels_ids:
             if above_perimeter in all_nomi and perimeter.id in all_nomi:
                 all_nomi.remove(perimeter.id)
                 break
     for access in accesses_pseudo:
         perimeter = access.perimeter
-        above_levels_ids = cast_string_to_ids_list(perimeter.above_levels_ids)
+        above_levels_ids = perimeter.above_levels
         for above_perimeter in above_levels_ids:
             if (above_perimeter in all_pseudo or above_perimeter in all_nomi or perimeter.id in all_nomi) \
                     and perimeter.id in all_pseudo:
@@ -171,7 +170,7 @@ def get_read_patient_right(perimeters_filtered_by_search, all_read_patient_nomin
             "|perimeter_process.py get_read_patient_right()"
             "|No perimeters in parameter for rights verification")
     for perimeter in perimeters_filtered_by_search:
-        above_levels_ids = cast_string_to_ids_list(perimeter.above_levels_ids)
+        above_levels_ids = perimeter.above_levels
         above_levels_ids.append(perimeter.id)
         if all_read_patient_nominative_accesses.filter(perimeter_id__in=above_levels_ids):
             pass
@@ -246,7 +245,7 @@ def is_at_least_one_read_Nomitative_right(perimeters_filtered_by_search, all_rea
             "|perimeter_process.py get_read_patient_right()"
             "|No perimeters in parameter for rights verification")
     for perimeter in perimeters_filtered_by_search:
-        above_levels_ids = cast_string_to_ids_list(perimeter.above_levels_ids)
+        above_levels_ids = perimeter.above_levels
         above_levels_ids.append(perimeter.id)
         if all_read_patient_nominative_accesses.filter(perimeter_id__in=above_levels_ids):
             return True
@@ -265,7 +264,7 @@ def is_pseudo_perimeter_in_top_perimeter(all_read_patient_nominative_accesses, a
     """
     nominative_perimeters = [access.perimeter_id for access in all_read_patient_nominative_accesses]
     for access in all_read_patient_pseudo_accesses:
-        above_levels_ids = cast_string_to_ids_list(access.perimeter.above_levels_ids)
+        above_levels_ids = access.perimeter.above_levels
         above_levels_ids.append(access.perimeter_id)
         if not [pseudo_perimeter for pseudo_perimeter in above_levels_ids if pseudo_perimeter in nominative_perimeters]:
             return True

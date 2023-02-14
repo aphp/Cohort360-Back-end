@@ -44,6 +44,22 @@ class Perimeter(BaseModel):
     def all_children_queryset(self) -> QuerySet:
         return Perimeter.objects.filter(self.all_children_query)
 
+    @property
+    def above_levels(self):
+        try:
+            ids = [int(i) for i in self.above_levels_ids.split(",") if i]
+            return ids
+        except ValueError as ve:
+            raise ValueError("Error while getting the list of above perimeters IDs") from ve
+
+    @property
+    def inferior_levels(self):
+        try:
+            ids = [int(i) for i in self.inferior_levels_ids.split(",") if i]
+            return ids
+        except ValueError as ve:
+            raise ValueError("Error while getting the list of inferior perimeters IDs") from ve
+
     def all_parents_query(self, prefix: str = None) -> Q:
         prefix = f"{prefix}__" if prefix is not None else ""
         return join_qs([
@@ -67,9 +83,6 @@ class Perimeter(BaseModel):
         filtered_queryset = filtered_queryset or cls.objects.all()
         return Prefetch('children', queryset=filtered_queryset,
                         to_attr='prefetched_children')
-
-    class Meta:
-        managed = True
 
 
 def get_all_perimeters_parents_queryset(perims: List[Perimeter], ) -> QuerySet:

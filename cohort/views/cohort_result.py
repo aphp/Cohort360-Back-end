@@ -22,9 +22,6 @@ from cohort.permissions import SJSandETLCallbackPermission
 from cohort.serializers import CohortResultSerializer, CohortResultSerializerFullDatedMeasure, CohortRightsSerializer
 from cohort.tools import get_dict_cohort_pop_source, get_all_cohorts_rights, send_email_notif_about_large_cohort
 from cohort.views.shared import UserObjectsRestrictedViewSet
-from commons.Constants import JOB_STATUS, REQUEST_JOB_STATUS, GROUP_DOT_ID, GROUP_DOT_COUNT, REQUEST_JOB_DURATION, \
-    REQUEST_JOB_FAIL_MSG, FHIR_GROUP_ID
-from commons.tools import value_to_string
 
 _log = logging.getLogger('info')
 
@@ -179,23 +176,23 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     def partial_update(self, request, *args, **kwargs):
         data = request.data
         cohort = self.get_object()
-        sjs_data_keys = (JOB_STATUS, GROUP_DOT_ID, GROUP_DOT_COUNT)
+        sjs_data_keys = ("job_status", "group.id", "group.count")
         update_from_sjs = all([key in data for key in sjs_data_keys])
-        update_from_etl = REQUEST_JOB_STATUS in data
-        if JOB_STATUS in data:
-            job_status = fhir_to_job_status().get(value_to_string(data.pop(JOB_STATUS)).upper())
+        update_from_etl = "request_job_status" in data
+        if "job_status" in data:
+            job_status = fhir_to_job_status().get(value_to_string(data.pop("job_status")).upper())
             if not job_status:
                 return Response(data=f"Invalid job status: {data.get('status')}",
                                 status=status.HTTP_400_BAD_REQUEST)
-            data[REQUEST_JOB_STATUS] = job_status
+            data["request_job_status"] = job_status
             if job_status in (JobStatus.finished, JobStatus.failed):
-                data[REQUEST_JOB_DURATION] = str(timezone.now() - cohort.created_at)
+                data["request_job_duration"] = str(timezone.now() - cohort.created_at)
                 if job_status == JobStatus.failed:
-                    data[REQUEST_JOB_FAIL_MSG] = "Received a failed status from SJS"
-        if GROUP_DOT_ID in data:
-            data[FHIR_GROUP_ID] = value_to_string(data.pop(GROUP_DOT_ID))
-        if GROUP_DOT_COUNT in data:
-            cohort.dated_measure.measure = int(value_to_string(data.pop(GROUP_DOT_COUNT)))
+                    data["request_job_fail_msg"] = "Received a failed status from SJS"
+        if "group.id" in data:
+            data["fhir_group_id"] = value_to_string(data.pop("group.id"))
+        if "group.count" in data:
+            cohort.dated_measure.measure = int(value_to_string(data.pop("group.count")))
             cohort.dated_measure.save()
 
         resp = super(CohortResultViewSet, self).partial_update(request, *args, **kwargs)
