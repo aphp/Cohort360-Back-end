@@ -174,13 +174,16 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                          responses={'200': openapi.Response("Cohort updated successfully", CohortRightsSerializer()),
                                     '400': openapi.Response("Bad Request")})
     def partial_update(self, request, *args, **kwargs):
+        JOB_STATUS = "job_status"
+        GROUP_ID = "group.id"
+        GROUP_COUNT = "group.count"
         data = request.data
         cohort = self.get_object()
-        sjs_data_keys = ("job_status", "group.id", "group.count")
+        sjs_data_keys = (JOB_STATUS, GROUP_ID, GROUP_COUNT)
         update_from_sjs = all([key in data for key in sjs_data_keys])
         update_from_etl = "request_job_status" in data
-        if "job_status" in data:
-            job_status = fhir_to_job_status().get(data.pop("job_status").upper())
+        if JOB_STATUS in data:
+            job_status = fhir_to_job_status().get(data.pop(JOB_STATUS).upper())
             if not job_status:
                 return Response(data=f"Invalid job status: {data.get('status')}",
                                 status=status.HTTP_400_BAD_REQUEST)
@@ -189,10 +192,10 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                 data["request_job_duration"] = str(timezone.now() - cohort.created_at)
                 if job_status == JobStatus.failed:
                     data["request_job_fail_msg"] = "Received a failed status from SJS"
-        if "group.id" in data:
-            data["fhir_group_id"] = data.pop("group.id")
-        if "group.count" in data:
-            cohort.dated_measure.measure = data.pop("group.count")
+        if GROUP_ID in data:
+            data["fhir_group_id"] = data.pop(GROUP_ID)
+        if GROUP_COUNT in data:
+            cohort.dated_measure.measure = data.pop(GROUP_COUNT)
             cohort.dated_measure.save()
 
         resp = super(CohortResultViewSet, self).partial_update(request, *args, **kwargs)

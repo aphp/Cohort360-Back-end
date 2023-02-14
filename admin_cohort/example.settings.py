@@ -3,8 +3,6 @@ from datetime import date, datetime, time
 
 import pytz
 
-# from django.utils.datetime_safe import datetime
-
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 SERVER_VERSION = "dev"  # or prod

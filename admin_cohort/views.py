@@ -96,7 +96,6 @@ class LogFilter(filters.FilterSet):
     status_code = filters.CharFilter(method='status_code_filter')
     requested_at = filters.DateTimeFromToRangeFilter()
     response_ms = filters.RangeFilter()
-    # path = filters.CharFilter(lookup_expr='icontains')
     path_contains = filters.CharFilter(field_name='path', lookup_expr='icontains')
     response = filters.CharFilter(field_name='response', lookup_expr='icontains')
     errors = filters.CharFilter(field_name='errors', lookup_expr='icontains')
@@ -262,7 +261,7 @@ class LoggingViewset(YarnReadOnlyViewsetMixin, viewsets.ModelViewSet):
 
 
 class CustomLoginView(LoginView):
-    @csrf_exempt
+
     def form_valid(self, form):
         """Security check complete. Log the user in."""
         login(self.request, form.get_user())
@@ -288,7 +287,7 @@ class CustomLoginView(LoginView):
         url = self.get_redirect_url()
         return JsonResponse(data) if not url else HttpResponseRedirect(url)
 
-    @csrf_exempt
+    @method_decorator(csrf_exempt)
     @method_decorator(never_cache)
     def dispatch(self, request, *args, **kwargs):
         if self.redirect_authenticated_user and self.request.user.is_authenticated:
@@ -303,7 +302,6 @@ class CustomLoginView(LoginView):
             handler = self.http_method_not_allowed
         return handler(request, *args, **kwargs)
 
-    @csrf_exempt
     def post(self, request, *args, **kwargs):
         resp = super(CustomLoginView, self).post(request, *args, **kwargs)
         if getattr(request, 'jwt_server_unavailable', False):
@@ -316,12 +314,10 @@ class CustomLoginView(LoginView):
 def redirect_token_refresh_view(request):
     if request.method != "POST":
         raise Http404()
-
     try:
         res = conf_auth.refresh_jwt(request.jwt_refresh_key)
-    except Exception as e:
+    except ValueError as e:
         raise Http404(e)
-
     return JsonResponse(data=res.__dict__)
 
 

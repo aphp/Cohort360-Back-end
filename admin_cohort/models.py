@@ -83,11 +83,6 @@ class User(AbstractBaseUser, BaseModel):
         return f"{self.firstname} {self.lastname} ({self.provider_username}) " \
                f"{deleted_info}"
 
-    # @property
-    # def provider(self):
-    #     res = get_provider(provider_source_value=self.provider_username)
-    #     return res
-
     @property
     def valid_profiles(self) -> List:
         return [p for p in self.profiles.prefetch_related('accesses')

@@ -311,39 +311,7 @@ class CohortsCreateTests(CohortsTests):
 
 
 class CohortsDeleteTests(CohortsTests):
-    # def check_delete_case(self, case: DMDeleteCase):
-    #     obj = self.model_objects.create(**case.data_to_delete)
-    #
-    #     if case.with_cohort:
-    #         CohortResult.objects.create(
-    #             dated_measure=obj,
-    #             request_query_snapshot=obj.request_query_snapshot,
-    #             owner=obj.owner,
-    #         )
-    #
-    #     request = self.factory.delete(self.objects_url)
-    #     force_authenticate(request, case.user)
-    #     response = self.__class__.delete_view(
-    #         request, **{self.model._meta.pk.name: obj.pk}
-    #     )
-    #     response.render()
-    #
-    #     self.assertEqual(
-    #         response.status_code, case.status,
-    #         msg=(f"{case.description}"
-    #              + (f" -> {prettify_json(response.content)}"
-    #                 if response.content else "")),
-    #     )
-    #
-    #     obj = self.model.all_objects.filter(pk=obj.pk).first()
-    #
-    #     if case.success:
-    #         self.check_is_deleted(obj)
-    #     else:
-    #         self.assertIsNotNone(obj)
-    #         self.assertIsNone(obj.deleted)
-    #         obj.delete()
-    #
+
     def setUp(self):
         super(CohortsDeleteTests, self).setUp()
         self.user1_req1_snap1_dm: DatedMeasure = DatedMeasure.objects.create(

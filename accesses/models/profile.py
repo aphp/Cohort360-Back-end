@@ -68,7 +68,6 @@ class Profile(BaseModel):
         used when Profile is a related object
         :return:
         """
-        # now = datetime.now().replace(tzinfo=None)
         now = timezone.now()
         field_prefix = f"{field_prefix}__" if field_prefix else ""
         fields = {"valid_start": f"{field_prefix}valid_start_datetime",

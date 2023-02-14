@@ -88,7 +88,6 @@ def can_user_manage_export_csv_accesses(user: User) -> bool:
 
 
 def can_user_read_accesses(user: User) -> bool:
-    # return True
     return any([r.can_read_other_accesses for r in get_bound_roles(user)])
 
 

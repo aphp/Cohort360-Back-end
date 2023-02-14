@@ -51,7 +51,6 @@ class AccessFilter(filters.FilterSet):
 
     perimeter_name = filters.CharFilter(field_name="perimeter__name", lookup_expr="icontains")
     care_site_id = filters.CharFilter(field_name="perimeter_id")
-    # perimeter_id = filters.CharFilter(method="perimeter_id_filter")
 
     target_care_site_id = filters.CharFilter(method="target_perimeter_filter")
     target_perimeter_id = filters.CharFilter(method="target_perimeter_filter")

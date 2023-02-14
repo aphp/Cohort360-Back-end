@@ -159,13 +159,9 @@ class UserTestsAsAdmin(UserTests):
         )
 
         response.render()
-        # self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT,
-        # response.content)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN,
                          response.content)
         provider = User.objects.filter(
-            # even_deleted=True,
             provider_id=self.user2.provider_username
         ).first()
         self.assertIsNotNone(provider)
-        # self.check_is_deleted(provider, self.admin_provider)

@@ -49,7 +49,6 @@ class Access(BaseModel):
 
     @classmethod
     def Q_is_valid(cls) -> Q:
-        # now = datetime.now().replace(tzinfo=None)
         now = timezone.now()
         q_actual_start_is_none = Q(start_datetime=None,
                                    manual_start_datetime=None)

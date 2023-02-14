@@ -134,20 +134,17 @@ class PerimeterGetTests(PerimeterTests):
 
         self.perims: List[Perimeter] = Perimeter.objects.bulk_create([
             Perimeter(
-                # id=next(ids),
                 local_id=str(next(ids)),
                 name=rand_name(6, 15),
                 type_source_value=PERIMETERS_TYPES[0],
                 source_value=rand_name(6, 15),
             )
         ])
-        # self.user_no_right_base_perim = self.perims[0]
 
         for p in self.perims[0:nb_base_perims]:
             nb_children = random.randint(2, 8)
             children = Perimeter.objects.bulk_create([
                 Perimeter(
-                    # id=next(ids),
                     local_id=str(next(ids)),
                     name=rand_name(6, 15),
                     parent=p,
@@ -161,7 +158,6 @@ class PerimeterGetTests(PerimeterTests):
                 nb_children = random.randint(2, 8)
                 self.perims += Perimeter.objects.bulk_create([
                     Perimeter(
-                        # id=next(ids),
                         local_id=str(next(ids)),
                         name=rand_name(6, 15),
                         parent=c,
