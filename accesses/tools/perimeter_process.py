@@ -266,7 +266,7 @@ def is_pseudo_perimeter_in_top_perimeter(all_read_patient_nominative_accesses, a
     nominative_perimeters = [access.perimeter_id for access in all_read_patient_nominative_accesses]
     for access in all_read_patient_pseudo_accesses:
         above_levels_ids = cast_string_to_ids_list(access.perimeter.above_levels_ids)
-        above_levels_ids.append(access.perimeter.id)
+        above_levels_ids.append(access.perimeter_id)
         if not [pseudo_perimeter for pseudo_perimeter in above_levels_ids if pseudo_perimeter in nominative_perimeters]:
             return True
     return False

@@ -18,9 +18,7 @@ class Perimeter(BaseModel):
     source_value = models.TextField(blank=True, null=True)
     short_name = models.TextField(blank=True, null=True)
     type_source_value = models.TextField(blank=True, null=True)
-    parent = models.ForeignKey("accesses.perimeter",
-                               on_delete=models.CASCADE,
-                               related_name="children", null=True)
+    parent = models.ForeignKey("accesses.perimeter", on_delete=models.CASCADE, related_name="children", null=True)
     above_levels_ids = models.TextField(blank=True, null=True)
     inferior_levels_ids = models.TextField(blank=True, null=True)
     cohort_id = models.TextField(blank=True, null=True)

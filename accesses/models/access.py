@@ -15,20 +15,14 @@ from admin_cohort.settings import MANUAL_SOURCE
 
 class Access(BaseModel):
     id = models.BigAutoField(primary_key=True)
-    perimeter = models.ForeignKey(
-        Perimeter, to_field='id', on_delete=SET_NULL,
-        related_name='accesses', null=True)
+    perimeter = models.ForeignKey(Perimeter, on_delete=SET_NULL, related_name='accesses', null=True)
+    profile = models.ForeignKey(Profile, on_delete=CASCADE, related_name='accesses', null=True)
+    role = models.ForeignKey(Role, on_delete=CASCADE, related_name='accesses', null=True)
     source = models.TextField(blank=True, null=True, default=MANUAL_SOURCE)
-
     start_datetime = models.DateTimeField(blank=True, null=True)
     end_datetime = models.DateTimeField(blank=True, null=True)
     manual_start_datetime = models.DateTimeField(blank=True, null=True)
     manual_end_datetime = models.DateTimeField(blank=True, null=True)
-
-    profile = models.ForeignKey(Profile, on_delete=CASCADE,
-                                related_name='accesses', null=True)
-    role: Role = models.ForeignKey(Role, on_delete=CASCADE,
-                                   related_name='accesses', null=True)
 
     @property
     def is_valid(self):

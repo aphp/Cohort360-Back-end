@@ -270,11 +270,10 @@ def insert_update_perimeter_list_append(insert_list: [Perimeter], update_list: [
 
 
 def get_parent_perimeter_in_perimeter_list(perimeter_list: [Perimeter], parent_id: int) -> Perimeter:
-    parent: [Perimeter] = [perimeter for perimeter in perimeter_list if
-                           perimeter.id == parent_id]
-    if len(parent) == 0:
-        raise f"ERROR: {parent_id} has no previous perimeters wiht the same id"
-    return parent[0]
+    for perimeter in perimeter_list:
+        if perimeter.id == parent_id:
+            return perimeter
+    raise ValueError(f"{parent_id} has no previous perimeters with the same id")
 
 
 """
