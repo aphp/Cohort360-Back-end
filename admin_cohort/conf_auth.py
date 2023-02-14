@@ -154,7 +154,6 @@ def verify_jwt(access_token: str, auth_method: str = JWT_AUTH_MODE) -> Union[Non
             raise ServerError(f"Error {resp.status_code} from authentication server ({url}): {resp.text}")
         raise ValueError("Invalid JWT Access Token")
     elif auth_method.lower() == OIDC_AUTH_MODE:
-        _logger.info("*** OIDC TOKEN CONNEXION ***")
         resp = requests.get(OIDC_CERTS_URL)
         if resp.status_code != status.HTTP_200_OK:
             raise ServerError(f"Error {resp.status_code} from authentication server ({OIDC_CERTS_URL}): {resp.text}")
