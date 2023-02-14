@@ -2,7 +2,6 @@ import logging
 
 from django.http import HttpResponseBadRequest, HttpResponseServerError, QueryDict
 from django_filters import rest_framework as filters, OrderingFilter
-from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.pagination import LimitOffsetPagination
@@ -11,7 +10,6 @@ from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from admin_cohort import app
 from admin_cohort.types import JobStatus
-from admin_cohort.views import SwaggerSimpleNestedViewSetMixin
 from cohort.conf_cohort_job_api import get_authorization_header, cancel_job
 from cohort.models import CohortResult, DatedMeasure, RequestQuerySnapshot
 from cohort.serializers import DatedMeasureSerializer
@@ -103,10 +101,7 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             return Response(dict(message=str(e)), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class NestedDatedMeasureViewSet(SwaggerSimpleNestedViewSetMixin, DatedMeasureViewSet):
-    @swagger_auto_schema(auto_schema=None)
-    def abort(self, request, *args, **kwargs):
-        return self.abort(self, request, *args, **kwargs)
+class NestedDatedMeasureViewSet(DatedMeasureViewSet):
 
     def create(self, request, *args, **kwargs):
         if type(request.data) == QueryDict:

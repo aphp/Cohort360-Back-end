@@ -20,7 +20,6 @@ schema_view = get_schema_view(openapi.Info(title=__title__,
 class NestedDefaultRouter(NestedRouterMixin, routers.DefaultRouter):
     pass
 
-
 router = NestedDefaultRouter()
 router.register(r'maintenances', MaintenancePhaseViewSet, basename="maintenances")
 router.register(r'users', UserViewSet, basename="users")

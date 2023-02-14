@@ -10,7 +10,6 @@ from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from admin_cohort.models import User
-from admin_cohort.views import SwaggerSimpleNestedViewSetMixin
 from cohort.models import RequestQuerySnapshot
 from cohort.permissions import IsOwner
 from cohort.serializers import RequestQuerySnapshotSerializer
@@ -101,14 +100,7 @@ class RequestQuerySnapshotViewSet(NestedViewSetMixin, NoUpdateViewSetMixin, User
                         status=status.HTTP_201_CREATED)
 
 
-class NestedRqsViewSet(SwaggerSimpleNestedViewSetMixin, RequestQuerySnapshotViewSet):
-    @swagger_auto_schema(auto_schema=None)
-    def save(self, req, request_query_snapshot_uuid):
-        return self.save(req, request_query_snapshot_uuid)
-
-    @swagger_auto_schema(auto_schema=None)
-    def share(self, request, *args, **kwargs):
-        return self.share(request, *args, **kwargs)
+class NestedRqsViewSet(RequestQuerySnapshotViewSet):
 
     def create(self, request, *args, **kwargs):
         if type(request.data) == QueryDict:

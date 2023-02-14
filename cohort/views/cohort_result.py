@@ -16,7 +16,6 @@ from accesses.models import get_user_valid_manual_accesses_queryset
 from admin_cohort.settings import SJS_USERNAME, ETL_USERNAME
 from admin_cohort.tools import join_qs
 from admin_cohort.types import JobStatus
-from admin_cohort.views import SwaggerSimpleNestedViewSetMixin
 from cohort.conf_cohort_job_api import fhir_to_job_status
 from cohort.models import CohortResult
 from cohort.permissions import SJSandETLCallbackPermission
@@ -209,7 +208,8 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         return resp
 
 
-class NestedCohortResultViewSet(SwaggerSimpleNestedViewSetMixin, CohortResultViewSet):
+class NestedCohortResultViewSet(CohortResultViewSet):
+
     def create(self, request, *args, **kwargs):
         if type(request.data) == QueryDict:
             request.data._mutable = True
