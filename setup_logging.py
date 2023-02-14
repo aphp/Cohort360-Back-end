@@ -31,7 +31,10 @@ def configure_handlers() -> [logging.Handler]:
     guni_error_handler = CustomRotatingFileHandler(name='gunicorn.error', filename=BASE_DIR / "log/gunicorn.error.log", **rotation_basis)
     guni_access_handler = CustomRotatingFileHandler(name='gunicorn.access', filename=BASE_DIR / "log/gunicorn.access.log", **rotation_basis)
 
-    return [dj_info_handler, dj_error_handler, guni_error_handler, guni_access_handler]
+    return [dj_info_handler,
+            dj_error_handler,
+            guni_error_handler,
+            guni_access_handler]
 
 
 def handle_log_record(record):
@@ -63,9 +66,6 @@ class LogRecordStreamHandler(socketserver.StreamRequestHandler):
 
 
 class LogRecordSocketReceiver(socketserver.ThreadingTCPServer):
-    """
-    Simple TCP socket-based logging receiver suitable for testing.
-    """
     allow_reuse_address = True
 
     def __init__(self, host='localhost', port=DEFAULT_TCP_LOGGING_PORT, handler=LogRecordStreamHandler):
@@ -85,8 +85,9 @@ class LogRecordSocketReceiver(socketserver.ThreadingTCPServer):
 
 
 def main():
+    fmt = "%(levelname)s %(asctime)s <%(name)s> pid=%(process)d module=%(filename)s msg=`%(message)s`"
     logging.basicConfig(level=logging.INFO,
-                        format='>>> %(asctime)s %(process)-6s %(name)s %(levelname)-8s %(message)s',
+                        format=fmt,
                         handlers=configure_handlers())
     print('Starting TCP socket server...')
     tcp_server = LogRecordSocketReceiver()

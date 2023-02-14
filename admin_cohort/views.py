@@ -311,11 +311,6 @@ class CustomLoginView(LoginView):
     @csrf_exempt
     @method_decorator(never_cache)
     def dispatch(self, request, *args, **kwargs):
-        logger_inf = logging.getLogger("info")
-        logger_dj_req = logging.getLogger("django.request")
-        logger_inf.info("*********************** django info INFO msg")
-        logger_dj_req.error("*********************** django request ERROR msg")
-
         if self.redirect_authenticated_user and self.request.user.is_authenticated:
             redirect_to = self.get_success_url()
             if redirect_to == self.request.path:
