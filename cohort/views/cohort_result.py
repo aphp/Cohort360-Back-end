@@ -180,7 +180,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         update_from_sjs = all([key in data for key in sjs_data_keys])
         update_from_etl = "request_job_status" in data
         if "job_status" in data:
-            job_status = fhir_to_job_status().get(value_to_string(data.pop("job_status")).upper())
+            job_status = fhir_to_job_status().get(data.pop("job_status").upper())
             if not job_status:
                 return Response(data=f"Invalid job status: {data.get('status')}",
                                 status=status.HTTP_400_BAD_REQUEST)
@@ -190,9 +190,9 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                 if job_status == JobStatus.failed:
                     data["request_job_fail_msg"] = "Received a failed status from SJS"
         if "group.id" in data:
-            data["fhir_group_id"] = value_to_string(data.pop("group.id"))
+            data["fhir_group_id"] = data.pop("group.id")
         if "group.count" in data:
-            cohort.dated_measure.measure = int(value_to_string(data.pop("group.count")))
+            cohort.dated_measure.measure = data.pop("group.count")
             cohort.dated_measure.save()
 
         resp = super(CohortResultViewSet, self).partial_update(request, *args, **kwargs)
