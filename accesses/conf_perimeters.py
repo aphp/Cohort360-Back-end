@@ -121,7 +121,7 @@ def get_concept_filter_id() -> tuple:
 def get_top_hierarchy_care_site_ids() -> List[int]:
     top_care_site_ids = env.get("TOP_HIERARCHY_CARE_SITE_IDS", default="")
     if not top_care_site_ids:
-        raise ValueError(f"TOP_HIERARCHY_CARE_SITE_IDS env variable not set")
+        raise ValueError("TOP_HIERARCHY_CARE_SITE_IDS env variable not set")
     return [int(i) for i in top_care_site_ids.split(",") if i]
 
 

@@ -1,11 +1,9 @@
 import enum
-import json
 import logging
 import os
 from typing import Dict, List
 
 import requests
-import simplejson
 from hdfs import HdfsError
 from hdfs.ext.kerberos import KerberosClient
 from requests import Response, JSONDecodeError, HTTPError, RequestException

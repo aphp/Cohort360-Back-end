@@ -99,7 +99,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
 
     @swagger_auto_schema(method='get',
                          operation_summary="Return perimeters and associated read patient rights for current user."
-                                           "If perimeters are not filtered, return top hierarchy perimeters",
+                                           "If perimeters are not filtered, return user's top hierarchy perimeters",
                          responses={'200': openapi.Response("Rights per perimeter", DataReadRightSerializer())})
     @action(detail=False, methods=['get'], url_path="read-patient")
     def get_perimeters_read_right_accesses(self, request, *args, **kwargs):
@@ -112,7 +112,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
             raise Http404("ERROR: No accesses with read patient right found")
 
         if self.request.query_params:
-            perimeters = self.filter_queryset(self.get_queryset())
+            perimeters = self.filter_queryset()
         else:
             perimeters = get_top_perimeter_from_read_patient_accesses(all_read_patient_nominative_accesses,
                                                                       all_read_patient_pseudo_accesses)
