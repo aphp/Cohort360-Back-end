@@ -123,8 +123,8 @@ class ReadAccess(ReadObject):
             if v:
                 try:
                     timezone.datetime.fromisoformat(v.replace("Z", "+00:00"))
-                except Exception:
-                    raise Exception(f"Datetime unreadable for {dt_field}: {v}")
+                except (TypeError, ValueError) as e:
+                    raise ValueError(f"Datetime unreadable for {dt_field}: {v} - {e}")
             setattr(self, dt_field, v)
 
 

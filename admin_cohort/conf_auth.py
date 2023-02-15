@@ -81,12 +81,12 @@ def check_id_aph(id_aph: str) -> Optional[IdResp]:
     if status.is_server_error(resp.status_code):
         raise ServerError(f"Error {resp.status_code} from id-checker server ({ID_CHECKER_URL}): {resp.text}")
     if resp.status_code != status.HTTP_200_OK:
-        raise Exception(f"Internal error: {resp.text}")
+        raise ServerError(f"Internal error: {resp.text}")
 
     res: dict = resp.json().get('data', {}).get('attributes', {})
     for expected in ['givenName', 'sn', 'sAMAccountName', 'mail']:
         if expected not in res:
-            raise Exception(f"JWT server response not as expected: missing {expected} ({resp.content})")
+            raise ValueError(f"JWT server response not as expected: missing {expected} ({resp.content})")
     return IdResp(firstname=res.get('givenName'),
                   lastname=res.get('sn'),
                   user_id=res.get('sAMAccountName'),

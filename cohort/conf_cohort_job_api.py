@@ -6,11 +6,11 @@ from typing import List, Tuple, Dict
 import requests
 from django.utils import timezone
 from django.utils.datetime_safe import datetime
-from requests import Response, JSONDecodeError, HTTPError
+from requests import Response, JSONDecodeError, HTTPError, RequestException
 from rest_framework import status
 from rest_framework.request import Request
 
-from admin_cohort.types import JobStatus
+from admin_cohort.types import JobStatus, MissingDataError
 from cohort.crb_responses import CRBCountResponse, CRBCohortResponse, CRBValidateResponse
 from cohort.tools import log_count_task, log_create_task
 
@@ -99,17 +99,15 @@ class JobResponse:
 def get_job(job_id: str, auth_headers) -> JobResponse:
     try:
         resp = requests.get(f"{JOBS_API}/{job_id}", headers=auth_headers)
-    except Exception as e:
-        raise Exception(f"INTERNAL ERROR: {e}")
+    except RequestException:
+        raise
     try:
         result = resp.json()
-    except Exception:
-        raise Exception(f"QUERY SERVER ERROR {resp.status_code}: {resp}")
-
-    if resp.status_code != 200:
-        raise Exception(f"INTERNAL CONNECTION ERROR {resp.status_code}: "
-                        f"{result.get('error', 'no error')} ; "
-                        f"{result.get('message', 'no message')}")
+    except JSONDecodeError:
+        raise
+    if resp.status_code != status.HTTP_200_OK:
+        raise HTTPError(f"Unexpected response code: {resp.status_code}: "
+                        f"{result.get('error', 'no error')} - {result.get('message', 'no message')}")
     return JobResponse(resp, **result)
 
 
@@ -119,17 +117,15 @@ def cancel_job(job_id: str, auth_headers) -> JobStatus:
     Its status will be then set to KILLED if it was not FINISHED already
     """
     if not job_id:
-        raise Exception("INTERNAL ERROR: no job_id provided")
+        raise MissingDataError("No job_id provided")
     try:
         resp = requests.patch(f"{JOBS_API}/{job_id}/{FHIR_CANCEL_ACTION}", headers=auth_headers)
-    except Exception as e:
-        raise Exception(f"Error while cancelling job on FHIR: {e}")
-
+    except RequestException:
+        raise
     try:
         result = resp.json()
-    except Exception:
-        raise Exception(f"QUERY SERVER ERROR {resp.status_code}: {resp}")
-
+    except JSONDecodeError:
+        raise
     if resp.status_code == status.HTTP_403_FORBIDDEN:
         return JobStatus.finished
 
@@ -139,21 +135,21 @@ def cancel_job(job_id: str, auth_headers) -> JobStatus:
         # it is either killed or finished.
         # But given our dated_measure had no data as if it was finished,
         # we consider it killed
-        raise Exception(f"INTERNAL CONNECTION ERROR {resp.status_code}: "
+        raise HTTPError(f"Unexpected response code: {resp.status_code}: "
                         f"{result.get('error', 'no error')} - {result.get('message', 'no message')}")
 
     if 'status' not in result:
-        raise Exception(f"FHIR ERROR: could not read status from response; {result}")
+        raise MissingDataError(f"FHIR ERROR: could not read status from response; {result}")
 
     s = fhir_to_job_status().get(result.get('status').upper())
     try:
         new_status = JobStatus(s)
-    except ValueError:
-        raise Exception(f"QUERY SERVER ERROR: status from response ({s}) is not expected. "
-                        f"Values can be {[s.value for s in JobStatus]}")
+    except ValueError as ve:
+        raise ValueError(f"QUERY SERVER ERROR: status from response ({s}) is not expected. "
+                         f"Values can be {[s.value for s in JobStatus]}") from ve
 
     if new_status not in [JobStatus.cancelled, JobStatus.finished]:
-        raise Exception(f"DATA ERROR: status returned by FHIR is neither KILLED or FINISHED -> {result}")
+        raise MissingDataError(f"Status returned by FHIR is neither KILLED nor FINISHED -> {result.get('status')}")
     return new_status
 
 
@@ -165,11 +161,10 @@ def create_count_job(auth_headers: dict, json_query: str, global_estimate) -> Tu
     try:
         result = resp.json()
     except JSONDecodeError:
-        raise Exception(f"QUERY SERVER ERROR {resp.status_code}: {resp}")
-
-    if resp.status_code != 200:
-        raise Exception(f"INTERNAL CONNECTION ERROR {resp.status_code}: "
-                        f"{result.get('error', 'no error')}, {result.get('message', 'no message')}")
+        raise
+    if resp.status_code != status.HTTP_200_OK:
+        raise HTTPError(f"Unexpected response code: {resp.status_code}: "
+                        f"{result.get('error', 'no error')} - {result.get('message', 'no message')}")
     return resp, result
 
 
@@ -180,7 +175,7 @@ def post_count_cohort(auth_headers: dict, json_query: str, dm_uuid: str, global_
 
     try:
         resp, result = create_count_job(auth_headers, json_query, global_estimate)
-    except Exception as e:
+    except RequestException as e:
         return CRBCountResponse(success=False,
                                 job_duration=datetime.now() - d,
                                 fhir_job_status=JobStatus.failed,
@@ -189,7 +184,7 @@ def post_count_cohort(auth_headers: dict, json_query: str, dm_uuid: str, global_
     log_count_task(dm_uuid, "Step 2: Response being processed", global_estimate=global_estimate)
     try:
         job = JobResponse(resp, **result)
-    except Exception as e:
+    except ValueError as e:
         return CRBCountResponse(success=False,
                                 job_duration=datetime.now() - d,
                                 fhir_job_status=JobStatus.failed,
@@ -216,10 +211,9 @@ def post_count_cohort(auth_headers: dict, json_query: str, dm_uuid: str, global_
         try:
             job = get_job(job.job_id, auth_headers=auth_headers)
             log_count_task(dm_uuid, "Step 3.x: Job created. Status: {job.status}.", global_estimate=global_estimate)
-        except Exception as e:
+        except RequestException as e:
             errors_count += 1
-            log_count_task(dm_uuid, f"Step 3.x: Error {errors_count} found on getting status : {e}.",
-                           global_estimate=global_estimate)
+            log_count_task(dm_uuid, f"Step 3.x: Error {errors_count} found on getting status : {e}.", global_estimate=global_estimate)
             if errors_count > 5:
                 return CRBCountResponse(success=False,
                                         job_duration=datetime.now() - d,
@@ -256,12 +250,10 @@ def post_count_cohort(auth_headers: dict, json_query: str, dm_uuid: str, global_
 def create_cohort_job(auth_headers: dict, json_query: dict) -> Tuple[Response, dict]:
     resp = requests.post(url=CREATE_COHORT_API, json=json_query, headers=auth_headers)
     resp.raise_for_status()
-    result = {}
     try:
         result = resp.json()
     except JSONDecodeError:
-        raise Exception(f"INTERNAL ERROR {resp.status_code}: could not read result from "
-                        f"request to CRB ({resp.text or str(resp)})")
+        raise
     return resp, result
 
 

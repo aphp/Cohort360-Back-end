@@ -8,12 +8,13 @@ import requests
 import simplejson
 from hdfs import HdfsError
 from hdfs.ext.kerberos import KerberosClient
-from requests import Response
+from requests import Response, JSONDecodeError, HTTPError, RequestException
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
 
 from admin_cohort.models import JobStatus
 from admin_cohort.tools import prettify_dict
+from admin_cohort.types import MissingDataError
 from .models import ExportRequest
 from .types import ApiJobResponse, HdfsServerUnreachableError, ExportType
 
@@ -37,7 +38,7 @@ HIVE_EXPORTER_USER = env.get('HIVE_EXPORTER_USER')
 OMOP_ENVIRONMENT = env.get('EXPORT_OMOP_ENVIRONMENT')
 
 
-class ApiJobStatutes(enum.Enum):
+class ApiJobStatuses(enum.Enum):
     pending = 'PENDING'     # Task state is unknown (assumed pending since you know the id).
     received = 'RECEIVED'   # Task was received by a worker (only used in events).
     started = 'STARTED'     # Task was started by a worker (:setting:`task_track_started`).
@@ -49,15 +50,15 @@ class ApiJobStatutes(enum.Enum):
     ignored = 'IGNORED'
 
 
-dct_api_to_job_status = {ApiJobStatutes.pending.value: JobStatus.pending,
-                         ApiJobStatutes.received.value: JobStatus.pending,
-                         ApiJobStatutes.started.value: JobStatus.started,
-                         ApiJobStatutes.success.value: JobStatus.finished,
-                         ApiJobStatutes.failure.value: JobStatus.failed,
-                         ApiJobStatutes.revoked.value: JobStatus.cancelled,
-                         ApiJobStatutes.rejected.value: JobStatus.failed,
-                         ApiJobStatutes.retry.value: JobStatus.pending,
-                         ApiJobStatutes.ignored.value: JobStatus.failed}
+dct_api_to_job_status = {ApiJobStatuses.pending.value: JobStatus.pending,
+                         ApiJobStatuses.received.value: JobStatus.pending,
+                         ApiJobStatuses.started.value: JobStatus.started,
+                         ApiJobStatuses.success.value: JobStatus.finished,
+                         ApiJobStatuses.failure.value: JobStatus.failed,
+                         ApiJobStatuses.revoked.value: JobStatus.cancelled,
+                         ApiJobStatuses.rejected.value: JobStatus.failed,
+                         ApiJobStatuses.retry.value: JobStatus.pending,
+                         ApiJobStatuses.ignored.value: JobStatus.failed}
 
 # TOOLS ###############################################################
 
@@ -75,9 +76,9 @@ def build_location(db_name: str) -> str:
 class JobResult:
     def __init__(self, **kwargs):
         try:
-            self.status: ApiJobStatutes = ApiJobStatutes[kwargs.get('status')]
+            self.status: ApiJobStatuses = ApiJobStatuses[kwargs.get('status')]
         except ValueError:
-            raise Exception(f"Status received from Infra API is not expected: {kwargs.get('status')}")
+            raise
         self.ret_code: int = kwargs.get('ret_code')
         self.out: str = kwargs.get('out')
         self.err: str = kwargs.get('err')
@@ -87,7 +88,7 @@ class JobStatusResponse:
     def __init__(self, **kwargs):
         self.task_status: str = kwargs.get('task_status')
         if 'task_result' not in kwargs:
-            raise Exception(f"Response from Infra API is missing 'task_result'. What was received : {kwargs}")
+            raise MissingDataError(f"Response from Infra API is missing 'task_result'. Received: {prettify_dict(kwargs)}")
         if kwargs.get('task_result'):
             self.task_result: JobResult = JobResult(**kwargs.get('task_result'))
         else:
@@ -97,9 +98,7 @@ class JobStatusResponse:
 class PostJobResponse:
     def __init__(self, **kwargs):
         if 'task_id' not in kwargs:
-            raise Exception(f"Response from Infra API not expected: "
-                            f"missing 'task_id' - "
-                            f"received : {prettify_dict(kwargs)}")
+            raise MissingDataError(f"Response from Infra API is missing 'task_id'. Received: {prettify_dict(kwargs)}")
         self.task_id: str = kwargs.get('task_id')
 
 
@@ -122,12 +121,11 @@ class HadoopApiResponse:
 
 def check_resp(resp: Response, url: str) -> Dict:
     if not status.is_success(resp.status_code):
-        raise Exception(f"Connection error ({url}) : status code {resp.text}")
+        raise HTTPError(f"Connection error ({url}) : status code {resp.text}")
     try:
         return resp.json()
-    except (simplejson.JSONDecodeError, json.JSONDecodeError, ValueError):
-        raise Exception(f"Response from Infra API ({url}) not readable: "
-                        f"status code {resp.status_code} - {resp.text}")
+    except (JSONDecodeError, ValueError):
+        raise
 
 # API REQUESTS ###############################################################
 
@@ -141,16 +139,15 @@ def post_hadoop(url: str, data: dict):
     @return:
     """
     resp = requests.post(url, params=data, headers={'auth-token': INFRA_HADOOP_TOKEN})
-    status_code_msg = f"(http status {resp.status_code})"
     if status.is_success(resp.status_code):
         try:
             res = HadoopApiResponse(**resp.json())
-        except Exception as e:
-            raise Exception(f"{status_code_msg} response incomplete -> {e}")
+        except JSONDecodeError:
+            raise
         if res.has_failed:
-            raise Exception(f"{status_code_msg} - {res.detail_err}")
+            raise HTTPError(f"{resp.status_code} - {res.detail_err}")
     else:
-        raise Exception(f"{status_code_msg} {resp.text}")
+        raise HTTPError(f"{resp.status_code} {resp.text}")
 
 
 def get_job_status(export_job_id: str) -> ApiJobResponse:
@@ -196,8 +193,8 @@ def prepare_hive_db(er: ExportRequest):
                 "location": location,
                 "if_not_exists": False}
         post_hadoop(url=HADOOP_NEW_DB_URL, data=data)
-    except Exception as e:
-        raise Exception(f"Error while creating Database using Infra API: {e}")
+    except RequestException:
+        raise
 
     log_export_request_task(er.id, f"DB '{er.target_name}' created. Now granting rights to {HIVE_EXPORTER_USER}.")
 
@@ -207,8 +204,8 @@ def prepare_hive_db(er: ExportRequest):
                 "gid": "hdfs",
                 "recursive": True}
         post_hadoop(url=HADOOP_CHOWN_DB_URL, data=data)
-    except Exception as e:
-        raise Exception(f"Error while attributing rights on DB '{er.target_name}' using Infra API: {e}")
+    except RequestException as e:
+        raise RequestException(f"Error while attributing rights on DB '{er.target_name}'") from e
 
     log_export_request_task(er.id, f"DB '{er.target_name}' attributed to {HIVE_EXPORTER_USER} and HDFS."
                                    f"Now asking for export.")
@@ -269,8 +266,8 @@ def conclude_export_hive(er: ExportRequest):
                 "gid": "hdfs",
                 "recursive": True}
         post_hadoop(url=HADOOP_CHOWN_DB_URL, data=data)
-    except Exception as e:
-        raise Exception(f"Error while attributing rights on database '{er.target_name}' using Infra API: {e}")
+    except RequestException as e:
+        raise RequestException(f"Error while attributing rights on database '{er.target_name}'") from e
 
     log_export_request_task(er.id, f"DB '{er.target_name}' attributed to {er.target_unix_account.name}."
                                    f"Conclusion finished.")
@@ -323,9 +320,8 @@ def get_cohort_perimeters(cohort_id: int, token: str) -> List[str]:
         raise ValidationError("Token error with FHIR api")
     try:
         res = resp.json()
-    except Exception as e:
-        raise Exception(f"Error: response from FHIR server not readable ({e}).\nFull content: {resp.content}")
-
+    except JSONDecodeError:
+        raise
     if resp.status_code != 200:
         if resp.status_code == 500:
             issues = res.get('issue', [])

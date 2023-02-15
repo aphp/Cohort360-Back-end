@@ -33,14 +33,14 @@ class CheckedProfile:
         for f in ['firstname', 'lastname', 'user_id', 'email']:
             if f not in o or not isinstance(o.get(f), str):
                 errs.setdefault(f, f'Missing or wrong type : {o.get(f, "")}')
-        if len(errs) > 0:
-            raise Exception(prettify_dict(errs))
+        if errs:
+            raise ValueError(prettify_dict(errs))
 
         self.user: dict = o.get('user', None)
         self.manual_profile: dict = o.get('manual_profile', None)
 
     def assert_match_id_resp(self, other: CheckedProfile):
-        errs: dict = {}
+        errs = {}
         for s in ['firstname', 'lastname', 'user_id', 'email']:
             if getattr(self, s, "") != getattr(other, s, ""):
                 errs.setdefault(
@@ -60,8 +60,8 @@ class CheckedProfile:
             errs['manual_profile'] = f"Different: " \
                                      f"expected {str(self.manual_profile)}, " \
                                      f"got {str(other.manual_profile)}"
-        if len(errs):
-            raise Exception(prettify_dict(errs))
+        if errs:
+            raise ValueError(prettify_dict(errs))
 
     def __str__(self):
         return prettify_dict({

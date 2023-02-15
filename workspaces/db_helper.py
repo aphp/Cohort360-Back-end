@@ -1,13 +1,17 @@
 import json
+import logging
 from typing import List
 
 import yaml
 
+from admin_cohort.types import MissingDataError
 from workspaces.models import Account, JupyterMachine, Kernel, LdapGroup, RangerHivePolicy
 from workspaces.models.project import RHP_TYPE_DEFAULT_USER
 from workspaces.serializers import DbAccountSerializer
 
-USER_KEY = "users"
+USERS_KEY = "users"
+
+_logger = logging.getLogger("info")
 
 
 def create_vault(loader, node):
@@ -71,16 +75,16 @@ def get_ranger_hive_policy(user: dict) -> RangerHivePolicy:
             return p
     else:
         if 'ranger_hive_policy_db_imagerie' not in user and user.get('db_imagerie', False):
-            raise Exception(f"MISSING VALUES: for a user, 'ranger_hive_policy_type' "
-                            f"value is not '{RHP_TYPE_DEFAULT_USER}', 'db_imagerie' is set "
-                            f"to True but no  'ranger_hive_policy_db_imagerie' is provided. "
-                            f"User details : {str(user)}")
+            raise MissingDataError(f"MISSING VALUES: for a user, 'ranger_hive_policy_type' "
+                                   f"value is not '{RHP_TYPE_DEFAULT_USER}', 'db_imagerie' is set "
+                                   f"to True but no  'ranger_hive_policy_db_imagerie' is provided. "
+                                   f"User details : {str(user)}")
 
         if any([k not in user for k in POLICY_FIELDS_REQUIRED_IF_NOT_DEFAULT]):
-            raise Exception(f"MISSING VALUES: for this user, 'ranger_hive_policy_type' "
-                            f"value is not '{RHP_TYPE_DEFAULT_USER}' and one of "
-                            f"{','.join(POLICY_FIELDS_REQUIRED_IF_NOT_DEFAULT)} fields "
-                            f"is not set. User details : {str(user)}")
+            raise MissingDataError(f"MISSING VALUES: for this user, 'ranger_hive_policy_type' "
+                                   f"value is not '{RHP_TYPE_DEFAULT_USER}' and one of "
+                                   f"{','.join(POLICY_FIELDS_REQUIRED_IF_NOT_DEFAULT)} fields "
+                                   f"is not set. User details : {str(user)}")
 
         k = build_policy_summary(user)
         if k not in ranger_hive_policies:
@@ -94,18 +98,16 @@ def get_ranger_hive_policy(user: dict) -> RangerHivePolicy:
 
 
 def yaml_to_db(yaml_content: str):
-    print("Starts updating environments' database")
-    print("Loading yaml content")
+    _logger.info("Starts updating environments' database. Loading yaml content")
 
     y = yaml.load(yaml_content, Loader)
 
-    if USER_KEY not in y:
-        raise Exception(f"FORMAT UNEXPECTED: Could not find '{USER_KEY}' field in yaml")
+    if USERS_KEY not in y:
+        raise Exception(f"FORMAT UNEXPECTED: Could not find '{USERS_KEY}' field in yaml")
 
-    users = y['users']
-    if not isinstance(users, dict):
-        raise Exception(f"FORMAT UNEXPECTED: '{USER_KEY}' value in not a dict")
-    print(f"{len(users)} users found")
+    users = y[USERS_KEY]
+    assert isinstance(users, dict), f"FORMAT UNEXPECTED: '{USERS_KEY}' value in not a dict"
+    _logger.info(f"{len(users)} users found")
 
     to_update: List[Account] = Account.objects.filter(username__in=[name for name in users.keys()])
     updated_usernames = []
@@ -139,16 +141,16 @@ def yaml_to_db(yaml_content: str):
 
             a.kernels.set([get_kernel(n) for n in [name for name, used in user['kernels'].items() if used]])
             a.jupyter_machines.set([get_jupyter_machine(n) for n in user['jupyter_machines']])
-            if user.get('ldap_groups', None):
+            if user.get('ldap_groups'):
                 a.ldap_groups.set([get_ldap_group(n) for n in user['ldap_groups'].split(" ")])
             a.save()
             updated_usernames.append(a.username)
             count += 1
-            print(f"Updated {count} accounts out of {length}   ", end="\r")
+            _logger.info(f"Updated {count} accounts out of {length}")
         except Exception:
             pass
 
-    print("Updates finished")
+    _logger.info("Updates finished")
 
     to_create = [(n, u) for (n, u) in users.items() if n not in updated_usernames]
     count, length = 0, len(to_create)
@@ -182,15 +184,15 @@ def yaml_to_db(yaml_content: str):
 
             a.kernels.set([get_kernel(n) for n in [name for name, used in user['kernels'].items() if used]])
             a.jupyter_machines.set([get_jupyter_machine(n) for n in user['jupyter_machines']])
-            if user.get('ldap_groups', None):
+            if user.get('ldap_groups'):
                 a.ldap_groups.set([get_ldap_group(n) for n in user['ldap_groups'].split(" ")])
             a.save()
             count += 1
-            print(f"Added {count} new accounts out of {length}   ", end="\r")
+            _logger.info(f"Added {count} new accounts out of {length}")
         except Exception:
             pass
 
-    print("Finished updating accounts")
+    _logger.info("Finished updating accounts")
     return
 
 
