@@ -6,7 +6,7 @@ from typing import Dict, List
 import requests
 from hdfs import HdfsError
 from hdfs.ext.kerberos import KerberosClient
-from requests import Response, JSONDecodeError, HTTPError, RequestException
+from requests import Response, HTTPError, RequestException
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
 
@@ -16,7 +16,8 @@ from admin_cohort.types import MissingDataError
 from .models import ExportRequest
 from .types import ApiJobResponse, HdfsServerUnreachableError, ExportType
 
-_log = logging.getLogger('info')
+_logger = logging.getLogger('info')
+_logger_err = logging.getLogger('django.request')
 
 env = os.environ
 
@@ -62,7 +63,7 @@ dct_api_to_job_status = {ApiJobStatuses.pending.value: JobStatus.pending,
 
 
 def log_export_request_task(id, msg):
-    _log.info(f"[ExportTask] [ExportRequest: {id}] {msg}")
+    _logger.info(f"[ExportTask] [ExportRequest: {id}] {msg}")
 
 
 def build_location(db_name: str) -> str:
@@ -73,10 +74,7 @@ def build_location(db_name: str) -> str:
 
 class JobResult:
     def __init__(self, **kwargs):
-        try:
-            self.status: ApiJobStatuses = ApiJobStatuses[kwargs.get('status')]
-        except ValueError:
-            raise
+        self.status: ApiJobStatuses = ApiJobStatuses[kwargs.get('status')]
         self.ret_code: int = kwargs.get('ret_code')
         self.out: str = kwargs.get('out')
         self.err: str = kwargs.get('err')
@@ -120,10 +118,7 @@ class HadoopApiResponse:
 def check_resp(resp: Response, url: str) -> Dict:
     if not status.is_success(resp.status_code):
         raise HTTPError(f"Connection error ({url}) : status code {resp.text}")
-    try:
-        return resp.json()
-    except (JSONDecodeError, ValueError):
-        raise
+    return resp.json()
 
 # API REQUESTS ###############################################################
 
@@ -137,15 +132,11 @@ def post_hadoop(url: str, data: dict):
     @return:
     """
     resp = requests.post(url, params=data, headers={'auth-token': INFRA_HADOOP_TOKEN})
+    resp.raise_for_status()
     if status.is_success(resp.status_code):
-        try:
-            res = HadoopApiResponse(**resp.json())
-        except JSONDecodeError:
-            raise
+        res = HadoopApiResponse(**resp.json())
         if res.has_failed:
             raise HTTPError(f"{resp.status_code} - {res.detail_err}")
-    else:
-        raise HTTPError(f"{resp.status_code} {resp.text}")
 
 
 def get_job_status(export_job_id: str) -> ApiJobResponse:
@@ -191,8 +182,8 @@ def prepare_hive_db(er: ExportRequest):
                 "location": location,
                 "if_not_exists": False}
         post_hadoop(url=HADOOP_NEW_DB_URL, data=data)
-    except RequestException:
-        raise
+    except RequestException as e:
+        _logger_err.error(f"Error on call to prepare Hive DB. {e}")
 
     log_export_request_task(er.id, f"DB '{er.target_name}' created. Now granting rights to {HIVE_EXPORTER_USER}.")
 
@@ -316,10 +307,7 @@ def get_cohort_perimeters(cohort_id: int, token: str) -> List[str]:
 
     if resp.status_code == 401:
         raise ValidationError("Token error with FHIR api")
-    try:
-        res = resp.json()
-    except JSONDecodeError:
-        raise
+    res = resp.json()
     if resp.status_code != 200:
         if resp.status_code == 500:
             issues = res.get('issue', [])

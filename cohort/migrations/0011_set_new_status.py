@@ -30,7 +30,7 @@ class OldJobStatus(str, Enum):
 
 
 def update_dm_status(apps, schema_editor):
-    MyDatedMeasure = apps.get_model('cohort', 'DatedMeasure')
+    dated_measure = apps.get_model('cohort', 'DatedMeasure')
     db_alias = schema_editor.connection.alias
 
     old_to_new = {
@@ -44,16 +44,16 @@ def update_dm_status(apps, schema_editor):
     }
 
     dms: List[DatedMeasure] = list(
-        MyDatedMeasure.objects.using(db_alias).all())
+        dated_measure.objects.using(db_alias).all())
     for dm in dms:
         dm.new_request_job_status = old_to_new.get(dm.request_job_status,
                                                    NewJobStatus.unknown)
-    MyDatedMeasure.objects.using(db_alias)\
+    dated_measure.objects.using(db_alias)\
         .bulk_update(dms, ['new_request_job_status'])
 
 
 def update_cr_status(apps, schema_editor):
-    MyCohortResult = apps.get_model('cohort', 'CohortResult')
+    cohort_result = apps.get_model('cohort', 'CohortResult')
     db_alias = schema_editor.connection.alias
 
     old_to_new = {
@@ -69,11 +69,11 @@ def update_cr_status(apps, schema_editor):
     }
 
     crs: List[CohortResult] = list(
-        MyCohortResult.objects.using(db_alias).all())
+        cohort_result.objects.using(db_alias).all())
     for cr in crs:
         cr.new_request_job_status = old_to_new.get(cr.request_job_status,
                                                    NewJobStatus.unknown)
-    MyCohortResult.objects.using(db_alias)\
+    cohort_result.objects.using(db_alias)\
         .bulk_update(crs, ['new_request_job_status'])
 
 

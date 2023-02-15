@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import time
 from typing import List, Tuple, Dict
@@ -6,7 +7,7 @@ from typing import List, Tuple, Dict
 import requests
 from django.utils import timezone
 from django.utils.datetime_safe import datetime
-from requests import Response, JSONDecodeError, HTTPError, RequestException
+from requests import Response, HTTPError, RequestException
 from rest_framework import status
 from rest_framework.request import Request
 
@@ -21,6 +22,8 @@ COUNT_API = f"{COHORT_REQUEST_BUILDER_URL}/count"
 GLOBAL_COUNT_API = f"{COHORT_REQUEST_BUILDER_URL}/countAll"
 VALIDATE_QUERY_API = f"{COHORT_REQUEST_BUILDER_URL}/validate"
 FHIR_CANCEL_ACTION = "cancel"
+
+_logger = logging.getLogger("django.request")
 
 
 def parse_date(d):
@@ -97,14 +100,9 @@ class JobResponse:
 
 
 def get_job(job_id: str, auth_headers) -> JobResponse:
-    try:
-        resp = requests.get(f"{JOBS_API}/{job_id}", headers=auth_headers)
-    except RequestException:
-        raise
-    try:
-        result = resp.json()
-    except JSONDecodeError:
-        raise
+    resp = requests.get(f"{JOBS_API}/{job_id}", headers=auth_headers)
+    resp.raise_for_status()
+    result = resp.json()
     if resp.status_code != status.HTTP_200_OK:
         raise HTTPError(f"Unexpected response code: {resp.status_code}: "
                         f"{result.get('error', 'no error')} - {result.get('message', 'no message')}")
@@ -118,14 +116,9 @@ def cancel_job(job_id: str, auth_headers) -> JobStatus:
     """
     if not job_id:
         raise MissingDataError("No job_id provided")
-    try:
-        resp = requests.patch(f"{JOBS_API}/{job_id}/{FHIR_CANCEL_ACTION}", headers=auth_headers)
-    except RequestException:
-        raise
-    try:
-        result = resp.json()
-    except JSONDecodeError:
-        raise
+    resp = requests.patch(f"{JOBS_API}/{job_id}/{FHIR_CANCEL_ACTION}", headers=auth_headers)
+    resp.raise_for_status()
+    result = resp.json()
     if resp.status_code == status.HTTP_403_FORBIDDEN:
         return JobStatus.finished
 
@@ -158,10 +151,7 @@ def create_count_job(auth_headers: dict, json_query: str, global_estimate) -> Tu
                          json=json.loads(json_query),
                          headers=auth_headers)
     resp.raise_for_status()
-    try:
-        result = resp.json()
-    except JSONDecodeError:
-        raise
+    result = resp.json()
     if resp.status_code != status.HTTP_200_OK:
         raise HTTPError(f"Unexpected response code: {resp.status_code}: "
                         f"{result.get('error', 'no error')} - {result.get('message', 'no message')}")
@@ -250,10 +240,7 @@ def post_count_cohort(auth_headers: dict, json_query: str, dm_uuid: str, global_
 def create_cohort_job(auth_headers: dict, json_query: dict) -> Tuple[Response, dict]:
     resp = requests.post(url=CREATE_COHORT_API, json=json_query, headers=auth_headers)
     resp.raise_for_status()
-    try:
-        result = resp.json()
-    except JSONDecodeError:
-        raise
+    result = resp.json()
     return resp, result
 
 

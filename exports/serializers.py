@@ -136,7 +136,6 @@ class ExportRequestSerializer(serializers.ModelSerializer):
 
     def create_tables(self, tables, er):
         for table in tables:
-            # table["export_request"] = req #.id
             ExportRequestTable.objects.create(export_request=er, **table)
 
     def validate_owner_rights(self, validated_data):

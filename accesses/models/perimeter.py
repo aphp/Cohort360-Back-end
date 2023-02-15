@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import List, Union
 
 from django.db import models
@@ -9,6 +10,8 @@ from django.db.models.query import QuerySet, Prefetch
 from admin_cohort.models import BaseModel
 from admin_cohort.settings import PERIMETERS_TYPES
 from admin_cohort.tools import join_qs
+
+_logger = logging.getLogger("django.request")
 
 
 class Perimeter(BaseModel):
@@ -24,6 +27,9 @@ class Perimeter(BaseModel):
     cohort_id = models.TextField(blank=True, null=True)
     full_path = models.TextField(blank=True, null=True)
     cohort_size = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return f"[{self.id}] {self.name}"
 
     @property
     def names(self):
@@ -52,6 +58,7 @@ class Perimeter(BaseModel):
             ids = [int(i) for i in self.above_levels_ids.split(",") if i]
             return ids
         except (AttributeError, ValueError) as e:
+            _logger.error(f"Error getting above level ids for perimeter {self}.\n {e}")
             raise e
 
     @property
@@ -61,8 +68,9 @@ class Perimeter(BaseModel):
         try:
             ids = [int(i) for i in self.inferior_levels_ids.split(",") if i]
             return ids
-        except ValueError as ve:
-            raise ValueError("Error while getting the list of inferior perimeters IDs") from ve
+        except (AttributeError, ValueError) as e:
+            _logger.error(f"Error getting inferior level ids for perimeter {self}.\n {e}")
+            raise
 
     def all_parents_query(self, prefix: str = None) -> Q:
         prefix = f"{prefix}__" if prefix is not None else ""

@@ -294,11 +294,11 @@ class BaseTests(TestCase):
         else:
             self.assertIsNone(base_instance)
 
-    def check_unupdatable_not_updated(self, base_instance,
-                                      originModel, request_model=dict()):
-        self.assertTrue(isinstance(base_instance, (BaseModel, CohortBaseModel)))
-        self.assertTrue(isinstance(originModel, (BaseModel, CohortBaseModel)))
-        [self.assertNotEqual(getattr(base_instance, f), request_model[f],
+    def check_unupdatable_not_updated(self, instance_1,
+                                      instance_2, request_model=dict()):
+        self.assertTrue(isinstance(instance_1, (BaseModel, CohortBaseModel)))
+        self.assertTrue(isinstance(instance_2, (BaseModel, CohortBaseModel)))
+        [self.assertNotEqual(getattr(instance_1, f), request_model[f],
                              f"Error with model's {f}")
          for f in self.unupdatable_fields + self.manual_dupplicated_fields
          if f in request_model]
@@ -306,7 +306,7 @@ class BaseTests(TestCase):
         for dupp_field in self.manual_dupplicated_fields:
             if dupp_field in request_model:
                 manual_field = f"manual_{dupp_field}"
-                self.assertEqual(getattr(base_instance, manual_field),
+                self.assertEqual(getattr(instance_1, manual_field),
                                  request_model[dupp_field])
 
 
