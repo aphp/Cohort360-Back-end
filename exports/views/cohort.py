@@ -3,7 +3,7 @@ from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import viewsets
 
-from admin_cohort.permissions import OR
+from admin_cohort.permissions import either
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult
 from cohort.permissions import IsOwner
@@ -27,7 +27,7 @@ class CohortViewSet(viewsets.ModelViewSet):
     search_fields = ('$name', '$description')
 
     def get_permissions(self):
-        return OR(AnnexesPermissions(), IsOwner())
+        return either(AnnexesPermissions(), IsOwner())
 
     def get_queryset(self):
         user = self.request.user

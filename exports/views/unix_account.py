@@ -1,6 +1,6 @@
 from django_filters import rest_framework as filters
 
-from admin_cohort.permissions import OR
+from admin_cohort.permissions import either
 from exports.permissions import AnnexesPermissions, can_review_transfer_jupyter, can_review_export_csv
 from exports.serializers import AnnexeAccountSerializer
 from workspaces.conf_workspaces import get_account_groups_from_id_aph
@@ -29,7 +29,7 @@ class UnixAccountViewSet(AccountViewSet):
     filterset_class = UnixAccountFilter
 
     def get_permissions(self):
-        return OR(AnnexesPermissions(), AccountPermissions())
+        return either(AnnexesPermissions(), AccountPermissions())
 
     def get_queryset(self):
         q = super(UnixAccountViewSet, self).get_queryset()

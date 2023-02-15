@@ -159,20 +159,18 @@ class JobModel(models.Model):
 
 
 class JobModelWithReview(JobModel):
-    reviewer_fk = models.ForeignKey(
-        User, related_name='reviewed_export_requests',
-        on_delete=SET_NULL, null=True)
+    reviewer_fk = models.ForeignKey(User, related_name='reviewed_export_requests', on_delete=SET_NULL, null=True)
     review_request_datetime = models.DateTimeField(null=True)
 
     class Meta:
         abstract = True
 
-    def validate(self, reviewer: Union[User, None]):
+    def validate(self, reviewer: Union[User, None] = None):
         self.reviewer_fk = reviewer
         self.review_request_datetime = timezone.now()
         return super(JobModelWithReview, self).validate()
 
-    def deny(self, reviewer: Union[User, None]):
+    def deny(self, reviewer: Union[User, None] = None):
         self.reviewer_fk = reviewer
         self.review_request_datetime = timezone.now()
         return super(JobModelWithReview, self).deny()
@@ -190,14 +188,10 @@ class MaintenancePhase(BaseModel):
 
 
 def get_next_maintenance() -> Union[MaintenancePhase, None]:
-    current = MaintenancePhase.objects\
-        .filter(start_datetime__lte=timezone.now(),
-                end_datetime__gte=timezone.now())\
-        .order_by('-end_datetime').first()
-    if current is not None:
+    now = timezone.now()
+    current = MaintenancePhase.objects.filter(start_datetime__lte=now,
+                                              end_datetime__gte=now).order_by('-end_datetime').first()
+    if current:
         return current
-
-    next = MaintenancePhase.objects\
-        .filter(start_datetime__gte=timezone.now())\
-        .order_by('start_datetime').first()
-    return next
+    next_maintenance = MaintenancePhase.objects.filter(start_datetime__gte=timezone.now()).order_by('start_datetime').first()
+    return next_maintenance

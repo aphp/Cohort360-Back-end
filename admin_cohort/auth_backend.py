@@ -1,4 +1,5 @@
 import logging
+from typing import Union
 
 from admin_cohort import conf_auth
 from admin_cohort.conf_auth import LoginError, ServerError, JwtTokens
@@ -35,7 +36,7 @@ class AuthBackend:
         request.last_connection = tokens.last_connection
         return user
 
-    def get_user(self, user_id) -> User:
+    def get_user(self, user_id) -> Union[User, None]:
         try:
             return User.objects.get(provider_username=user_id)
         except User.DoesNotExist:

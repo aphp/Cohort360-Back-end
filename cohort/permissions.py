@@ -1,5 +1,4 @@
 from rest_framework import permissions
-from rest_framework.permissions import OR as drf_OR
 
 from admin_cohort.permissions import user_is_authenticated
 from admin_cohort.settings import ETL_USERNAME, SJS_USERNAME
@@ -40,13 +39,3 @@ class SJSandETLCallbackPermission(permissions.BasePermission):
         return user_is_authenticated(request.user) and \
             request.method in ("GET", "PATCH") and \
             request.user.provider_username in sjs_etl_users
-
-
-def OR(*perms):
-    if len(perms) < 1:
-        raise ValueError("OR takes at list one Permission.")
-
-    result = perms[0]
-    for perm in perms[1:]:
-        result = drf_OR(result, perm)
-    return [result]
