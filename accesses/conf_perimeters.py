@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from typing import List
 
-from django.db import models
+from django.db import models, IntegrityError
 from django.utils import timezone
 
 from accesses.models import Perimeter, Access
@@ -113,35 +113,16 @@ def get_concept_filter_id() -> tuple:
         relationship_id = env.get("IS_PART_OF_RELATIONSHIP_NAME")
         is_part_of_rel_id = Concept.objects.get(concept_name=relationship_id).concept_id
         cs_domain_concept_id = Concept.objects.get(concept_name=domain_id).concept_id
-    except Exception as e:
-        raise Exception(f"Error while getting Concepts: {e}")
+    except Concept.DoesNotExist as e:
+        raise ValueError(f"Error while getting Concepts: {e}")
     return str(is_part_of_rel_id), str(cs_domain_concept_id)
 
 
-def cast_to_list_ids(item) -> List[int]:
-    """
-    Simple function to be type tolerant of env value fetch for top hierarchy care_site ids
-    """
-    if isinstance(item, (tuple, list)):
-        return list(item)
-    elif isinstance(item, str):
-        try:
-            return [int(i) for i in item.replace(" ", "").split(",")]
-        except Exception as err:
-            raise Exception(f"Error while try to cast {item} to integer list: {err}")
-    else:
-        return [item]
-
-
 def get_top_hierarchy_care_site_ids() -> List[int]:
-    """
-    return list of top hierarchy care sites
-    """
-    try:
-        list_top_care_site_ids = env.get("TOP_HIERARCHY_CARE_SITE_IDS")
-    except Exception as e:
-        raise Exception(f"Error while getting Top hierarchy care_site_ids (var:TOP_HIERARCHY_CARE_SITE_IDS): {e}")
-    return cast_to_list_ids(list_top_care_site_ids)
+    top_care_site_ids = env.get("TOP_HIERARCHY_CARE_SITE_IDS", default="")
+    if not top_care_site_ids:
+        raise ValueError(f"TOP_HIERARCHY_CARE_SITE_IDS env variable not set")
+    return [int(i) for i in top_care_site_ids.split(",") if i]
 
 
 """
@@ -389,12 +370,12 @@ Delete all objects of Perimeter data Model
 
 
 def clean_all_perimeters():
-    perimeters_all = Perimeter.objects.all()
-    print(f"{len(perimeters_all)} Perimeters objects found in data model; Start to delete all perimeters:")
+    all_perimeters = Perimeter.objects.all()
+    print(f"{len(all_perimeters)} Perimeters objects found in data model; Start to delete all perimeters:")
     try:
-        perimeters_all.delete()
-    except Exception as error:
-        raise Exception(f"Error while trying to remove all perimeters: {error}")
+        all_perimeters.delete()
+    except (TypeError, IntegrityError):
+        raise
 
 
 """

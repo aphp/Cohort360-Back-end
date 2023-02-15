@@ -9,6 +9,14 @@ class ServerError(Exception):
     pass
 
 
+class WorkflowError(Exception):
+    pass
+
+
+class MissingDataError(Exception):
+    pass
+
+
 class IdResp:
     def __init__(self, firstname, lastname, user_id, email, **kwargs):
         self.firstname = firstname

@@ -6,7 +6,7 @@ from typing import List, Tuple, Dict
 import requests
 from django.utils import timezone
 from django.utils.datetime_safe import datetime
-from requests import Response, JSONDecodeError, HTTPError
+from requests import Response, JSONDecodeError, HTTPError, RequestException
 from rest_framework import status
 from rest_framework.request import Request
 
@@ -99,14 +99,13 @@ class JobResponse:
 def get_job(job_id: str, auth_headers) -> JobResponse:
     try:
         resp = requests.get(f"{JOBS_API}/{job_id}", headers=auth_headers)
-    except Exception as e:
-        raise Exception(f"INTERNAL ERROR: {e}")
+    except RequestException:
+        raise
     try:
         result = resp.json()
-    except Exception:
-        raise Exception(f"QUERY SERVER ERROR {resp.status_code}: {resp}")
-
-    if resp.status_code != 200:
+    except JSONDecodeError:
+        raise
+    if resp.status_code != status.HTTP_200_OK:
         raise Exception(f"INTERNAL CONNECTION ERROR {resp.status_code}: "
                         f"{result.get('error', 'no error')} ; "
                         f"{result.get('message', 'no message')}")

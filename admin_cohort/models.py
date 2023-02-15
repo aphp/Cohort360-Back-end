@@ -10,7 +10,7 @@ from django.utils import timezone
 from safedelete import SOFT_DELETE_CASCADE
 from safedelete.models import SafeDeleteModel
 
-from admin_cohort.types import UserInfo, JobStatus
+from admin_cohort.types import UserInfo, JobStatus, WorkflowError
 
 
 class UndeletableModelManager(models.Manager):
@@ -145,15 +145,15 @@ class JobModel(models.Model):
 
     def validate(self):
         if self.request_job_status != JobStatus.new:
-            raise Exception(f"Job can be validated only if current status is '{JobStatus.new}'."
-                            f"Current status is '{self.request_job_status}'")
+            raise WorkflowError(f"Job can be validated only if current status is '{JobStatus.new}'."
+                                f"Current status is '{self.request_job_status}'")
         self.request_job_status = JobStatus.validated
         self.save()
 
     def deny(self):
         if self.request_job_status != JobStatus.new:
-            raise Exception(f"Job can be denied only if current status is {JobStatus.new}'."
-                            f"Current status is '{self.request_job_status}'")
+            raise WorkflowError(f"Job can be denied only if current status is {JobStatus.new}'."
+                                f"Current status is '{self.request_job_status}'")
         self.request_job_status = JobStatus.denied
         self.save()
 
