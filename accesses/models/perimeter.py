@@ -46,14 +46,18 @@ class Perimeter(BaseModel):
 
     @property
     def above_levels(self):
+        if not self.above_levels_ids:
+            return list()
         try:
             ids = [int(i) for i in self.above_levels_ids.split(",") if i]
             return ids
-        except ValueError as ve:
-            raise ValueError("Error while getting the list of above perimeters IDs") from ve
+        except (AttributeError, ValueError) as e:
+            raise e
 
     @property
     def inferior_levels(self):
+        if not self.inferior_levels_ids:
+            return list()
         try:
             ids = [int(i) for i in self.inferior_levels_ids.split(",") if i]
             return ids
