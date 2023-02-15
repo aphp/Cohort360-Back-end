@@ -21,7 +21,7 @@ class NewJobStatus(str, Enum):
 
 
 def update_status(apps, schema_editor):
-    MyExportRequest = apps.get_model('exports', 'ExportRequest')
+    export_request = apps.get_model('exports', 'ExportRequest')
     db_alias = schema_editor.connection.alias
 
     old_to_new = {
@@ -37,7 +37,7 @@ def update_status(apps, schema_editor):
     }
 
     ers: List[ExportRequest] = list(
-        MyExportRequest.objects.using(db_alias).all())
+        export_request.objects.using(db_alias).all())
     to_update = list()
     for er in ers:
         if not er.new_request_job_status:
@@ -45,12 +45,12 @@ def update_status(apps, schema_editor):
                 er.status, NewJobStatus.unknown.value)
             er.status = None
             to_update.append(er)
-    MyExportRequest.objects.using(db_alias)\
+    export_request.objects.using(db_alias)\
         .bulk_update(to_update, ['new_request_job_status', 'status'])
 
 
 def rollback_status(apps, schema_editor):
-    MyExportRequest = apps.get_model('exports', 'ExportRequest')
+    export_request = apps.get_model('exports', 'ExportRequest')
     db_alias = schema_editor.connection.alias
 
     new_to_old = {
@@ -66,7 +66,7 @@ def rollback_status(apps, schema_editor):
     }
 
     ers: List[ExportRequest] = list(
-        MyExportRequest.objects.using(db_alias).all())
+        export_request.objects.using(db_alias).all())
     to_update = list()
     for er in ers:
         if not er.status:
@@ -74,7 +74,7 @@ def rollback_status(apps, schema_editor):
                                        NewJobStatus.unknown.value)
             er.new_request_job_status = None
             to_update.append(er)
-    MyExportRequest.objects.using(db_alias)\
+    export_request.objects.using(db_alias)\
         .bulk_update(to_update, ['status', 'new_request_job_status'])
 
 

@@ -22,7 +22,7 @@ class NewJobStatus(str, Enum):
 
 
 def update_status(apps, schema_editor):
-    MyExportRequest = apps.get_model('exports', 'ExportRequest')
+    export_request = apps.get_model('exports', 'ExportRequest')
     db_alias = schema_editor.connection.alias
 
     old_to_new = {
@@ -38,11 +38,11 @@ def update_status(apps, schema_editor):
     }
 
     ers: List[ExportRequest] = list(
-        MyExportRequest.objects.using(db_alias).all())
+        export_request.objects.using(db_alias).all())
     for er in ers:
         er.new_request_job_status = old_to_new.get(er.status,
                                                    NewJobStatus.unknown)
-    MyExportRequest.objects.using(db_alias)\
+    export_request.objects.using(db_alias)\
         .bulk_update(ers, ['new_request_job_status'])
 
 

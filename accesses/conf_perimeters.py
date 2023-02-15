@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 from typing import List
 
@@ -30,6 +31,9 @@ It is a mono-hierarchy => one parent maximum for 1.n children
 2) We generate Perimeters objects ordering by desc in hierarchy logic (from the top level to leafs)
 3) We save all perimeters objects in that order
 """
+
+_logger = logging.getLogger("info")
+_logger_err = logging.getLogger("django.request")
 
 env = os.environ
 
@@ -121,7 +125,7 @@ def get_concept_filter_id() -> tuple:
 def get_top_hierarchy_care_site_ids() -> List[int]:
     top_care_site_ids = env.get("TOP_HIERARCHY_CARE_SITE_IDS", default="")
     if not top_care_site_ids:
-        raise ValueError(f"TOP_HIERARCHY_CARE_SITE_IDS env variable not set")
+        raise ValueError("TOP_HIERARCHY_CARE_SITE_IDS env variable not set")
     return [int(i) for i in top_care_site_ids.split(",") if i]
 
 
@@ -202,10 +206,10 @@ def map_to_perimeter(care_site_object: CareSite, relation_perimeter: RelationPer
 
 def log_insert_update(care_site_levels, new_previous_level_list, list_perimeter_to_create,
                       list_perimeter_to_update):
-    print(f"Process at levels: {set(care_site_levels)}"
-          f"\n- Perimeters already existing: {len(new_previous_level_list)}"
-          f"\n- Perimeters to Create: {len(list_perimeter_to_create)} "
-          f"\n- Perimeters to update: {len(list_perimeter_to_update)} ")
+    _logger.info(f"Process at levels: {set(care_site_levels)}\n"
+                 f"- Perimeters already existing: {len(new_previous_level_list)}\n"
+                 f"- Perimeters to Create: {len(list_perimeter_to_create)}\n"
+                 f"- Perimeters to update: {len(list_perimeter_to_update)}")
 
 
 def get_path(perimeter: Perimeter, care_site: CareSite) -> str:
@@ -286,12 +290,12 @@ def create_current_perimeter_level(care_site_id_list: List[int], care_site_objec
         if care_site.care_site_id in care_site_id_list:
             # get root path
             path = f"{care_site.care_site_source_value}-{care_site.care_site_name}"
-            print(path)
+            _logger.info(f"path: {path}")
             # get all ids from below levels
             children = get_children_care_site_list_by_id(care_site_objects, care_site.care_site_id)
             # Generate RelationPerimeter Object to simplify function param use:
             relation_perimeters = RelationPerimeter(above_levels_ids="", children=children, full_path=path)
-            print(relation_perimeters.full_path)
+            _logger.info(f"full path: {relation_perimeters.full_path}")
             insert_update_perimeter_list_append(list_perimeter_to_create, list_perimeter_to_update,
                                                 existing_perimeters, care_site, relation_perimeters,
                                                 current_perimeters)
@@ -328,7 +332,7 @@ def sequential_recursive_create_children_perimeters(care_site_id_list: list, car
     for care_site in care_site_objects_copy:
         if care_site.care_site_parent_id in care_site_id_list:
             if care_site.care_site_id in list_current_parent_id:
-                print(f"warn: Care site {care_site.care_site_id} has 2 or more parents !")
+                _logger.warning(f"Care site {care_site.care_site_id} has 2 or more parents !")
                 continue
 
             # We get the previous above_levels_ids value from parent perimeter and add current id
@@ -349,7 +353,7 @@ def sequential_recursive_create_children_perimeters(care_site_id_list: list, car
         else:
             children_care_site_objects.append(care_site)
 
-    print(f"Children care_site objects found: {len(children_care_site_objects)}")
+    _logger.info(f"Children care_site objects found: {len(children_care_site_objects)}")
 
     if len(list_perimeter_to_create) > 0 or len(list_perimeter_to_update) > 0 or len(new_previous_level_list) > 0:
         log_insert_update(care_site_levels, new_previous_level_list, list_perimeter_to_create,
@@ -371,11 +375,11 @@ Delete all objects of Perimeter data Model
 
 def clean_all_perimeters():
     all_perimeters = Perimeter.objects.all()
-    print(f"{len(all_perimeters)} Perimeters objects found in data model; Start to delete all perimeters:")
+    _logger.info(f"{len(all_perimeters)} Perimeters objects found in data model; Start to delete all perimeters:")
     try:
         all_perimeters.delete()
-    except (TypeError, IntegrityError):
-        raise
+    except (TypeError, IntegrityError) as e:
+        _logger_err.error(f"Error while deleting all perimeters. {e}")
 
 
 """
@@ -440,13 +444,13 @@ def delete_perimeters_and_accesses(existing_perimeters: List[Perimeter], all_val
                                                                     get_dict_deleted_care_site(),
                                                                     all_valid_care_site)
     if len(deleted_perimeters) > 0:
-        print(f"WARN: {len(deleted_perimeters)} perimeters to deleted - {deleted_perimeters}")
+        _logger.warning(f"{len(deleted_perimeters)} perimeters to deleted - {deleted_perimeters}")
         update_perimeter(deleted_perimeters)
-        print("Start to close Accesses linked to removed Perimeters or with no perimeters")
+        _logger.info("Start to close Accesses linked to removed Perimeters or with no perimeters")
         close_access(deleted_perimeters)
 
     else:
-        print("No perimeters deleted")
+        _logger.info("No perimeters deleted")
 
 
 """
@@ -470,17 +474,17 @@ def close_access(deleted_perimeter_ids: List[Perimeter]):
     all_access = [access for access in Access.objects.all() if filter_end_date(access)]
     ids_perimeter_list = [perimeter.id for perimeter in deleted_perimeter_ids]
     deleted_access_list = []
-    print("List Accesses to update:")
+    _logger.info("List accesses to update:")
     for access in all_access:
         if access.perimeter_id in ids_perimeter_list or access.perimeter_id is None:
             access.manual_end_datetime = timezone.now()
             deleted_access_list.append(access)
-            print(f"Access {access.id}")
+            _logger.info(f"Access: {access.id}")
     if len(deleted_access_list) > 0:
-        print(f" {len(deleted_access_list)} Accesses to update.")
+        _logger.info(f"{len(deleted_access_list)} accesses to update.")
         update_accesses(deleted_access_list)
     else:
-        print("No accesses to update")
+        _logger.info("No accesses to update")
 
 
 """
@@ -495,12 +499,12 @@ def get_all_perimeters_with_no_valid_care_site(existing_perimeters: List[Perimet
     for perimeter in existing_perimeters:
         if perimeter.id in deleted_care_site.keys():
             care_site_delete_datetime = deleted_care_site[perimeter.id]
-            print(f"Perimeter {perimeter.id} reference to deleted care_site at {care_site_delete_datetime}")
+            _logger.info(f"Perimeter {perimeter.id} reference to deleted care_site at {care_site_delete_datetime}")
             perimeter.delete_datetime = care_site_delete_datetime
-            print(f"new delete date: {perimeter.delete_datetime}")
+            _logger.info(f"new delete date: {perimeter.delete_datetime}")
             all_removed_perimeters.append(perimeter)
         elif perimeter.id not in care_site_ids_list:
-            print(f"Perimeter {perimeter.id} is not in care_site hierarchy anymore")
+            _logger.info(f"Perimeter {perimeter.id} is not in care_site hierarchy anymore")
             perimeter.delete_datetime = timezone.now()
             all_removed_perimeters.append(perimeter)
     return all_removed_perimeters
@@ -530,25 +534,25 @@ process steps:
 
 
 def perimeters_data_model_objects_update():
-    print("Get top hierarchy ids")
+    _logger.info("Get top hierarchy ids")
     top_care_site_ids = get_top_hierarchy_care_site_ids()
 
-    print("Building query for care-sites")
+    _logger.info("Building query for care-sites")
     all_valid_care_site_relationship = CareSite.objects.raw(psql_query_care_site_relationship(top_care_site_ids))
 
-    print(f"Fetch {len(all_valid_care_site_relationship)} care sites from OMOP DB")
+    _logger.info(f"Fetch {len(all_valid_care_site_relationship)} care sites from OMOP DB")
     # ! "even_deleted=True" to take also delete_datetime non null
     existing_perimeters = Perimeter.objects.all(even_deleted=True)
 
-    print("Start Top hierarchy Perimeter objects creation")
+    _logger.info("Start Top hierarchy Perimeter objects creation")
     top_perimeters_list = create_current_perimeter_level(top_care_site_ids, all_valid_care_site_relationship,
                                                          existing_perimeters)
-    print("Start recursive Perimeter objects creation")
+    _logger.info("Start recursive Perimeter objects creation")
     sequential_recursive_create_children_perimeters(top_care_site_ids, all_valid_care_site_relationship,
                                                     existing_perimeters, top_perimeters_list)
-    print("Start deletion of removed perimeters")
+    _logger.info("Start deletion of removed perimeters")
     delete_perimeters_and_accesses(existing_perimeters, all_valid_care_site_relationship)
-    print("End of perimeters updating")
+    _logger.info("End of perimeters updating")
 
 
 # TODO : le Cron lance la fonction toutes les heures d'où la vérification du timezone now... solution sale à remplacer!
@@ -556,7 +560,6 @@ def perimeters_data_model_objects_update():
 
 @app.task()
 def care_sites_daily_update():
-    # runs between 2am and 3am
     if timezone.now().hour != 2:
         return
     perimeters_data_model_objects_update()
