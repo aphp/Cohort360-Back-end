@@ -150,7 +150,7 @@ def get_top_perimeter_from_read_patient_accesses(accesses_nomi, accesses_pseudo)
                 all_pseudo.remove(perimeter.id)
                 break
 
-    return Perimeter.objects.filter(id__in=list(set(all_nomi + all_pseudo)))
+    return Perimeter.objects.filter(id__in=set(all_nomi + all_pseudo))
 
 
 def get_read_patient_right(perimeters_filtered_by_search, all_read_patient_nominative_accesses,
