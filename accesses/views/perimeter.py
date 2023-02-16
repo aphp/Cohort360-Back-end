@@ -69,22 +69,21 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
     def get_manageable(self, request, *args, **kwargs):
         user_accesses = get_user_valid_manual_accesses_queryset(self.request.user)
 
-        # Get perimeters if search param is used:
         perimeters_filtered_by_search = []
         if self.request.query_params:
-            perimeters_filtered_by_search = self.filter_queryset(self.get_queryset())
+            accessible_perimeters = Perimeter.objects.filter(id__in={a.perimeter_id for a in user_accesses})
+            perimeters_filtered_by_search = self.filter_queryset(accessible_perimeters)
             if not perimeters_filtered_by_search:
-                return Response({"WARN": "No Perimeters Found"})
+                return Response(data={"WARN": "No Perimeters Found"}, status=status.HTTP_204_NO_CONTENT)
 
-        if user_accesses.filter(Role.is_manage_role_any_level("role")).count():
+        if user_accesses.filter(Role.is_manage_role_any_level("role")):
             # if edit on any level, we don't care about perimeters' accesses; return the top perimeter hierarchy:
             top_hierarchy_perimeter = Perimeter.objects.filter(parent__isnull=True)
         else:
-            access_same_level = [access for access in user_accesses.filter(Role.is_manage_role_same_level("role"))]
-            access_inf_level = [access for access in user_accesses.filter(Role.is_manage_role_inf_level("role"))]
+            access_same_level = user_accesses.filter(Role.is_manage_role_same_level("role"))
+            access_inf_level = user_accesses.filter(Role.is_manage_role_inf_level("role"))
 
-            # Get all distinct perimeter from accesses:
-            all_perimeters = list(set([access.perimeter for access in access_same_level + access_inf_level]))
+            all_perimeters = {access.perimeter for access in access_same_level.union(access_inf_level)}
 
             top_perimeter_same_level = list(set(get_top_perimeter_same_level(access_same_level, all_perimeters)))
             top_perimeter_inf_level = get_top_perimeter_inf_level(access_inf_level, all_perimeters, top_perimeter_same_level)
@@ -112,7 +111,8 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
             raise Http404("ERROR: No accesses with read patient right found")
 
         if self.request.query_params:
-            perimeters = self.filter_queryset()
+            accessible_perimeters = Perimeter.objects.filter(id__in={a.perimeter_id for a in user_accesses})
+            perimeters = self.filter_queryset(accessible_perimeters)
         else:
             perimeters = get_top_perimeter_from_read_patient_accesses(all_read_patient_nominative_accesses,
                                                                       all_read_patient_pseudo_accesses)
