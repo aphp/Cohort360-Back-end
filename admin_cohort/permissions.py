@@ -50,18 +50,12 @@ class MaintenancePermission(permissions.BasePermission):
 
 class LogsPermission(permissions.BasePermission):
     def has_permission(self, request, view):
-        if request.method != "GET":
-            return False
-        if not user_is_authenticated(request.user):
+        if request.method != "GET" or not user_is_authenticated(request.user):
             return False
         return can_user_read_logs(request.user)
 
     def has_object_permission(self, request, view, obj):
-        if request.method != "GET":
-            return False
-        if not user_is_authenticated(request.user):
-            return False
-        return can_user_read_logs(request.user)
+        return self.has_permission(request=request, view=view)
 
 
 class IsAuthenticated(permissions.BasePermission):
@@ -69,7 +63,7 @@ class IsAuthenticated(permissions.BasePermission):
         return user_is_authenticated(request.user)
 
     def has_object_permission(self, request, view, obj):
-        return user_is_authenticated(request.user)
+        return self.has_permission(request=request, view=view)
 
 
 class IsAuthenticatedReadOnly(permissions.BasePermission):
@@ -79,9 +73,7 @@ class IsAuthenticatedReadOnly(permissions.BasePermission):
         return request.method in permissions.SAFE_METHODS
 
     def has_object_permission(self, request, view, obj):
-        if not user_is_authenticated(request.user):
-            return False
-        return request.method in permissions.SAFE_METHODS
+        return self.has_permission(request=request, view=view)
 
 
 class IsAuthenticatedReadOnlyListOnly(permissions.BasePermission):
@@ -94,8 +86,8 @@ class IsAuthenticatedReadOnlyListOnly(permissions.BasePermission):
         return False
 
 
-def OR(*perms):
-    if len(perms) < 1:
+def either(*perms):
+    if not perms:
         raise ValueError("OR takes at list one Permission.")
 
     result = perms[0]

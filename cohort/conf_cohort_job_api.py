@@ -263,7 +263,7 @@ def post_create_cohort(auth_headers: dict, json_query: str, cr_uuid: str) -> CRB
     return CRBCohortResponse(success=True, fhir_job_id=job.job_id)
 
 
-def post_validate_cohort(json_query: str, auth_headers) -> CRBValidateResponse:
+def post_validate_cohort() -> CRBValidateResponse:
     """ Called to ask a Fhir API to validate the format of the json_query """
     return CRBValidateResponse(success=True)
 

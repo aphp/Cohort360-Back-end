@@ -191,11 +191,7 @@ class RequestQuerySnapshotSerializer(BaseSerializer):
         except json.JSONDecodeError as e:
             raise ValidationError(f"Serialized_query could not be recognized as json: {e.msg}")
 
-        # post_validate_cohort is called this way
-        # so that fhir_api can be mocked in tests
-        auth_headers = cohort_job_api.get_authorization_header(self.context.get("request"))
-        validate_resp = cohort_job_api.post_validate_cohort(json_query=serialized_query,
-                                                            auth_headers=auth_headers)
+        validate_resp = cohort_job_api.post_validate_cohort()
         if not validate_resp.success:
             raise ValidationError(f"Serialized_query, after formatting, is not accepted by "
                                   f"FHIR server: {validate_resp.err_msg}")

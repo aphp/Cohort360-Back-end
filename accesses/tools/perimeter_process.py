@@ -52,16 +52,15 @@ def get_top_perimeter_inf_level(accesses_inf_levels: [Access], all_distinct_peri
     for access in accesses_inf_levels:
         perimeter = access.perimeter
         if perimeter is None:
-            pass
+            continue
         above_list = perimeter.above_levels
         if is_perimeter_in_top_hierarchy(above_list, all_distinct_perimeters) and \
                 is_perimeter_in_top_hierarchy([perimeter.id], same_level_perimeters_response):
             if perimeter.inferior_levels_ids is None:
                 print("WARN: No lower levels perimeters found! ")
-                pass
             children_list = perimeter.inferior_levels
-            if len(children_list) == 0:
-                pass
+            if not children_list:
+                continue
             children_perimeters = Perimeter.objects.filter(id__in=children_list)
             for perimeter_child in children_perimeters:
                 response_list.append(perimeter_child)
@@ -231,8 +230,8 @@ def get_all_read_patient_accesses(user) -> tuple:
     return all_read_patient_nominative_accesses, all_read_patient_pseudo_accesses
 
 
-def is_at_least_one_read_Nomitative_right(perimeters_filtered_by_search, all_read_patient_nominative_accesses,
-                                          all_read_patient_pseudo_accesses):
+def has_at_least_one_read_nomitative_right(perimeters_filtered_by_search, all_read_patient_nominative_accesses,
+                                           all_read_patient_pseudo_accesses):
     """_
     Loop in perimeters, if we found at least one read patient right at Nominative it will return True.
     If there is at least on pseudo and no nominative it will return False.

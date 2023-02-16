@@ -24,10 +24,8 @@ from accesses.serializers import AccessSerializer
 from admin_cohort import conf_auth
 from .MaintenanceModeMiddleware import get_next_maintenance
 from .models import User, get_user, MaintenancePhase
-from .permissions import LogsPermission, IsAuthenticatedReadOnly, \
-    OR, can_user_read_users, MaintenancePermission
-from .serializers import APIRequestLogSerializer, \
-    UserSerializer, OpenUserSerializer, MaintenancePhaseSerializer
+from .permissions import LogsPermission, IsAuthenticatedReadOnly, can_user_read_users, MaintenancePermission
+from .serializers import APIRequestLogSerializer, UserSerializer, OpenUserSerializer, MaintenancePhaseSerializer
 from .settings import MANUAL_SOURCE
 
 
@@ -364,12 +362,10 @@ class UserViewSet(YarnReadOnlyViewsetMixin, BaseViewset):
     lookup_field = "provider_username"
     search_fields = ["firstname", "lastname", "provider_username", "email"]
     filterset_class = UserFilter
+    permission_classes = (IsAuthenticatedReadOnly,)
 
     def get_serializer_context(self):
         return {'request': self.request}
-
-    def get_permissions(self):
-        return OR(IsAuthenticatedReadOnly())
 
     def get_serializer(self, *args, **kwargs):
         if can_user_read_users(self.request.user):
@@ -377,7 +373,7 @@ class UserViewSet(YarnReadOnlyViewsetMixin, BaseViewset):
         return OpenUserSerializer(*args, **kwargs)
 
     def get_queryset(self):
-        # todo : to test manualonly
+        # todo : to test manual_only
         manual_only = self.request.GET.get("manual_only", None)
         if not manual_only:
             return super(UserViewSet, self).get_queryset()

@@ -4,13 +4,14 @@ from pathlib import Path
 import environ
 import pytz
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 env = environ.Env()
 environ.Env.read_env()
 
 SERVER_VERSION = env("SERVER_VERSION")
+
+SERVER_URL = f"http://{env('SERVER_IP')}"
 BACK_URL = env("BACK_URL")
 FRONT_URL = env("FRONT_URL")
 FRONT_URLS = [f"http://{u}" for u in env("FRONT_URLS").split(',')]
@@ -25,20 +26,14 @@ CORS_ORIGIN_ALLOW_ALL = DEBUG
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 
 if SERVER_VERSION == "dev":
-    CORS_ORIGIN_WHITELIST = ["http://localhost:3000",
-                             f"http://{env('SERVER_IP')}"]
+    CORS_ORIGIN_WHITELIST = [FRONT_URL, SERVER_URL]
 
-    CSRF_TRUSTED_ORIGINS = ["http://localhost:3000",
-                            f"http://{env('SERVER_IP')}"]
+    CSRF_TRUSTED_ORIGINS = [FRONT_URL, SERVER_URL]
 
 elif SERVER_VERSION == "prod":
-    CORS_ORIGIN_WHITELIST = ["http://localhost:3000",
-                             "http://localhost:49033",
-                             f"http://{env('BACK_URL')}"] + FRONT_URLS
+    CORS_ORIGIN_WHITELIST = [FRONT_URL, f"http://{env('BACK_URL')}"] + FRONT_URLS
 
-    CSRF_TRUSTED_ORIGINS = ["http://localhost:49033",
-                            f"http://{env('BACK_URL')}",
-                            f"http://{env('SERVER_IP')}"] + FRONT_URLS
+    CSRF_TRUSTED_ORIGINS = [f"http://{env('BACK_URL')}", SERVER_URL] + FRONT_URLS
 
 CORS_ALLOW_HEADERS = ['access-control-allow-origin',
                       'content-type',
@@ -48,8 +43,7 @@ CORS_ALLOW_HEADERS = ['access-control-allow-origin',
 ALLOWED_HOSTS = ['localhost',
                  '127.0.0.1',
                  '0.0.0.0',
-                 BACK_URL,
-                 env('BACK_URL_LOCAL', default='')]
+                 BACK_URL]
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
