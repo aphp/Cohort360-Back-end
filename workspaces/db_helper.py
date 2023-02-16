@@ -103,10 +103,10 @@ def yaml_to_db(yaml_content: str):
     y = yaml.load(yaml_content, Loader)
 
     if USERS_KEY not in y:
-        raise Exception(f"FORMAT UNEXPECTED: Could not find '{USERS_KEY}' field in yaml")
+        raise MissingDataError(f"'{USERS_KEY}' field is missing in yaml")
 
     users = y[USERS_KEY]
-    assert isinstance(users, dict), f"FORMAT UNEXPECTED: '{USERS_KEY}' value in not a dict"
+    assert isinstance(users, dict), f"'{USERS_KEY}' value in not a dict"
     _logger.info(f"{len(users)} users found")
 
     to_update: List[Account] = Account.objects.filter(username__in=[name for name in users.keys()])
@@ -149,7 +149,6 @@ def yaml_to_db(yaml_content: str):
             _logger.info(f"Updated {count} accounts out of {length}")
         except Exception:
             pass
-
     _logger.info("Updates finished")
 
     to_create = [(n, u) for (n, u) in users.items() if n not in updated_usernames]
@@ -191,16 +190,13 @@ def yaml_to_db(yaml_content: str):
             _logger.info(f"Added {count} new accounts out of {length}")
         except Exception:
             pass
-
-    _logger.info("Finished updating accounts")
-    return
+    _logger.info("Finished creating accounts")
 
 
 def yaml_file_to_db(yaml_file_path: str):
     with open(yaml_file_path, 'r') as f:
-        r = yaml_to_db(f.read())
+        yaml_to_db(f.read())
         f.close()
-    return r
 
 
 def db_to_yaml() -> str:

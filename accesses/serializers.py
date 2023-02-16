@@ -122,18 +122,15 @@ def check_profile_entries(validated_data, for_update: bool = False):
     if source != MANUAL_SOURCE:
         raise ValidationError(f"Vous ne pouvez pas définir source sur autre chose que {MANUAL_SOURCE}")
 
-    if firstname != -1:
-        if firstname and not name_regex_pattern.match(firstname):
-            raise ValidationError(f"Le prénom fourni ({firstname}) est invalide. Doit uniquement "
-                                  f"comporter des lettres et des caractères ' et - ")
-    if lastname != -1:
-        if lastname and not name_regex_pattern.match(lastname):
-            raise ValidationError(f"Le nom de famille fourni ({lastname}) est invalide. Doit "
-                                  f"uniquement comporter des lettres et des caractères ' et - ")
-    if email != -1:
-        if email and not email_regex_pattern.match(email):
-            raise ValidationError(f"L'adresse email fournie ({email}) est invalide. Doit "
-                                  f"uniquement comporter des lettres, chiffres et caractères @_-.")
+    if firstname and firstname != -1 and not name_regex_pattern.match(firstname):
+        raise ValidationError(f"Le prénom fourni ({firstname}) est invalide. Doit uniquement "
+                              f"comporter des lettres et des caractères ' et - ")
+    if lastname and lastname != -1 and not name_regex_pattern.match(lastname):
+        raise ValidationError(f"Le nom de famille fourni ({lastname}) est invalide. Doit "
+                              f"uniquement comporter des lettres et des caractères ' et - ")
+    if email  and email != -1 and not email_regex_pattern.match(email):
+        raise ValidationError(f"L'adresse email fournie ({email}) est invalide. Doit "
+                              f"uniquement comporter des lettres, chiffres et caractères @_-.")
 
     user: User = validated_data.get("user", None)
 

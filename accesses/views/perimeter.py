@@ -18,7 +18,7 @@ from ..serializers import PerimeterSerializer, TreefiedPerimeterSerializer, Yasg
 from ..tools.perimeter_process import get_top_perimeter_same_level, get_top_perimeter_inf_level, \
     filter_perimeter_by_top_hierarchy_perimeter_list, filter_accesses_by_search_perimeters, get_read_patient_right, \
     get_top_perimeter_from_read_patient_accesses, is_pseudo_perimeter_in_top_perimeter, \
-    is_at_least_one_read_Nomitative_right, \
+    has_at_least_one_read_nomitative_right, \
     get_read_nominative_boolean_from_specific_logic_function, get_all_read_patient_accesses
 
 
@@ -158,7 +158,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
                                                                                                       self.get_queryset()),
                                                                                                   all_read_patient_nominative_accesses,
                                                                                                   all_read_patient_pseudo_accesses,
-                                                                                                  is_at_least_one_read_Nomitative_right)
+                                                                                                  has_at_least_one_read_nomitative_right)
             return Response({"is_one_read_nominative_patient_right": is_read_patient_nominative})
         else:
             raise Http404("ERROR at least one search params is required!")

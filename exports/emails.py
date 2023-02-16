@@ -20,6 +20,9 @@ locale.setlocale(locale.LC_ALL, 'fr_FR.utf8')
 
 BACKEND_URL = EMAIL_BACK_HOST_URL
 SENDER_EMAIL_ADDR = EMAIL_SENDER_ADDRESS
+TEXT_HTML = "text/html"
+
+COHORT360_LOGO = "exports/email_templates/logoCohort360.png"
 
 KEY_DOWNLOAD_URL = "KEY_DOWNLOAD_URL"
 KEY_COHORT_ID = "KEY_COHORT_ID"
@@ -106,8 +109,8 @@ def send_failed_email(req: ExportRequest, email_address: str):
         from_email=from_email, to=[email_address]
     )
 
-    msg.attach_alternative(replace_keys(html_mail, req, True), "text/html")
-    msg.attach_file('exports/email_templates/logoCohort360.png')
+    msg.attach_alternative(content=replace_keys(html_mail, req, True), mimetype=TEXT_HTML)
+    msg.attach_file(COHORT360_LOGO)
     send_email(msg)
 
 
@@ -134,8 +137,8 @@ def send_success_email(req: ExportRequest, email_address: str):
         from_email=from_email, to=[email_address]
     )
 
-    msg.attach_alternative(replace_keys(html_mail, req, True), "text/html")
-    msg.attach_file('exports/email_templates/logoCohort360.png')
+    msg.attach_alternative(content=replace_keys(html_mail, req, True), mimetype=TEXT_HTML)
+    msg.attach_file(COHORT360_LOGO)
     send_email(msg)
 
 
@@ -201,8 +204,8 @@ def email_info_request_confirmed(req: ExportRequest, email_address: str):
         from_email=from_email, to=[email_address]
     )
 
-    msg.attach_alternative(replace_keys(html_mail, req, True), "text/html")
-    msg.attach_file('exports/email_templates/logoCohort360.png')
+    msg.attach_alternative(content=replace_keys(html_mail, req, True), mimetype=TEXT_HTML)
+    msg.attach_file(COHORT360_LOGO)
     send_email(msg)
 
 
@@ -234,6 +237,6 @@ def email_info_request_deleted(req: ExportRequest, email_address: str):
         from_email=from_email, to=[email_address]
     )
 
-    msg.attach_alternative(replace_keys(html_mail, req, True), "text/html")
-    msg.attach_file('exports/email_templates/logoCohort360.png')
+    msg.attach_alternative(content=replace_keys(html_mail, req, True), mimetype=TEXT_HTML)
+    msg.attach_file(COHORT360_LOGO)
     send_email(msg)
