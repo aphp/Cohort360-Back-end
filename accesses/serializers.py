@@ -128,7 +128,7 @@ def check_profile_entries(validated_data, for_update: bool = False):
     if lastname and lastname != -1 and not name_regex_pattern.match(lastname):
         raise ValidationError(f"Le nom de famille fourni ({lastname}) est invalide. Doit "
                               f"uniquement comporter des lettres et des caractères ' et - ")
-    if email  and email != -1 and not email_regex_pattern.match(email):
+    if email and email != -1 and not email_regex_pattern.match(email):
         raise ValidationError(f"L'adresse email fournie ({email}) est invalide. Doit "
                               f"uniquement comporter des lettres, chiffres et caractères @_-.")
 
