@@ -5,7 +5,6 @@ from rest_framework import viewsets
 
 from accesses.permissions import can_user_read_unix_accounts
 from admin_cohort.models import User
-from admin_cohort.permissions import OR
 from admin_cohort.views import YarnReadOnlyViewsetMixin
 from workspaces.conf_workspaces import get_account_groups_from_id_aph
 from workspaces.models import Account
@@ -40,15 +39,13 @@ class AccountViewSet(YarnReadOnlyViewsetMixin, viewsets.ModelViewSet):
     serializer_class = AccountSerializer
     queryset = Account.objects.all()
     lookup_field = "uid"
+    permission_classes = (AccountPermissions,)
     filterset_class = AccountFilter
     search_fields = ["username", "name", "firstname", "lastname", "mail"]
     swagger_tags = ['Workspaces - users']
 
     def get_serializer_context(self):
         return {'request': self.request}
-
-    def get_permissions(self):
-        return OR(AccountPermissions(),)
 
     def get_queryset(self):
         q = super(AccountViewSet, self).get_queryset()
