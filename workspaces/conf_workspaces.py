@@ -2,7 +2,7 @@ import os
 from typing import Dict, List
 
 import requests
-from requests import Response, HTTPError, JSONDecodeError
+from requests import Response, HTTPError
 from rest_framework import status
 
 from admin_cohort.models import User
@@ -21,11 +21,7 @@ def check_resp(resp: Response, url: str) -> Dict:
     if resp.status_code not in [status.HTTP_201_CREATED, status.HTTP_200_OK]:
         raise HTTPError(f"Connection error with Infra API ({url}): status code {resp.text}")
 
-    try:
-        res = resp.json()
-    except (JSONDecodeError, ValueError):
-        raise
-
+    res = resp.json()
     if not isinstance(res, List) or not all([isinstance(s, str) for s in res]):
         raise MissingDataError(f"Format of response from Infra API ({url}) not expected (expected list of str): "
                                f"status code {resp.status_code} - {resp.text}")

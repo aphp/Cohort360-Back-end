@@ -70,7 +70,7 @@ class Perimeter(BaseModel):
             return ids
         except (AttributeError, ValueError) as e:
             _logger.error(f"Error getting inferior level ids for perimeter {self}.\n {e}")
-            raise
+            raise e
 
     def all_parents_query(self, prefix: str = None) -> Q:
         prefix = f"{prefix}__" if prefix is not None else ""

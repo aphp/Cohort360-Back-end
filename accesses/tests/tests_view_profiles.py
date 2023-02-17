@@ -17,7 +17,7 @@ from admin_cohort.tests_tools import random_str, \
     new_user_and_profile, CaseRetrieveFilter, ViewSetTestsWithBasicPerims, \
     ListCase, CreateCase, DeleteCase, PatchCase, RequestCase
 from admin_cohort.tools import prettify_json, prettify_dict
-from admin_cohort.types import IdResp
+from admin_cohort.types import PersonIdentity
 
 PROFILES_URL = "/profiles"
 
@@ -70,7 +70,7 @@ class CheckedProfile:
 
 
 class CheckCase(RequestCase):
-    def __init__(self, mocked_value: IdResp, mock_called: bool = False,
+    def __init__(self, mocked_value: PersonIdentity, mock_called: bool = False,
                  to_find: CheckedProfile = None,
                  checked_id: str = '', **kwargs):
         super(CheckCase, self).__init__(**kwargs)
@@ -422,7 +422,7 @@ class ProfileCheckTests(ProfileCreateTests):
         ]:
             self.unexisting_user_id = str(random.randint(0, 10000000))
 
-        self.base_id_resp: IdResp = IdResp(
+        self.base_person_identity: PersonIdentity = PersonIdentity(
             firstname='testFn',
             lastname='testLn',
             user_id=self.user_random.provider_username,
@@ -431,7 +431,7 @@ class ProfileCheckTests(ProfileCreateTests):
         self.base_case = CheckCase(
             success=True,
             mock_called=True,
-            mocked_value=self.base_id_resp,
+            mocked_value=self.base_person_identity,
             status=status.HTTP_200_OK,
             user=self.user_that_can_add_users,
         )
@@ -441,12 +441,12 @@ class ProfileCheckTests(ProfileCreateTests):
         # I can check the existence of a user on the control API,
         # and it returns User and Manual profile if it exists
         self.check_check_case(self.base_case.clone(
-            mocked_value=self.base_id_resp,
+            mocked_value=self.base_person_identity,
             to_find=CheckedProfile(dict(
-                firstname=self.base_id_resp.firstname,
-                lastname=self.base_id_resp.lastname,
-                email=self.base_id_resp.email,
-                user_id=self.base_id_resp.user_id,
+                firstname=self.base_person_identity.firstname,
+                lastname=self.base_person_identity.lastname,
+                email=self.base_person_identity.email,
+                user_id=self.base_person_identity.user_id,
                 user=self.user_random.__dict__,
                 manual_profile=self.prof_random.__dict__,
             )),
@@ -469,13 +469,13 @@ class ProfileCheckTests(ProfileCreateTests):
         # I can check the existence of a user on the control API,
         # and it returns with empty user and profile if user is not in database
         self.check_check_case(self.base_case.clone(
-            mocked_value=IdResp(**{**self.base_id_resp.__dict__,
-                                   'user_id': self.unexisting_user_id}),
+            mocked_value=PersonIdentity(**{**self.base_person_identity.__dict__,
+                                           'user_id': self.unexisting_user_id}),
             to_find=CheckedProfile(dict(
-                firstname=self.base_id_resp.firstname,
-                lastname=self.base_id_resp.lastname,
-                email=self.base_id_resp.email,
-                user_id=self.base_id_resp.user_id,
+                firstname=self.base_person_identity.firstname,
+                lastname=self.base_person_identity.lastname,
+                email=self.base_person_identity.email,
+                user_id=self.base_person_identity.user_id,
             )),
             checked_id=random_str(1),
         ))
@@ -489,13 +489,13 @@ class ProfileCheckTests(ProfileCreateTests):
             email=''
         )
         self.check_check_case(self.base_case.clone(
-            mocked_value=IdResp(**{**self.base_id_resp.__dict__,
-                                   'user_id': self.unexisting_user_id}),
+            mocked_value=PersonIdentity(**{**self.base_person_identity.__dict__,
+                                           'user_id': self.unexisting_user_id}),
             to_find=CheckedProfile(dict(
-                firstname=self.base_id_resp.firstname,
-                lastname=self.base_id_resp.lastname,
-                email=self.base_id_resp.email,
-                user_id=self.base_id_resp.user_id,
+                firstname=self.base_person_identity.firstname,
+                lastname=self.base_person_identity.lastname,
+                email=self.base_person_identity.email,
+                user_id=self.base_person_identity.user_id,
                 user=user_random_no_profile.__dict__,
             )),
             checked_id=random_str(1),
@@ -505,7 +505,7 @@ class ProfileCheckTests(ProfileCreateTests):
         # As a user with all the rights, I cannot call it
         # without providing 'user_id' parameter
         self.check_check_case(self.base_case.clone(
-            mocked_value=self.base_id_resp,
+            mocked_value=self.base_person_identity,
             mock_called=False,
             checked_id=None,
             status=status.HTTP_400_BAD_REQUEST,
@@ -517,7 +517,7 @@ class ProfileCheckTests(ProfileCreateTests):
         # As a user with everything but right_add_users,
         # I cannot check the existence of a user on the control API
         self.check_check_case(self.base_case.clone(
-            mocked_value=self.base_id_resp,
+            mocked_value=self.base_person_identity,
             mock_called=False,
             checked_id=None,
             status=status.HTTP_403_FORBIDDEN,

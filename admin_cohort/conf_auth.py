@@ -10,7 +10,7 @@ from rest_framework import status, HTTP_HEADER_ENCODING
 from rest_framework_simplejwt.exceptions import AuthenticationFailed
 
 from admin_cohort.settings import SERVER_VERSION
-from admin_cohort.types import IdResp, ServerError, JwtTokens, LoginError, UserInfo
+from admin_cohort.types import PersonIdentity, ServerError, JwtTokens, LoginError, UserInfo, MissingDataError
 
 env = environ.Env()
 
@@ -76,7 +76,7 @@ def get_token_from_headers(request) -> (str, str):
     return get_raw_token(header_authorization), header_authorization_method
 
 
-def check_id_aph(id_aph: str) -> Optional[IdResp]:
+def check_id_aph(id_aph: str) -> Optional[PersonIdentity]:
     resp = requests.post(url=ID_CHECKER_URL, data={'username': id_aph}, headers=id_checker_server_headers)
     if status.is_server_error(resp.status_code):
         raise ServerError(f"Error {resp.status_code} from id-checker server ({ID_CHECKER_URL}): {resp.text}")
@@ -86,11 +86,11 @@ def check_id_aph(id_aph: str) -> Optional[IdResp]:
     res: dict = resp.json().get('data', {}).get('attributes', {})
     for expected in ['givenName', 'sn', 'sAMAccountName', 'mail']:
         if expected not in res:
-            raise ValueError(f"JWT server response not as expected: missing {expected} ({resp.content})")
-    return IdResp(firstname=res.get('givenName'),
-                  lastname=res.get('sn'),
-                  user_id=res.get('sAMAccountName'),
-                  email=res.get('mail'))
+            raise MissingDataError(f"JWT server response is missing {expected} ({resp.content})")
+    return PersonIdentity(firstname=res.get('givenName'),
+                          lastname=res.get('sn'),
+                          user_id=res.get('sAMAccountName'),
+                          email=res.get('mail'))
 
 
 def check_ids(username: str, password: str) -> JwtTokens:

@@ -10,7 +10,9 @@ from rest_framework.response import Response
 from admin_cohort import conf_auth
 from admin_cohort.models import User
 from admin_cohort.permissions import IsAuthenticated, can_user_read_users
+from admin_cohort.serializers import UserSerializer
 from admin_cohort.settings import MANUAL_SOURCE
+from admin_cohort.types import ServerError, MissingDataError
 from admin_cohort.views import BaseViewset, CustomLoggingMixin
 from ..models import Profile
 from ..permissions import ProfilePermissions, HasUserAddingPermission
@@ -82,26 +84,17 @@ class ProfileViewSet(CustomLoggingMixin, BaseViewset):
                                                      properties={"firstname": openapi.Schema(type=openapi.TYPE_STRING),
                                                                  "lastname": openapi.Schema(type=openapi.TYPE_STRING),
                                                                  "email": openapi.Schema(type=openapi.TYPE_STRING),
-                                                                 "is_active": openapi.Schema(type=openapi.TYPE_BOOLEAN)
-                                                                 }))
+                                                                 "is_active": openapi.Schema(type=openapi.TYPE_BOOLEAN)}))
     def partial_update(self, request, *args, **kwargs):
         return super(ProfileViewSet, self).partial_update(request, *args, **kwargs)
-
-    @swagger_auto_schema(auto_schema=None)
-    def update(self, request, *args, **kwargs):
-        return super(ProfileViewSet, self).update(request, *args, **kwargs)
 
     @swagger_auto_schema(request_body=openapi.Schema(type=openapi.TYPE_OBJECT,
                                                      properties={"firstname": openapi.Schema(type=openapi.TYPE_STRING),
                                                                  "lastname": openapi.Schema(type=openapi.TYPE_STRING),
                                                                  "email": openapi.Schema(type=openapi.TYPE_STRING),
-                                                                 "provider_id": openapi.Schema(
-                                                                     type=openapi.TYPE_STRING,
-                                                                     description="(to deprecate)"),
+                                                                 "provider_id": openapi.Schema(type=openapi.TYPE_STRING),
                                                                  "user": openapi.Schema(type=openapi.TYPE_STRING),
-                                                                 "provider_source_value": openapi.Schema(
-                                                                     type=openapi.TYPE_STRING,
-                                                                     description="(to deprecate)")}))
+                                                                 "provider_source_value": openapi.Schema(type=openapi.TYPE_STRING)}))
     def create(self, request, *args, **kwargs):
         return super(ProfileViewSet, self).create(request, *args, **kwargs)
 
@@ -118,28 +111,28 @@ class ProfileViewSet(CustomLoggingMixin, BaseViewset):
                                     '204': openapi.Response("No user found")})
     @action(detail=False, methods=['post'], permission_classes=(HasUserAddingPermission,), url_path="check")
     def check_existing_user(self, request, *args, **kwargs):
-        from admin_cohort.serializers import UserSerializer
-
-        psv = self.request.data.get("user_id", self.request.data.get("provider_source_value", None))
+        psv = request.data.get("user_id", request.data.get("provider_source_value"))
         if not psv:
-            return Response("No provider_source_value provided", status=status.HTTP_400_BAD_REQUEST)
-        person = conf_auth.check_id_aph(psv)
-        if person is not None:
+            return Response(data="No `provider_source_value` provided",
+                            status=status.HTTP_400_BAD_REQUEST)
+        try:
+            person = conf_auth.check_id_aph(psv)
             manual_profile: Profile = Profile.objects.filter(Profile.Q_is_valid()
-                                                             & Q(user__provider_username=person.user_id)
                                                              & Q(source=MANUAL_SOURCE)
+                                                             & Q(user__provider_username=person.user_id)
                                                              ).first()
 
             user: User = User.objects.filter(provider_username=person.user_id).first()
-            u_data = UserSerializer(user).data if user else None
+            user_data = user and UserSerializer(user).data or None
 
             data = ProfileCheckSerializer({"firstname": person.firstname,
                                            "lastname": person.lastname,
                                            "user_id": person.user_id,
                                            "email": person.email,
-                                           "provider": u_data,
-                                           "user": u_data,
+                                           "provider": user_data,
+                                           "user": user_data,
                                            "manual_profile": manual_profile
                                            }).data
-            return Response(data, status=status.HTTP_200_OK, headers=self.get_success_headers(data))
-        return Response(status=status.HTTP_204_NO_CONTENT)
+            return Response(data=data, status=status.HTTP_200_OK)
+        except (ServerError, MissingDataError):
+            return Response(status=status.HTTP_204_NO_CONTENT)

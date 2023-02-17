@@ -28,37 +28,31 @@ class ExportRequestTableSerializer(serializers.ModelSerializer):
 
 
 def check_rights_on_perimeters_for_exports(rights: List[DataRight], export_type: str, is_nomi: bool):
+    assert export_type in [e.value for e in ExportType], "Wrong value for `export_type`"
     if is_nomi:
         wrong_perims = [r.care_site_id for r in rights if not r.right_read_patient_nominative]
-        if wrong_perims or not rights:
-            raise ValidationError(f"L'utilisateur n'a pas le droit de lecture nominative "
-                                  f"actuellement sur les périmètres {wrong_perims}.")
     else:
         wrong_perims = [r.care_site_id for r in rights if not r.right_read_patient_pseudo_anonymised]
-        if wrong_perims or not rights:
-            raise ValidationError(f"L'utilisateur n'a pas le droit de lecture pseudonymisée "
-                                  f"actuellement sur les périmètres {wrong_perims}.")
+    if wrong_perims:
+        raise ValidationError(f"L'utilisateur n'a pas le droit de lecture {is_nomi and 'nominative' or 'pseudonymisée'} "
+                              f"sur les périmètres: {wrong_perims}.")
 
-    if export_type == ExportType.CSV.value:
+    if export_type == ExportType.CSV:
         if is_nomi:
             wrong_perims = [r.care_site_id for r in rights if not r.right_export_csv_nominative]
         else:
             wrong_perims = [r.care_site_id for r in rights if not r.right_export_csv_pseudo_anonymised]
-
-        if wrong_perims or not rights:
-            raise ValidationError(f"Le provider n'a pas le droit d'export {is_nomi and 'nominatif' or 'pseudonymisé'} "
-                                  f"actuellement sur les périmètres {wrong_perims}.")
-
-    if export_type in [ExportType.PSQL.value, ExportType.HIVE.value]:
+        if wrong_perims:
+            raise ValidationError(f"L'utilisateur n'a pas le droit d'export CSV {is_nomi and 'nominatif' or 'pseudonymisé'} "
+                                  f"sur les périmètres {wrong_perims}.")
+    else:
         if is_nomi:
             wrong_perims = [r.care_site_id for r in rights if not r.right_transfer_jupyter_nominative]
         else:
             wrong_perims = [r.care_site_id for r in rights if not r.right_transfer_jupyter_pseudo_anonymised]
-
-        if wrong_perims or not rights:
-            raise ValidationError(f"Le provider n'a pas le droit d'export jupyter "
-                                  f"{is_nomi and 'nominatif' or 'pseudonymisé'} "
-                                  f"actuellement sur les périmètres {wrong_perims}.")
+        if wrong_perims:
+            raise ValidationError(f"L'utilisateur n'a pas le droit d'export Jupyter {is_nomi and 'nominatif' or 'pseudonymisé'} "
+                                  f"sur les périmètres {wrong_perims}.")
 
 
 class ReviewFilteredPrimaryKeyRelatedField(serializers.PrimaryKeyRelatedField):
