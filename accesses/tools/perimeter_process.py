@@ -33,7 +33,7 @@ def get_top_perimeter_same_level(accesses_same_levels: [Access], all_distinct_pe
     for access in accesses_same_levels:
         perimeter = access.perimeter
         if perimeter is None:
-            pass
+            continue
         above_list = perimeter.above_levels
         if is_perimeter_in_top_hierarchy(above_list, all_distinct_perimeters):
             response_list.append(perimeter)
@@ -164,22 +164,16 @@ def get_read_patient_right(perimeters_filtered_by_search, all_read_patient_nomin
     """
     is_pseudo = False
     if not perimeters_filtered_by_search:
-        raise ValidationError(
-            "ERROR"
-            "|perimeter_process.py get_read_patient_right()"
-            "|No perimeters in parameter for rights verification")
+        raise ValidationError("No perimeters in parameter for rights verification")
     for perimeter in perimeters_filtered_by_search:
         above_levels_ids = perimeter.above_levels
         above_levels_ids.append(perimeter.id)
         if all_read_patient_nominative_accesses.filter(perimeter_id__in=above_levels_ids):
-            pass
+            continue
         elif all_read_patient_pseudo_accesses.filter(perimeter_id__in=above_levels_ids):
             is_pseudo = True
         else:
-            raise ValidationError(
-                f"ERROR"
-                f"|perimeter_process.py get_read_patient_right()"
-                f"|No read patient role on perimeter {perimeter.id} - {perimeter.name}")
+            raise ValidationError(f"No read patient role on perimeter {perimeter.id} - {perimeter.name}")
     return not is_pseudo
 
 

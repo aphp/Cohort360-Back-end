@@ -232,10 +232,8 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
         if self.request.method == "GET":
             try:
                 obj = super(AccessViewSet, self).get_object()
-            except PermissionDenied:
+            except (Http404, PermissionDenied):
                 raise Http404
-            except Exception as e:
-                raise e
         else:
             obj = super(AccessViewSet, self).get_object()
         return obj

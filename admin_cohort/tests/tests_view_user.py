@@ -52,20 +52,14 @@ class UserTestsAsAdmin(UserTests):
     unupdatable_fields = [
         "provider_name",
         "last_login_datetime",
-        "creation_datetime",
-        "modified_datetime",
-        "change_datetime",
         "source",
     ]
     unsettable_default_fields = dict(
         last_login_datetime=None,
-        creation_datetime=None,
-        modified_datetime=None,
         source=None,
     )
     unsettable_fields = [
         "provider_id",
-        "change_datetime",
     ]
 
     def test_error_create_provider_as_main_admin(self):
