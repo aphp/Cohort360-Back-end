@@ -23,8 +23,8 @@ def intersect_queryset_criteria(cs_a: List[Dict], cs_b: List[Dict]) -> List[Dict
     If an item is in both, we merge the two versions :
     - with keeping 'False' factors,
     - with extending 'perimeter_not' and 'perimeter_not_child' lists
-    :param cs_a:
-    :param cs_b:
+    :param cs_a: [{'cr1': True, 'cr2': True, 'xxx_perimeter_xxx': False}]
+    :param cs_b: [{'cr1': True, 'cr2': True}]
     :return:
     """
     res = []
@@ -34,10 +34,8 @@ def intersect_queryset_criteria(cs_a: List[Dict], cs_b: List[Dict]) -> List[Dict
         else:
             add = False
             for c_b in cs_b:
-                none_perimeter_criteria = [
-                    k for (k, v) in c_a.items()
-                    if v and 'perimeter' not in k]
-                if all(c_b.get(r) for r in none_perimeter_criteria):
+                non_perimeter_criteria = [k for (k, v) in c_a.items() if v and 'perimeter' not in k]    # ["criteria"]
+                if all(c_b.get(r) for r in non_perimeter_criteria):
                     add = True
                     perimeter_not = c_b.get('perimeter_not', [])
                     perimeter_not.extend(c_a.get('perimeter_not', []))
@@ -53,7 +51,7 @@ def intersect_queryset_criteria(cs_a: List[Dict], cs_b: List[Dict]) -> List[Dict
     return res
 
 
-def can_roles_manage_access(user_accesses: List[Access], access_role: Role, perimeter: Perimeter, just_read: bool = False) -> bool:
+def can_roles_manage_access(user_accesses: List[Access], role: Role, perimeter: Perimeter, just_read: bool = False) -> bool:
     """
     Given accesses from a user (perimeter + role), will determine if the user
     has specific rights to manage or read on other accesses,
@@ -61,42 +59,45 @@ def can_roles_manage_access(user_accesses: List[Access], access_role: Role, peri
     Then, depending on what the role requires to be managed,
     or read if just_read=True, will return if the accesses are sufficient
     @param user_accesses:
-    @param access_role:
-    @param perimeter_id:
+    @param role:
+    @param perimeter:
     @param just_read: True if we should check the possibility to read, instead of to manage
     @return:
     """
-    has_main_admin_role = any([a.role.right_edit_roles for a in user_accesses])
+    has_main_admin_role = False
+    has_admin_managing_role = False
+    has_admin_role = False
+    has_jupy_rvw_mng_role = False
+    has_jupy_mng_role = False
+    has_csv_rvw_mng_role = False
+    has_csv_mng_role = False
 
-    has_admin_managing_role = any(
-        (((acc.role.right_read_admin_accesses_same_level if just_read else acc.role.right_manage_admin_accesses_same_level)
-          and acc.perimeter_id == perimeter.id)
-         or
-         ((acc.role.right_read_admin_accesses_inferior_levels if just_read else acc.role.right_manage_admin_accesses_inferior_levels)
-          and acc.perimeter_id != perimeter.id)
-         ) for acc in user_accesses)
+    for a in user_accesses:
+        acc_role = a.role
 
-    has_admin_role = any(
-        (((acc.role.right_read_data_accesses_same_level if just_read else acc.role.right_manage_data_accesses_same_level)
-          and acc.perimeter_id == perimeter.id)
-         or
-         ((acc.role.right_read_data_accesses_inferior_levels if just_read else acc.role.right_manage_data_accesses_inferior_levels)
-          and acc.perimeter_id != perimeter.id)
-         ) for acc in user_accesses)
+        has_main_admin_role = acc_role.right_edit_roles
 
-    has_jupy_rvw_mng_role = any([acc.role.right_manage_review_transfer_jupyter for acc in user_accesses])
-    has_jupy_mng_role = any([acc.role.right_manage_transfer_jupyter for acc in user_accesses])
-    has_csv_rvw_mng_role = any([acc.role.right_manage_review_export_csv for acc in user_accesses])
-    has_csv_mng_role = any([acc.role.right_manage_export_csv for acc in user_accesses])
+        if a.perimeter_id == perimeter.id:
+            has_admin_managing_role = just_read and acc_role.right_read_admin_accesses_same_level or acc_role.right_manage_admin_accesses_same_level
+            has_admin_role = just_read and acc_role.right_read_data_accesses_same_level or acc_role.right_manage_data_accesses_same_level
+        else:
+            has_admin_managing_role = just_read and acc_role.right_read_admin_accesses_inferior_levels or \
+                                      acc_role.right_manage_admin_accesses_inferior_levels
+            has_admin_role = just_read and acc_role.right_read_data_accesses_inferior_levels or acc_role.right_manage_data_accesses_inferior_levels
 
-    return (not access_role.requires_main_admin_role or has_main_admin_role)\
-        and (not access_role.requires_admin_managing_role or has_admin_managing_role)\
-        and (not access_role.requires_admin_role or has_admin_role)\
-        and (not access_role.requires_any_admin_mng_role or has_main_admin_role or has_admin_managing_role)\
-        and (not access_role.requires_manage_review_transfer_jupyter_role or has_jupy_rvw_mng_role)\
-        and (not access_role.requires_manage_transfer_jupyter_role or has_jupy_mng_role)\
-        and (not access_role.requires_manage_review_export_csv_role or has_csv_rvw_mng_role)\
-        and (not access_role.requires_manage_export_csv_role or has_csv_mng_role)
+        has_jupy_rvw_mng_role = acc_role.right_manage_review_transfer_jupyter
+        has_jupy_mng_role = acc_role.right_manage_transfer_jupyter
+        has_csv_rvw_mng_role = acc_role.right_manage_review_export_csv
+        has_csv_mng_role = acc_role.right_manage_export_csv
+
+    return (has_main_admin_role or not role.requires_main_admin_role) \
+        and (has_admin_managing_role or not role.requires_admin_managing_role) \
+        and (has_admin_role or not role.requires_admin_role) \
+        and (has_main_admin_role or has_admin_managing_role or not role.requires_any_admin_mng_role) \
+        and (has_jupy_rvw_mng_role or not role.requires_manage_review_transfer_jupyter_role) \
+        and (has_jupy_mng_role or not role.requires_manage_transfer_jupyter_role) \
+        and (has_csv_rvw_mng_role or not role.requires_manage_review_export_csv_role) \
+        and (has_csv_mng_role or not role.requires_manage_export_csv_role)
 
 
 def get_assignable_roles_on_perimeter(user: User, perimeter: Perimeter) -> List[Role]:
@@ -304,14 +305,14 @@ def complete_data_rights_and_pop_children(rights: Dict[int, DataRight],
     :param pop_children: true if we want to clean redundant DataRights
     :return:
     """
-    processed_already: List[int] = []
-    to_remove: List[int] = []
+    processed = []
+    to_remove = []
     for right in rights.values():
         # if we've already processed this perimeter, it means the DataRight
         # is already completed with its parents' DataRights
-        if right.perimeter_id in processed_already:
+        if right.perimeter_id in processed:
             continue
-        processed_already.append(right.perimeter_id)
+        processed.append(right.perimeter_id)
 
         # will contain each DataRight we meet following first right's parents
         parental_chain = [right]
@@ -319,9 +320,9 @@ def complete_data_rights_and_pop_children(rights: Dict[int, DataRight],
         # we now go from parent to parent to complete each DataRight
         # inheriting from them with more granted rights
         parent_perim = right.perimeter.parent
-        while parent_perim is not None:
-            parent_right = rights.get(parent_perim.id, None)
-            if parent_right is None:
+        while parent_perim:
+            parent_right = rights.get(parent_perim.id)
+            if not parent_right:
                 parent_perim = parent_perim.parent
                 continue
 
@@ -330,9 +331,9 @@ def complete_data_rights_and_pop_children(rights: Dict[int, DataRight],
 
             # if we've already processed this perimeter, it means the DataRight
             # is completed already, no need to go on with the loop
-            if parent_perim.id in processed_already:
+            if parent_perim.id in processed:
                 break
-            processed_already.append(parent_perim.id)
+            processed.append(parent_perim.id)
             parent_perim = parent_perim.parent
 
         # Now that all rights in parental_chain are completed with granted
@@ -345,7 +346,7 @@ def complete_data_rights_and_pop_children(rights: Dict[int, DataRight],
                 to_remove.append(r.perimeter_id)
 
     res = list(rights.values())
-    if len(expected_perim_ids):
+    if expected_perim_ids:
         res = [r for r in res if r.perimeter_id in expected_perim_ids]
     if pop_children:
         res = [r for r in res if r.perimeter_id not in to_remove]

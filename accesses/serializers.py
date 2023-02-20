@@ -12,8 +12,7 @@ from rest_framework.exceptions import ValidationError, PermissionDenied
 from admin_cohort.conf_auth import check_id_aph
 from admin_cohort.models import User
 from admin_cohort.serializers import BaseSerializer, ReducedUserSerializer, UserSerializer
-from admin_cohort.settings import MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE, MODEL_MANUAL_END_DATE_DEFAULT_ON_UPDATE, MANUAL_SOURCE
-from admin_cohort.types import ServerError, MissingDataError
+from admin_cohort.settings import MANUAL_SOURCE
 from .conf_perimeters import Provider
 from .models import Role, Access, Profile, Perimeter
 from .permissions import can_user_manage_access
@@ -88,7 +87,7 @@ def check_profile_entries(validated_data, for_update: bool = False):
     lastname = validated_data.get("lastname")
     email = validated_data.get("email")
 
-    assert any([v and isinstance(v, str) for v in (firstname, lastname, email)]), "Basic info fields must be strings"
+    assert all([v and isinstance(v, str) for v in (firstname, lastname, email)]), "Basic info fields must be strings"
 
     name_regex_pattern = re.compile(r"^[A-Za-zÀ-ÖØ-öø-ÿ\-' ]*$")
     email_regex_pattern = re.compile(r"^[A-Za-z0-9\-. @_]*$")
@@ -102,49 +101,27 @@ def check_profile_entries(validated_data, for_update: bool = False):
     if email and not email_regex_pattern.match(email):
         raise ValidationError(f"L'adresse email fournie ({email}) est invalide. Doit comporter "
                               f"uniquement des lettres, chiffres et caractères @_-.")
-    if for_update:
-        return
 
 
 def fix_profile_entries(validated_data, for_create: bool = False):
-    is_active = validated_data.pop("is_active", -1)
-    manual_is_active = validated_data.pop("manual_is_active", -1)
-    valid_start_datetime = validated_data.pop("valid_start_datetime", -1)
-    manual_valid_start_datetime = validated_data.get("manual_valid_start_datetime", -1)
-    valid_end_datetime = validated_data.pop("valid_end_datetime", -1)
-    manual_valid_end_datetime = validated_data.pop("manual_valid_end_datetime", -1)
+    is_active = validated_data.get("is_active")
+    valid_start_datetime = validated_data.get("valid_start_datetime")
+    valid_end_datetime = validated_data.get("valid_end_datetime")
 
-    if is_active != -1:
-        if manual_is_active != -1 and is_active != manual_is_active:
-            raise ValidationError("Vous ne pouvez pas fournir à la fois 'is_active' et 'manual_is_active' différents")
-        else:
-            validated_data["manual_is_active"] = is_active
-    elif manual_is_active != -1:
-        validated_data["manual_is_active"] = manual_is_active
-    else:
-        if for_create:
-            validated_data["manual_is_active"] = True
+    if for_create:
+        now = timezone.now()
+        validated_data["manual_is_active"] = True
+        validated_data["valid_start_datetime"] = now
+        validated_data["manual_valid_start_datetime"] = now
+        return validated_data
 
-    if valid_start_datetime != -1:
-        if manual_valid_start_datetime != -1 and valid_start_datetime != manual_valid_start_datetime:
-            raise ValidationError("Vous ne pouvez pas fournir à la fois 'valid_start_datetime'"
-                                  " et 'manual_valid_start_datetime' différents")
-        else:
-            validated_data["manual_valid_start_datetime"] = valid_start_datetime or \
-                                                            MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE
-    elif manual_valid_start_datetime != -1:
-        validated_data["manual_valid_start_datetime"] = manual_valid_start_datetime or \
-                                                        MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE
-    if valid_end_datetime != -1:
-        if manual_valid_end_datetime != -1 and valid_end_datetime != manual_valid_end_datetime:
-            raise ValidationError("Vous ne pouvez pas fournir à la fois 'valid_end_datetime'"
-                                  " et 'manual_valid_end_datetime' différents")
-        else:
-            validated_data["manual_valid_end_datetime"] = valid_end_datetime or \
-                                                          MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE
-    elif manual_valid_end_datetime != -1:
-        validated_data["manual_valid_end_datetime"] = manual_valid_end_datetime or \
-                                                      MODEL_MANUAL_END_DATE_DEFAULT_ON_UPDATE
+    if is_active is not None:
+        validated_data["manual_is_active"] = is_active
+    if valid_start_datetime:
+        validated_data["manual_valid_start_datetime"] = valid_start_datetime
+    if valid_end_datetime:
+        validated_data["manual_valid_end_datetime"] = valid_end_datetime
+
     return validated_data
 
 
@@ -234,17 +211,13 @@ class ProfileSerializer(BaseSerializer):
                         }
 
     def create(self, validated_data):
-        # {'is_active': True, 'user_id': '4022609', 'provider_id': '4022609', 'firstname': 'Baptiste', 'lastname': 'ABBAR',
-        # 'email': 'baptiste.abbar@aphp.fr'}
+        user_id = validated_data.get("user_id")
+        assert user_id, "Must provide 'user_id' to create a new profile"
+
         check_profile_entries(validated_data)
         validated_data = fix_profile_entries(validated_data, for_create=True)
 
-        if 'user_id' not in validated_data:
-            raise ValidationError("Besoin de soit 'user' soit 'user_id'.")
-
-        user_id = validated_data.get('user_id')
         check_id_aph(user_id)
-
         try:
             user = User.objects.get(provider_username=user_id)
         except User.DoesNotExist:
@@ -264,7 +237,7 @@ class ProfileSerializer(BaseSerializer):
         # can only update manual_is_active, manual_valid_start_datetime
         # and manual_valid_end_datetime if ph not manual
         if instance.source == MANUAL_SOURCE:
-            check_profile_entries(validated_data, for_update=True)
+            check_profile_entries(validated_data)
         validated_data = fix_profile_entries(validated_data)
         return super(ProfileSerializer, self).update(instance, validated_data)
 
