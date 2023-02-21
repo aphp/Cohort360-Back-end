@@ -62,7 +62,8 @@ sonarqube-check:
     paths:
       - .sonar/cache
   script:
-    - sonar-scanner
+    - export VERSION=$(cat ./admin_cohort/__init__.py | grep __version__ | head -1 | awk -F'=' '{ print $2 }' | sed "s/[' ]//g")
+    - sonar-scanner -Dsonar.projectVersion=$VERSION
 
 deploy-job:
   image: harbor.eds.aphp.fr/cohort360/kaniko:debug
