@@ -92,8 +92,7 @@ class Access(BaseModel):
     def accesses_criteria_to_exclude(self) -> List[Dict]:
         res = self.role.unreadable_rights
 
-        for read_r in (self.role.inf_level_readable_rights
-                       + self.role.same_level_readable_rights):
+        for read_r in (self.role.inf_level_readable_rights + self.role.same_level_readable_rights):
             d = {read_r: True}
 
             if read_r in self.role.inf_level_readable_rights:

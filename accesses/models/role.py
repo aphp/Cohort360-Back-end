@@ -360,41 +360,58 @@ class Role(BaseModel):
         # main admin or admin manager
         return self.right_read_users
 
+    def get_help_text_for_right_manage_admin_accesses(self):
+        texts = []
+        if self.right_manage_admin_accesses_same_level:
+            texts = ["Gérer les accès des administrateurs sur son périmètre exclusivement"]
+            if self.right_manage_admin_accesses_inferior_levels:
+                texts.append("Gérer les accès des administrateurs sur son périmètre et ses sous-périmètres")
+                return texts
+        if self.right_manage_admin_accesses_inferior_levels:
+            texts.append("Gérer les accès des administrateurs sur les sous-périmètres exclusivement")
+        return texts
+
+    def get_help_text_for_right_read_admin_accesses(self):
+        texts = []
+        if self.right_read_admin_accesses_same_level:
+            texts = ["Consulter la liste des accès administrateurs d'un périmètre"]
+            if self.right_read_admin_accesses_inferior_levels:
+                texts.append("Consulter la liste des accès administrateurs d'un périmètre et ses sous-périmètres")
+                return texts
+        if self.right_read_admin_accesses_inferior_levels:
+            texts.append("Consulter la liste des accès administrateurs des sous-périmètres")
+        return texts
+
+    def get_help_text_for_right_read_data_accesses(self):
+        texts = []
+        if self.right_read_data_accesses_same_level:
+            texts = ["Consulter la liste des accès aux données patients d'un périmètre"]
+            if self.right_read_data_accesses_inferior_levels:
+                texts.append("Consulter la liste des accès aux données patients d'un périmètre et ses sous-périmètres")
+                return texts
+        if self.right_read_data_accesses_inferior_levels:
+            texts.append("Consulter la liste des accès aux données patients d'un sous-périmètre")
+        return texts
+
+    def get_help_text_for_right_manage_data_accesses(self):
+        texts = []
+        if self.right_manage_data_accesses_same_level:
+            texts = ["Gérer les accès aux données sur son périmètre exclusivement"]
+            if self.right_manage_data_accesses_inferior_levels:
+                texts.append("Gérer les accès aux données sur son périmètre et ses sous-périmètres")
+                return texts
+        if self.right_manage_data_accesses_inferior_levels:
+            texts.append("Gérer les accès aux données sur les sous-périmètres exclusivement")
+        return texts
+
     @property
     def help_text(self):
         level_agnostic_rights = [r for r in Role.all_rights() if not (r.endswith('same_level') or r.endswith('inferior_levels'))]
+        help_txt = [ROLES_HELP_TEXT.get(r) for r in level_agnostic_rights if self.__dict__.get(r)]
 
-        res = [ROLES_HELP_TEXT.get(r) for r in level_agnostic_rights if self.__dict__.get(r)]
-
-        if self.right_manage_admin_accesses_same_level and self.right_manage_admin_accesses_inferior_levels:
-            res.append("Gérer les accès des administrateurs sur son périmètre et ses sous-périmètres")
-        else:
-            if self.right_manage_admin_accesses_same_level:
-                res.append("Gérer les accès des administrateurs sur son périmètre exclusivement")
-            if self.right_manage_admin_accesses_inferior_levels:
-                res.append("Gérer les accès des administrateurs sur les sous-périmètres exclusivement")
-
-        if self.right_read_admin_accesses_same_level and self.right_read_admin_accesses_inferior_levels:
-            res.append("Consulter la liste des accès administrateurs d'un périmètre et ses sous-périmètres")
-        else:
-            if self.right_read_admin_accesses_same_level:
-                res.append("Consulter la liste des accès administrateurs d'un périmètre")
-            if self.right_read_admin_accesses_inferior_levels:
-                res.append("Consulter la liste des accès administrateurs des sous-périmètres")
-
-        if self.right_manage_data_accesses_same_level and self.right_manage_data_accesses_inferior_levels:
-            res.append("Gérer les accès aux données sur son périmètre et ses sous-périmètres")
-        else:
-            if self.right_manage_data_accesses_same_level:
-                res.append("Gérer les accès aux données sur son périmètre exclusivement")
-            if self.right_manage_data_accesses_inferior_levels:
-                res.append("Gérer les accès aux données sur les sous-périmètres exclusivement")
-
-        if self.right_read_data_accesses_same_level and self.right_read_data_accesses_inferior_levels:
-            res.append("Consulter la liste des accès aux données patients d'un périmètre et ses sous-périmètres")
-        else:
-            if self.right_read_data_accesses_same_level:
-                res.append("Consulter la liste des accès aux données patients d'un périmètre")
-            if self.right_read_data_accesses_inferior_levels:
-                res.append("Consulter la liste des accès aux données patients d'un sous-périmètre")
-        return res
+        level_dependent_texts = self.get_help_text_for_right_manage_admin_accesses() + \
+            self.get_help_text_for_right_read_admin_accesses() + \
+            self.get_help_text_for_right_manage_data_accesses() + \
+            self.get_help_text_for_right_read_data_accesses()
+        help_txt.extend(level_dependent_texts)
+        return help_txt
