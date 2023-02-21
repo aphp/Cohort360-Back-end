@@ -570,11 +570,8 @@ class AccessTests(ViewSetTestsWithBasicPerims):
     def check_close_case(self, case: AccessCloseCase):
         user_access: Union[Access, None] = None
         if case.user_rights:
-            r = Role.objects.create(**dict([(r, True)
-                                            for r in case.user_rights]))
-            user_access = Access.objects.create(
-                role=r, profile=case.user_profile,
-                perimeter=case.user_perimeter)
+            r = Role.objects.create(**dict([(r, True) for r in case.user_rights]))
+            user_access = Access.objects.create(role=r, profile=case.user_profile, perimeter=case.user_perimeter)
 
         acc = Access.objects.create(**case.initial_data)
         acc_id = acc.id

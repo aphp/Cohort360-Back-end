@@ -68,7 +68,8 @@ class AccessPermissions(permissions.BasePermission):
 
     def has_object_permission(self, request, view, obj):
         if request.method in ["PUT", "PATCH", "DELETE"]:
-            return can_user_manage_access(request.user, obj.role, obj.perimeter)
+            y = can_user_manage_access(request.user, obj.role, obj.perimeter)
+            return y
         return request.method == "GET" and can_user_read_access(request.user, obj.role, obj.perimeter)
 
 

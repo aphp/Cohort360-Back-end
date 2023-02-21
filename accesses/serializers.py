@@ -81,7 +81,7 @@ def fix_csh_dates(validated_data, for_update: bool = False):
     return validated_data
 
 
-def check_profile_entries(validated_data, for_update: bool = False):
+def check_profile_entries(validated_data):
     source = validated_data.pop("source", validated_data.pop("cdm_source", MANUAL_SOURCE))
     firstname = validated_data.get("firstname")
     lastname = validated_data.get("lastname")

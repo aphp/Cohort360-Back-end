@@ -23,10 +23,38 @@ def intersect_queryset_criteria(cs_a: List[Dict], cs_b: List[Dict]) -> List[Dict
     If an item is in both, we merge the two versions :
     - with keeping 'False' factors,
     - with extending 'perimeter_not' and 'perimeter_not_child' lists
-    :param cs_a: [{'cr1': True, 'cr2': True, 'xxx_perimeter_xxx': False}]
-    :param cs_b: [{'cr1': True, 'cr2': True}]
+    :param cs_a:
+    :param cs_b:
     :return:
     """
+    #   [{'right_manage_data_accesses_same_level': True, 'perimeter_not_child': [8312002244], 'perimeter_not': [8312002244]},
+    #   {'right_read_patient_pseudo_anonymised': True, 'perimeter_not_child': [8312002244], 'perimeter_not': [8312002244]},
+    #   {'right_search_patient_with_ipp': True, 'perimeter_not_child': [8312002244], 'perimeter_not': [8312002244]},
+    #   {'right_read_patient_nominative': True, 'perimeter_not_child': [8312002244], 'perimeter_not': [8312002244]},
+    #   {'right_read_data_accesses_inferior_levels': True, 'perimeter_not_child': [8312002244], 'perimeter_not': [8312002244]},
+    #   {'right_read_data_accesses_same_level': True, 'perimeter_not_child': [8312002244], 'perimeter_not': [8312002244]},
+    #   {'right_manage_data_accesses_inferior_levels': True, 'perimeter_not_child': [8312002244], 'perimeter_not': [8312002244]},
+    #   {'right_read_users': True, 'perimeter_not_child': [8312002244], 'perimeter_not': [8312002244]},
+    #   {'right_manage_data_accesses_same_level': True, 'perimeter_not_child': [8312002244], 'perimeter_not': [8312002244]},
+    #   {'right_read_patient_pseudo_anonymised': True, 'perimeter_not_child': [8312002244], 'perimeter_not': [8312002244]},
+    #   {'right_search_patient_with_ipp': True, 'perimeter_not_child': [8312002244], 'perimeter_not': [8312002244]},
+    #   {'right_read_patient_nominative': True, 'perimeter_not_child': [8312002244], 'perimeter_not': [8312002244]},
+    #   {'right_read_data_accesses_inferior_levels': True, 'perimeter_not_child': [8312002244], 'perimeter_not': [8312002244]},
+    #   {'right_read_data_accesses_same_level': True, 'perimeter_not_child': [8312002244], 'perimeter_not': [8312002244]},
+    #   {'right_manage_data_accesses_inferior_levels': True, 'perimeter_not_child': [8312002244], 'perimeter_not': [8312002244]},
+    #   {'right_read_users': True, 'perimeter_not_child': [8312002244], 'perimeter_not': [8312002244]}],
+    #
+    #  [{'right_read_patient_nominative': True}, {'right_read_patient_pseudo_anonymised': True}, {'right_search_patient_with_ipp': True},
+    #   {'right_manage_data_accesses_same_level': True}, {'right_read_data_accesses_same_level': True},
+    #   {'right_manage_data_accesses_inferior_levels': True}, {'right_read_data_accesses_inferior_levels': True},
+    #   {'right_manage_admin_accesses_same_level': True}, {'right_read_admin_accesses_same_level': True},
+    #   {'right_manage_admin_accesses_inferior_levels': True}, {'right_read_admin_accesses_inferior_levels': True},
+    #   {'right_review_transfer_jupyter': True}, {'right_manage_review_transfer_jupyter': True}, {'right_review_export_csv': True},
+    #   {'right_manage_review_export_csv': True}, {'right_transfer_jupyter_nominative': True}, {'right_transfer_jupyter_pseudo_anonymised': True},
+    #   {'right_manage_transfer_jupyter': True}, {'right_export_csv_nominative': True}, {'right_export_csv_pseudo_anonymised': True},
+    #   {'right_manage_export_csv': True}, {'right_read_env_unix_users': True}, {'right_manage_env_unix_users': True},
+    #   {'right_manage_env_user_links': True}, {'right_add_users': True}, {'right_edit_users': True}, {'right_read_users': True},
+    #   {'right_edit_roles': True}, {'right_read_logs': True}]
     res = []
     for c_a in cs_a:
         if c_a in cs_b:
@@ -34,7 +62,7 @@ def intersect_queryset_criteria(cs_a: List[Dict], cs_b: List[Dict]) -> List[Dict
         else:
             add = False
             for c_b in cs_b:
-                non_perimeter_criteria = [k for (k, v) in c_a.items() if v and 'perimeter' not in k]    # ["criteria"]
+                non_perimeter_criteria = [k for (k, v) in c_a.items() if v and 'perimeter' not in k]
                 if all(c_b.get(r) for r in non_perimeter_criteria):
                     add = True
                     perimeter_not = c_b.get('perimeter_not', [])
@@ -90,14 +118,14 @@ def can_roles_manage_access(user_accesses: List[Access], role: Role, perimeter: 
         has_csv_rvw_mng_role = acc_role.right_manage_review_export_csv
         has_csv_mng_role = acc_role.right_manage_export_csv
 
-    return (has_main_admin_role or not role.requires_main_admin_role) \
-        and (has_admin_managing_role or not role.requires_admin_managing_role) \
-        and (has_admin_role or not role.requires_admin_role) \
-        and (has_main_admin_role or has_admin_managing_role or not role.requires_any_admin_mng_role) \
-        and (has_jupy_rvw_mng_role or not role.requires_manage_review_transfer_jupyter_role) \
-        and (has_jupy_mng_role or not role.requires_manage_transfer_jupyter_role) \
-        and (has_csv_rvw_mng_role or not role.requires_manage_review_export_csv_role) \
-        and (has_csv_mng_role or not role.requires_manage_export_csv_role)
+    return (not role.requires_main_admin_role or has_main_admin_role) \
+        and (not role.requires_admin_managing_role or has_admin_managing_role) \
+        and (not role.requires_admin_role or has_admin_role) \
+        and (not role.requires_any_admin_mng_role or has_main_admin_role or has_admin_managing_role) \
+        and (not role.requires_manage_review_transfer_jupyter_role or has_jupy_rvw_mng_role) \
+        and (not role.requires_manage_transfer_jupyter_role or has_jupy_mng_role) \
+        and (not role.requires_manage_review_export_csv_role or has_csv_rvw_mng_role) \
+        and (not role.requires_manage_export_csv_role or has_csv_mng_role)
 
 
 def get_assignable_roles_on_perimeter(user: User, perimeter: Perimeter) -> List[Role]:
@@ -105,19 +133,19 @@ def get_assignable_roles_on_perimeter(user: User, perimeter: Perimeter) -> List[
     return [r for r in Role.objects.all() if can_roles_manage_access(list(user_accesses), r, perimeter)]
 
 
-def get_all_user_managing_accesses_on_perimeter(user: User, perim: Perimeter) -> QuerySet:
+def get_all_user_managing_accesses_on_perimeter(user: User, perimeter: Perimeter) -> QuerySet:
     """
     more than getting the access on one Perimeter
     will also get the ones from the other perimeters that contain this perimeter
     Perimeters are organised like a tree, perimeters contain other perimeters,
     and roles are thus inherited
     :param user:
-    :param perimeter_id:
+    :param perimeter:
     :return:
     """
 
-    return get_user_valid_manual_accesses_queryset(user).filter((perim.all_parents_query("perimeter") & Role.manage_on_lower_levels_query("role"))
-                                                                | (Q(perimeter=perim) & Role.manage_on_same_level_query("role"))
+    return get_user_valid_manual_accesses_queryset(user).filter((perimeter.all_parents_query("perimeter") & Role.manage_on_lower_levels_query("role"))
+                                                                | (Q(perimeter=perimeter) & Role.manage_on_same_level_query("role"))
                                                                 | Role.manage_on_any_level_query("role")
                                                                 ).select_related("role")
 
@@ -142,7 +170,7 @@ def get_user_data_accesses_queryset(u: User) -> QuerySet:
 
 class DataRight:
     def __init__(self, perimeter_id: int, user_id: str, provider_id: str,
-                 acc_ids: List[int] = [],
+                 access_ids: List[int] = None,
                  pseudo: bool = False, nomi: bool = False,
                  exp_pseudo: bool = False, exp_nomi: bool = False,
                  jupy_pseudo: bool = False, jupy_nomi: bool = False,
@@ -152,7 +180,7 @@ class DataRight:
         self.perimeter_id = perimeter_id
         self.provider_id = provider_id
         self.user_id = user_id
-        self.access_ids = acc_ids
+        self.access_ids = access_ids or []
         self.right_read_patient_nominative = nomi
         self.right_read_patient_pseudo_anonymised = pseudo
         self.right_search_patient_with_ipp = search_ipp
@@ -267,12 +295,12 @@ def merge_accesses_into_rights(user: User,
             rights[right.perimeter_id].add_right(right)
 
     for acc in data_accesses:
-        right = DataRight(user_id=user.pk, acc_ids=[acc.id], perimeter=acc.perimeter, **acc.__dict__)
+        right = DataRight(user_id=user.pk, access_ids=[acc.id], perimeter=acc.perimeter, **acc.__dict__)
         if right.has_data_read_right:
             complete_rights(right)
 
     for p in expected_perims:
-        complete_rights(DataRight(user_id=user.pk, acc_ids=[], perimeter=p, provider_id=user.provider_id, perimeter_id=p.id))
+        complete_rights(DataRight(user_id=user.pk, access_ids=[], perimeter=p, provider_id=user.provider_id, perimeter_id=p.id))
     return rights
 
 
@@ -367,8 +395,7 @@ def complete_data_right_with_global_rights(user: User,
     """
     global_rights = list()
     for acc in data_accesses:
-        dr = DataRight(user_id=user.pk, acc_ids=[acc.id],
-                       perimeter=acc.perimeter, **acc.__dict__)
+        dr = DataRight(user_id=user.pk, access_ids=[acc.id], perimeter=acc.perimeter, **acc.__dict__)
         if dr.has_global_data_right:
             global_rights.append(dr)
 
