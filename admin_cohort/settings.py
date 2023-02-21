@@ -11,10 +11,9 @@ environ.Env.read_env()
 
 SERVER_VERSION = env("SERVER_VERSION")
 
-SERVER_URL = f"http://{env('SERVER_IP')}"
 BACK_URL = env("BACK_URL")
 FRONT_URL = env("FRONT_URL")
-FRONT_URLS = [f"http://{u}" for u in env("FRONT_URLS").split(',')]
+FRONT_URLS = env("FRONT_URLS").split(',')
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = env("DJANGO_SECRET_KEY")
@@ -26,12 +25,12 @@ CORS_ORIGIN_ALLOW_ALL = DEBUG
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 
 if SERVER_VERSION == "dev":
-    CORS_ORIGIN_WHITELIST = [FRONT_URL, SERVER_URL]
-    CSRF_TRUSTED_ORIGINS = [FRONT_URL, SERVER_URL]
+    CORS_ORIGIN_WHITELIST = [FRONT_URL, BACK_URL]
+    CSRF_TRUSTED_ORIGINS = [FRONT_URL, BACK_URL]
 
 elif SERVER_VERSION == "prod":
-    CORS_ORIGIN_WHITELIST = [FRONT_URL, f"http://{env('BACK_URL')}"] + FRONT_URLS
-    CSRF_TRUSTED_ORIGINS = [f"http://{env('BACK_URL')}", SERVER_URL] + FRONT_URLS
+    CORS_ORIGIN_WHITELIST = [BACK_URL] + FRONT_URLS
+    CSRF_TRUSTED_ORIGINS = [BACK_URL] + FRONT_URLS
 
 CORS_ALLOW_HEADERS = ['access-control-allow-origin',
                       'content-type',

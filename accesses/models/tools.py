@@ -79,6 +79,17 @@ def intersect_queryset_criteria(cs_a: List[Dict], cs_b: List[Dict]) -> List[Dict
     return res
 
 
+def get_admin_roles(access: Access, perimeter_id: int, just_read: bool):
+    role = access.role
+    if access.perimeter_id == perimeter_id:
+        has_admin_managing_role = just_read and role.right_read_admin_accesses_same_level or role.right_manage_admin_accesses_same_level
+        has_admin_role = just_read and role.right_read_data_accesses_same_level or role.right_manage_data_accesses_same_level
+    else:
+        has_admin_managing_role = just_read and role.right_read_admin_accesses_inferior_levels or role.right_manage_admin_accesses_inferior_levels
+        has_admin_role = just_read and role.right_read_data_accesses_inferior_levels or role.right_manage_data_accesses_inferior_levels
+    return has_admin_managing_role, has_admin_role
+
+
 def can_roles_manage_access(user_accesses: List[Access], role: Role, perimeter: Perimeter, just_read: bool = False) -> bool:
     """
     Given accesses from a user (perimeter + role), will determine if the user
@@ -102,30 +113,21 @@ def can_roles_manage_access(user_accesses: List[Access], role: Role, perimeter: 
 
     for a in user_accesses:
         acc_role = a.role
-
         has_main_admin_role = acc_role.right_edit_roles
-
-        if a.perimeter_id == perimeter.id:
-            has_admin_managing_role = just_read and acc_role.right_read_admin_accesses_same_level or acc_role.right_manage_admin_accesses_same_level
-            has_admin_role = just_read and acc_role.right_read_data_accesses_same_level or acc_role.right_manage_data_accesses_same_level
-        else:
-            has_admin_managing_role = just_read and acc_role.right_read_admin_accesses_inferior_levels or \
-                                      acc_role.right_manage_admin_accesses_inferior_levels
-            has_admin_role = just_read and acc_role.right_read_data_accesses_inferior_levels or acc_role.right_manage_data_accesses_inferior_levels
-
+        has_admin_managing_role, has_admin_role = get_admin_roles(access=a, perimeter_id=perimeter.id, just_read=just_read)
         has_jupy_rvw_mng_role = acc_role.right_manage_review_transfer_jupyter
         has_jupy_mng_role = acc_role.right_manage_transfer_jupyter
         has_csv_rvw_mng_role = acc_role.right_manage_review_export_csv
         has_csv_mng_role = acc_role.right_manage_export_csv
 
-    return (not role.requires_main_admin_role or has_main_admin_role) \
-        and (not role.requires_admin_managing_role or has_admin_managing_role) \
-        and (not role.requires_admin_role or has_admin_role) \
-        and (not role.requires_any_admin_mng_role or has_main_admin_role or has_admin_managing_role) \
-        and (not role.requires_manage_review_transfer_jupyter_role or has_jupy_rvw_mng_role) \
-        and (not role.requires_manage_transfer_jupyter_role or has_jupy_mng_role) \
-        and (not role.requires_manage_review_export_csv_role or has_csv_rvw_mng_role) \
-        and (not role.requires_manage_export_csv_role or has_csv_mng_role)
+    return (has_main_admin_role or not role.requires_main_admin_role) \
+        and (has_admin_managing_role or not role.requires_admin_managing_role) \
+        and (has_admin_role or not role.requires_admin_role) \
+        and (has_main_admin_role or has_admin_managing_role or not role.requires_any_admin_mng_role) \
+        and (has_jupy_rvw_mng_role or not role.requires_manage_review_transfer_jupyter_role) \
+        and (has_jupy_mng_role or not role.requires_manage_transfer_jupyter_role) \
+        and (has_csv_rvw_mng_role or not role.requires_manage_review_export_csv_role) \
+        and (has_csv_mng_role or not role.requires_manage_export_csv_role)
 
 
 def get_assignable_roles_on_perimeter(user: User, perimeter: Perimeter) -> List[Role]:
@@ -261,15 +263,15 @@ def get_access_data_rights(user: User) -> List[Access]:
                                                 .prefetch_related(Prefetch('perimeter',
                                                                            queryset=Perimeter.objects.all().
                                                                            select_related(*["parent" + i * "__parent"
-                                                                                            for i in range(0, len(PERIMETERS_TYPES) - 2)]))).\
-        annotate(provider_id=F("profile__provider_id"),
-                 pseudo=F('role__right_read_patient_pseudo_anonymised'),
-                 search_ipp=F('role__right_search_patient_with_ipp'),
-                 nomi=F('role__right_read_patient_nominative'),
-                 exp_pseudo=F('role__right_export_csv_pseudo_anonymised'),
-                 exp_nomi=F('role__right_export_csv_nominative'),
-                 jupy_pseudo=F('role__right_transfer_jupyter_pseudo_anonymised'),
-                 jupy_nomi=F('role__right_transfer_jupyter_nominative'))
+                                                                                            for i in range(0, len(PERIMETERS_TYPES) - 2)]))) \
+                                                .annotate(provider_id=F("profile__provider_id"),
+                                                          pseudo=F('role__right_read_patient_pseudo_anonymised'),
+                                                          search_ipp=F('role__right_search_patient_with_ipp'),
+                                                          nomi=F('role__right_read_patient_nominative'),
+                                                          exp_pseudo=F('role__right_export_csv_pseudo_anonymised'),
+                                                          exp_nomi=F('role__right_export_csv_nominative'),
+                                                          jupy_pseudo=F('role__right_transfer_jupyter_pseudo_anonymised'),
+                                                          jupy_nomi=F('role__right_transfer_jupyter_nominative'))
 
 
 def merge_accesses_into_rights(user: User,
@@ -286,7 +288,7 @@ def merge_accesses_into_rights(user: User,
     :param expected_perims: Perimeter we need to consider in the result
     :return: Dict binding perimeter_ids with the DataRights bound to them
     """
-    rights = dict()
+    rights = {}
 
     def complete_rights(right: DataRight):
         if right.perimeter_id not in rights:
@@ -294,8 +296,8 @@ def merge_accesses_into_rights(user: User,
         else:
             rights[right.perimeter_id].add_right(right)
 
-    for acc in data_accesses:
-        right = DataRight(user_id=user.pk, access_ids=[acc.id], perimeter=acc.perimeter, **acc.__dict__)
+    for access in data_accesses:
+        right = DataRight(user_id=user.pk, access_ids=[access.id], perimeter=access.perimeter, **access.__dict__)
         if right.has_data_read_right:
             complete_rights(right)
 
@@ -404,9 +406,7 @@ def complete_data_right_with_global_rights(user: User,
             r.add_global_right(plr)
 
 
-def build_data_rights(user: User,
-                      expected_perim_ids: List[int] = None,
-                      pop_children: bool = False) -> List[DataRight]:
+def build_data_rights(user: User, expected_perim_ids: List[int] = None, pop_children: bool = False) -> List[DataRight]:
     """
     Define what perimeter-bound and global data right the user is granted
     If expected_perim_ids is not empty, will only return the DataRights
@@ -419,11 +419,9 @@ def build_data_rights(user: User,
     :return:
     """
     expected_perim_ids = expected_perim_ids or []
-
     data_accesses = get_access_data_rights(user)
-
     expected_perims = Perimeter.objects.filter(id__in=expected_perim_ids)\
-                                       .select_related(*["parent" + i * "__parent" for i in range(0, len(PERIMETERS_TYPES) - 2)])
+                                       .select_related(*[f"parent{i * '__parent'}" for i in range(0, len(PERIMETERS_TYPES) - 2)])
 
     # we merge accesses into rights from same perimeter_id
     rights = merge_accesses_into_rights(user, data_accesses, expected_perims)
