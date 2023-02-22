@@ -11,7 +11,7 @@ environ.Env.read_env()
 
 SERVER_VERSION = env("SERVER_VERSION")
 
-BACK_URL = env("BACK_URL")
+BACK_URL = f"https://{env('BACK_URL')}"
 FRONT_URL = env("FRONT_URL")
 FRONT_URLS = env("FRONT_URLS").split(',')
 
