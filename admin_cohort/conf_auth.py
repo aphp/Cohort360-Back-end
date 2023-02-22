@@ -34,7 +34,7 @@ OIDC_AUDIENCES = env("OIDC_AUDIENCES").split(';')
 
 JWT_AUTH_MODE = "jwt"
 OIDC_AUTH_MODE = "oidc"
-_log = logging.getLogger('info')
+_logger = logging.getLogger('info')
 
 
 def get_raw_token(header: bytes) -> Union[str, None]:
@@ -128,13 +128,13 @@ def verify_jwt(access_token: str, auth_method: str = JWT_AUTH_MODE) -> Union[Non
     if SERVER_VERSION.lower() == "dev":
         return
     if access_token == env("ETL_TOKEN"):
-        _log.info("*** ETL TOKEN CONNEXION *** ")
+        _logger.info("*** ETL TOKEN CONNEXION *** ")
         return UserInfo(username="SOLR_ETL",
                         email="solr.etl@aphp.fr",
                         firstname="Solr",
                         lastname="ETL")
     if access_token == env("SJS_TOKEN"):
-        _log.info("*** SJS TOKEN CONNEXION *** ")
+        _logger.info("*** SJS TOKEN CONNEXION *** ")
         return UserInfo(username="SPARK_JOB_SERVER",
                         email="spark.jobserver@aphp.fr",
                         firstname="SparkJob",
@@ -154,7 +154,6 @@ def verify_jwt(access_token: str, auth_method: str = JWT_AUTH_MODE) -> Union[Non
             raise ServerError(f"Error {resp.status_code} from authentication server ({url}): {resp.text}")
         raise ValueError("Invalid JWT Access Token")
     elif auth_method.lower() == OIDC_AUTH_MODE:
-        _log.info("*** OIDC TOKEN CONNEXION ***")
         resp = requests.get(OIDC_CERTS_URL)
         if resp.status_code != status.HTTP_200_OK:
             raise ServerError(f"Error {resp.status_code} from authentication server ({OIDC_CERTS_URL}): {resp.text}")

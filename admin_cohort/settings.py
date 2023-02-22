@@ -1,4 +1,5 @@
 from datetime import date, datetime, time
+from logging.handlers import DEFAULT_TCP_LOGGING_PORT
 from pathlib import Path
 
 import environ
@@ -53,33 +54,29 @@ ADMINS = [a.split(',') for a in env("ADMINS").split(';')]
 LOGGING = dict(version=1,
                disable_existing_loggers=False,
                loggers={
-                   'info': {
+                    'info': {
                        'level': "INFO",
-                       'handlers': ['console', 'info_handler'],
-                       'propagate': True
-                   },
-                   'django.request': {
-                       'level': "ERROR",
-                       'handlers': ['console', 'error_handler', 'mail_admins'],
+                       'handlers': ['info_handler'],
                        'propagate': False
-                   }},
+                    },
+                    'django.request': {
+                       'level': "ERROR",
+                       'handlers': ['error_handler', 'mail_admins'],
+                       'propagate': False
+                    }},
                handlers={
-                   'console': {
-                       'level': "INFO",
-                       'class': "logging.StreamHandler",
-                       'stream': "ext://sys.stdout",
-                       'formatter': "verbose"
-                   },
                    'info_handler': {
                        'level': "INFO",
-                       'class': "logging.FileHandler",
-                       'filename': BASE_DIR / "log/django.log",
+                       'class': "logging.handlers.SocketHandler",
+                       'host': "localhost",
+                       'port': DEFAULT_TCP_LOGGING_PORT,
                        'formatter': "verbose"
                     },
                    'error_handler': {
                        'level': "ERROR",
-                       'class': "logging.FileHandler",
-                       'filename': BASE_DIR / "log/django.error.log",
+                       'class': "logging.handlers.SocketHandler",
+                       'host': "localhost",
+                       'port': DEFAULT_TCP_LOGGING_PORT,
                        'formatter': "verbose"
                     },
                    'mail_admins': {
@@ -93,7 +90,6 @@ LOGGING = dict(version=1,
                        'style': "{"
                    }
                })
-
 
 # Application definition
 INCLUDED_APPS = env('INCLUDED_APPS').split(",")

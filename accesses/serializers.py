@@ -17,7 +17,7 @@ from .conf_perimeters import Provider
 from .models import Role, Access, Profile, Perimeter
 from .permissions import can_user_manage_access
 
-_log = logging.getLogger('django.request')
+_logger = logging.getLogger('django.request')
 
 
 def check_date_rules(new_start_datetime: datetime = None, new_end_datetime: datetime = None,

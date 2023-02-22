@@ -1,28 +1,23 @@
-# https://docs.gunicorn.org/en/stable/settings.html#workers
-from pathlib import Path
-
-BASE_DIR = Path(__file__).resolve().parent.parent
+from logging.handlers import DEFAULT_TCP_LOGGING_PORT
 
 workers = 7
 threads = 10
 
-capture_output = True
-
 logconfig_dict = dict(
     version=1,
     disable_existing_loggers=False,
-    root={"level": "INFO", "handlers": ["console"]},
+    root={"level": "INFO", "handlers": ["error"]},
     loggers={
         "gunicorn.error": {
             "level": "INFO",
-            "handlers": ["error_file"],
-            "propagate": True,
+            "handlers": ["error"],
+            "propagate": False,
             "qualname": "gunicorn.error"
         },
         "gunicorn.access": {
             "level": "INFO",
-            "handlers": ["access_file"],
-            "propagate": True,
+            "handlers": ["access"],
+            "propagate": False,
             "qualname": "gunicorn.access"
         }},
     handlers={
@@ -31,14 +26,16 @@ logconfig_dict = dict(
             "formatter": "generic",
             "stream": "ext://sys.stdout"
         },
-        "access_file": {
-            "class": "logging.FileHandler",
-            "filename": BASE_DIR / "log/gunicorn.access.log",
+        "access": {
+            "class": "logging.handlers.SocketHandler",
+            "host": "localhost",
+            "port": DEFAULT_TCP_LOGGING_PORT,
             "formatter": "generic"
         },
-        "error_file": {
-            "class": "logging.FileHandler",
-            "filename": BASE_DIR / "log/gunicorn.error.log",
+        "error": {
+            "class": "logging.handlers.SocketHandler",
+            "host": "localhost",
+            "port": DEFAULT_TCP_LOGGING_PORT,
             "formatter": "generic"
         }},
     formatters={
