@@ -11,7 +11,8 @@ environ.Env.read_env()
 
 SERVER_VERSION = env("SERVER_VERSION")
 
-BACK_URL = f"https://{env('BACK_URL')}"
+BACK_HOST = env("BACK_HOST")
+BACK_URL = f"https://{env('BACK_HOST')}"
 FRONT_URL = env("FRONT_URL")
 FRONT_URLS = env("FRONT_URLS").split(',')
 
@@ -40,7 +41,7 @@ CORS_ALLOW_HEADERS = ['access-control-allow-origin',
 ALLOWED_HOSTS = ['localhost',
                  '127.0.0.1',
                  '0.0.0.0',
-                 BACK_URL]
+                 BACK_HOST]
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 

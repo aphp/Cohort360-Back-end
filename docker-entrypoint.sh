@@ -4,7 +4,7 @@ set -e
 mkdir -p static/ /app/log
 
 # update variables in nginx
-sed -i s/{{BACK_URL}}/"$BACK_URL"/g /etc/nginx/nginx.conf;
+sed -i s/{{BACK_HOST}}/"$BACK_HOST"/g /etc/nginx/nginx.conf;
 
 # restart nginx
 service nginx restart
