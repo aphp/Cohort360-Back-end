@@ -46,7 +46,7 @@ class ReadRight(ReadObject):
         assert 'access_ids' in o
         assert isinstance(o.get('access_ids'), list)
         assert all([isinstance(i, int) for i in o.get('access_ids')])
-        # assert isinstance(o.get('perimeter_id'), str)
+        assert isinstance(o.get('perimeter_id'), int)
         assert 'right_read_patient_nominative' in o
         assert isinstance(o.get('right_read_patient_nominative'), bool)
         assert 'right_read_patient_pseudo_anonymised' in o
@@ -123,8 +123,8 @@ class ReadAccess(ReadObject):
             if v:
                 try:
                     timezone.datetime.fromisoformat(v.replace("Z", "+00:00"))
-                except Exception:
-                    raise Exception(f"Datetime unreadable for {dt_field}: {v}")
+                except (TypeError, ValueError) as e:
+                    raise ValueError(f"Datetime unreadable for {dt_field}: {v} - {e}")
             setattr(self, dt_field, v)
 
 
@@ -570,11 +570,8 @@ class AccessTests(ViewSetTestsWithBasicPerims):
     def check_close_case(self, case: AccessCloseCase):
         user_access: Union[Access, None] = None
         if case.user_rights:
-            r = Role.objects.create(**dict([(r, True)
-                                            for r in case.user_rights]))
-            user_access = Access.objects.create(
-                role=r, profile=case.user_profile,
-                perimeter=case.user_perimeter)
+            r = Role.objects.create(**dict([(r, True) for r in case.user_rights]))
+            user_access = Access.objects.create(role=r, profile=case.user_profile, perimeter=case.user_perimeter)
 
         acc = Access.objects.create(**case.initial_data)
         acc_id = acc.id
@@ -720,14 +717,6 @@ def create_accesses(roles: List[Role], profiles: List[Profile],
                ) in product(
             perims,
             roles,
-            # [
-            #     timezone.now() - timedelta(days=1),  # started
-            #     timezone.now() + timedelta(days=1),  # not started
-            # ],
-            # [
-            #     timezone.now() + timedelta(days=2),  # not finished
-            #     timezone.now() - timedelta(days=1),  # finished
-            # ],
         )
     ])
 
@@ -846,8 +835,6 @@ class AccessGetTests(AccessTests):
                     # I have no permission to read perimeters
                     title=f"{right_group.name}-on inferior levels-hosp3",
                     to_find=[],
-                    # status=http_status.HTTP_403_FORBIDDEN,
-                    # success=False,
                     user_rights=[right_group.inf_level_reader],
                     user_perimeter=self.hospital3,
                 ), base_case.clone(

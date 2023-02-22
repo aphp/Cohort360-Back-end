@@ -27,38 +27,43 @@ class ExportRequestTableSerializer(serializers.ModelSerializer):
                             "deleted_at"]
 
 
-def check_rights_on_perimeters_for_exports(rights: List[DataRight], export_type: str, is_nomi: bool):
+def check_read_rights_on_perimeters(rights: List[DataRight], is_nomi: bool):
     if is_nomi:
         wrong_perims = [r.care_site_id for r in rights if not r.right_read_patient_nominative]
-        if wrong_perims or not rights:
-            raise ValidationError(f"L'utilisateur n'a pas le droit de lecture nominative "
-                                  f"actuellement sur les périmètres {wrong_perims}.")
     else:
         wrong_perims = [r.care_site_id for r in rights if not r.right_read_patient_pseudo_anonymised]
-        if wrong_perims or not rights:
-            raise ValidationError(f"L'utilisateur n'a pas le droit de lecture pseudonymisée "
-                                  f"actuellement sur les périmètres {wrong_perims}.")
+    if wrong_perims:
+        raise ValidationError(f"L'utilisateur n'a pas le droit de lecture {is_nomi and 'nominative' or 'pseudonymisée'} "
+                              f"sur les périmètres: {wrong_perims}.")
 
-    if export_type == ExportType.CSV.value:
-        if is_nomi:
-            wrong_perims = [r.care_site_id for r in rights if not r.right_export_csv_nominative]
-        else:
-            wrong_perims = [r.care_site_id for r in rights if not r.right_export_csv_pseudo_anonymised]
 
-        if wrong_perims or not rights:
-            raise ValidationError(f"Le provider n'a pas le droit d'export {is_nomi and 'nominatif' or 'pseudonymisé'} "
-                                  f"actuellement sur les périmètres {wrong_perims}.")
+def check_csv_export_rights_on_perimeters(rights: List[DataRight], is_nomi: bool):
+    if is_nomi:
+        wrong_perims = [r.care_site_id for r in rights if not r.right_export_csv_nominative]
+    else:
+        wrong_perims = [r.care_site_id for r in rights if not r.right_export_csv_pseudo_anonymised]
+    if wrong_perims:
+        raise ValidationError(f"L'utilisateur n'a pas le droit d'export CSV {is_nomi and 'nominatif' or 'pseudonymisé'} "
+                              f"sur les périmètres {wrong_perims}.")
 
-    if export_type in [ExportType.PSQL.value, ExportType.HIVE.value]:
-        if is_nomi:
-            wrong_perims = [r.care_site_id for r in rights if not r.right_transfer_jupyter_nominative]
-        else:
-            wrong_perims = [r.care_site_id for r in rights if not r.right_transfer_jupyter_pseudo_anonymised]
 
-        if wrong_perims or not rights:
-            raise ValidationError(f"Le provider n'a pas le droit d'export jupyter "
-                                  f"{is_nomi and 'nominatif' or 'pseudonymisé'} "
-                                  f"actuellement sur les périmètres {wrong_perims}.")
+def check_jupyter_export_rights_on_perimeters(rights: List[DataRight], is_nomi: bool):
+    if is_nomi:
+        wrong_perims = [r.care_site_id for r in rights if not r.right_transfer_jupyter_nominative]
+    else:
+        wrong_perims = [r.care_site_id for r in rights if not r.right_transfer_jupyter_pseudo_anonymised]
+    if wrong_perims:
+        raise ValidationError(f"L'utilisateur n'a pas le droit d'export Jupyter {is_nomi and 'nominatif' or 'pseudonymisé'} "
+                              f"sur les périmètres {wrong_perims}.")
+
+
+def check_rights_on_perimeters_for_exports(rights: List[DataRight], export_type: str, is_nomi: bool):
+    assert export_type in [e.value for e in ExportType], "Wrong value for `export_type`"
+    check_read_rights_on_perimeters(rights=rights, is_nomi=is_nomi)
+    if export_type == ExportType.CSV:
+        check_csv_export_rights_on_perimeters(rights=rights, is_nomi=is_nomi)
+    else:
+        check_jupyter_export_rights_on_perimeters(rights=rights, is_nomi=is_nomi)
 
 
 class ReviewFilteredPrimaryKeyRelatedField(serializers.PrimaryKeyRelatedField):
@@ -136,7 +141,6 @@ class ExportRequestSerializer(serializers.ModelSerializer):
 
     def create_tables(self, tables, er):
         for table in tables:
-            # table["export_request"] = req #.id
             ExportRequestTable.objects.create(export_request=er, **table)
 
     def validate_owner_rights(self, validated_data):
@@ -145,8 +149,7 @@ class ExportRequestSerializer(serializers.ModelSerializer):
         perim_ids = list(map(int, conf_exports.get_cohort_perimeters(validated_data.get('cohort_fk').fhir_group_id,
                                                                      getattr(cont_req, 'jwt_session_key', None))))
         rights = build_data_rights(owner, perim_ids)
-        check_rights_on_perimeters_for_exports(rights, validated_data.get('output_format'),
-                                               validated_data.get('nominative'))
+        check_rights_on_perimeters_for_exports(rights, validated_data.get('output_format'), validated_data.get('nominative'))
 
     def create(self, validated_data):
         owner: User = validated_data.get('owner')

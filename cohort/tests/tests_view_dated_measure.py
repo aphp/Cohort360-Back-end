@@ -222,22 +222,6 @@ class DatedMeasuresCreateTests(DatedMeasuresTests):
             data={**self.basic_data, 'owner': self.user2.pk},
         ))
 
-    # def test_error_create_with_forbidden_field(self):
-    #     # As a user, I cannot create a request with some forbidden field/value
-    #     cases = (self.basic_case.clone(
-    #         title=f"with '{k}': {v}",
-    #         data={**self.basic_data, k: v},
-    #         success=False,
-    #         status=status.HTTP_400_BAD_REQUEST,
-    #         retrieve_filter=FolderCaseRetrieveFilter(
-    #             name=self.test_name,
-    #             owner=self.user1
-    #         ),
-    #     ) for (k, v) in dict(
-    #         request_query_snapshot=self.user2_req1_snap1.pk,
-    #     ).items())
-    #     [self.check_create_case(case) for case in cases]
-
     def test_create_from_rqs(self):
         # As a user, I can create a RQS specifying a previous snapshot
         # using nestedViewSet

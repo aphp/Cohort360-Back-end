@@ -31,7 +31,7 @@ class NewJobStatus(str, Enum):
 
 
 def update_status(apps, schema_editor):
-    MyCohortResult = apps.get_model('cohort', 'CohortResult')
+    cohort_result = apps.get_model('cohort', 'CohortResult')
     db_alias = schema_editor.connection.alias
 
     old_to_new = {
@@ -45,7 +45,7 @@ def update_status(apps, schema_editor):
     }
 
     ers: List[CohortResult] = list(
-        MyCohortResult.objects.using(db_alias).all())
+        cohort_result.objects.using(db_alias).all())
     to_update = list()
     for er in ers:
         if not er.new_request_job_status:
@@ -54,13 +54,13 @@ def update_status(apps, schema_editor):
             er.request_job_status = None
             to_update.append(er)
 
-    MyCohortResult.objects.using(db_alias)\
+    cohort_result.objects.using(db_alias)\
         .bulk_update(to_update,
                      ['new_request_job_status', 'request_job_status'])
 
 
 def rollback_status(apps, schema_editor):
-    MyCohortResult = apps.get_model('cohort', 'CohortResult')
+    cohort_result = apps.get_model('cohort', 'CohortResult')
     db_alias = schema_editor.connection.alias
 
     new_to_old = {
@@ -73,7 +73,7 @@ def rollback_status(apps, schema_editor):
     }
 
     ers: List[CohortResult] = list(
-        MyCohortResult.objects.using(db_alias).all())
+        cohort_result.objects.using(db_alias).all())
     to_update = list()
     for er in ers:
         if not er.request_job_status:
@@ -81,7 +81,7 @@ def rollback_status(apps, schema_editor):
                                                    NewJobStatus.unknown.value)
             er.new_request_job_status = None
             to_update.append(er)
-    MyCohortResult.objects.using(db_alias)\
+    cohort_result.objects.using(db_alias)\
         .bulk_update(to_update,
                      ['request_job_status', 'new_request_job_status'])
 

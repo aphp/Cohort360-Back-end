@@ -1,13 +1,12 @@
-import json
 import os
 from typing import Dict, List
 
 import requests
-import simplejson
-from requests import Response
+from requests import Response, HTTPError
 from rest_framework import status
 
 from admin_cohort.models import User
+from admin_cohort.types import MissingDataError
 
 env = os.environ
 
@@ -20,17 +19,12 @@ ACTIVE_DIRECTORY_PARENT_GROUP = env.get('ACTIVE_DIRECTORY_PARENT_GROUP')
 
 def check_resp(resp: Response, url: str) -> Dict:
     if resp.status_code not in [status.HTTP_201_CREATED, status.HTTP_200_OK]:
-        raise Exception(f"Connection error with Infra API ({url}): status code {resp.text}")
+        raise HTTPError(f"Connection error with Infra API ({url}): status code {resp.text}")
 
-    try:
-        res = resp.json()
-    except (simplejson.JSONDecodeError, json.JSONDecodeError, ValueError):
-        raise Exception(f"Response from Infra API ({url}) not readable: "
-                        f"status code {resp.status_code} - {resp.text}")
-
+    res = resp.json()
     if not isinstance(res, List) or not all([isinstance(s, str) for s in res]):
-        raise Exception(f"Format of response from Infra API ({url}) not expected (expected list of str): "
-                        f"status code {resp.status_code} - {resp.text}")
+        raise MissingDataError(f"Format of response from Infra API ({url}) not expected (expected list of str): "
+                               f"status code {resp.status_code} - {resp.text}")
     return res
 
 
@@ -41,11 +35,11 @@ def is_user_bound_to_unix_account(user: User, unix_acc_group: str) -> bool:
                         headers={'auth-token': INFRA_AD_TOKEN})
 
     if resp.status_code != status.HTTP_200_OK:
-        raise Exception(f"INTERNAL ERROR, request to infra API failed ({resp.status_code}): {resp.text}")
+        raise HTTPError(f"Request to infra API failed ({resp.status_code}): {resp.text}")
     else:
         b = resp.json()
         if not isinstance(b, bool):
-            raise Exception(f"INTERNAL ERROR, response from infra API unexpected (should be boolean): {resp.text}")
+            raise MissingDataError(f"Response from infra API unexpected (should be boolean): {resp.text}")
         return b
 
 

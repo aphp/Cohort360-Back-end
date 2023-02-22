@@ -6,7 +6,7 @@ from rest_framework.exceptions import ValidationError
 import cohort.conf_cohort_job_api as cohort_job_api
 from admin_cohort.models import User
 from admin_cohort.serializers import BaseSerializer, OpenUserSerializer
-from admin_cohort.types import JobStatus
+from admin_cohort.types import JobStatus, MissingDataError
 from cohort.models import CohortResult, DatedMeasure, Folder, Request, RequestQuerySnapshot
 from cohort.models.dated_measure import GLOBAL_DM_MODE
 from cohort.tools import retrieve_perimeters
@@ -16,7 +16,7 @@ class PrimaryKeyRelatedFieldWithOwner(serializers.PrimaryKeyRelatedField):
     def get_queryset(self):
         user = self.context.get("request").user
         if not user:
-            raise Exception("Internal error: No context request provided to serializer")
+            raise MissingDataError("No context request provided")
         return super(PrimaryKeyRelatedFieldWithOwner, self).get_queryset().filter(owner=user)
 
 
@@ -24,7 +24,7 @@ class UserPrimaryKeyRelatedField(serializers.PrimaryKeyRelatedField):
     def get_queryset(self):
         user = self.context.get("request").user
         if not user:
-            raise Exception("Internal error: No context request provided to serializer")
+            raise MissingDataError("No context request provided")
         qs = super(UserPrimaryKeyRelatedField, self).get_queryset()
         return qs.filter(pk=user.pk)
 
@@ -191,11 +191,7 @@ class RequestQuerySnapshotSerializer(BaseSerializer):
         except json.JSONDecodeError as e:
             raise ValidationError(f"Serialized_query could not be recognized as json: {e.msg}")
 
-        # post_validate_cohort is called this way
-        # so that fhir_api can be mocked in tests
-        auth_headers = cohort_job_api.get_authorization_header(self.context.get("request"))
-        validate_resp = cohort_job_api.post_validate_cohort(json_query=serialized_query,
-                                                            auth_headers=auth_headers)
+        validate_resp = cohort_job_api.post_validate_cohort()
         if not validate_resp.success:
             raise ValidationError(f"Serialized_query, after formatting, is not accepted by "
                                   f"FHIR server: {validate_resp.err_msg}")

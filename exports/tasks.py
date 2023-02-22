@@ -5,6 +5,7 @@ from datetime import timedelta, datetime
 from celery import shared_task
 from django.conf import settings
 from django.utils import timezone
+from requests import RequestException, HTTPError
 
 from admin_cohort.celery import app
 from admin_cohort.settings import EXPORT_CSV_PATH
@@ -65,15 +66,15 @@ def wait_for_job(er: ExportRequest):
             if er.request_job_status != status_resp.status:
                 er.request_job_status = status_resp.status
                 er.save()
-        except Exception as e:
+        except RequestException as e:
             log_export_request_task(er.id, f"Status not received: {e}")
             errs += 1
             err_msg = str(e)
 
     if status_resp.status != JobStatus.finished:
-        raise Exception(status_resp.err or "No 'err' value returned.")
+        raise HTTPError(status_resp.err or "No 'err' value returned.")
     elif errs >= 5:
-        raise Exception(f"5 times internal error during task -> {err_msg}")
+        raise HTTPError(f"5 times internal error during task -> {err_msg}")
 
 
 @shared_task
@@ -88,8 +89,8 @@ def launch_request(er_id: int):
     """
     try:
         er = ExportRequest.objects.get(pk=er_id)
-    except Exception as e:
-        log_export_request_task(er_id, f"Could not find export request to launch with ID {er_id}: {e}")
+    except ExportRequest.DoesNotExist:
+        log_export_request_task(er_id, f"Could not find export request to launch with ID {er_id}")
         return
     now = timezone.now()
     log_export_request_task(er.id, "Sending request to Infra API.")
@@ -102,13 +103,13 @@ def launch_request(er_id: int):
 
     try:
         conf_exports.prepare_for_export(er)
-    except Exception as e:
+    except RequestException as e:
         manage_exception(er, e, f"Error while preparing for export {er.id}", now)
         return
 
     try:
         job_id = conf_exports.post_export(er)
-    except Exception as e:
+    except RequestException as e:
         manage_exception(er, e, f"Could not post export {er.id}", now)
         return
 
@@ -119,7 +120,7 @@ def launch_request(er_id: int):
 
     try:
         wait_for_job(er)
-    except Exception as e:
+    except HTTPError as e:
         manage_exception(er, e, f"Failure during export job {er.id}", now)
         return
 
@@ -127,7 +128,7 @@ def launch_request(er_id: int):
 
     try:
         conf_exports.conclude_export(er)
-    except Exception as e:
+    except RequestException as e:
         manage_exception(er, e, f"Could not conclude export {er.id}", now)
         return
 
@@ -163,5 +164,5 @@ def delete_export_requests_csv_files():
             er.save()
         except HdfsServerUnreachableError:
             _log_err.exception(f"ExportRequest {er.id} - HDFS servers are unreachable or in stand-by")
-        except Exception as e:
+        except RequestException as e:
             _log_err.exception(f"ExportRequest {er.id}: {e}")

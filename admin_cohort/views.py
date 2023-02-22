@@ -24,10 +24,8 @@ from accesses.serializers import AccessSerializer
 from admin_cohort import conf_auth
 from .MaintenanceModeMiddleware import get_next_maintenance
 from .models import User, get_user, MaintenancePhase
-from .permissions import LogsPermission, IsAuthenticatedReadOnly, \
-    OR, can_user_read_users, MaintenancePermission
-from .serializers import APIRequestLogSerializer, \
-    UserSerializer, OpenUserSerializer, MaintenancePhaseSerializer
+from .permissions import LogsPermission, IsAuthenticatedReadOnly, can_user_read_users, MaintenancePermission
+from .serializers import APIRequestLogSerializer, UserSerializer, OpenUserSerializer, MaintenancePhaseSerializer
 from .settings import MANUAL_SOURCE
 
 
@@ -73,24 +71,6 @@ class BaseViewset(viewsets.ModelViewSet):
         instance.save()
 
 
-class SwaggerSimpleNestedViewSetMixin:
-    @swagger_auto_schema(auto_schema=None)
-    def retrieve(self, request, *args, **kwargs):
-        return self.retrieve(request, *args, **kwargs)
-
-    @swagger_auto_schema(auto_schema=None)
-    def destroy(self, request, *args, **kwargs):
-        return self.destroy(request, *args, **kwargs)
-
-    @swagger_auto_schema(auto_schema=None)
-    def update(self, request, *args, **kwargs):
-        return self.update(request, *args, **kwargs)
-
-    @swagger_auto_schema(auto_schema=None)
-    def partial_update(self, request, *args, **kwargs):
-        return self.partial_update(request, *args, **kwargs)
-
-
 class CustomLoggingMixin(LoggingMixin):
     def handle_log(self):
         for f in ['data', 'errors', 'response']:
@@ -100,7 +80,6 @@ class CustomLoggingMixin(LoggingMixin):
                     self.log[f] = json.dumps(v)
                 except Exception:
                     pass
-
         return super(CustomLoggingMixin, self).handle_log()
 
 
@@ -115,7 +94,6 @@ class LogFilter(filters.FilterSet):
     status_code = filters.CharFilter(method='status_code_filter')
     requested_at = filters.DateTimeFromToRangeFilter()
     response_ms = filters.RangeFilter()
-    # path = filters.CharFilter(lookup_expr='icontains')
     path_contains = filters.CharFilter(field_name='path', lookup_expr='icontains')
     response = filters.CharFilter(field_name='response', lookup_expr='icontains')
     errors = filters.CharFilter(field_name='errors', lookup_expr='icontains')
@@ -281,7 +259,7 @@ class LoggingViewset(YarnReadOnlyViewsetMixin, viewsets.ModelViewSet):
 
 
 class CustomLoginView(LoginView):
-    @csrf_exempt
+
     def form_valid(self, form):
         """Security check complete. Log the user in."""
         login(self.request, form.get_user())
@@ -307,7 +285,7 @@ class CustomLoginView(LoginView):
         url = self.get_redirect_url()
         return JsonResponse(data) if not url else HttpResponseRedirect(url)
 
-    @csrf_exempt
+    @method_decorator(csrf_exempt)
     @method_decorator(never_cache)
     def dispatch(self, request, *args, **kwargs):
         if self.redirect_authenticated_user and self.request.user.is_authenticated:
@@ -322,7 +300,6 @@ class CustomLoginView(LoginView):
             handler = self.http_method_not_allowed
         return handler(request, *args, **kwargs)
 
-    @csrf_exempt
     def post(self, request, *args, **kwargs):
         resp = super(CustomLoginView, self).post(request, *args, **kwargs)
         if getattr(request, 'jwt_server_unavailable', False):
@@ -335,12 +312,10 @@ class CustomLoginView(LoginView):
 def redirect_token_refresh_view(request):
     if request.method != "POST":
         raise Http404()
-
     try:
         res = conf_auth.refresh_jwt(request.jwt_refresh_key)
-    except Exception as e:
+    except ValueError as e:
         raise Http404(e)
-
     return JsonResponse(data=res.__dict__)
 
 
@@ -387,12 +362,10 @@ class UserViewSet(YarnReadOnlyViewsetMixin, BaseViewset):
     lookup_field = "provider_username"
     search_fields = ["firstname", "lastname", "provider_username", "email"]
     filterset_class = UserFilter
+    permission_classes = (IsAuthenticatedReadOnly,)
 
     def get_serializer_context(self):
         return {'request': self.request}
-
-    def get_permissions(self):
-        return OR(IsAuthenticatedReadOnly())
 
     def get_serializer(self, *args, **kwargs):
         if can_user_read_users(self.request.user):
@@ -400,7 +373,7 @@ class UserViewSet(YarnReadOnlyViewsetMixin, BaseViewset):
         return OpenUserSerializer(*args, **kwargs)
 
     def get_queryset(self):
-        # todo : to test manualonly
+        # todo : to test manual_only
         manual_only = self.request.GET.get("manual_only", None)
         if not manual_only:
             return super(UserViewSet, self).get_queryset()

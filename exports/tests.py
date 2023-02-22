@@ -421,7 +421,6 @@ class DownloadCase(RequestCase):
     def __init__(self, data_to_download: dict, mock_hdfs_resp: any = None,
                  mock_file_size_resp: any = None, mock_hdfs_called: bool = True,
                  mock_file_size_called: bool = True, **kwargs):
-        # self.export_request = export_request
         self.data_to_download = data_to_download or dict()
         self.mock_hdfs_resp = mock_hdfs_resp
         self.mock_file_size_resp = mock_file_size_resp
@@ -450,7 +449,6 @@ class ExportsRetrieveTests(ExportsWithSimpleSetUp):
             mock_hdfs_called=True, mock_file_size_called=True,
             user=self.user1,
             data_to_download=self.base_data,
-            # export_request=self.user1_exp_req_succ,
             success=True,
             status=status.HTTP_200_OK,
         )

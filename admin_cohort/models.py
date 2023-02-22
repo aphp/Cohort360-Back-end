@@ -10,7 +10,7 @@ from django.utils import timezone
 from safedelete import SOFT_DELETE_CASCADE
 from safedelete.models import SafeDeleteModel
 
-from admin_cohort.types import UserInfo, JobStatus
+from admin_cohort.types import UserInfo, JobStatus, WorkflowError
 
 
 class UndeletableModelManager(models.Manager):
@@ -83,11 +83,6 @@ class User(AbstractBaseUser, BaseModel):
         return f"{self.firstname} {self.lastname} ({self.provider_username}) " \
                f"{deleted_info}"
 
-    # @property
-    # def provider(self):
-    #     res = get_provider(provider_source_value=self.provider_username)
-    #     return res
-
     @property
     def valid_profiles(self) -> List:
         return [p for p in self.profiles.prefetch_related('accesses')
@@ -150,34 +145,32 @@ class JobModel(models.Model):
 
     def validate(self):
         if self.request_job_status != JobStatus.new:
-            raise Exception(f"Job can be validated only if current status is '{JobStatus.new}'."
-                            f"Current status is '{self.request_job_status}'")
+            raise WorkflowError(f"Job can be validated only if current status is '{JobStatus.new}'."
+                                f"Current status is '{self.request_job_status}'")
         self.request_job_status = JobStatus.validated
         self.save()
 
     def deny(self):
         if self.request_job_status != JobStatus.new:
-            raise Exception(f"Job can be denied only if current status is {JobStatus.new}'."
-                            f"Current status is '{self.request_job_status}'")
+            raise WorkflowError(f"Job can be denied only if current status is {JobStatus.new}'."
+                                f"Current status is '{self.request_job_status}'")
         self.request_job_status = JobStatus.denied
         self.save()
 
 
 class JobModelWithReview(JobModel):
-    reviewer_fk = models.ForeignKey(
-        User, related_name='reviewed_export_requests',
-        on_delete=SET_NULL, null=True)
+    reviewer_fk = models.ForeignKey(User, related_name='reviewed_export_requests', on_delete=SET_NULL, null=True)
     review_request_datetime = models.DateTimeField(null=True)
 
     class Meta:
         abstract = True
 
-    def validate(self, reviewer: Union[User, None]):
+    def validate(self, reviewer: Union[User, None] = None):
         self.reviewer_fk = reviewer
         self.review_request_datetime = timezone.now()
         return super(JobModelWithReview, self).validate()
 
-    def deny(self, reviewer: Union[User, None]):
+    def deny(self, reviewer: Union[User, None] = None):
         self.reviewer_fk = reviewer
         self.review_request_datetime = timezone.now()
         return super(JobModelWithReview, self).deny()
@@ -195,14 +188,10 @@ class MaintenancePhase(BaseModel):
 
 
 def get_next_maintenance() -> Union[MaintenancePhase, None]:
-    current = MaintenancePhase.objects\
-        .filter(start_datetime__lte=timezone.now(),
-                end_datetime__gte=timezone.now())\
-        .order_by('-end_datetime').first()
-    if current is not None:
+    now = timezone.now()
+    current = MaintenancePhase.objects.filter(start_datetime__lte=now,
+                                              end_datetime__gte=now).order_by('-end_datetime').first()
+    if current:
         return current
-
-    next = MaintenancePhase.objects\
-        .filter(start_datetime__gte=timezone.now())\
-        .order_by('start_datetime').first()
-    return next
+    next_maintenance = MaintenancePhase.objects.filter(start_datetime__gte=timezone.now()).order_by('start_datetime').first()
+    return next_maintenance

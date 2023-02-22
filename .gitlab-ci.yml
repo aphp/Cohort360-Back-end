@@ -6,6 +6,7 @@ variables:
 stages:
   - lint
   - test
+  - sonarqube-check
   - deploy
 
 lint-job:
@@ -43,6 +44,26 @@ test-job:
   only:
     - tags
     - develop
+
+sonarqube-check:
+  image:
+    name: sonarsource/sonar-scanner-cli:latest
+    entrypoint: [ "" ]
+  needs:
+    - test-job
+  dependencies:
+    - test-job
+  stage: sonarqube-check
+  variables:
+    SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"  # Defines the location of the analysis task cache
+    GIT_DEPTH: "0"  # Tells git to fetch all the branches of the project, required by the analysis task
+  cache:
+    key: "${CI_JOB_NAME}"
+    paths:
+      - .sonar/cache
+  script:
+    - export VERSION=$(cat ./admin_cohort/__init__.py | grep __version__ | head -1 | awk -F'=' '{ print $2 }' | sed "s/[' ]//g")
+    - sonar-scanner -Dsonar.projectVersion=$VERSION
 
 deploy-job:
   image: harbor.eds.aphp.fr/cohort360/kaniko:debug

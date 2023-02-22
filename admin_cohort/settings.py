@@ -11,9 +11,11 @@ env = environ.Env()
 environ.Env.read_env()
 
 SERVER_VERSION = env("SERVER_VERSION")
-BACK_URL = env("BACK_URL")
+
+BACK_HOST = env("BACK_HOST")
+BACK_URL = f"https://{env('BACK_HOST')}"
 FRONT_URL = env("FRONT_URL")
-FRONT_URLS = [f"http://{u}" for u in env("FRONT_URLS").split(',')]
+FRONT_URLS = env("FRONT_URLS").split(',')
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = env("DJANGO_SECRET_KEY")
@@ -25,22 +27,12 @@ CORS_ORIGIN_ALLOW_ALL = DEBUG
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 
 if SERVER_VERSION == "dev":
-    CORS_ORIGIN_WHITELIST = ["http://localhost:3000",
-                             f"http://{env('SERVER_IP')}"]
-
-    CSRF_TRUSTED_ORIGINS = ["http://localhost:3000",
-                            "http://localhost:8001",
-                            f"http://{env('SERVER_IP')}"]
+    CORS_ORIGIN_WHITELIST = [FRONT_URL, BACK_URL]
+    CSRF_TRUSTED_ORIGINS = [FRONT_URL, BACK_URL]
 
 elif SERVER_VERSION == "prod":
-    CORS_ORIGIN_WHITELIST = ["http://localhost:3000",
-                             "http://localhost:8001",
-                             "http://localhost:49033",
-                             f"http://{env('BACK_URL')}"] + FRONT_URLS
-
-    CSRF_TRUSTED_ORIGINS = ["http://localhost:49033",
-                            f"http://{env('BACK_URL')}",
-                            f"http://{env('SERVER_IP')}"] + FRONT_URLS
+    CORS_ORIGIN_WHITELIST = [BACK_URL] + FRONT_URLS
+    CSRF_TRUSTED_ORIGINS = [BACK_URL] + FRONT_URLS
 
 CORS_ALLOW_HEADERS = ['access-control-allow-origin',
                       'content-type',
@@ -50,8 +42,7 @@ CORS_ALLOW_HEADERS = ['access-control-allow-origin',
 ALLOWED_HOSTS = ['localhost',
                  '127.0.0.1',
                  '0.0.0.0',
-                 BACK_URL,
-                 env('BACK_URL_LOCAL', default='')]
+                 BACK_HOST]
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 

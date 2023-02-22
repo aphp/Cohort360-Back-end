@@ -16,6 +16,7 @@ from admin_cohort.models import BaseModel, User, CohortBaseModel
 from admin_cohort.settings import PERIMETERS_TYPES, \
     ROOT_PERIMETER_TYPE, MANUAL_SOURCE
 from admin_cohort.tools import prettify_json, prettify_dict
+from admin_cohort.types import MissingDataError
 
 
 class ObjectView(object):
@@ -28,28 +29,27 @@ class PagedResponse:
         result = json.loads(response.content)
 
         if 'count' not in result:
-            raise Exception('No count in response')
+            raise MissingDataError('No count in response')
         if not isinstance(result['count'], int):
-            raise Exception('"count" in response is not integer')
+            raise MissingDataError('"count" in response is not integer')
         self.count = result['count']
 
         if 'next' not in result:
-            raise Exception('No next in response')
+            raise MissingDataError('No next in response')
         if not isinstance(result['next'], str) and result['next'] is not None:
-            raise Exception('"next" in response is not string')
+            raise MissingDataError('"next" in response is not string')
         self.next = result['next']
 
         if 'previous' not in result:
-            raise Exception('No previous in response')
-        if not isinstance(result['previous'], str)\
-                and result['previous'] is not None:
-            raise Exception('"previous" in response is not str')
+            raise MissingDataError('No previous in response')
+        if not isinstance(result['previous'], str) and result['previous'] is not None:
+            raise MissingDataError('"previous" in response is not str')
         self.previous = result['previous']
 
         if 'results' not in result:
-            raise Exception('No results in response')
+            raise MissingDataError('No results in response')
         if not isinstance(result['results'], list):
-            raise Exception('"results" in response is not list')
+            raise MissingDataError('"results" in response is not list')
         self.results = result['results']
 
 
@@ -294,11 +294,11 @@ class BaseTests(TestCase):
         else:
             self.assertIsNone(base_instance)
 
-    def check_unupdatable_not_updated(self, base_instance,
-                                      originModel, request_model=dict()):
-        self.assertTrue(isinstance(base_instance, (BaseModel, CohortBaseModel)))
-        self.assertTrue(isinstance(originModel, (BaseModel, CohortBaseModel)))
-        [self.assertNotEqual(getattr(base_instance, f), request_model[f],
+    def check_unupdatable_not_updated(self, instance_1,
+                                      instance_2, request_model=dict()):
+        self.assertTrue(isinstance(instance_1, (BaseModel, CohortBaseModel)))
+        self.assertTrue(isinstance(instance_2, (BaseModel, CohortBaseModel)))
+        [self.assertNotEqual(getattr(instance_1, f), request_model[f],
                              f"Error with model's {f}")
          for f in self.unupdatable_fields + self.manual_dupplicated_fields
          if f in request_model]
@@ -306,7 +306,7 @@ class BaseTests(TestCase):
         for dupp_field in self.manual_dupplicated_fields:
             if dupp_field in request_model:
                 manual_field = f"manual_{dupp_field}"
-                self.assertEqual(getattr(base_instance, manual_field),
+                self.assertEqual(getattr(instance_1, manual_field),
                                  request_model[dupp_field])
 
 
