@@ -22,7 +22,7 @@ cron
 celery -A admin_cohort worker -B --loglevel=INFO --logfile=/app/log/celery.log &
 sleep 10
 
-python setup_logging.py
+python setup_logging.py &
 gunicorn admin_cohort.wsgi --config .conf/gunicorn.conf.py
 
 tail -f /app/log/django.error.log
