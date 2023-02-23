@@ -4,7 +4,6 @@ from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.decorators import action
-from rest_framework.permissions import AND
 from rest_framework.response import Response
 
 from admin_cohort import conf_auth
@@ -44,7 +43,7 @@ class ProfileViewSet(CustomLoggingMixin, BaseViewset):
     queryset = Profile.objects.filter(delete_datetime__isnull=True).all()
     lookup_field = "id"
     logging_methods = ['POST', 'PUT', 'PATCH', 'DELETE']
-    permission_classes = [lambda: AND(IsAuthenticated(), ProfilePermissions())]
+    permission_classes = (IsAuthenticated, ProfilePermissions)
     swagger_tags = ['Accesses - profiles']
     filterset_class = ProfileFilter
     search_fields = ["lastname", "firstname", "email", "user_id"]
