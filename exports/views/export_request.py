@@ -14,7 +14,6 @@ from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 
 from admin_cohort.models import User
-from admin_cohort.settings import COHORT_LIMIT
 from admin_cohort.tools import join_qs
 from admin_cohort.types import JobStatus
 from admin_cohort.views import CustomLoggingMixin
