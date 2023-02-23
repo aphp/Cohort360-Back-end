@@ -103,7 +103,6 @@ class User(AbstractBaseUser, BaseModel):
         return f"User {self})"
 
     class Meta:
-        managed = True
         db_table = 'user'
 
 

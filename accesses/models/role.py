@@ -92,9 +92,6 @@ class Role(BaseModel):
     _inf_level_readable_rights = None
     _same_level_readable_rights = None
 
-    class Meta:
-        managed = True
-
     @classmethod
     def is_read_patient_role_nominative(cls, prefix: str = "") -> Q:
         formatted_prefix = format_prefix(prefix)

@@ -26,9 +26,6 @@ class Profile(BaseModel):
     manual_valid_end_datetime = models.DateTimeField(blank=True, null=True)
     user = models.ForeignKey(User, on_delete=CASCADE, related_name='profiles', null=True, blank=True)
 
-    class Meta:
-        managed = True
-
     @property
     def is_valid(self):
         now = datetime.now().replace(tzinfo=None)

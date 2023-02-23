@@ -104,6 +104,3 @@ class Access(BaseModel):
             res.append(d)
 
         return res
-
-    class Meta:
-        managed = True
