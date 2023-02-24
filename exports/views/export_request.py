@@ -14,7 +14,6 @@ from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 
 from admin_cohort.models import User
-from admin_cohort.settings import COHORT_LIMIT
 from admin_cohort.tools import join_qs
 from admin_cohort.types import JobStatus
 from admin_cohort.views import CustomLoggingMixin
@@ -194,16 +193,6 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
             return Response(data="'cohort_fk' or 'cohort_id' is required",
                             status=status.HTTP_400_BAD_REQUEST)
 
-        # todo: remove when front disables export button based on cohort's `exportable` field
-        try:
-            cohort_size = CohortResult.objects.get(uuid=request.data.get('cohort')).result_size
-            if cohort_size and cohort_size > COHORT_LIMIT:
-                return Response(data=f"Cannot export this large cohort. Current size limit: {COHORT_LIMIT}",
-                                status=status.HTTP_400_BAD_REQUEST)
-        except CohortResult.DoesNotExist:
-            return Response(data="Invalid Cohort identifier",
-                            status=status.HTTP_400_BAD_REQUEST)
-
         creator: User = request.user
         check_email_address(creator)
 
@@ -213,7 +202,7 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
         # to deprecate
         try:
             request.data['provider_id'] = User.objects.get(pk=owner_id).provider_id
-        except Exception:
+        except User.DoesNotExist:
             pass
 
         request.data['provider_source_value'] = owner_id

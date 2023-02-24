@@ -32,13 +32,29 @@ KEY_CONTACT_MAIL = "KEY_CONTACT_MAIL"
 KEY_CONTENT = "KEY_CONTENT"
 KEY_DELETE_DATE = "KEY_DELETE_DATE"
 KEY_DATABASE_NAME = "KEY_DATABASE_NAME"
-
+KEY_SELECTED_TABLES = "KEY_SELECTED_TABLES"
 
 _logger = logging.getLogger('django.request')
 
 
-def send_email(msg: EmailMultiAlternatives):
+def send_email(req: ExportRequest, subject, txt_mail, html_mail, to_address):
+    msg = EmailMultiAlternatives(subject=subject,
+                                 body=replace_keys(txt_mail, req),
+                                 from_email=SENDER_EMAIL_ADDR,
+                                 to=[to_address])
+
+    msg.attach_alternative(content=replace_keys(html_mail, req, is_html=True),
+                           mimetype=TEXT_HTML)
+    msg.attach_file(COHORT360_LOGO)
     msg.send()
+
+
+def get_selected_tables(req: ExportRequest, is_html=False):
+    tables = []
+    for t in req.tables.all():
+        item = is_html and f"<li>{t.omop_table_name}</li>" or f"- {t.omop_table_name}"
+        tables.append(item)
+    return is_html and f"<ul>{''.join(tables)}</ul>" or "\n".join(tables)
 
 
 def replace_keys(txt: str, req: ExportRequest, is_html: bool = False) -> str:
@@ -47,13 +63,15 @@ def replace_keys(txt: str, req: ExportRequest, is_html: bool = False) -> str:
         url = f"{BACKEND_URL}/accounts/login/?next=/exports/{req.id}/download/"
         res = res.replace(KEY_DOWNLOAD_URL,
                           f"<a href='{url}' class=3D'OWAAutoLink'>Télécharger</a>" if is_html else url)
+
     keys_vals = {KEY_COHORT_ID: req.cohort_id,
                  KEY_NAME: req.creator_fk and req.creator_fk.displayed_name or None,
                  KEY_ERROR_MESSAGE: req.request_job_fail_msg,
                  KEY_CONTACT_MAIL: EMAIL_SUPPORT_CONTACT,
                  KEY_DATABASE_NAME: req.target_name,
                  KEY_DELETE_DATE: (timezone.now().date() +
-                                   timedelta(days=int(DAYS_TO_DELETE_CSV_FILES))).strftime("%d %B, %Y")
+                                   timedelta(days=int(DAYS_TO_DELETE_CSV_FILES))).strftime("%d %B, %Y"),
+                 KEY_SELECTED_TABLES: get_selected_tables(req, is_html=is_html)
                  }
     for k, v in keys_vals.items():
         res = res.replace(str(k), str(v))
@@ -71,27 +89,15 @@ def get_base_templates() -> Tuple[str, str]:
 
 
 def check_email_address(user: User):
-    """
-    Check that the Provider has a correct email address
-    @param user:
-    @type Provider:
-    @return:
-    @rtype:
-    """
-    if user.email is None or not len(user.email):
-        raise ValidationError(f"L'utilisateur {user.displayed_name} "
-                              f"n'a pas d'email fourni,"
-                              f" merci de contacter un administrateur")
-
+    if not user.email:
+        raise ValidationError(f"No email address is configured for user {user.displayed_name}. "
+                              f"Please contact an administrator")
     if not re.match(EMAIL_REGEX_CHECK, user.email):
-        raise ValidationError(f"L'utilisateur a une adresse email "
-                              f"incorrecte ({user.email}). Notez "
-                              f"qu'elle doit satisfaire la "
-                              f"RegEx {EMAIL_REGEX_CHECK}. Merci de contacter "
-                              f"un administrateur.")
+        raise ValidationError(f"Invalid email address ({user.email}). Must match the RegEx {EMAIL_REGEX_CHECK}. "
+                              f"Please contact an administrator.")
 
 
-def send_failed_email(req: ExportRequest, email_address: str):
+def send_failed_email(req: ExportRequest, to_address: str):
     with open("exports/email_templates/resultat_requete_echec.txt") as f:
         txt_content = "\n".join(f.readlines())
 
@@ -102,19 +108,11 @@ def send_failed_email(req: ExportRequest, email_address: str):
     html_mail = html_mail.replace(KEY_CONTENT, html_content)
     txt_mail = txt_mail.replace(KEY_CONTENT, txt_content)
 
-    subject, from_email = f"[Cohorte {req.cohort_id}] Votre demande d'export " \
-                          f"n'a pas abouti", SENDER_EMAIL_ADDR
-    msg = EmailMultiAlternatives(
-        subject=subject, body=replace_keys(txt_mail, req),
-        from_email=from_email, to=[email_address]
-    )
-
-    msg.attach_alternative(content=replace_keys(html_mail, req, True), mimetype=TEXT_HTML)
-    msg.attach_file(COHORT360_LOGO)
-    send_email(msg)
+    subject = f"[Cohorte {req.cohort_id}] Votre demande d'export n'a pas abouti"
+    send_email(req, subject, txt_mail, html_mail, to_address)
 
 
-def send_success_email(req: ExportRequest, email_address: str):
+def send_success_email(req: ExportRequest, to_address: str):
     hive_suffix = req.output_format == ExportType.HIVE and '_hive' or ''
     html_path = f"exports/email_templates/resultat_requete_succes{hive_suffix}.html"
     txt_path = f"exports/email_templates/resultat_requete_succes{hive_suffix}.txt"
@@ -128,29 +126,11 @@ def send_success_email(req: ExportRequest, email_address: str):
     html_mail, txt_mail = get_base_templates()
     html_mail = html_mail.replace(KEY_CONTENT, html_content)
     txt_mail = txt_mail.replace(KEY_CONTENT, txt_content)
-
     subject = f"[Cohorte {req.cohort_id}] Export terminé"
-    from_email = SENDER_EMAIL_ADDR
-
-    msg = EmailMultiAlternatives(
-        subject=subject, body=replace_keys(txt_mail, req),
-        from_email=from_email, to=[email_address]
-    )
-
-    msg.attach_alternative(content=replace_keys(html_mail, req, True), mimetype=TEXT_HTML)
-    msg.attach_file(COHORT360_LOGO)
-    send_email(msg)
+    send_email(req, subject, txt_mail, html_mail, to_address)
 
 
 def email_info_request_done(req: ExportRequest):
-    """
-    Read the templates for a finished request email and send it to the user
-    binded to it
-    @param req:
-    @type req:
-    @return:
-    @rtype:
-    """
     check_email_address(req.owner)
     try:
         if req.request_job_status == JobStatus.finished:
@@ -168,16 +148,7 @@ def email_info_request_done(req: ExportRequest):
     req.save()
 
 
-def email_info_request_confirmed(req: ExportRequest, email_address: str):
-    """
-    Send an email to the user informing that its request was well received
-    @param req:
-    @type req:
-    @param email_address:
-    @type email_address:
-    @return:
-    @rtype:
-    """
+def email_info_request_confirmed(req: ExportRequest, to_address: str):
     hive_suffix = req.output_format == ExportType.HIVE and '_hive' or ''
     html_path = f"exports/email_templates/confirmation_de_requete{hive_suffix}.html"
     txt_path = f"exports/email_templates/confirmation_de_requete{hive_suffix}.txt"
@@ -192,33 +163,12 @@ def email_info_request_confirmed(req: ExportRequest, email_address: str):
     html_mail = html_mail.replace(KEY_CONTENT, html_content)
     txt_mail = txt_mail.replace(KEY_CONTENT, txt_content)
 
-    action = "Demande d'export CSV reçue" \
-        if req.output_format == ExportType.CSV \
-        else "Demande reçue de transfert en environnement Jupyter"
-
+    action = req.output_format == ExportType.CSV and "Demande d'export CSV reçue" or "Demande reçue de transfert en environnement Jupyter"
     subject = f"[Cohorte {req.cohort_id}] {action}"
-    from_email = SENDER_EMAIL_ADDR
-
-    msg = EmailMultiAlternatives(
-        subject=subject, body=replace_keys(txt_mail, req),
-        from_email=from_email, to=[email_address]
-    )
-
-    msg.attach_alternative(content=replace_keys(html_mail, req, True), mimetype=TEXT_HTML)
-    msg.attach_file(COHORT360_LOGO)
-    send_email(msg)
+    send_email(req, subject, txt_mail, html_mail, to_address)
 
 
-def email_info_request_deleted(req: ExportRequest, email_address: str):
-    """
-    Send an email to the user informing that its request was deleted
-    @param req:
-    @type req:
-    @param email_address:
-    @type email_address:
-    @return:
-    @rtype:
-    """
+def email_info_request_deleted(req: ExportRequest, to_address: str):
     with open("exports/email_templates/confirmation_suppression.html") as f:
         html_content = "\n".join(f.readlines())
 
@@ -229,14 +179,5 @@ def email_info_request_deleted(req: ExportRequest, email_address: str):
     html_mail = html_mail.replace(KEY_CONTENT, html_content)
     txt_mail = txt_mail.replace(KEY_CONTENT, txt_content)
 
-    subject, from_email = f"[Cohorte {req.cohort_id}] Confirmation " \
-                          f"de suppression de fichier", SENDER_EMAIL_ADDR
-
-    msg = EmailMultiAlternatives(
-        subject=subject, body=replace_keys(txt_mail, req),
-        from_email=from_email, to=[email_address]
-    )
-
-    msg.attach_alternative(content=replace_keys(html_mail, req, True), mimetype=TEXT_HTML)
-    msg.attach_file(COHORT360_LOGO)
-    send_email(msg)
+    subject = f"[Cohorte {req.cohort_id}] Confirmation de suppression de fichier"
+    send_email(req, subject, txt_mail, html_mail, to_address)
