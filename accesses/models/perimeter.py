@@ -55,10 +55,9 @@ class Perimeter(BaseModel):
         if not self.above_levels_ids:
             return list()
         try:
-            ids = [int(i) for i in self.above_levels_ids.split(",") if i]
-            return ids
+            return [int(i) for i in self.above_levels_ids.split(",") if i]
         except (AttributeError, ValueError) as e:
-            _logger.error(f"Error getting above level ids for perimeter {self}.\n {e}")
+            _logger.error(f"Error getting above levels ids for perimeter {self}.\n {e}")
             raise e
 
     @property
@@ -66,10 +65,9 @@ class Perimeter(BaseModel):
         if not self.inferior_levels_ids:
             return list()
         try:
-            ids = [int(i) for i in self.inferior_levels_ids.split(",") if i]
-            return ids
+            return [int(i) for i in self.inferior_levels_ids.split(",") if i]
         except (AttributeError, ValueError) as e:
-            _logger.error(f"Error getting inferior level ids for perimeter {self}.\n {e}")
+            _logger.error(f"Error getting inferior levels ids for perimeter {self}.\n {e}")
             raise e
 
     def all_parents_query(self, prefix: str = None) -> Q:

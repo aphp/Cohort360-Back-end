@@ -66,12 +66,15 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
                                            "-Inferior level right give only access to children of current perimeter.",
                          responses={'200': openapi.Response("manageable perimeters found", PerimeterLiteSerializer())})
     @action(detail=False, methods=['get'], url_path="manageable")
-    def get_manageable(self, request, *args, **kwargs):
+    def get_manageable_perimeters(self, request, *args, **kwargs):
         user_accesses = get_user_valid_manual_accesses_queryset(self.request.user)
 
         perimeters_filtered_by_search = []
         if self.request.query_params:
-            accessible_perimeters = Perimeter.objects.filter(id__in={a.perimeter_id for a in user_accesses})
+            main_perimeters = Perimeter.objects.filter(id__in={a.perimeter_id for a in user_accesses})
+            accessible_perimeters = Perimeter.objects.none()
+            for p in main_perimeters:
+                accessible_perimeters = accessible_perimeters.union(p.all_children_queryset)
             perimeters_filtered_by_search = self.filter_queryset(accessible_perimeters)
             if not perimeters_filtered_by_search:
                 return Response(data={"WARN": "No Perimeters Found"}, status=status.HTTP_204_NO_CONTENT)

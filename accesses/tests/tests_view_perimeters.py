@@ -63,7 +63,7 @@ class PerimeterTests(ViewSetTests):
     model_objects = Perimeter.objects
     model_fields = Perimeter._meta.fields
 
-    restricted_list_view = PerimeterViewSet.as_view({'get': 'get_manageable'})
+    restricted_list_view = PerimeterViewSet.as_view({'get': 'get_manageable_perimeters'})
 
     def setUp(self):
         super(PerimeterTests, self).setUp()
@@ -285,7 +285,7 @@ class PerimeterGetTests(PerimeterTests):
 
 
 class PerimeterGetManageableTests(PerimeterTests, SimplePerimSetup):
-    manageable_view = PerimeterViewSet.as_view({'get': 'get_manageable'})
+    manageable_view = PerimeterViewSet.as_view({'get': 'get_manageable_perimeters'})
 
     def setUp(self):
         super(PerimeterGetManageableTests, self).setUp()
