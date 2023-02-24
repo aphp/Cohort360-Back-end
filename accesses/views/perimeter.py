@@ -1,3 +1,5 @@
+from functools import reduce
+
 from django.db.models import Q
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
@@ -72,9 +74,8 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
         perimeters_filtered_by_search = []
         if self.request.query_params:
             main_perimeters = Perimeter.objects.filter(id__in={a.perimeter_id for a in user_accesses})
-            accessible_perimeters = Perimeter.objects.none()
-            for p in main_perimeters:
-                accessible_perimeters = accessible_perimeters.union(p.all_children_queryset)
+            all_perimeters = [main_perimeters] + [p.all_children_queryset for p in main_perimeters]
+            accessible_perimeters = reduce(lambda qs1, qs2: qs1 | qs2, all_perimeters)
             perimeters_filtered_by_search = self.filter_queryset(accessible_perimeters)
             if not perimeters_filtered_by_search:
                 return Response(data={"WARN": "No Perimeters Found"}, status=status.HTTP_204_NO_CONTENT)
@@ -114,7 +115,9 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
             raise Http404("ERROR: No accesses with read patient right found")
 
         if self.request.query_params:
-            accessible_perimeters = Perimeter.objects.filter(id__in={a.perimeter_id for a in user_accesses})
+            main_perimeters = Perimeter.objects.filter(id__in={a.perimeter_id for a in user_accesses})
+            all_perimeters = [main_perimeters] + [p.all_children_queryset for p in main_perimeters]
+            accessible_perimeters = reduce(lambda qs1, qs2: qs1 | qs2, all_perimeters)
             perimeters = self.filter_queryset(accessible_perimeters)
         else:
             perimeters = get_top_perimeter_from_read_patient_accesses(all_read_patient_nominative_accesses,
