@@ -179,6 +179,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         GROUP_ID = "group.id"
         GROUP_COUNT = "group.count"
         data = request.data
+        _logger.info(f"received data for cohort patch: {data}")
         cohort = self.get_object()
         sjs_data_keys = (JOB_STATUS, GROUP_ID, GROUP_COUNT)
         update_from_sjs = all([key in data for key in sjs_data_keys])
