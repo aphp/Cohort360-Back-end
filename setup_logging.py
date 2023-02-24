@@ -1,7 +1,7 @@
 # https://docs.python.org/3.11/howto/logging-cookbook.html#sending-and-receiving-logging-events-across-a-network
 # https://docs.python.org/3.11/howto/logging-cookbook.html#running-a-logging-socket-listener-in-production
+import json
 import logging
-import pickle
 import socketserver
 import struct
 from logging.handlers import RotatingFileHandler, DEFAULT_TCP_LOGGING_PORT
@@ -42,10 +42,6 @@ def handle_log_record(record):
     logger.handle(record)
 
 
-def unpickle(data):
-    return pickle.loads(data)
-
-
 class LogRecordStreamHandler(socketserver.StreamRequestHandler):
     def handle(self):
         """ Handle multiple requests - each expected to be a 4-byte length,
@@ -60,7 +56,7 @@ class LogRecordStreamHandler(socketserver.StreamRequestHandler):
             chunk = self.connection.recv(slen)
             while len(chunk) < slen:
                 chunk = chunk + self.connection.recv(slen - len(chunk))
-            obj = unpickle(chunk)
+            obj = json.loads(chunk)
             record = logging.makeLogRecord(obj)
             handle_log_record(record)
 

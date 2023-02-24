@@ -67,14 +67,14 @@ LOGGING = dict(version=1,
                handlers={
                    'info_handler': {
                        'level': "INFO",
-                       'class': "logging.handlers.SocketHandler",
+                       'class': "admin_cohort.tools.CustomSocketHandler",
                        'host': "localhost",
                        'port': DEFAULT_TCP_LOGGING_PORT,
                        'formatter': "verbose"
                     },
                    'error_handler': {
                        'level': "ERROR",
-                       'class': "logging.handlers.SocketHandler",
+                       'class': "admin_cohort.tools.CustomSocketHandler",
                        'host': "localhost",
                        'port': DEFAULT_TCP_LOGGING_PORT,
                        'formatter': "verbose"
