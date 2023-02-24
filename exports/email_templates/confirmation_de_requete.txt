@@ -1,5 +1,8 @@
 Nous vous confirmons la réception de votre demande d'export de données concernant la cohorte numéro KEY_COHORT_ID.
 
+Les tables sélectionnées sont:
+KEY_SELECTED_TABLES
+
 Un lien de téléchargement vous sera envoyé par email lorsque les fichiers seront disponibles.
 Un délai de 24h maximum peut s'appliquer en fonction du volume des données.
 

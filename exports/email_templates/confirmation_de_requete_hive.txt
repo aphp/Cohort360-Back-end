@@ -1,4 +1,5 @@
 Nous vous confirmons la réception de votre demande d'export de données vers Hive concernant la cohorte numéro KEY_COHORT_ID.
+
 Les tables sélectionnées sont:
 KEY_SELECTED_TABLES
 

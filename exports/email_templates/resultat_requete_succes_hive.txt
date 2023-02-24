@@ -1,4 +1,5 @@
 Votre export de données concernant la cohorte numéro KEY_COHORT_ID a été généré avec succès.
+
 Rappel des tables sélectionnées:
 KEY_SELECTED_TABLES
 
