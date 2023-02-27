@@ -1,19 +1,21 @@
 from datetime import date, datetime, time
+from logging.handlers import DEFAULT_TCP_LOGGING_PORT
 from pathlib import Path
 
 import environ
 import pytz
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 env = environ.Env()
 environ.Env.read_env()
 
 SERVER_VERSION = env("SERVER_VERSION")
-BACK_URL = env("BACK_URL")
+
+BACK_HOST = env("BACK_HOST")
+BACK_URL = f"https://{env('BACK_HOST')}"
 FRONT_URL = env("FRONT_URL")
-FRONT_URLS = [f"http://{u}" for u in env("FRONT_URLS").split(',')]
+FRONT_URLS = env("FRONT_URLS").split(',')
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = env("DJANGO_SECRET_KEY")
@@ -25,20 +27,12 @@ CORS_ORIGIN_ALLOW_ALL = DEBUG
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 
 if SERVER_VERSION == "dev":
-    CORS_ORIGIN_WHITELIST = ["http://localhost:3000",
-                             f"http://{env('SERVER_IP')}"]
-
-    CSRF_TRUSTED_ORIGINS = ["http://localhost:3000",
-                            f"http://{env('SERVER_IP')}"]
+    CORS_ORIGIN_WHITELIST = [FRONT_URL, BACK_URL]
+    CSRF_TRUSTED_ORIGINS = [FRONT_URL, BACK_URL]
 
 elif SERVER_VERSION == "prod":
-    CORS_ORIGIN_WHITELIST = ["http://localhost:3000",
-                             "http://localhost:49033",
-                             f"http://{env('BACK_URL')}"] + FRONT_URLS
-
-    CSRF_TRUSTED_ORIGINS = ["http://localhost:49033",
-                            f"http://{env('BACK_URL')}",
-                            f"http://{env('SERVER_IP')}"] + FRONT_URLS
+    CORS_ORIGIN_WHITELIST = [BACK_URL] + FRONT_URLS
+    CSRF_TRUSTED_ORIGINS = [BACK_URL] + FRONT_URLS
 
 CORS_ALLOW_HEADERS = ['access-control-allow-origin',
                       'content-type',
@@ -48,8 +42,7 @@ CORS_ALLOW_HEADERS = ['access-control-allow-origin',
 ALLOWED_HOSTS = ['localhost',
                  '127.0.0.1',
                  '0.0.0.0',
-                 BACK_URL,
-                 env('BACK_URL_LOCAL', default='')]
+                 BACK_HOST]
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
@@ -61,33 +54,29 @@ ADMINS = [a.split(',') for a in env("ADMINS").split(';')]
 LOGGING = dict(version=1,
                disable_existing_loggers=False,
                loggers={
-                   'info': {
+                    'info': {
                        'level': "INFO",
-                       'handlers': ['console', 'info_handler'],
-                       'propagate': True
-                   },
-                   'django.request': {
-                       'level': "ERROR",
-                       'handlers': ['console', 'error_handler', 'mail_admins'],
+                       'handlers': ['info_handler'],
                        'propagate': False
-                   }},
+                    },
+                    'django.request': {
+                       'level': "ERROR",
+                       'handlers': ['error_handler', 'mail_admins'],
+                       'propagate': False
+                    }},
                handlers={
-                   'console': {
-                       'level': "INFO",
-                       'class': "logging.StreamHandler",
-                       'stream': "ext://sys.stdout",
-                       'formatter': "verbose"
-                   },
                    'info_handler': {
                        'level': "INFO",
-                       'class': "logging.FileHandler",
-                       'filename': BASE_DIR / "log/django.log",
+                       'class': "admin_cohort.tools.CustomSocketHandler",
+                       'host': "localhost",
+                       'port': DEFAULT_TCP_LOGGING_PORT,
                        'formatter': "verbose"
                     },
                    'error_handler': {
                        'level': "ERROR",
-                       'class': "logging.FileHandler",
-                       'filename': BASE_DIR / "log/django.error.log",
+                       'class': "admin_cohort.tools.CustomSocketHandler",
+                       'host': "localhost",
+                       'port': DEFAULT_TCP_LOGGING_PORT,
                        'formatter': "verbose"
                     },
                    'mail_admins': {
@@ -101,7 +90,6 @@ LOGGING = dict(version=1,
                        'style': "{"
                    }
                })
-
 
 # Application definition
 INCLUDED_APPS = env('INCLUDED_APPS').split(",")

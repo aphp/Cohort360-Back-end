@@ -34,29 +34,18 @@ PROJECT_STATUS_CHOICE = ((PROJECT_STATUS_NEW, PROJECT_STATUS_NEW),
 
 class Project(models.Model):
     uid = models.AutoField(primary_key=True)
-    # Same choices with RangerHivePolicy
     type = models.CharField(max_length=63, choices=RHP_TYPE_CHOICES)
-    # For example: "cse180001"
     identifier = models.CharField(max_length=63, unique=True)
-    # For example "covisan"
     acronym = models.CharField(max_length=63, blank=True)
-    # For example "Predict mortality of covid"
     title = models.TextField(blank=True)
-    # For example "internship" or "cancer" or "radiology" ...
     thematic = models.CharField(max_length=63, blank=True)
     description = models.TextField(blank=True)
-    # FIXME: link to a user or provider?
     # instigator_id = models.BigIntegerField()  # A provider_id
-
-    status = models.CharField(choices=PROJECT_STATUS_CHOICE,
-                              default=PROJECT_STATUS_NEW, max_length=20)
-
-    # Optional supplementary attributes of a project
+    status = models.CharField(choices=PROJECT_STATUS_CHOICE, default=PROJECT_STATUS_NEW, max_length=20)
     operation_actors = models.TextField(blank=True)
     partners = models.TextField(blank=True)
     lawfulness_of_processing = models.TextField(blank=True)
     data_recipients = models.TextField(blank=True)
     data_conservation_duration = models.DurationField(null=True)
-
     insert_datetime = models.DateTimeField(auto_now_add=True)
     validation_date = models.DateTimeField(null=True)

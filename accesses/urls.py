@@ -1,14 +1,7 @@
 from django.urls import include, path
 
-from rest_framework import routers
-from rest_framework_extensions.routers import NestedRouterMixin
-
-from accesses.views import NestedPerimeterViewSet, PerimeterViewSet, \
-    AccessViewSet, RoleViewSet, ProfileViewSet
-
-
-class NestedDefaultRouter(NestedRouterMixin, routers.DefaultRouter):
-    pass
+from accesses.views import NestedPerimeterViewSet, PerimeterViewSet, AccessViewSet, RoleViewSet, ProfileViewSet
+from admin_cohort.urls import NestedDefaultRouter
 
 
 router = NestedDefaultRouter()

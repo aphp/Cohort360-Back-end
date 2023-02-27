@@ -1,13 +1,8 @@
 from django.urls import include, path
-from rest_framework import routers
-from rest_framework_extensions.routers import NestedRouterMixin
 
+from admin_cohort.urls import NestedDefaultRouter
 from cohort.views import RequestViewSet, RequestQuerySnapshotViewSet, CohortResultViewSet, DatedMeasureViewSet, \
     NestedRequestViewSet, NestedRqsViewSet, NestedDatedMeasureViewSet, NestedCohortResultViewSet, FolderViewSet
-
-
-class NestedDefaultRouter(NestedRouterMixin, routers.DefaultRouter):
-    pass
 
 
 router = NestedDefaultRouter()

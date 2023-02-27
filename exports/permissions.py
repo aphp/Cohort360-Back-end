@@ -15,43 +15,14 @@ def can_export_psql_pseudo(user: User):
 
 
 def can_review_transfer_jupyter(user: User) -> bool:
-    """
-    Will check the accesses of the Provider,
-    Retrieve the roles bound to those,
-    And return True if one of these roles
-    allows to review jypyter export requests
-    @param user:
-    @type user: User
-    @return: if user can manage at least one type of accesses
-    @rtype: bool
-    """
     return any([r.right_review_transfer_jupyter for r in get_bound_roles(user)])
 
 
 def can_review_export_csv(user: User) -> bool:
-    """
-    Will check the accesses of the Provider,
-    Retrieve the roles bound to those,
-    And return True if one of these roles allows to review export_csv requests
-    @param user:
-    @type user: User
-    @return: if user can manage at least one type of accesses
-    @rtype: bool
-    """
     return any([r.right_review_export_csv for r in get_bound_roles(user)])
 
 
 def can_review_export(user: User) -> bool:
-    """
-    Will check the accesses of the Provider,
-    Retrieve the roles bound to those,
-    And return True if one of these roles allows
-    to review jypyter OR CSV export requests
-    @param user:
-    @type user: User
-    @return: if user can manage at least one type of accesses
-    @rtype: bool
-    """
     return any([r.right_review_export_csv or r.right_review_transfer_jupyter
                 for r in get_bound_roles(user)])
 
@@ -63,15 +34,11 @@ class ExportJupyterPermissions(permissions.BasePermission):
     def has_permission(self, request, view):
         output_format = request.data.get('output_format', None)
 
-        if output_format != ExportType.CSV:
-            if request.method == "POST":
-                owner_id = request.data.get(
-                    'owner', request.data.get(
-                        'provider_source_value', request.user.pk))
-
-                if request.user.pk != owner_id:
-                    if not can_review_transfer_jupyter(request.user):
-                        return False
+        if request.method == "POST" and output_format != ExportType.CSV:
+            owner_id = request.data.get('owner',
+                                        request.data.get('provider_source_value', request.user.pk))
+            if request.user.pk != owner_id and not can_review_transfer_jupyter(request.user):
+                return False
         return True
 
 
@@ -88,7 +55,6 @@ class ExportRequestPermissions(permissions.BasePermission):
         return user_is_authenticated(request.user)
 
     def has_object_permission(self, request, view, obj):
-        # todo : doublecheck
         return user_is_authenticated(request.user) \
                and obj.provider_id == request.user.provider_id \
                and request.method in permissions.SAFE_METHODS

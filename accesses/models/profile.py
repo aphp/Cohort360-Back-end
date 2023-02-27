@@ -18,16 +18,13 @@ class Profile(BaseModel):
     email = models.TextField(blank=True, null=True)
     source = models.TextField(blank=True, null=True, default=MANUAL_SOURCE)
     is_active = models.BooleanField(blank=True, null=True)
-    valid_start_datetime: datetime = models.DateTimeField(blank=True, null=True)
-    valid_end_datetime: datetime = models.DateTimeField(blank=True, null=True)
+    valid_start_datetime = models.DateTimeField(blank=True, null=True)
+    valid_end_datetime = models.DateTimeField(blank=True, null=True)
     # fields with prefix "manual_" prime over their equivalents
     manual_is_active = models.BooleanField(blank=True, null=True)
-    manual_valid_start_datetime: datetime = models.DateTimeField(blank=True, null=True)
-    manual_valid_end_datetime: datetime = models.DateTimeField(blank=True, null=True)
+    manual_valid_start_datetime = models.DateTimeField(blank=True, null=True)
+    manual_valid_end_datetime = models.DateTimeField(blank=True, null=True)
     user = models.ForeignKey(User, on_delete=CASCADE, related_name='profiles', null=True, blank=True)
-
-    class Meta:
-        managed = True
 
     @property
     def is_valid(self):
@@ -68,7 +65,6 @@ class Profile(BaseModel):
         used when Profile is a related object
         :return:
         """
-        # now = datetime.now().replace(tzinfo=None)
         now = timezone.now()
         field_prefix = f"{field_prefix}__" if field_prefix else ""
         fields = {"valid_start": f"{field_prefix}valid_start_datetime",

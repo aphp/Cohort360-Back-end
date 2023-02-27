@@ -2,8 +2,8 @@ import logging
 
 from django.db.models import Q, F
 from django.http import HttpResponse, JsonResponse, Http404, QueryDict
-from django_filters import rest_framework as filters, OrderingFilter
 from django.utils import timezone
+from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
@@ -16,7 +16,6 @@ from accesses.models import get_user_valid_manual_accesses_queryset
 from admin_cohort.settings import SJS_USERNAME, ETL_USERNAME
 from admin_cohort.tools import join_qs
 from admin_cohort.types import JobStatus
-from admin_cohort.views import SwaggerSimpleNestedViewSetMixin
 from cohort.conf_cohort_job_api import fhir_to_job_status
 from cohort.models import CohortResult
 from cohort.permissions import SJSandETLCallbackPermission
@@ -25,7 +24,7 @@ from cohort.tools import get_dict_cohort_pop_source, get_all_cohorts_rights, sen
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
 
-_log = logging.getLogger('info')
+_logger = logging.getLogger('info')
 
 
 class CohortFilter(filters.FilterSet):
@@ -97,15 +96,18 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     filterset_class = CohortFilter
     search_fields = ('$name', '$description')
 
+    def is_sjs_or_etl_user(self):
+        return self.request.method in ("GET", "PATCH") and \
+               self.request.user.is_authenticated and \
+               self.request.user.provider_username in [SJS_USERNAME, ETL_USERNAME]
+
     def get_permissions(self):
-        sjs_etl_users = [SJS_USERNAME, ETL_USERNAME]
-        if self.request.method == "PATCH" and self.request.user.provider_username in sjs_etl_users:
+        if self.is_sjs_or_etl_user():
             return [SJSandETLCallbackPermission()]
         return super(CohortResultViewSet, self).get_permissions()
 
     def get_queryset(self):
-        sjs_etl_users = [SJS_USERNAME, ETL_USERNAME]
-        if self.request.method == "PATCH" and self.request.user.provider_username in sjs_etl_users:
+        if self.is_sjs_or_etl_user():
             return self.queryset
         return super(CohortResultViewSet, self).get_queryset()
 
@@ -173,14 +175,17 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                          responses={'200': openapi.Response("Cohort updated successfully", CohortRightsSerializer()),
                                     '400': openapi.Response("Bad Request")})
     def partial_update(self, request, *args, **kwargs):
+        JOB_STATUS = "job_status"
+        GROUP_ID = "group.id"
+        GROUP_COUNT = "group.count"
         data = request.data
+        _logger.info(f"received data for cohort patch: {data}")
         cohort = self.get_object()
-        sjs_data_keys = ("job_status", "group.id", "group.count")
+        sjs_data_keys = (JOB_STATUS, GROUP_ID, GROUP_COUNT)
         update_from_sjs = all([key in data for key in sjs_data_keys])
         update_from_etl = "request_job_status" in data
-
-        if "job_status" in data:
-            job_status = fhir_to_job_status().get(data.pop("job_status"))
+        if JOB_STATUS in data:
+            job_status = fhir_to_job_status().get(data.pop(JOB_STATUS).upper())
             if not job_status:
                 return Response(data=f"Invalid job status: {data.get('status')}",
                                 status=status.HTTP_400_BAD_REQUEST)
@@ -189,23 +194,24 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                 data["request_job_duration"] = str(timezone.now() - cohort.created_at)
                 if job_status == JobStatus.failed:
                     data["request_job_fail_msg"] = "Received a failed status from SJS"
-        if "group.id" in data:
-            data["fhir_group_id"] = data.pop("group.id")
-        if "group.count" in data:
-            cohort.dated_measure.measure = data.pop("group.count")
+        if GROUP_ID in data:
+            data["fhir_group_id"] = data.pop(GROUP_ID)
+        if GROUP_COUNT in data:
+            cohort.dated_measure.measure = data.pop(GROUP_COUNT)
             cohort.dated_measure.save()
 
         resp = super(CohortResultViewSet, self).partial_update(request, *args, **kwargs)
 
         if status.is_success(resp.status_code):
             if update_from_sjs:
-                _log.info("CohortResult successfully updated from SJS")
+                _logger.info("CohortResult successfully updated from SJS")
             if update_from_etl:
                 send_email_notif_about_large_cohort(cohort.name, cohort.fhir_group_id, cohort.owner)
         return resp
 
 
-class NestedCohortResultViewSet(SwaggerSimpleNestedViewSetMixin, CohortResultViewSet):
+class NestedCohortResultViewSet(CohortResultViewSet):
+
     def create(self, request, *args, **kwargs):
         if type(request.data) == QueryDict:
             request.data._mutable = True

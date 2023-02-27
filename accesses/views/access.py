@@ -13,7 +13,6 @@ from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
-from rest_framework.permissions import AND
 from rest_framework.response import Response
 from rest_framework.status import HTTP_403_FORBIDDEN
 
@@ -21,8 +20,7 @@ from admin_cohort.permissions import IsAuthenticated
 from admin_cohort.settings import PERIMETERS_TYPES
 from admin_cohort.tools import join_qs
 from admin_cohort.views import BaseViewset, CustomLoggingMixin
-from ..models import Role, Access, get_user_valid_manual_accesses_queryset, \
-    intersect_queryset_criteria, build_data_rights
+from ..models import Role, Access, get_user_valid_manual_accesses_queryset, intersect_queryset_criteria, build_data_rights
 from ..permissions import AccessPermissions
 from ..serializers import AccessSerializer, DataRightSerializer
 
@@ -51,7 +49,6 @@ class AccessFilter(filters.FilterSet):
 
     perimeter_name = filters.CharFilter(field_name="perimeter__name", lookup_expr="icontains")
     care_site_id = filters.CharFilter(field_name="perimeter_id")
-    # perimeter_id = filters.CharFilter(method="perimeter_id_filter")
 
     target_care_site_id = filters.CharFilter(method="target_perimeter_filter")
     target_perimeter_id = filters.CharFilter(method="target_perimeter_filter")
@@ -76,21 +73,19 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
     serializer_class = AccessSerializer
     queryset = Access.objects.all()
     lookup_field = "id"
-
+    filterset_class = AccessFilter
     logging_methods = ['POST', 'PUT', 'PATCH', 'DELETE']
     swagger_tags = ['Accesses - accesses']
-
     search_fields = ["profile__lastname",
                      "profile__firstname",
                      "perimeter__name",
                      "profile__email",
                      "profile__user__provider_username"]
-    filterset_class = AccessFilter
 
     def get_permissions(self):
         if self.action in ['my_accesses', 'data_rights']:
             return [IsAuthenticated()]
-        return [AND(IsAuthenticated(), AccessPermissions())]
+        return [IsAuthenticated(), AccessPermissions()]
 
     def get_queryset(self) -> QuerySet:
         q = super(AccessViewSet, self).get_queryset()
@@ -157,26 +152,24 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
     @swagger_auto_schema(request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
         properties={"provider_history_id": openapi.Schema(type=openapi.TYPE_INTEGER,
-                                                          description="(to deprecate -> profile_id) Correspond à "
-                                                                      "Provider_history_id"),
+                                                          description="(to deprecate -> profile_id) Correspond à Provider_history_id"),
                     "profile_id": openapi.Schema(type=openapi.TYPE_INTEGER, description="Correspond à un profile_id"),
                     "care_site_id": openapi.Schema(type=openapi.TYPE_INTEGER, description="2deprecate -> perimeter_id"),
                     "perimeter_id": openapi.Schema(type=openapi.TYPE_INTEGER),
                     "role_id": openapi.Schema(type=openapi.TYPE_INTEGER),
                     "start_datetime": openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME,
-                                                     description="Doit être dans le futur.\nSi vide ou null, sera "
-                                                                 "défini à now().\nDoit contenir la timezone ou bien "
-                                                                 "sera considéré comme UTC."),
+                                                     description="Doit être dans le futur.\nSi vide ou null, sera défini à now().\nDoit contenir "
+                                                                 "la timezone ou bien sera considéré comme UTC."),
                     "end_datetime": openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME,
-                                                   description="Doit être dans le futur. \nSi vide ou null, sera "
-                                                               "défini à start_datetime + 1 un an.\nDoit contenir la "
-                                                               "timezone ou bien sera considéré comme UTC.")},
+                                                   description="Doit être dans le futur. \nSi vide ou null, sera défini à start_datetime +1 "
+                                                               "an.\nDoit contenir la timezone ou bien sera considéré comme UTC.")},
         required=['profile', 'perimeter', 'role']))
     def create(self, request, *args, **kwargs):
-        if "care_site_id" not in request.data and 'perimeter_id' not in request.data:
+        data = request.data
+        if "care_site_id" not in data and 'perimeter_id' not in data:
             return Response({"response": "perimeter_id is required"}, status=status.HTTP_404_NOT_FOUND)
-        request.data['profile_id'] = request.data.get('profile_id', request.data.get('provider_history_id'))
-        request.data['perimeter_id'] = request.data.get('perimeter_id', request.data.get('care_site_id'))
+        data['profile_id'] = data.get('profile_id', data.get('provider_history_id'))
+        data['perimeter_id'] = data.get('perimeter_id', data.get('care_site_id'))
         return super(AccessViewSet, self).create(request, *args, **kwargs)
 
     def dispatch(self, request, *args, **kwargs):
@@ -204,20 +197,19 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
     @swagger_auto_schema(request_body=openapi.Schema(type=openapi.TYPE_STRING, properties={}),
                          method="PATCH",
                          operation_summary="Will set end_datetime to now, to close the access.")
-    @action(url_path="close", detail=True, methods=['patch'], permission_classes=(IsAuthenticated,))
+    @action(url_path="close", detail=True, methods=['patch'])
     def close(self, request, *args, **kwargs):
         instance = self.get_object()
-        if instance.actual_end_datetime:
-            if instance.actual_end_datetime < timezone.now():
-                return Response("L'accès est déjà clôturé.", status=status.HTTP_403_FORBIDDEN)
+        now = timezone.now()
+        if instance.actual_end_datetime and instance.actual_end_datetime < now:
+            return Response("L'accès est déjà clôturé.", status=status.HTTP_403_FORBIDDEN)
 
-        if instance.actual_start_datetime:
-            if instance.actual_start_datetime > timezone.now():
-                return Response("L'accès n'a pas encore commencé, il ne peut pas être déjà fermé."
-                                "Il peut cependant être supprimé, avec la méthode DELETE.",
-                                status=status.HTTP_403_FORBIDDEN)
+        if instance.actual_start_datetime and instance.actual_start_datetime > now:
+            return Response("L'accès n'a pas encore commencé, il ne peut pas être déjà fermé."
+                            "Il peut cependant être supprimé, avec la méthode DELETE.",
+                            status=status.HTTP_403_FORBIDDEN)
 
-        request.data.update({'end_datetime': timezone.now()})
+        request.data.update({'end_datetime': now})
         return self.partial_update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
@@ -233,10 +225,8 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
         if self.request.method == "GET":
             try:
                 obj = super(AccessViewSet, self).get_object()
-            except PermissionDenied:
+            except (Http404, PermissionDenied):
                 raise Http404
-            except Exception as e:
-                raise e
         else:
             obj = super(AccessViewSet, self).get_object()
         return obj
@@ -253,35 +243,33 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
                          manual_parameters=[i for i in map(lambda x: openapi.Parameter(
                              name=x[0], in_=openapi.IN_QUERY, description=x[1], type=x[2],
                              pattern=x[3] if len(x) == 4 else None),
-                                                           [["care-site-ids", "(to deprecate -> perimeters_ids) List "
-                                                                              "of care-sites to limit the result on. "
-                                                                              "Sep: ','", openapi.TYPE_STRING],
-                                                            ["perimeters_ids", "List of perimeters to limit the result "
-                                                                               "on. Sep: ','", openapi.TYPE_STRING],
+                                                           [["care-site-ids", "(to deprecate -> perimeters_ids). care-sites list "
+                                                                              "to limit the result on. Sep: ','", openapi.TYPE_STRING],
+                                                            ["perimeters_ids", "Perimeters list to limit the result. Sep: ','", openapi.TYPE_STRING],
                                                             ["pop-children", "2deprecate(pop_children) If True, keeps "
-                                                                             "only the biggest parents for each right",
-                                                             openapi.TYPE_BOOLEAN],
-                                                            ["pop_children", "If True, keeps only the biggest parents "
-                                                                             "for each right", openapi.TYPE_BOOLEAN]])],
+                                                                             "only the biggest parents for each right", openapi.TYPE_BOOLEAN],
+                                                            ["pop_children", "If True, keeps only the biggest parents for each right",
+                                                             openapi.TYPE_BOOLEAN]])],
                          responses={200: openapi.Response('Rights found', DataRightSerializer),
                                     403: openapi.Response('perimeters_ids and pop_children are both null')})
     @action(url_path="my-rights", detail=False, methods=['get'], filter_backends=[], pagination_class=None)
     def data_rights(self, request, *args, **kwargs):
-        param_perimeters = self.request.GET.get('perimeters_ids', self.request.GET.get('care-site-ids'))
-        pop_children = self.request.GET.get('pop_children', self.request.GET.get('pop-children'))
-        if param_perimeters is None and pop_children is None:
+        perimeters_ids = request.GET.get('perimeters_ids', self.request.GET.get('care-site-ids'))
+        pop_children = request.GET.get('pop_children', self.request.GET.get('pop-children'))
+        if perimeters_ids is None and pop_children is None:
             return Response("Cannot have both 'perimeters-ids/care-site-ids' and 'pop-children' at null "
-                            "(would return rights on all Perimeters).",
+                            "(would return rights on all perimeters).",
                             status=HTTP_403_FORBIDDEN)
-        user = self.request.user
         # if the result is asked only for a list of perimeters,
         # we start our search on these
-        if param_perimeters:
-            urldecode_perimeters = urllib.parse.unquote(urllib.parse.unquote((str(param_perimeters))))
-            required_cs_ids = [int(i) for i in urldecode_perimeters.split(",")]
+        if perimeters_ids:
+            urldecode_perimeters = urllib.parse.unquote(urllib.parse.unquote((str(perimeters_ids))))
+            required_perimeters_ids = [int(i) for i in urldecode_perimeters.split(",")]
         else:
-            required_cs_ids = []
+            required_perimeters_ids = []
 
-        results = build_data_rights(user, required_cs_ids, pop_children)
+        results = build_data_rights(user=request.user,
+                                    expected_perim_ids=required_perimeters_ids,
+                                    pop_children=pop_children)
         return Response(data=DataRightSerializer(results, many=True).data,
                         status=status.HTTP_200_OK)

@@ -14,7 +14,6 @@ from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 
 from admin_cohort.models import User
-from admin_cohort.settings import COHORT_LIMIT
 from admin_cohort.tools import join_qs
 from admin_cohort.types import JobStatus
 from admin_cohort.views import CustomLoggingMixin
@@ -28,7 +27,7 @@ from exports.serializers import ExportRequestSerializer, ExportRequestSerializer
 from exports.tasks import launch_request
 from exports.types import ExportType
 
-_log = logging.getLogger('django.request')
+_logger = logging.getLogger('django.request')
 
 
 class ExportRequestFilter(filters.FilterSet):
@@ -147,7 +146,7 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
             launch_request.delay(req.id)
             return Response(self.serializer_class(req).data, status=status.HTTP_200_OK)
         except Exception as e:
-            _log.exception(str(e))
+            _logger.exception(str(e))
             raise ValidationError("La requête n'a pas pu être validée")
 
     @swagger_auto_schema(
@@ -194,16 +193,6 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
             return Response(data="'cohort_fk' or 'cohort_id' is required",
                             status=status.HTTP_400_BAD_REQUEST)
 
-        # todo: remove when front disables export button based on cohort's `exportable` field
-        try:
-            cohort_size = CohortResult.objects.get(uuid=request.data.get('cohort')).result_size
-            if cohort_size and cohort_size > COHORT_LIMIT:
-                return Response(data=f"Cannot export this large cohort. Current size limit: {COHORT_LIMIT}",
-                                status=status.HTTP_400_BAD_REQUEST)
-        except CohortResult.DoesNotExist:
-            return Response(data="Invalid Cohort identifier",
-                            status=status.HTTP_400_BAD_REQUEST)
-
         creator: User = request.user
         check_email_address(creator)
 
@@ -213,7 +202,7 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
         # to deprecate
         try:
             request.data['provider_id'] = User.objects.get(pk=owner_id).provider_id
-        except Exception:
+        except User.DoesNotExist:
             pass
 
         request.data['provider_source_value'] = owner_id
@@ -256,7 +245,7 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
             # )
             return response
         except HdfsError as e:
-            _log.exception(e.message)
+            _logger.exception(e.message)
             return HttpResponse(e.message, status=http.HTTPStatus.INTERNAL_SERVER_ERROR)
         except conf_exports.HdfsServerUnreachableError:
             return HttpResponse("HDFS servers are unreachable or in stand-by",

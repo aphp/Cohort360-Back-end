@@ -9,14 +9,20 @@ class ServerError(Exception):
     pass
 
 
-class IdResp:
-    def __init__(self, firstname, lastname, user_id, email, **kwargs):
+class WorkflowError(Exception):
+    pass
+
+
+class MissingDataError(Exception):
+    pass
+
+
+class PersonIdentity:
+    def __init__(self, firstname, lastname, user_id, email):
         self.firstname = firstname
         self.lastname = lastname
         self.user_id = user_id
         self.email = email
-        for k, v in kwargs.items():
-            setattr(self, k, v)
 
 
 class JwtTokens:

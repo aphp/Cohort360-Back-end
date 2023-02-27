@@ -2,7 +2,6 @@ import logging
 
 from django.http import HttpResponseBadRequest, HttpResponseServerError, QueryDict
 from django_filters import rest_framework as filters, OrderingFilter
-from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.pagination import LimitOffsetPagination
@@ -11,13 +10,12 @@ from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from admin_cohort import app
 from admin_cohort.types import JobStatus
-from admin_cohort.views import SwaggerSimpleNestedViewSetMixin
 from cohort.conf_cohort_job_api import get_authorization_header, cancel_job
 from cohort.models import CohortResult, DatedMeasure, RequestQuerySnapshot
 from cohort.serializers import DatedMeasureSerializer
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
-_log = logging.getLogger('django.request')
+_logger = logging.getLogger('django.request')
 
 
 class DMFilter(filters.FilterSet):
@@ -57,13 +55,13 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         elif "request_query_snapshot_id" in request.data:
             rqs_id = request.data.get("request_query_snapshot_id")
         else:
-            _log.exception("'request_query_snapshot_id' not provided")
+            _logger.exception("'request_query_snapshot_id' not provided")
             return HttpResponseBadRequest()
 
         try:
             rqs: RequestQuerySnapshot = RequestQuerySnapshot.objects.get(pk=rqs_id)
         except RequestQuerySnapshot.DoesNotExist:
-            _log.exception("Invalid 'request_query_snapshot_id'")
+            _logger.exception("Invalid 'request_query_snapshot_id'")
             return HttpResponseBadRequest()
 
         dms_jobs = rqs.request.dated_measures.filter(request_job_status__in=[JobStatus.started, JobStatus.pending]) \
@@ -82,7 +80,7 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                 job.save()
             except Exception as e:
                 msg = f"Error while cancelling {status} job [{job.request_job_id}] DM [{job.uuid}] - {e}"
-                _log.exception(msg)
+                _logger.exception(msg)
                 job.request_job_status = JobStatus.failed
                 job.request_job_fail_msg = msg
                 job.save()
@@ -103,10 +101,7 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             return Response(dict(message=str(e)), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class NestedDatedMeasureViewSet(SwaggerSimpleNestedViewSetMixin, DatedMeasureViewSet):
-    @swagger_auto_schema(auto_schema=None)
-    def abort(self, request, *args, **kwargs):
-        return self.abort(self, request, *args, **kwargs)
+class NestedDatedMeasureViewSet(DatedMeasureViewSet):
 
     def create(self, request, *args, **kwargs):
         if type(request.data) == QueryDict:

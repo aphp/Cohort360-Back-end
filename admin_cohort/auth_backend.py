@@ -1,10 +1,11 @@
 import logging
+from typing import Union
 
 from admin_cohort import conf_auth
 from admin_cohort.conf_auth import LoginError, ServerError, JwtTokens
 from admin_cohort.models import User, get_or_create_user_with_info
 
-_log = logging.getLogger('django.request')
+_logger = logging.getLogger('django.request')
 
 
 def get_or_create_user(jwt_access_token: str) -> User:
@@ -35,7 +36,7 @@ class AuthBackend:
         request.last_connection = tokens.last_connection
         return user
 
-    def get_user(self, user_id) -> User:
+    def get_user(self, user_id) -> Union[User, None]:
         try:
             return User.objects.get(provider_username=user_id)
         except User.DoesNotExist:

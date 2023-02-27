@@ -1,7 +1,7 @@
 import logging
 import re
 from datetime import timedelta
-from typing import Optional, List
+from typing import List
 
 from django.db.models import Max, Q
 from django.utils import timezone
@@ -11,71 +11,42 @@ from rest_framework.exceptions import ValidationError, PermissionDenied
 
 from admin_cohort.conf_auth import check_id_aph
 from admin_cohort.models import User
-from admin_cohort.serializers import BaseSerializer, ReducedUserSerializer, \
-    UserSerializer
-from admin_cohort.settings import MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE, \
-    MODEL_MANUAL_END_DATE_DEFAULT_ON_UPDATE, MANUAL_SOURCE
+from admin_cohort.serializers import BaseSerializer, ReducedUserSerializer, UserSerializer
+from admin_cohort.settings import MANUAL_SOURCE
 from .conf_perimeters import Provider
 from .models import Role, Access, Profile, Perimeter
 from .permissions import can_user_manage_access
 
-_log = logging.getLogger('django.request')
+_logger = logging.getLogger('django.request')
 
 
-def check_date_rules(
-        new_start_datetime: Optional[datetime] = None,
-        new_end_datetime: Optional[datetime] = None,
-        old_start_datetime: Optional[datetime] = None,
-        old_end_datetime: Optional[datetime] = None
-):
-    if old_start_datetime is not None:
-        # first accesses, added with SQL, may be "naive" (without timezone info)
-        old_start = timezone.get_current_timezone().localize(
-            old_start_datetime
-        ) if getattr(old_start_datetime, "tzinfo", None) is None \
-            else old_start_datetime
+def check_date_rules(new_start_datetime: datetime = None, new_end_datetime: datetime = None,
+                     old_start_datetime: datetime = None, old_end_datetime: datetime = None):
+    try:
+        old_start_datetime = old_start_datetime and timezone.get_current_timezone().localize(old_start_datetime)
+        old_end_datetime = old_end_datetime and timezone.get_current_timezone().localize(old_end_datetime)
+    except ValueError:
+        pass
+    now = timezone.now()
 
-        if (new_start_datetime is not None
-                and new_start_datetime != old_start
-                and old_start < timezone.now()):
-            raise ValidationError(
-                f"La date de début {old_start_datetime} "
-                f"ne peut pas être modifiée si elle est passée"
-            )
-    if old_end_datetime is not None:
-        # first accesses, added with SQL, may be "naive" (without timezone info)
-        old_end = timezone.get_current_timezone().localize(
-            old_end_datetime
-        ) if getattr(old_end_datetime, "tzinfo",
-                     None) is None else old_end_datetime
+    if old_start_datetime and new_start_datetime \
+       and old_start_datetime != new_start_datetime \
+       and old_start_datetime < now:
+        raise ValidationError(f"La date de début {old_start_datetime} ne peut pas être modifiée si elle est passée")
 
-        if (new_end_datetime is not None
-                and old_end != new_end_datetime
-                and old_end < timezone.now()):
-            raise ValidationError(
-                f"La date de fin {old_end_datetime} ne peut pas être modifiée "
-                f"si elle est passée"
-            )
+    if old_end_datetime and new_end_datetime \
+       and old_end_datetime != new_end_datetime \
+       and old_end_datetime < now:
+        raise ValidationError(f"La date de fin {old_end_datetime} ne peut pas être modifiée si elle est passée")
 
-    if new_start_datetime is not None \
-            and new_start_datetime + timedelta(seconds=10) < timezone.now():
-        raise ValidationError(
-            f"La date de début {new_start_datetime} ne peut pas être "
-            f"dans le passé"
-        )
-    if new_end_datetime is not None \
-            and new_end_datetime + timedelta(seconds=10) < timezone.now():
-        raise ValidationError(
-            f"La date de fin {new_end_datetime} ne peut pas être "
-            f"dans le passé"
-        )
-    if (new_start_datetime is not None
-            and new_end_datetime is not None
-            and new_end_datetime < new_start_datetime):
-        raise ValidationError(
-            f"La date de fin {new_end_datetime} ne peut pas "
-            f"précéder la date de début {new_start_datetime}"
-        )
+    if new_start_datetime and new_start_datetime + timedelta(seconds=10) < now:
+        raise ValidationError(f"La date de début {new_start_datetime} ne peut pas être dans le passé")
+
+    if new_end_datetime and new_end_datetime + timedelta(seconds=10) < now:
+        raise ValidationError(f"La date de fin {new_end_datetime} ne peut pas être dans le passé")
+
+    if new_start_datetime and new_end_datetime and new_end_datetime < new_start_datetime:
+        raise ValidationError(f"La date de fin {new_end_datetime} ne peut pas précéder la date de début {new_start_datetime}")
 
 
 def fix_csh_dates(validated_data, for_update: bool = False):
@@ -110,99 +81,47 @@ def fix_csh_dates(validated_data, for_update: bool = False):
     return validated_data
 
 
-def check_profile_entries(validated_data, for_update: bool = False):
-    source = validated_data.pop("source", validated_data.pop('cdm_source', MANUAL_SOURCE))
-    firstname = validated_data.get("firstname", -1)
-    lastname = validated_data.get("lastname", -1)
-    email = validated_data.get("email", -1)
+def check_profile_entries(validated_data):
+    source = validated_data.pop("source", validated_data.pop("cdm_source", MANUAL_SOURCE))
+    firstname = validated_data.get("firstname")
+    lastname = validated_data.get("lastname")
+    email = validated_data.get("email")
+
+    assert all([v and isinstance(v, str) for v in (firstname, lastname, email)]), "Basic info fields must be strings"
 
     name_regex_pattern = re.compile(r"^[A-Za-zÀ-ÖØ-öø-ÿ\-' ]*$")
     email_regex_pattern = re.compile(r"^[A-Za-z0-9\-. @_]*$")
 
     if source != MANUAL_SOURCE:
-        raise ValidationError(f"Vous ne pouvez pas définir source sur autre chose que {MANUAL_SOURCE}")
+        raise ValidationError(f"Unexpected value for `source`. Takes only: {MANUAL_SOURCE}")
 
-    if firstname != -1:
-        if firstname and not name_regex_pattern.match(firstname):
-            raise ValidationError(f"Le prénom fourni ({firstname}) est invalide. Doit uniquement "
-                                  f"comporter des lettres et des caractères ' et - ")
-    if lastname != -1:
-        if lastname and not name_regex_pattern.match(lastname):
-            raise ValidationError(f"Le nom de famille fourni ({lastname}) est invalide. Doit "
-                                  f"uniquement comporter des lettres et des caractères ' et - ")
-    if email != -1:
-        if email and not email_regex_pattern.match(email):
-            raise ValidationError(f"L'adresse email fournie ({email}) est invalide. Doit "
-                                  f"uniquement comporter des lettres, chiffres et caractères @_-.")
-
-    user: User = validated_data.get("user", None)
-
-    # if it is for create, we need User detail.
-    # else for update we cannot update it
-    if for_update:
-        return
-    if user:
-        provider_id = validated_data.get("provider_id", -1)
-        if provider_id != -1:
-            user: User = User.objects.filter(provider_id=provider_id).first()
-            if not user:
-                raise ValidationError(f"L'utilisateur avec provider_id='{provider_id}' est introuvable.")
-            validated_data['user'] = user
-        # this means the user actually needs to create a new user
-        else:
-            user_id: str = validated_data.get("user_id", validated_data.get("provider_source_value", None))
-            if not user_id:
-                raise ValidationError("Aucun user ni user_id n'a été fourni.")
-            user: User = User.objects.filter(provider_username=user_id).first()
-            if user:
-                validated_data['user'] = user
-            else:
-                # we prepare user_id for creating a User
-                validated_data['user_id'] = user_id
-
-    if user and any([p.source == MANUAL_SOURCE for p in user.valid_profiles]):
-        raise ValidationError(f"L'utilisateur fourni pour le profil possède déjà un profil de source {MANUAL_SOURCE}.")
+    if firstname and lastname and not name_regex_pattern.match(f"{firstname + lastname}"):
+        raise ValidationError("Le nom/prénom fourni est invalide. Doit comporter "
+                              "uniquement des lettres et des caractères ' et - ")
+    if email and not email_regex_pattern.match(email):
+        raise ValidationError(f"L'adresse email fournie ({email}) est invalide. Doit comporter "
+                              f"uniquement des lettres, chiffres et caractères @_-.")
 
 
 def fix_profile_entries(validated_data, for_create: bool = False):
-    is_active = validated_data.pop("is_active", -1)
-    manual_is_active = validated_data.pop("manual_is_active", -1)
-    valid_start_datetime = validated_data.pop("valid_start_datetime", -1)
-    manual_valid_start_datetime = validated_data.get("manual_valid_start_datetime", -1)
-    valid_end_datetime = validated_data.pop("valid_end_datetime", -1)
-    manual_valid_end_datetime = validated_data.pop("manual_valid_end_datetime", -1)
+    is_active = validated_data.get("is_active")
+    valid_start_datetime = validated_data.get("valid_start_datetime")
+    valid_end_datetime = validated_data.get("valid_end_datetime")
 
-    if is_active != -1:
-        if manual_is_active != -1 and is_active != manual_is_active:
-            raise ValidationError("Vous ne pouvez pas fournir à la fois 'is_active' et 'manual_is_active' différents")
-        else:
-            validated_data["manual_is_active"] = is_active
-    elif manual_is_active != -1:
-        validated_data["manual_is_active"] = manual_is_active
-    else:
-        if for_create:
-            validated_data["manual_is_active"] = True
+    if for_create:
+        now = timezone.now()
+        validated_data["manual_is_active"] = True
+        validated_data["valid_start_datetime"] = now
+        validated_data["manual_valid_start_datetime"] = now
+        return validated_data
 
-    if valid_start_datetime != -1:
-        if manual_valid_start_datetime != -1 and valid_start_datetime != manual_valid_start_datetime:
-            raise ValidationError("Vous ne pouvez pas fournir à la fois 'valid_start_datetime'"
-                                  " et 'manual_valid_start_datetime' différents")
-        else:
-            validated_data["manual_valid_start_datetime"] = valid_start_datetime or \
-                                                            MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE
-    elif manual_valid_start_datetime != -1:
-        validated_data["manual_valid_start_datetime"] = manual_valid_start_datetime or \
-                                                        MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE
-    if valid_end_datetime != -1:
-        if manual_valid_end_datetime != -1 and valid_end_datetime != manual_valid_end_datetime:
-            raise ValidationError("Vous ne pouvez pas fournir à la fois 'valid_end_datetime'"
-                                  " et 'manual_valid_end_datetime' différents")
-        else:
-            validated_data["manual_valid_end_datetime"] = valid_end_datetime or \
-                                                          MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE
-    elif manual_valid_end_datetime != -1:
-        validated_data["manual_valid_end_datetime"] = manual_valid_end_datetime or \
-                                                      MODEL_MANUAL_END_DATE_DEFAULT_ON_UPDATE
+    if is_active is not None:
+        validated_data["manual_is_active"] = is_active
+    if valid_start_datetime:
+        validated_data["manual_valid_start_datetime"] = valid_start_datetime
+    if valid_end_datetime:
+        validated_data["manual_valid_end_datetime"] = valid_end_datetime
+
     return validated_data
 
 
@@ -243,24 +162,21 @@ class UsersInRoleSerializer(serializers.Serializer):
 
 class ReducedProfileSerializer(serializers.ModelSerializer):
     is_valid = serializers.BooleanField(read_only=True)
-    provider_source_value = serializers.CharField(read_only=True,
-                                                  source='user_id')
+    provider_source_value = serializers.CharField(read_only=True, source='user_id')
     provider_history_id = serializers.IntegerField(read_only=True, source='id')
 
     class Meta:
         model = Profile
-        fields = [
-            "id",
-            "provider_id",
-            "provider_history_id",
-            "is_valid",
-            "provider_source_value",
-            "user_id",
-            "email",
-            "firstname",
-            "lastname",
-            "source"
-        ]
+        fields = ["id",
+                  "provider_id",
+                  "provider_history_id",
+                  "is_valid",
+                  "provider_source_value",
+                  "user_id",
+                  "email",
+                  "firstname",
+                  "lastname",
+                  "source"]
 
 
 class ProfileSerializer(BaseSerializer):
@@ -280,8 +196,6 @@ class ProfileSerializer(BaseSerializer):
         model = Profile
         fields = '__all__'
         read_only_fields = ["id",
-                            "creation_datetime",
-                            "modified_datetime",
                             "provider",
                             "is_valid",
                             "actual_is_active",
@@ -297,42 +211,33 @@ class ProfileSerializer(BaseSerializer):
                         }
 
     def create(self, validated_data):
+        user_id = validated_data.get("user_id")
+        assert user_id, "Must provide 'user_id' to create a new profile"
+
         check_profile_entries(validated_data)
-        validated_data = fix_profile_entries(validated_data, True)
+        validated_data = fix_profile_entries(validated_data, for_create=True)
 
-        if 'user' not in validated_data:
-            if 'user_id' not in validated_data:
-                raise ValidationError("Besoin de soit 'user' soit 'user_id'.")
-            user_id = validated_data.get('user_id')
-            # calling check_id_aph() a 2nd time to ensure user identity in case of a delay btw entering id_aph
-            # and click on "Valider" when adding a user as it might get deleted from AD meanwhile
-            try:
-                id_details = check_id_aph(user_id)
-            except Exception as e:
-                _log.exception(str(e))
-                raise ValidationError("Echec de la vérification de l'identifiant")
-
-            if not id_details:
-                raise ValidationError("Le Provider_source_value/user_id indiqué n'appartient à "
-                                      "aucun utilisateur dans la base de données de référence")
-
-            user_data = {"provider_username": user_id,
-                         "email": validated_data.get('email'),
-                         "firstname": validated_data.get('firstname'),
+        check_id_aph(user_id)
+        try:
+            user = User.objects.get(provider_username=user_id)
+        except User.DoesNotExist:
+            user_data = {"firstname": validated_data.get('firstname'),
                          "lastname": validated_data.get('lastname'),
-                         "provider_id": user_id}
-            user = User(**user_data)
-            user.save()
-            validated_data['user'] = user
-            validated_data['provider_id'] = user_id
-            validated_data['provider_name'] = f"{validated_data.get('firstname')} {validated_data.get('lastname')}"
+                         "email": validated_data.get('email'),
+                         "provider_username": user_id,
+                         "provider_id": user_id
+                         }
+            user = User.objects.create(**user_data)
+        validated_data.update({'user': user,
+                               'provider_name': f"{validated_data.get('firstname')} {validated_data.get('lastname')}"
+                               })
         return super(ProfileSerializer, self).create(validated_data)
 
     def update(self, instance, validated_data):
         # can only update manual_is_active, manual_valid_start_datetime
         # and manual_valid_end_datetime if ph not manual
         if instance.source == MANUAL_SOURCE:
-            check_profile_entries(validated_data, True)
+            check_profile_entries(validated_data)
         validated_data = fix_profile_entries(validated_data)
         return super(ProfileSerializer, self).update(instance, validated_data)
 
@@ -356,7 +261,9 @@ class TreefiedPerimeterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Perimeter
-        exclude = ['insert_datetime', 'update_datetime', 'delete_datetime']
+        exclude = ['insert_datetime',
+                   'update_datetime',
+                   'delete_datetime']
 
     def get_fields(self):
         fields = super(TreefiedPerimeterSerializer, self).get_fields()
@@ -373,23 +280,15 @@ class YasgTreefiedPerimeterSerializer(TreefiedPerimeterSerializer):
 
 class PerimeterSerializer(serializers.ModelSerializer):
     parent_id = serializers.CharField(read_only=True, allow_null=True)
-
     # old fields
     care_site_id = serializers.IntegerField(read_only=True, source='id')
     care_site_name = serializers.CharField(read_only=True, source='name')
-    care_site_source_value = serializers.CharField(
-        read_only=True, source='source_value')
-    care_site_short_name = serializers.CharField(
-        read_only=True, source='short_name')
-    care_site_type_source_value = serializers.CharField(
-        read_only=True, source='type_source_value')
-
-    parents_ids = serializers.SerializerMethodField(
-        'build_parents_ids', read_only=True)
-
+    care_site_source_value = serializers.CharField(read_only=True, source='source_value')
+    care_site_short_name = serializers.CharField(read_only=True, source='short_name')
+    care_site_type_source_value = serializers.CharField(read_only=True, source='type_source_value')
+    parents_ids = serializers.SerializerMethodField('build_parents_ids', read_only=True)
     type = serializers.CharField(allow_null=True, source='type_source_value')
-    names = serializers.DictField(allow_null=True, read_only=True,
-                                  child=serializers.CharField())
+    names = serializers.DictField(allow_null=True, read_only=True, child=serializers.CharField())
 
     def build_parents_ids(self, cs: Perimeter) -> List[int]:
         p_id = getattr(cs, 'parent_id', None)
@@ -397,12 +296,9 @@ class PerimeterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Perimeter
-        exclude = ["parent", "above_levels_ids", "inferior_levels_ids"]
-
-
-"""
-Serializer with minimal config field for perimeters/manageable path
-"""
+        exclude = ["parent",
+                   "above_levels_ids",
+                   "inferior_levels_ids"]
 
 
 class PerimeterLiteSerializer(serializers.ModelSerializer):
@@ -411,7 +307,14 @@ class PerimeterLiteSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Perimeter
-        fields = ['id', 'name', 'source_value', 'parent_id', 'type', 'inferior_levels_ids', 'cohort_id', 'cohort_size',
+        fields = ['id',
+                  'name',
+                  'source_value',
+                  'parent_id',
+                  'type',
+                  'inferior_levels_ids',
+                  'cohort_id',
+                  'cohort_size',
                   'full_path']
 
 
@@ -431,13 +334,9 @@ class AccessSerializer(BaseSerializer):
     perimeter_id = serializers.CharField(allow_null=True, required=False)
     # todo : remove when ready with perimeter
     care_site = CareSiteSerializer(allow_null=True, required=False, source='perimeter')
-
     care_site_history_id = serializers.IntegerField(read_only=True, source='id')
-
     role = RoleSerializer(read_only=True)
-    role_id = serializers.PrimaryKeyRelatedField(
-        queryset=Role.objects.all(), source="role", write_only=True)
-
+    role_id = serializers.PrimaryKeyRelatedField(queryset=Role.objects.all(), source="role", write_only=True)
     profile = ReducedProfileSerializer(read_only=True)
     profile_id = serializers.PrimaryKeyRelatedField(queryset=Profile.objects.all(), source="profile", write_only=True)
     provider_history_id = serializers.IntegerField(source='profile_id', required=False)
@@ -445,87 +344,69 @@ class AccessSerializer(BaseSerializer):
 
     class Meta:
         model = Access
-        fields = [
-            "id",
-            "is_valid",
-            "provider_history",
-            "profile",
-            "profile_id",
-            "care_site",
-            "role",
-            "start_datetime",
-            "end_datetime",
-            "actual_start_datetime",
-            "actual_end_datetime",
-            "care_site_id",
-            "provider_history_id",
-            "role_id",
-            "perimeter",
-            "perimeter_id",
-            "care_site_history_id",
-        ]
+        fields = ["id",
+                  "is_valid",
+                  "provider_history",
+                  "profile",
+                  "profile_id",
+                  "care_site",
+                  "role",
+                  "start_datetime",
+                  "end_datetime",
+                  "actual_start_datetime",
+                  "actual_end_datetime",
+                  "care_site_id",
+                  "provider_history_id",
+                  "role_id",
+                  "perimeter",
+                  "perimeter_id",
+                  "care_site_history_id"]
         write_only_fields = ["start_datetime", "end_datetime"]
-        read_only_fields = [
-            "_id",
-            "is_valid",
-            "provider",
-            "care_site",
-            "role",
-            "actual_start_datetime",
-            "actual_end_datetime",
-            "perimeter",
-            "profile_id",
-            "care_site_history_id",
-        ]
+        read_only_fields = ["_id",
+                            "is_valid",
+                            "provider",
+                            "care_site",
+                            "role",
+                            "actual_start_datetime",
+                            "actual_end_datetime",
+                            "perimeter",
+                            "profile_id",
+                            "care_site_history_id"]
 
     def create(self, validated_data):
         creator: User = self.context.get('request').user
 
         # todo : remove/fix when ready with perimeter
         if 'perimeter' not in validated_data:
-            perimeter_id = validated_data.get(
-                "perimeter_id", validated_data.pop("care_site_id", None))
-            if perimeter_id is None:
+            perimeter_id = validated_data.get("perimeter_id", validated_data.pop("care_site_id", None))
+            if not perimeter_id:
                 raise ValidationError("Requires perimeter")
-            perimeter = Perimeter.objects.filter(id=perimeter_id).first()
-            if perimeter is None:
-                raise ValidationError(
-                    f"Perimeter id provided ({perimeter_id}) does not match"
-                    f" existing any perimeter"
-                )
+            try:
+                perimeter = Perimeter.objects.get(id=perimeter_id)
+            except Perimeter.DoesNotExist:
+                raise ValidationError(f"No perimeter found matching the provided ID: {perimeter_id}")
         else:
-            perimeter: Perimeter = validated_data.get('perimeter', None)
+            perimeter: Perimeter = validated_data.get('perimeter')
 
-        role: Role = validated_data.get('role', None)
+        role: Role = validated_data.get('role')
         if not role:
             raise ValidationError("Role field is missing")
 
         if not can_user_manage_access(creator, role, perimeter):
-            raise PermissionDenied
+            raise PermissionDenied("You are not allowed to manage accesses")
 
-        profile: Profile = validated_data.get("profile", None)
-        provider_history_id = validated_data.get("provider_history_id", None)
-        if profile is None and Profile.objects.filter(
-                id=provider_history_id,
-                source=MANUAL_SOURCE
-        ).first() is None:
-            raise ValidationError(
-                f"Provider_history_id provided ({provider_history_id}) does not"
-                f" match an existing manual provider history"
-            )
+        profile: Profile = validated_data.get("profile")
+        provider_history_id = validated_data.get("provider_history_id")
+        if not (profile or Profile.objects.filter(id=provider_history_id, source=MANUAL_SOURCE).first()):
+            raise ValidationError(f"No profile found matching the provided `provider_history_id`: {provider_history_id}")
 
-        role: Role = validated_data.get("role", None)
-        role_id = validated_data.get("role_id", None)
-        if role is None and Role.objects.filter(id=role_id).first() is None:
-            raise ValidationError(
-                f"Role id provided ({role_id}) does not match existing any role"
-            )
+        role_id = validated_data.get("role_id")
+        if not (role or Role.objects.filter(id=role_id).first()):
+            raise ValidationError(f"No role found matching the provided ID: {role_id}")
 
         validated_data = fix_csh_dates(validated_data)
-        check_date_rules(
-            validated_data.get("manual_start_datetime", None),
-            validated_data.get("manual_end_datetime", None)
-        )
+        check_date_rules(new_start_datetime=validated_data.get("manual_start_datetime"),
+                         new_end_datetime=validated_data.get("manual_end_datetime"))
 
         # todo : remove/fix when ready with perimeter
         validated_data["perimeter_id"] = perimeter_id
@@ -534,28 +415,20 @@ class AccessSerializer(BaseSerializer):
         return super(AccessSerializer, self).create(validated_data)
 
     def update(self, instance, validated_data):
-        # these fields cannot be updated, user has to close the
-        # Access and create a new one
         validated_data.pop("role_id", None)
         validated_data.pop("role", None)
         validated_data.pop("perimeter_id", None)
-        # todo : remove when ready with perimeter
-        validated_data.pop("care_site_id", None)
+        validated_data.pop("care_site_id", None)    # todo: remove when ready with perimeter
         validated_data.pop("profile", None)
         validated_data.pop("provider_history_id", None)
 
-        # no default values when update partially
-        validated_data = fix_csh_dates(validated_data, True)
-        check_date_rules(
-            validated_data.get("manual_start_datetime"),
-            validated_data.get("manual_end_datetime"),
-            instance.actual_start_datetime, instance.actual_end_datetime
-        )
-
-        instance = super(AccessSerializer, self).update(
-            instance, validated_data
-        ) if len(validated_data) > 0 else instance
-
+        validated_data = fix_csh_dates(validated_data, for_update=True)
+        check_date_rules(new_start_datetime=validated_data.get("manual_start_datetime"),
+                         new_end_datetime=validated_data.get("manual_end_datetime"),
+                         old_start_datetime=instance.actual_start_datetime,
+                         old_end_datetime=instance.actual_end_datetime)
+        if validated_data:
+            return super(AccessSerializer, self).update(instance, validated_data)
         return instance
 
 
@@ -563,28 +436,15 @@ class DataRightSerializer(serializers.Serializer):
     perimeter_id = serializers.CharField(read_only=True, allow_null=True)
     care_site_id = serializers.IntegerField(read_only=True, allow_null=True)
     provider_id = serializers.IntegerField(read_only=True, allow_null=True)
-    care_site_history_ids = serializers.ListSerializer(
-        child=serializers.IntegerField(read_only=True, allow_null=True),
-        allow_empty=True
-    )
-    access_ids = serializers.ListSerializer(
-        child=serializers.IntegerField(read_only=True, allow_null=True),
-        allow_empty=True
-    )
-    right_read_patient_nominative = serializers.BooleanField(read_only=True,
-                                                             allow_null=True)
-    right_read_patient_pseudo_anonymised = serializers.BooleanField(
-        read_only=True, allow_null=True)
-    right_search_patient_with_ipp = serializers.BooleanField(
-        read_only=True, allow_null=True)
-    right_export_csv_nominative = serializers.BooleanField(
-        read_only=True, allow_null=True)
-    right_export_csv_pseudo_anonymised = serializers.BooleanField(
-        read_only=True, allow_null=True)
-    right_transfer_jupyter_nominative = serializers.BooleanField(
-        read_only=True, allow_null=True)
-    right_transfer_jupyter_pseudo_anonymised = serializers.BooleanField(
-        read_only=True, allow_null=True)
+    care_site_history_ids = serializers.ListSerializer(child=serializers.IntegerField(read_only=True, allow_null=True), allow_empty=True)
+    access_ids = serializers.ListSerializer(child=serializers.IntegerField(read_only=True, allow_null=True), allow_empty=True)
+    right_read_patient_nominative = serializers.BooleanField(read_only=True, allow_null=True)
+    right_read_patient_pseudo_anonymised = serializers.BooleanField(read_only=True, allow_null=True)
+    right_search_patient_with_ipp = serializers.BooleanField(read_only=True, allow_null=True)
+    right_export_csv_nominative = serializers.BooleanField(read_only=True, allow_null=True)
+    right_export_csv_pseudo_anonymised = serializers.BooleanField(read_only=True, allow_null=True)
+    right_transfer_jupyter_nominative = serializers.BooleanField(read_only=True, allow_null=True)
+    right_transfer_jupyter_pseudo_anonymised = serializers.BooleanField(read_only=True, allow_null=True)
 
 
 class DataReadRightSerializer(serializers.Serializer):

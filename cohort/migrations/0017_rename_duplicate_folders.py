@@ -7,14 +7,14 @@ from django.db.models import Count
 
 
 def rename_duplicate_folders(apps, schema_editor):
-    FolderModel = apps.get_model('cohort', 'Folder')
+    folder_model = apps.get_model('cohort', 'Folder')
     db_alias = schema_editor.connection.alias
 
-    duplicate_fodlers_data = FolderModel.objects.using(db_alias).all().values("name", "owner_id")\
+    duplicate_fodlers_data = folder_model.objects.using(db_alias).all().values("name", "owner_id")\
         .annotate(total=Count("name")).filter(total__gte=2)
     for item in duplicate_fodlers_data:
-        folders_to_update = FolderModel.objects.using(db_alias).filter(name=item["name"],
-                                                                       owner__provider_username=item["owner_id"]).\
+        folders_to_update = folder_model.objects.using(db_alias).filter(name=item["name"],
+                                                                        owner__provider_username=item["owner_id"]).\
             order_by("created_at")
         for i, f in enumerate(folders_to_update[1:]):   # no need to update the first created folder
             f.name = f"{f.name} ({i+2})"
@@ -22,9 +22,9 @@ def rename_duplicate_folders(apps, schema_editor):
 
 
 def rollback_duplicate_folders_names(apps, schema_editor):
-    FolderModel = apps.get_model('cohort', 'Folder')
+    folder_model = apps.get_model('cohort', 'Folder')
     db_alias = schema_editor.connection.alias
-    renamed_folders = FolderModel.objects.using(db_alias).filter(name__regex=r'([A-Za-z0-9_]+) \(([0-9]+)\)$')
+    renamed_folders = folder_model.objects.using(db_alias).filter(name__regex=r'([A-Za-z0-9_]+) \(([0-9]+)\)$')
     for f in renamed_folders:
         f.name = re.split(r'\(\d+\)', f.name)[0].strip()
         f.save()

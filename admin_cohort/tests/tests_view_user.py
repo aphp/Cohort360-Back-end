@@ -52,20 +52,14 @@ class UserTestsAsAdmin(UserTests):
     unupdatable_fields = [
         "provider_name",
         "last_login_datetime",
-        "creation_datetime",
-        "modified_datetime",
-        "change_datetime",
         "source",
     ]
     unsettable_default_fields = dict(
         last_login_datetime=None,
-        creation_datetime=None,
-        modified_datetime=None,
         source=None,
     )
     unsettable_fields = [
         "provider_id",
-        "change_datetime",
     ]
 
     def test_error_create_provider_as_main_admin(self):
@@ -159,13 +153,9 @@ class UserTestsAsAdmin(UserTests):
         )
 
         response.render()
-        # self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT,
-        # response.content)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN,
                          response.content)
         provider = User.objects.filter(
-            # even_deleted=True,
             provider_id=self.user2.provider_username
         ).first()
         self.assertIsNotNone(provider)
-        # self.check_is_deleted(provider, self.admin_provider)

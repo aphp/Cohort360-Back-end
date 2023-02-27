@@ -3,7 +3,6 @@ from django_filters import rest_framework as filters, OrderingFilter
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
-from admin_cohort.views import SwaggerSimpleNestedViewSetMixin
 from cohort.models import Request
 from cohort.serializers import RequestSerializer
 from cohort.views.shared import UserObjectsRestrictedViewSet
@@ -28,7 +27,8 @@ class RequestViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     search_fields = ("$name", "$description",)
 
 
-class NestedRequestViewSet(SwaggerSimpleNestedViewSetMixin, RequestViewSet):
+class NestedRequestViewSet(RequestViewSet):
+
     def create(self, request, *args, **kwargs):
         if type(request.data) == QueryDict:
             request.data._mutable = True

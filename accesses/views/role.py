@@ -5,7 +5,6 @@ from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
-from rest_framework.permissions import AND
 from rest_framework.response import Response
 
 from admin_cohort.permissions import IsAuthenticated
@@ -31,9 +30,7 @@ class RoleViewSet(CustomLoggingMixin, BaseViewset):
     logging_methods = ['POST', 'PUT', 'PATCH', 'DELETE']
     swagger_tags = ['Accesses - roles']
     filterset_class = RoleFilter
-
-    def get_permissions(self):
-        return [AND(IsAuthenticated(), RolePermissions())]
+    permission_classes = (IsAuthenticated, RolePermissions)
 
     @action(url_path="users", detail=True, methods=['get'], permission_classes=(IsAuthenticated,))
     def users_within_role(self, request, *args, **kwargs):

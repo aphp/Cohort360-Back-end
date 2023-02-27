@@ -10,7 +10,7 @@ from rest_framework import status, HTTP_HEADER_ENCODING
 from rest_framework_simplejwt.exceptions import AuthenticationFailed
 
 from admin_cohort.settings import SERVER_VERSION
-from admin_cohort.types import IdResp, ServerError, JwtTokens, LoginError, UserInfo
+from admin_cohort.types import PersonIdentity, ServerError, JwtTokens, LoginError, UserInfo, MissingDataError
 
 env = environ.Env()
 
@@ -34,7 +34,7 @@ OIDC_AUDIENCES = env("OIDC_AUDIENCES").split(';')
 
 JWT_AUTH_MODE = "jwt"
 OIDC_AUTH_MODE = "oidc"
-_log = logging.getLogger('info')
+_logger = logging.getLogger('info')
 
 
 def get_raw_token(header: bytes) -> Union[str, None]:
@@ -76,21 +76,21 @@ def get_token_from_headers(request) -> (str, str):
     return get_raw_token(header_authorization), header_authorization_method
 
 
-def check_id_aph(id_aph: str) -> Optional[IdResp]:
+def check_id_aph(id_aph: str) -> Optional[PersonIdentity]:
     resp = requests.post(url=ID_CHECKER_URL, data={'username': id_aph}, headers=id_checker_server_headers)
     if status.is_server_error(resp.status_code):
         raise ServerError(f"Error {resp.status_code} from id-checker server ({ID_CHECKER_URL}): {resp.text}")
     if resp.status_code != status.HTTP_200_OK:
-        raise Exception(f"Internal error: {resp.text}")
+        raise ServerError(f"Internal error: {resp.text}")
 
     res: dict = resp.json().get('data', {}).get('attributes', {})
     for expected in ['givenName', 'sn', 'sAMAccountName', 'mail']:
         if expected not in res:
-            raise Exception(f"JWT server response not as expected: missing {expected} ({resp.content})")
-    return IdResp(firstname=res.get('givenName'),
-                  lastname=res.get('sn'),
-                  user_id=res.get('sAMAccountName'),
-                  email=res.get('mail'))
+            raise MissingDataError(f"JWT server response is missing {expected} ({resp.content})")
+    return PersonIdentity(firstname=res.get('givenName'),
+                          lastname=res.get('sn'),
+                          user_id=res.get('sAMAccountName'),
+                          email=res.get('mail'))
 
 
 def check_ids(username: str, password: str) -> JwtTokens:
@@ -128,13 +128,13 @@ def verify_jwt(access_token: str, auth_method: str = JWT_AUTH_MODE) -> Union[Non
     if SERVER_VERSION.lower() == "dev":
         return
     if access_token == env("ETL_TOKEN"):
-        _log.info("*** ETL TOKEN CONNEXION *** ")
+        _logger.info("*** ETL TOKEN CONNEXION *** ")
         return UserInfo(username="SOLR_ETL",
                         email="solr.etl@aphp.fr",
                         firstname="Solr",
                         lastname="ETL")
     if access_token == env("SJS_TOKEN"):
-        _log.info("*** SJS TOKEN CONNEXION *** ")
+        _logger.info("*** SJS TOKEN CONNEXION *** ")
         return UserInfo(username="SPARK_JOB_SERVER",
                         email="spark.jobserver@aphp.fr",
                         firstname="SparkJob",
@@ -154,7 +154,6 @@ def verify_jwt(access_token: str, auth_method: str = JWT_AUTH_MODE) -> Union[Non
             raise ServerError(f"Error {resp.status_code} from authentication server ({url}): {resp.text}")
         raise ValueError("Invalid JWT Access Token")
     elif auth_method.lower() == OIDC_AUTH_MODE:
-        _log.info("*** OIDC TOKEN CONNEXION ***")
         resp = requests.get(OIDC_CERTS_URL)
         if resp.status_code != status.HTTP_200_OK:
             raise ServerError(f"Error {resp.status_code} from authentication server ({OIDC_CERTS_URL}): {resp.text}")

@@ -1,10 +1,13 @@
 Votre export de données concernant la cohorte numéro KEY_COHORT_ID a été généré avec succès.
 
-Téléchargez les fichiers en suivant le lien ci-dessous en utilisant votre code APH et mot de passe de session Windows :
+Rappel des tables sélectionnées:
+KEY_SELECTED_TABLES
+
+Téléchargez les fichiers en suivant le lien ci-dessous en utilisant votre code APH et mot de passe de session Windows:
 
 KEY_DOWNLOAD_URL
 
-Pour une première utilisation, vous trouverez à ce lien une aide pour l'ouverture des fichiers :
+Pour une première utilisation, vous trouverez à ce lien une aide pour l'ouverture des fichiers:
 https://gitlab.eds.aphp.fr/public-resources/eds-doc/-/wikis/Export
 
 Les fichiers d'export seront disponibles au téléchargement pendant 7 jours, jusqu'au KEY_DELETE_DATE. Passé cette date, le téléchargement des fichiers ne sera plus possible.

@@ -12,7 +12,6 @@ from accesses.models import Perimeter, Access, Role
 from admin_cohort.models import User
 from admin_cohort.settings import EMAIL_SENDER_ADDRESS, FRONT_URL, EMAIL_SUPPORT_CONTACT
 from cohort.models import CohortResult
-from commons.tools import cast_string_to_ids_list
 from exports.emails import get_base_templates, KEY_CONTENT, KEY_NAME, KEY_CONTACT_MAIL
 
 ROLE = "role"
@@ -49,7 +48,7 @@ def is_right_on_accesses(accesses: QuerySet, perimeter_ids: [int]):
 
 
 def get_max_perimeter_dict_right(perimeter: Perimeter, accesses: dict):
-    above_levels_ids = cast_string_to_ids_list(perimeter.above_levels_ids)
+    above_levels_ids = perimeter.above_levels
     above_levels_ids.append(perimeter.id)
     perimeter_dict_right = {}
     for key, value in accesses.items():
