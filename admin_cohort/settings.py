@@ -70,26 +70,18 @@ LOGGING = dict(version=1,
                        'class': "admin_cohort.tools.CustomSocketHandler",
                        'host': "localhost",
                        'port': DEFAULT_TCP_LOGGING_PORT,
-                       'formatter': "verbose"
                     },
                    'error_handler': {
                        'level': "ERROR",
                        'class': "admin_cohort.tools.CustomSocketHandler",
                        'host': "localhost",
                        'port': DEFAULT_TCP_LOGGING_PORT,
-                       'formatter': "verbose"
                     },
                    'mail_admins': {
                        'level': "ERROR",
                        'class': "django.utils.log.AdminEmailHandler",
                        'include_html': True
-                   }},
-               formatters={
-                   'verbose': {
-                       'format': "{levelname} {asctime} module={module} pid={process:d} tid={thread:d} msg=`{message}`",
-                       'style': "{"
-                   }
-               })
+                   }})
 
 # Application definition
 INCLUDED_APPS = env('INCLUDED_APPS').split(",")
