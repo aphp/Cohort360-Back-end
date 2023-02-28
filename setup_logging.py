@@ -8,6 +8,8 @@ import sys
 from logging.handlers import RotatingFileHandler, DEFAULT_TCP_LOGGING_PORT
 from pathlib import Path
 
+BUILTIN_WARNINGS_LOGGER_NAME = 'py.warnings'
+INFO_LOGGER_NAME = 'info'
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -19,6 +21,8 @@ class CustomRotatingFileHandler(RotatingFileHandler):
         self.name = name
 
     def handle(self, record):
+        if record.name == BUILTIN_WARNINGS_LOGGER_NAME:
+            record.name = INFO_LOGGER_NAME
         if record.name == self.name:
             return super(CustomRotatingFileHandler, self).handle(record)
         pass

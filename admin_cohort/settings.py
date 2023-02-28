@@ -1,3 +1,4 @@
+import logging
 from datetime import date, datetime, time
 from logging.handlers import DEFAULT_TCP_LOGGING_PORT
 from pathlib import Path
@@ -51,6 +52,8 @@ SESSION_COOKIE_SECURE = not DEBUG
 
 ADMINS = [a.split(',') for a in env("ADMINS").split(';')]
 
+logging.captureWarnings(True)
+
 LOGGING = dict(version=1,
                disable_existing_loggers=False,
                loggers={
@@ -81,7 +84,8 @@ LOGGING = dict(version=1,
                        'level': "ERROR",
                        'class': "django.utils.log.AdminEmailHandler",
                        'include_html': True
-                   }})
+                   }
+               })
 
 # Application definition
 INCLUDED_APPS = env('INCLUDED_APPS').split(",")
