@@ -1,5 +1,5 @@
 __title__ = 'Portail API'
-__version__ = '3.11.0'
+__version__ = '3.11.1'
 __author__ = 'Assistance Publique - Hopitaux de Paris, Département I&D'
 
 
