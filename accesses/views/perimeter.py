@@ -73,10 +73,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
 
         perimeters_filtered_by_search = []
         if self.request.query_params:
-            main_perimeters = Perimeter.objects.filter(id__in={a.perimeter_id for a in user_accesses})
-            all_perimeters = [main_perimeters] + [p.all_children_queryset for p in main_perimeters]
-            accessible_perimeters = reduce(lambda qs1, qs2: qs1 | qs2, all_perimeters)
-            perimeters_filtered_by_search = self.filter_queryset(accessible_perimeters)
+            perimeters_filtered_by_search = self.filter_queryset(self.get_queryset())
             if not perimeters_filtered_by_search:
                 return Response(data={"WARN": "No Perimeters Found"}, status=status.HTTP_204_NO_CONTENT)
 
