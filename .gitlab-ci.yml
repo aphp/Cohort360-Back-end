@@ -45,6 +45,7 @@ test-job:
 sonarqube-check:
   image:
     name: sonarsource/sonar-scanner-cli:latest
+    entrypoint: [ "" ]
   needs:
     - test-job
   dependencies:
