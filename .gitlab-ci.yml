@@ -41,16 +41,10 @@ test-job:
       - coverage.xml
       - report.html
       - report.xml
-  only:
-    - tags
-    - develop
 
 sonarqube-check:
   image:
     name: sonarsource/sonar-scanner-cli:latest
-  only:
-    - tags
-    - develop
   needs:
     - test-job
   dependencies:
