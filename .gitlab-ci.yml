@@ -41,9 +41,6 @@ test-job:
       - coverage.xml
       - report.html
       - report.xml
-  only:
-    - tags
-    - develop
 
 sonarqube-check:
   image:
