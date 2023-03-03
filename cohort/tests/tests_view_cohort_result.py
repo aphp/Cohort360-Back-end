@@ -386,7 +386,6 @@ class CohortsUpdateTests(CohortsTests):
                               description="new_desc",
                               request_job_status=JobStatus.finished,
                               request_job_fail_msg="test_fail_msg",
-                              request_job_duration='1001',
                               # read_only
                               create_task_id="test_task_id",
                               request_job_id="test_job_id",
@@ -417,7 +416,7 @@ class CohortsUpdateTests(CohortsTests):
     def test_update_cohort_status_by_sjs_callback(self):
         # test cohort gets updated with data from SJS
         new_cohort: CohortResult = self.model_objects.create(**self.basic_data)
-        data_to_update = {'job_status': 'FINISHED',
+        data_to_update = {'request_job_status': 'finished',
                           'group.id': '123456',
                           'group.count': 10500}
 
@@ -426,7 +425,7 @@ class CohortsUpdateTests(CohortsTests):
         response = self.__class__.update_view(request, **{self.model._meta.pk.name: new_cohort.uuid})
         response.render()
 
-        self.assertEqual(response.data.get("request_job_status"), JobStatus.finished)
+        self.assertEqual(response.data.get("request_job_status"), JobStatus.finished.value)
         self.assertEqual(response.data.get("fhir_group_id"), data_to_update['group.id'])
         self.assertEqual(response.data.get("result_size"), data_to_update['group.count'])
 
