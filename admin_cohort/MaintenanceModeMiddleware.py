@@ -1,8 +1,24 @@
+import os
+
 from django.http import JsonResponse
 from rest_framework.permissions import SAFE_METHODS
 from rest_framework.status import HTTP_503_SERVICE_UNAVAILABLE
 
+from admin_cohort.conf_auth import get_token_from_headers
 from admin_cohort.models import get_next_maintenance
+
+env = os.environ
+SJS_TOKEN = env.get("SJS_TOKEN")
+ETL_TOKEN = env.get("ETL_TOKEN")
+
+
+def is_allowed_request(request):
+    auth_token = get_token_from_headers(request)[0]
+    is_sjs_etl_callback = auth_token in (SJS_TOKEN, ETL_TOKEN)
+    return request.method in SAFE_METHODS or \
+        request.path.startswith('/accounts/') or \
+        request.path.startswith('/maintenances/') or \
+        is_sjs_etl_callback
 
 
 class MaintenanceModeMiddleware:
@@ -10,22 +26,15 @@ class MaintenanceModeMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        if not request.path.startswith('/accounts/') \
-                and not request.path.startswith('/maintenances/')\
-                and request.method not in SAFE_METHODS:
-            m = get_next_maintenance()
-            if m is None or not m.active:
+        maintenance = get_next_maintenance()
+        if maintenance and maintenance.active:
+            if is_allowed_request(request):
                 return self.get_response(request)
-
-            return JsonResponse(
-                data=dict(
-                    message=f"Le serveur est en maintenance jusqu'au "
-                            f"{m.end_datetime.strftime('%d/%m/%Y, %H:%M:%S')}. "
-                            f"La cause étant : {m.subject}",
-                    maintenance_start=m.start_datetime,
-                    maintenance_end=m.end_datetime,
-                    active=True
-                ),
-                status=HTTP_503_SERVICE_UNAVAILABLE)
+            maintenance_data = dict(message=f"Le serveur est en maintenance jusqu'au "
+                                            f"{maintenance.end_datetime.strftime('%d/%m/%Y, %H:%M:%S')} en raison de: {maintenance.subject}",
+                                    maintenance_start=maintenance.start_datetime,
+                                    maintenance_end=maintenance.end_datetime,
+                                    active=True)
+            return JsonResponse(data=maintenance_data, status=HTTP_503_SERVICE_UNAVAILABLE)
 
         return self.get_response(request)

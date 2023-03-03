@@ -1,4 +1,5 @@
 import logging
+from smtplib import SMTPException
 
 from django.db.models import Q, F
 from django.http import HttpResponse, JsonResponse, Http404, QueryDict
@@ -23,8 +24,12 @@ from cohort.serializers import CohortResultSerializer, CohortResultSerializerFul
 from cohort.tools import get_dict_cohort_pop_source, get_all_cohorts_rights, send_email_notif_about_large_cohort
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
+JOB_STATUS = "request_job_status"
+GROUP_ID = "group.id"
+GROUP_COUNT = "group.count"
 
 _logger = logging.getLogger('info')
+_logger_err = logging.getLogger('django.request')
 
 
 class CohortFilter(filters.FilterSet):
@@ -163,33 +168,25 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                                            "By ETL to update request_job_status on delayed large cohorts",
                          request_body=openapi.Schema(
                              type=openapi.TYPE_OBJECT,
-                             properties={"job_status": openapi.Schema(type=openapi.TYPE_STRING,
-                                                                      description="For SJS callback"),
-                                         "group.id": openapi.Schema(type=openapi.TYPE_STRING,
-                                                                    description="For SJS callback"),
-                                         "group.count": openapi.Schema(type=openapi.TYPE_STRING,
-                                                                       description="For SJS callback"),
-                                         "request_job_status": openapi.Schema(type=openapi.TYPE_STRING,
-                                                                              description="For ETL callback")},
-                             required=['job_status', 'group.id', 'group.count', 'request_job_status']),
+                             properties={"request_job_status": openapi.Schema(type=openapi.TYPE_STRING, description="For SJS and ETL callback"),
+                                         "group.id": openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback"),
+                                         "group.count": openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback")},
+                             required=['request_job_status', 'group.id', 'group.count']),
                          responses={'200': openapi.Response("Cohort updated successfully", CohortRightsSerializer()),
                                     '400': openapi.Response("Bad Request")})
     def partial_update(self, request, *args, **kwargs):
-        JOB_STATUS = "job_status"
-        GROUP_ID = "group.id"
-        GROUP_COUNT = "group.count"
-        data = request.data
+        data: dict = request.data
         _logger.info(f"received data for cohort patch: {data}")
         cohort = self.get_object()
         sjs_data_keys = (JOB_STATUS, GROUP_ID, GROUP_COUNT)
-        update_from_sjs = all([key in data for key in sjs_data_keys])
-        update_from_etl = "request_job_status" in data
+        is_update_from_sjs = all([key in data for key in sjs_data_keys])
+        is_update_from_etl = JOB_STATUS in data and len(data) == 1
+
         if JOB_STATUS in data:
-            job_status = fhir_to_job_status().get(data.pop(JOB_STATUS).upper())
+            job_status = fhir_to_job_status().get(data[JOB_STATUS].upper())
             if not job_status:
                 return Response(data=f"Invalid job status: {data.get('status')}",
                                 status=status.HTTP_400_BAD_REQUEST)
-            data["request_job_status"] = job_status
             if job_status in (JobStatus.finished, JobStatus.failed):
                 data["request_job_duration"] = str(timezone.now() - cohort.created_at)
                 if job_status == JobStatus.failed:
@@ -203,10 +200,15 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         resp = super(CohortResultViewSet, self).partial_update(request, *args, **kwargs)
 
         if status.is_success(resp.status_code):
-            if update_from_sjs:
+            if is_update_from_sjs:
                 _logger.info("CohortResult successfully updated from SJS")
-            if update_from_etl:
-                send_email_notif_about_large_cohort(cohort.name, cohort.fhir_group_id, cohort.owner)
+            if is_update_from_etl:
+                try:
+                    send_email_notif_about_large_cohort(cohort.name, cohort.fhir_group_id, cohort.owner)
+                except (ValueError, SMTPException) as e:
+                    _logger_err.exception(f"Couldn't send email to user after ETL patch: {e}")
+                else:
+                    _logger.info("CohortResult successfully updated from ETL")
         return resp
 
 
