@@ -72,7 +72,7 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
     http_method_names = ['get', 'post', 'patch']
     logging_methods = ['POST', 'PATCH']
     search_fields = ("owner__provider_username", "owner__firstname", "owner__lastname",
-                     "cohort_id", "cohort_fk__name", "request_job_status", "output_format"
+                     "cohort_id", "cohort_fk__name", "request_job_status", "output_format",
                      "target_name", "target_unix_account__name")
 
     def should_log(self, request, response):
