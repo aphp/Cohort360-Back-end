@@ -192,7 +192,7 @@ class CohortsGetTests(CohortsTests):
         request = self.factory.get(path=self.active_jobs_url)
         response = self.__class__.get_active_jobs_view(request)
         self.assertEqual(response.status_code, 204)
-        
+
 
 class CohortCaseRetrieveFilter(CaseRetrieveFilter):
     def __init__(self, name: str = "", **kwargs):
@@ -457,7 +457,7 @@ class CohortsUpdateTests(CohortsTests):
         force_authenticate(request, new_cohort.owner)
         response = self.__class__.update_view(request, **{self.model._meta.pk.name: new_cohort.uuid})
         response.render()
-        
+
         self.assertEqual(response.data.get("request_job_status"), JobStatus.failed.value)
         self.assertIsNotNone(response.data.get("request_job_fail_msg"))
         self.assertIsNotNone(response.data.get("request_job_duration"))
