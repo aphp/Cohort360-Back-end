@@ -1,5 +1,6 @@
 import random
 from datetime import timedelta
+from smtplib import SMTPException
 from typing import List
 from unittest import mock
 from unittest.mock import MagicMock
@@ -32,6 +33,7 @@ class CohortsTests(DatedMeasuresTests):
     create_view = CohortResultViewSet.as_view({'post': 'create'})
     delete_view = CohortResultViewSet.as_view({'delete': 'destroy'})
     update_view = CohortResultViewSet.as_view({'patch': 'partial_update'})
+    get_active_jobs_view = CohortResultViewSet.as_view({'get': 'get_active_jobs'})
     model = CohortResult
     model_objects = CohortResult.objects
     model_fields = CohortResult._meta.fields
@@ -92,6 +94,7 @@ class CohortsGetTests(CohortsTests):
             to_create)
         self.crs: List[CohortResult] = CohortResult.objects.bulk_create(
             crs_to_create)
+        self.active_jobs_url = self.objects_url + 'jobs/active/'
 
     def test_list(self):
         # As a user, I can list the CR I own
@@ -174,6 +177,21 @@ class CohortsGetTests(CohortsTests):
             to_find=list(rqs.cohort_results.all())
         ), NestedCohortResultViewSet.as_view({'get': 'list'}),
             request_query_snapshot=rqs.pk)
+
+    def test_count_cohorts_with_active_jobs(self):
+        request = self.factory.get(path=self.active_jobs_url)
+        response = self.__class__.get_active_jobs_view(request)
+        self.assertIn(response.status_code, (200, 204))
+        if response.status_code == 200:
+            self.assertGreater(response.data.get('jobs_count'), 0)
+
+    def test_count_cohorts_with_no_active_jobs(self):
+        for cohort in CohortResult.objects.all():
+            cohort.request_job_status = JobStatus.finished
+            cohort.save()
+        request = self.factory.get(path=self.active_jobs_url)
+        response = self.__class__.get_active_jobs_view(request)
+        self.assertEqual(response.status_code, 204)
 
 
 class CohortCaseRetrieveFilter(CaseRetrieveFilter):
@@ -413,23 +431,39 @@ class CohortsUpdateTests(CohortsTests):
                                   dated_measure=user1_req1_snap1_dm2.pk).items()]
         [self.check_patch_case(case) for case in cases]
 
-    def test_update_cohort_status_by_sjs_callback(self):
-        # test cohort gets updated with data from SJS
+    def test_update_cohort_by_sjs_callback_status_finished(self):
+        # test patch cohort with status `finished` from SJS
         new_cohort: CohortResult = self.model_objects.create(**self.basic_data)
-        data_to_update = {'request_job_status': 'finished',
-                          'group.id': '123456',
-                          'group.count': 10500}
+        data = {'request_job_status': 'finished',
+                'group.id': '123456',
+                'group.count': 10500}
 
-        request = self.factory.patch(self.objects_url, data=data_to_update, format='json')
+        request = self.factory.patch(self.objects_url, data=data, format='json')
         force_authenticate(request, new_cohort.owner)
         response = self.__class__.update_view(request, **{self.model._meta.pk.name: new_cohort.uuid})
         response.render()
 
         self.assertEqual(response.data.get("request_job_status"), JobStatus.finished.value)
-        self.assertEqual(response.data.get("fhir_group_id"), data_to_update['group.id'])
-        self.assertEqual(response.data.get("result_size"), data_to_update['group.count'])
+        self.assertEqual(response.data.get("fhir_group_id"), data['group.id'])
+        self.assertEqual(response.data.get("result_size"), data['group.count'])
 
-    def test_error_update_cohort_status_by_sjs_callback(self):
+    def test_update_cohort_by_sjs_callback_status_failed(self):
+        # test patch cohort with status `failed` from SJS
+        new_cohort: CohortResult = self.model_objects.create(**self.basic_data)
+        data = {'request_job_status': 'error',
+                'group.id': '',
+                'group.count': 10500}
+
+        request = self.factory.patch(self.objects_url, data=data, format='json')
+        force_authenticate(request, new_cohort.owner)
+        response = self.__class__.update_view(request, **{self.model._meta.pk.name: new_cohort.uuid})
+        response.render()
+
+        self.assertEqual(response.data.get("request_job_status"), JobStatus.failed.value)
+        self.assertIsNotNone(response.data.get("request_job_fail_msg"))
+        self.assertIsNotNone(response.data.get("request_job_duration"))
+
+    def test_error_update_cohort_by_sjs_callback_invalid_status(self):
         # test getting http_400_bad_request
         invalid_status = 'INVALID_STATUS'
         case = self.basic_err_case.clone(data_to_update={'request_job_status': invalid_status})
@@ -439,9 +473,6 @@ class CohortsUpdateTests(CohortsTests):
     def test_update_cohort_status_by_etl_callback(self, mock_send_email_notif: MagicMock):
         # test request_job_status gets updated and send_email is called
         case = self.basic_case.clone(data_to_update={'request_job_status': 'finished'})
+        mock_send_email_notif.side_effect = SMTPException("SMTP server error")
         self.check_patch_case(case)
         mock_send_email_notif.assert_called()
-
-    # ------- WIP
-    # def test_update_small_cohort_fhir_info(self):
-    #    pass
