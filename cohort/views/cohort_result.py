@@ -2,7 +2,7 @@ import logging
 from smtplib import SMTPException
 
 from django.db.models import Q, F
-from django.http import HttpResponse, JsonResponse, Http404, QueryDict
+from django.http import Http404, QueryDict
 from django.utils import timezone
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
@@ -10,6 +10,7 @@ from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.pagination import LimitOffsetPagination
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
@@ -109,6 +110,8 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     def get_permissions(self):
         if self.is_sjs_or_etl_user():
             return [SJSandETLCallbackPermission()]
+        if self.action == 'get_active_jobs':
+            return [AllowAny()]
         return super(CohortResultViewSet, self).get_permissions()
 
     def get_queryset(self):
@@ -129,8 +132,8 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         active_statuses = [JobStatus.new, JobStatus.validated, JobStatus.started, JobStatus.pending]
         jobs_count = CohortResult.objects.filter(request_job_status__in=active_statuses).count()
         if not jobs_count:
-            return HttpResponse(status=status.HTTP_204_NO_CONTENT)
-        return JsonResponse(data={"jobs_count": jobs_count}, status=status.HTTP_200_OK)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(data={"jobs_count": jobs_count}, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(method='get',
                          operation_summary="Give cohorts aggregation read patient rights, export csv rights and "
@@ -176,7 +179,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                                     '400': openapi.Response("Bad Request")})
     def partial_update(self, request, *args, **kwargs):
         data: dict = request.data
-        _logger.info(f"received data for cohort patch: {data}")
+        _logger.info(f"Received data for cohort patch: {data}")
         cohort = self.get_object()
         sjs_data_keys = (JOB_STATUS, GROUP_ID, GROUP_COUNT)
         is_update_from_sjs = all([key in data for key in sjs_data_keys])
@@ -191,6 +194,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                 data["request_job_duration"] = str(timezone.now() - cohort.created_at)
                 if job_status == JobStatus.failed:
                     data["request_job_fail_msg"] = "Received a failed status from SJS"
+            data['request_job_status'] = job_status
         if GROUP_ID in data:
             data["fhir_group_id"] = data.pop(GROUP_ID)
         if GROUP_COUNT in data:
@@ -201,14 +205,14 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
 
         if status.is_success(resp.status_code):
             if is_update_from_sjs:
-                _logger.info("CohortResult successfully updated from SJS")
+                _logger.info(f"Cohort [{cohort.uuid}] successfully updated from SJS")
             if is_update_from_etl:
                 try:
                     send_email_notif_about_large_cohort(cohort.name, cohort.fhir_group_id, cohort.owner)
                 except (ValueError, SMTPException) as e:
-                    _logger_err.exception(f"Couldn't send email to user after ETL patch: {e}")
+                    _logger_err.exception(f"Cohort [{cohort.uuid}] - Couldn't send email to user after ETL patch: {e}")
                 else:
-                    _logger.info("CohortResult successfully updated from ETL")
+                    _logger.info(f"Cohort [{cohort.uuid}] successfully updated from ETL")
         return resp
 
 
