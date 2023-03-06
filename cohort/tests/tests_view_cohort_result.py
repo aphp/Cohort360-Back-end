@@ -192,7 +192,7 @@ class CohortsGetTests(CohortsTests):
         request = self.factory.get(path=self.active_jobs_url)
         response = self.__class__.get_active_jobs_view(request)
         self.assertEqual(response.status_code, 204)
-
+        
 
 class CohortCaseRetrieveFilter(CaseRetrieveFilter):
     def __init__(self, name: str = "", **kwargs):
@@ -453,12 +453,11 @@ class CohortsUpdateTests(CohortsTests):
         data = {'request_job_status': 'error',
                 'group.id': '',
                 'group.count': 10500}
-
         request = self.factory.patch(self.objects_url, data=data, format='json')
         force_authenticate(request, new_cohort.owner)
         response = self.__class__.update_view(request, **{self.model._meta.pk.name: new_cohort.uuid})
         response.render()
-
+        
         self.assertEqual(response.data.get("request_job_status"), JobStatus.failed.value)
         self.assertIsNotNone(response.data.get("request_job_fail_msg"))
         self.assertIsNotNone(response.data.get("request_job_duration"))
@@ -475,4 +474,5 @@ class CohortsUpdateTests(CohortsTests):
         case = self.basic_case.clone(data_to_update={'request_job_status': 'finished'})
         mock_send_email_notif.side_effect = SMTPException("SMTP server error")
         self.check_patch_case(case)
+        mock_send_email_notif.return_value = SMTPException()
         mock_send_email_notif.assert_called()
