@@ -94,6 +94,7 @@ class CohortsGetTests(CohortsTests):
             to_create)
         self.crs: List[CohortResult] = CohortResult.objects.bulk_create(
             crs_to_create)
+        self.active_jobs_url = self.objects_url + 'jobs/active/'
 
     def test_list(self):
         # As a user, I can list the CR I own
@@ -178,11 +179,19 @@ class CohortsGetTests(CohortsTests):
             request_query_snapshot=rqs.pk)
 
     def test_count_cohorts_with_active_jobs(self):
-        request = self.factory.get(path=self.objects_url + 'jobs/active/')
+        request = self.factory.get(path=self.active_jobs_url)
         response = self.__class__.get_active_jobs_view(request)
         self.assertIn(response.status_code, (200, 204))
         if response.status_code == 200:
             self.assertGreater(response.data.get('jobs_count'), 0)
+
+    def test_count_cohorts_with_no_active_jobs(self):
+        for cohort in CohortResult.objects.all():
+            cohort.request_job_status = JobStatus.finished
+            cohort.save()
+        request = self.factory.get(path=self.active_jobs_url)
+        response = self.__class__.get_active_jobs_view(request)
+        self.assertEqual(response.status_code, 204)
 
 
 class CohortCaseRetrieveFilter(CaseRetrieveFilter):
@@ -464,6 +473,6 @@ class CohortsUpdateTests(CohortsTests):
     def test_update_cohort_status_by_etl_callback(self, mock_send_email_notif: MagicMock):
         # test request_job_status gets updated and send_email is called
         case = self.basic_case.clone(data_to_update={'request_job_status': 'finished'})
+        mock_send_email_notif.side_effect = SMTPException("SMTP server error")
         self.check_patch_case(case)
-        mock_send_email_notif.return_value = SMTPException()
         mock_send_email_notif.assert_called()
