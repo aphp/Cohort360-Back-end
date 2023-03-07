@@ -32,7 +32,7 @@ test-job:
     - cp .conf/.test.env admin_cohort/.env
     - pip install -r requirements.txt
     - mkdir log
-    - coverage run --source='.' --omit="*/test*","*/migrations/*" python manage.py test --parallel $CI_NODE_TOTAL cohort exports workspaces
+    - coverage run --source='.' --omit="*/test*","*/migrations/*" manage.py test --parallel $CI_NODE_TOTAL cohort exports workspaces
     - coverage xml --omit="*/test*","*/migrations/*" -o coverage.xml
     - coverage html --omit="*/test*","*/migrations/*" -d htmlcov
   artifacts:
