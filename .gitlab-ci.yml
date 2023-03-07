@@ -21,6 +21,7 @@ lint-job:
 test-job:
   image: harbor.eds.aphp.fr/cohort360/python-test:3.11.1
   stage: test
+  parallel: 5
   services:
     - postgres
   variables:
@@ -31,7 +32,7 @@ test-job:
     - cp .conf/.test.env admin_cohort/.env
     - pip install -r requirements.txt
     - mkdir log
-    - coverage run --source='.' --omit="*/test*","*/migrations/*" manage.py test exports cohort workspaces
+    - coverage run --source='.' --omit="*/test*","*/migrations/*" manage.py test --parallel $CI_NODE_TOTAL cohort exports workspaces
     - coverage xml --omit="*/test*","*/migrations/*" -o coverage.xml
     - coverage html --omit="*/test*","*/migrations/*" -d htmlcov
   artifacts:
