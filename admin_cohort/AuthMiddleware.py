@@ -1,12 +1,30 @@
 import json
+import logging
 
 from django.http import StreamingHttpResponse, FileResponse
 from django.utils.deprecation import MiddlewareMixin
 from rest_framework.authentication import BaseAuthentication
 
 from admin_cohort import conf_auth
-from admin_cohort.models import User, get_or_create_user_with_info
+from admin_cohort.models import User
 from admin_cohort.settings import JWT_SESSION_COOKIE, JWT_REFRESH_COOKIE
+from admin_cohort.types import UserInfo
+
+_logger = logging.getLogger('django.request')
+
+
+def get_and_fix_user(user_info: UserInfo) -> User:
+    try:
+        user = User.objects.get(provider_username=user_info.username)
+        if not user.email or not user.firstname or not user.lastname:
+            user.email = user_info.email
+            user.lastname = user_info.lastname
+            user.firstname = user_info.firstname
+            user.save()
+        return user
+    except User.DoesNotExist:
+        _logger.error(f"The user with id_aph [{user_info.username}] has logged in but no associated user account was found in DB")
+        raise
 
 
 class CustomAuthentication(BaseAuthentication):
@@ -21,25 +39,14 @@ class CustomAuthentication(BaseAuthentication):
 
             if type(raw_token) == bytes:
                 raw_token = raw_token.decode('utf-8')
-
             if type(auth_method) == bytes:
                 auth_method = auth_method.decode('utf-8')
-
         try:
             user_info = conf_auth.verify_jwt(raw_token, auth_method)
-        except ValueError:
+            user = get_and_fix_user(user_info)
+        except (ValueError, User.DoesNotExist):
             return None
-
-        if user_info is not None:
-            user = get_or_create_user_with_info(user_info)
-        else:
-            user = get_or_create_user(jwt_access_token=raw_token)
         return user, raw_token
-
-
-def get_or_create_user(jwt_access_token: str) -> User:
-    user_info = conf_auth.get_user_info(jwt_access_token=jwt_access_token)
-    return get_or_create_user_with_info(user_info)
 
 
 class CustomJwtSessionMiddleware(MiddlewareMixin):
