@@ -4,8 +4,8 @@ from functools import reduce
 
 from django.db import models
 
-from admin_cohort.models import CohortBaseModel, User
-from cohort.models import Folder
+from admin_cohort.models import User
+from cohort.models import Folder, CohortBaseModel
 
 COHORT_TYPE_CHOICES = [("IMPORT_I2B2", "Previous cohorts imported from i2b2.",),
                        ("MY_ORGANIZATIONS", "Organizations in which I work (care sites "
