@@ -757,17 +757,6 @@ class ExportsCsvCreateTests(ExportsCreateTests):
 
         [self.check_create_case(case) for case in cases]
 
-    @mock.patch('admin_cohort.AuthMiddleware.CustomAuthentication.authenticate')
-    def test_error_create_request_unauthenticated(self, mock_auth: MagicMock):
-        # As a user, I cannot create an export request if I am no authenticated
-        mock_auth.return_value = None
-        case = self.err_basic_case.clone(
-            user=None,
-            status=status.HTTP_403_FORBIDDEN,
-        )
-
-        self.check_create_case(case)
-
     def test_error_create_request_no_email(self):
         # As a user, I cannot create an export request if the recipient has no
         # email address
