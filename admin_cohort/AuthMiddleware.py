@@ -8,23 +8,8 @@ from rest_framework.authentication import BaseAuthentication
 from admin_cohort import conf_auth
 from admin_cohort.models import User
 from admin_cohort.settings import JWT_SESSION_COOKIE, JWT_REFRESH_COOKIE
-from admin_cohort.types import UserInfo
 
 _logger = logging.getLogger('django.request')
-
-
-def get_and_fix_user(user_info: UserInfo) -> User:
-    try:
-        user = User.objects.get(provider_username=user_info.username)
-        if not user.email or not user.firstname or not user.lastname:
-            user.email = user_info.email
-            user.lastname = user_info.lastname
-            user.firstname = user_info.firstname
-            user.save()
-        return user
-    except User.DoesNotExist:
-        _logger.error(f"The user with id_aph [{user_info.username}] has logged in but no associated user account was found in DB")
-        raise
 
 
 class CustomAuthentication(BaseAuthentication):
@@ -43,7 +28,7 @@ class CustomAuthentication(BaseAuthentication):
                 auth_method = auth_method.decode('utf-8')
         try:
             user_info = conf_auth.verify_jwt(raw_token, auth_method)
-            user = get_and_fix_user(user_info)
+            user = User.objects.get(provider_username=user_info.username)
         except (ValueError, User.DoesNotExist):
             return None
         return user, raw_token
@@ -65,8 +50,7 @@ class CustomJwtSessionMiddleware(MiddlewareMixin):
         refresh_key = request.jwt_refresh_key
 
         resp_data = dict()
-        if not isinstance(response, StreamingHttpResponse) \
-                and not isinstance(response, FileResponse):
+        if not isinstance(response, (StreamingHttpResponse, FileResponse)):
             try:
                 resp_data = json.loads(response.content)
             except json.JSONDecodeError:
