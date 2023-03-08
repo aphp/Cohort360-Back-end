@@ -91,7 +91,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
         q = super(AccessViewSet, self).get_queryset()
         user = self.request.user
         if not user.is_anonymous:
-            accesses = user.valid_manual_accesses_queryset.select_related("role")
+            accesses = get_user_valid_manual_accesses_queryset(user).select_related("role")
         else:
             accesses = []
         to_exclude = [a.accesses_criteria_to_exclude for a in accesses]
