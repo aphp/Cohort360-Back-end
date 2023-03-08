@@ -7,9 +7,9 @@ from django.apps import apps
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 
-from admin_cohort.models import CohortBaseModel, User
+from admin_cohort.models import User
 from admin_cohort.settings import SHARED_FOLDER_NAME
-from cohort.models import Request, Folder
+from cohort.models import CohortBaseModel, Request, Folder
 
 
 class RequestQuerySnapshot(CohortBaseModel):

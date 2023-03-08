@@ -5,7 +5,7 @@ from django.utils.deprecation import MiddlewareMixin
 from rest_framework.authentication import BaseAuthentication
 
 from admin_cohort import conf_auth
-from admin_cohort.models import get_or_create_user_with_info, User
+from admin_cohort.models import User, get_or_create_user_with_info
 from admin_cohort.settings import JWT_SESSION_COOKIE, JWT_REFRESH_COOKIE
 
 

@@ -22,11 +22,10 @@ from rest_framework_tracking.models import APIRequestLog
 from accesses.models import Access, Profile
 from accesses.serializers import AccessSerializer
 from admin_cohort import conf_auth
-from .MaintenanceModeMiddleware import get_next_maintenance
-from .models import User, get_user, MaintenancePhase
-from .permissions import LogsPermission, IsAuthenticatedReadOnly, can_user_read_users, MaintenancePermission
-from .serializers import APIRequestLogSerializer, UserSerializer, OpenUserSerializer, MaintenancePhaseSerializer
-from .settings import MANUAL_SOURCE
+from admin_cohort.models import User, MaintenancePhase, get_next_maintenance
+from admin_cohort.permissions import LogsPermission, IsAuthenticatedReadOnly, can_user_read_users, MaintenancePermission
+from admin_cohort.serializers import APIRequestLogSerializer, UserSerializer, OpenUserSerializer, MaintenancePhaseSerializer
+from admin_cohort.settings import MANUAL_SOURCE
 
 
 # seen on https://stackoverflow.com/a/64440802
@@ -263,12 +262,13 @@ class CustomLoginView(LoginView):
     def form_valid(self, form):
         """Security check complete. Log the user in."""
         login(self.request, form.get_user())
-        user = UserSerializer(get_user(self.request.user.provider_username)).data
-        user_valid_profiles_ids = [p.id for p in Profile.objects.filter(user_id=user["provider_username"],
+        u = User.objects.get(provider_username=self.request.user.provider_username)
+        user_valid_profiles_ids = [p.id for p in Profile.objects.filter(user_id=u.provider_username,
                                                                         source=MANUAL_SOURCE) if p.is_valid]
         # TODO for RESt API: being returned with users/:user_id/accesses
         valid_accesses = [a for a in Access.objects.filter(profile_id__in=user_valid_profiles_ids) if a.is_valid]
         accesses = AccessSerializer(valid_accesses, many=True).data
+        user = UserSerializer(u).data
         data = {"provider": user,
                 "user": user,
                 "session_id": self.request.session.session_key,

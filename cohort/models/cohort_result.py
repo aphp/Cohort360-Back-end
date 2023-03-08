@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from django.db import models
 
-from admin_cohort.models import CohortBaseModel, JobModel, User
+from admin_cohort.models import JobModel, User
 from admin_cohort.settings import COHORT_LIMIT
-from cohort.models import RequestQuerySnapshot, DatedMeasure
+from cohort.models import CohortBaseModel, RequestQuerySnapshot, DatedMeasure
 from cohort.models.request import COHORT_TYPE_CHOICES, MY_COHORTS_COHORT_TYPE
 
 

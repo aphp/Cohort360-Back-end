@@ -6,14 +6,15 @@ from rest_framework.request import Request
 
 import workspaces.conf_workspaces as conf_workspaces
 from accesses.models import DataRight, build_data_rights
-from admin_cohort.models import User, JobStatus
+from admin_cohort.types import JobStatus
+from admin_cohort.models import User
 from cohort.models import CohortResult
-from exports import conf_exports
 from workspaces.models import Account
-from .emails import check_email_address
-from .models import ExportRequest, ExportRequestTable
-from .permissions import can_review_transfer_jupyter, can_review_export
-from .types import ExportType
+from exports import conf_exports
+from exports.emails import check_email_address
+from exports.models import ExportRequest, ExportRequestTable
+from exports.permissions import can_review_transfer_jupyter, can_review_export
+from exports.types import ExportType
 
 
 class ExportRequestTableSerializer(serializers.ModelSerializer):
