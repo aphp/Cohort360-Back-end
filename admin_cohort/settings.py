@@ -115,8 +115,7 @@ MIDDLEWARE = ['django.middleware.security.SecurityMiddleware',
               'django.contrib.messages.middleware.MessageMiddleware',
               'django.middleware.clickjacking.XFrameOptionsMiddleware',
               'admin_cohort.MaintenanceModeMiddleware.MaintenanceModeMiddleware',
-              'admin_cohort.AuthMiddleware.CustomJwtSessionMiddleware',
-              'django_cprofile_middleware.middleware.ProfilerMiddleware']
+              'admin_cohort.AuthMiddleware.CustomJwtSessionMiddleware']
 
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
@@ -176,7 +175,7 @@ REST_FRAMEWORK = {'DEFAULT_PERMISSION_CLASSES': ('admin_cohort.permissions.IsAut
                   'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema',
                   'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend',
                                               'rest_framework.filters.SearchFilter'],
-                  'PAGE_SIZE': 100
+                  'PAGE_SIZE': 20
                   }
 
 SWAGGER_SETTINGS = {'LOGOUT_URL': '/accounts/logout/',

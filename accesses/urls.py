@@ -1,10 +1,10 @@
 from django.urls import include, path
+from rest_framework.routers import DefaultRouter
 
 from accesses.views import NestedPerimeterViewSet, PerimeterViewSet, AccessViewSet, RoleViewSet, ProfileViewSet
-from admin_cohort.urls import NestedDefaultRouter
 
 
-router = NestedDefaultRouter()
+router = DefaultRouter()
 router.register(r'accesses', AccessViewSet, basename="accesses")
 router.register(r'roles', RoleViewSet, basename="roles")
 router.register(r'profiles', ProfileViewSet, basename="profiles")
