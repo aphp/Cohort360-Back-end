@@ -106,7 +106,8 @@ INSTALLED_APPS = ['django.contrib.admin',
                   'safedelete',
                   'admin_cohort'] + INCLUDED_APPS
 
-MIDDLEWARE = ['django.middleware.security.SecurityMiddleware',
+MIDDLEWARE = ['admin_cohort.influxdb_middleware.InfluxDBMiddleware',
+              'django.middleware.security.SecurityMiddleware',
               'django.contrib.sessions.middleware.SessionMiddleware',
               'corsheaders.middleware.CorsMiddleware',
               'django.middleware.common.CommonMiddleware',
@@ -115,8 +116,7 @@ MIDDLEWARE = ['django.middleware.security.SecurityMiddleware',
               'django.contrib.messages.middleware.MessageMiddleware',
               'django.middleware.clickjacking.XFrameOptionsMiddleware',
               'admin_cohort.MaintenanceModeMiddleware.MaintenanceModeMiddleware',
-              'admin_cohort.AuthMiddleware.CustomJwtSessionMiddleware',
-              'django_cprofile_middleware.middleware.ProfilerMiddleware']
+              'admin_cohort.AuthMiddleware.CustomJwtSessionMiddleware']
 
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
@@ -176,7 +176,7 @@ REST_FRAMEWORK = {'DEFAULT_PERMISSION_CLASSES': ('admin_cohort.permissions.IsAut
                   'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema',
                   'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend',
                                               'rest_framework.filters.SearchFilter'],
-                  'PAGE_SIZE': 100
+                  'PAGE_SIZE': 20
                   }
 
 SWAGGER_SETTINGS = {'LOGOUT_URL': '/accounts/logout/',
@@ -255,3 +255,9 @@ COHORT_LIMIT = int(env("COHORT_LIMIT", default=20_000))
 
 SJS_USERNAME = env("SJS_USERNAME", default="SPARK_JOB_SERVER")
 ETL_USERNAME = env("ETL_USERNAME", default="SOLR_ETL")
+
+INFLUXDB_DISABLED = int(env("INFLUXDB_DISABLED")) == 1
+INFLUXDB_TOKEN = env("INFLUXDB_TOKEN")
+INFLUXDB_URL = env("INFLUXDB_URL")
+INFLUXDB_ORG = env("INFLUXDB_ORG")
+INFLUXDB_BUCKET = env("INFLUXDB_BUCKET")

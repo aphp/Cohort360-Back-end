@@ -261,30 +261,3 @@ def post_create_cohort(auth_headers: dict, json_query: str, cr_uuid: str) -> CRB
 
     log_create_task(cr_uuid, "Step 3: SJS job created. Will be notified later by callback")
     return CRBCohortResponse(success=True, fhir_job_id=job.job_id)
-
-
-def post_validate_cohort() -> CRBValidateResponse:
-    """ Called to ask a Fhir API to validate the format of the json_query """
-    return CRBValidateResponse(success=True)
-
-    # todo
-    # try:
-    #     resp = requests.post(VALIDATE_QUERY_API, json=json.loads(json_query), headers=auth_headers)
-    # except Exception as e:
-    #     err_msg = f"INTERNAL ERROR: {e}"
-    #     return CRBValidateResponse(success=False, err_msg=err_msg)
-    # else:
-    #     result = resp.json()
-    #
-    #     if resp.status_code != 200:
-    #         err_msg = f"INTERNAL CONNECTION ERROR {resp.status_code}: {result['message']}"
-    #         return CRBValidateResponse(success=False, err_msg=err_msg)
-    #
-    #     else:
-    #         try:
-    #             validated = result["result"][0]["validated"]
-    #         except Exception as e:
-    #             err_msg = f"INTERNAL ERROR: format of received response not anticipated: {e}"
-    #             return CRBValidateResponse(success=False, err_msg=err_msg)
-    #         else:
-    #             return CRBValidateResponse(success=validated)
