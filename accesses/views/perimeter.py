@@ -38,7 +38,7 @@ class PerimeterFilter(filters.FilterSet):
     cohort_id = filters.CharFilter(method="multi_value_filter", field_name="cohort_id")
     local_id = filters.CharFilter(method="multi_value_filter", field_name="local_id")
     parent_id = filters.CharFilter(method="multi_value_filter", field_name="parent_id")
-    type = filters.CharFilter(method="multi_value_filter", field_name="type")
+    type_source_value = filters.CharFilter(method="multi_value_filter", field_name="type_source_value")
     ordering = OrderingFilter(fields=(('name', 'care_site_name'),
                                       ('type_source_value', 'care_site_type_source_value'),
                                       ('source_value', 'care_site_source_value')))
@@ -50,7 +50,6 @@ class PerimeterFilter(filters.FilterSet):
                   "source_value",
                   "cohort_id",
                   "parent_id",
-                  "type",
                   "local_id",
                   "id")
 
