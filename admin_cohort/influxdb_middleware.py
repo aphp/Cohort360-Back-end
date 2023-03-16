@@ -1,6 +1,6 @@
 from time import time
 from influxdb_client import InfluxDBClient
-from influxdb_client.client.write_api import SYNCHRONOUS
+from influxdb_client.client.write_api import ASYNCHRONOUS
 
 from admin_cohort.settings import INFLUXDB_DISABLED, INFLUXDB_BUCKET, INFLUXDB_ORG, INFLUXDB_URL, INFLUXDB_TOKEN, DEBUG
 
@@ -29,6 +29,6 @@ class InfluxDBMiddleware:
                      'fields': fields,
                      'time': int(end_time * 10 ** 9)
                      }
-            write_api = self.client.write_api(write_options=SYNCHRONOUS)
+            write_api = self.client.write_api(write_options=ASYNCHRONOUS)
             write_api.write(INFLUXDB_BUCKET, INFLUXDB_ORG, point)
         return response

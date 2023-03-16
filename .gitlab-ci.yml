@@ -29,6 +29,7 @@ test-job:
     POSTGRES_PASSWORD: portail_psswd
   script:
     - cp .conf/.test.env admin_cohort/.env
+    - pip install --upgrade pip
     - pip install -r requirements.txt
     - mkdir log
     - coverage run --source='.' --omit="*/test*","*/migrations/*" manage.py test admin_cohort cohort exports workspaces

@@ -1,6 +1,7 @@
 from functools import reduce
 
 from django.db.models import Q
+from django.http import Http404
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
@@ -8,14 +9,14 @@ from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
-from django.http import Http404
+
 from admin_cohort.permissions import IsAuthenticatedReadOnly
 from admin_cohort.settings import PERIMETERS_TYPES
 from admin_cohort.tools import join_qs
 from admin_cohort.views import BaseViewset, YarnReadOnlyViewsetMixin
-
 from ..models import Role, Perimeter, get_user_valid_manual_accesses_queryset, get_all_perimeters_parents_queryset
-from ..serializers import PerimeterSerializer, TreefiedPerimeterSerializer, YasgTreefiedPerimeterSerializer, PerimeterLiteSerializer, \
+from ..serializers import PerimeterSerializer, TreefiedPerimeterSerializer, YasgTreefiedPerimeterSerializer, \
+    PerimeterLiteSerializer, \
     DataReadRightSerializer, ReadRightPerimeter
 from ..tools.perimeter_process import get_top_perimeter_same_level, get_top_perimeter_inf_level, \
     filter_perimeter_by_top_hierarchy_perimeter_list, filter_accesses_by_search_perimeters, get_read_patient_right, \
@@ -36,6 +37,8 @@ class PerimeterFilter(filters.FilterSet):
     source_value = filters.CharFilter(lookup_expr='icontains')
     cohort_id = filters.CharFilter(method="multi_value_filter", field_name="cohort_id")
     local_id = filters.CharFilter(method="multi_value_filter", field_name="local_id")
+    parent_id = filters.CharFilter(method="multi_value_filter", field_name="parent_id")
+    type_source_value = filters.CharFilter(method="multi_value_filter", field_name="type_source_value")
     ordering = OrderingFilter(fields=(('name', 'care_site_name'),
                                       ('type_source_value', 'care_site_type_source_value'),
                                       ('source_value', 'care_site_source_value')))
@@ -46,6 +49,7 @@ class PerimeterFilter(filters.FilterSet):
                   "type_source_value",
                   "source_value",
                   "cohort_id",
+                  "parent_id",
                   "local_id",
                   "id")
 

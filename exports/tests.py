@@ -343,7 +343,7 @@ class ExportsListTests(ExportsTests):
         base_results = self.user1_reqs + self.user2_reqs
 
         self.check_get_paged_list_case(ListCase(to_find=[e for e in base_results if e.output_format == ExportType.HIVE],
-                                                page_size=100,
+                                                page_size=20,
                                                 user=self.user_jup_reviewer,
                                                 status=status.HTTP_200_OK,
                                                 success=True,
@@ -353,7 +353,7 @@ class ExportsListTests(ExportsTests):
         base_results = self.user1_reqs + self.user2_reqs
 
         self.check_get_paged_list_case(ListCase(to_find=[e for e in base_results if e.output_format == ExportType.CSV],
-                                                page_size=100,
+                                                page_size=20,
                                                 user=self.user_csv_reviewer,
                                                 status=status.HTTP_200_OK,
                                                 success=True,
@@ -363,7 +363,7 @@ class ExportsListTests(ExportsTests):
         base_results = self.user1_reqs
 
         self.check_get_paged_list_case(ListCase(to_find=base_results,
-                                                page_size=100,
+                                                page_size=20,
                                                 user=self.user1,
                                                 status=status.HTTP_200_OK,
                                                 success=True,
@@ -410,7 +410,7 @@ class ExportsListTests(ExportsTests):
                     self.check_get_paged_list_case(ListCase(
                         params=dict({param: p_case['value']}),
                         to_find=p_case['to_find'],
-                        page_size=100,
+                        page_size=20,
                         user=self.user_jup_reviewer,
                         status=status.HTTP_200_OK,
                         success=True
