@@ -10,7 +10,7 @@ STATUSES = [('new', 'new'), ('denied', 'denied'), ('validated', 'validated'), ('
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('cohort', '0022_factrelationship_id_remove'),
+        ('cohort', '0024_factrelationship_row_id_add'),
     ]
 
     operations = [
