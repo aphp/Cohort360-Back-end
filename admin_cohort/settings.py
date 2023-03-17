@@ -262,3 +262,11 @@ INFLUXDB_TOKEN = env("INFLUXDB_DJANGO_TOKEN")
 INFLUXDB_URL = env("INFLUXDB_URL")
 INFLUXDB_ORG = env("INFLUXDB_ORG")
 INFLUXDB_BUCKET = env("INFLUXDB_BUCKET")
+
+# CACHE
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+        'LOCATION': 'custom_cache',
+    }
+}

@@ -6,6 +6,9 @@ from django.db.models import Q, BooleanField, When, Case, Value, \
 from django.db.models.functions import Coalesce
 from django.http import Http404
 from django.utils import timezone
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
+from django.views.decorators.vary import vary_on_cookie
 from django_filters import OrderingFilter
 from django_filters import rest_framework as filters
 from drf_yasg import openapi
@@ -233,6 +236,8 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
 
     @swagger_auto_schema(method='get', operation_summary="Get the authenticated user's valid accesses.")
     @action(url_path="my-accesses", detail=False, methods=['get'])
+    @method_decorator(cache_page(timeout=24 * 60 * 60))
+    @method_decorator(vary_on_cookie)
     def my_accesses(self, request, *args, **kwargs):
         q = get_user_valid_manual_accesses_queryset(self.request.user)
         serializer = self.get_serializer(q, many=True)
