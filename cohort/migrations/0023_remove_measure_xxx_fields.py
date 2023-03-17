@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('cohort', '0023_alter_request_job_status_length'),
+        ('cohort', '0022_factrelationship_id_remove'),
     ]
 
     operations = [
