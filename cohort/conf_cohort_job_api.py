@@ -2,7 +2,7 @@ import json
 import logging
 import os
 import time
-from typing import List, Tuple, Dict
+from typing import Tuple, Dict
 
 import requests
 from django.utils import timezone
@@ -62,8 +62,12 @@ def get_authorization_header(request: Request) -> dict:
     return {"Authorization": f"Bearer {key}"}
 
 
-class JobResult:
+class JobResponse:
     def __init__(self, resp: Response, **kwargs):
+        self.status: JobStatus = fhir_to_job_status().get(kwargs.get('status', '').upper())
+        if not self.status:
+            raise ValueError(f"Expected valid status value, got None : {resp.json()}")
+        self.job_id: str = kwargs.get('jobId')
         self.source: str = kwargs.get('source')
         self.count = kwargs.get("group.count", kwargs.get("count"))
         self.count_min = kwargs.get("minimum")
@@ -71,31 +75,6 @@ class JobResult:
         self.group_id = kwargs.get("group.id")
         self.message = kwargs.get('message', f'could not read the message. Full response: {resp.text}')
         self.stack = kwargs.get("stack", resp.text)
-
-
-def init_result_from_response_dict(resp: Response, result: dict) -> JobResult:
-    return JobResult(resp, **result)
-
-
-class JobResponse:
-    def __init__(self, resp: Response, **kwargs):
-        self.duration: str = kwargs.get('duration')
-        self.class_path: str = kwargs.get('classPath')
-        self.start_time: datetime = kwargs.get('startTime') and parse_date(kwargs.get('startTime')) or None
-        self.context: str = kwargs.get('context')
-        self.status: JobStatus = fhir_to_job_status().get(kwargs.get('status', '').upper())
-        if not self.status:
-            raise ValueError(f"Expected valid status value, got None : {resp.json()}")
-        self.job_id: str = kwargs.get('jobId')
-        self.context_id: str = kwargs.get('contextId')
-
-        job_result = kwargs.get('result', [])
-        if isinstance(job_result, list):
-            self.result: List[JobResult] = [JobResult(resp, **jr) for jr in job_result]
-        else:
-            self.result: List[JobResult] = [JobResult(resp, **job_result)]
-        if not self.result and self.status in [JobStatus.finished, JobStatus.failed]:
-            raise ValueError(f"CRB ERROR: Result is empty - {resp.text}")
         self.request_response: Response = resp
 
 
@@ -181,13 +160,12 @@ def post_count_cohort(auth_headers: dict, json_query: str, dm_uuid: str, global_
                                 err_msg=f"Error while interpreting response: {e} - {resp.text}")
 
     if job.status == JobStatus.failed:
-        job_result = job.result[0]
-        reason = job_result.message
+        reason = job.message
         if reason:
-            if job_result.stack is None or len(job_result.stack) == 0:
+            if job.stack is None or len(job.stack) == 0:
                 reason = f'message and stack message are empty. Full result: {resp.text}'
             else:
-                reason = f'message is empty. Stack message: {job_result.stack}'
+                reason = f'message is empty. Stack message: {job.stack}'
         err_msg = f"FHIR ERROR {job.request_response.status_code}: {reason}"
         return CRBCountResponse(success=False,
                                 job_duration=datetime.now() - d,
@@ -216,11 +194,10 @@ def post_count_cohort(auth_headers: dict, json_query: str, dm_uuid: str, global_
         return CRBCountResponse(success=False,
                                 job_duration=datetime.now() - d,
                                 fhir_job_status=job.status,
-                                err_msg=job.status == JobStatus.failed and job.result[0].message or "Job cancelled")
+                                err_msg=job.status == JobStatus.failed and job.message or "Job cancelled")
 
-    job_result = job.result[0]
-    if job_result.count is None and job_result.count_max is None:
-        err_msg = f"INTERNAL ERROR: format of received response not anticipated: {job_result}"
+    if job.count is None and job.count_max is None:
+        err_msg = f"INTERNAL ERROR: format of received response not anticipated: {job}"
         return CRBCountResponse(success=False,
                                 fhir_job_id=job.job_id,
                                 job_duration=datetime.now() - d,
@@ -231,9 +208,9 @@ def post_count_cohort(auth_headers: dict, json_query: str, dm_uuid: str, global_
                             fhir_job_id=job.job_id,
                             job_duration=datetime.now() - d,
                             success=True,
-                            count=job_result.count,
-                            count_min=job_result.count_min,
-                            count_max=job_result.count_max,
+                            count=job.count,
+                            count_min=job.count_min,
+                            count_max=job.count_max,
                             fhir_job_status=job.status)
 
 
