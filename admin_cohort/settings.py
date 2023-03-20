@@ -106,7 +106,7 @@ INSTALLED_APPS = ['django.contrib.admin',
                   'safedelete',
                   'admin_cohort'] + INCLUDED_APPS
 
-MIDDLEWARE = ['admin_cohort.influxdb_middleware.InfluxDBMiddleware',
+MIDDLEWARE = ['admin_cohort.middleware.influxdb_middleware.InfluxDBMiddleware',
               'django.middleware.security.SecurityMiddleware',
               'django.contrib.sessions.middleware.SessionMiddleware',
               'corsheaders.middleware.CorsMiddleware',
@@ -115,8 +115,8 @@ MIDDLEWARE = ['admin_cohort.influxdb_middleware.InfluxDBMiddleware',
               'django.contrib.auth.middleware.AuthenticationMiddleware',
               'django.contrib.messages.middleware.MessageMiddleware',
               'django.middleware.clickjacking.XFrameOptionsMiddleware',
-              'admin_cohort.MaintenanceModeMiddleware.MaintenanceModeMiddleware',
-              'admin_cohort.AuthMiddleware.CustomJwtSessionMiddleware']
+              'admin_cohort.middleware.MaintenanceModeMiddleware.MaintenanceModeMiddleware',
+              'admin_cohort.middleware.AuthMiddleware.CustomJwtSessionMiddleware']
 
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
