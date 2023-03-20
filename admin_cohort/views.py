@@ -273,7 +273,7 @@ class CustomLoginView(LoginView):
                 "user": user,
                 "session_id": self.request.session.session_key,
                 "accesses": accesses,
-                "jwt": {"access": self.request.jwt_session_key,
+                "jwt": {"access": self.request.jwt_access_key,
                         "refresh": self.request.jwt_refresh_key,
                         "last_connection": getattr(self.request, 'last_connection', dict())
                         }

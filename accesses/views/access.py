@@ -8,7 +8,7 @@ from django.http import Http404
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
-from django.views.decorators.vary import vary_on_cookie
+from django.views.decorators.vary import vary_on_headers
 from django_filters import OrderingFilter
 from django_filters import rest_framework as filters
 from drf_yasg import openapi
@@ -237,7 +237,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
     @swagger_auto_schema(method='get', operation_summary="Get the authenticated user's valid accesses.")
     @action(url_path="my-accesses", detail=False, methods=['get'])
     @method_decorator(cache_page(timeout=24 * 60 * 60))
-    @method_decorator(vary_on_cookie)
+    @method_decorator(vary_on_headers("SESSION_ID"))
     def my_accesses(self, request, *args, **kwargs):
         q = get_user_valid_manual_accesses_queryset(self.request.user)
         serializer = self.get_serializer(q, many=True)
@@ -258,6 +258,8 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
                          responses={200: openapi.Response('Rights found', DataRightSerializer),
                                     403: openapi.Response('perimeters_ids and pop_children are both null')})
     @action(url_path="my-rights", detail=False, methods=['get'], filter_backends=[], pagination_class=None)
+    @method_decorator(cache_page(timeout=24 * 60 * 60))
+    @method_decorator(vary_on_headers("SESSION_ID"))
     def data_rights(self, request, *args, **kwargs):
         perimeters_ids = request.GET.get('perimeters_ids', self.request.GET.get('care-site-ids'))
         pop_children = request.GET.get('pop_children', self.request.GET.get('pop-children'))

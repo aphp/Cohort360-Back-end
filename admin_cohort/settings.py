@@ -171,7 +171,7 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'static'
 
 REST_FRAMEWORK = {'DEFAULT_PERMISSION_CLASSES': ('admin_cohort.permissions.IsAuthenticated',),
-                  'DEFAULT_AUTHENTICATION_CLASSES': ['admin_cohort.AuthMiddleware.CustomAuthentication'],
+                  'DEFAULT_AUTHENTICATION_CLASSES': ['admin_cohort.middleware.AuthMiddleware.CustomAuthentication'],
                   'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
                   'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema',
                   'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend',
@@ -237,9 +237,11 @@ SHARED_FOLDER_NAME = 'Mes requêtes reçues'
 MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE = utc.localize(datetime.combine(date(1970, 1, 1), time.min))
 MODEL_MANUAL_END_DATE_DEFAULT_ON_UPDATE = utc.localize(datetime.combine(date(2070, 1, 1), time.min))
 
-JWT_SESSION_COOKIE = "access"
+JWT_ACCESS_COOKIE = "access"
 JWT_REFRESH_COOKIE = "refresh"
 
+SESSION_COOKIE_NAME = "sessionid"
+SESSION_COOKIE_AGE = 24 * 60 * 60
 
 # WORKSPACES
 if 'workspaces' in INCLUDED_APPS:
