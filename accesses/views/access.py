@@ -1,12 +1,11 @@
 import urllib
 from functools import reduce
 
-from django.core.cache import cache
 from django.db.models import Q, BooleanField, When, Case, Value, QuerySet
 from django.db.models.functions import Coalesce
 from django.http import Http404, JsonResponse
 from django.utils import timezone
-from django.utils.cache import patch_vary_headers
+from django.utils.decorators import method_decorator
 from django_filters import OrderingFilter
 from django_filters import rest_framework as filters
 from drf_yasg import openapi
@@ -16,29 +15,14 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
-from admin_cohort.models import User
 from admin_cohort.permissions import IsAuthenticated
 from admin_cohort.settings import PERIMETERS_TYPES
 from admin_cohort.tools import join_qs
 from admin_cohort.views import BaseViewset, CustomLoggingMixin
+from ..cache_utils import invalidate_cache, cache_view_response
 from ..models import Role, Access, get_user_valid_manual_accesses_queryset, intersect_queryset_criteria, build_data_rights, Profile
 from ..permissions import AccessPermissions
 from ..serializers import AccessSerializer, DataRightSerializer
-
-CACHED_ENDPOINTS = ("my_accesses", "my_rights")
-CACHE_AGE = 24 * 60 * 60
-CACHE_KEYS_PREFIX = "accesses_cache"
-
-
-def cache_response(response: Response, cache_key: str):
-    patch_vary_headers(response, ['SESSION_ID'])
-    cache.set(cache_key, response, CACHE_AGE)
-
-
-def invalidate_cache(user: User):
-    cache_keys = [f"{CACHE_KEYS_PREFIX}_{view_name}_{user.provider_username}" for view_name in CACHED_ENDPOINTS]
-    cache.delete_many(cache_keys)
-    print(f"cache flushed for user {user}")
 
 
 class AccessFilter(filters.FilterSet):
@@ -193,7 +177,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
     def create(self, request, *args, **kwargs):
         data = request.data
         if "care_site_id" not in data and 'perimeter_id' not in data:
-            return Response({"response": "perimeter_id is required"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(data="perimeter_id is required", status=status.HTTP_404_NOT_FOUND)
         data['profile_id'] = data.get('profile_id', data.get('provider_history_id'))
         data['perimeter_id'] = data.get('perimeter_id', data.get('care_site_id'))
         response = super(AccessViewSet, self).create(request, *args, **kwargs)
@@ -231,11 +215,11 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
         access = self.get_object()
         now = timezone.now()
         if access.actual_end_datetime and access.actual_end_datetime < now:
-            return Response("L'accès est déjà clôturé.", status=status.HTTP_403_FORBIDDEN)
+            return Response(data="L'accès est déjà clôturé.", status=status.HTTP_403_FORBIDDEN)
 
         if access.actual_start_datetime and access.actual_start_datetime > now:
-            return Response("L'accès n'a pas encore commencé, il ne peut pas être déjà fermé."
-                            "Il peut cependant être supprimé, avec la méthode DELETE.",
+            return Response(data="L'accès n'a pas encore commencé, il ne peut pas être déjà fermé."
+                                 "Il peut cependant être supprimé, avec la méthode DELETE.",
                             status=status.HTTP_403_FORBIDDEN)
 
         request.data.update({'end_datetime': now})
@@ -254,15 +238,11 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
 
     @swagger_auto_schema(method='get', operation_summary="Get the authenticated user's valid accesses.")
     @action(url_path="my-accesses", detail=False, methods=['get'])
+    @method_decorator(cache_view_response)
     def my_accesses(self, request, *args, **kwargs):
-        cache_key = f"{CACHE_KEYS_PREFIX}_{self.action}_{request.user.provider_username}"
-        if cache.get(cache_key):
-            return cache.get(cache_key)
         q = get_user_valid_manual_accesses_queryset(request.user)
         serializer = self.get_serializer(q, many=True)
-        response = JsonResponse(data=serializer.data, safe=False)
-        cache_response(response, cache_key)
-        return response
+        return JsonResponse(data=serializer.data, safe=False, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(operation_description="Returns particular type of objects, describing the data rights that a "
                                                "user has on a care-sites. AT LEAST one parameter is necessary",
@@ -279,10 +259,8 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
                          responses={200: openapi.Response('Rights found', DataRightSerializer),
                                     403: openapi.Response('perimeters_ids and pop_children are both null')})
     @action(url_path="my-rights", detail=False, methods=['get'], filter_backends=[], pagination_class=None)
+    @method_decorator(cache_view_response)
     def my_rights(self, request, *args, **kwargs):
-        cache_key = f"{CACHE_KEYS_PREFIX}_{self.action}_{request.user.provider_username}"
-        if cache.get(cache_key):
-            return cache.get(cache_key)
         perimeters_ids = request.GET.get('perimeters_ids', request.GET.get('care-site-ids'))
         if perimeters_ids:
             urldecode_perimeters = urllib.parse.unquote(urllib.parse.unquote((str(perimeters_ids))))
@@ -293,8 +271,6 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
         results = build_data_rights(user=request.user,
                                     expected_perim_ids=required_perimeters_ids,
                                     pop_children=False)
-        response = JsonResponse(data=DataRightSerializer(results, many=True).data,
-                                safe=False,
-                                status=status.HTTP_200_OK)
-        cache_response(response, cache_key)
-        return response
+        return JsonResponse(data=DataRightSerializer(results, many=True).data,
+                            safe=False,
+                            status=status.HTTP_200_OK)

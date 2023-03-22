@@ -205,8 +205,8 @@ EXPORT_CSV_PATH = env('EXPORT_CSV_PATH')
 DAYS_TO_DELETE_CSV_FILES = int(env("DAYS_TO_DELETE_CSV_FILES", default=7))
 
 # Celery
-CELERY_BROKER_URL = env("CELERY_BROKER_URL")  # 'redis://localhost:6380'
-CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND")  # 'redis://localhost:6380'
+CELERY_BROKER_URL = env("CELERY_BROKER_URL")
+CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND")
 CELERY_ACCEPT_CONTENT = ['application/json']
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TASK_SERIALIZER = 'json'
@@ -268,7 +268,7 @@ INFLUXDB_BUCKET = env("INFLUXDB_BUCKET")
 # CACHE
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
-        'LOCATION': 'custom_cache',
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': CELERY_BROKER_URL,
     }
 }
