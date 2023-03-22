@@ -271,4 +271,8 @@ CACHES = {
         'BACKEND': 'django.core.cache.backends.redis.RedisCache',
         'LOCATION': CELERY_BROKER_URL,
     }
+    # 'default': {
+    #         'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+    #         'LOCATION': "custom_cache",
+    #     }
 }

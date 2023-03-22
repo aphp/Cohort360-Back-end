@@ -26,6 +26,10 @@ class RequestViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     filterset_class = RequestFilter
     search_fields = ("$name", "$description",)
 
+    # @method_decorator(cache_response, cache_view_response)
+    # def list(self, request, *args, **kwargs):
+    #     return super(RequestViewSet, self).list(request, *args, **kwargs)
+
 
 class NestedRequestViewSet(RequestViewSet):
 
