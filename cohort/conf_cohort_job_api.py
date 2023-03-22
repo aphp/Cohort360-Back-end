@@ -23,7 +23,7 @@ GLOBAL_COUNT_API = f"{COHORT_REQUEST_BUILDER_URL}/countAll"
 VALIDATE_QUERY_API = f"{COHORT_REQUEST_BUILDER_URL}/validate"
 FHIR_CANCEL_ACTION = "cancel"
 
-_logger = logging.getLogger("django.request")
+_logger = logging.getLogger("info")
 
 
 def parse_date(d):
@@ -82,6 +82,7 @@ def get_job(job_id: str, auth_headers) -> JobResponse:
     resp = requests.get(f"{JOBS_API}/{job_id}", headers=auth_headers)
     resp.raise_for_status()
     result = resp.json()
+    _logger.info(f"Result received from get_job: {result}")
     if resp.status_code != status.HTTP_200_OK:
         raise HTTPError(f"Unexpected response code: {resp.status_code}: "
                         f"{result.get('error', 'no error')} - {result.get('message', 'no message')}")
