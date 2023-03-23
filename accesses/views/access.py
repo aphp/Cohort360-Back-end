@@ -3,9 +3,8 @@ from functools import reduce
 
 from django.db.models import Q, BooleanField, When, Case, Value, QuerySet
 from django.db.models.functions import Coalesce
-from django.http import Http404, JsonResponse
+from django.http import Http404
 from django.utils import timezone
-from django.utils.decorators import method_decorator
 from django_filters import OrderingFilter
 from django_filters import rest_framework as filters
 from drf_yasg import openapi
@@ -19,7 +18,7 @@ from admin_cohort.permissions import IsAuthenticated
 from admin_cohort.settings import PERIMETERS_TYPES
 from admin_cohort.tools import join_qs
 from admin_cohort.views import BaseViewset, CustomLoggingMixin
-from ..cache_utils import invalidate_cache, cache_view_response
+from admin_cohort.cache_utils import invalidate_cache, cache_response
 from ..models import Role, Access, get_user_valid_manual_accesses_queryset, intersect_queryset_criteria, build_data_rights, Profile
 from ..permissions import AccessPermissions
 from ..serializers import AccessSerializer, DataRightSerializer
@@ -182,7 +181,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
         data['perimeter_id'] = data.get('perimeter_id', data.get('care_site_id'))
         response = super(AccessViewSet, self).create(request, *args, **kwargs)
         user = Profile.objects.get(pk=data['profile_id']).user
-        invalidate_cache(user)
+        invalidate_cache(view_instance=self, user=user)
         return response
 
     @swagger_auto_schema(request_body=openapi.Schema(
@@ -204,7 +203,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
     def update(self, request, *args, **kwargs):
         response = super(AccessViewSet, self).update(request, *args, **kwargs)
         user = self.get_object().profile.user
-        invalidate_cache(user)
+        invalidate_cache(view_instance=self, user=user)
         return response
 
     @swagger_auto_schema(request_body=openapi.Schema(type=openapi.TYPE_STRING, properties={}),
@@ -233,16 +232,16 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
                 return Response(data="L'accès est déjà/a déjà été activé, il ne peut plus être supprimé.",
                                 status=status.HTTP_403_FORBIDDEN)
         self.perform_destroy(access)
-        invalidate_cache(user)
+        invalidate_cache(view_instance=self, user=user)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @swagger_auto_schema(method='get', operation_summary="Get the authenticated user's valid accesses.")
     @action(url_path="my-accesses", detail=False, methods=['get'])
-    @method_decorator(cache_view_response)
+    @cache_response()
     def my_accesses(self, request, *args, **kwargs):
         q = get_user_valid_manual_accesses_queryset(request.user)
         serializer = self.get_serializer(q, many=True)
-        return JsonResponse(data=serializer.data, safe=False, status=status.HTTP_200_OK)
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(operation_description="Returns particular type of objects, describing the data rights that a "
                                                "user has on a care-sites. AT LEAST one parameter is necessary",
@@ -259,7 +258,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
                          responses={200: openapi.Response('Rights found', DataRightSerializer),
                                     403: openapi.Response('perimeters_ids and pop_children are both null')})
     @action(url_path="my-rights", detail=False, methods=['get'], filter_backends=[], pagination_class=None)
-    @method_decorator(cache_view_response)
+    @cache_response()
     def my_rights(self, request, *args, **kwargs):
         perimeters_ids = request.GET.get('perimeters_ids', request.GET.get('care-site-ids'))
         if perimeters_ids:
@@ -271,6 +270,5 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
         results = build_data_rights(user=request.user,
                                     expected_perim_ids=required_perimeters_ids,
                                     pop_children=False)
-        return JsonResponse(data=DataRightSerializer(results, many=True).data,
-                            safe=False,
-                            status=status.HTTP_200_OK)
+        return Response(data=DataRightSerializer(results, many=True).data,
+                        status=status.HTTP_200_OK)

@@ -6,6 +6,7 @@ from pathlib import Path
 import environ
 import pytz
 
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 env = environ.Env()
@@ -185,8 +186,6 @@ SWAGGER_SETTINGS = {'LOGOUT_URL': '/accounts/logout/',
                     'DEFAULT_AUTO_SCHEMA_CLASS': 'admin_cohort.views.CustomAutoSchema'
                     }
 
-REST_FRAMEWORK_EXTENSIONS = {'DEFAULT_PARENT_LOOKUP_KWARG_NAME_PREFIX': ''}
-
 APPEND_SLASH = False
 
 AUTH_USER_MODEL = 'admin_cohort.User'
@@ -267,12 +266,19 @@ INFLUXDB_BUCKET = env("INFLUXDB_BUCKET")
 
 # CACHE
 CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': CELERY_BROKER_URL,
-    }
-    # 'default': {
-    #         'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
-    #         'LOCATION': "custom_cache",
-    #     }
+    # "default": {
+    #     "BACKEND": "django.core.cache.backends.redis.RedisCache",
+    #     "LOCATION": CELERY_BROKER_URL,
+    # }
+    "default": {
+            "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+            "LOCATION": "custom_cache",
+        }
 }
+
+REST_FRAMEWORK_EXTENSIONS = {"DEFAULT_PARENT_LOOKUP_KWARG_NAME_PREFIX": "",
+                             "DEFAULT_USE_CACHE": "default",
+                             "DEFAULT_CACHE_RESPONSE_TIMEOUT": 24 * 60 * 60,
+                             "DEFAULT_CACHE_KEY_FUNC": "admin_cohort.cache_utils.construct_cache_key",
+                             "DEFAULT_CACHE_ERRORS": False
+                             }
