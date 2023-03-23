@@ -266,14 +266,10 @@ INFLUXDB_BUCKET = env("INFLUXDB_BUCKET")
 
 # CACHE
 CACHES = {
-    # "default": {
-    #     "BACKEND": "django.core.cache.backends.redis.RedisCache",
-    #     "LOCATION": CELERY_BROKER_URL,
-    # }
     "default": {
-            "BACKEND": "django.core.cache.backends.db.DatabaseCache",
-            "LOCATION": "custom_cache",
-        }
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": CELERY_BROKER_URL
+    }
 }
 
 REST_FRAMEWORK_EXTENSIONS = {"DEFAULT_PARENT_LOOKUP_KWARG_NAME_PREFIX": "",

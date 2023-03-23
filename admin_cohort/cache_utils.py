@@ -9,9 +9,6 @@ from admin_cohort.models import User
 
 _logger = logging.getLogger("info")
 
-CACHED_ENDPOINTS = ("my_accesses", "my_rights")
-CACHE_AGE = 24 * 60 * 60
-
 
 class CustomCacheResponse(CacheResponse):
     def process_cache_response(self, view_instance, view_method, request, args, kwargs):
@@ -24,13 +21,15 @@ cache_response = CustomCacheResponse
 
 
 def construct_cache_key(view_instance=None, view_method=None, request=None, *args, **kwargs):
-    view_method_name = view_method and view_method.__name__ or kwargs.get("view_method_name")
-    user = request and request.user or kwargs.get("user")
-    return f"{view_instance.__class__.__name__}.{view_method_name}.{user.provider_username}"
+    key = f"{request.user.provider_username}.{view_instance.__class__.__name__}.{view_method.__name__}"
+    if view_instance.action == "retrieve":
+        lookup_field = view_instance.lookup_field
+        record_id = view_instance.kwargs.get(lookup_field)
+        key = f"{key}.{lookup_field}.{record_id}"
+    return key
 
 
 def invalidate_cache(view_instance: APIView, user: User):
-    cache_keys = [construct_cache_key(view_instance=view_instance, **dict(view_method_name=endpoint_name, user=user))
-                  for endpoint_name in CACHED_ENDPOINTS]
-    cache.delete_many(cache_keys)
-    _logger.info(f"Cache flushed for user {user}")
+    user_viewset_keys = f"{user.provider_username}.{view_instance.__class__.__name__}.*"
+    cache.delete_pattern(user_viewset_keys)
+    _logger.info(f"Cache flushed for user {user} on ViewSet {view_instance.__class__.__name__}")
