@@ -9,10 +9,11 @@ from drf_yasg.utils import swagger_auto_schema
 from hdfs import HdfsError
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 
+from admin_cohort.cache_utils import cache_response, invalidate_cache
 from admin_cohort.models import User
 from admin_cohort.tools import join_qs
 from admin_cohort.types import JobStatus
@@ -24,7 +25,6 @@ from exports.models import ExportRequest
 from exports.permissions import ExportRequestPermissions, ExportJupyterPermissions, can_review_transfer_jupyter, \
     can_review_export_csv
 from exports.serializers import ExportRequestSerializer, ExportRequestSerializerNoReviewer, ExportRequestListSerializer
-from exports.tasks import launch_request
 from exports.types import ExportType
 
 _logger = logging.getLogger('django.request')
@@ -69,8 +69,8 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
     swagger_tags = ['Exports']
     pagination_class = LimitOffsetPagination
     filterset_class = ExportRequestFilter
-    http_method_names = ['get', 'post', 'patch']
-    logging_methods = ['POST', 'PATCH']
+    http_method_names = ['get', 'post']
+    logging_methods = ['POST']
     search_fields = ("owner__provider_username", "owner__firstname", "owner__lastname",
                      "cohort_id", "cohort_fk__name", "request_job_status", "output_format",
                      "target_name", "target_unix_account__name")
@@ -100,6 +100,7 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
 
     @swagger_auto_schema(responses={'200': openapi.Response("List of export requests", ExportRequestListSerializer()),
                                     '204': openapi.Response("HTTP_204 if no export requests found")})
+    @cache_response()
     def list(self, request, *args, **kwargs):
         q = self.filter_queryset(self.queryset)
         page = self.paginate_queryset(q)
@@ -107,47 +108,6 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
             serializer = ExportRequestListSerializer(page, many=True)
             return self.get_paginated_response(serializer.data)
         return Response(status=status.HTTP_204_NO_CONTENT)
-
-    @action(detail=True, methods=['patch'], url_path="deny")
-    def deny(self, request, *args, **kwargs):
-        req: ExportRequest = self.get_object()
-        reviewer = request.user
-
-        if req.output_format == ExportType.CSV:
-            if not can_review_export_csv(reviewer):
-                raise PermissionDenied("L'utilisateur doit avoir le droit 'right_review_export_csv'")
-        else:
-            if not can_review_transfer_jupyter(reviewer):
-                raise PermissionDenied("L'utilisateur doit avoir le droit 'right_review_transfer_jupyter'")
-
-        if req.request_job_status == JobStatus.new:
-            req.deny(request.user)
-            req.request_job_status = JobStatus.denied   # to be deprecated
-            # req.reviewer_id = reviewer_id
-            req.save()
-            return Response(self.serializer_class(req).data, status=status.HTTP_200_OK)
-        else:
-            raise ValidationError(f"La requête doit posséder le statut '{JobStatus.new}' pour être refusée. "
-                                  f"Statut actuel : '{req.request_job_status}'")
-
-    @action(detail=True, methods=['patch'], url_path="validate")
-    def validate(self, request, *args, **kwargs):
-        req: ExportRequest = self.get_object()
-        reviewer = request.user
-
-        if req.output_format == ExportType.HIVE and not can_review_transfer_jupyter(reviewer):
-            raise PermissionDenied("L'utilisateur doit avoir le droit 'right_review_transfer_jupyter'")
-
-        if req.output_format == ExportType.CSV and not can_review_export_csv(reviewer):
-            raise PermissionDenied("L'utilisateur doit avoir le droit 'right_review_export_csv'")
-
-        try:
-            req.validate(request.user)
-            launch_request.delay(req.id)
-            return Response(self.serializer_class(req).data, status=status.HTTP_200_OK)
-        except Exception as e:
-            _logger.exception(str(e))
-            raise ValidationError("La requête n'a pas pu être validée")
 
     @swagger_auto_schema(
         request_body=openapi.Schema(type=openapi.TYPE_OBJECT,
@@ -209,13 +169,14 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
         request.data['creator_fk'] = creator.pk
         request.data['owner'] = request.data.get('owner', creator.pk)
 
-        res: Response = super(ExportRequestViewSet, self).create(request, *args, **kwargs)
-        if res.status_code == http.HTTPStatus.CREATED and res.data["request_job_status"] != JobStatus.failed:
+        response = super(ExportRequestViewSet, self).create(request, *args, **kwargs)
+        invalidate_cache(view_instance=self, user=request.user)
+        if response.status_code == http.HTTPStatus.CREATED and response.data["request_job_status"] != JobStatus.failed:
             try:
-                email_info_request_confirmed(res.data.serializer.instance, creator.email)
+                email_info_request_confirmed(response.data.serializer.instance, creator.email)
             except Exception as e:
-                res.data['warning'] = f"L'email de confirmation n'a pas pu être envoyé à cause de l'erreur: {e}"
-        return res
+                response.data['warning'] = f"L'email de confirmation n'a pas pu être envoyé à cause de l'erreur: {e}"
+        return response
 
     @action(detail=True, methods=['get'], permission_classes=(ExportRequestPermissions,), url_path="download")
     def download(self, request, *args, **kwargs):

@@ -1024,129 +1024,6 @@ class ExportsJupCreateTests(ExportsCreateTests):
         ))
 
 
-#  PATCH ##################################################################
-
-
-class ValidateCase(RequestCase):
-    def __init__(self, initial_data: dict, deny: bool, **kwargs):
-        super(ValidateCase, self).__init__(**kwargs)
-        self.initial_data = initial_data
-        self.deny = deny
-
-
-class ExportsValidateDenyTests(ExportsWithSimpleSetUp):
-    deny_view = ExportRequestViewSet.as_view({'patch': 'deny'})
-    validate_view = ExportRequestViewSet.as_view({'patch': 'validate'})
-
-    def setUp(self):
-        super(ExportsValidateDenyTests, self).setUp()
-        self.basic_jup_data = dict(
-            owner=self.user1,
-            cohort_fk=self.user1_cohort,
-            cohort_id=self.user1_cohort.fhir_group_id,
-            output_format=ExportType.HIVE.value,
-            provider_id=self.user1.provider_id,
-            request_job_status=JobStatus.new.value,
-            target_location="user1_exp_req_succ",
-            is_user_notified=False,
-
-        )
-        self.basic_csv_data = {**self.basic_jup_data,
-                               'output_format': ExportType.CSV.value}
-        self.basic_jup_validate_case = ValidateCase(
-            initial_data=self.basic_jup_data,
-            deny=False,
-            user=self.user_jup_reviewer,
-            status=status.HTTP_200_OK,
-            success=True,
-        )
-        self.basic_err_jup_validate_case = self.basic_jup_validate_case.clone(
-            status=status.HTTP_400_BAD_REQUEST,
-            success=False,
-        )
-
-    def test_deny_new_request(self):
-        # As a jupyter request reviewer, I can deny a request that is still new
-        self.check_validate_case(self.basic_jup_validate_case.clone(deny=True))
-
-    @mock.patch('exports.tasks.launch_request.delay')
-    def check_validate_case(self, case: ValidateCase, mock_task: MagicMock):
-        mock_task.return_value = None
-
-        obj_id = self.model_objects.create(**case.initial_data).pk
-
-        request = self.factory.patch(self.objects_url)
-        if case.user:
-            force_authenticate(request, case.user)
-
-        view = self.__class__.validate_view if not case.deny \
-            else self.__class__.deny_view
-
-        response = view(request, id=obj_id)
-        response.render()
-
-        self.assertEqual(
-            response.status_code, case.status,
-            msg=(f"{case.description}"
-                 + (f" -> {prettify_json(response.content)}"
-                    if response.content else "")),)
-
-        new_obj = self.model_objects.filter(pk=obj_id).first()
-
-        if case.success:
-            self.assertIsNotNone(new_obj)
-            self.assertEqual(new_obj.request_job_status,
-                             JobStatus.validated if not case.deny
-                             else JobStatus.denied)
-            mock_task.assert_called() if not case.deny \
-                else mock_task.assert_not_called()
-        else:
-            self.assertEqual(new_obj.request_job_status,
-                             case.initial_data['request_job_status'])
-            mock_task.assert_not_called()
-
-    def test_validate_new_request(self):
-        # As a jupyter request reviewer, I can validate a request that is still
-        # new
-        self.check_validate_case(self.basic_jup_validate_case)
-        self.check_validate_case(self.basic_jup_validate_case.clone(
-            initial_data=self.basic_csv_data,
-            user=self.user_csv_reviewer,
-        ))
-
-    def test_error_validate_not_new_request(self):
-        # As a jupyter request reviewer, I cannot validate a request that does
-        # not have the status NEW
-        [self.check_validate_case(self.basic_err_jup_validate_case.clone(
-            initial_data={**self.basic_jup_data,
-                          'request_job_status': s}
-        )) for s in JobStatus.list(exclude=[JobStatus.new])]
-
-    def test_error_validate_new_request_without_jup_right(self):
-        # As a user, I cannot review a jupyter export request
-        # if I do not own a right to review jupyter exports
-        self.jup_review_access.manual_end_datetime = timezone.now() \
-                                                     - timedelta(days=7)
-        self.jup_review_access.save()
-
-        self.check_validate_case(self.basic_err_jup_validate_case.clone(
-            initial_data=self.basic_csv_data,
-            status=status.HTTP_404_NOT_FOUND,
-        ))
-
-    def test_error_validate_new_request_without_csv_right(self):
-        # As a user, I cannot review a csv export request
-        # if I do not own a right to review csv exports
-        self.csv_review_access.manual_end_datetime = timezone.now() \
-                                                     - timedelta(days=7)
-        self.csv_review_access.save()
-        self.check_validate_case(self.basic_err_jup_validate_case.clone(
-            initial_data=self.basic_csv_data,
-            status=status.HTTP_404_NOT_FOUND,
-            user=self.user_csv_reviewer,
-        ))
-
-
 class ExportsNotAllowedTests(ExportsWithSimpleSetUp):
     def setUp(self):
         super(ExportsNotAllowedTests, self).setUp()
@@ -1176,7 +1053,7 @@ class ExportsNotAllowedTests(ExportsWithSimpleSetUp):
 class ExportsPatchNotAllowedTests(ExportsNotAllowedTests):
     def test_error_patch_request(self):
         [self.check_patch_case(PatchCase(
-            user=self.full_admin_user, status=status.HTTP_400_BAD_REQUEST,
+            user=self.full_admin_user, status=status.HTTP_405_METHOD_NOT_ALLOWED,
             success=False, initial_data=data, data_to_update={'motivation': 'a'}
         )) for data in [self.basic_csv_data, self.basic_jup_data]]
 
