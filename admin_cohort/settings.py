@@ -271,6 +271,8 @@ CACHES = {
         "LOCATION": CELERY_BROKER_URL
     }
 }
+if env("SERVER_VERSION") == "test":
+    CACHES = {'default': {'BACKEND': 'admin_cohort.cache_utils.CustomDummyCache'}}
 
 REST_FRAMEWORK_EXTENSIONS = {"DEFAULT_PARENT_LOOKUP_KWARG_NAME_PREFIX": "",
                              "DEFAULT_USE_CACHE": "default",

@@ -1,6 +1,7 @@
 import logging
 
 from django.core.cache import cache
+from django.core.cache.backends.dummy import DummyCache
 from django.utils.cache import patch_vary_headers
 from rest_framework.views import APIView
 from rest_framework_extensions.cache.decorators import CacheResponse
@@ -35,3 +36,8 @@ def invalidate_cache(view_instance: APIView, user: User):
     user_viewset_keys = f"{user.provider_username}.{view_instance.__class__.__name__}.*"
     cache.delete_pattern(user_viewset_keys)
     _logger.info(f"Cache flushed for user {user} on ViewSet {view_instance.__class__.__name__}")
+
+
+class CustomDummyCache(DummyCache):
+    def delete_pattern(self, key, version=None):
+        return False
