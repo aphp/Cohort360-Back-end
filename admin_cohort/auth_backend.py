@@ -25,7 +25,7 @@ class AuthBackend:
             _logger.error(f"The user with id_aph [{username}] has logged in but no associated user account was found in DB")
             return
 
-        request.jwt_session_key = tokens.access
+        request.jwt_access_key = tokens.access
         request.jwt_refresh_key = tokens.refresh
         request.last_connection = tokens.last_connection
         return user

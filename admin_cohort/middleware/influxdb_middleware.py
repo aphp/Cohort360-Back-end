@@ -23,7 +23,7 @@ class InfluxDBMiddleware:
                     'path': request.path_info,
                     'env': not DEBUG and 'prod' or 'dev_qua',
                     }
-            fields = {'response_time': end_time - start_time}
+            fields = {'response_time': (end_time - start_time) * 10 ** 3}
             point = {'measurement': 'django_requests',
                      'tags': tags,
                      'fields': fields,

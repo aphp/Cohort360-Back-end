@@ -6,6 +6,7 @@ from pathlib import Path
 import environ
 import pytz
 
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 env = environ.Env()
@@ -106,7 +107,7 @@ INSTALLED_APPS = ['django.contrib.admin',
                   'safedelete',
                   'admin_cohort'] + INCLUDED_APPS
 
-MIDDLEWARE = ['admin_cohort.influxdb_middleware.InfluxDBMiddleware',
+MIDDLEWARE = ['admin_cohort.middleware.influxdb_middleware.InfluxDBMiddleware',
               'django.middleware.security.SecurityMiddleware',
               'django.contrib.sessions.middleware.SessionMiddleware',
               'corsheaders.middleware.CorsMiddleware',
@@ -115,8 +116,8 @@ MIDDLEWARE = ['admin_cohort.influxdb_middleware.InfluxDBMiddleware',
               'django.contrib.auth.middleware.AuthenticationMiddleware',
               'django.contrib.messages.middleware.MessageMiddleware',
               'django.middleware.clickjacking.XFrameOptionsMiddleware',
-              'admin_cohort.MaintenanceModeMiddleware.MaintenanceModeMiddleware',
-              'admin_cohort.AuthMiddleware.CustomJwtSessionMiddleware']
+              'admin_cohort.middleware.MaintenanceModeMiddleware.MaintenanceModeMiddleware',
+              'admin_cohort.middleware.AuthMiddleware.CustomJwtSessionMiddleware']
 
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
@@ -171,7 +172,7 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'static'
 
 REST_FRAMEWORK = {'DEFAULT_PERMISSION_CLASSES': ('admin_cohort.permissions.IsAuthenticated',),
-                  'DEFAULT_AUTHENTICATION_CLASSES': ['admin_cohort.AuthMiddleware.CustomAuthentication'],
+                  'DEFAULT_AUTHENTICATION_CLASSES': ['admin_cohort.middleware.AuthMiddleware.CustomAuthentication'],
                   'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
                   'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema',
                   'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend',
@@ -184,8 +185,6 @@ SWAGGER_SETTINGS = {'LOGOUT_URL': '/accounts/logout/',
                     'DEFAULT_AUTHENTICATION_CLASSES': ('rest_framework.authentication.TokenAuthentication',),
                     'DEFAULT_AUTO_SCHEMA_CLASS': 'admin_cohort.views.CustomAutoSchema'
                     }
-
-REST_FRAMEWORK_EXTENSIONS = {'DEFAULT_PARENT_LOOKUP_KWARG_NAME_PREFIX': ''}
 
 APPEND_SLASH = False
 
@@ -205,8 +204,8 @@ EXPORT_CSV_PATH = env('EXPORT_CSV_PATH')
 DAYS_TO_DELETE_CSV_FILES = int(env("DAYS_TO_DELETE_CSV_FILES", default=7))
 
 # Celery
-CELERY_BROKER_URL = env("CELERY_BROKER_URL")  # 'redis://localhost:6380'
-CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND")  # 'redis://localhost:6380'
+CELERY_BROKER_URL = env("CELERY_BROKER_URL")
+CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND")
 CELERY_ACCEPT_CONTENT = ['application/json']
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TASK_SERIALIZER = 'json'
@@ -237,9 +236,11 @@ SHARED_FOLDER_NAME = 'Mes requêtes reçues'
 MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE = utc.localize(datetime.combine(date(1970, 1, 1), time.min))
 MODEL_MANUAL_END_DATE_DEFAULT_ON_UPDATE = utc.localize(datetime.combine(date(2070, 1, 1), time.min))
 
-JWT_SESSION_COOKIE = "access"
+JWT_ACCESS_COOKIE = "access"
 JWT_REFRESH_COOKIE = "refresh"
 
+SESSION_COOKIE_NAME = "sessionid"
+SESSION_COOKIE_AGE = 24 * 60 * 60
 
 # WORKSPACES
 if 'workspaces' in INCLUDED_APPS:
@@ -262,3 +263,18 @@ INFLUXDB_TOKEN = env("INFLUXDB_DJANGO_TOKEN")
 INFLUXDB_URL = env("INFLUXDB_URL")
 INFLUXDB_ORG = env("INFLUXDB_ORG")
 INFLUXDB_BUCKET = env("INFLUXDB_BUCKET")
+
+# CACHE
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": CELERY_BROKER_URL
+    }
+}
+
+REST_FRAMEWORK_EXTENSIONS = {"DEFAULT_PARENT_LOOKUP_KWARG_NAME_PREFIX": "",
+                             "DEFAULT_USE_CACHE": "default",
+                             "DEFAULT_CACHE_RESPONSE_TIMEOUT": 24 * 60 * 60,
+                             "DEFAULT_CACHE_KEY_FUNC": "admin_cohort.cache_utils.construct_cache_key",
+                             "DEFAULT_CACHE_ERRORS": False
+                             }

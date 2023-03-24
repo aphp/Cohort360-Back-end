@@ -7,7 +7,7 @@ from rest_framework.authentication import BaseAuthentication
 
 from admin_cohort import conf_auth
 from admin_cohort.models import User
-from admin_cohort.settings import JWT_SESSION_COOKIE, JWT_REFRESH_COOKIE
+from admin_cohort.settings import JWT_ACCESS_COOKIE, JWT_REFRESH_COOKIE, SESSION_COOKIE_NAME
 
 _logger = logging.getLogger('django.request')
 
@@ -15,8 +15,8 @@ _logger = logging.getLogger('django.request')
 class CustomAuthentication(BaseAuthentication):
     def authenticate(self, request):
         auth_method = None
-        if getattr(request, "jwt_session_key", None) is not None:
-            raw_token = request.jwt_session_key
+        if getattr(request, "jwt_access_key", None) is not None:
+            raw_token = request.jwt_access_key
         else:
             raw_token, auth_method = conf_auth.get_token_from_headers(request)
             if raw_token is None:
@@ -36,17 +36,19 @@ class CustomAuthentication(BaseAuthentication):
 
 class CustomJwtSessionMiddleware(MiddlewareMixin):
     def process_request(self, request):
-        session_key = request.COOKIES.get(JWT_SESSION_COOKIE)
-        request.jwt_session_key = session_key
+        access_key = request.COOKIES.get(JWT_ACCESS_COOKIE)
+        request.jwt_access_key = access_key
         refresh_key = request.COOKIES.get(JWT_REFRESH_COOKIE)
         request.jwt_refresh_key = refresh_key
+        session_id = request.COOKIES.get(SESSION_COOKIE_NAME)
+        request.META['HTTP_SESSION_ID'] = session_id
 
     def process_response(self, request, response):
         if request.path.startswith("/accounts/logout"):
-            response.delete_cookie(JWT_SESSION_COOKIE)
+            response.delete_cookie(JWT_ACCESS_COOKIE)
             response.delete_cookie(JWT_REFRESH_COOKIE)
             return response
-        session_key = request.jwt_session_key
+        access_key = request.jwt_access_key
         refresh_key = request.jwt_refresh_key
 
         resp_data = dict()
@@ -58,16 +60,16 @@ class CustomJwtSessionMiddleware(MiddlewareMixin):
 
         # see in admin_cohort.views.CustomLoginView.form_valid
         if 'jwt' in resp_data:
-            session_key = resp_data.get('jwt', {}).get('access')
+            access_key = resp_data.get('jwt', {}).get('access')
             refresh_key = resp_data.get('jwt', {}).get('refresh')
         else:
-            if JWT_SESSION_COOKIE in resp_data:
-                session_key = resp_data[JWT_SESSION_COOKIE]
+            if JWT_ACCESS_COOKIE in resp_data:
+                access_key = resp_data[JWT_ACCESS_COOKIE]
             if JWT_REFRESH_COOKIE in resp_data:
                 refresh_key = resp_data[JWT_REFRESH_COOKIE]
 
-        if session_key is not None:
-            response.set_cookie(JWT_SESSION_COOKIE, session_key)
+        if access_key is not None:
+            response.set_cookie(JWT_ACCESS_COOKIE, access_key)
         if refresh_key is not None:
             response.set_cookie(JWT_REFRESH_COOKIE, refresh_key)
         return response

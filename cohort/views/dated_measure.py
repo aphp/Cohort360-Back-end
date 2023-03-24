@@ -9,9 +9,10 @@ from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from admin_cohort import app
+from admin_cohort.cache_utils import cache_response, invalidate_cache
 from admin_cohort.types import JobStatus
 from cohort.conf_cohort_job_api import get_authorization_header, cancel_job
-from cohort.models import CohortResult, DatedMeasure, RequestQuerySnapshot
+from cohort.models import DatedMeasure, RequestQuerySnapshot
 from cohort.serializers import DatedMeasureSerializer
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
@@ -40,13 +41,6 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     swagger_tags = ['Cohort - dated-measures']
     filterset_class = DMFilter
     pagination_class = LimitOffsetPagination
-
-    def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        if CohortResult.objects.filter(dated_measure__uuid=instance.uuid).first():
-            return Response(data={'message': "Cannot delete a DatedMeasure bound to a CohortResult"},
-                            status=status.HTTP_403_FORBIDDEN)
-        return super(DatedMeasureViewSet, self).destroy(request, *args, **kwargs)
 
     @action(methods=['post'], detail=False, url_path='create-unique')
     def create_unique(self, request, *args, **kwargs):
@@ -79,7 +73,7 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                 job.request_job_status = job_status == JobStatus.started and new_status or JobStatus.cancelled
                 job.save()
             except Exception as e:
-                msg = f"Error while cancelling {status} job [{job.request_job_id}] DM [{job.uuid}] - {e}"
+                msg = f"Error while cancelling {job_status} job [{job.request_job_id}] DM [{job.uuid}] - {e}"
                 _logger.exception(msg)
                 job.request_job_status = JobStatus.failed
                 job.request_job_fail_msg = msg
@@ -87,16 +81,29 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                 return HttpResponseServerError()
         return self.create(request, *args, **kwargs)
 
+    @cache_response()
+    def retrieve(self, request, *args, **kwargs):
+        return super(DatedMeasureViewSet, self).retrieve(request, *args, **kwargs)
+
     def update(self, request, *args, **kwargs):
         return Response(data="Updating a DatedMeasure is not allowed",
                         status=status.HTTP_403_FORBIDDEN)
 
+    def destroy(self, request, *args, **kwargs):
+        dm = self.get_object()
+        if dm.cohort.count():
+            return Response(data={'message': "Cannot delete a DatedMeasure bound to a CohortResult"},
+                            status=status.HTTP_403_FORBIDDEN)
+        response = super(DatedMeasureViewSet, self).destroy(request, *args, **kwargs)
+        invalidate_cache(view_instance=self, user=request.user)
+        return response
+
     @action(methods=['patch'], detail=True, url_path='abort')
     def abort(self, request, *args, **kwargs):
-        # TODO : test
-        instance: DatedMeasure = self.get_object()
+        # todo: check this is not used
+        dm = self.get_object()
         try:
-            cancel_job(instance.request_job_id, get_authorization_header(request))
+            cancel_job(dm.request_job_id, get_authorization_header(request))
         except Exception as e:
             return Response(dict(message=str(e)), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

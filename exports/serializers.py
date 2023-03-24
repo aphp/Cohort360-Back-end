@@ -148,7 +148,7 @@ class ExportRequestSerializer(serializers.ModelSerializer):
         cont_req: Request = self.context.get('request')
         owner: User = validated_data.get('owner')
         perim_ids = list(map(int, conf_exports.get_cohort_perimeters(validated_data.get('cohort_fk').fhir_group_id,
-                                                                     getattr(cont_req, 'jwt_session_key', None))))
+                                                                     getattr(cont_req, 'jwt_access_key', None))))
         rights = build_data_rights(owner, perim_ids)
         check_rights_on_perimeters_for_exports(rights, validated_data.get('output_format'), validated_data.get('nominative'))
 

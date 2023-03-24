@@ -28,14 +28,7 @@ class Request(CohortBaseModel):
     favorite = models.BooleanField(default=False)
     parent_folder = models.ForeignKey(Folder, on_delete=models.CASCADE, related_name="requests", null=False)
     data_type_of_query = models.CharField(max_length=9, choices=REQUEST_DATA_TYPE_CHOICES, default=PATIENT_REQUEST_TYPE)
-    shared_by = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='shared_requests', null=True,
-                                  default=None)
-
-    def last_request_snapshot(self):
-        return self.query_snapshots.latest('created_at')
-
-    def saved_snapshot(self):
-        return self.query_snapshots.filter(saved=True).first()
+    shared_by = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='shared_requests', null=True, default=None)
 
     @property
     def dated_measures(self):

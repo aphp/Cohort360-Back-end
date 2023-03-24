@@ -9,6 +9,7 @@ from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
+from admin_cohort.cache_utils import cache_response
 from admin_cohort.models import User
 from cohort.models import RequestQuerySnapshot
 from cohort.permissions import IsOwner
@@ -35,23 +36,9 @@ class RequestQuerySnapshotViewSet(NestedViewSetMixin, UserObjectsRestrictedViewS
     filterset_class = RQSFilter
     search_fields = ('$serialized_query',)
 
-    def update(self, request, *args, **kwargs):
-        return Response(data={"response": "RQS manual update not allowed"},
-                        status=status.HTTP_403_FORBIDDEN)
-
-    def partial_update(self, request, *args, **kwargs):
-        return self.update(request, *args, **kwargs)
-
-    @action(detail=True, methods=['post'], permission_classes=(IsOwner,), url_path="save")
-    def save(self, req, request_query_snapshot_uuid):
-        try:
-            rqs = RequestQuerySnapshot.objects.get(uuid=request_query_snapshot_uuid)
-        except RequestQuerySnapshot.DoesNotExist:
-            return Response(data={"response": "request_query_snapshot not found"},
-                            status=status.HTTP_404_NOT_FOUND)
-        rqs.save_snapshot()
-        return Response(data={'response': "Query successful!"},
-                        status=status.HTTP_200_OK)
+    @cache_response()
+    def retrieve(self, request, *args, **kwargs):
+        return super(RequestQuerySnapshotViewSet, self).retrieve(request, *args, **kwargs)
 
     @swagger_auto_schema(method='post',
                          operation_summary="Share RequestQuerySnapshot with a User by creating a new Request in its Shared Folder.\n"
