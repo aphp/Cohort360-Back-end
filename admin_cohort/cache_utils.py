@@ -9,6 +9,8 @@ from admin_cohort.models import User
 
 _logger = logging.getLogger("info")
 
+RETRIEVE_ACTION = "retrieve"
+
 
 class CustomCacheResponse(CacheResponse):
     def process_cache_response(self, view_instance, view_method, request, args, kwargs):
@@ -22,7 +24,7 @@ cache_response = CustomCacheResponse
 
 def construct_cache_key(view_instance=None, view_method=None, request=None, *args, **kwargs):
     key = f"{request.user.provider_username}.{view_instance.__class__.__name__}.{view_method.__name__}"
-    if view_instance.action == "retrieve":
+    if view_instance.action == RETRIEVE_ACTION:
         lookup_field = view_instance.lookup_field
         record_id = view_instance.kwargs.get(lookup_field)
         key = f"{key}.{lookup_field}.{record_id}"

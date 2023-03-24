@@ -21,10 +21,6 @@ class RequestQuerySnapshot(CohortBaseModel):
     is_active_branch = models.BooleanField(default=True)
     shared_by = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='shared_query_snapshots',
                                   null=True, default=None)
-    # unused, untested
-    saved = models.BooleanField(default=False)
-    refresh_every_seconds = models.BigIntegerField(default=0)
-    refresh_create_cohort = models.BooleanField(default=False)
     perimeters_ids = ArrayField(models.CharField(max_length=15), null=True, blank=True)
 
     @property
@@ -60,9 +56,6 @@ class RequestQuerySnapshot(CohortBaseModel):
                                         'owner': dct_recipients[o],
                                         'previous_snapshot': None,
                                         'is_active_branch': True,
-                                        'saved': False,
-                                        'refresh_every_seconds': 0,
-                                        'refresh_create_cohort': False,
                                         'request': r
                                         })
                 for (o, r) in dct_requests.items()]
@@ -78,11 +71,3 @@ class RequestQuerySnapshot(CohortBaseModel):
         except json.decoder.JSONDecodeError as e:
             raise ValueError(f"serialized_query is not a valid JSON {e}")
         super(RequestQuerySnapshot, self).save(*args, **kwargs)
-
-    def save_snapshot(self):
-        previous_saved = self.request.saved_snapshot
-        if previous_saved is not None:
-            previous_saved.saved = False
-            previous_saved.save()
-        self.saved = True
-        self.save()
