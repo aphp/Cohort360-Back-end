@@ -147,8 +147,9 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
         elif 'cohort_id' in request.data:
             try:
                 request.data['cohort'] = CohortResult.objects.get(fhir_group_id=request.data.get('cohort_id')).uuid
-            except Exception:
-                pass
+            except (CohortResult.DoesNotExist, CohortResult.MultipleObjectsReturned) as e:
+                return Response(data=f"Error retrieving cohort with id {request.data.get('cohort_id')}-{e}",
+                                status=status.HTTP_400_BAD_REQUEST)
         else:
             return Response(data="'cohort_fk' or 'cohort_id' is required",
                             status=status.HTTP_400_BAD_REQUEST)
