@@ -116,8 +116,8 @@ MIDDLEWARE = ['admin_cohort.middleware.influxdb_middleware.InfluxDBMiddleware',
               'django.contrib.auth.middleware.AuthenticationMiddleware',
               'django.contrib.messages.middleware.MessageMiddleware',
               'django.middleware.clickjacking.XFrameOptionsMiddleware',
-              'admin_cohort.middleware.MaintenanceModeMiddleware.MaintenanceModeMiddleware',
-              'admin_cohort.middleware.AuthMiddleware.CustomJwtSessionMiddleware']
+              'admin_cohort.middleware.maintenance_middleware.MaintenanceModeMiddleware',
+              'admin_cohort.middleware.auth_middleware.CustomJwtSessionMiddleware']
 
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 

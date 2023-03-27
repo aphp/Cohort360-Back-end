@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 
 from rest_framework.test import APIRequestFactory
 
-from admin_cohort.middleware.AuthMiddleware import CustomJwtSessionMiddleware
+from admin_cohort.middleware.auth_middleware import CustomJwtSessionMiddleware
 from admin_cohort.settings import JWT_ACCESS_COOKIE, JWT_REFRESH_COOKIE
 
 
