@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from admin_cohort import app
-from admin_cohort.cache_utils import cache_response, invalidate_cache
+from admin_cohort.cache_utils import cache_response, flush_cache
 from admin_cohort.types import JobStatus
 from cohort.conf_cohort_job_api import get_authorization_header, cancel_job
 from cohort.models import DatedMeasure, RequestQuerySnapshot
@@ -95,7 +95,7 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             return Response(data={'message': "Cannot delete a DatedMeasure bound to a CohortResult"},
                             status=status.HTTP_403_FORBIDDEN)
         response = super(DatedMeasureViewSet, self).destroy(request, *args, **kwargs)
-        invalidate_cache(view_instance=self, user=request.user)
+        flush_cache(view_instance=self, user=request.user)
         return response
 
     @action(methods=['patch'], detail=True, url_path='abort')

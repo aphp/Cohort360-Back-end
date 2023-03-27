@@ -18,7 +18,7 @@ from admin_cohort.permissions import IsAuthenticated
 from admin_cohort.settings import PERIMETERS_TYPES
 from admin_cohort.tools import join_qs
 from admin_cohort.views import BaseViewset, CustomLoggingMixin
-from admin_cohort.cache_utils import invalidate_cache, cache_response
+from admin_cohort.cache_utils import flush_cache, cache_response
 from ..models import Role, Access, get_user_valid_manual_accesses_queryset, intersect_queryset_criteria, build_data_rights, Profile
 from ..permissions import AccessPermissions
 from ..serializers import AccessSerializer, DataRightSerializer
@@ -181,7 +181,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
         data['perimeter_id'] = data.get('perimeter_id', data.get('care_site_id'))
         response = super(AccessViewSet, self).create(request, *args, **kwargs)
         user = Profile.objects.get(pk=data['profile_id']).user
-        invalidate_cache(view_instance=self, user=user)
+        flush_cache(view_instance=self, user=user)
         return response
 
     @swagger_auto_schema(request_body=openapi.Schema(
@@ -203,7 +203,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
     def update(self, request, *args, **kwargs):
         response = super(AccessViewSet, self).update(request, *args, **kwargs)
         user = self.get_object().profile.user
-        invalidate_cache(view_instance=self, user=user)
+        flush_cache(view_instance=self, user=user)
         return response
 
     @swagger_auto_schema(request_body=openapi.Schema(type=openapi.TYPE_STRING, properties={}),
@@ -232,7 +232,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
                 return Response(data="L'accès est déjà/a déjà été activé, il ne peut plus être supprimé.",
                                 status=status.HTTP_403_FORBIDDEN)
         self.perform_destroy(access)
-        invalidate_cache(view_instance=self, user=user)
+        flush_cache(view_instance=self, user=user)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @swagger_auto_schema(method='get', operation_summary="Get the authenticated user's valid accesses.")
