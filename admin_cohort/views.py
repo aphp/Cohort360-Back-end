@@ -395,4 +395,7 @@ class UserViewSet(YarnReadOnlyViewsetMixin, BaseViewset):
                                                       openapi.TYPE_STRING],
                                                      ["page", "A page number within the paginated result set.", openapi.TYPE_INTEGER]])))
     def list(self, request, *args, **kwargs):
+        if 'provider_source_value' in self.request.GET:
+            request.GET._mutable = True
+            self.request.GET['provider_username'] = self.request.GET.get('provider_source_value')
         return super(UserViewSet, self).list(request, *args, **kwargs)
