@@ -169,23 +169,23 @@ class ExportRequestSerializer(serializers.ModelSerializer):
         output_format = validated_data.get('output_format')
         validated_data['motivation'] = validated_data.get('motivation', "").replace("\n", " -- ")
 
-        if output_format in [ExportType.HIVE, ExportType.PSQL]:
-            self.validate_sql_hive(validated_data, creator_is_reviewer)
+        if output_format == ExportType.HIVE:
+            self.validate_hive(validated_data, creator_is_reviewer)
         else:
             self.validate_csv(validated_data)
 
         tables = validated_data.pop("tables", [])
-        er = super(ExportRequestSerializer, self).create(validated_data)
-        self.create_tables(tables, er)
+        export_request = super(ExportRequestSerializer, self).create(validated_data)
+        self.create_tables(tables, export_request)
         try:
             from exports.tasks import launch_request
-            launch_request.delay(er.id)
+            launch_request.delay(export_request.id)
         except Exception as e:
-            er.request_job_status = JobStatus.failed
-            er.request_job_fail_msg = f"INTERNAL ERROR: Could not launch Celery task: {e}"
-        return er
+            export_request.request_job_status = JobStatus.failed
+            export_request.request_job_fail_msg = f"INTERNAL ERROR: Could not launch Celery task: {e}"
+        return export_request
 
-    def validate_sql_hive(self, validated_data, creator_is_reviewer: bool):
+    def validate_hive(self, validated_data, creator_is_reviewer: bool):
         target_unix_account = validated_data.get('target_unix_account')
         if not target_unix_account:
             raise ValidationError("Pour une demande d'export HIVE, il faut fournir target_unix_account")
@@ -208,12 +208,7 @@ class ExportRequestSerializer(serializers.ModelSerializer):
             raise ValidationError(f"Dans le cas d'une demande d'export CSV, vous ne pouvez pas "
                                   f"générer de demande d'export pour un autre provider_id que le vôtre."
                                   f"Vous êtes connectés en tant que {creator.displayed_name}")
-        if not validated_data.get('nominative'):
-            raise ValidationError("Actuellement, la demande d'export CSV en pseudo-anonymisée n'est pas possible.")
         self.validate_owner_rights(validated_data)
-
-    def update(self, instance, validated_data):
-        raise ValidationError("Update is not authorized. Please use urls /deny or /validate")
 
 
 class OwnedCohortPrimaryKeyRelatedField(serializers.PrimaryKeyRelatedField):

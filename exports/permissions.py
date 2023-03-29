@@ -6,11 +6,11 @@ from admin_cohort.permissions import user_is_authenticated, get_bound_roles
 from exports.types import ExportType
 
 
-def can_export_psql_nomi(user: User):
+def can_export_jupyter_nomi(user: User):
     return any([r.right_transfer_jupyter_nominative for r in get_bound_roles(user)])
 
 
-def can_export_psql_pseudo(user: User):
+def can_export_jupyter_pseudo(user: User):
     return any([r.right_transfer_jupyter_pseudo_anonymised for r in get_bound_roles(user)])
 
 
@@ -32,7 +32,7 @@ class ExportJupyterPermissions(permissions.BasePermission):
               "without an access with right_review_transfer_jupyter."
 
     def has_permission(self, request, view):
-        output_format = request.data.get('output_format', None)
+        output_format = request.data.get('output_format')
 
         if request.method == "POST" and output_format != ExportType.CSV:
             owner_id = request.data.get('owner',
@@ -46,10 +46,10 @@ class ExportRequestPermissions(permissions.BasePermission):
     def has_permission(self, request, view):
         if request.method == "POST":
             if request.data.get('nominative', False):
-                if not can_export_psql_nomi(request.user):
+                if not can_export_jupyter_nomi(request.user):
                     raise PermissionDenied("L'utilisateur destinataire n'a pas le droit d'export nominatif")
             else:
-                if not can_export_psql_pseudo(request.user):
+                if not can_export_jupyter_pseudo(request.user):
                     raise PermissionDenied("L'utilisateur destinataire n'a pas le droit d'export pseudonymisé")
 
         return user_is_authenticated(request.user)

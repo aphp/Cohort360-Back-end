@@ -95,7 +95,7 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
         if can_review_export_csv(reviewer):
             types.append(ExportType.CSV)
         if can_review_transfer_jupyter(reviewer):
-            types.extend([ExportType.PSQL, ExportType.HIVE])
+            types.append(ExportType.HIVE)
         return q.filter(owner=self.request.user) | q.filter(output_format__in=types)
 
     @swagger_auto_schema(responses={'200': openapi.Response("List of export requests", ExportRequestListSerializer()),

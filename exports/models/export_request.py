@@ -7,8 +7,7 @@ from exports.types import ExportType
 from workspaces.models import Account
 
 OUTPUT_FORMATS = [(ExportType.CSV.value, ExportType.CSV.value),
-                  (ExportType.HIVE.value, ExportType.HIVE.value),
-                  (ExportType.PSQL.value, ExportType.PSQL.value)]
+                  (ExportType.HIVE.value, ExportType.HIVE.value)]
 
 
 class ExportRequest(JobModelWithReview, BaseModel, models.Model):

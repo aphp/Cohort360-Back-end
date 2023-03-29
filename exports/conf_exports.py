@@ -17,15 +17,10 @@ from exports.types import ApiJobResponse, HdfsServerUnreachableError, ExportType
 
 _logger = logging.getLogger('info')
 _logger_err = logging.getLogger('django.request')
-
-
 env = os.environ
-
-# EXPORTS JOBS ################################################################
 
 INFRA_EXPORT_TOKEN = env.get('INFRA_EXPORT_TOKEN')
 INFRA_HADOOP_TOKEN = env.get('INFRA_HADOOP_TOKEN')
-
 INFRA_API_URL = env.get('INFRA_API_URL')
 EXPORT_HIVE_URL = f"{INFRA_API_URL}/bigdata/data_exporter/hive/"
 EXPORT_CSV_URL = f"{INFRA_API_URL}/bigdata/data_exporter/csv/"
@@ -37,44 +32,21 @@ HIVE_EXPORTER_USER = env.get('HIVE_EXPORTER_USER')
 OMOP_ENVIRONMENT = env.get('EXPORT_OMOP_ENVIRONMENT')
 
 
-class ApiJobStatuses(enum.Enum):
-    pending = 'PENDING'     # Task state is unknown (assumed pending since you know the id).
-    received = 'RECEIVED'   # Task was received by a worker (only used in events).
-    started = 'STARTED'     # Task was started by a worker (:setting:`task_track_started`).
-    success = 'SUCCESS'     # Task succeeded
-    failure = 'FAILURE'     # Task failed
-    revoked = 'REVOKED'     # Task was revoked.
-    rejected = 'REJECTED'   # Task was rejected (only used in events).
-    retry = 'RETRY'         # Task is waiting for retry.
+class ApiJobStatus(enum.Enum):
+    pending = 'PENDING'
+    received = 'RECEIVED'
+    started = 'STARTED'
+    success = 'SUCCESS'
+    failure = 'FAILURE'
+    revoked = 'REVOKED'
+    rejected = 'REJECTED'
+    retry = 'RETRY'
     ignored = 'IGNORED'
-
-
-dct_api_to_job_status = {ApiJobStatuses.pending.value: JobStatus.pending,
-                         ApiJobStatuses.received.value: JobStatus.pending,
-                         ApiJobStatuses.started.value: JobStatus.started,
-                         ApiJobStatuses.success.value: JobStatus.finished,
-                         ApiJobStatuses.failure.value: JobStatus.failed,
-                         ApiJobStatuses.revoked.value: JobStatus.cancelled,
-                         ApiJobStatuses.rejected.value: JobStatus.failed,
-                         ApiJobStatuses.retry.value: JobStatus.pending,
-                         ApiJobStatuses.ignored.value: JobStatus.failed}
-
-# TOOLS ###############################################################
-
-
-def log_export_request_task(id, msg):
-    _logger.info(f"[ExportTask] [ExportRequest: {id}] {msg}")
-
-
-def build_location(db_name: str) -> str:
-    return f"{HIVE_DB_FOLDER}/{db_name}.db"
-
-# API RESPONSES ###############################################################
 
 
 class JobResult:
     def __init__(self, **kwargs):
-        self.status: ApiJobStatuses = ApiJobStatuses[kwargs.get('status')]
+        self.status: ApiJobStatus = ApiJobStatus[kwargs.get('status')]
         self.ret_code: int = kwargs.get('ret_code')
         self.out: str = kwargs.get('out')
         self.err: str = kwargs.get('err')
@@ -115,6 +87,25 @@ class HadoopApiResponse:
                f"err returned is : {self.err}"
 
 
+statuses_mapper = {ApiJobStatus.pending.value: JobStatus.pending,
+                   ApiJobStatus.received.value: JobStatus.pending,
+                   ApiJobStatus.started.value: JobStatus.started,
+                   ApiJobStatus.success.value: JobStatus.finished,
+                   ApiJobStatus.failure.value: JobStatus.failed,
+                   ApiJobStatus.revoked.value: JobStatus.cancelled,
+                   ApiJobStatus.rejected.value: JobStatus.failed,
+                   ApiJobStatus.retry.value: JobStatus.pending,
+                   ApiJobStatus.ignored.value: JobStatus.failed}
+
+
+def log_export_request_task(id, msg):
+    _logger.info(f"[ExportTask] [ExportRequest: {id}] {msg}")
+
+
+def build_location(db_name: str) -> str:
+    return f"{HIVE_DB_FOLDER}/{db_name}.db"
+
+
 def check_resp(resp: Response, url: str) -> Dict:
     if not status.is_success(resp.status_code):
         raise HTTPError(f"Connection error ({url}) : status code {resp.text}")
@@ -124,14 +115,7 @@ def check_resp(resp: Response, url: str) -> Dict:
 
 
 def post_hadoop(url: str, data: dict):
-    """
-    Given a particular Url, will follow Infra API/hadoop's convention
-    and auth token to post data and process the response
-    @param url: actual url to use
-    @param data: data to post
-    @return:
-    """
-    resp = requests.post(url, params=data, headers={'auth-token': INFRA_HADOOP_TOKEN})
+    resp = requests.post(url=url, params=data, headers={'auth-token': INFRA_HADOOP_TOKEN})
     resp.raise_for_status()
     if status.is_success(resp.status_code):
         res = HadoopApiResponse(**resp.json())
@@ -152,74 +136,52 @@ def get_job_status(export_job_id: str) -> ApiJobResponse:
     resp = requests.get(url=JOB_STATUS_URL, params=params, headers={'auth-token': INFRA_EXPORT_TOKEN})
     res = check_resp(resp, JOB_STATUS_URL)
     jsr = JobStatusResponse(**res)
-    j_status = dct_api_to_job_status.get(jsr.task_status, JobStatus.unknown)
+    job_status = statuses_mapper.get(jsr.task_status, JobStatus.unknown)
 
     err = ""
-    if j_status == JobStatus.unknown:
+    if job_status == JobStatus.unknown:
         err = f"Job status unknown : {jsr.task_status}."
         if jsr.task_result:
             jsr.task_result.err = err
     if jsr.task_result:
         err = f"{jsr.task_result.ret_code} - {jsr.task_result.err}"
     output = jsr.task_result and jsr.task_result.out or ""
-    return ApiJobResponse(status=j_status, output=output, err=err)
+    return ApiJobResponse(status=job_status, output=output, err=err)
 
 # PROCESSES ###############################################################
 
 
+def change_hive_db_ownership(er: ExportRequest, db_user: str):
+    location = build_location(er.target_name)
+    log_export_request_task(er.id, f"Granting rights on DB '{er.target_name}' to user '{db_user}'")
+    data = {"location": location,
+            "uid": db_user,
+            "gid": "hdfs",
+            "recursive": True}
+    try:
+        post_hadoop(url=HADOOP_CHOWN_DB_URL, data=data)
+    except RequestException as e:
+        raise RequestException(f"Error granting rights on DB '{er.target_name}'") from e
+
+
 def prepare_hive_db(er: ExportRequest):
-    """
-    Ask Infra API to create a database that will receive exported data, and
-    grants Infra server's user ownership of it to allow exporting
-    @param er:
-    @return:
-    """
     location = build_location(er.target_name)
     log_export_request_task(er.id, f"Creating DB with name '{er.target_name}', location: {location}")
-
+    data = {"name": er.target_name,
+            "location": location,
+            "if_not_exists": False}
     try:
-        data = {"name": er.target_name,
-                "location": location,
-                "if_not_exists": False}
         post_hadoop(url=HADOOP_NEW_DB_URL, data=data)
+        log_export_request_task(er.id, f"DB '{er.target_name}' created.")
     except RequestException as e:
         _logger_err.error(f"Error on call to prepare Hive DB. {e}")
 
-    log_export_request_task(er.id, f"DB '{er.target_name}' created. Now granting rights to {HIVE_EXPORTER_USER}.")
-
-    try:
-        data = {"location": location,
-                "uid": HIVE_EXPORTER_USER,
-                "gid": "hdfs",
-                "recursive": True}
-        post_hadoop(url=HADOOP_CHOWN_DB_URL, data=data)
-    except RequestException as e:
-        raise RequestException(f"Error while attributing rights on DB '{er.target_name}'") from e
-
-    log_export_request_task(er.id, f"DB '{er.target_name}' attributed to {HIVE_EXPORTER_USER} and HDFS."
-                                   f"Now asking for export.")
-
-
-def prepare_for_export(er: ExportRequest):
-    """
-    If needed, do some preprocess for the data to be exported
-    @param er:
-    @return:
-    """
-    if er.output_format == ExportType.HIVE:
-        prepare_hive_db(er)
-    else:
-        return
+    change_hive_db_ownership(er=er, db_user=HIVE_EXPORTER_USER)
+    log_export_request_task(er.id, f"DB '{er.target_name}' attributed to {HIVE_EXPORTER_USER} and HDFS.")
 
 
 def post_export(er: ExportRequest) -> str:
-    """
-    Starts the job to realise the Export
-    @param er:
-    @return:
-    """
-    log_export_request_task(er.id, f"Asking to export for {er.target_name}")
-
+    log_export_request_task(er.id, f"Asking to export for '{er.target_name}'")
     tables = ",".join([t.omop_table_name for t in er.tables.all()])
     params = {"cohort_id": er.cohort_fk.fhir_group_id,
               "tables": tables,
@@ -234,48 +196,14 @@ def post_export(er: ExportRequest) -> str:
     else:
         url = EXPORT_CSV_URL
         params.update({"file_path": er.target_full_path})
-    resp = requests.post(url, params=params, headers={'auth-token': INFRA_EXPORT_TOKEN})
+    resp = requests.post(url=url, params=params, headers={'auth-token': INFRA_EXPORT_TOKEN})
     res = check_resp(resp, url)
     return PostJobResponse(**res).task_id
 
 
 def conclude_export_hive(er: ExportRequest):
-    """
-    Allocates the owner of the export request ownership of the Database thas
-    was created to receive the data from export
-    @param er:
-    @return:
-    """
-    location = build_location(er.target_name)
-    log_export_request_task(er.id, f"Allocating database rights with name '{er.target_name} to user "
-                                   f"{er.target_unix_account.name}'")
-    try:
-        data = {"location": location,
-                "uid": er.target_unix_account.name,
-                "gid": "hdfs",
-                "recursive": True}
-        post_hadoop(url=HADOOP_CHOWN_DB_URL, data=data)
-    except RequestException as e:
-        raise RequestException(f"Error while attributing rights on database '{er.target_name}'") from e
-
-    log_export_request_task(er.id, f"DB '{er.target_name}' attributed to {er.target_unix_account.name}."
-                                   f"Conclusion finished.")
-
-
-def conclude_export_csv(er: ExportRequest):
-    return
-
-
-def conclude_export(er: ExportRequest):
-    """
-    If needed, do some postprocess for the data that was exported
-    @param er:
-    @return:
-    """
-    if er.output_format == ExportType.HIVE:
-        conclude_export_hive(er)
-    else:
-        conclude_export_csv(er)
+    change_hive_db_ownership(er=er, db_user=er.target_unix_account.name)
+    log_export_request_task(er.id, f"DB '{er.target_name}' attributed to {er.target_unix_account.name}. Conclusion finished.")
 
 
 # FHIR PERIMETERS #############################################################
