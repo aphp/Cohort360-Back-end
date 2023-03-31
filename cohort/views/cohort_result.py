@@ -102,7 +102,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     pagination_class = LimitOffsetPagination
     filterset_class = CohortFilter
     search_fields = ('$name', '$description')
-    flush_cache_actions = ("create", "update", "destroy")
+    flush_cache_actions = ("create", "partial_update", "destroy")
 
     def dispatch(self, request, *args, **kwargs):
         response = super(CohortResultViewSet, self).dispatch(request, *args, **kwargs)

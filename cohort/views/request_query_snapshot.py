@@ -36,7 +36,6 @@ class RequestQuerySnapshotViewSet(NestedViewSetMixin, UserObjectsRestrictedViewS
     filterset_class = RQSFilter
     search_fields = ('$serialized_query',)
 
-    @cache_response()
     def retrieve(self, request, *args, **kwargs):
         return super(RequestQuerySnapshotViewSet, self).retrieve(request, *args, **kwargs)
 
