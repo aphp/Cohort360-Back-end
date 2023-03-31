@@ -176,7 +176,7 @@ def verify_jwt(access_token: str, auth_method: str = JWT_AUTH_MODE) -> Union[Non
                         firstname=decoded['name'],
                         key=key)
     else:
-        raise ValueError(f"Invalid authentication method: {auth_method}")
+        raise ValueError(f"Invalid authentication method : {auth_method}")
 
 
 def refresh_jwt(refresh) -> JwtTokens:
