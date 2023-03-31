@@ -81,7 +81,6 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                 return HttpResponseServerError()
         return self.create(request, *args, **kwargs)
 
-    @cache_response()
     def retrieve(self, request, *args, **kwargs):
         return super(DatedMeasureViewSet, self).retrieve(request, *args, **kwargs)
 

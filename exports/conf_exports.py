@@ -301,23 +301,16 @@ def get_client():
         return cl
 
 
-def build_path(file_name: str) -> str:
-    return file_name
-
-
 def stream_gen(file_name: str):
-    file_path = build_path(file_name)
-    with get_client().read(hdfs_path=file_path, offset=0, length=None, encoding=None, chunk_size=1000000,
+    with get_client().read(hdfs_path=file_name, offset=0, length=None, encoding=None, chunk_size=1000000,
                            delimiter=None, progress=None) as f:
         for chunk in f:
             yield chunk
 
 
 def get_file_size(file_name: str) -> int:
-    file_path = build_path(file_name)
-    return get_client().status(file_path).get("length")
+    return get_client().status(hdfs_path=file_name).get("length")
 
 
 def delete_file(file_name: str):
-    file_path = build_path(file_name)
-    get_client().delete(file_path)
+    get_client().delete(hdfs_path=file_name)

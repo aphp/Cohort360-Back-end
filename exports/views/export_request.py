@@ -141,39 +141,33 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         # Local imports for mocking these functions during tests
         from exports.emails import email_info_request_confirmed
+        request_maker: User = request.user
+        check_email_address(request_maker.email)
+        data = request.data
 
-        if 'cohort_fk' in request.data:
-            request.data['cohort'] = request.data.get('cohort_fk')
-        elif 'cohort_id' in request.data:
+        if 'cohort_fk' in data:
+            data['cohort'] = data.get('cohort_fk')
+        elif 'cohort_id' in data:
             try:
-                request.data['cohort'] = CohortResult.objects.get(fhir_group_id=request.data.get('cohort_id')).uuid
-            except Exception:
-                pass
+                data['cohort'] = CohortResult.objects.get(fhir_group_id=data.get('cohort_id')).uuid
+            except (CohortResult.DoesNotExist, CohortResult.MultipleObjectsReturned) as e:
+                return Response(data=f"Error retrieving cohort with id {request.data.get('cohort_id')}-{e}",
+                                status=status.HTTP_400_BAD_REQUEST)
         else:
             return Response(data="'cohort_fk' or 'cohort_id' is required",
                             status=status.HTTP_400_BAD_REQUEST)
 
-        creator: User = request.user
-        check_email_address(creator)
-
-        owner_id = request.data.get('owner', request.data.get('provider_source_value', creator.pk))
-        request.data['owner'] = owner_id
-
-        # to deprecate
-        try:
-            request.data['provider_id'] = User.objects.get(pk=owner_id).provider_id
-        except User.DoesNotExist:
-            pass
-
-        request.data['provider_source_value'] = owner_id
-        request.data['creator_fk'] = creator.pk
-        request.data['owner'] = request.data.get('owner', creator.pk)
+        owner_id = data.get('provider_source_value', request_maker.pk)
+        data['owner'] = owner_id
+        data['provider_id'] = User.objects.get(pk=owner_id).provider_id
+        data['provider_source_value'] = owner_id
+        data['creator_fk'] = request_maker.pk
 
         response = super(ExportRequestViewSet, self).create(request, *args, **kwargs)
         flush_cache(view_instance=self, user=request.user)
-        if response.status_code == http.HTTPStatus.CREATED and response.data["request_job_status"] != JobStatus.failed:
+        if response.status_code == status.HTTP_201_CREATED and response.data["request_job_status"] != JobStatus.failed:
             try:
-                email_info_request_confirmed(response.data.serializer.instance, creator.email)
+                email_info_request_confirmed(response.data.serializer.instance, request_maker.email)
             except Exception as e:
                 response.data['warning'] = f"L'email de confirmation n'a pas pu être envoyé à cause de l'erreur: {e}"
         return response
@@ -183,17 +177,13 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
         req: ExportRequest = self.get_object()
         if req.request_job_status != JobStatus.finished:
             return HttpResponse("The export request you asked for is not done yet or has failed.",
-                                status=http.HTTPStatus.FORBIDDEN)
+                                status=status.HTTP_403_FORBIDDEN)
         if req.output_format != ExportType.CSV:
             return HttpResponse(f"Can only download results of {ExportType.CSV} type. Got {req.output_format} instead",
-                                status=http.HTTPStatus.FORBIDDEN)
-        user: User = self.request.user
+                                status=status.HTTP_403_FORBIDDEN)
+        user: User = request.user
         if req.owner.pk != user.pk:
             raise PermissionDenied("L'utilisateur n'est pas à l'origine de l'export")
-
-        # start_bytes = re.search(r'bytes=(\d+)-',
-        #                         request.META.get('HTTP_RANGE', ''), re.S)
-        # start_bytes = int(start_bytes.group(1)) if start_bytes else 0
         try:
             response = StreamingHttpResponse(conf_exports.stream_gen(req.target_full_path))
             resp_size = conf_exports.get_file_size(req.target_full_path)
@@ -201,13 +191,10 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
             response['Content-Type'] = 'application/zip'
             response['Content-Length'] = resp_size
             response['Content-Disposition'] = f"attachment; filename=export_{req.cohort_id}.zip"
-            # response['Content-Range'] = 'bytes %d-%d/%d' % (
-            #     start_bytes, resp_size, resp_size
-            # )
             return response
         except HdfsError as e:
             _logger.exception(e.message)
-            return HttpResponse(e.message, status=http.HTTPStatus.INTERNAL_SERVER_ERROR)
+            return HttpResponse(e.message, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except conf_exports.HdfsServerUnreachableError:
             return HttpResponse("HDFS servers are unreachable or in stand-by",
-                                status=http.HTTPStatus.INTERNAL_SERVER_ERROR)
+                                status=status.HTTP_500_INTERNAL_SERVER_ERROR)

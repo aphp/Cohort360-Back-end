@@ -88,13 +88,11 @@ def get_base_templates() -> Tuple[str, str]:
     return html_content, txt_content
 
 
-def check_email_address(user: User):
-    if not user.email:
-        raise ValidationError(f"No email address is configured for user {user.displayed_name}. "
-                              f"Please contact an administrator")
-    if not re.match(EMAIL_REGEX_CHECK, user.email):
-        raise ValidationError(f"Invalid email address ({user.email}). Must match the RegEx {EMAIL_REGEX_CHECK}. "
-                              f"Please contact an administrator.")
+def check_email_address(email: str):
+    if not email:
+        raise ValidationError(f"No email address is configured. Please contact an administrator")
+    if not re.match(EMAIL_REGEX_CHECK, email):
+        raise ValidationError(f"Invalid email address '{email}'. Please contact an administrator.")
 
 
 def send_failed_email(req: ExportRequest, to_address: str):
@@ -131,12 +129,13 @@ def send_success_email(req: ExportRequest, to_address: str):
 
 
 def email_info_request_done(req: ExportRequest):
-    check_email_address(req.owner)
+    email = req.creator_fk.email
+    check_email_address(email)
     try:
         if req.request_job_status == JobStatus.finished:
-            send_success_email(req, req.owner.email)
+            send_success_email(req, email)
         elif req.request_job_status in [JobStatus.failed, JobStatus.cancelled]:
-            send_failed_email(req, req.owner.email)
+            send_failed_email(req, email)
     except (SMTPException, TimeoutError):
         except_msg = f"Could not send export email - request status was '{req.request_job_status}'"
         _logger.exception(f"{except_msg} - Mark it as '{JobStatus.failed}'")
