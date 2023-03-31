@@ -9,7 +9,6 @@ from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
-from admin_cohort.cache_utils import cache_response
 from admin_cohort.models import User
 from cohort.models import RequestQuerySnapshot
 from cohort.permissions import IsOwner
