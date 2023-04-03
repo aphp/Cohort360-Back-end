@@ -435,7 +435,7 @@ class AccessSerializer(BaseSerializer):
 class DataRightSerializer(serializers.Serializer):
     perimeter_id = serializers.CharField(read_only=True, allow_null=True)
     care_site_id = serializers.IntegerField(read_only=True, allow_null=True)
-    provider_id = serializers.IntegerField(read_only=True, allow_null=True)
+    provider_id = serializers.CharField(read_only=True, allow_null=True)
     care_site_history_ids = serializers.ListSerializer(child=serializers.IntegerField(read_only=True, allow_null=True), allow_empty=True)
     access_ids = serializers.ListSerializer(child=serializers.IntegerField(read_only=True, allow_null=True), allow_empty=True)
     right_read_patient_nominative = serializers.BooleanField(read_only=True, allow_null=True)
@@ -449,7 +449,7 @@ class DataRightSerializer(serializers.Serializer):
 
 class DataReadRightSerializer(serializers.Serializer):
     user_id = serializers.CharField(read_only=True, allow_null=True)
-    provider_id = serializers.IntegerField(read_only=True, allow_null=True)
+    provider_id = serializers.CharField(read_only=True, allow_null=True)
     perimeter = PerimeterLiteSerializer(allow_null=True, required=False)
     right_read_patient_nominative = serializers.BooleanField(read_only=True, allow_null=True)
     right_read_patient_pseudo_anonymised = serializers.BooleanField(read_only=True, allow_null=True)

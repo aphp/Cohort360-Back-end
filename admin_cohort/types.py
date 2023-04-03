@@ -33,11 +33,11 @@ class JwtTokens:
 
 
 class UserInfo:
-    def __init__(self, username: str, email: str, firstname: str, lastname: str, **kwargs):
+    def __init__(self, username: str, firstname: str, lastname: str, email: str = "", **kwargs):
         self.username = username
-        self.email = email
         self.firstname = firstname
         self.lastname = lastname
+        self.email = email or f"{firstname}.{lastname}@aphp.fr"
 
 
 class JobStatus(StrEnum):
