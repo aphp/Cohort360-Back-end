@@ -102,7 +102,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     pagination_class = LimitOffsetPagination
     filterset_class = CohortFilter
     search_fields = ('$name', '$description')
-    flush_cache_actions = ("create", "partial_update", "destroy")
+    flush_cache_actions = ("create", "destroy")
 
     def dispatch(self, request, *args, **kwargs):
         response = super(CohortResultViewSet, self).dispatch(request, *args, **kwargs)
@@ -225,6 +225,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                     _logger_err.exception(f"Cohort [{cohort.uuid}] - Couldn't send email to user after ETL patch: {e}")
                 else:
                     _logger.info(f"Cohort [{cohort.uuid}] successfully updated from ETL")
+        flush_cache(view_instance=self, user=cohort.owner)
         return resp
 
 

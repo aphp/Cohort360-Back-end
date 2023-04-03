@@ -67,6 +67,11 @@ def check_rights_on_perimeters_for_exports(rights: List[DataRight], export_type:
         check_jupyter_export_rights_on_perimeters(rights=rights, is_nomi=is_nomi)
 
 
+def create_export_tables(export_request, tables):
+    for table in tables:
+        ExportRequestTable.objects.create(export_request=export_request, **table)
+
+
 class ReviewFilteredPrimaryKeyRelatedField(serializers.PrimaryKeyRelatedField):
     def get_queryset(self):
         q = super(ReviewFilteredPrimaryKeyRelatedField, self).get_queryset()
@@ -101,11 +106,6 @@ class ExportRequestListSerializer(serializers.ModelSerializer):
 
     def get_target_env(self, er):
         return er.target_unix_account and er.target_unix_account.name or ""
-
-
-def create_export_tables(export_request, tables):
-    for table in tables:
-        ExportRequestTable.objects.create(export_request=export_request, **table)
 
 
 class ExportRequestSerializer(serializers.ModelSerializer):
