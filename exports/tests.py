@@ -780,27 +780,12 @@ class ExportsCsvCreateTests(ExportsCreateTests):
         )
         self.check_create_case(case)
 
-    def test_error_create_csv_other_user_cohort_owned(self):
-        # As a user, I cannot create an export request
-        _, _, _, _, other_user_cohort = new_cohort_result(
-            owner=self.user_with_no_right)
-        case = self.err_basic_case.clone(
-            data={**self.basic_data, 'owner': self.user2.pk,
-                  'cohort': self.user2_cohort.pk},
-            created=False,
-            user=self.user1,
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-        self.check_create_case(case)
-
     def test_error_create_csv_other_user_cohort_not_owned(self):
-        # As a user, I cannot create an export request
-        _, _, _, _, other_user_cohort = new_cohort_result(
-            owner=self.user_with_no_right)
+        # As a user, I cannot create an export request for a cohort I don't own
         case = self.err_basic_case.clone(
-            data={**self.basic_data, 'owner': self.user2.pk},
+            data={**self.basic_data},
             created=False,
-            user=self.user1,
+            user=self.user2,
             status=status.HTTP_400_BAD_REQUEST,
         )
         self.check_create_case(case)
@@ -966,8 +951,9 @@ class ExportsJupCreateTests(ExportsCreateTests):
     def test_error_create_jup_other_recipient_without_rev_access(self):
         # As a user, I cannot create an export request for another owner
         self.check_create_case(self.err_basic_case.clone(
-            data={**self.basic_data, 'owner': self.user2.pk},
+            data={**self.basic_data},
             created=False,
+            user=self.user2,
             status=status.HTTP_400_BAD_REQUEST,
         ))
 
