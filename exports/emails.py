@@ -9,7 +9,6 @@ from django.core.mail import EmailMultiAlternatives
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
-from admin_cohort.models import User
 from admin_cohort.settings import EMAIL_BACK_HOST_URL, EMAIL_SENDER_ADDRESS, EMAIL_SUPPORT_CONTACT, \
     DAYS_TO_DELETE_CSV_FILES, EMAIL_REGEX_CHECK
 from admin_cohort.types import JobStatus
@@ -90,7 +89,7 @@ def get_base_templates() -> Tuple[str, str]:
 
 def check_email_address(email: str):
     if not email:
-        raise ValidationError(f"No email address is configured. Please contact an administrator")
+        raise ValidationError("No email address is configured. Please contact an administrator")
     if not re.match(EMAIL_REGEX_CHECK, email):
         raise ValidationError(f"Invalid email address '{email}'. Please contact an administrator.")
 

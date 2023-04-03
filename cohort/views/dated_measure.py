@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from admin_cohort import app
-from admin_cohort.cache_utils import cache_response, flush_cache
+from admin_cohort.cache_utils import flush_cache
 from admin_cohort.types import JobStatus
 from cohort.conf_cohort_job_api import get_authorization_header, cancel_job
 from cohort.models import DatedMeasure, RequestQuerySnapshot
