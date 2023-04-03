@@ -1,4 +1,3 @@
-import http
 import logging
 
 from django.db.models import Q

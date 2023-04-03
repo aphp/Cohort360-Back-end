@@ -234,6 +234,7 @@ def post_create_cohort(auth_headers: dict, json_query: str, cr_uuid: str) -> CRB
     log_create_task(cr_uuid, "Step 2: Processing CRB response")
     try:
         job = JobResponse(resp, **result)
+        log_create_task(cr_uuid, f"Step 2.x: check job_id in job response: {job.job_id}")
     except ValueError as e:
         return CRBCohortResponse(success=False, fhir_job_status=JobStatus.failed, err_msg=str(e))
 
