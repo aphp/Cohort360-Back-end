@@ -7,6 +7,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
+from admin_cohort.cache_utils import cache_response, flush_cache
 from admin_cohort.permissions import IsAuthenticated
 from admin_cohort.views import BaseViewset, CustomLoggingMixin
 from ..models import Role, get_assignable_roles_on_perimeter, Perimeter
@@ -31,6 +32,17 @@ class RoleViewSet(CustomLoggingMixin, BaseViewset):
     swagger_tags = ['Accesses - roles']
     filterset_class = RoleFilter
     permission_classes = (IsAuthenticated, RolePermissions)
+    flush_cache_actions = ("create", "partial_update", "destroy")
+
+    def dispatch(self, request, *args, **kwargs):
+        response = super(RoleViewSet, self).dispatch(request, *args, **kwargs)
+        if self.action in self.flush_cache_actions:
+            flush_cache(view_instance=self, user=request.user)
+        return response
+
+    @cache_response()
+    def list(self, request, *args, **kwargs):
+        return super(RoleViewSet, self).list(request, *args, **kwargs)
 
     @action(url_path="users", detail=True, methods=['get'], permission_classes=(IsAuthenticated,))
     def users_within_role(self, request, *args, **kwargs):
@@ -59,14 +71,14 @@ class RoleViewSet(CustomLoggingMixin, BaseViewset):
                                                               description="Required", type=openapi.TYPE_INTEGER)])
     @action(url_path="assignable", detail=False, methods=['get'], permission_classes=(IsAuthenticated,))
     def assignable(self, request, *args, **kwargs):
-        perim_id = self.request.GET.get("perimeter_id", self.request.GET.get("care_site_id"))
+        perim_id = request.GET.get("perimeter_id", request.GET.get("care_site_id"))
         if not perim_id:
             raise ValidationError("Missing parameter 'perimeter_id'.")
         perim = Perimeter.objects.filter(id=perim_id).first()
         if not perim:
             raise ValidationError(f"Perimeter with id {perim_id} not found.")
 
-        roles = get_assignable_roles_on_perimeter(self.request.user, perim)
+        roles = get_assignable_roles_on_perimeter(request.user, perim)
         q = Role.objects.filter(id__in=[r.id for r in roles])
         page = self.paginate_queryset(q)
         if page:

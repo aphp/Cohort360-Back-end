@@ -116,8 +116,8 @@ MIDDLEWARE = ['admin_cohort.middleware.influxdb_middleware.InfluxDBMiddleware',
               'django.contrib.auth.middleware.AuthenticationMiddleware',
               'django.contrib.messages.middleware.MessageMiddleware',
               'django.middleware.clickjacking.XFrameOptionsMiddleware',
-              'admin_cohort.middleware.MaintenanceModeMiddleware.MaintenanceModeMiddleware',
-              'admin_cohort.middleware.AuthMiddleware.CustomJwtSessionMiddleware']
+              'admin_cohort.middleware.maintenance_middleware.MaintenanceModeMiddleware',
+              'admin_cohort.middleware.auth_middleware.CustomJwtSessionMiddleware']
 
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
@@ -172,7 +172,7 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'static'
 
 REST_FRAMEWORK = {'DEFAULT_PERMISSION_CLASSES': ('admin_cohort.permissions.IsAuthenticated',),
-                  'DEFAULT_AUTHENTICATION_CLASSES': ['admin_cohort.middleware.AuthMiddleware.CustomAuthentication'],
+                  'DEFAULT_AUTHENTICATION_CLASSES': ['admin_cohort.middleware.auth_middleware.CustomAuthentication'],
                   'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
                   'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema',
                   'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend',

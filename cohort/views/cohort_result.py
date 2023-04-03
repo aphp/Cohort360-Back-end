@@ -15,7 +15,7 @@ from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from accesses.models import get_user_valid_manual_accesses_queryset
-from admin_cohort.cache_utils import cache_response, invalidate_cache
+from admin_cohort.cache_utils import cache_response, flush_cache
 from admin_cohort.settings import SJS_USERNAME, ETL_USERNAME
 from admin_cohort.tools import join_qs
 from admin_cohort.types import JobStatus
@@ -102,12 +102,12 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     pagination_class = LimitOffsetPagination
     filterset_class = CohortFilter
     search_fields = ('$name', '$description')
-    flush_cache_actions = ('create', 'destroy')
+    flush_cache_actions = ("create", "destroy")
 
     def dispatch(self, request, *args, **kwargs):
         response = super(CohortResultViewSet, self).dispatch(request, *args, **kwargs)
         if self.action in self.flush_cache_actions:
-            invalidate_cache(view_instance=self, user=request.user)
+            flush_cache(view_instance=self, user=request.user)
         return response
 
     @cache_response()
@@ -225,7 +225,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                     _logger_err.exception(f"Cohort [{cohort.uuid}] - Couldn't send email to user after ETL patch: {e}")
                 else:
                     _logger.info(f"Cohort [{cohort.uuid}] successfully updated from ETL")
-        invalidate_cache(view_instance=self, user=cohort.owner)
+        flush_cache(view_instance=self, user=cohort.owner)
         return resp
 
 

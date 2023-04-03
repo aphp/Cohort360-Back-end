@@ -4,7 +4,6 @@ from admin_cohort.types import StrEnum, JobStatus
 class ExportType(StrEnum):
     CSV: str = "csv"
     HIVE: str = "hive"
-    PSQL: str = "psql"
 
 
 class ApiJobResponse:

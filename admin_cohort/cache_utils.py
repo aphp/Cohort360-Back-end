@@ -32,7 +32,7 @@ def construct_cache_key(view_instance=None, view_method=None, request=None, *arg
     return key
 
 
-def invalidate_cache(view_instance: APIView, user: User):
+def flush_cache(view_instance: APIView, user: User):
     user_viewset_keys = f"{user.provider_username}.{view_instance.__class__.__name__}.*"
     cache.delete_pattern(user_viewset_keys)
     _logger.info(f"Cache flushed for user {user} on ViewSet {view_instance.__class__.__name__}")

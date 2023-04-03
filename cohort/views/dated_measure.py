@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from admin_cohort import app
-from admin_cohort.cache_utils import invalidate_cache
+from admin_cohort.cache_utils import cache_response, flush_cache
 from admin_cohort.types import JobStatus
 from cohort.conf_cohort_job_api import get_authorization_header, cancel_job
 from cohort.models import DatedMeasure, RequestQuerySnapshot
@@ -58,26 +58,26 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             _logger.exception("Invalid 'request_query_snapshot_id'")
             return HttpResponseBadRequest()
 
-        dms_jobs = rqs.request.dated_measures.filter(request_job_status__in=[JobStatus.started, JobStatus.pending]) \
-            .prefetch_related('cohort', 'restricted_cohort')
-        for job in dms_jobs:
-            if job.cohort.all() or job.restricted_cohort.all():
+        running_dms = rqs.request.dated_measures.filter(request_job_status__in=[JobStatus.started, JobStatus.pending])\
+                                                .prefetch_related('cohort', 'restricted_cohort')
+        for dm in running_dms:
+            if dm.cohort.all() or dm.restricted_cohort.all():
                 continue  # if the dated measure is bound to a cohort, don't cancel it
-            job_status = job.request_job_status
+            job_status = dm.request_job_status
             try:
                 if job_status == JobStatus.started:
                     headers = get_authorization_header(request)
-                    new_status = cancel_job(job.request_job_id, headers)
+                    new_status = cancel_job(dm.request_job_id, headers)
                 else:
-                    app.control.revoke(job.count_task_id)
-                job.request_job_status = job_status == JobStatus.started and new_status or JobStatus.cancelled
-                job.save()
+                    app.control.revoke(dm.count_task_id)
+                dm.request_job_status = job_status == JobStatus.started and new_status or JobStatus.cancelled
+                dm.save()
             except Exception as e:
-                msg = f"Error while cancelling {job_status} job [{job.request_job_id}] DM [{job.uuid}] - {e}"
+                msg = f"Error while cancelling {job_status} job [{dm.request_job_id}] DM [{dm.uuid}] - {e}"
                 _logger.exception(msg)
-                job.request_job_status = JobStatus.failed
-                job.request_job_fail_msg = msg
-                job.save()
+                dm.request_job_status = JobStatus.failed
+                dm.request_job_fail_msg = msg
+                dm.save()
                 return HttpResponseServerError()
         return self.create(request, *args, **kwargs)
 
@@ -94,7 +94,7 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             return Response(data={'message': "Cannot delete a DatedMeasure bound to a CohortResult"},
                             status=status.HTTP_403_FORBIDDEN)
         response = super(DatedMeasureViewSet, self).destroy(request, *args, **kwargs)
-        invalidate_cache(view_instance=self, user=request.user)
+        flush_cache(view_instance=self, user=request.user)
         return response
 
     @action(methods=['patch'], detail=True, url_path='abort')
