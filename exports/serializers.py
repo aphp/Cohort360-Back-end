@@ -191,6 +191,8 @@ class ExportRequestSerializer(serializers.ModelSerializer):
             raise ValidationError(f"Dans le cas d'une demande d'export CSV, vous ne pouvez pas "
                                   f"générer de demande d'export pour un autre provider_id que le vôtre."
                                   f"Vous êtes connectés en tant que {creator.displayed_name}")
+        if not validated_data.get('nominative'):
+            raise ValidationError("Actuellement, la demande d'export CSV en pseudo-anonymisée n'est pas possible.")
         self.validate_owner_rights(validated_data)
 
 
