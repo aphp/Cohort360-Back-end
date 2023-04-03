@@ -15,6 +15,7 @@ from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from accesses.models import get_user_valid_manual_accesses_queryset
+from admin_cohort.cache_utils import cache_response, invalidate_cache
 from admin_cohort.settings import SJS_USERNAME, ETL_USERNAME
 from admin_cohort.tools import join_qs
 from admin_cohort.types import JobStatus
@@ -101,6 +102,17 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     pagination_class = LimitOffsetPagination
     filterset_class = CohortFilter
     search_fields = ('$name', '$description')
+    flush_cache_actions = ('create', 'destroy')
+
+    def dispatch(self, request, *args, **kwargs):
+        response = super(CohortResultViewSet, self).dispatch(request, *args, **kwargs)
+        if self.action in self.flush_cache_actions:
+            invalidate_cache(view_instance=self, user=request.user)
+        return response
+
+    @cache_response()
+    def list(self, request, *args, **kwargs):
+        return super(CohortResultViewSet, self).list(request, *args, **kwargs)
 
     def is_sjs_or_etl_user(self):
         return self.request.method in ("GET", "PATCH") and \
@@ -142,11 +154,11 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                          responses={'201': openapi.Response("Cohorts rights found", CohortRightsSerializer())})
     @action(detail=False, methods=['get'], url_path="cohort-rights")
     def get_cohort_right_accesses(self, request, *args, **kwargs):
-        user_accesses = get_user_valid_manual_accesses_queryset(self.request.user)
+        user_accesses = get_user_valid_manual_accesses_queryset(request.user)
 
         if not user_accesses:
             raise Http404("ERROR: No Accesses found")
-        if self.request.query_params:
+        if request.query_params:
             # Case with perimeters search params
             cohorts_filtered_by_search = self.filter_queryset(self.get_queryset())
             if not cohorts_filtered_by_search:
@@ -157,7 +169,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             return Response(CohortRightsSerializer(get_all_cohorts_rights(user_accesses, cohort_dict_pop_source),
                                                    many=True).data)
 
-        all_user_cohorts = CohortResult.objects.filter(owner=self.request.user)
+        all_user_cohorts = CohortResult.objects.filter(owner=request.user)
         if not all_user_cohorts:
             return Response("WARN: You do not have any cohort")
         list_cohort_id = [cohort.fhir_group_id for cohort in all_user_cohorts if cohort.fhir_group_id]
@@ -213,6 +225,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                     _logger_err.exception(f"Cohort [{cohort.uuid}] - Couldn't send email to user after ETL patch: {e}")
                 else:
                     _logger.info(f"Cohort [{cohort.uuid}] successfully updated from ETL")
+        invalidate_cache(view_instance=self, user=cohort.owner)
         return resp
 
 

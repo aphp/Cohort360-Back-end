@@ -1,5 +1,3 @@
-import json
-
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -174,38 +172,24 @@ class RequestQuerySnapshotSerializer(BaseSerializer):
         request = validated_data.get("request")
         if previous_snapshot:
             if request and request.uuid != previous_snapshot.request.uuid:
-                raise ValidationError("You cannot provide a request_id that is not the same as the id of the request "
-                                      "bound to the previous_snapshot")
+                raise ValidationError("The provided request is different from the previous_snapshot's request")
             validated_data["request"] = previous_snapshot.request
         elif request:
             if len(request.query_snapshots.all()) != 0:
-                raise ValidationError("You have to provide a previous_snapshot_id if the request is not empty of "
-                                      "query snaphots")
+                raise ValidationError("Must provide a previous_snapshot if the request is not empty of snapshots")
         else:
-            raise ValidationError("You have to provide a previous_snapshot_id or a request_id if the request has not "
-                                  "query snapshots bound to it yet")
+            raise ValidationError("No previous_snapshot or request were provided")
 
         serialized_query = validated_data.get("serialized_query")
-        try:
-            json.loads(serialized_query)
-        except json.JSONDecodeError as e:
-            raise ValidationError(f"Serialized_query could not be recognized as json: {e.msg}")
-
-        validate_resp = cohort_job_api.post_validate_cohort()
-        if not validate_resp.success:
-            raise ValidationError(f"Serialized_query, after formatting, is not accepted by "
-                                  f"FHIR server: {validate_resp.err_msg}")
-
         validated_data["perimeters_ids"] = retrieve_perimeters(serialized_query)
 
-        res = super(RequestQuerySnapshotSerializer, self).create(validated_data=validated_data)
+        new_rqs = super(RequestQuerySnapshotSerializer, self).create(validated_data=validated_data)
 
-        if res.previous_snapshot is not None:
-            for rqs in res.previous_snapshot.next_snapshots.all():
+        if new_rqs.previous_snapshot is not None:
+            for rqs in new_rqs.previous_snapshot.next_snapshots.all():
                 rqs.is_active_branch = False
                 rqs.save()
-
-        return res
+        return new_rqs
 
     def update(self, instance, validated_data):
         for f in ['request', 'request_id']:

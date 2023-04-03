@@ -1,8 +1,7 @@
 import urllib
 from functools import reduce
 
-from django.db.models import Q, BooleanField, When, Case, Value, \
-    QuerySet
+from django.db.models import Q, BooleanField, When, Case, Value, QuerySet
 from django.db.models.functions import Coalesce
 from django.http import Http404
 from django.utils import timezone
@@ -14,13 +13,13 @@ from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
-from rest_framework.status import HTTP_403_FORBIDDEN
 
 from admin_cohort.permissions import IsAuthenticated
 from admin_cohort.settings import PERIMETERS_TYPES
 from admin_cohort.tools import join_qs
 from admin_cohort.views import BaseViewset, CustomLoggingMixin
-from ..models import Role, Access, get_user_valid_manual_accesses_queryset, intersect_queryset_criteria, build_data_rights
+from admin_cohort.cache_utils import invalidate_cache, cache_response
+from ..models import Role, Access, get_user_valid_manual_accesses_queryset, intersect_queryset_criteria, build_data_rights, Profile
 from ..permissions import AccessPermissions
 from ..serializers import AccessSerializer, DataRightSerializer
 
@@ -83,7 +82,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
                      "profile__user__provider_username"]
 
     def get_permissions(self):
-        if self.action in ['my_accesses', 'data_rights']:
+        if self.action in ['my_accesses', 'my_rights']:
             return [IsAuthenticated()]
         return [IsAuthenticated(), AccessPermissions()]
 
@@ -91,7 +90,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
         q = super(AccessViewSet, self).get_queryset()
         user = self.request.user
         if not user.is_anonymous:
-            accesses = user.valid_manual_accesses_queryset.select_related("role")
+            accesses = get_user_valid_manual_accesses_queryset(user).select_related("role")
         else:
             accesses = []
         to_exclude = [a.accesses_criteria_to_exclude for a in accesses]
@@ -124,6 +123,16 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
                                                                   )
                                                 )
         return super(AccessViewSet, self).filter_queryset(queryset)
+
+    def get_object(self):
+        if self.request.method == "GET":
+            try:
+                obj = super(AccessViewSet, self).get_object()
+            except (Http404, PermissionDenied):
+                raise Http404
+        else:
+            obj = super(AccessViewSet, self).get_object()
+        return obj
 
     @swagger_auto_schema(manual_parameters=list(map(lambda x: openapi.Parameter(name=x[0], in_=openapi.IN_QUERY,
                                                                                 description=x[1], type=x[2],
@@ -167,13 +176,13 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
     def create(self, request, *args, **kwargs):
         data = request.data
         if "care_site_id" not in data and 'perimeter_id' not in data:
-            return Response({"response": "perimeter_id is required"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(data="perimeter_id is required", status=status.HTTP_404_NOT_FOUND)
         data['profile_id'] = data.get('profile_id', data.get('provider_history_id'))
         data['perimeter_id'] = data.get('perimeter_id', data.get('care_site_id'))
-        return super(AccessViewSet, self).create(request, *args, **kwargs)
-
-    def dispatch(self, request, *args, **kwargs):
-        return super(AccessViewSet, self).dispatch(request, *args, **kwargs)
+        response = super(AccessViewSet, self).create(request, *args, **kwargs)
+        user = Profile.objects.get(pk=data['profile_id']).user
+        invalidate_cache(view_instance=self, user=user)
+        return response
 
     @swagger_auto_schema(request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
@@ -192,51 +201,47 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
 
     @swagger_auto_schema(auto_schema=None)
     def update(self, request, *args, **kwargs):
-        return super(AccessViewSet, self).update(request, *args, **kwargs)
+        response = super(AccessViewSet, self).update(request, *args, **kwargs)
+        user = self.get_object().profile.user
+        invalidate_cache(view_instance=self, user=user)
+        return response
 
     @swagger_auto_schema(request_body=openapi.Schema(type=openapi.TYPE_STRING, properties={}),
                          method="PATCH",
                          operation_summary="Will set end_datetime to now, to close the access.")
     @action(url_path="close", detail=True, methods=['patch'])
     def close(self, request, *args, **kwargs):
-        instance = self.get_object()
+        access = self.get_object()
         now = timezone.now()
-        if instance.actual_end_datetime and instance.actual_end_datetime < now:
-            return Response("L'accès est déjà clôturé.", status=status.HTTP_403_FORBIDDEN)
+        if access.actual_end_datetime and access.actual_end_datetime < now:
+            return Response(data="L'accès est déjà clôturé.", status=status.HTTP_403_FORBIDDEN)
 
-        if instance.actual_start_datetime and instance.actual_start_datetime > now:
-            return Response("L'accès n'a pas encore commencé, il ne peut pas être déjà fermé."
-                            "Il peut cependant être supprimé, avec la méthode DELETE.",
+        if access.actual_start_datetime and access.actual_start_datetime > now:
+            return Response(data="L'accès n'a pas encore commencé, il ne peut pas être déjà fermé."
+                                 "Il peut cependant être supprimé, avec la méthode DELETE.",
                             status=status.HTTP_403_FORBIDDEN)
 
         request.data.update({'end_datetime': now})
         return self.partial_update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        if instance.actual_start_datetime:
-            if instance.actual_start_datetime < timezone.now():
-                return Response("L'accès est déjà/a déjà été activé, il ne peut plus être supprimé.",
+        access = self.get_object()
+        user = access.profile.user
+        if access.actual_start_datetime:
+            if access.actual_start_datetime < timezone.now():
+                return Response(data="L'accès est déjà/a déjà été activé, il ne peut plus être supprimé.",
                                 status=status.HTTP_403_FORBIDDEN)
-        self.perform_destroy(instance)
+        self.perform_destroy(access)
+        invalidate_cache(view_instance=self, user=user)
         return Response(status=status.HTTP_204_NO_CONTENT)
-
-    def get_object(self):
-        if self.request.method == "GET":
-            try:
-                obj = super(AccessViewSet, self).get_object()
-            except (Http404, PermissionDenied):
-                raise Http404
-        else:
-            obj = super(AccessViewSet, self).get_object()
-        return obj
 
     @swagger_auto_schema(method='get', operation_summary="Get the authenticated user's valid accesses.")
     @action(url_path="my-accesses", detail=False, methods=['get'])
+    @cache_response()
     def my_accesses(self, request, *args, **kwargs):
-        q = get_user_valid_manual_accesses_queryset(self.request.user)
+        q = get_user_valid_manual_accesses_queryset(request.user)
         serializer = self.get_serializer(q, many=True)
-        return Response(serializer.data)
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(operation_description="Returns particular type of objects, describing the data rights that a "
                                                "user has on a care-sites. AT LEAST one parameter is necessary",
@@ -253,15 +258,9 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
                          responses={200: openapi.Response('Rights found', DataRightSerializer),
                                     403: openapi.Response('perimeters_ids and pop_children are both null')})
     @action(url_path="my-rights", detail=False, methods=['get'], filter_backends=[], pagination_class=None)
-    def data_rights(self, request, *args, **kwargs):
-        perimeters_ids = request.GET.get('perimeters_ids', self.request.GET.get('care-site-ids'))
-        pop_children = request.GET.get('pop_children', self.request.GET.get('pop-children'))
-        if perimeters_ids is None and pop_children is None:
-            return Response("Cannot have both 'perimeters-ids/care-site-ids' and 'pop-children' at null "
-                            "(would return rights on all perimeters).",
-                            status=HTTP_403_FORBIDDEN)
-        # if the result is asked only for a list of perimeters,
-        # we start our search on these
+    @cache_response()
+    def my_rights(self, request, *args, **kwargs):
+        perimeters_ids = request.GET.get('perimeters_ids', request.GET.get('care-site-ids'))
         if perimeters_ids:
             urldecode_perimeters = urllib.parse.unquote(urllib.parse.unquote((str(perimeters_ids))))
             required_perimeters_ids = [int(i) for i in urldecode_perimeters.split(",")]
@@ -270,6 +269,6 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
 
         results = build_data_rights(user=request.user,
                                     expected_perim_ids=required_perimeters_ids,
-                                    pop_children=pop_children)
+                                    pop_children=False)
         return Response(data=DataRightSerializer(results, many=True).data,
                         status=status.HTTP_200_OK)

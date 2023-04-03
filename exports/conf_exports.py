@@ -10,11 +10,10 @@ from requests import Response, HTTPError, RequestException
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
 
-from admin_cohort.models import JobStatus
 from admin_cohort.tools import prettify_dict
-from admin_cohort.types import MissingDataError
-from .models import ExportRequest
-from .types import ApiJobResponse, HdfsServerUnreachableError, ExportType
+from admin_cohort.types import JobStatus, MissingDataError
+from exports.models import ExportRequest
+from exports.types import ApiJobResponse, HdfsServerUnreachableError, ExportType
 
 _logger = logging.getLogger('info')
 _logger_err = logging.getLogger('django.request')

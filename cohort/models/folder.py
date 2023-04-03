@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from django.db import models
 
-from admin_cohort.models import CohortBaseModel, User
+from cohort.models import CohortBaseModel
+from admin_cohort.models import User
 
 
 class Folder(CohortBaseModel):
