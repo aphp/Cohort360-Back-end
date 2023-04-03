@@ -81,9 +81,6 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                 return HttpResponseServerError()
         return self.create(request, *args, **kwargs)
 
-    def retrieve(self, request, *args, **kwargs):
-        return super(DatedMeasureViewSet, self).retrieve(request, *args, **kwargs)
-
     def update(self, request, *args, **kwargs):
         return Response(data="Updating a DatedMeasure is not allowed",
                         status=status.HTTP_403_FORBIDDEN)
@@ -93,9 +90,7 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         if dm.cohort.count():
             return Response(data={'message': "Cannot delete a DatedMeasure bound to a CohortResult"},
                             status=status.HTTP_403_FORBIDDEN)
-        response = super(DatedMeasureViewSet, self).destroy(request, *args, **kwargs)
-        invalidate_cache(view_instance=self, user=request.user)
-        return response
+        return super(DatedMeasureViewSet, self).destroy(request, *args, **kwargs)
 
     @action(methods=['patch'], detail=True, url_path='abort')
     def abort(self, request, *args, **kwargs):
