@@ -1,3 +1,4 @@
+import http
 import logging
 
 from django.db.models import Q
@@ -12,7 +13,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 
-from admin_cohort.cache_utils import cache_response, flush_cache
+from admin_cohort.cache_utils import cache_response, invalidate_cache
 from admin_cohort.models import User
 from admin_cohort.tools import join_qs
 from admin_cohort.types import JobStatus
@@ -140,15 +141,12 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         # Local imports for mocking these functions during tests
         from exports.emails import email_info_request_confirmed
-        request_maker: User = request.user
-        check_email_address(request_maker.email)
-        data = request.data
 
-        if 'cohort_fk' in data:
-            data['cohort'] = data.get('cohort_fk')
-        elif 'cohort_id' in data:
+        if 'cohort_fk' in request.data:
+            request.data['cohort'] = request.data.get('cohort_fk')
+        elif 'cohort_id' in request.data:
             try:
-                data['cohort'] = CohortResult.objects.get(fhir_group_id=data.get('cohort_id')).uuid
+                request.data['cohort'] = CohortResult.objects.get(fhir_group_id=request.data.get('cohort_id')).uuid
             except (CohortResult.DoesNotExist, CohortResult.MultipleObjectsReturned) as e:
                 return Response(data=f"Error retrieving cohort with id {request.data.get('cohort_id')}-{e}",
                                 status=status.HTTP_400_BAD_REQUEST)
@@ -156,17 +154,27 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
             return Response(data="'cohort_fk' or 'cohort_id' is required",
                             status=status.HTTP_400_BAD_REQUEST)
 
-        owner_id = data.get('provider_source_value', request_maker.pk)
-        data['owner'] = owner_id
-        data['provider_id'] = User.objects.get(pk=owner_id).provider_id
-        data['provider_source_value'] = owner_id
-        data['creator_fk'] = request_maker.pk
+        creator: User = request.user
+        check_email_address(creator.email)
+
+        owner_id = request.data.get('owner', request.data.get('provider_source_value', creator.pk))
+        request.data['owner'] = owner_id
+
+        # to deprecate
+        try:
+            request.data['provider_id'] = User.objects.get(pk=owner_id).provider_id
+        except User.DoesNotExist:
+            pass
+
+        request.data['provider_source_value'] = owner_id
+        request.data['creator_fk'] = creator.pk
+        request.data['owner'] = request.data.get('owner', creator.pk)
 
         response = super(ExportRequestViewSet, self).create(request, *args, **kwargs)
-        flush_cache(view_instance=self, user=request.user)
-        if response.status_code == status.HTTP_201_CREATED and response.data["request_job_status"] != JobStatus.failed:
+        invalidate_cache(view_instance=self, user=request.user)
+        if response.status_code == http.HTTPStatus.CREATED and response.data["request_job_status"] != JobStatus.failed:
             try:
-                email_info_request_confirmed(response.data.serializer.instance, request_maker.email)
+                email_info_request_confirmed(response.data.serializer.instance, creator.email)
             except Exception as e:
                 response.data['warning'] = f"L'email de confirmation n'a pas pu être envoyé à cause de l'erreur: {e}"
         return response
@@ -176,13 +184,17 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
         req: ExportRequest = self.get_object()
         if req.request_job_status != JobStatus.finished:
             return HttpResponse("The export request you asked for is not done yet or has failed.",
-                                status=status.HTTP_403_FORBIDDEN)
+                                status=http.HTTPStatus.FORBIDDEN)
         if req.output_format != ExportType.CSV:
             return HttpResponse(f"Can only download results of {ExportType.CSV} type. Got {req.output_format} instead",
-                                status=status.HTTP_403_FORBIDDEN)
-        user: User = request.user
+                                status=http.HTTPStatus.FORBIDDEN)
+        user: User = self.request.user
         if req.owner.pk != user.pk:
             raise PermissionDenied("L'utilisateur n'est pas à l'origine de l'export")
+
+        # start_bytes = re.search(r'bytes=(\d+)-',
+        #                         request.META.get('HTTP_RANGE', ''), re.S)
+        # start_bytes = int(start_bytes.group(1)) if start_bytes else 0
         try:
             response = StreamingHttpResponse(conf_exports.stream_gen(req.target_full_path))
             resp_size = conf_exports.get_file_size(req.target_full_path)
@@ -190,10 +202,13 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
             response['Content-Type'] = 'application/zip'
             response['Content-Length'] = resp_size
             response['Content-Disposition'] = f"attachment; filename=export_{req.cohort_id}.zip"
+            # response['Content-Range'] = 'bytes %d-%d/%d' % (
+            #     start_bytes, resp_size, resp_size
+            # )
             return response
         except HdfsError as e:
             _logger.exception(e.message)
-            return HttpResponse(e.message, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return HttpResponse(e.message, status=http.HTTPStatus.INTERNAL_SERVER_ERROR)
         except conf_exports.HdfsServerUnreachableError:
             return HttpResponse("HDFS servers are unreachable or in stand-by",
-                                status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                                status=http.HTTPStatus.INTERNAL_SERVER_ERROR)

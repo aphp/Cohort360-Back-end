@@ -3,7 +3,6 @@ from django_filters import rest_framework as filters, OrderingFilter
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
-from admin_cohort.cache_utils import cache_response, flush_cache
 from cohort.models import Request
 from cohort.serializers import RequestSerializer
 from cohort.views.shared import UserObjectsRestrictedViewSet
@@ -26,17 +25,6 @@ class RequestViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     pagination_class = LimitOffsetPagination
     filterset_class = RequestFilter
     search_fields = ("$name", "$description",)
-    flush_cache_actions = ("create", "partial_update", "destroy")
-
-    def dispatch(self, request, *args, **kwargs):
-        response = super(RequestViewSet, self).dispatch(request, *args, **kwargs)
-        if self.action in self.flush_cache_actions:
-            flush_cache(view_instance=self, user=request.user)
-        return response
-
-    @cache_response()
-    def list(self, request, *args, **kwargs):
-        return super(RequestViewSet, self).list(request, *args, **kwargs)
 
 
 class NestedRequestViewSet(RequestViewSet):

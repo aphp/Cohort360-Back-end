@@ -67,11 +67,6 @@ def check_rights_on_perimeters_for_exports(rights: List[DataRight], export_type:
         check_jupyter_export_rights_on_perimeters(rights=rights, is_nomi=is_nomi)
 
 
-def create_export_tables(export_request, tables):
-    for table in tables:
-        ExportRequestTable.objects.create(export_request=export_request, **table)
-
-
 class ReviewFilteredPrimaryKeyRelatedField(serializers.PrimaryKeyRelatedField):
     def get_queryset(self):
         q = super(ReviewFilteredPrimaryKeyRelatedField, self).get_queryset()
@@ -117,10 +112,27 @@ class ExportRequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = ExportRequest
         fields = "__all__"
-        read_only_fields = ["export_request_id", "request_datetime", "execution_request_datetime", "validation_request_datetime",
-                            "is_user_notified", "target_location", "target_name", "creator_id", "reviewer_id", "cleaned_at",
-                            "insert_datetime", "update_datetime", "delete_datetime", "request_job_id", "request_job_status",
-                            "request_job_fail_msg", "request_job_duration", "review_request_datetime", "reviewer_fk"
+        read_only_fields = ["export_request_id",
+                            "request_datetime",
+                            "execution_request_datetime",
+                            "validation_request_datetime",
+                            "is_user_notified",
+                            "target_location",
+                            "target_name",
+                            "creator_id",
+                            "reviewer_id",
+                            "cleaned_at",
+                            # Base
+                            "insert_datetime",
+                            "update_datetime",
+                            "delete_datetime",
+                            # Job
+                            "request_job_id",
+                            "request_job_status",
+                            "request_job_fail_msg",
+                            "request_job_duration",
+                            "review_request_datetime",
+                            "reviewer_fk"
                             ]
         extra_kwargs = {'cohort': {'required': True},
                         'output_format': {'required': True},
@@ -128,56 +140,61 @@ class ExportRequestSerializer(serializers.ModelSerializer):
                         'owner': {'required': True}
                         }
 
+    def create_tables(self, tables, er):
+        for table in tables:
+            ExportRequestTable.objects.create(export_request=er, **table)
+
+    def validate_owner_rights(self, validated_data):
+        cont_req: Request = self.context.get('request')
+        owner: User = validated_data.get('owner')
+        perim_ids = list(map(int, conf_exports.get_cohort_perimeters(validated_data.get('cohort_fk').fhir_group_id,
+                                                                     getattr(cont_req, 'jwt_access_key', None))))
+        rights = build_data_rights(owner, perim_ids)
+        check_rights_on_perimeters_for_exports(rights, validated_data.get('output_format'), validated_data.get('nominative'))
+
     def create(self, validated_data):
         owner: User = validated_data.get('owner')
         check_email_address(owner.email)
         cohort: CohortResult = validated_data.get('cohort_fk')
+        creator_is_reviewer = can_review_transfer_jupyter(self.context.get('request').user)
+
+        if not creator_is_reviewer and cohort.owner.pk != owner.pk:
+            raise ValidationError("The cohort does not belong to the request owner!")
 
         if cohort.request_job_status != JobStatus.finished:
             raise ValidationError('The requested cohort has not finished successfully.')
 
-        if validated_data.get('output_format') == ExportType.HIVE:
-            creator_is_reviewer = can_review_transfer_jupyter(user=validated_data.get('creator_fk'))
-            if not creator_is_reviewer and cohort.owner.pk != owner.pk:
-                raise ValidationError("The cohort does not belong to the request maker!")
+        validated_data['cohort_id'] = validated_data.get('cohort_fk').fhir_group_id
+
+        output_format = validated_data.get('output_format')
+        validated_data['motivation'] = validated_data.get('motivation', "").replace("\n", " -- ")
+
+        if output_format == ExportType.HIVE:
             self.validate_hive_export(validated_data, creator_is_reviewer)
         else:
             self.validate_csv_export(validated_data)
 
-        validated_data.update({'cohort_id': cohort.fhir_group_id,
-                               'motivation': validated_data.get('motivation', "").replace("\n", " -- ")
-                               })
-
         tables = validated_data.pop("tables", [])
-        export_request = super(ExportRequestSerializer, self).create(validated_data)
-        create_export_tables(export_request, tables)
+        er = super(ExportRequestSerializer, self).create(validated_data)
+        self.create_tables(tables, er)
         try:
             from exports.tasks import launch_request
-            launch_request.delay(export_request.id)
+            launch_request.delay(er.id)
         except Exception as e:
-            export_request.request_job_status = JobStatus.failed
-            export_request.request_job_fail_msg = f"INTERNAL ERROR: Could not launch Celery task: {e}"
-        return export_request
-
-    def validate_owner_rights(self, validated_data):
-        request: Request = self.context.get('request')
-        owner: User = validated_data.get('owner')
-        perim_ids = list(map(int, conf_exports.get_cohort_perimeters(validated_data.get('cohort_fk').fhir_group_id,
-                                                                     getattr(request, 'jwt_access_key', None))))
-        rights = build_data_rights(user=owner, expected_perim_ids=perim_ids)
-        check_rights_on_perimeters_for_exports(rights, validated_data.get('output_format'), validated_data.get('nominative'))
+            er.request_job_status = JobStatus.failed
+            er.request_job_fail_msg = f"INTERNAL ERROR: Could not launch Celery task: {e}"
+        return er
 
     def validate_hive_export(self, validated_data: dict, creator_is_reviewer: bool):
         target_unix_account = validated_data.get('target_unix_account')
         if not target_unix_account:
-            raise ValidationError("Pour une demande d'export HIVE, il faut fournir 'target_unix_account'")
+            raise ValidationError("Pour une demande d'export HIVE, il faut fournir target_unix_account")
 
+        owner = validated_data.get('owner')
         if creator_is_reviewer:
-            validated_data.update({'request_job_status': JobStatus.validated,
-                                   'reviewer_fk': validated_data.get('creator_fk')
-                                   })
+            validated_data['request_job_status'] = JobStatus.validated
+            validated_data['reviewer_fk'] = self.context.get('request').user
         else:
-            owner = validated_data.get('owner')
             if not conf_workspaces.is_user_bound_to_unix_account(owner, target_unix_account.aphp_ldap_group_dn):
                 raise ValidationError(f"Le compte Unix destinataire ({target_unix_account.pk}) "
                                       f"n'est pas lié à l'utilisateur voulu ({owner.pk})")
@@ -185,7 +202,7 @@ class ExportRequestSerializer(serializers.ModelSerializer):
 
     def validate_csv_export(self, validated_data: dict):
         validated_data['request_job_status'] = JobStatus.validated
-        creator: User = validated_data.get('creator_fk')
+        creator: User = self.context.get('request').user
 
         if validated_data.get('owner').pk != creator.pk:
             raise ValidationError(f"Dans le cas d'une demande d'export CSV, vous ne pouvez pas "
