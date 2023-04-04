@@ -13,7 +13,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 
-from admin_cohort.cache_utils import cache_response, invalidate_cache
+from admin_cohort.cache_utils import cache_response, flush_cache
 from admin_cohort.models import User
 from admin_cohort.tools import join_qs
 from admin_cohort.types import JobStatus
@@ -171,7 +171,7 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
         request.data['owner'] = request.data.get('owner', creator.pk)
 
         response = super(ExportRequestViewSet, self).create(request, *args, **kwargs)
-        invalidate_cache(view_instance=self, user=request.user)
+        flush_cache(view_instance=self, user=request.user)
         if response.status_code == http.HTTPStatus.CREATED and response.data["request_job_status"] != JobStatus.failed:
             try:
                 email_info_request_confirmed(response.data.serializer.instance, creator.email)
