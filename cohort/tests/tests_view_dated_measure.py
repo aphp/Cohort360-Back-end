@@ -12,7 +12,7 @@ from admin_cohort.tests_tools import random_str, ListCase, RetrieveCase, CaseRet
     PatchCase
 from admin_cohort.tools import prettify_json
 from admin_cohort.types import JobStatus
-from cohort.models import DatedMeasure, RequestQuerySnapshot, CohortResult
+from cohort.models import DatedMeasure, RequestQuerySnapshot, CohortResult, Request
 from cohort.models.dated_measure import DATED_MEASURE_MODE_CHOICES
 from cohort.tests.tests_view_rqs import RqsTests
 from cohort.views import DatedMeasureViewSet, NestedDatedMeasureViewSet
@@ -23,8 +23,7 @@ class DatedMeasuresTests(RqsTests):
                           "mode", "count_task_id", "fhir_datetime",
                           "measure", "measure_min", "measure_max",
                           "created_at", "modified_at", "deleted"]
-    unsettable_default_fields = dict(
-        request_job_status=JobStatus.started)
+    unsettable_default_fields = dict(request_job_status=JobStatus.started)
     unsettable_fields = ["owner", "uuid", "count_task_id",
                          "created_at", "modified_at", "deleted", ]
     manual_dupplicated_fields = []
@@ -34,8 +33,7 @@ class DatedMeasuresTests(RqsTests):
     list_view = DatedMeasureViewSet.as_view({'get': 'list'})
     create_view = DatedMeasureViewSet.as_view({'post': 'create'})
     delete_view = DatedMeasureViewSet.as_view({'delete': 'destroy'})
-    update_view = DatedMeasureViewSet.as_view(
-        {'patch': 'partial_update'})
+    update_view = DatedMeasureViewSet.as_view({'patch': 'partial_update'})
     model = DatedMeasure
     model_objects = DatedMeasure.objects
     model_fields = DatedMeasure._meta.fields
@@ -124,34 +122,20 @@ class DMCaseRetrieveFilter(CaseRetrieveFilter):
 
 
 class DMCreateCase(CreateCase):
-    def __init__(self, mock_task_called: bool, **kwargs):
+    def __init__(self, mock_task_called: bool, mock_cancel_job_called = False, cancel_job_raise_exception = False, **kwargs):
         super(DMCreateCase, self).__init__(**kwargs)
         self.mock_task_called = mock_task_called
+        self.mock_cancel_job_called = mock_cancel_job_called
+        self.cancel_job_raise_exception = cancel_job_raise_exception
 
 
 class DatedMeasuresCreateTests(DatedMeasuresTests):
-    @mock.patch('cohort.serializers.cohort_job_api.get_authorization_header')
-    @mock.patch('cohort.tasks.get_count_task.delay')
-    def check_create_case_with_mock(self, case: DMCreateCase, mock_task: MagicMock, mock_header: MagicMock,
-                                    other_view: any, view_kwargs: dict):
-        mock_header.return_value = None
-        mock_task.return_value = None
-
-        super(DatedMeasuresCreateTests, self).check_create_case(case, other_view, **(view_kwargs or {}))
-
-        mock_task.assert_called() if case.mock_task_called else mock_task.assert_not_called()
-        mock_header.assert_called() if case.mock_task_called else mock_header.assert_not_called()
-
-    def check_create_case(self, case: DMCreateCase, other_view: any = None,
-                          **view_kwargs):
-        return self.check_create_case_with_mock(
-            case, other_view=other_view or None, view_kwargs=view_kwargs)
 
     def setUp(self):
         super(DatedMeasuresCreateTests, self).setUp()
 
         self.basic_data = dict(
-            request_query_snapshot=self.user1_req1_snap1.pk,
+            request_query_snapshot_id=self.user1_req1_snap1.pk,
             mode=DATED_MEASURE_MODE_CHOICES[0][0],
         )
         self.basic_case = DMCreateCase(
@@ -160,14 +144,51 @@ class DatedMeasuresCreateTests(DatedMeasuresTests):
             user=self.user1,
             success=True,
             mock_task_called=True,
-            retrieve_filter=DMCaseRetrieveFilter(
-                request_query_snapshot__pk=self.user1_req1_snap1.pk)
+            retrieve_filter=DMCaseRetrieveFilter(request_query_snapshot__pk=self.user1_req1_snap1.pk)
         )
         self.basic_err_case = self.basic_case.clone(
             mock_task_called=False,
             success=False,
             status=status.HTTP_400_BAD_REQUEST,
         )
+        self.req_with_running_dms = Request.objects.create(
+            owner=self.user1,
+            name="Request with running DMs",
+            description="Request with DMs started, pending",
+            parent_folder=self.user1_folder1
+        )
+        self.user1_req_running_dms_snap1 = RequestQuerySnapshot.objects.create(
+            owner=self.user1,
+            request=self.req_with_running_dms,
+            serialized_query='{}',
+        )
+        self.started_dm = DatedMeasure.objects.create(request_query_snapshot=self.user1_req_running_dms_snap1,
+                                                      request_job_status=JobStatus.started,
+                                                      owner=self.user1)
+        self.pending_dm = DatedMeasure.objects.create(request_query_snapshot=self.user1_req_running_dms_snap1,
+                                                      request_job_status=JobStatus.pending,
+                                                      owner=self.user1)
+
+    @mock.patch('cohort.serializers.cohort_job_api.get_authorization_header')
+    @mock.patch('cohort.tasks.get_count_task.delay')
+    @mock.patch('cohort.views.dated_measure.cancel_job')
+    def check_create_case_with_mock(self, case: DMCreateCase, mock_cancel_job: MagicMock, mock_task: MagicMock, mock_header: MagicMock,
+                                    other_view: any, view_kwargs: dict):
+        mock_header.return_value = None
+        mock_task.return_value = None
+        if case.cancel_job_raise_exception:
+            mock_cancel_job.side_effect = Exception("Error on cancel running DM")
+        else:
+            mock_cancel_job.return_value = JobStatus.cancelled
+
+        super(DatedMeasuresCreateTests, self).check_create_case(case, other_view, **(view_kwargs or {}))
+
+        mock_cancel_job.assert_called() if case.mock_cancel_job_called else mock_cancel_job.assert_not_called()
+        mock_header.assert_called() if case.mock_task_called else mock_header.assert_not_called()
+        mock_task.assert_called() if case.mock_task_called else mock_task.assert_not_called()
+
+    def check_create_case(self, case: DMCreateCase, other_view: any = None, **view_kwargs):
+        return self.check_create_case_with_mock(case, other_view=other_view or None, view_kwargs=view_kwargs)
 
     def test_create(self):
         # As a user, I can create a DatedMeasure with only RQS,
@@ -213,7 +234,7 @@ class DatedMeasuresCreateTests(DatedMeasuresTests):
         # As a user, I cannot create a dm if some field is missing
         cases = (self.basic_err_case.clone(
             data={**self.basic_data, k: None},
-        ) for k in ['request_query_snapshot'])
+        ) for k in ['request_query_snapshot_id'])
         [self.check_create_case(case) for case in cases]
 
     def test_error_create_with_other_owner(self):
@@ -222,20 +243,36 @@ class DatedMeasuresCreateTests(DatedMeasuresTests):
             data={**self.basic_data, 'owner': self.user2.pk},
         ))
 
+    def test_error_create_on_rqs_not_provided(self):
+        # cannot create a DM without an RQS
+        case = self.basic_err_case.clone(data={'request_query_snapshot_id': None})
+        self.check_create_case(case=case)
+
+    def test_error_create_on_rqs_not_owned(self):
+        # As a user, I cannot create a DM on a RQS I don't own
+        case = self.basic_err_case.clone(data={'request_query_snapshot_id': self.user2_req1_snap1.pk})
+        self.check_create_case(case=case)
+
     def test_create_from_rqs(self):
         # As a user, I can create a RQS specifying a previous snapshot
         # using nestedViewSet
-        self.check_create_case(self.basic_case.clone(
-            data={},
-        ), NestedDatedMeasureViewSet.as_view({'post': 'create'}),
-            request_query_snapshot=self.user1_req1_snap1.pk)
+        self.check_create_case(self.basic_case.clone(data={}),
+                               NestedDatedMeasureViewSet.as_view({'post': 'create'}),
+                               request_query_snapshot_id=self.user1_req1_snap1.pk)
 
-    def test_error_create_on_rqs_not_owned(self):
-        # As a user, I cannot create a dm on a Rqs I don't own
-        self.check_create_case(self.basic_err_case.clone(
-            data={**self.basic_data,
-                  'request_query_snapshot': self.user2_req1_snap1.pk},
-        ))
+    def test_create_with_request_having_running_dated_measures(self):
+        # before create new DM, cancel any previously running ones
+        case = self.basic_case.clone(data={'request_query_snapshot_id': self.user1_req_running_dms_snap1.pk},
+                                     retrieve_filter=DMCaseRetrieveFilter(request_query_snapshot__pk=self.user1_req_running_dms_snap1.pk),
+                                     mock_cancel_job_called=True)
+        self.check_create_case(case)
+
+    def test_error_create_on_cancel_running_dms(self):
+        case = self.basic_err_case.clone(data={'request_query_snapshot_id': self.user1_req_running_dms_snap1.pk},
+                                         mock_cancel_job_called=True,
+                                         cancel_job_raise_exception=True,
+                                         status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.check_create_case(case)
 
 
 class DMDeleteCase(DeleteCase):

@@ -380,15 +380,13 @@ class ViewSetTests(BaseTests):
     model_objects: Manager
     model_fields: List[Field]
 
-    def check_create_case(self, case: CreateCase, other_view: any = None,
-                          **view_kwargs):
-        request = self.factory.post(self.objects_url, case.json_data,
-                                    format='json')
+    def check_create_case(self, case: CreateCase, other_view: any = None, **view_kwargs):
+        request = self.factory.post(path=self.objects_url, data=case.json_data, format='json')
+        request.jwt_access_key = "dummy_jwt_access_key"
         if case.user:
             force_authenticate(request, case.user)
 
-        response = other_view(request, **view_kwargs) if other_view else \
-            self.__class__.create_view(request)
+        response = other_view and other_view(request, **view_kwargs) or self.__class__.create_view(request)
         response.render()
 
         self.assertEqual(
