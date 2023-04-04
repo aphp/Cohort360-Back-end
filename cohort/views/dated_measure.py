@@ -1,6 +1,6 @@
 import logging
 
-from django.http import HttpResponseBadRequest, HttpResponseServerError, QueryDict
+from django.http import QueryDict
 from django_filters import rest_framework as filters, OrderingFilter
 from rest_framework import status
 from rest_framework.decorators import action
@@ -41,27 +41,23 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     filterset_class = DMFilter
     pagination_class = LimitOffsetPagination
 
-    @action(methods=['post'], detail=False, url_path='create-unique')
-    def create_unique(self, request, *args, **kwargs):
-        if "request_query_snapshot" in kwargs:
-            rqs_id = kwargs['request_query_snapshot']
-        elif "request_query_snapshot_id" in request.data:
-            rqs_id = request.data.get("request_query_snapshot_id")
-        else:
+    def create(self, request, *args, **kwargs):
+        rqs_id = request.data.get("request_query_snapshot_id")
+        if not rqs_id:
             _logger.exception("'request_query_snapshot_id' not provided")
-            return HttpResponseBadRequest()
+            return Response(status=status.HTTP_400_BAD_REQUEST)
 
         try:
             rqs: RequestQuerySnapshot = RequestQuerySnapshot.objects.get(pk=rqs_id)
         except RequestQuerySnapshot.DoesNotExist:
             _logger.exception("Invalid 'request_query_snapshot_id'")
-            return HttpResponseBadRequest()
+            return Response(status=status.HTTP_400_BAD_REQUEST)
 
         running_dms = rqs.request.dated_measures.filter(request_job_status__in=[JobStatus.started, JobStatus.pending])\
                                                 .prefetch_related('cohort', 'restricted_cohort')
         for dm in running_dms:
             if dm.cohort.all() or dm.restricted_cohort.all():
-                continue  # if the dated measure is bound to a cohort, don't cancel it
+                continue
             job_status = dm.request_job_status
             try:
                 if job_status == JobStatus.started:
@@ -77,8 +73,8 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                 dm.request_job_status = JobStatus.failed
                 dm.request_job_fail_msg = msg
                 dm.save()
-                return HttpResponseServerError()
-        return self.create(request, *args, **kwargs)
+                return Response(data=str(e), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return super(DatedMeasureViewSet, self).create(request, *args, **kwargs)
 
     def update(self, request, *args, **kwargs):
         return Response(data="Updating a DatedMeasure is not allowed",
