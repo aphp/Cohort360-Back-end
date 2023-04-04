@@ -42,8 +42,11 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     pagination_class = LimitOffsetPagination
 
     def create(self, request, *args, **kwargs):
-        rqs_id = request.data.get("request_query_snapshot_id")
-        if not rqs_id:
+        if "request_query_snapshot" in kwargs:
+            rqs_id = kwargs['request_query_snapshot']
+        elif "request_query_snapshot_id" in request.data:
+            rqs_id = request.data.get("request_query_snapshot_id")
+        else:
             _logger.exception("'request_query_snapshot_id' not provided")
             return Response(status=status.HTTP_400_BAD_REQUEST)
 

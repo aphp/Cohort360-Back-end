@@ -23,7 +23,7 @@ class DatedMeasuresTests(RqsTests):
                           "mode", "count_task_id", "fhir_datetime",
                           "measure", "measure_min", "measure_max",
                           "created_at", "modified_at", "deleted"]
-    unsettable_default_fields = dict(request_job_status=JobStatus.started)
+    unsettable_default_fields = {}
     unsettable_fields = ["owner", "uuid", "count_task_id",
                          "created_at", "modified_at", "deleted", ]
     manual_dupplicated_fields = []
@@ -258,7 +258,7 @@ class DatedMeasuresCreateTests(DatedMeasuresTests):
         # using nestedViewSet
         self.check_create_case(self.basic_case.clone(data={}),
                                NestedDatedMeasureViewSet.as_view({'post': 'create'}),
-                               request_query_snapshot_id=self.user1_req1_snap1.pk)
+                               request_query_snapshot=self.user1_req1_snap1.pk)
 
     def test_create_with_request_having_running_dated_measures(self):
         # before create new DM, cancel any previously running ones
