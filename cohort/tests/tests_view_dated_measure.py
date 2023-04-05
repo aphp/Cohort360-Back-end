@@ -122,7 +122,7 @@ class DMCaseRetrieveFilter(CaseRetrieveFilter):
 
 
 class DMCreateCase(CreateCase):
-    def __init__(self, mock_header_called: bool, mock_count_task_called: bool, mock_cancel_task_called:bool, **kwargs):
+    def __init__(self, mock_header_called: bool, mock_count_task_called: bool, mock_cancel_task_called: bool, **kwargs):
         super(DMCreateCase, self).__init__(**kwargs)
         self.mock_header_called = mock_header_called
         self.mock_count_task_called = mock_count_task_called

@@ -2,7 +2,7 @@ import logging
 from smtplib import SMTPException
 
 from django.db.models import Q, F
-from django.http import Http404, QueryDict
+from django.http import Http404
 from django.utils import timezone
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi

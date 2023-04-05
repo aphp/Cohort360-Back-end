@@ -1,6 +1,5 @@
 import logging
 
-from django.http import QueryDict
 from django_filters import rest_framework as filters, OrderingFilter
 from rest_framework import status
 from rest_framework.decorators import action
@@ -9,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from cohort.conf_cohort_job_api import get_authorization_header, cancel_job
-from cohort.models import DatedMeasure, RequestQuerySnapshot
+from cohort.models import DatedMeasure
 from cohort.serializers import DatedMeasureSerializer
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
