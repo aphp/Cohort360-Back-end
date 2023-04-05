@@ -214,13 +214,3 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                 else:
                     _logger.info(f"Cohort [{cohort.uuid}] successfully updated from ETL")
         return resp
-
-
-class NestedCohortResultViewSet(CohortResultViewSet):
-
-    def create(self, request, *args, **kwargs):
-        if type(request.data) == QueryDict:
-            request.data._mutable = True
-        if 'request_query_snapshot' in kwargs:
-            request.data["request_query_snapshot"] = kwargs['request_query_snapshot']
-        return super(NestedCohortResultViewSet, self).create(request, *args, **kwargs)
