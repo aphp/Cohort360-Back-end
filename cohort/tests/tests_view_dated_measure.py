@@ -15,7 +15,7 @@ from admin_cohort.types import JobStatus
 from cohort.models import DatedMeasure, RequestQuerySnapshot, CohortResult, Request
 from cohort.models.dated_measure import DATED_MEASURE_MODE_CHOICES
 from cohort.tests.tests_view_rqs import RqsTests
-from cohort.views import DatedMeasureViewSet, NestedDatedMeasureViewSet
+from cohort.views import DatedMeasureViewSet
 
 
 class DatedMeasuresTests(RqsTests):
@@ -252,13 +252,6 @@ class DatedMeasuresCreateTests(DatedMeasuresTests):
         # As a user, I cannot create a DM on a RQS I don't own
         case = self.basic_err_case.clone(data={'request_query_snapshot_id': self.user2_req1_snap1.pk})
         self.check_create_case(case=case)
-
-    def test_create_from_rqs(self):
-        # As a user, I can create a RQS specifying a previous snapshot
-        # using nestedViewSet
-        self.check_create_case(self.basic_case.clone(data={}),
-                               NestedDatedMeasureViewSet.as_view({'post': 'create'}),
-                               request_query_snapshot=self.user1_req1_snap1.pk)
 
     def test_create_with_request_having_running_dms(self):
         # before create new DM, cancel any previously running ones

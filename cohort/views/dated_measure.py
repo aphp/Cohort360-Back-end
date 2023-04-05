@@ -64,13 +64,3 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             cancel_job(dm.request_job_id, get_authorization_header(request))
         except Exception as e:
             return Response(dict(message=str(e)), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-class NestedDatedMeasureViewSet(DatedMeasureViewSet):
-
-    def create(self, request, *args, **kwargs):
-        if type(request.data) == QueryDict:
-            request.data._mutable = True
-        if 'request_query_snapshot' in kwargs:
-            request.data["request_query_snapshot"] = kwargs['request_query_snapshot']
-        return super(NestedDatedMeasureViewSet, self).create(request, *args, **kwargs)
