@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from cohort.tasks import get_count_task, cancel_previously_running_dm_jobs
 import cohort.conf_cohort_job_api as cohort_job_api
 from admin_cohort.models import User
 from admin_cohort.serializers import BaseSerializer, OpenUserSerializer
@@ -68,15 +69,12 @@ class DatedMeasureSerializer(BaseSerializer):
         if (measure and not fhir_datetime) or (not measure and fhir_datetime):
             raise ValidationError("If you provide measure or fhir_datetime, you have to provide the other")
 
-        dm = super(DatedMeasureSerializer, self).create(validated_data=validated_data)
-
-        from cohort.tasks import cancel_previously_running_dm_jobs
         auth_header = cohort_job_api.get_authorization_header(self.context.get("request"))
         cancel_previously_running_dm_jobs.delay(auth_header, query_snapshot.uuid)
 
+        dm = super(DatedMeasureSerializer, self).create(validated_data=validated_data)
         if not measure:
             try:
-                from cohort.tasks import get_count_task
                 auth_header = cohort_job_api.get_authorization_header(self.context.get("request"))
                 get_count_task.delay(auth_header, query_snapshot.serialized_query, dm.uuid)
             except Exception as e:

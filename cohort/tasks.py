@@ -52,7 +52,6 @@ def cancel_previously_running_dm_jobs(auth_headers: dict, query_snapshot_id: str
     query_snapshot = RequestQuerySnapshot.objects.get(pk=query_snapshot_id)
     running_dms = query_snapshot.request.dated_measures.filter(request_job_status__in=(JobStatus.started, JobStatus.pending))\
                                                        .prefetch_related('cohort', 'restricted_cohort')
-    print("********* dm jobs", len(running_dms))
     for dm in running_dms:
         print(dm.request_job_status)
         if dm.cohort.all() or dm.restricted_cohort.all():

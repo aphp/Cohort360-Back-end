@@ -39,12 +39,6 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     filterset_class = DMFilter
     pagination_class = LimitOffsetPagination
 
-    def create(self, request, *args, **kwargs):
-        if not ("request_query_snapshot_id" in request.data or "request_query_snapshot" in kwargs):
-            _logger.exception("RequestQuerySnapshot UUID not provided")
-            return Response(status=status.HTTP_400_BAD_REQUEST)
-        return super(DatedMeasureViewSet, self).create(request, *args, **kwargs)
-
     def update(self, request, *args, **kwargs):
         return Response(data="Updating a DatedMeasure is not allowed",
                         status=status.HTTP_403_FORBIDDEN)
