@@ -122,11 +122,11 @@ class DMCaseRetrieveFilter(CaseRetrieveFilter):
 
 
 class DMCreateCase(CreateCase):
-    def __init__(self, mock_task_called: bool, mock_cancel_job_called=False, cancel_job_raise_exception=False, **kwargs):
+    def __init__(self, mock_task_called: bool, mock_cancel_job_called=False, cancel_job_raises_exception=False, **kwargs):
         super(DMCreateCase, self).__init__(**kwargs)
         self.mock_task_called = mock_task_called
         self.mock_cancel_job_called = mock_cancel_job_called
-        self.cancel_job_raise_exception = cancel_job_raise_exception
+        self.cancel_job_raises_exception = cancel_job_raises_exception
 
 
 class DatedMeasuresCreateTests(DatedMeasuresTests):
@@ -176,7 +176,7 @@ class DatedMeasuresCreateTests(DatedMeasuresTests):
                                     other_view: any, view_kwargs: dict):
         mock_header.return_value = None
         mock_task.return_value = None
-        if case.cancel_job_raise_exception:
+        if case.cancel_job_raises_exception:
             mock_cancel_job.side_effect = Exception("Error on cancel running DM")
         else:
             mock_cancel_job.return_value = JobStatus.cancelled
@@ -260,11 +260,12 @@ class DatedMeasuresCreateTests(DatedMeasuresTests):
                                NestedDatedMeasureViewSet.as_view({'post': 'create'}),
                                request_query_snapshot=self.user1_req1_snap1.pk)
 
-    def test_create_with_request_having_running_dated_measures(self):
+    def test_create_with_request_having_running_dms(self):
         # before create new DM, cancel any previously running ones
         case = self.basic_case.clone(data={'request_query_snapshot_id': self.user1_req_running_dms_snap1.pk},
                                      retrieve_filter=DMCaseRetrieveFilter(request_query_snapshot__pk=self.user1_req_running_dms_snap1.pk),
                                      mock_cancel_job_called=True)
+        print('********* test_create_with_request_having_running_dms')
         self.check_create_case(case)
 
     def test_error_create_on_cancel_running_dms(self):

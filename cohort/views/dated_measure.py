@@ -8,8 +8,6 @@ from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
-from admin_cohort import app
-from admin_cohort.types import JobStatus
 from cohort.conf_cohort_job_api import get_authorization_header, cancel_job
 from cohort.models import DatedMeasure, RequestQuerySnapshot
 from cohort.serializers import DatedMeasureSerializer
@@ -42,41 +40,9 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     pagination_class = LimitOffsetPagination
 
     def create(self, request, *args, **kwargs):
-        if "request_query_snapshot" in kwargs:
-            rqs_id = kwargs['request_query_snapshot']
-        elif "request_query_snapshot_id" in request.data:
-            rqs_id = request.data.get("request_query_snapshot_id")
-        else:
-            _logger.exception("'request_query_snapshot_id' not provided")
+        if not ("request_query_snapshot_id" in request.data or "request_query_snapshot" in kwargs):
+            _logger.exception("RequestQuerySnapshot UUID not provided")
             return Response(status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            rqs: RequestQuerySnapshot = RequestQuerySnapshot.objects.get(pk=rqs_id)
-        except RequestQuerySnapshot.DoesNotExist:
-            _logger.exception("Invalid 'request_query_snapshot_id'")
-            return Response(status=status.HTTP_400_BAD_REQUEST)
-
-        running_dms = rqs.request.dated_measures.filter(request_job_status__in=[JobStatus.started, JobStatus.pending])\
-                                                .prefetch_related('cohort', 'restricted_cohort')
-        for dm in running_dms:
-            if dm.cohort.all() or dm.restricted_cohort.all():
-                continue
-            job_status = dm.request_job_status
-            try:
-                if job_status == JobStatus.started:
-                    headers = get_authorization_header(request)
-                    new_status = cancel_job(dm.request_job_id, headers)
-                else:
-                    app.control.revoke(dm.count_task_id)
-                dm.request_job_status = job_status == JobStatus.started and new_status or JobStatus.cancelled
-                dm.save()
-            except Exception as e:
-                msg = f"Error while cancelling {job_status} job [{dm.request_job_id}] DM [{dm.uuid}] - {e}"
-                _logger.exception(msg)
-                dm.request_job_status = JobStatus.failed
-                dm.request_job_fail_msg = msg
-                dm.save()
-                return Response(data=str(e), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         return super(DatedMeasureViewSet, self).create(request, *args, **kwargs)
 
     def update(self, request, *args, **kwargs):
