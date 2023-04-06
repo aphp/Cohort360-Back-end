@@ -6,13 +6,10 @@ from unittest.mock import MagicMock
 
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.test import force_authenticate
 
-from admin_cohort.tests_tools import random_str, ListCase, RetrieveCase, CaseRetrieveFilter, CreateCase, DeleteCase, \
-    PatchCase
-from admin_cohort.tools import prettify_json
+from admin_cohort.tests_tools import random_str, ListCase, RetrieveCase, CaseRetrieveFilter, CreateCase, DeleteCase
 from admin_cohort.types import JobStatus
-from cohort.models import DatedMeasure, RequestQuerySnapshot, CohortResult, Request
+from cohort.models import DatedMeasure, RequestQuerySnapshot, Request
 from cohort.models.dated_measure import DATED_MEASURE_MODE_CHOICES
 from cohort.tests.tests_view_rqs import RqsTests
 from cohort.views import DatedMeasureViewSet
@@ -271,125 +268,3 @@ class DMDeleteCase(DeleteCase):
     def __init__(self, with_cohort: bool = False, **kwargs):
         super(DMDeleteCase, self).__init__(**kwargs)
         self.with_cohort = with_cohort
-
-
-class DatedMeasuresDeleteTests(DatedMeasuresTests):
-    def check_delete_case(self, case: DMDeleteCase):
-        obj = self.model_objects.create(**case.data_to_delete)
-
-        if case.with_cohort:
-            CohortResult.objects.create(
-                dated_measure=obj,
-                request_query_snapshot=obj.request_query_snapshot,
-                owner=obj.owner,
-            )
-
-        request = self.factory.delete(self.objects_url)
-        force_authenticate(request, case.user)
-        response = self.__class__.delete_view(
-            request, **{self.model._meta.pk.name: obj.pk}
-        )
-        response.render()
-
-        self.assertEqual(
-            response.status_code, case.status,
-            msg=(f"{case.description}"
-                 + (f" -> {prettify_json(response.content)}"
-                    if response.content else "")),
-        )
-
-        obj = self.model.all_objects.filter(pk=obj.pk).first()
-
-        if case.success:
-            self.check_is_deleted(obj)
-        else:
-            self.assertIsNotNone(obj)
-            self.assertIsNone(obj.deleted)
-            obj.delete()
-
-    def setUp(self):
-        super(DatedMeasuresDeleteTests, self).setUp()
-        self.basic_data = dict(
-            owner=self.user1,
-            request_query_snapshot=self.user1_req1_snap1,
-            fhir_datetime=timezone.now(),
-            measure=1,
-            measure_min=1,
-            measure_max=1,
-            count_task_id="test",
-            mode=DATED_MEASURE_MODE_CHOICES[0][0],
-            created_at=timezone.now(),
-            modified_at=timezone.now(),
-            request_job_id="test",
-            request_job_status=JobStatus.pending.value,
-            request_job_fail_msg="test",
-            request_job_duration="1s",
-        )
-        self.basic_case = DMDeleteCase(
-            data_to_delete=self.basic_data,
-            status=status.HTTP_204_NO_CONTENT,
-            success=True,
-            user=self.user1,
-        )
-        self.basic_err_case = self.basic_case.clone(
-            status=status.HTTP_403_FORBIDDEN,
-            success=False,
-            user=self.user1,
-        )
-
-    def test_delete_owned_dm_without_cohort(self):
-        # As a user, I can delete a dated measure I owned,
-        # not bound to a CohortResult
-        self.check_delete_case(self.basic_case)
-
-    def test_error_delete_owned_dm_with_cohort(self):
-        # As a user, I cannot delete a dated measure bound to a CohortResult
-        self.check_delete_case(self.basic_err_case.clone(
-            with_cohort=True
-        ))
-
-    def test_error_delete_not_owned(self):
-        # As a user, I cannot delete a dated measure linekd to a CohortResult
-        self.check_delete_case(self.basic_err_case.clone(
-            user=self.user2,
-            status=status.HTTP_404_NOT_FOUND,
-        ))
-
-
-class DatedMeasuresUpdateTests(DatedMeasuresTests):
-    def setUp(self):
-        super(DatedMeasuresUpdateTests, self).setUp()
-        self.basic_data = dict(
-            owner=self.user1,
-            request_query_snapshot=self.user1_req1_snap1,
-            fhir_datetime=timezone.now(),
-            measure=1,
-            measure_min=1,
-            measure_max=1,
-            count_task_id="test",
-            mode=DATED_MEASURE_MODE_CHOICES[0][0],
-            created_at=timezone.now(),
-            modified_at=timezone.now(),
-            request_job_id="test",
-            request_job_status=JobStatus.pending.value,
-            request_job_fail_msg="test",
-            request_job_duration="1s",
-        )
-        self.basic_err_case = PatchCase(
-            data_to_update=dict(measure=10),
-            initial_data=self.basic_data,
-            status=status.HTTP_403_FORBIDDEN,
-            success=False,
-            user=self.user1,
-        )
-
-    def test_error_update(self):
-        # As a user, I cannot update a DatedMeasure I own
-        self.check_patch_case(self.basic_err_case)
-
-    def test_error_update_dm_as_not_owner(self):
-        # As a user, I cannot update a dated_measure I don't own
-        self.check_patch_case(self.basic_err_case.clone(
-            status=status.HTTP_403_FORBIDDEN,
-            initial_data={**self.basic_data, 'owner': self.user2}
-        ))

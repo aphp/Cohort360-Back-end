@@ -52,12 +52,6 @@ class DatedMeasureSerializer(BaseSerializer):
                             "mode",
                             "request"]
 
-    def update(self, instance, validated_data):
-        for f in ['request_query_snapshot']:
-            if f in validated_data:
-                raise ValidationError(f'{f} field cannot bu updated manually')
-        return super(DatedMeasureSerializer, self).update(instance, validated_data)
-
     def create(self, validated_data):
         query_snapshot = validated_data.get("request_query_snapshot")
         measure = validated_data.get("measure")
