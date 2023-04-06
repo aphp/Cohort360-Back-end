@@ -22,7 +22,7 @@ class DatedMeasuresTests(RqsTests):
                           "created_at", "modified_at", "deleted"]
     unsettable_default_fields = {}
     unsettable_fields = ["owner", "uuid", "count_task_id",
-                         "created_at", "modified_at", "deleted", ]
+                         "created_at", "modified_at", "deleted"]
     manual_dupplicated_fields = []
 
     objects_url = "cohort/dated-measures/"
