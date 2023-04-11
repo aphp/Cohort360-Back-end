@@ -179,7 +179,7 @@ def wait_for_hive_db_creation_job(job_id):
     if status_resp.status != JobStatus.finished:
         raise HTTPError(f"Error on creating Hive DB {status_resp.err or 'No `err` value returned'}")
     elif errors_count >= 5:
-        raise HTTPError(f"5 consecutive errors during Hive DB creation")
+        raise HTTPError("5 consecutive errors during Hive DB creation")
 
 
 def create_hive_db(export_request: ExportRequest):
