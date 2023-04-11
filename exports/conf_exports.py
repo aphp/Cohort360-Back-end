@@ -1,6 +1,7 @@
 import enum
 import logging
 import os
+import time
 from typing import Dict, List
 
 import requests
@@ -127,7 +128,7 @@ def get_job_status(export_job_id: str) -> ApiJobResponse:
     """
     Returns the status of the job of the ExpRequest, and returns it
     using ApiJobResponse format, providing also output and/or error messages
-    @param er: ExpRequest to get info about
+    @param export_job_id: ExpRequest to get info about
     @return: ApiJobResponse: info about the job
     """
     params = {"task_uuid": export_job_id,
@@ -151,9 +152,9 @@ def get_job_status(export_job_id: str) -> ApiJobResponse:
 # PROCESSES ###############################################################
 
 
-def change_hive_db_ownership(er: ExportRequest, db_user: str):
-    location = build_location(er.target_name)
-    log_export_request_task(er.id, f"Granting rights on DB '{er.target_name}' to user '{db_user}'")
+def change_hive_db_ownership(export_request: ExportRequest, db_user: str):
+    location = build_location(export_request.target_name)
+    log_export_request_task(export_request.id, f"Granting rights on DB '{export_request.target_name}' to user '{db_user}'")
     data = {"location": location,
             "uid": db_user,
             "gid": "hdfs",
@@ -161,49 +162,74 @@ def change_hive_db_ownership(er: ExportRequest, db_user: str):
     try:
         post_hadoop(url=HADOOP_CHOWN_DB_URL, data=data)
     except RequestException as e:
-        raise RequestException(f"Error granting rights on DB '{er.target_name}'") from e
+        raise RequestException(f"Error granting rights on DB '{export_request.target_name}'") from e
 
 
-def prepare_hive_db(er: ExportRequest):
-    location = build_location(er.target_name)
-    log_export_request_task(er.id, f"Creating DB with name '{er.target_name}', location: {location}")
-    data = {"name": er.target_name,
+def wait_for_hive_db_creation_job(job_id):
+    errors_count = 0
+    status_resp = ApiJobResponse(JobStatus.pending)
+
+    while errors_count < 5 and not status_resp.has_ended:
+        time.sleep(5)
+        try:
+            status_resp: ApiJobResponse = get_job_status(job_id)
+        except RequestException:
+            errors_count += 1
+
+    if status_resp.status != JobStatus.finished:
+        raise HTTPError(f"Error on creating Hive DB {status_resp.err or 'No `err` value returned'}")
+    elif errors_count >= 5:
+        raise HTTPError(f"5 consecutive errors during Hive DB creation")
+
+
+def create_hive_db(export_request: ExportRequest):
+    location = build_location(export_request.target_name)
+    log_export_request_task(export_request.id, f"Creating DB with name '{export_request.target_name}', location: {location}")
+    data = {"name": export_request.target_name,
             "location": location,
             "if_not_exists": False}
     try:
-        post_hadoop(url=HADOOP_NEW_DB_URL, data=data)
-        log_export_request_task(er.id, f"DB '{er.target_name}' created.")
+        resp = requests.post(url=HADOOP_NEW_DB_URL, params=data, headers={'auth-token': INFRA_HADOOP_TOKEN})
+        resp.raise_for_status()
+        resp = PostJobResponse(**resp.json())
     except RequestException as e:
-        _logger_err.error(f"Error on call to prepare Hive DB. {e}")
+        _logger_err.error(f"Error on call to create Hive DB: {e}")
+    else:
+        wait_for_hive_db_creation_job(resp.task_id)
 
-    change_hive_db_ownership(er=er, db_user=HIVE_EXPORTER_USER)
-    log_export_request_task(er.id, f"DB '{er.target_name}' attributed to {HIVE_EXPORTER_USER} and HDFS.")
+
+def prepare_hive_db(export_request: ExportRequest):
+    create_hive_db(export_request=export_request)
+    log_export_request_task(export_request.id, f"DB '{export_request.target_name}' created.")
+    change_hive_db_ownership(export_request=export_request, db_user=HIVE_EXPORTER_USER)
+    log_export_request_task(export_request.id, f"DB '{export_request.target_name}' attributed to {HIVE_EXPORTER_USER} and HDFS.")
 
 
-def post_export(er: ExportRequest) -> str:
-    log_export_request_task(er.id, f"Asking to export for '{er.target_name}'")
-    tables = ",".join([t.omop_table_name for t in er.tables.all()])
-    params = {"cohort_id": er.cohort_fk.fhir_group_id,
+def post_export(export_request: ExportRequest) -> str:
+    log_export_request_task(export_request.id, f"Asking to export for '{export_request.target_name}'")
+    tables = ",".join([t.omop_table_name for t in export_request.tables.all()])
+    params = {"cohort_id": export_request.cohort_fk.fhir_group_id,
               "tables": tables,
               "environment": OMOP_ENVIRONMENT,
-              "no_date_shift": not er.nominative and er.shift_dates,
+              "no_date_shift": not export_request.nominative and export_request.shift_dates,
               "overwrite": False,
-              "user_for_pseudo": not er.nominative and er.target_unix_account.name or None,
+              "user_for_pseudo": not export_request.nominative and export_request.target_unix_account.name or None,
               }
-    if er.output_format == ExportType.HIVE:
+    if export_request.output_format == ExportType.HIVE:
         url = EXPORT_HIVE_URL
-        params.update({"database_name": er.target_name})
+        params.update({"database_name": export_request.target_name})
     else:
         url = EXPORT_CSV_URL
-        params.update({"file_path": er.target_full_path})
+        params.update({"file_path": export_request.target_full_path})
     resp = requests.post(url=url, params=params, headers={'auth-token': INFRA_EXPORT_TOKEN})
     res = check_resp(resp, url)
     return PostJobResponse(**res).task_id
 
 
-def conclude_export_hive(er: ExportRequest):
-    change_hive_db_ownership(er=er, db_user=er.target_unix_account.name)
-    log_export_request_task(er.id, f"DB '{er.target_name}' attributed to {er.target_unix_account.name}. Conclusion finished.")
+def conclude_export_hive(export_request: ExportRequest):
+    db_user = export_request.target_unix_account.name
+    change_hive_db_ownership(export_request=export_request, db_user=db_user)
+    log_export_request_task(export_request.id, f"DB '{export_request.target_name}' attributed to {db_user}. Conclusion finished.")
 
 
 # FHIR PERIMETERS #############################################################

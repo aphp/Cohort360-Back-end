@@ -43,16 +43,7 @@ def manage_exception(er: ExportRequest, e: Exception, msg: str, start: datetime)
     log_export_request_task(er.id, err_msg)
 
 
-def wait_for_job(er: ExportRequest):
-    """
-    Will initialize the Job response with empty values
-    Then will call conf_exports.get_job_status untill the resp.status warns
-    that the job has ended
-    If 5 errors while retrieving the status, or an ending status not 'finished',
-    will raise Exception
-    @param er: ExportRequest to ask for the job status
-    @return: None
-    """
+def wait_for_export_job(er: ExportRequest):
     errors_count = 0
     error_msg = ""
     status_resp = ApiJobResponse(JobStatus.pending)
@@ -112,7 +103,7 @@ def launch_request(er_id: int):
         return
 
     try:
-        wait_for_job(export_request)
+        wait_for_export_job(export_request)
     except HTTPError as e:
         manage_exception(export_request, e, f"Failure during export job {er_id}", now)
         return
