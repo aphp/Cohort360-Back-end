@@ -4,9 +4,9 @@ from django.utils import timezone
 
 from admin_cohort.types import JobStatus
 from cohort.crb_responses import CRBCountResponse, CRBCohortResponse
-from cohort.models import DatedMeasure, CohortResult
+from cohort.models import DatedMeasure, CohortResult, Request, RequestQuerySnapshot
 from cohort.models.dated_measure import GLOBAL_DM_MODE
-from cohort.tasks import get_count_task, create_cohort_task
+from cohort.tasks import get_count_task, create_cohort_task, cancel_previously_running_dm_jobs
 from cohort.tests.tests_view_dated_measure import DatedMeasuresTests
 
 
@@ -74,6 +74,36 @@ class TasksTests(DatedMeasuresTests):
                                           "err_msg": self.test_create_err_msg
                                           }
 
+        self.req_with_running_dms1 = Request.objects.create(owner=self.user1,
+                                                            name="Request 01 with running DMs",
+                                                            description="Request with DMs started, pending",
+                                                            parent_folder=self.user1_folder1)
+
+        self.req_with_running_dms2 = Request.objects.create(owner=self.user1,
+                                                            name="Request 02 with running DMs",
+                                                            description="Request with DMs started, pending",
+                                                            parent_folder=self.user1_folder1)
+
+        self.user1_req_running_dms_snap1 = RequestQuerySnapshot.objects.create(owner=self.user1,
+                                                                               request=self.req_with_running_dms1,
+                                                                               serialized_query='{}')
+
+        self.started_dm1 = DatedMeasure.objects.create(request_query_snapshot=self.user1_req_running_dms_snap1,
+                                                       request_job_status=JobStatus.started,
+                                                       owner=self.user1)
+
+        self.pending_dm1 = DatedMeasure.objects.create(request_query_snapshot=self.user1_req_running_dms_snap1,
+                                                       request_job_status=JobStatus.pending,
+                                                       owner=self.user1)
+
+        self.user1_req_running_dms_snap2 = RequestQuerySnapshot.objects.create(owner=self.user1,
+                                                                               request=self.req_with_running_dms2,
+                                                                               serialized_query='{}')
+
+        self.started_dm2 = DatedMeasure.objects.create(request_query_snapshot=self.user1_req_running_dms_snap2,
+                                                       request_job_status=JobStatus.started,
+                                                       owner=self.user1)
+
     @mock.patch('cohort.tasks.cohort_job_api')
     def test_get_count_task(self, mock_cohort_job_api):
         mock_cohort_job_api.post_count_cohort.return_value = CRBCountResponse(**self.basic_count_response)
@@ -91,6 +121,26 @@ class TasksTests(DatedMeasuresTests):
                                              request_job_id=self.test_job_id,
                                              ).first()
         self.assertIsNotNone(new_dm)
+
+    @mock.patch('cohort.tasks.app.control.revoke')
+    @mock.patch('cohort.tasks.cohort_job_api.cancel_job')
+    def test_cancel_previously_running_dm_jobs_task(self, mock_cancel_job, mock_celery_revoke):
+        mock_celery_revoke.return_value = None
+        mock_cancel_job.return_value = JobStatus.cancelled
+        cancel_previously_running_dm_jobs(auth_headers={},
+                                          query_snapshot_id=self.user1_req_running_dms_snap1.uuid)
+        cancelled_dms = DatedMeasure.objects.filter(request_query_snapshot=self.user1_req_running_dms_snap1)
+
+        for dm in cancelled_dms:
+            self.assertEqual(dm.request_job_status, JobStatus.cancelled.value)
+
+    @mock.patch('cohort.tasks.cohort_job_api.cancel_job')
+    def test_error_on_cancel_previously_running_dm_jobs_task(self, mock_cancel_job):
+        mock_cancel_job.side_effect = Exception("Error on calling to cancel running DMs")
+        cancel_previously_running_dm_jobs(auth_headers={},
+                                          query_snapshot_id=self.user1_req_running_dms_snap2.uuid)
+        failed_dm = DatedMeasure.objects.get(request_query_snapshot=self.user1_req_running_dms_snap2)
+        self.assertEqual(failed_dm.request_job_status, JobStatus.failed.value)
 
     @mock.patch('cohort.tasks.cohort_job_api')
     def test_get_count_global_task(self, mock_cohort_job_api):
