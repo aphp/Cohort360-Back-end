@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from cohort.tasks import get_count_task, cancel_previously_running_dm_jobs
 import cohort.conf_cohort_job_api as cohort_job_api
 from admin_cohort.models import User
 from admin_cohort.serializers import BaseSerializer, OpenUserSerializer
@@ -51,30 +52,25 @@ class DatedMeasureSerializer(BaseSerializer):
                             "mode",
                             "request"]
 
-    def update(self, instance, validated_data):
-        for f in ['request_query_snapshot']:
-            if f in validated_data:
-                raise ValidationError(f'{f} field cannot bu updated manually')
-        return super(DatedMeasureSerializer, self).update(instance, validated_data)
-
     def create(self, validated_data):
-        rqs = validated_data.get("request_query_snapshot")
+        query_snapshot = validated_data.get("request_query_snapshot")
         measure = validated_data.get("measure")
         fhir_datetime = validated_data.get("fhir_datetime")
 
-        if not rqs:
-            raise ValidationError("You have to provide a request_query_snapshot_id to bind the dated measure to it")
+        if not query_snapshot:
+            raise ValidationError("Invalid 'request_query_snapshot_id'")
 
         if (measure and not fhir_datetime) or (not measure and fhir_datetime):
             raise ValidationError("If you provide measure or fhir_datetime, you have to provide the other")
 
-        dm = super(DatedMeasureSerializer, self).create(validated_data=validated_data)
+        auth_header = cohort_job_api.get_authorization_header(self.context.get("request"))
+        cancel_previously_running_dm_jobs.delay(auth_header, query_snapshot.uuid)
 
+        dm = super(DatedMeasureSerializer, self).create(validated_data=validated_data)
         if not measure:
             try:
-                from cohort.tasks import get_count_task
                 auth_header = cohort_job_api.get_authorization_header(self.context.get("request"))
-                get_count_task.delay(auth_header, rqs.serialized_query, dm.uuid)
+                get_count_task.delay(auth_header, query_snapshot.serialized_query, dm.uuid)
             except Exception as e:
                 dm.delete()
                 raise ValidationError(f"INTERNAL ERROR: Could not launch FHIR cohort count: {e}")

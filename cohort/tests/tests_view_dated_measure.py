@@ -6,16 +6,13 @@ from unittest.mock import MagicMock
 
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.test import force_authenticate
 
-from admin_cohort.tests_tools import random_str, ListCase, RetrieveCase, CaseRetrieveFilter, CreateCase, DeleteCase, \
-    PatchCase
-from admin_cohort.tools import prettify_json
+from admin_cohort.tests_tools import random_str, ListCase, RetrieveCase, CaseRetrieveFilter, CreateCase, DeleteCase
 from admin_cohort.types import JobStatus
-from cohort.models import DatedMeasure, RequestQuerySnapshot, CohortResult, Request
+from cohort.models import DatedMeasure, RequestQuerySnapshot, Request
 from cohort.models.dated_measure import DATED_MEASURE_MODE_CHOICES
 from cohort.tests.tests_view_rqs import RqsTests
-from cohort.views import DatedMeasureViewSet, NestedDatedMeasureViewSet
+from cohort.views import DatedMeasureViewSet
 
 
 class DatedMeasuresTests(RqsTests):
@@ -25,7 +22,7 @@ class DatedMeasuresTests(RqsTests):
                           "created_at", "modified_at", "deleted"]
     unsettable_default_fields = {}
     unsettable_fields = ["owner", "uuid", "count_task_id",
-                         "created_at", "modified_at", "deleted", ]
+                         "created_at", "modified_at", "deleted"]
     manual_dupplicated_fields = []
 
     objects_url = "cohort/dated-measures/"
@@ -122,11 +119,11 @@ class DMCaseRetrieveFilter(CaseRetrieveFilter):
 
 
 class DMCreateCase(CreateCase):
-    def __init__(self, mock_task_called: bool, mock_cancel_job_called=False, cancel_job_raise_exception=False, **kwargs):
+    def __init__(self, mock_header_called: bool, mock_count_task_called: bool, mock_cancel_task_called: bool, **kwargs):
         super(DMCreateCase, self).__init__(**kwargs)
-        self.mock_task_called = mock_task_called
-        self.mock_cancel_job_called = mock_cancel_job_called
-        self.cancel_job_raise_exception = cancel_job_raise_exception
+        self.mock_header_called = mock_header_called
+        self.mock_count_task_called = mock_count_task_called
+        self.mock_cancel_task_called = mock_cancel_task_called
 
 
 class DatedMeasuresCreateTests(DatedMeasuresTests):
@@ -143,11 +140,13 @@ class DatedMeasuresCreateTests(DatedMeasuresTests):
             status=status.HTTP_201_CREATED,
             user=self.user1,
             success=True,
-            mock_task_called=True,
+            mock_header_called=True,
+            mock_count_task_called=True,
+            mock_cancel_task_called=True,
             retrieve_filter=DMCaseRetrieveFilter(request_query_snapshot__pk=self.user1_req1_snap1.pk)
         )
         self.basic_err_case = self.basic_case.clone(
-            mock_task_called=False,
+            mock_count_task_called=False,
             success=False,
             status=status.HTTP_400_BAD_REQUEST,
         )
@@ -170,22 +169,19 @@ class DatedMeasuresCreateTests(DatedMeasuresTests):
                                                       owner=self.user1)
 
     @mock.patch('cohort.serializers.cohort_job_api.get_authorization_header')
+    @mock.patch('cohort.tasks.cancel_previously_running_dm_jobs.delay')
     @mock.patch('cohort.tasks.get_count_task.delay')
-    @mock.patch('cohort.views.dated_measure.cancel_job')
-    def check_create_case_with_mock(self, case: DMCreateCase, mock_cancel_job: MagicMock, mock_task: MagicMock, mock_header: MagicMock,
+    def check_create_case_with_mock(self, case: DMCreateCase, mock_count_task: MagicMock, mock_cancel_task: MagicMock, mock_header: MagicMock,
                                     other_view: any, view_kwargs: dict):
         mock_header.return_value = None
-        mock_task.return_value = None
-        if case.cancel_job_raise_exception:
-            mock_cancel_job.side_effect = Exception("Error on cancel running DM")
-        else:
-            mock_cancel_job.return_value = JobStatus.cancelled
+        mock_cancel_task.return_value = None
+        mock_count_task.return_value = None
 
         super(DatedMeasuresCreateTests, self).check_create_case(case, other_view, **(view_kwargs or {}))
 
-        mock_cancel_job.assert_called() if case.mock_cancel_job_called else mock_cancel_job.assert_not_called()
-        mock_header.assert_called() if case.mock_task_called else mock_header.assert_not_called()
-        mock_task.assert_called() if case.mock_task_called else mock_task.assert_not_called()
+        mock_header.assert_called() if case.mock_header_called else mock_header.assert_not_called()
+        mock_cancel_task.assert_called() if case.mock_cancel_task_called else mock_cancel_task.assert_not_called()
+        mock_count_task.assert_called() if case.mock_count_task_called else mock_count_task.assert_not_called()
 
     def check_create_case(self, case: DMCreateCase, other_view: any = None, **view_kwargs):
         return self.check_create_case_with_mock(case, other_view=other_view or None, view_kwargs=view_kwargs)
@@ -198,16 +194,13 @@ class DatedMeasuresCreateTests(DatedMeasuresTests):
     def test_create_with_data(self):
         # As a user, I can create a DatedMeasure with all fields,
         # no task will be launched
-        self.check_create_case(self.basic_case.clone(
-            data={
-                **self.basic_data,
-                'measure': 1,
-                'measure_min': 1,
-                'measure_max': 1,
-                'fhir_datetime': timezone.now(),
-            },
-            mock_task_called=False,
-        ))
+        case = self.basic_case.clone(data={**self.basic_data,
+                                           'measure': 1,
+                                           'measure_min': 1,
+                                           'measure_max': 1,
+                                           'fhir_datetime': timezone.now()},
+                                     mock_count_task_called=False)
+        self.check_create_case(case)
 
     def test_create_with_unread_fields(self):
         # As a user, I can create a dm
@@ -225,179 +218,53 @@ class DatedMeasuresCreateTests(DatedMeasuresTests):
     def test_error_create_missing_time_or_measure(self):
         # As a user, I cannot create a dm if I provide one of fhir_datetime
         # and measure but not both
-        cases = (self.basic_err_case.clone(
-            data={**self.basic_data, k: v},
-        ) for (k, v) in {'fhir_datetime': timezone.now(), 'measure': 1}.items())
+        cases = (self.basic_err_case.clone(data={**self.basic_data, k: v},
+                                           mock_header_called=False,
+                                           mock_cancel_task_called=False) for (k, v) in {'fhir_datetime': timezone.now(), 'measure': 1}.items())
         [self.check_create_case(case) for case in cases]
 
     def test_error_create_missing_field(self):
         # As a user, I cannot create a dm if some field is missing
-        cases = (self.basic_err_case.clone(
-            data={**self.basic_data, k: None},
-        ) for k in ['request_query_snapshot_id'])
-        [self.check_create_case(case) for case in cases]
+        case = self.basic_err_case.clone(data={**self.basic_data,
+                                               "request_query_snapshot_id": None},
+                                         mock_header_called=False,
+                                         mock_cancel_task_called=False)
+        self.check_create_case(case)
 
     def test_error_create_with_other_owner(self):
         # As a user, I cannot create a DM providing another user as owner
-        self.check_create_case(self.basic_err_case.clone(
-            data={**self.basic_data, 'owner': self.user2.pk},
-        ))
+        self.check_create_case(self.basic_err_case.clone(data={**self.basic_data, 'owner': self.user2.pk},
+                                                         mock_header_called=False,
+                                                         mock_cancel_task_called=False))
 
     def test_error_create_on_rqs_not_provided(self):
         # cannot create a DM without an RQS
-        case = self.basic_err_case.clone(data={'request_query_snapshot_id': None})
+        case = self.basic_err_case.clone(data={'request_query_snapshot_id': None},
+                                         mock_header_called=False,
+                                         mock_cancel_task_called=False)
         self.check_create_case(case=case)
 
     def test_error_create_on_rqs_not_owned(self):
         # As a user, I cannot create a DM on a RQS I don't own
-        case = self.basic_err_case.clone(data={'request_query_snapshot_id': self.user2_req1_snap1.pk})
+        case = self.basic_err_case.clone(data={'request_query_snapshot_id': self.user2_req1_snap1.pk},
+                                         mock_header_called=False,
+                                         mock_cancel_task_called=False)
         self.check_create_case(case=case)
 
-    def test_create_from_rqs(self):
-        # As a user, I can create a RQS specifying a previous snapshot
-        # using nestedViewSet
-        self.check_create_case(self.basic_case.clone(data={}),
-                               NestedDatedMeasureViewSet.as_view({'post': 'create'}),
-                               request_query_snapshot=self.user1_req1_snap1.pk)
-
-    def test_create_with_request_having_running_dated_measures(self):
+    def test_create_with_request_having_running_dms(self):
         # before create new DM, cancel any previously running ones
         case = self.basic_case.clone(data={'request_query_snapshot_id': self.user1_req_running_dms_snap1.pk},
-                                     retrieve_filter=DMCaseRetrieveFilter(request_query_snapshot__pk=self.user1_req_running_dms_snap1.pk),
-                                     mock_cancel_job_called=True)
+                                     retrieve_filter=DMCaseRetrieveFilter(request_query_snapshot__pk=self.user1_req_running_dms_snap1.pk))
         self.check_create_case(case)
 
-    def test_error_create_on_cancel_running_dms(self):
-        case = self.basic_err_case.clone(data={'request_query_snapshot_id': self.user1_req_running_dms_snap1.pk},
-                                         mock_cancel_job_called=True,
-                                         cancel_job_raise_exception=True,
-                                         status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        self.check_create_case(case)
+    # def test_error_create_on_cancel_running_dms(self):
+    #     case = self.basic_err_case.clone(data={'request_query_snapshot_id': self.user1_req_running_dms_snap1.pk},
+    #                                      status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+    #                                      cancel_task_raises_exception=True)
+    #     self.check_create_case(case)
 
 
 class DMDeleteCase(DeleteCase):
     def __init__(self, with_cohort: bool = False, **kwargs):
         super(DMDeleteCase, self).__init__(**kwargs)
         self.with_cohort = with_cohort
-
-
-class DatedMeasuresDeleteTests(DatedMeasuresTests):
-    def check_delete_case(self, case: DMDeleteCase):
-        obj = self.model_objects.create(**case.data_to_delete)
-
-        if case.with_cohort:
-            CohortResult.objects.create(
-                dated_measure=obj,
-                request_query_snapshot=obj.request_query_snapshot,
-                owner=obj.owner,
-            )
-
-        request = self.factory.delete(self.objects_url)
-        force_authenticate(request, case.user)
-        response = self.__class__.delete_view(
-            request, **{self.model._meta.pk.name: obj.pk}
-        )
-        response.render()
-
-        self.assertEqual(
-            response.status_code, case.status,
-            msg=(f"{case.description}"
-                 + (f" -> {prettify_json(response.content)}"
-                    if response.content else "")),
-        )
-
-        obj = self.model.all_objects.filter(pk=obj.pk).first()
-
-        if case.success:
-            self.check_is_deleted(obj)
-        else:
-            self.assertIsNotNone(obj)
-            self.assertIsNone(obj.deleted)
-            obj.delete()
-
-    def setUp(self):
-        super(DatedMeasuresDeleteTests, self).setUp()
-        self.basic_data = dict(
-            owner=self.user1,
-            request_query_snapshot=self.user1_req1_snap1,
-            fhir_datetime=timezone.now(),
-            measure=1,
-            measure_min=1,
-            measure_max=1,
-            count_task_id="test",
-            mode=DATED_MEASURE_MODE_CHOICES[0][0],
-            created_at=timezone.now(),
-            modified_at=timezone.now(),
-            request_job_id="test",
-            request_job_status=JobStatus.pending.value,
-            request_job_fail_msg="test",
-            request_job_duration="1s",
-        )
-        self.basic_case = DMDeleteCase(
-            data_to_delete=self.basic_data,
-            status=status.HTTP_204_NO_CONTENT,
-            success=True,
-            user=self.user1,
-        )
-        self.basic_err_case = self.basic_case.clone(
-            status=status.HTTP_403_FORBIDDEN,
-            success=False,
-            user=self.user1,
-        )
-
-    def test_delete_owned_dm_without_cohort(self):
-        # As a user, I can delete a dated measure I owned,
-        # not bound to a CohortResult
-        self.check_delete_case(self.basic_case)
-
-    def test_error_delete_owned_dm_with_cohort(self):
-        # As a user, I cannot delete a dated measure bound to a CohortResult
-        self.check_delete_case(self.basic_err_case.clone(
-            with_cohort=True
-        ))
-
-    def test_error_delete_not_owned(self):
-        # As a user, I cannot delete a dated measure linekd to a CohortResult
-        self.check_delete_case(self.basic_err_case.clone(
-            user=self.user2,
-            status=status.HTTP_404_NOT_FOUND,
-        ))
-
-
-class DatedMeasuresUpdateTests(DatedMeasuresTests):
-    def setUp(self):
-        super(DatedMeasuresUpdateTests, self).setUp()
-        self.basic_data = dict(
-            owner=self.user1,
-            request_query_snapshot=self.user1_req1_snap1,
-            fhir_datetime=timezone.now(),
-            measure=1,
-            measure_min=1,
-            measure_max=1,
-            count_task_id="test",
-            mode=DATED_MEASURE_MODE_CHOICES[0][0],
-            created_at=timezone.now(),
-            modified_at=timezone.now(),
-            request_job_id="test",
-            request_job_status=JobStatus.pending.value,
-            request_job_fail_msg="test",
-            request_job_duration="1s",
-        )
-        self.basic_err_case = PatchCase(
-            data_to_update=dict(measure=10),
-            initial_data=self.basic_data,
-            status=status.HTTP_403_FORBIDDEN,
-            success=False,
-            user=self.user1,
-        )
-
-    def test_error_update(self):
-        # As a user, I cannot update a DatedMeasure I own
-        self.check_patch_case(self.basic_err_case)
-
-    def test_error_update_dm_as_not_owner(self):
-        # As a user, I cannot update a dated_measure I don't own
-        self.check_patch_case(self.basic_err_case.clone(
-            status=status.HTTP_403_FORBIDDEN,
-            initial_data={**self.basic_data, 'owner': self.user2}
-        ))

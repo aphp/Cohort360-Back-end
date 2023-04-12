@@ -5,6 +5,7 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 from django.utils import timezone
+from requests import Response
 from rest_framework import status
 from rest_framework.test import force_authenticate
 
@@ -16,9 +17,10 @@ from admin_cohort.tests_tools import new_user_and_profile, ViewSetTestsWithBasic
 from admin_cohort.tools import prettify_json
 from cohort.models import CohortResult, RequestQuerySnapshot, Request, DatedMeasure, Folder
 from workspaces.models import Account
+from .conf_exports import create_hive_db, prepare_hive_db, wait_for_hive_db_creation_job
 from .models import ExportRequest, ExportRequestTable
 from .tasks import delete_export_requests_csv_files
-from .types import ExportType
+from .types import ExportType, ApiJobResponse
 from .views import ExportRequestViewSet
 
 EXPORTS_URL = "/exports"
@@ -642,12 +644,12 @@ class ExportCreateCase(CreateCase):
         self.mock_perim_called = mock_perim_called
 
 
-class ExportJupCreateCase(ExportCreateCase):
+class ExportJupyterCreateCase(ExportCreateCase):
     def __init__(self, mock_user_bound_resp: bool,
                  mock_user_bound_called: bool, **kwargs):
         self.mock_user_bound_resp = mock_user_bound_resp
         self.mock_user_bound_called = mock_user_bound_called
-        super(ExportJupCreateCase, self).__init__(**kwargs)
+        super(ExportJupyterCreateCase, self).__init__(**kwargs)
 
 
 class ExportsCreateTests(ExportsTests):
@@ -800,9 +802,9 @@ class ExportsCsvCreateTests(ExportsCreateTests):
         self.check_create_case(case)
 
 
-class ExportsJupCreateTests(ExportsCreateTests):
+class ExportsJupyterCreateTests(ExportsCreateTests):
     def setUp(self):
-        super(ExportsJupCreateTests, self).setUp()
+        super(ExportsJupyterCreateTests, self).setUp()
 
         self.user1_jup_nomi_acc: Access = Access.objects.create(
             perimeter=self.aphp,
@@ -834,7 +836,7 @@ class ExportsJupCreateTests(ExportsCreateTests):
             # actual validity will be returned by mock
             target_unix_account=self.user1_unix_acc.pk,
         )
-        self.basic_case = ExportJupCreateCase(
+        self.basic_case = ExportJupyterCreateCase(
             data=self.basic_data,
             user=self.user1,
             status=status.HTTP_201_CREATED,
@@ -855,11 +857,22 @@ class ExportsJupCreateTests(ExportsCreateTests):
             mock_user_bound_called=False,
         )
 
+        self.export_request = ExportRequest.objects.create(owner=self.user1,
+                                                           cohort_fk=self.user1_cohort,
+                                                           cohort_id=self.user1_cohort.fhir_group_id,
+                                                           nominative=True,
+                                                           shift_dates=True,
+                                                           target_unix_account=self.user1_unix_acc,
+                                                           output_format=ExportType.HIVE.value,
+                                                           provider_id=self.user1.provider_id,
+                                                           target_name="user1_12345",
+                                                           target_location="test/user/exports")
+
     @mock.patch('workspaces.conf_workspaces.is_user_bound_to_unix_account')
-    def check_create_case(self, case: ExportJupCreateCase,
+    def check_create_case(self, case: ExportJupyterCreateCase,
                           mock_user_bound: MagicMock):
         mock_user_bound.return_value = case.mock_user_bound_resp
-        super(ExportsJupCreateTests, self).check_create_case(case)
+        super(ExportsJupyterCreateTests, self).check_create_case(case)
         mock_user_bound.assert_called() if case.mock_user_bound_called \
             else mock_user_bound.assert_not_called()
 
@@ -1008,6 +1021,28 @@ class ExportsJupCreateTests(ExportsCreateTests):
             mock_perim_called=True,
             mock_user_bound_called=True,
         ))
+
+    @mock.patch("exports.conf_exports.change_hive_db_ownership")
+    @mock.patch("exports.conf_exports.create_hive_db")
+    def test_prepare_hive_db(self, mock_create_hive_db, mock_change_hive_db_ownership):
+        prepare_hive_db(export_request=self.export_request)
+        mock_create_hive_db.assert_called()
+        mock_change_hive_db_ownership.assert_called()
+
+    @mock.patch("exports.conf_exports.wait_for_hive_db_creation_job")
+    @mock.patch("exports.conf_exports.requests.post")
+    def test_create_hive_db(self, mock_request_post, mock_wait_for_hive_db):
+        resp = Response()
+        resp.status_code = 200
+        resp._content = b'{"task_id": "random_task_id"}'
+        mock_request_post.return_value = resp
+        create_hive_db(export_request=self.export_request)
+        mock_wait_for_hive_db.assert_called()
+
+    @mock.patch("exports.conf_exports.get_job_status")
+    def test_wait_for_hive_db_creation_job(self, mock_get_job_status):
+        mock_get_job_status.return_value = ApiJobResponse(status=JobStatus.finished)
+        wait_for_hive_db_creation_job(job_id="random_task_id")
 
 
 class ExportsNotAllowedTests(ExportsWithSimpleSetUp):
