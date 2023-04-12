@@ -192,10 +192,9 @@ def create_hive_db(export_request: ExportRequest):
         resp = requests.post(url=HADOOP_NEW_DB_URL, params=data, headers={'auth-token': INFRA_HADOOP_TOKEN})
         resp.raise_for_status()
         resp = PostJobResponse(**resp.json())
+        wait_for_hive_db_creation_job(resp.task_id)
     except RequestException as e:
         _logger_err.error(f"Error on call to create Hive DB: {e}")
-    else:
-        wait_for_hive_db_creation_job(resp.task_id)
 
 
 def prepare_hive_db(export_request: ExportRequest):
