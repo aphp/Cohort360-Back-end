@@ -232,66 +232,6 @@ def conclude_export_hive(export_request: ExportRequest):
     log_export_request_task(export_request.id, f"DB '{export_request.target_name}' attributed to {db_user}. Conclusion finished.")
 
 
-# FHIR PERIMETERS #############################################################
-
-FHIR_URL = env.get("FHIR_URL")
-
-
-def get_fhir_organization_members(obj: dict) -> List[str]:
-    # a member is expected to be like this:
-    # { 'entity': { 'display' : 'Organizations-or-Group/id' }}
-    members = obj.get("member", [])
-    entities = [m.get('entity')
-                for m in members if isinstance(m, dict) and isinstance(m.get('entity'), dict)]
-    res = [e.get('display', "").split("/")[-1]
-           for e in entities if isinstance(e.get('display'), str) and e.get('display').startswith("Organization")]
-    return res or []
-
-
-def get_cohort_perimeters(cohort_id: int, token: str) -> List[str]:
-    """
-    Asks a remote API, that is used to generate OMOP cohorts,
-    which perimeters are searched to build the cohort
-    @param cohort_id: OMOP cohort id to analyse
-    @param token: session token that is used to identify the user
-    @return: list of perimeter ids
-    """
-
-    resp = requests.get(url=f"{FHIR_URL}/fhir/Group?_id={cohort_id}", headers={'Authorization': f"Bearer {token}"})
-
-    if resp.status_code == 401:
-        raise ValidationError("Token error with FHIR api")
-    res = resp.json()
-    if resp.status_code != 200:
-        if resp.status_code == 500:
-            issues = res.get('issue', [])
-            if not issues or not isinstance(issues[0], dict):
-                err = f"Could not read FHIR response: {str(res)}"
-            else:
-                issue = issues[0]
-                err = issue.get("Diagnostics", f"Could not read FHIR response: {str(res)}")
-            raise ValidationError(f"Error with FHIR api checking: {err}")
-
-        raise ValidationError(f"Error {resp.status_code} with FHIR api checking: {res['error']}."
-                              f"Called URL: {resp.url}")
-    entry = res.get('entry', [])
-    if not entry:
-        raise ValidationError(f"Entry field is empty on FHIR response, it means the provider "
-                              f"has no right on the cohort '{cohort_id}'.")
-    if not isinstance(entry[0], dict):
-        raise ValidationError(f"Could not read FHIR response, missing entry field: {str(res)}")
-
-    resource = entry[0].get('resource')
-    if not isinstance(resource, dict):
-        raise ValidationError(f"Could not read FHIR response, missing resource field in entry: {str(res)}")
-
-    parent_perim_ids = get_fhir_organization_members(resource)
-
-    if not parent_perim_ids:
-        raise ValidationError(f"Could not read FHIR response, no member found with "
-                              f"entity.display starting with 'Organization' in resource: "
-                              f"{prettify_dict(resource)}.\n Full response : {prettify_dict(res)}")
-    return parent_perim_ids
 
 
 # FILES EXTRACT ###############################################################

@@ -2,10 +2,9 @@ from typing import List
 
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
-from rest_framework.request import Request
 
 import workspaces.conf_workspaces as conf_workspaces
-from accesses.models import DataRight, build_data_rights
+from accesses.models import DataRight, build_data_rights, Perimeter
 from admin_cohort.types import JobStatus
 from admin_cohort.models import User
 from cohort.models import CohortResult
@@ -145,11 +144,11 @@ class ExportRequestSerializer(serializers.ModelSerializer):
             ExportRequestTable.objects.create(export_request=er, **table)
 
     def validate_owner_rights(self, validated_data):
-        cont_req: Request = self.context.get('request')
         owner: User = validated_data.get('owner')
-        perim_ids = list(map(int, conf_exports.get_cohort_perimeters(validated_data.get('cohort_fk').fhir_group_id,
-                                                                     getattr(cont_req, 'jwt_access_key', None))))
-        rights = build_data_rights(owner, perim_ids)
+        cohort: CohortResult = validated_data.get('cohort_fk')
+        perimeters_cohort_ids = cohort.request_query_snapshot.perimeters_ids
+        perimeters = Perimeter.objects.filter(cohort_id__in=perimeters_cohort_ids)
+        rights = build_data_rights(owner, perimeters)
         check_rights_on_perimeters_for_exports(rights, validated_data.get('output_format'), validated_data.get('nominative'))
 
     def create(self, validated_data):
