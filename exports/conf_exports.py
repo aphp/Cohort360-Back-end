@@ -189,13 +189,14 @@ def create_hive_db(export_request: ExportRequest):
             "location": location,
             "if_not_exists": False}
     try:
-        resp = requests.post(url=HADOOP_NEW_DB_URL, params=data, headers={'auth-token': INFRA_HADOOP_TOKEN})
-        resp = PostJobResponse(response=resp, url=HADOOP_NEW_DB_URL)
-        log_export_request_task(export_request.id, f"Received Hive DB creation task_id: {resp.task_id}")
-        wait_for_hive_db_creation_job(resp.task_id)
+        response = requests.post(url=HADOOP_NEW_DB_URL, params=data, headers={'auth-token': INFRA_HADOOP_TOKEN})
+        response = PostJobResponse(response=response, url=HADOOP_NEW_DB_URL)
+        log_export_request_task(export_request.id, f"Received Hive DB creation task_id: {response.task_id}")
+        wait_for_hive_db_creation_job(response.task_id)
         log_export_request_task(export_request.id, f"DB '{export_request.target_name}' created.")
     except RequestException as e:
         _logger_err.error(f"Error on call to create Hive DB: {e}")
+        raise e
 
 
 def prepare_hive_db(export_request: ExportRequest):

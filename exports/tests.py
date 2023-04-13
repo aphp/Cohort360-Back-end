@@ -5,12 +5,12 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 from django.utils import timezone
-from requests import Response, HTTPError
+from requests import Response, HTTPError, RequestException
 from rest_framework import status
 from rest_framework.test import force_authenticate
 
 from accesses.models import Access, Role, Perimeter
-from admin_cohort.types import JobStatus
+from admin_cohort.types import JobStatus, MissingDataError
 from admin_cohort.models import User
 from admin_cohort.tests_tools import new_user_and_profile, ViewSetTestsWithBasicPerims, random_str, CreateCase, \
     CaseRetrieveFilter, ListCase, RequestCase, RetrieveCase, PatchCase, DeleteCase
@@ -1022,6 +1022,23 @@ class ExportsJupyterCreateTests(ExportsCreateTests):
         create_hive_db(export_request=self.export_request)
         mock_wait_for_hive_db.assert_called()
 
+    @mock.patch("exports.conf_exports.requests.post")
+    def test_create_hive_db_with_bad_status_code(self, mock_request_post):
+        resp = Response()
+        resp.status_code = 503
+        mock_request_post.return_value = resp
+        with self.assertRaises(RequestException):
+            create_hive_db(export_request=self.export_request)
+
+    @mock.patch("exports.conf_exports.requests.post")
+    def test_create_hive_db_with_missing_data(self, mock_request_post):
+        resp = Response()
+        resp.status_code = 200
+        resp._content = b'{}'
+        mock_request_post.return_value = resp
+        with self.assertRaises(MissingDataError):
+            create_hive_db(export_request=self.export_request)
+
     @mock.patch("exports.conf_exports.get_job_status")
     @mock.patch("exports.conf_exports.time.sleep")
     def test_wait_for_hive_db_creation_job(self, mock_sleep, mock_get_job_status):
@@ -1039,26 +1056,43 @@ class ExportsJupyterCreateTests(ExportsCreateTests):
             wait_for_hive_db_creation_job(job_id="random_task_id")
 
     @mock.patch("exports.conf_exports.requests.get")
-    def test_get_job_status(self, mock_request_get):
+    def test_get_job_status(self, mock_requests_get):
         resp = Response()
         resp.status_code = 200
         resp._content = b'{"task_status": "PENDING", "task_result": null}'
-        mock_request_get.return_value = resp
+        mock_requests_get.return_value = resp
         job_status = get_job_status(service="hadoop", job_id="random_task_id")
         self.assertEqual(job_status.status, JobStatus.pending.value)
         self.assertEqual(job_status.output, "")
         self.assertEqual(job_status.err, "")
 
     @mock.patch("exports.conf_exports.requests.get")
-    def test_get_job_status_with_unknown_status(self, mock_request_get):
+    def test_get_job_status_with_unknown_status(self, mock_requests_get):
         resp = Response()
         resp.status_code = 200
         resp._content = b'{"task_status": "WRONG", "task_result": {"status": "WRONG", "ret_code": "0", "err": "error", "out": "out"}}'
-        mock_request_get.return_value = resp
+        mock_requests_get.return_value = resp
         job_status = get_job_status(service="hadoop", job_id="random_task_id")
         self.assertEqual(job_status.status, JobStatus.unknown.value)
         self.assertEqual(job_status.output, "out")
         self.assertNotEqual(job_status.err, "")
+
+    @mock.patch("exports.conf_exports.requests.get")
+    def test_get_job_status_with_bad_status_code(self, mock_requests_get):
+        resp = Response()
+        resp.status_code = 403
+        mock_requests_get.return_value = resp
+        with self.assertRaises(HTTPError):
+            _ = get_job_status(service="hadoop", job_id="random_task_id")
+
+    @mock.patch("exports.conf_exports.requests.get")
+    def test_get_job_status_with_missing_data(self, mock_requests_get):
+        resp = Response()
+        resp.status_code = 200
+        resp._content = b'{"task_status": "PENDING"}'
+        mock_requests_get.return_value = resp
+        with self.assertRaises(MissingDataError):
+            _ = get_job_status(service="hadoop", job_id="random_task_id")
 
     @mock.patch("exports.tasks.conf_exports.get_job_status")
     @mock.patch("exports.tasks.time.sleep")
