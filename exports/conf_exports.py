@@ -45,28 +45,34 @@ class ApiJobStatus(enum.Enum):
 
 class JobResult:
     def __init__(self, **kwargs):
-        self.status: ApiJobStatus = ApiJobStatus[kwargs.get('status')]
-        self.ret_code: int = kwargs.get('ret_code')
-        self.out: str = kwargs.get('out')
-        self.err: str = kwargs.get('err')
+        self.status = kwargs.get('status')
+        self.ret_code = kwargs.get('ret_code')
+        self.out = kwargs.get('out')
+        self.err = kwargs.get('err')
 
 
 class JobStatusResponse:
-    def __init__(self, **kwargs):
-        self.task_status: str = kwargs.get('task_status')
-        if 'task_result' not in kwargs:
-            raise MissingDataError(f"Response from Infra API is missing 'task_result'. Received: {prettify_dict(kwargs)}")
-        if kwargs.get('task_result'):
-            self.task_result: JobResult = JobResult(**kwargs.get('task_result'))
+    def __init__(self, response: Response):
+        if not status.is_success(response.status_code):
+            raise HTTPError(f"Error on getting job status - {response.text}")
+        res = response.json()
+        self.task_status = res.get('task_status')
+        if 'task_result' not in res:
+            raise MissingDataError(f"Response from Infra API is missing 'task_result'. Received: {prettify_dict(res)}")
+        if res.get('task_result'):
+            self.task_result = JobResult(**res.get('task_result'))
         else:
             self.task_result = None
 
 
 class PostJobResponse:
-    def __init__(self, **kwargs):
-        if 'task_id' not in kwargs:
-            raise MissingDataError(f"Response from Infra API is missing 'task_id'. Received: {prettify_dict(kwargs)}")
-        self.task_id: str = kwargs.get('task_id')
+    def __init__(self, response: Response, url: str):
+        if not status.is_success(response.status_code):
+            raise HTTPError(f"Connection error ({url}) : status code {response.text}")
+        res = response.json()
+        if 'task_id' not in res:
+            raise MissingDataError(f"Response from Infra API is missing 'task_id'. Received: {prettify_dict(res)}")
+        self.task_id: str = res.get('task_id')
 
 
 class HadoopApiResponse:
@@ -123,30 +129,23 @@ def post_hadoop(url: str, data: dict):
 
 
 def get_job_status(service: str, job_id: str) -> ApiJobResponse:
-    """
-    Returns the status of the job of the ExpRequest, and returns it
-    using ApiJobResponse format, providing also output and/or error messages
-    @param job_id: ExpRequest to get info about
-    @return: ApiJobResponse: info about the job
-    """
     params = {"task_uuid": job_id,
               "return_out_logs": False,
               "return_err_logs": False
               }
     job_status_url = f"{INFRA_API_URL}/{service}/task_status"
-    resp = requests.get(url=job_status_url, params=params, headers={'auth-token': INFRA_EXPORT_TOKEN})
-    res = check_resp(resp, job_status_url)
-    jsr = JobStatusResponse(**res)
-    job_status = statuses_mapper.get(jsr.task_status, JobStatus.unknown)
+    response = requests.get(url=job_status_url, params=params, headers={'auth-token': INFRA_EXPORT_TOKEN})
+    status_response = JobStatusResponse(response=response)
+    job_status = statuses_mapper.get(status_response.task_status, JobStatus.unknown)
 
-    err = ""
+    err, output = "", ""
     if job_status == JobStatus.unknown:
-        err = f"Job status unknown : {jsr.task_status}."
-        if jsr.task_result:
-            jsr.task_result.err = err
-    if jsr.task_result:
-        err = f"{jsr.task_result.ret_code} - {jsr.task_result.err}"
-    output = jsr.task_result and jsr.task_result.out or ""
+        err = f"Job status unknown: {status_response.task_status}."
+        if status_response.task_result:
+            status_response.task_result.err = err
+    if status_response.task_result:
+        err = f"{status_response.task_result.ret_code} - {status_response.task_result.err}"
+        output = status_response.task_result.out
     return ApiJobResponse(status=job_status, output=output, err=err)
 
 # PROCESSES ###############################################################
@@ -161,6 +160,7 @@ def change_hive_db_ownership(export_request: ExportRequest, db_user: str):
             "recursive": True}
     try:
         post_hadoop(url=HADOOP_CHOWN_DB_URL, data=data)
+        log_export_request_task(export_request.id, f"DB '{export_request.target_name}' attributed to {HIVE_EXPORTER_USER} and HDFS.")
     except RequestException as e:
         raise RequestException(f"Error granting rights on DB '{export_request.target_name}'") from e
 
@@ -190,18 +190,17 @@ def create_hive_db(export_request: ExportRequest):
             "if_not_exists": False}
     try:
         resp = requests.post(url=HADOOP_NEW_DB_URL, params=data, headers={'auth-token': INFRA_HADOOP_TOKEN})
-        resp.raise_for_status()
-        resp = PostJobResponse(**resp.json())
+        resp = PostJobResponse(response=resp, url=HADOOP_NEW_DB_URL)
+        log_export_request_task(export_request.id, f"Received Hive DB creation task_id: {resp.task_id}")
         wait_for_hive_db_creation_job(resp.task_id)
+        log_export_request_task(export_request.id, f"DB '{export_request.target_name}' created.")
     except RequestException as e:
         _logger_err.error(f"Error on call to create Hive DB: {e}")
 
 
 def prepare_hive_db(export_request: ExportRequest):
     create_hive_db(export_request=export_request)
-    log_export_request_task(export_request.id, f"DB '{export_request.target_name}' created.")
     change_hive_db_ownership(export_request=export_request, db_user=HIVE_EXPORTER_USER)
-    log_export_request_task(export_request.id, f"DB '{export_request.target_name}' attributed to {HIVE_EXPORTER_USER} and HDFS.")
 
 
 def post_export(export_request: ExportRequest) -> str:
@@ -221,8 +220,7 @@ def post_export(export_request: ExportRequest) -> str:
         url = EXPORT_CSV_URL
         params.update({"file_path": export_request.target_full_path})
     resp = requests.post(url=url, params=params, headers={'auth-token': INFRA_EXPORT_TOKEN})
-    res = check_resp(resp, url)
-    return PostJobResponse(**res).task_id
+    return PostJobResponse(response=resp, url=url).task_id
 
 
 def conclude_export_hive(export_request: ExportRequest):

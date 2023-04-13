@@ -15,12 +15,12 @@ from .emails import email_info_request_done, email_info_request_deleted
 from .models import ExportRequest
 from .types import ExportType, HdfsServerUnreachableError, ApiJobResponse
 
-_logger = logging.getLogger('info')
 _logger_err = logging.getLogger('django.request')
+_celery_logger = logging.getLogger('celery.app')
 
 
 def log_export_request_task(er_id, msg):
-    _logger.info(f"[ExportTask] [ExportRequest: {er_id}] {msg}")
+    _celery_logger.info(f"[ExportTask] [ExportRequest: {er_id}] {msg}")
 
 
 def manage_exception(er: ExportRequest, e: Exception, msg: str, start: datetime):

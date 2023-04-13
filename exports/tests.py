@@ -17,7 +17,7 @@ from admin_cohort.tests_tools import new_user_and_profile, ViewSetTestsWithBasic
 from admin_cohort.tools import prettify_json
 from cohort.models import CohortResult, RequestQuerySnapshot, Request, DatedMeasure, Folder
 from workspaces.models import Account
-from .conf_exports import create_hive_db, prepare_hive_db, wait_for_hive_db_creation_job
+from .conf_exports import create_hive_db, prepare_hive_db, wait_for_hive_db_creation_job, get_job_status
 from .models import ExportRequest, ExportRequestTable
 from .tasks import delete_export_requests_csv_files
 from .types import ExportType, ApiJobResponse
@@ -1026,6 +1026,28 @@ class ExportsJupyterCreateTests(ExportsCreateTests):
     def test_wait_for_hive_db_creation_job(self, mock_get_job_status):
         mock_get_job_status.return_value = ApiJobResponse(status=JobStatus.finished)
         wait_for_hive_db_creation_job(job_id="random_task_id")
+
+    @mock.patch("exports.conf_exports.requests.get")
+    def test_get_job_status(self, mock_request_get):
+        resp = Response()
+        resp.status_code = 200
+        resp._content = b'{"task_status": "PENDING", "task_result": null}'
+        mock_request_get.return_value = resp
+        job_status = get_job_status(service="hadoop", job_id="random_task_id")
+        self.assertEqual(job_status.status, JobStatus.pending.value)
+        self.assertEqual(job_status.output, "")
+        self.assertEqual(job_status.err, "")
+
+    @mock.patch("exports.conf_exports.requests.get")
+    def test_get_job_status_with_unknown_status(self, mock_request_get):
+        resp = Response()
+        resp.status_code = 200
+        resp._content = b'{"task_status": "WRONG", "task_result": {"status": "WRONG", "ret_code": "0", "err": "error", "out": "out"}}'
+        mock_request_get.return_value = resp
+        job_status = get_job_status(service="hadoop", job_id="random_task_id")
+        self.assertEqual(job_status.status, JobStatus.unknown.value)
+        self.assertEqual(job_status.output, "out")
+        self.assertNotEqual(job_status.err, "")
 
 
 class ExportsNotAllowedTests(ExportsWithSimpleSetUp):
