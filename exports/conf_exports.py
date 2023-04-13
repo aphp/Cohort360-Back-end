@@ -2,14 +2,13 @@ import enum
 import logging
 import os
 import time
-from typing import Dict, List
+from typing import Dict
 
 import requests
 from hdfs import HdfsError
 from hdfs.ext.kerberos import KerberosClient
 from requests import Response, HTTPError, RequestException
 from rest_framework import status
-from rest_framework.exceptions import ValidationError
 
 from admin_cohort.tools import prettify_dict
 from admin_cohort.types import JobStatus, MissingDataError
@@ -25,7 +24,6 @@ INFRA_HADOOP_TOKEN = env.get('INFRA_HADOOP_TOKEN')
 INFRA_API_URL = env.get('INFRA_API_URL')
 EXPORT_HIVE_URL = f"{INFRA_API_URL}/bigdata/data_exporter/hive/"
 EXPORT_CSV_URL = f"{INFRA_API_URL}/bigdata/data_exporter/csv/"
-JOB_STATUS_URL = f"{INFRA_API_URL}/bigdata/task_status"
 HADOOP_NEW_DB_URL = f"{INFRA_API_URL}/hadoop/hive/create_base_hive"
 HADOOP_CHOWN_DB_URL = f"{INFRA_API_URL}/hadoop/hdfs/chown_directory"
 HIVE_DB_FOLDER = env.get('HIVE_DB_FOLDER')
@@ -124,18 +122,20 @@ def post_hadoop(url: str, data: dict):
             raise HTTPError(f"{resp.status_code} - {res.detail_err}")
 
 
-def get_job_status(export_job_id: str) -> ApiJobResponse:
+def get_job_status(service: str, job_id: str) -> ApiJobResponse:
     """
     Returns the status of the job of the ExpRequest, and returns it
     using ApiJobResponse format, providing also output and/or error messages
-    @param export_job_id: ExpRequest to get info about
+    @param job_id: ExpRequest to get info about
     @return: ApiJobResponse: info about the job
     """
-    params = {"task_uuid": export_job_id,
+    params = {"task_uuid": job_id,
               "return_out_logs": False,
-              "return_err_logs": False}
-    resp = requests.get(url=JOB_STATUS_URL, params=params, headers={'auth-token': INFRA_EXPORT_TOKEN})
-    res = check_resp(resp, JOB_STATUS_URL)
+              "return_err_logs": False
+              }
+    job_status_url = f"{INFRA_API_URL}/{service}/task_status"
+    resp = requests.get(url=job_status_url, params=params, headers={'auth-token': INFRA_EXPORT_TOKEN})
+    res = check_resp(resp, job_status_url)
     jsr = JobStatusResponse(**res)
     job_status = statuses_mapper.get(jsr.task_status, JobStatus.unknown)
 
@@ -172,7 +172,7 @@ def wait_for_hive_db_creation_job(job_id):
     while errors_count < 5 and not status_resp.has_ended:
         time.sleep(5)
         try:
-            status_resp: ApiJobResponse = get_job_status(job_id)
+            status_resp: ApiJobResponse = get_job_status(service="hadoop", job_id=job_id)
         except RequestException:
             errors_count += 1
 
@@ -230,8 +230,6 @@ def conclude_export_hive(export_request: ExportRequest):
     db_user = export_request.target_unix_account.name
     change_hive_db_ownership(export_request=export_request, db_user=db_user)
     log_export_request_task(export_request.id, f"DB '{export_request.target_name}' attributed to {db_user}. Conclusion finished.")
-
-
 
 
 # FILES EXTRACT ###############################################################

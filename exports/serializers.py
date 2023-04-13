@@ -9,7 +9,6 @@ from admin_cohort.types import JobStatus
 from admin_cohort.models import User
 from cohort.models import CohortResult
 from workspaces.models import Account
-from exports import conf_exports
 from exports.emails import check_email_address
 from exports.models import ExportRequest, ExportRequestTable
 from exports.permissions import can_review_transfer_jupyter, can_review_export

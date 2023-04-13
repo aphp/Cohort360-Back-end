@@ -52,7 +52,7 @@ def wait_for_export_job(er: ExportRequest):
         time.sleep(5)
         log_export_request_task(er.id, f"Asking for status of job {er.request_job_id}.")
         try:
-            status_resp: ApiJobResponse = conf_exports.get_job_status(er.request_job_id)
+            status_resp: ApiJobResponse = conf_exports.get_job_status(service="bigdata", job_id=er.request_job_id)
             log_export_request_task(er.id, f"Status received: {status_resp.status} - Err: {status_resp.err or ''}")
             if er.request_job_status != status_resp.status:
                 er.request_job_status = status_resp.status
