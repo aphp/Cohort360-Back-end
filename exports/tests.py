@@ -5,7 +5,7 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 from django.utils import timezone
-from requests import Response
+from requests import Response, HTTPError
 from rest_framework import status
 from rest_framework.test import force_authenticate
 
@@ -19,7 +19,7 @@ from cohort.models import CohortResult, RequestQuerySnapshot, Request, DatedMeas
 from workspaces.models import Account
 from .conf_exports import create_hive_db, prepare_hive_db, wait_for_hive_db_creation_job, get_job_status
 from .models import ExportRequest, ExportRequestTable
-from .tasks import delete_export_requests_csv_files
+from .tasks import delete_export_requests_csv_files, wait_for_export_job
 from .types import ExportType, ApiJobResponse
 from .views import ExportRequestViewSet
 
@@ -1023,9 +1023,20 @@ class ExportsJupyterCreateTests(ExportsCreateTests):
         mock_wait_for_hive_db.assert_called()
 
     @mock.patch("exports.conf_exports.get_job_status")
-    def test_wait_for_hive_db_creation_job(self, mock_get_job_status):
+    @mock.patch("exports.conf_exports.time.sleep")
+    def test_wait_for_hive_db_creation_job(self, mock_sleep, mock_get_job_status):
+        mock_sleep.return_value = None
         mock_get_job_status.return_value = ApiJobResponse(status=JobStatus.finished)
-        wait_for_hive_db_creation_job(job_id="random_task_id")
+        result = wait_for_hive_db_creation_job(job_id="random_task_id")
+        self.assertIsNone(result)
+
+    @mock.patch("exports.conf_exports.get_job_status")
+    @mock.patch("exports.conf_exports.time.sleep")
+    def test_failure_on_wait_for_hive_db_creation_job(self, mock_sleep, mock_get_job_status):
+        mock_sleep.return_value = None
+        mock_get_job_status.return_value = ApiJobResponse(status=JobStatus.failed)
+        with self.assertRaises(HTTPError):
+            wait_for_hive_db_creation_job(job_id="random_task_id")
 
     @mock.patch("exports.conf_exports.requests.get")
     def test_get_job_status(self, mock_request_get):
@@ -1048,6 +1059,14 @@ class ExportsJupyterCreateTests(ExportsCreateTests):
         self.assertEqual(job_status.status, JobStatus.unknown.value)
         self.assertEqual(job_status.output, "out")
         self.assertNotEqual(job_status.err, "")
+
+    @mock.patch("exports.tasks.conf_exports.get_job_status")
+    @mock.patch("exports.tasks.time.sleep")
+    def test_wait_for_export_job(self, mock_sleep, mock_get_job_status):
+        mock_sleep.return_value = None
+        mock_get_job_status.return_value = ApiJobResponse(status=JobStatus.finished)
+        wait_for_export_job(er=self.export_request)
+        self.assertEqual(self.export_request.request_job_status, JobStatus.finished.value)
 
 
 class ExportsNotAllowedTests(ExportsWithSimpleSetUp):
