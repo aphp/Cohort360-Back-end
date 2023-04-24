@@ -14,12 +14,13 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
+from admin_cohort.cache_utils import invalidate_cache
 from admin_cohort.permissions import IsAuthenticated
 from admin_cohort.settings import PERIMETERS_TYPES
 from admin_cohort.tools import join_qs
 from admin_cohort.views import BaseViewset, CustomLoggingMixin
-from admin_cohort.cache_utils import invalidate_cache, cache_response
-from ..models import Role, Access, get_user_valid_manual_accesses_queryset, intersect_queryset_criteria, build_data_rights, Profile
+from ..models import Role, Access, get_user_valid_manual_accesses_queryset, intersect_queryset_criteria, \
+    build_data_rights, Profile
 from ..permissions import AccessPermissions
 from ..serializers import AccessSerializer, DataRightSerializer
 

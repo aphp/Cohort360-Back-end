@@ -13,7 +13,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 
-from admin_cohort.cache_utils import cache_response, invalidate_cache
+from admin_cohort.cache_utils import invalidate_cache
 from admin_cohort.models import User
 from admin_cohort.tools import join_qs
 from admin_cohort.types import JobStatus
