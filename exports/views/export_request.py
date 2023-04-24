@@ -100,7 +100,6 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
 
     @swagger_auto_schema(responses={'200': openapi.Response("List of export requests", ExportRequestListSerializer()),
                                     '204': openapi.Response("HTTP_204 if no export requests found")})
-    @cache_response()
     def list(self, request, *args, **kwargs):
         q = self.filter_queryset(self.queryset)
         page = self.paginate_queryset(q)
