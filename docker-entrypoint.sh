@@ -10,7 +10,6 @@ sed -i s/{{BACK_HOST}}/"$BACK_HOST"/g /etc/nginx/nginx.conf;
 service nginx restart
 
 python manage.py migrate --database="default"
-bash squash_migrations.sh
 python manage.py collectstatic --noinput
 
 # init kerberos
