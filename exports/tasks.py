@@ -7,7 +7,7 @@ from django.conf import settings
 from django.utils import timezone
 from requests import RequestException, HTTPError
 
-from admin_cohort.celery import app
+from admin_cohort.celery import celery_app
 from admin_cohort.settings import EXPORT_CSV_PATH
 from admin_cohort.types import JobStatus
 from exports import conf_exports
@@ -122,7 +122,7 @@ def launch_request(er_id: int):
     email_info_request_done(export_request)
 
 
-@app.task()
+@celery_app.task()
 def delete_export_requests_csv_files():
     d = timezone.now() - timedelta(days=settings.DAYS_TO_DELETE_CSV_FILES)
     export_requests = ExportRequest.objects.filter(request_job_status=JobStatus.finished,

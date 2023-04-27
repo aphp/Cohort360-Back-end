@@ -8,7 +8,7 @@ from django.db import models, IntegrityError
 from django.utils import timezone
 
 from accesses.models import Perimeter, Access
-from admin_cohort import settings, app
+from admin_cohort import settings, celery_app
 
 """
 This script define 3 data models and the function which will refresh by insert/update all modified Perimeters objects.
@@ -558,7 +558,7 @@ def perimeters_data_model_objects_update():
 # TODO : le Cron lance la fonction toutes les heures d'où la vérification du timezone now... solution sale à remplacer!
 
 
-@app.task()
+@celery_app.task()
 def care_sites_daily_update():
     if timezone.now().hour != 2:
         return

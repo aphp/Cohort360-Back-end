@@ -1,3 +1,3 @@
-from admin_cohort.celery import app
+from admin_cohort.celery import celery_app
 
-__all__ = ('app',)
+__all__ = ('celery_app',)
