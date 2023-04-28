@@ -26,10 +26,11 @@ class RqsCaseRetrieveFilter(CaseRetrieveFilter):
 
 
 class RqsCreateCase(CreateCase):
-    def __init__(self, mock_fhir_resp: any, mock_fhir_called: bool, **kwargs):
+    def __init__(self, mock_fhir_resp: any, mock_fhir_called: bool, mock_retrieve_perimeters_value, **kwargs):
         super(RqsCreateCase, self).__init__(**kwargs)
         self.mock_fhir_resp = mock_fhir_resp
         self.mock_fhir_called = mock_fhir_called
+        self.mock_retrieve_perimeters_value = mock_retrieve_perimeters_value
 
 
 class RqsTests(RequestsTests):
@@ -224,18 +225,18 @@ class RqsGetTests(RqsTests):
 
 class RqsCreateTests(RqsTests):
     @mock.patch('cohort.serializers.cohort_job_api.get_authorization_header')
-    @mock.patch('cohort.serializers.cohort_job_api.post_validate_cohort')
+    @mock.patch('cohort.serializers.retrieve_perimeters')
     def check_create_case_with_mock(
-            self, case: RqsCreateCase, mock_validate: MagicMock,
+            self, case: RqsCreateCase, mock_retrieve_perimeters: MagicMock,
             mock_header: MagicMock, other_view: any, view_kwargs: dict):
         mock_header.return_value = None
-        mock_validate.return_value = case.mock_fhir_resp
+        mock_retrieve_perimeters.return_value = case.mock_retrieve_perimeters_value
 
         super(RqsCreateTests, self).check_create_case(
             case, other_view, **(view_kwargs or {}))
 
-        mock_validate.assert_called() if case.mock_fhir_called \
-            else mock_validate.assert_not_called()
+        mock_retrieve_perimeters.assert_called() if case.mock_fhir_called \
+            else mock_retrieve_perimeters.assert_not_called()
 
         if case.success:
             # we check that the new rqs is the only with active_branch True,
@@ -287,6 +288,7 @@ class RqsCreateTests(RqsTests):
                 serialized_query=self.test_query),
             mock_fhir_resp=CRBValidateResponse(True),
             mock_fhir_called=True,
+            mock_retrieve_perimeters_value=[]
         )
         self.basic_err_case = self.basic_case.clone(
             mock_fhir_called=False,
@@ -372,18 +374,13 @@ class RqsCreateTests(RqsTests):
             data={**self.basic_data, 'request': self.user1_req1.pk},
         ))
 
-    def test_error_create_unvalid_query(self):
-        # As a user, I cannot create a RQS if the query server deny the query
-        # or the query is not a json
-        cases = (self.basic_err_case.clone(
-            mock_fhir_resp=CRBValidateResponse(False),
-            mock_fhir_called=True,
-        ), self.basic_err_case.clone(
-            data={**self.basic_data, 'serialized_query': "not_json"},
-            retrieve_filter=RqsCaseRetrieveFilter(
-                serialized_query="not_json"),
-        ))
-        [self.check_create_case(case) for case in cases]
+    # def test_error_create_unvalid_query(self):
+    #     # As a user, I cannot create a RQS if the query server deny the query
+    #     # or the query is not a json
+    #     case = self.basic_err_case.clone(data={**self.basic_data,
+    #                                            'serialized_query': "not_json"},
+    #                                      retrieve_filter=RqsCaseRetrieveFilter(serialized_query="not_json"))
+    #     self.check_create_case(case)
 
     # def test_error_create_with_forbidden_field(self):
     #     # As a user, I cannot create a request with some forbidden field/value

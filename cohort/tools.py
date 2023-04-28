@@ -27,6 +27,7 @@ KEY_COHORTS_ITEMS = "KEY_COHORTS_ITEMS"
 KEY_EMAIL_BODY = "KEY_EMAIL_BODY"
 
 env = os.environ
+_logger_err = logging.getLogger('django.request')
 
 
 def get_dict_right_accesses(user_accesses: [Access]) -> dict:
@@ -167,26 +168,15 @@ class FactRelationShip(models.Model):
         db_table = 'fact_relationship'
 
 
-def retrieve_perimeters(json_req: str) -> [str]:
-    """
-    Called to retrieve care_site_ids (perimeters) from a Json request
-    :param json_req:
-    :type json_req:
-    :return:
-    :rtype:
-    """
-    # sourcePopulation:{caresiteCohortList: [...ids]}
+def retrieve_perimeters(json_query: str) -> [str]:
     try:
-        req = json.loads(json_req)
-        ids = req["sourcePopulation"]["caresiteCohortList"]
-        assert isinstance(ids, list)
-        str_ids = []
-        for i in ids:
-            str_ids.append(str(i))
-            assert str(i).isnumeric()
-        return str_ids
-    except Exception:
-        return None
+        query = json.loads(json_query)
+        perimeters_ids = query["sourcePopulation"]["caresiteCohortList"]
+        assert all(i.isnumeric() for i in perimeters_ids), "Perimeters ids must be integers"
+        return perimeters_ids
+    except json.JSONDecodeError as e:
+        _logger_err.exception(f"Error extracting perimeters ids from JSON query - {e}")
+        raise
 
 
 _logger = logging.getLogger('info')

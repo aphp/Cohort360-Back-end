@@ -5,9 +5,9 @@ from datetime import timedelta
 from django.db import models
 from django.utils import timezone
 
-from admin_cohort.models import CohortBaseModel, JobModel, User
+from admin_cohort.models import JobModel, User
 from admin_cohort.settings import LAST_COUNT_VALIDITY, COHORT_LIMIT
-from cohort.models import RequestQuerySnapshot
+from cohort.models import CohortBaseModel, RequestQuerySnapshot
 
 SNAPSHOT_DM_MODE = "Snapshot"
 GLOBAL_DM_MODE = "Global"

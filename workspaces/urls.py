@@ -1,10 +1,10 @@
 from django.urls import include, path
-from rest_framework import routers
+from rest_framework.routers import DefaultRouter
 
 from workspaces.views import ProjectViewSet, JupyterMachineViewSet, AccountViewSet, LdapGroupViewSet, KernelViewSet, \
     RangerHivePolicyViewSet
 
-router = routers.DefaultRouter()
+router = DefaultRouter()
 router.register(r'projects', ProjectViewSet, basename="projects")
 router.register(r'accounts', AccountViewSet, basename="accounts")
 router.register(r'jupyter-machines', JupyterMachineViewSet, basename="jupyter-machines")

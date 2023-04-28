@@ -10,11 +10,10 @@ from .views import UserViewSet, LoggingViewset, MaintenancePhaseViewSet
 
 schema_view = get_schema_view(openapi.Info(title=__title__,
                                            default_version=f'v{__version__}',
-                                           description="Infos de l'API concernant le portail d'administration",
+                                           description="Portail and Cohort360 API",
                                            terms_of_service=""),
                               public=True,
-                              permission_classes=(permissions.AllowAny,)
-                              )
+                              permission_classes=[permissions.AllowAny])
 
 
 class NestedDefaultRouter(NestedRouterMixin, routers.DefaultRouter):
