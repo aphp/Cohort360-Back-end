@@ -453,6 +453,7 @@ class CohortsUpdateTests(CohortsTests):
         data = {'request_job_status': 'error',
                 'group.id': '',
                 'group.count': 10500}
+
         request = self.factory.patch(self.objects_url, data=data, format='json')
         force_authenticate(request, new_cohort.owner)
         response = self.__class__.update_view(request, **{self.model._meta.pk.name: new_cohort.uuid})
@@ -474,5 +475,4 @@ class CohortsUpdateTests(CohortsTests):
         case = self.basic_case.clone(data_to_update={'request_job_status': 'finished'})
         mock_send_email_notif.side_effect = SMTPException("SMTP server error")
         self.check_patch_case(case)
-        mock_send_email_notif.return_value = SMTPException()
         mock_send_email_notif.assert_called()

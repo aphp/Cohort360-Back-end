@@ -107,7 +107,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
                          responses={'200': openapi.Response("Rights per perimeter", DataReadRightSerializer())})
     @action(detail=False, methods=['get'], url_path="read-patient")
     def get_perimeters_read_right_accesses(self, request, *args, **kwargs):
-        user_accesses = get_user_valid_manual_accesses_queryset(self.request.user)
+        user_accesses = get_user_valid_manual_accesses_queryset(request.user)
         all_read_patient_nominative_accesses = user_accesses.filter(Role.is_read_patient_role_nominative("role"))
         all_read_patient_pseudo_accesses = user_accesses.filter(Role.is_read_patient_role("role"))
         all_read_ipp_accesses = user_accesses.filter(Role.is_search_ipp_role("role"))
@@ -115,7 +115,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
         if not all_read_patient_nominative_accesses and not all_read_patient_pseudo_accesses:
             raise Http404("ERROR: No accesses with read patient right found")
 
-        if self.request.query_params:
+        if request.query_params:
             main_perimeters = Perimeter.objects.filter(id__in={a.perimeter_id for a in user_accesses})
             all_perimeters = [main_perimeters] + [p.all_children_queryset for p in main_perimeters]
             accessible_perimeters = reduce(lambda qs1, qs2: qs1 | qs2, all_perimeters)
@@ -134,13 +134,13 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @swagger_auto_schema(method='get',
-                         operation_summary="Whether or not the user has a `read pseudo right` of patient data for all searched perimeters",
-                         responses={'200': openapi.Response("Return rights in found perimeters")})
+                         operation_summary="Whether or not the user has a `read patient data in pseudo mode` right for all searched perimeters",
+                         responses={'200': openapi.Response("Return is_read_patient_pseudo boolean")})
     @action(detail=False, methods=['get'], url_path="is-read-patient-pseudo")
-    def get_read_patient_right_access(self, request, *args, **kwargs):
-        all_read_patient_nominative_accesses, all_read_patient_pseudo_accesses = get_all_read_patient_accesses(self.request.user)
-        if self.request.query_params:
-            is_read_patient_nominative = get_read_nominative_boolean_from_specific_logic_function(self.request,
+    def get_read_patient_pseudo_right(self, request, *args, **kwargs):
+        all_read_patient_nominative_accesses, all_read_patient_pseudo_accesses = get_all_read_patient_accesses(request.user)
+        if request.query_params:
+            is_read_patient_nominative = get_read_nominative_boolean_from_specific_logic_function(request,
                                                                                                   self.filter_queryset(self.get_queryset()),
                                                                                                   all_read_patient_nominative_accesses,
                                                                                                   all_read_patient_pseudo_accesses,
@@ -149,26 +149,24 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
         else:
             is_read_patient_pseudo = is_pseudo_perimeter_in_top_perimeter(all_read_patient_nominative_accesses, all_read_patient_pseudo_accesses)
 
-        return Response(data={"is_read_patient_pseudo": is_read_patient_pseudo},
-                        status=status.HTTP_200_OK)
+        return Response(data={"is_read_patient_pseudo": is_read_patient_pseudo}, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(method='get',
-                         operation_summary="Give boolean read patient read right (Nomi or Pseudo) on one or several perimeters",
-                         responses={'201': openapi.Response("give rights in caresite perimeters found")})
+                         operation_summary="whether or not the user has a `read patient data in nominative mode` right on one or several perimeters",
+                         responses={'200': openapi.Response("give rights in caresite perimeters found")})
     @action(detail=False, methods=['get'], url_path="is-one-read-patient-right")
     def get_read_one_nominative_patient_right_access(self, request, *args, **kwargs):
-        all_read_patient_nominative_accesses, all_read_patient_pseudo_accesses = get_all_read_patient_accesses(
-            self.request.user)
-        if self.request.query_params:
-            is_read_patient_nominative = get_read_nominative_boolean_from_specific_logic_function(self.request,
-                                                                                                  self.filter_queryset(
-                                                                                                      self.get_queryset()),
+        all_read_patient_nominative_accesses, all_read_patient_pseudo_accesses = get_all_read_patient_accesses(request.user)
+        if request.query_params:
+            is_read_patient_nominative = get_read_nominative_boolean_from_specific_logic_function(request,
+                                                                                                  self.filter_queryset(self.get_queryset()),
                                                                                                   all_read_patient_nominative_accesses,
                                                                                                   all_read_patient_pseudo_accesses,
                                                                                                   has_at_least_one_read_nomitative_right)
-            return Response({"is_one_read_nominative_patient_right": is_read_patient_nominative})
+            return Response(data={"is_one_read_nominative_patient_right": is_read_patient_nominative},
+                            status=status.HTTP_200_OK)
         else:
-            raise Http404("ERROR at least one search params is required!")
+            return Response(data="At least one search parameter is required", status=status.HTTP_400_BAD_REQUEST)
 
     @swagger_auto_schema(manual_parameters=list(map(lambda x: openapi.Parameter(name=x[0],
                                                                                 in_=openapi.IN_QUERY,

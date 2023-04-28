@@ -6,14 +6,15 @@ from rest_framework.request import Request
 
 import workspaces.conf_workspaces as conf_workspaces
 from accesses.models import DataRight, build_data_rights
-from admin_cohort.models import User, JobStatus
+from admin_cohort.types import JobStatus
+from admin_cohort.models import User
 from cohort.models import CohortResult
-from exports import conf_exports
 from workspaces.models import Account
-from .emails import check_email_address
-from .models import ExportRequest, ExportRequestTable
-from .permissions import can_review_transfer_jupyter, can_review_export
-from .types import ExportType
+from exports import conf_exports
+from exports.emails import check_email_address
+from exports.models import ExportRequest, ExportRequestTable
+from exports.permissions import can_review_transfer_jupyter, can_review_export
+from exports.types import ExportType
 
 
 class ExportRequestTableSerializer(serializers.ModelSerializer):
@@ -147,7 +148,7 @@ class ExportRequestSerializer(serializers.ModelSerializer):
         cont_req: Request = self.context.get('request')
         owner: User = validated_data.get('owner')
         perim_ids = list(map(int, conf_exports.get_cohort_perimeters(validated_data.get('cohort_fk').fhir_group_id,
-                                                                     getattr(cont_req, 'jwt_session_key', None))))
+                                                                     getattr(cont_req, 'jwt_access_key', None))))
         rights = build_data_rights(owner, perim_ids)
         check_rights_on_perimeters_for_exports(rights, validated_data.get('output_format'), validated_data.get('nominative'))
 

@@ -2,8 +2,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework_tracking.models import APIRequestLog
 
-from admin_cohort.models import MaintenancePhase
-from admin_cohort.models import User
+from admin_cohort.models import MaintenancePhase, User
 
 
 class UserDetailsSerializer(serializers.Serializer):

@@ -3,7 +3,7 @@ from time import sleep
 from celery import shared_task, current_task
 
 import cohort.conf_cohort_job_api as cohort_job_api
-from admin_cohort.models import JobStatus
+from admin_cohort.types import JobStatus
 from admin_cohort.settings import COHORT_LIMIT
 from cohort.models import CohortResult, DatedMeasure
 from cohort.models.dated_measure import GLOBAL_DM_MODE

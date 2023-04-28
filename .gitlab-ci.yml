@@ -29,9 +29,10 @@ test-job:
     POSTGRES_PASSWORD: portail_psswd
   script:
     - cp .conf/.test.env admin_cohort/.env
+    - pip install --upgrade pip
     - pip install -r requirements.txt
     - mkdir log
-    - coverage run --source='.' --omit="*/test*","*/migrations/*" manage.py test exports cohort workspaces
+    - coverage run --source='.' --omit="*/test*","*/migrations/*" manage.py test admin_cohort cohort exports workspaces
     - coverage xml --omit="*/test*","*/migrations/*" -o coverage.xml
     - coverage html --omit="*/test*","*/migrations/*" -d htmlcov
   artifacts:
@@ -61,6 +62,16 @@ sonarqube-check:
   script:
     - export VERSION=$(cat ./admin_cohort/__init__.py | grep __version__ | head -1 | awk -F'=' '{ print $2 }' | sed "s/[' ]//g")
     - sonar-scanner -Dsonar.projectVersion=$VERSION
+
+dependency-check-job:
+  stage: test
+  image:
+    name: python:3.11.1
+  script:
+    - pip install -r requirements.txt
+    - pip install safety
+    - safety check
+  allow_failure: true
 
 deploy-job:
   image: harbor.eds.aphp.fr/cohort360/kaniko:debug
