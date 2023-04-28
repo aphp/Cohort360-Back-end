@@ -131,12 +131,12 @@ def send_success_email(req: ExportRequest, to_address: str):
 
 
 def email_info_request_done(req: ExportRequest):
-    check_email_address(req.owner)
+    check_email_address(req.creator_fk)
     try:
         if req.request_job_status == JobStatus.finished:
-            send_success_email(req, req.owner.email)
+            send_success_email(req, req.creator_fk.email)
         elif req.request_job_status in [JobStatus.failed, JobStatus.cancelled]:
-            send_failed_email(req, req.owner.email)
+            send_failed_email(req, req.creator_fk.email)
     except (SMTPException, TimeoutError):
         except_msg = f"Could not send export email - request status was '{req.request_job_status}'"
         _logger.exception(f"{except_msg} - Mark it as '{JobStatus.failed}'")
