@@ -14,7 +14,6 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
-from admin_cohort.cache_utils import invalidate_cache
 from admin_cohort.permissions import IsAuthenticated
 from admin_cohort.settings import PERIMETERS_TYPES
 from admin_cohort.tools import join_qs
