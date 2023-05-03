@@ -88,10 +88,12 @@ class TasksTests(DatedMeasuresTests):
                                                                                request=self.req_with_running_dms1,
                                                                                serialized_query='{}')
 
+        self.new_dm1 = DatedMeasure.objects.create(request_query_snapshot=self.user1_req_running_dms_snap1,
+                                                       request_job_status=JobStatus.new,
+                                                       owner=self.user1)
         self.started_dm1 = DatedMeasure.objects.create(request_query_snapshot=self.user1_req_running_dms_snap1,
                                                        request_job_status=JobStatus.started,
                                                        owner=self.user1)
-
         self.pending_dm1 = DatedMeasure.objects.create(request_query_snapshot=self.user1_req_running_dms_snap1,
                                                        request_job_status=JobStatus.pending,
                                                        owner=self.user1)
@@ -100,6 +102,9 @@ class TasksTests(DatedMeasuresTests):
                                                                                request=self.req_with_running_dms2,
                                                                                serialized_query='{}')
 
+        self.new_dm2 = DatedMeasure.objects.create(request_query_snapshot=self.user1_req_running_dms_snap2,
+                                                       request_job_status=JobStatus.new,
+                                                       owner=self.user1)
         self.started_dm2 = DatedMeasure.objects.create(request_query_snapshot=self.user1_req_running_dms_snap2,
                                                        request_job_status=JobStatus.started,
                                                        owner=self.user1)
@@ -128,8 +133,9 @@ class TasksTests(DatedMeasuresTests):
         mock_celery_revoke.return_value = None
         mock_cancel_job.return_value = JobStatus.cancelled
         cancel_previously_running_dm_jobs(auth_headers={},
-                                          query_snapshot_id=self.user1_req_running_dms_snap1.uuid)
-        cancelled_dms = DatedMeasure.objects.filter(request_query_snapshot=self.user1_req_running_dms_snap1)
+                                          dm_uuid=self.new_dm1.uuid)
+        cancelled_dms = DatedMeasure.objects.exclude(uuid=self.new_dm1.uuid)\
+                                            .filter(request_query_snapshot=self.user1_req_running_dms_snap1)
 
         for dm in cancelled_dms:
             self.assertEqual(dm.request_job_status, JobStatus.cancelled.value)
@@ -138,8 +144,10 @@ class TasksTests(DatedMeasuresTests):
     def test_error_on_cancel_previously_running_dm_jobs_task(self, mock_cancel_job):
         mock_cancel_job.side_effect = Exception("Error on calling to cancel running DMs")
         cancel_previously_running_dm_jobs(auth_headers={},
-                                          query_snapshot_id=self.user1_req_running_dms_snap2.uuid)
-        failed_dm = DatedMeasure.objects.get(request_query_snapshot=self.user1_req_running_dms_snap2)
+                                          dm_uuid=self.new_dm2.uuid)
+        failed_dm = DatedMeasure.objects.exclude(uuid=self.new_dm2.uuid)\
+                                        .filter(request_query_snapshot=self.user1_req_running_dms_snap2)\
+                                        .first()
         self.assertEqual(failed_dm.request_job_status, JobStatus.failed.value)
 
     @mock.patch('cohort.tasks.cohort_job_api')

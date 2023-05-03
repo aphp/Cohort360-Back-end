@@ -22,7 +22,7 @@ class CohortsTests(DatedMeasuresTests):
                           "type", "create_task_id", "dated_measure",
                           "request_job_id",
                           "created_at", "modified_at", "deleted"]
-    unsettable_default_fields = dict(request_job_status=JobStatus.started)
+    unsettable_default_fields = dict(request_job_status=JobStatus.new)
     unsettable_fields = ["owner", "uuid", "create_task_id",
                          "created_at", "modified_at", "deleted", ]
     manual_dupplicated_fields = []
