@@ -89,8 +89,8 @@ class TasksTests(DatedMeasuresTests):
                                                                                serialized_query='{}')
 
         self.new_dm1 = DatedMeasure.objects.create(request_query_snapshot=self.user1_req_running_dms_snap1,
-                                                       request_job_status=JobStatus.new,
-                                                       owner=self.user1)
+                                                   request_job_status=JobStatus.new,
+                                                   owner=self.user1)
         self.started_dm1 = DatedMeasure.objects.create(request_query_snapshot=self.user1_req_running_dms_snap1,
                                                        request_job_status=JobStatus.started,
                                                        owner=self.user1)
@@ -103,8 +103,8 @@ class TasksTests(DatedMeasuresTests):
                                                                                serialized_query='{}')
 
         self.new_dm2 = DatedMeasure.objects.create(request_query_snapshot=self.user1_req_running_dms_snap2,
-                                                       request_job_status=JobStatus.new,
-                                                       owner=self.user1)
+                                                   request_job_status=JobStatus.new,
+                                                   owner=self.user1)
         self.started_dm2 = DatedMeasure.objects.create(request_query_snapshot=self.user1_req_running_dms_snap2,
                                                        request_job_status=JobStatus.started,
                                                        owner=self.user1)
