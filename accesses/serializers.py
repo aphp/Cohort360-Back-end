@@ -296,8 +296,7 @@ class PerimeterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Perimeter
-        exclude = ["parent",
-                   "inferior_levels_ids"]
+        exclude = ["parent"]
 
 
 class PerimeterLiteSerializer(serializers.ModelSerializer):
@@ -311,6 +310,7 @@ class PerimeterLiteSerializer(serializers.ModelSerializer):
                   'source_value',
                   'parent_id',
                   'type',
+                  'above_levels_ids',
                   'inferior_levels_ids',
                   'cohort_id',
                   'cohort_size',
