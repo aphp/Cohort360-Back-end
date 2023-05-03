@@ -284,7 +284,7 @@ class CustomLoginView(LoginView):
         # session_id=self.request.session.session_key, accesses=accesses)
         url = self.get_redirect_url()
         return JsonResponse(data) if not url else HttpResponseRedirect(url)
-    
+
     def form_invalid(self, form):
         return JsonResponse(data={"errors": form.error_messages}, status=status.HTTP_401_UNAUTHORIZED)
 
