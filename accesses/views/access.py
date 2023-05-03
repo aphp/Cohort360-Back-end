@@ -176,7 +176,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
     def create(self, request, *args, **kwargs):
         data = request.data
         if "care_site_id" not in data and 'perimeter_id' not in data:
-            return Response(data="perimeter_id is required", status=status.HTTP_404_NOT_FOUND)
+            return Response(data="perimeter_id is required", status=status.HTTP_400_BAD_REQUEST)
         data['profile_id'] = data.get('profile_id', data.get('provider_history_id'))
         data['perimeter_id'] = data.get('perimeter_id', data.get('care_site_id'))
         response = super(AccessViewSet, self).create(request, *args, **kwargs)
