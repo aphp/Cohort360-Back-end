@@ -180,7 +180,7 @@ def post_count_cohort(auth_headers: dict, json_query: str, dm_uuid: str, global_
         time.sleep(2)
         try:
             job = get_job(job.job_id, auth_headers=auth_headers)
-            log_count_task(dm_uuid, "Step 3.x: Job created. Status: {job.status}.", global_estimate=global_estimate)
+            log_count_task(dm_uuid, f"Step 3.x: Job created. Status: {job.status}.", global_estimate=global_estimate)
         except RequestException as e:
             errors_count += 1
             log_count_task(dm_uuid, f"Step 3.x: Error {errors_count} found on getting status : {e}.", global_estimate=global_estimate)
