@@ -7,7 +7,7 @@ import cohort.conf_cohort_job_api as cohort_job_api
 from admin_cohort import app
 from admin_cohort.types import JobStatus
 from admin_cohort.settings import COHORT_LIMIT
-from cohort.models import CohortResult, DatedMeasure, RequestQuerySnapshot
+from cohort.models import CohortResult, DatedMeasure
 from cohort.models.dated_measure import GLOBAL_DM_MODE
 from cohort.tools import log_count_task, log_create_task
 
@@ -48,10 +48,11 @@ def create_cohort_task(auth_headers: dict, json_query: str, cohort_uuid: str):
 
 
 @shared_task
-def cancel_previously_running_dm_jobs(auth_headers: dict, query_snapshot_id: str):
-    query_snapshot = RequestQuerySnapshot.objects.get(pk=query_snapshot_id)
-    running_dms = query_snapshot.request.dated_measures.filter(request_job_status__in=(JobStatus.started, JobStatus.pending))\
-                                                       .prefetch_related('cohort', 'restricted_cohort')
+def cancel_previously_running_dm_jobs(auth_headers: dict, dm_uuid: str):
+    dm = DatedMeasure.objects.get(pk=dm_uuid)
+    request = dm.request_query_snapshot
+    running_dms = request.dated_measures.exclude(uuid=dm.uuid).filter(request_job_status__in=(JobStatus.started, JobStatus.pending))\
+                                                              .prefetch_related('cohort', 'restricted_cohort')
     for dm in running_dms:
         if dm.cohort.all() or dm.restricted_cohort.all():
             continue

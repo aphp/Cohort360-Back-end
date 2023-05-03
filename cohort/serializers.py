@@ -60,13 +60,14 @@ class DatedMeasureSerializer(BaseSerializer):
         if not query_snapshot:
             raise ValidationError("Invalid 'request_query_snapshot_id'")
 
-        if (measure and not fhir_datetime) or (not measure and fhir_datetime):
+        if (measure and not fhir_datetime) or (fhir_datetime and not measure):
             raise ValidationError("If you provide measure or fhir_datetime, you have to provide the other")
 
-        auth_header = cohort_job_api.get_authorization_header(self.context.get("request"))
-        cancel_previously_running_dm_jobs.delay(auth_header, query_snapshot.uuid)
-
         dm = super(DatedMeasureSerializer, self).create(validated_data=validated_data)
+
+        auth_header = cohort_job_api.get_authorization_header(self.context.get("request"))
+        cancel_previously_running_dm_jobs.delay(auth_header, dm.uuid)
+
         if not measure:
             try:
                 auth_header = cohort_job_api.get_authorization_header(self.context.get("request"))
