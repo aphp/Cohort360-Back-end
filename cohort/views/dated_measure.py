@@ -11,7 +11,7 @@ from cohort.views.shared import UserObjectsRestrictedViewSet
 _logger = logging.getLogger('django.request')
 
 
-class DMFilter(filters.FilterSet):
+class DatedMeasureFilter(filters.FilterSet):
     request_id = filters.CharFilter(field_name='request_query_snapshot__request__pk')
     ordering = OrderingFilter(fields=("-created_at", "modified_at", "result_size"))
 
@@ -31,5 +31,5 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     http_method_names = ['get', 'post']
     lookup_field = "uuid"
     swagger_tags = ['Cohort - dated-measures']
-    filterset_class = DMFilter
+    filterset_class = DatedMeasureFilter
     pagination_class = LimitOffsetPagination
