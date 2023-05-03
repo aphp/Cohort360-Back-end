@@ -13,7 +13,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 
-from admin_cohort.cache_utils import cache_response, flush_cache
+from admin_cohort.cache_utils import flush_cache
 from admin_cohort.models import User
 from admin_cohort.tools import join_qs
 from admin_cohort.types import JobStatus
@@ -100,7 +100,6 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
 
     @swagger_auto_schema(responses={'200': openapi.Response("List of export requests", ExportRequestListSerializer()),
                                     '204': openapi.Response("HTTP_204 if no export requests found")})
-    @cache_response()
     def list(self, request, *args, **kwargs):
         q = self.filter_queryset(self.queryset)
         page = self.paginate_queryset(q)

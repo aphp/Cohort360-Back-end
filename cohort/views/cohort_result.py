@@ -129,7 +129,11 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
 
     @action(methods=['get'], detail=False, url_path='jobs/active')
     def get_active_jobs(self, request, *args, **kwargs):
-        active_statuses = [JobStatus.new, JobStatus.validated, JobStatus.started, JobStatus.pending]
+        active_statuses = [JobStatus.new,
+                           JobStatus.validated,
+                           JobStatus.started,
+                           JobStatus.pending,
+                           JobStatus.long_pending]
         jobs_count = CohortResult.objects.filter(request_job_status__in=active_statuses).count()
         if not jobs_count:
             return Response(status=status.HTTP_204_NO_CONTENT)

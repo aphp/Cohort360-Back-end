@@ -1,14 +1,14 @@
 import enum
 import logging
 import os
-from typing import Dict, List
+import time
+from typing import Dict
 
 import requests
 from hdfs import HdfsError
 from hdfs.ext.kerberos import KerberosClient
 from requests import Response, HTTPError, RequestException
 from rest_framework import status
-from rest_framework.exceptions import ValidationError
 
 from admin_cohort.tools import prettify_dict
 from admin_cohort.types import JobStatus, MissingDataError
@@ -24,7 +24,6 @@ INFRA_HADOOP_TOKEN = env.get('INFRA_HADOOP_TOKEN')
 INFRA_API_URL = env.get('INFRA_API_URL')
 EXPORT_HIVE_URL = f"{INFRA_API_URL}/bigdata/data_exporter/hive/"
 EXPORT_CSV_URL = f"{INFRA_API_URL}/bigdata/data_exporter/csv/"
-JOB_STATUS_URL = f"{INFRA_API_URL}/bigdata/task_status"
 HADOOP_NEW_DB_URL = f"{INFRA_API_URL}/hadoop/hive/create_base_hive"
 HADOOP_CHOWN_DB_URL = f"{INFRA_API_URL}/hadoop/hdfs/chown_directory"
 HIVE_DB_FOLDER = env.get('HIVE_DB_FOLDER')
@@ -46,28 +45,34 @@ class ApiJobStatus(enum.Enum):
 
 class JobResult:
     def __init__(self, **kwargs):
-        self.status: ApiJobStatus = ApiJobStatus[kwargs.get('status')]
-        self.ret_code: int = kwargs.get('ret_code')
-        self.out: str = kwargs.get('out')
-        self.err: str = kwargs.get('err')
+        self.status = kwargs.get('status')
+        self.ret_code = kwargs.get('ret_code')
+        self.out = kwargs.get('out')
+        self.err = kwargs.get('err')
 
 
 class JobStatusResponse:
-    def __init__(self, **kwargs):
-        self.task_status: str = kwargs.get('task_status')
-        if 'task_result' not in kwargs:
-            raise MissingDataError(f"Response from Infra API is missing 'task_result'. Received: {prettify_dict(kwargs)}")
-        if kwargs.get('task_result'):
-            self.task_result: JobResult = JobResult(**kwargs.get('task_result'))
+    def __init__(self, response: Response):
+        if not status.is_success(response.status_code):
+            raise HTTPError(f"Error on getting job status - {response.text}")
+        res = response.json()
+        self.task_status = res.get('task_status')
+        if 'task_result' not in res:
+            raise MissingDataError(f"Response from Infra API is missing 'task_result'. Received: {prettify_dict(res)}")
+        if res.get('task_result'):
+            self.task_result = JobResult(**res.get('task_result'))
         else:
             self.task_result = None
 
 
 class PostJobResponse:
-    def __init__(self, **kwargs):
-        if 'task_id' not in kwargs:
-            raise MissingDataError(f"Response from Infra API is missing 'task_id'. Received: {prettify_dict(kwargs)}")
-        self.task_id: str = kwargs.get('task_id')
+    def __init__(self, response: Response, url: str):
+        if not status.is_success(response.status_code):
+            raise HTTPError(f"Connection error ({url}) : status code {response.text}")
+        res = response.json()
+        if 'task_id' not in res:
+            raise MissingDataError(f"Response from Infra API is missing 'task_id'. Received: {prettify_dict(res)}")
+        self.task_id: str = res.get('task_id')
 
 
 class HadoopApiResponse:
@@ -123,149 +128,106 @@ def post_hadoop(url: str, data: dict):
             raise HTTPError(f"{resp.status_code} - {res.detail_err}")
 
 
-def get_job_status(export_job_id: str) -> ApiJobResponse:
-    """
-    Returns the status of the job of the ExpRequest, and returns it
-    using ApiJobResponse format, providing also output and/or error messages
-    @param er: ExpRequest to get info about
-    @return: ApiJobResponse: info about the job
-    """
-    params = {"task_uuid": export_job_id,
+def get_job_status(service: str, job_id: str) -> ApiJobResponse:
+    params = {"task_uuid": job_id,
               "return_out_logs": False,
-              "return_err_logs": False}
-    resp = requests.get(url=JOB_STATUS_URL, params=params, headers={'auth-token': INFRA_EXPORT_TOKEN})
-    res = check_resp(resp, JOB_STATUS_URL)
-    jsr = JobStatusResponse(**res)
-    job_status = statuses_mapper.get(jsr.task_status, JobStatus.unknown)
+              "return_err_logs": False
+              }
+    job_status_url = f"{INFRA_API_URL}/{service}/task_status"
+    response = requests.get(url=job_status_url, params=params, headers={'auth-token': INFRA_EXPORT_TOKEN})
+    status_response = JobStatusResponse(response=response)
+    job_status = statuses_mapper.get(status_response.task_status, JobStatus.unknown)
 
-    err = ""
+    err, output = "", ""
     if job_status == JobStatus.unknown:
-        err = f"Job status unknown : {jsr.task_status}."
-        if jsr.task_result:
-            jsr.task_result.err = err
-    if jsr.task_result:
-        err = f"{jsr.task_result.ret_code} - {jsr.task_result.err}"
-    output = jsr.task_result and jsr.task_result.out or ""
+        err = f"Job status unknown: {status_response.task_status}."
+        if status_response.task_result:
+            status_response.task_result.err = err
+    if status_response.task_result:
+        err = f"{status_response.task_result.ret_code} - {status_response.task_result.err}"
+        output = status_response.task_result.out
     return ApiJobResponse(status=job_status, output=output, err=err)
 
 # PROCESSES ###############################################################
 
 
-def change_hive_db_ownership(er: ExportRequest, db_user: str):
-    location = build_location(er.target_name)
-    log_export_request_task(er.id, f"Granting rights on DB '{er.target_name}' to user '{db_user}'")
+def change_hive_db_ownership(export_request: ExportRequest, db_user: str):
+    location = build_location(export_request.target_name)
+    log_export_request_task(export_request.id, f"Granting rights on DB '{export_request.target_name}' to user '{db_user}'")
     data = {"location": location,
             "uid": db_user,
             "gid": "hdfs",
             "recursive": True}
     try:
         post_hadoop(url=HADOOP_CHOWN_DB_URL, data=data)
+        log_export_request_task(export_request.id, f"DB '{export_request.target_name}' attributed to {HIVE_EXPORTER_USER} and HDFS.")
     except RequestException as e:
-        raise RequestException(f"Error granting rights on DB '{er.target_name}'") from e
+        raise RequestException(f"Error granting rights on DB '{export_request.target_name}'") from e
 
 
-def prepare_hive_db(er: ExportRequest):
-    location = build_location(er.target_name)
-    log_export_request_task(er.id, f"Creating DB with name '{er.target_name}', location: {location}")
-    data = {"name": er.target_name,
+def wait_for_hive_db_creation_job(job_id):
+    errors_count = 0
+    status_resp = ApiJobResponse(JobStatus.pending)
+
+    while errors_count < 5 and not status_resp.has_ended:
+        time.sleep(5)
+        try:
+            status_resp: ApiJobResponse = get_job_status(service="hadoop", job_id=job_id)
+        except RequestException:
+            errors_count += 1
+
+    if status_resp.status != JobStatus.finished:
+        raise HTTPError(f"Error on creating Hive DB {status_resp.err or 'No `err` value returned'}")
+    elif errors_count >= 5:
+        raise HTTPError("5 consecutive errors during Hive DB creation")
+
+
+def create_hive_db(export_request: ExportRequest):
+    location = build_location(export_request.target_name)
+    log_export_request_task(export_request.id, f"Creating DB with name '{export_request.target_name}', location: {location}")
+    data = {"name": export_request.target_name,
             "location": location,
             "if_not_exists": False}
     try:
-        post_hadoop(url=HADOOP_NEW_DB_URL, data=data)
-        log_export_request_task(er.id, f"DB '{er.target_name}' created.")
+        response = requests.post(url=HADOOP_NEW_DB_URL, params=data, headers={'auth-token': INFRA_HADOOP_TOKEN})
+        response = PostJobResponse(response=response, url=HADOOP_NEW_DB_URL)
+        log_export_request_task(export_request.id, f"Received Hive DB creation task_id: {response.task_id}")
+        wait_for_hive_db_creation_job(response.task_id)
+        log_export_request_task(export_request.id, f"DB '{export_request.target_name}' created.")
     except RequestException as e:
-        _logger_err.error(f"Error on call to prepare Hive DB. {e}")
-
-    change_hive_db_ownership(er=er, db_user=HIVE_EXPORTER_USER)
-    log_export_request_task(er.id, f"DB '{er.target_name}' attributed to {HIVE_EXPORTER_USER} and HDFS.")
+        _logger_err.error(f"Error on call to create Hive DB: {e}")
+        raise e
 
 
-def post_export(er: ExportRequest) -> str:
-    log_export_request_task(er.id, f"Asking to export for '{er.target_name}'")
-    tables = ",".join([t.omop_table_name for t in er.tables.all()])
-    params = {"cohort_id": er.cohort_fk.fhir_group_id,
+def prepare_hive_db(export_request: ExportRequest):
+    create_hive_db(export_request=export_request)
+    change_hive_db_ownership(export_request=export_request, db_user=HIVE_EXPORTER_USER)
+
+
+def post_export(export_request: ExportRequest) -> str:
+    log_export_request_task(export_request.id, f"Asking to export for '{export_request.target_name}'")
+    tables = ",".join([t.omop_table_name for t in export_request.tables.all()])
+    params = {"cohort_id": export_request.cohort_fk.fhir_group_id,
               "tables": tables,
               "environment": OMOP_ENVIRONMENT,
-              "no_date_shift": not er.nominative and er.shift_dates,
+              "no_date_shift": not export_request.nominative and export_request.shift_dates,
               "overwrite": False,
-              "user_for_pseudo": not er.nominative and er.target_unix_account.name or None,
+              "user_for_pseudo": not export_request.nominative and export_request.target_unix_account.name or None,
               }
-    if er.output_format == ExportType.HIVE:
+    if export_request.output_format == ExportType.HIVE:
         url = EXPORT_HIVE_URL
-        params.update({"database_name": er.target_name})
+        params.update({"database_name": export_request.target_name})
     else:
         url = EXPORT_CSV_URL
-        params.update({"file_path": er.target_full_path})
+        params.update({"file_path": export_request.target_full_path})
     resp = requests.post(url=url, params=params, headers={'auth-token': INFRA_EXPORT_TOKEN})
-    res = check_resp(resp, url)
-    return PostJobResponse(**res).task_id
+    return PostJobResponse(response=resp, url=url).task_id
 
 
-def conclude_export_hive(er: ExportRequest):
-    change_hive_db_ownership(er=er, db_user=er.target_unix_account.name)
-    log_export_request_task(er.id, f"DB '{er.target_name}' attributed to {er.target_unix_account.name}. Conclusion finished.")
-
-
-# FHIR PERIMETERS #############################################################
-
-FHIR_URL = env.get("FHIR_URL")
-
-
-def get_fhir_organization_members(obj: dict) -> List[str]:
-    # a member is expected to be like this:
-    # { 'entity': { 'display' : 'Organizations-or-Group/id' }}
-    members = obj.get("member", [])
-    entities = [m.get('entity')
-                for m in members if isinstance(m, dict) and isinstance(m.get('entity'), dict)]
-    res = [e.get('display', "").split("/")[-1]
-           for e in entities if isinstance(e.get('display'), str) and e.get('display').startswith("Organization")]
-    return res or []
-
-
-def get_cohort_perimeters(cohort_id: int, token: str) -> List[str]:
-    """
-    Asks a remote API, that is used to generate OMOP cohorts,
-    which perimeters are searched to build the cohort
-    @param cohort_id: OMOP cohort id to analyse
-    @param token: session token that is used to identify the user
-    @return: list of perimeter ids
-    """
-
-    resp = requests.get(url=f"{FHIR_URL}/fhir/Group?_id={cohort_id}", headers={'Authorization': f"Bearer {token}"})
-
-    if resp.status_code == 401:
-        raise ValidationError("Token error with FHIR api")
-    res = resp.json()
-    if resp.status_code != 200:
-        if resp.status_code == 500:
-            issues = res.get('issue', [])
-            if not issues or not isinstance(issues[0], dict):
-                err = f"Could not read FHIR response: {str(res)}"
-            else:
-                issue = issues[0]
-                err = issue.get("Diagnostics", f"Could not read FHIR response: {str(res)}")
-            raise ValidationError(f"Error with FHIR api checking: {err}")
-
-        raise ValidationError(f"Error {resp.status_code} with FHIR api checking: {res['error']}."
-                              f"Called URL: {resp.url}")
-    entry = res.get('entry', [])
-    if not entry:
-        raise ValidationError(f"Entry field is empty on FHIR response, it means the provider "
-                              f"has no right on the cohort '{cohort_id}'.")
-    if not isinstance(entry[0], dict):
-        raise ValidationError(f"Could not read FHIR response, missing entry field: {str(res)}")
-
-    resource = entry[0].get('resource')
-    if not isinstance(resource, dict):
-        raise ValidationError(f"Could not read FHIR response, missing resource field in entry: {str(res)}")
-
-    parent_perim_ids = get_fhir_organization_members(resource)
-
-    if not parent_perim_ids:
-        raise ValidationError(f"Could not read FHIR response, no member found with "
-                              f"entity.display starting with 'Organization' in resource: "
-                              f"{prettify_dict(resource)}.\n Full response : {prettify_dict(res)}")
-    return parent_perim_ids
+def conclude_export_hive(export_request: ExportRequest):
+    db_user = export_request.target_unix_account.name
+    change_hive_db_ownership(export_request=export_request, db_user=db_user)
+    log_export_request_task(export_request.id, f"DB '{export_request.target_name}' attributed to {db_user}. Conclusion finished.")
 
 
 # FILES EXTRACT ###############################################################

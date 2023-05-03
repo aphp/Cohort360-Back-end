@@ -285,6 +285,9 @@ class CustomLoginView(LoginView):
         url = self.get_redirect_url()
         return JsonResponse(data) if not url else HttpResponseRedirect(url)
 
+    def form_invalid(self, form):
+        return JsonResponse(data={"error": "Invalid user credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+
     @method_decorator(csrf_exempt)
     @method_decorator(never_cache)
     def dispatch(self, request, *args, **kwargs):
@@ -303,8 +306,8 @@ class CustomLoginView(LoginView):
     def post(self, request, *args, **kwargs):
         resp = super(CustomLoginView, self).post(request, *args, **kwargs)
         if getattr(request, 'jwt_server_unavailable', False):
-            return Response(data=getattr(request, 'jwt_server_message', ""),
-                            status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            return JsonResponse(data={"jwt_error": getattr(request, 'jwt_server_message', "")},
+                                status=status.HTTP_503_SERVICE_UNAVAILABLE)
         return resp
 
 

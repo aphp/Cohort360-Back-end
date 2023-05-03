@@ -18,7 +18,7 @@ from admin_cohort.permissions import IsAuthenticated
 from admin_cohort.settings import PERIMETERS_TYPES
 from admin_cohort.tools import join_qs
 from admin_cohort.views import BaseViewset, CustomLoggingMixin
-from admin_cohort.cache_utils import flush_cache, cache_response
+from admin_cohort.cache_utils import flush_cache
 from ..models import Role, Access, get_user_valid_manual_accesses_queryset, intersect_queryset_criteria, build_data_rights, Profile
 from ..permissions import AccessPermissions
 from ..serializers import AccessSerializer, DataRightSerializer
@@ -237,7 +237,6 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
 
     @swagger_auto_schema(method='get', operation_summary="Get the authenticated user's valid accesses.")
     @action(url_path="my-accesses", detail=False, methods=['get'])
-    @cache_response()
     def my_accesses(self, request, *args, **kwargs):
         q = get_user_valid_manual_accesses_queryset(request.user)
         serializer = self.get_serializer(q, many=True)
@@ -258,7 +257,6 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
                          responses={200: openapi.Response('Rights found', DataRightSerializer),
                                     403: openapi.Response('perimeters_ids and pop_children are both null')})
     @action(url_path="my-rights", detail=False, methods=['get'], filter_backends=[], pagination_class=None)
-    @cache_response()
     def my_rights(self, request, *args, **kwargs):
         perimeters_ids = request.GET.get('perimeters_ids', request.GET.get('care-site-ids'))
         if perimeters_ids:

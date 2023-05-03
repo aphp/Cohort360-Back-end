@@ -15,12 +15,12 @@ from .emails import email_info_request_done, email_info_request_deleted
 from .models import ExportRequest
 from .types import ExportType, HdfsServerUnreachableError, ApiJobResponse
 
-_logger = logging.getLogger('info')
 _logger_err = logging.getLogger('django.request')
+_celery_logger = logging.getLogger('celery.app')
 
 
 def log_export_request_task(er_id, msg):
-    _logger.info(f"[ExportTask] [ExportRequest: {er_id}] {msg}")
+    _celery_logger.info(f"[ExportTask] [ExportRequest: {er_id}] {msg}")
 
 
 def manage_exception(er: ExportRequest, e: Exception, msg: str, start: datetime):
@@ -43,16 +43,7 @@ def manage_exception(er: ExportRequest, e: Exception, msg: str, start: datetime)
     log_export_request_task(er.id, err_msg)
 
 
-def wait_for_job(er: ExportRequest):
-    """
-    Will initialize the Job response with empty values
-    Then will call conf_exports.get_job_status untill the resp.status warns
-    that the job has ended
-    If 5 errors while retrieving the status, or an ending status not 'finished',
-    will raise Exception
-    @param er: ExportRequest to ask for the job status
-    @return: None
-    """
+def wait_for_export_job(er: ExportRequest):
     errors_count = 0
     error_msg = ""
     status_resp = ApiJobResponse(JobStatus.pending)
@@ -61,7 +52,7 @@ def wait_for_job(er: ExportRequest):
         time.sleep(5)
         log_export_request_task(er.id, f"Asking for status of job {er.request_job_id}.")
         try:
-            status_resp: ApiJobResponse = conf_exports.get_job_status(er.request_job_id)
+            status_resp: ApiJobResponse = conf_exports.get_job_status(service="bigdata", job_id=er.request_job_id)
             log_export_request_task(er.id, f"Status received: {status_resp.status} - Err: {status_resp.err or ''}")
             if er.request_job_status != status_resp.status:
                 er.request_job_status = status_resp.status
@@ -112,7 +103,7 @@ def launch_request(er_id: int):
         return
 
     try:
-        wait_for_job(export_request)
+        wait_for_export_job(export_request)
     except HTTPError as e:
         manage_exception(export_request, e, f"Failure during export job {er_id}", now)
         return
