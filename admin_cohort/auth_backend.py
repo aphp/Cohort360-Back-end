@@ -29,7 +29,9 @@ class AuthBackend:
         try:
             user = User.objects.get(provider_username=username)
         except User.DoesNotExist:
-            user = get_or_create_user(jwt_access_token=tokens.access)
+            # user = get_or_create_user(jwt_access_token=tokens.access)
+            _logger.error(f"The user with id_aph [{username}] has logged in but no associated user account was found in DB")
+            return
 
         request.jwt_session_key = tokens.access
         request.jwt_refresh_key = tokens.refresh
