@@ -6,6 +6,6 @@ KEY_SELECTED_TABLES
 Les données sont accessibles dans votre espace Jupyter dans la base de données nommée KEY_DATABASE_NAME.
 
 Pour une première utilisation, vous trouverez à ce lien une aide pour l'ouverture des fichiers:
-https://gitlab.eds.aphp.fr/public-resources/eds-doc/-/wikis/Export
+https://gitlab.eds.aphp.fr/public-resources/eds-doc/-/wikis/jupyter
 
 Pour toute question, contactez le support Cohort360 à KEY_CONTACT_MAIL
