@@ -127,7 +127,7 @@ class TasksTests(DatedMeasuresTests):
                                              ).first()
         self.assertIsNotNone(new_dm)
 
-    @mock.patch('cohort.tasks.app.control.revoke')
+    @mock.patch('cohort.tasks.celery_app.control.revoke')
     @mock.patch('cohort.tasks.cohort_job_api.cancel_job')
     def test_cancel_previously_running_dm_jobs_task(self, mock_cancel_job, mock_celery_revoke):
         mock_celery_revoke.return_value = None
