@@ -1,60 +1,15 @@
-from datetime import date, timedelta
-
-from django.core.mail import EmailMultiAlternatives
-from django.db.models import Q, Count
-from django.utils import timezone
-
-from accesses.models import Access, Profile
+from accesses.accesses_alerts import send_access_expiry_alerts
+from accesses.conf_perimeters import perimeters_data_model_objects_update
 from admin_cohort import celery_app
-from admin_cohort.models import User
-from admin_cohort.settings import ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS, ACCESS_EXPIRY_SECOND_ALERT_IN_DAYS, EMAIL_SENDER_ADDRESS
-
-KEY_NAME = "KEY_NAME"
-KEY_EXPIRY_DAYS = "KEY_EXPIRY_DAYS"
-
-
-def replace_keys(source_text: str, user: User, days: int):
-    return source_text.replace(KEY_NAME, user.displayed_name)\
-                      .replace(KEY_EXPIRY_DAYS, str(days))
-
-
-def send_alert_email(user: User, days: int):
-    html_path = "accesses/email_templates/access_expiry_alert.html"
-    txt_path = "accesses/email_templates/access_expiry_alert.txt"
-
-    with open(html_path) as f:
-        html_content = "\n".join(f.readlines())
-
-    with open(txt_path) as f:
-        txt_content = "\n".join(f.readlines())
-
-    html_mail = replace_keys(html_content, user, days)
-    txt_mail = replace_keys(txt_content, user, days)
-
-    subject = "Expiration de vos accès à Cohort360"
-    msg = EmailMultiAlternatives(subject=subject,
-                                 body=txt_mail,
-                                 from_email=EMAIL_SENDER_ADDRESS,
-                                 to=[user.email])
-
-    msg.attach_alternative(content=html_mail, mimetype="text/html")
-    msg.attach_file(path="accesses/email_templates/logoCohort360.png")
-    msg.send()
-
-
-def send_access_expiry_alerts(days: int):
-    expiry_date = date.today() + timedelta(days=days)
-    expiring_accesses = Access.objects.filter(Q(end_datetime__date=expiry_date) |
-                                              Q(manual_end_datetime__date=expiry_date))\
-                                      .values("profile")\
-                                      .annotate(total=Count("profile"))
-    for access in expiring_accesses:
-        user = Profile.objects.get(pk=access["profile"]).user
-        send_alert_email(user=user, days=days)
+from admin_cohort.settings import ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS, ACCESS_EXPIRY_SECOND_ALERT_IN_DAYS
 
 
 @celery_app.task()
 def check_expiring_accesses():
-    if timezone.now().hour == 7:
-        send_access_expiry_alerts(days=ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS)
-        send_access_expiry_alerts(days=ACCESS_EXPIRY_SECOND_ALERT_IN_DAYS)
+    send_access_expiry_alerts(days=ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS)
+    send_access_expiry_alerts(days=ACCESS_EXPIRY_SECOND_ALERT_IN_DAYS)
+
+
+@celery_app.task()
+def perimeters_daily_update():
+    perimeters_data_model_objects_update()
