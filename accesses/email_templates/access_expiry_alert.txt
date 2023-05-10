@@ -1,0 +1,9 @@
+Bonjour KEY_NAME,
+Nous vous informons que vos accès à Cohort360 arriveront à expiration dans KEY_EXPIRY_DAYS jours.
+Veuillez vous rapprocher de votre référent EDS pour faire renouveler vos accès à l'application.
+Attention: si vous avez changé de service ou d'hôpital, veuillez en informer votre référent pour qu'il mette à jour votre compte.
+
+Cordialement.
+
+L'équipe Cohort360
+Pôle Innovation et Données, DSI AP-HP

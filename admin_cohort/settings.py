@@ -5,7 +5,7 @@ from pathlib import Path
 
 import environ
 import pytz
-
+from celery.schedules import crontab
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -211,18 +211,18 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_TASK_ALWAYS_EAGER = False
 
-CONFIG_TASKS = {}
-if env('LOCAL_TASKS', default=''):
-    CONFIG_TASKS = dict([(name, {'task': t, 'schedule': int(s)})
-                         for (name, t, s) in [task.split(',')
-                         for task in env('LOCAL_TASKS').split(';')]])
-
-CELERY_BEAT_SCHEDULE = {
-                        'task-delete_csv_files': {
-                                                  'task': 'exports.tasks.delete_export_requests_csv_files',
-                                                  'schedule': int(env("TASK_DELETE_CSV_FILES_SCHEDULE", default=3600))
-                                                  },
-                        **CONFIG_TASKS
+CELERY_BEAT_SCHEDULE = {'perimeters_daily_update': {'task': 'accesses.conf_perimeters.perimeters_daily_update',
+                                                    'schedule': crontab(hour=int(env("PERIMETERS_DAILY_UPDATE_SCHEDULE_HOUR")),
+                                                                        minute=0),
+                                                    },
+                        'expiring_accesses_daily_check': {'task': 'accesses.tasks.check_expiring_accesses',
+                                                          'schedule': crontab(hour=int(env("CHECK_EXPIRING_ACCESSES_SCHEDULE_HOUR")),
+                                                                              minute=0),
+                                                          },
+                        'csv_files_daily_delete': {'task': 'exports.tasks.delete_export_requests_csv_files',
+                                                   'schedule': crontab(hour=int(env("DELETE_CSV_FILES_SCHEDULE_HOUR")),
+                                                                       minute=0),
+                                                   }
                         }
 
 
@@ -280,3 +280,7 @@ REST_FRAMEWORK_EXTENSIONS = {"DEFAULT_PARENT_LOOKUP_KWARG_NAME_PREFIX": "",
                              "DEFAULT_CACHE_KEY_FUNC": "admin_cohort.cache_utils.construct_cache_key",
                              "DEFAULT_CACHE_ERRORS": False
                              }
+
+# ACCESSES EXPIRY
+ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS = int(env("ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS", default=30))
+ACCESS_EXPIRY_SECOND_ALERT_IN_DAYS = int(env("ACCESS_EXPIRY_SECOND_ALERT_IN_DAYS", default=2))

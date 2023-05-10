@@ -6,7 +6,7 @@ from celery import Celery
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'admin_cohort.settings')
 
-app = Celery('admin_cohort')
-app.config_from_object('django.conf:settings', namespace='CELERY')
+celery_app = Celery('admin_cohort')
+celery_app.config_from_object('django.conf:settings', namespace='CELERY')
 
-app.autodiscover_tasks()
+celery_app.autodiscover_tasks()

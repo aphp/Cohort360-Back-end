@@ -3,6 +3,6 @@ __version__ = '3.13.0-SNAPSHOT'
 __author__ = 'Assistance Publique - Hopitaux de Paris, Département I&D'
 
 
-from .celery import app
+from .celery import celery_app
 
-__all__ = ('app',)
+__all__ = ('celery_app',)

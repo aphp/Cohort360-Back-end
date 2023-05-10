@@ -4,7 +4,7 @@ from time import sleep
 from celery import shared_task, current_task
 
 import cohort.conf_cohort_job_api as cohort_job_api
-from admin_cohort import app
+from admin_cohort import celery_app
 from admin_cohort.types import JobStatus
 from admin_cohort.settings import COHORT_LIMIT
 from cohort.models import CohortResult, DatedMeasure
@@ -62,7 +62,7 @@ def cancel_previously_running_dm_jobs(auth_headers: dict, dm_uuid: str):
                 new_status = cohort_job_api.cancel_job(dm.request_job_id, auth_headers)
                 dm.request_job_status = new_status
             else:
-                app.control.revoke(dm.count_task_id)
+                celery_app.control.revoke(dm.count_task_id)
                 dm.request_job_status = JobStatus.cancelled
         except Exception as e:
             msg = f"Error while cancelling {job_status} job [{dm.request_job_id}] DM [{dm.uuid}] - {e}"
