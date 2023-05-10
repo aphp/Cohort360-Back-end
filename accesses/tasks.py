@@ -13,7 +13,12 @@ KEY_NAME = "KEY_NAME"
 KEY_EXPIRY_DAYS = "KEY_EXPIRY_DAYS"
 
 
-def send_alert_email(user: User, in_days: int):
+def replace_keys(source_text: str, user: User, days: int):
+    return source_text.replace(KEY_NAME, user.displayed_name)\
+                      .replace(KEY_EXPIRY_DAYS, str(days))
+
+
+def send_alert_email(user: User, days: int):
     html_path = "accesses/email_templates/access_expiry_alert.html"
     txt_path = "accesses/email_templates/access_expiry_alert.txt"
 
@@ -23,8 +28,8 @@ def send_alert_email(user: User, in_days: int):
     with open(txt_path) as f:
         txt_content = "\n".join(f.readlines())
 
-    html_mail = html_content.replace(KEY_NAME, user.displayed_name).replace(KEY_EXPIRY_DAYS, str(in_days))
-    txt_mail = txt_content.replace(KEY_NAME, user.displayed_name).replace(KEY_EXPIRY_DAYS, str(in_days))
+    html_mail = replace_keys(html_content, user, days)
+    txt_mail = replace_keys(txt_content, user, days)
 
     subject = "Expiration de vos accès à Cohort360"
     msg = EmailMultiAlternatives(subject=subject,
@@ -45,7 +50,7 @@ def send_access_expiry_alerts(days: int):
                                       .annotate(total=Count("profile"))
     for access in expiring_accesses:
         user = Profile.objects.get(pk=access["profile"]).user
-        send_alert_email(user=user, in_days=days)
+        send_alert_email(user=user, days=days)
 
 
 @celery_app.task()
