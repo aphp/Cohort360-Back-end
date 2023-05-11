@@ -2,6 +2,7 @@
 
 from django.db import migrations, models
 
+
 STATUSES = [('new', 'new'), ('denied', 'denied'), ('validated', 'validated'),
             ('pending', 'pending'), ('started', 'started'), ('failed', 'failed'),
             ('cancelled', 'cancelled'), ('finished', 'finished'),
@@ -11,12 +12,17 @@ STATUSES = [('new', 'new'), ('denied', 'denied'), ('validated', 'validated'),
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('exports', '0019_alter_output_format_choices'),
+        ('cohort', '0002_patch_perimeters_ids_in_rqs'),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='exportrequest',
+            model_name='cohortresult',
+            name='request_job_status',
+            field=models.CharField(choices=STATUSES, default='new', max_length=15, null=True),
+        ),
+        migrations.AlterField(
+            model_name='datedmeasure',
             name='request_job_status',
             field=models.CharField(choices=STATUSES, default='new', max_length=15, null=True),
         ),
