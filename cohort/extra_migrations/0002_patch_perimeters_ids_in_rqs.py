@@ -31,7 +31,7 @@ def fill_in_perimeters_ids_in_snapqhots(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-                    ('cohort', '0026_remove_unused_fields_from_rqs')
+                    ('cohort', '0001_initial')
                     ]
 
     operations = [migrations.RunPython(fill_in_perimeters_ids_in_snapqhots)]
