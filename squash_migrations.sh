@@ -21,8 +21,8 @@ python manage.py makemigrations
 mv cohort/extra_migrations/* cohort/migrations
 mv exports/extra_migrations/* exports/migrations
 
-rm -f cohort/extra_migrations
-rm -f exports/extra_migrations
+rm -rf cohort/extra_migrations
+rm -rf exports/extra_migrations
 
 echo "migrate with fake initial"
 python manage.py migrate --fake-initial
