@@ -118,7 +118,8 @@ class Migration(migrations.Migration):
                 ('manual_is_active', models.BooleanField(blank=True, null=True)),
                 ('manual_valid_start_datetime', models.DateTimeField(blank=True, null=True)),
                 ('manual_valid_end_datetime', models.DateTimeField(blank=True, null=True)),
-                ('user', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='profiles', to=settings.AUTH_USER_MODEL)),
+                ('user', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='profiles',
+                                           to=settings.AUTH_USER_MODEL)),
             ],
             options={
                 'abstract': False,
@@ -141,7 +142,8 @@ class Migration(migrations.Migration):
                 ('cohort_id', models.TextField(blank=True, null=True)),
                 ('full_path', models.TextField(blank=True, null=True)),
                 ('cohort_size', models.TextField(blank=True, null=True)),
-                ('parent', models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, related_name='children', to='accesses.perimeter')),
+                ('parent', models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, related_name='children',
+                                             to='accesses.perimeter')),
             ],
             options={
                 'abstract': False,
@@ -159,8 +161,10 @@ class Migration(migrations.Migration):
                 ('end_datetime', models.DateTimeField(blank=True, null=True)),
                 ('manual_start_datetime', models.DateTimeField(blank=True, null=True)),
                 ('manual_end_datetime', models.DateTimeField(blank=True, null=True)),
-                ('perimeter', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='accesses', to='accesses.perimeter')),
-                ('profile', models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, related_name='accesses', to='accesses.profile')),
+                ('perimeter', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='accesses',
+                                                to='accesses.perimeter')),
+                ('profile', models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, related_name='accesses',
+                                              to='accesses.profile')),
                 ('role', models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, related_name='accesses', to='accesses.role')),
             ],
             options={
