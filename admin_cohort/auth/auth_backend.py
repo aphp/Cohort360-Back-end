@@ -7,7 +7,7 @@ from admin_cohort.models import User
 class JWTAuthBackend:
 
     def authenticate(self, request, username, password):
-        user = User.objects.get(provider_username=username)
+        user = self.get_user(username)
         tokens: JwtTokens = get_jwt_tokens(username=username, password=password)
         request.jwt_access_key = tokens.access
         request.jwt_refresh_key = tokens.refresh
