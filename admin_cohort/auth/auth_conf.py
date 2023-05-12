@@ -17,7 +17,7 @@ env = environ.Env()
 AUTH_SERVER_APP_HEADER = "X-User-App"
 APP_NAME = env("JWT_APP_NAME")
 
-jwt_server_headers = {AUTH_SERVER_APP_HEADER: APP_NAME}
+JWT_SERVER_HEADERS = {AUTH_SERVER_APP_HEADER: APP_NAME}
 
 ID_CHECKER_URL = env("ID_CHECKER_URL")
 ID_CHECKER_TOKEN_HEADER = env("ID_CHECKER_TOKEN_HEADER")
@@ -93,7 +93,7 @@ def check_id_aph(id_aph: str) -> Optional[PersonIdentity]:
                           email=res.get('mail'))
 
 
-def check_ids(username: str, password: str) -> JwtTokens:
+def get_jwt_tokens(username: str, password: str) -> JwtTokens:
     if SERVER_VERSION.lower() == "dev":
         return JwtTokens(username, username, {"created_at": timezone.now() - timezone.timedelta(days=1),
                                               "modified_at": timezone.now() - timezone.timedelta(days=1),
@@ -102,10 +102,10 @@ def check_ids(username: str, password: str) -> JwtTokens:
 
     resp = requests.post(url=f"{JWT_SERVER_URL}/jwt/",
                          data={"username": username, "password": password},
-                         headers=jwt_server_headers)
+                         headers=JWT_SERVER_HEADERS)
     if resp.status_code == status.HTTP_401_UNAUTHORIZED:
         raise LoginError("Invalid username or password")
-    if resp.status_code != 200:
+    if resp.status_code != status.HTTP_200_OK:
         raise ServerError(f"Error {resp.status_code} from authentication server: {resp.text}")
     return JwtTokens(**resp.json())
 
@@ -118,7 +118,7 @@ def get_user_info(jwt_access_token: str) -> UserInfo:
 
     resp = requests.post(url="{}/jwt/user_info/".format(JWT_SERVER_URL),
                          data={"token": jwt_access_token},
-                         headers=jwt_server_headers)
+                         headers=JWT_SERVER_HEADERS)
     if resp.status_code == 200:
         return UserInfo(**resp.json())
     raise ValueError("Invalid JWT Access Token")
@@ -144,7 +144,7 @@ def verify_jwt(access_token: str, auth_method: str = JWT_AUTH_MODE) -> Union[Non
         url = f"{JWT_SERVER_URL}/jwt/verify/"
         resp = requests.post(url=url,
                              data={"token": access_token},
-                             headers=jwt_server_headers)
+                             headers=JWT_SERVER_HEADERS)
 
         if resp.status_code == status.HTTP_200_OK:
             jwt.decode(access_token, leeway=15, algorithms=JWT_ALGORITHM, options=dict(verify_signature=False,
@@ -185,7 +185,7 @@ def refresh_jwt(refresh) -> JwtTokens:
 
     resp = requests.post(url="{}/jwt/refresh/".format(JWT_SERVER_URL),
                          data=dict(refresh=refresh),
-                         headers=jwt_server_headers)
+                         headers=JWT_SERVER_HEADERS)
     if resp.status_code == 200:
         return JwtTokens(**resp.json())
     raise ValueError("Invalid JWT Refresh Token")

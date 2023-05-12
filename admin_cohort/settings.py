@@ -123,7 +123,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
 DJANGO_CPROFILE_MIDDLEWARE_REQUIRE_STAFF = False
 
-AUTHENTICATION_BACKENDS = ['admin_cohort.auth_backend.AuthBackend']
+AUTHENTICATION_BACKENDS = ['admin_cohort.auth.auth_backend.JWTAuthBackend']
 
 ROOT_URLCONF = 'admin_cohort.urls'
 

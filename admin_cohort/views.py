@@ -21,7 +21,8 @@ from rest_framework_tracking.models import APIRequestLog
 
 from accesses.models import Access, Profile
 from accesses.serializers import AccessSerializer
-from admin_cohort import conf_auth
+from admin_cohort.auth import auth_conf
+from admin_cohort.auth.auth_form import CustomAuthenticationForm
 from admin_cohort.models import User, MaintenancePhase, get_next_maintenance
 from admin_cohort.permissions import LogsPermission, IsAuthenticatedReadOnly, can_user_read_users, MaintenancePermission
 from admin_cohort.serializers import APIRequestLogSerializer, UserSerializer, OpenUserSerializer, MaintenancePhaseSerializer
@@ -258,9 +259,9 @@ class LoggingViewset(YarnReadOnlyViewsetMixin, viewsets.ModelViewSet):
 
 
 class CustomLoginView(LoginView):
+    form_class = CustomAuthenticationForm
 
     def form_valid(self, form):
-        """Security check complete. Log the user in."""
         login(self.request, form.get_user())
         u = User.objects.get(provider_username=self.request.user.provider_username)
         user_valid_profiles_ids = [p.id for p in Profile.objects.filter(user_id=u.provider_username,
@@ -286,7 +287,8 @@ class CustomLoginView(LoginView):
         return JsonResponse(data) if not url else HttpResponseRedirect(url)
 
     def form_invalid(self, form):
-        return JsonResponse(data={"error": "Invalid user credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+        return JsonResponse(data={"errors": form.errors.get('__all__')},
+                            status=status.HTTP_401_UNAUTHORIZED)
 
     @method_decorator(csrf_exempt)
     @method_decorator(never_cache)
@@ -303,20 +305,13 @@ class CustomLoginView(LoginView):
             handler = self.http_method_not_allowed
         return handler(request, *args, **kwargs)
 
-    def post(self, request, *args, **kwargs):
-        resp = super(CustomLoginView, self).post(request, *args, **kwargs)
-        if getattr(request, 'jwt_server_unavailable', False):
-            return JsonResponse(data={"jwt_error": getattr(request, 'jwt_server_message', "")},
-                                status=status.HTTP_503_SERVICE_UNAVAILABLE)
-        return resp
-
 
 @csrf_exempt
 def redirect_token_refresh_view(request):
     if request.method != "POST":
         raise Http404()
     try:
-        res = conf_auth.refresh_jwt(request.jwt_refresh_key)
+        res = auth_conf.refresh_jwt(request.jwt_refresh_key)
     except ValueError as e:
         raise Http404(e)
     return JsonResponse(data=res.__dict__)

@@ -6,7 +6,7 @@ from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from admin_cohort import conf_auth
+from admin_cohort.auth import auth_conf
 from admin_cohort.models import User
 from admin_cohort.permissions import IsAuthenticated, can_user_read_users
 from admin_cohort.serializers import UserSerializer
@@ -115,7 +115,7 @@ class ProfileViewSet(CustomLoggingMixin, BaseViewset):
             return Response(data="No `provider_source_value` provided",
                             status=status.HTTP_400_BAD_REQUEST)
         try:
-            person = conf_auth.check_id_aph(psv)
+            person = auth_conf.check_id_aph(psv)
             manual_profile: Profile = Profile.objects.filter(Profile.Q_is_valid()
                                                              & Q(source=MANUAL_SOURCE)
                                                              & Q(user__provider_username=person.user_id)

@@ -5,7 +5,7 @@ from django.http import StreamingHttpResponse, FileResponse
 from django.utils.deprecation import MiddlewareMixin
 from rest_framework.authentication import BaseAuthentication
 
-from admin_cohort import conf_auth
+from admin_cohort.auth import auth_conf
 from admin_cohort.models import User
 from admin_cohort.settings import JWT_ACCESS_COOKIE, JWT_REFRESH_COOKIE, SESSION_COOKIE_NAME
 
@@ -18,7 +18,7 @@ class CustomAuthentication(BaseAuthentication):
         if getattr(request, "jwt_access_key", None) is not None:
             raw_token = request.jwt_access_key
         else:
-            raw_token, auth_method = conf_auth.get_token_from_headers(request)
+            raw_token, auth_method = auth_conf.get_token_from_headers(request)
             if raw_token is None:
                 return None
 
@@ -27,7 +27,7 @@ class CustomAuthentication(BaseAuthentication):
             if type(auth_method) == bytes:
                 auth_method = auth_method.decode('utf-8')
         try:
-            user_info = conf_auth.verify_jwt(raw_token, auth_method)
+            user_info = auth_conf.verify_jwt(raw_token, auth_method)
             user = User.objects.get(provider_username=user_info.username)
         except (ValueError, User.DoesNotExist):
             return None
