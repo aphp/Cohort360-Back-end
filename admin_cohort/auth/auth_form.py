@@ -6,10 +6,10 @@ from admin_cohort.models import User
 from admin_cohort.types import LoginError, ServerError
 
 
-class CustomAuthenticationForm(AuthenticationForm):
-    error_messages = {"user_not_found": "This user has no account DB",
-                      "invalid_credentials": "Invalid username and/or password",
-                      "auth_server_error": "An error occurred in the auth server"
+class AuthForm(AuthenticationForm):
+    error_messages = {User.DoesNotExist: "Unregistered User",
+                      LoginError: "Invalid Credentials",
+                      ServerError: "JWT Server Error"
                       }
 
     def clean(self):
@@ -19,12 +19,8 @@ class CustomAuthenticationForm(AuthenticationForm):
         if username is not None and password:
             try:
                 self.user_cache = authenticate(self.request, username=username, password=password)
-            except User.DoesNotExist:
-                raise ValidationError(self.error_messages["user_not_found"])
-            except LoginError:
-                raise ValidationError(self.error_messages["invalid_credentials"])
-            except ServerError:
-                raise ValidationError(self.error_messages["auth_server_error"])
+            except (User.DoesNotExist, LoginError, ServerError) as e:
+                raise ValidationError(message=f"{self.error_messages.get(e.__class__)} - {e}")
             else:
                 self.confirm_login_allowed(self.user_cache)
 
