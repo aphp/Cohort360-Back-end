@@ -229,7 +229,8 @@ class ProfileSerializer(BaseSerializer):
                          }
             user = User.objects.create(**user_data)
         validated_data.update({'user': user,
-                               'provider_name': f"{validated_data.get('firstname')} {validated_data.get('lastname')}"
+                               'provider_name': f"{validated_data.get('firstname')} {validated_data.get('lastname')}",
+                               'provider_id': user_id
                                })
         return super(ProfileSerializer, self).create(validated_data)
 
