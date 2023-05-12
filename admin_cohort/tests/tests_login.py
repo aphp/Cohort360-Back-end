@@ -23,7 +23,9 @@ class LoginTests(APITestCase):
         self.unregistered_user_credentials = {"username": "spy-user",
                                               "password": "top-secret-007"}
 
-    def test_login_with_unregistered_user(self):
+    @mock.patch("admin_cohort.auth.auth_backend.get_jwt_tokens")
+    def test_login_with_unregistered_user(self, mock_get_tokens: MagicMock):
+        mock_get_tokens.side_effect = User.DoesNotExist()
         response = self.client.post(path=self.login_url, data=self.unregistered_user_credentials)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
