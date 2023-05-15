@@ -223,6 +223,14 @@ def get_all_read_patient_accesses(user) -> tuple:
         raise Http404("ERROR No accesses with read patient right Found")
     return all_read_patient_nominative_accesses, all_read_patient_pseudo_accesses
 
+def get_read_opposing_patient_accesses(user) -> bool:
+    """
+        Return a boolean of accesses opposing patient. It is a global role, so if we found it at least on one care_site
+        it will be effective for every perimeters
+    """
+    user_accesses = get_user_valid_manual_accesses_queryset(user)
+    opposing_patient_accesses = user_accesses.filter(Role.is_search_opposing_patient_role("role"))
+    return opposing_patient_accesses.exists()
 
 def has_at_least_one_read_nomitative_right(perimeters_filtered_by_search, all_read_patient_nominative_accesses,
                                            all_read_patient_pseudo_accesses):

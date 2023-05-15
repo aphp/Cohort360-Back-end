@@ -22,7 +22,8 @@ from ..tools.perimeter_process import get_top_perimeter_same_level, get_top_peri
     filter_perimeter_by_top_hierarchy_perimeter_list, filter_accesses_by_search_perimeters, get_read_patient_right, \
     get_top_perimeter_from_read_patient_accesses, is_pseudo_perimeter_in_top_perimeter, \
     has_at_least_one_read_nomitative_right, \
-    get_read_nominative_boolean_from_specific_logic_function, get_all_read_patient_accesses
+    get_read_nominative_boolean_from_specific_logic_function, get_all_read_patient_accesses, \
+    get_read_opposing_patient_accesses
 
 
 class PerimeterFilter(filters.FilterSet):
@@ -91,7 +92,8 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
             all_perimeters = {access.perimeter for access in access_same_level.union(access_inf_level)}
 
             top_perimeter_same_level = list(set(get_top_perimeter_same_level(access_same_level, all_perimeters)))
-            top_perimeter_inf_level = get_top_perimeter_inf_level(access_inf_level, all_perimeters, top_perimeter_same_level)
+            top_perimeter_inf_level = get_top_perimeter_inf_level(access_inf_level, all_perimeters,
+                                                                  top_perimeter_same_level)
 
             # Apply Distinct to list
             top_hierarchy_perimeter = list(set(top_perimeter_inf_level + top_perimeter_same_level))
@@ -138,32 +140,42 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
                          responses={'200': openapi.Response("Return is_read_patient_pseudo boolean")})
     @action(detail=False, methods=['get'], url_path="is-read-patient-pseudo")
     def get_read_patient_pseudo_right(self, request, *args, **kwargs):
-        all_read_patient_nominative_accesses, all_read_patient_pseudo_accesses = get_all_read_patient_accesses(request.user)
+        all_read_patient_nominative_accesses, all_read_patient_pseudo_accesses = get_all_read_patient_accesses(
+            request.user)
+        is_opposing_patient_read = get_read_opposing_patient_accesses(request.user)
         if request.query_params:
             is_read_patient_nominative = get_read_nominative_boolean_from_specific_logic_function(request,
-                                                                                                  self.filter_queryset(self.get_queryset()),
+                                                                                                  self.filter_queryset(
+                                                                                                      self.get_queryset()),
                                                                                                   all_read_patient_nominative_accesses,
                                                                                                   all_read_patient_pseudo_accesses,
                                                                                                   get_read_patient_right)
             is_read_patient_pseudo = not is_read_patient_nominative
         else:
-            is_read_patient_pseudo = is_pseudo_perimeter_in_top_perimeter(all_read_patient_nominative_accesses, all_read_patient_pseudo_accesses)
+            is_read_patient_pseudo = is_pseudo_perimeter_in_top_perimeter(all_read_patient_nominative_accesses,
+                                                                          all_read_patient_pseudo_accesses)
 
-        return Response(data={"is_read_patient_pseudo": is_read_patient_pseudo}, status=status.HTTP_200_OK)
+        return Response(data={"is_read_patient_pseudo": is_read_patient_pseudo,
+                              "is_opposing_patient_read": is_opposing_patient_read
+                              }, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(method='get',
                          operation_summary="whether or not the user has a `read patient data in nominative mode` right on one or several perimeters",
                          responses={'200': openapi.Response("give rights in caresite perimeters found")})
     @action(detail=False, methods=['get'], url_path="is-one-read-patient-right")
     def get_read_one_nominative_patient_right_access(self, request, *args, **kwargs):
-        all_read_patient_nominative_accesses, all_read_patient_pseudo_accesses = get_all_read_patient_accesses(request.user)
+        all_read_patient_nominative_accesses, all_read_patient_pseudo_accesses = get_all_read_patient_accesses(
+            request.user)
+        is_opposing_patient_read = get_read_opposing_patient_accesses(request.user)
         if request.query_params:
             is_read_patient_nominative = get_read_nominative_boolean_from_specific_logic_function(request,
-                                                                                                  self.filter_queryset(self.get_queryset()),
+                                                                                                  self.filter_queryset(
+                                                                                                      self.get_queryset()),
                                                                                                   all_read_patient_nominative_accesses,
                                                                                                   all_read_patient_pseudo_accesses,
                                                                                                   has_at_least_one_read_nomitative_right)
-            return Response(data={"is_one_read_nominative_patient_right": is_read_patient_nominative},
+            return Response(data={"is_one_read_nominative_patient_right": is_read_patient_nominative,
+                                  "is_opposing_patient_read": is_opposing_patient_read},
                             status=status.HTTP_200_OK)
         else:
             return Response(data="At least one search parameter is required", status=status.HTTP_400_BAD_REQUEST)
