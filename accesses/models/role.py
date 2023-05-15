@@ -9,7 +9,6 @@ from accesses.rights import RightGroup, main_admin_rights, all_rights, Right
 from admin_cohort.models import BaseModel
 from admin_cohort.tools import join_qs
 
-
 ROLES_HELP_TEXT = dict(right_edit_roles="Gérer les rôles",
                        right_read_logs="Lire l'historique des requêtes des utilisateurs",
                        right_add_users="Ajouter un profil manuel pour un utilisateur de l'AP-HP.",
@@ -35,7 +34,9 @@ ROLES_HELP_TEXT = dict(right_edit_roles="Gérer les rôles",
                        right_export_csv_pseudo_anonymised="Demander à exporter ses cohortes de patients sous forme pseudonymisée en format CSV.",
                        right_read_env_unix_users="Consulter les informations liées aux environnements de travail",
                        right_manage_env_unix_users="Gérer les environnements de travail",
-                       right_manage_env_user_links="Gérer les accès des utilisateurs aux environnements de travail")
+                       right_manage_env_user_links="Gérer les accès des utilisateurs aux environnements de travail",
+                       right_read_opposing_patient="Détermine le droit de lecture des patients opposés à l'utilisation "
+                                                   "de leur données pour la recherche")
 
 
 def format_prefix(prefix: str) -> str:
@@ -67,6 +68,7 @@ class Role(BaseModel):
     right_read_patient_nominative = models.BooleanField(default=False, null=False)
     right_read_patient_pseudo_anonymised = models.BooleanField(default=False, null=False)
     right_search_patient_with_ipp = models.BooleanField(default=False, null=False)
+    right_read_opposing_patient = models.BooleanField(default=False, null=False)
 
     # JUPYTER TRANSFER
     right_manage_review_transfer_jupyter = models.BooleanField(default=False, null=False)
@@ -113,6 +115,11 @@ class Role(BaseModel):
     def is_search_ipp_role(cls, prefix: str = "") -> Q:
         formatted_prefix = format_prefix(prefix)
         return join_qs([Q(**{f'{formatted_prefix}right_search_patient_with_ipp': True})])
+
+    @classmethod
+    def is_search_opposing_patient_role(cls, prefix: str = "") -> Q:
+        formatted_prefix = format_prefix(prefix)
+        return join_qs([Q(**{f'{formatted_prefix}right_read_opposing_patient': True})])
 
     @classmethod
     def is_export_csv_nominative_role(cls, prefix: str = "") -> Q:
