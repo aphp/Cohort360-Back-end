@@ -432,6 +432,13 @@ class AccessSerializer(BaseSerializer):
         return instance
 
 
+class ExpiringAccessesSerializer(serializers.Serializer):
+    start_datetime = serializers.DateTimeField(source='actual_start_datetime', read_only=True)
+    end_datetime = serializers.DateTimeField(source='actual_end_datetime', read_only=True)
+    profile = serializers.SlugRelatedField(slug_field='provider_name', read_only=True)
+    perimeter = serializers.SlugRelatedField(slug_field='name', read_only=True)
+
+
 class DataRightSerializer(serializers.Serializer):
     perimeter_id = serializers.CharField(read_only=True, allow_null=True)
     care_site_id = serializers.IntegerField(read_only=True, allow_null=True)

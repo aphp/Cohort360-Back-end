@@ -152,22 +152,22 @@ def get_all_user_managing_accesses_on_perimeter(user: User, perimeter: Perimeter
                                                                 ).select_related("role")
 
 
-def get_user_valid_manual_accesses_queryset(u: User) -> QuerySet:
+def get_user_valid_manual_accesses_queryset(user: User) -> QuerySet:
     return Access.objects.filter(Profile.Q_is_valid(field_prefix="profile")
                                  & Q(profile__source=MANUAL_SOURCE)
                                  & Access.Q_is_valid()
-                                 & Q(profile__user=u))
+                                 & Q(profile__user=user))
 
 
-def get_user_data_accesses_queryset(u: User) -> QuerySet:
-    return get_user_valid_manual_accesses_queryset(u).filter(join_qs([Q(role__right_read_patient_nominative=True),
-                                                                      Q(role__right_read_patient_pseudo_anonymised=True),
-                                                                      Q(role__right_search_patient_with_ipp=True),
-                                                                      Q(role__right_export_csv_nominative=True),
-                                                                      Q(role__right_export_csv_pseudo_anonymised=True),
-                                                                      Q(role__right_transfer_jupyter_pseudo_anonymised=True),
-                                                                      Q(role__right_transfer_jupyter_nominative=True)]
-                                                                     )).prefetch_related('role')
+def get_user_data_accesses_queryset(user: User) -> QuerySet:
+    return get_user_valid_manual_accesses_queryset(user).filter(join_qs([Q(role__right_read_patient_nominative=True),
+                                                                         Q(role__right_read_patient_pseudo_anonymised=True),
+                                                                         Q(role__right_search_patient_with_ipp=True),
+                                                                         Q(role__right_export_csv_nominative=True),
+                                                                         Q(role__right_export_csv_pseudo_anonymised=True),
+                                                                         Q(role__right_transfer_jupyter_pseudo_anonymised=True),
+                                                                         Q(role__right_transfer_jupyter_nominative=True)]
+                                                                        )).prefetch_related('role')
 
 
 class DataRight:

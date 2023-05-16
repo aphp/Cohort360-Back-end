@@ -5,7 +5,7 @@ from django.db.models import Q, Count
 
 from accesses.models import Access, Profile
 from admin_cohort.models import User
-from admin_cohort.settings import EMAIL_SENDER_ADDRESS
+from admin_cohort.settings import EMAIL_SENDER_ADDRESS, MANUAL_SOURCE
 
 KEY_NAME = "KEY_NAME"
 KEY_EXPIRY_DAYS = "KEY_EXPIRY_DAYS"
@@ -42,8 +42,10 @@ def send_alert_email(user: User, days: int):
 
 def send_access_expiry_alerts(days: int):
     expiry_date = date.today() + timedelta(days=days)
-    expiring_accesses = Access.objects.filter(Q(end_datetime__date=expiry_date) |
-                                              Q(manual_end_datetime__date=expiry_date))\
+    expiring_accesses = Access.objects.filter(Access.Q_is_valid() &
+                                              Q(profile__source=MANUAL_SOURCE) &
+                                              (Q(end_datetime__date=expiry_date) |
+                                               Q(manual_end_datetime__date=expiry_date)))\
                                       .values("profile")\
                                       .annotate(total=Count("profile"))
     for access in expiring_accesses:
