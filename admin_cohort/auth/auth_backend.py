@@ -15,7 +15,4 @@ class JWTAuthBackend:
         return user
 
     def get_user(self, user_id) -> Union[User, None]:
-        try:
-            return User.objects.get(provider_username=user_id)
-        except User.DoesNotExist:
-            return None
+        return User.objects.get(provider_username=user_id)
