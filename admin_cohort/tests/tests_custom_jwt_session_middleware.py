@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 
 from rest_framework.test import APIRequestFactory
 
-from admin_cohort.middleware.auth_middleware import CustomJwtSessionMiddleware
+from admin_cohort.middleware.jwt_session_middleware import JWTSessionMiddleware
 from admin_cohort.settings import JWT_ACCESS_COOKIE, JWT_REFRESH_COOKIE
 
 
@@ -11,7 +11,7 @@ class CustomJwtSessionMiddlewareTests(TestCase):
 
     def setUp(self):
         self.get_response = MagicMock()
-        self.middleware = CustomJwtSessionMiddleware(self.get_response)
+        self.middleware = JWTSessionMiddleware(self.get_response)
         self.factory = APIRequestFactory()
         self.test_safe_route = "/accesses/roles/"
         self.test_logout_route = "/accounts/logout/"

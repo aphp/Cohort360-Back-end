@@ -9,6 +9,7 @@ from django.utils import timezone
 from rest_framework import status, HTTP_HEADER_ENCODING
 from rest_framework_simplejwt.exceptions import AuthenticationFailed
 
+from admin_cohort.models import User
 from admin_cohort.settings import SERVER_VERSION
 from admin_cohort.types import PersonIdentity, ServerError, JwtTokens, LoginError, UserInfo, MissingDataError
 
@@ -24,13 +25,23 @@ ID_CHECKER_TOKEN_HEADER = env("ID_CHECKER_TOKEN_HEADER")
 ID_CHECKER_TOKEN = env("ID_CHECKER_TOKEN")
 id_checker_server_headers = {ID_CHECKER_TOKEN_HEADER: ID_CHECKER_TOKEN}
 
-JWT_SERVER_URL = env("JWT_SERVER_URL")
+JWT_SERVER_URL = f"{env('JWT_SERVER_URL')}/jwt"
+JWT_SERVER_REFRESH_URL = f"{JWT_SERVER_URL}/jwt/refresh/"
+JWT_SERVER_VERIFY_URL = f"{JWT_SERVER_URL}/verify/"
+JWT_SERVER_USERINFO_URL = f"{JWT_SERVER_URL}/user_info/"
 JWT_SIGNING_KEY = env("JWT_SIGNING_KEY")
 JWT_ALGORITHM = env("JWT_ALGORITHM")
 
 OIDC_SERVER_URL = env("OIDC_SERVER_URL")
+OIDC_SERVER_TOKEN_URL = f"{OIDC_SERVER_URL}/protocol/openid-connect/token"
+OIDC_SERVER_USERINFO_URL = f"{OIDC_SERVER_URL}/protocol/openid-connect/userinfo"
 OIDC_CERTS_URL = f"{OIDC_SERVER_URL}/protocol/openid-connect/certs"
 OIDC_AUDIENCES = env("OIDC_AUDIENCES").split(';')
+OIDC_SERVER_URL = env("OIDC_SERVER_URL")
+OIDC_CLIENT_ID = env("OIDC_CLIENT_ID")
+OIDC_CLIENT_SECRET = env("OIDC_CLIENT_SECRET")
+OIDC_GRANT_TYPE = env("OIDC_GRANT_TYPE")
+OIDC_REDIRECT_URI = env("OIDC_REDIRECT_URI")
 
 JWT_AUTH_MODE = "jwt"
 OIDC_AUTH_MODE = "oidc"
@@ -63,17 +74,17 @@ def get_token_from_headers(request) -> (str, str):
     Extracts the header containing the JSON web token from the given
     request.
     """
-    header_authorization = request.META.get('HTTP_AUTHORIZATION')
-    header_authorization_method = request.META.get('HTTP_AUTHORIZATIONMETHOD')
+    authorization_header = request.META.get('HTTP_AUTHORIZATION')
+    authorization_method_header = request.META.get('HTTP_AUTHORIZATIONMETHOD')
 
     # Work around django test client oddness
-    if isinstance(header_authorization, str):
-        header_authorization = header_authorization.encode(HTTP_HEADER_ENCODING)
-    if isinstance(header_authorization_method, str):
-        header_authorization_method = header_authorization_method.encode(HTTP_HEADER_ENCODING)
-    if header_authorization is None:
+    if isinstance(authorization_header, str):
+        authorization_header = authorization_header.encode(HTTP_HEADER_ENCODING)
+    if isinstance(authorization_method_header, str):
+        authorization_method_header = authorization_method_header.encode(HTTP_HEADER_ENCODING)
+    if authorization_header is None:
         return None, None
-    return get_raw_token(header_authorization), header_authorization_method
+    return get_raw_token(authorization_header), authorization_method_header
 
 
 def check_id_aph(id_aph: str) -> Optional[PersonIdentity]:
@@ -100,7 +111,7 @@ def get_jwt_tokens(username: str, password: str) -> JwtTokens:
                                               "app_name": 'localhost'
                                               })
 
-    resp = requests.post(url=f"{JWT_SERVER_URL}/jwt/",
+    resp = requests.post(url=JWT_SERVER_URL,
                          data={"username": username, "password": password},
                          headers=JWT_SERVER_HEADERS)
     if resp.status_code == status.HTTP_401_UNAUTHORIZED:
@@ -110,21 +121,46 @@ def get_jwt_tokens(username: str, password: str) -> JwtTokens:
     return JwtTokens(**resp.json())
 
 
+def get_oidc_tokens(code):
+    data = {"client_id": OIDC_CLIENT_ID,
+            "client_secret": OIDC_CLIENT_SECRET,
+            "redirect_uri": OIDC_REDIRECT_URI,
+            "grant_type": OIDC_GRANT_TYPE,
+            "code": code
+            }
+    response = requests.post(url=OIDC_SERVER_TOKEN_URL, data=data)
+    response.raise_for_status()
+    response = response.json()
+    user_info = get_oidc_user_info(access_token=response["access_token"])
+    user = User.objects.get(provider_username=user_info.username)
+    return user, response["access_token"], response["refresh_token"]
+
+
+def get_oidc_user_info(access_token: str) -> Union[None, UserInfo]:
+    response = requests.get(url=OIDC_SERVER_USERINFO_URL,
+                            headers={"Authorization": f"Bearer {access_token}"})
+    if response.status_code != status.HTTP_200_OK:
+        raise ServerError(f"Error {response.status_code} from OIDC provider: {response.text}")
+    response = response.json()
+    return UserInfo(username=response.get('preferred_username'),
+                    firstname=response.get('given_name'),
+                    lastname=response.get('family_name'),
+                    email=response.get('email'))
+
+
 def get_user_info(jwt_access_token: str) -> UserInfo:
     if SERVER_VERSION.lower() == "dev":
         from admin_cohort.models import User
         u: User = User.objects.get(pk=jwt_access_token)
         return UserInfo(u.provider_username, u.email, u.firstname, u.lastname)
 
-    resp = requests.post(url="{}/jwt/user_info/".format(JWT_SERVER_URL),
-                         data={"token": jwt_access_token},
-                         headers=JWT_SERVER_HEADERS)
+    resp = requests.post(url=JWT_SERVER_USERINFO_URL, data={"token": jwt_access_token}, headers=JWT_SERVER_HEADERS)
     if resp.status_code == 200:
         return UserInfo(**resp.json())
     raise ValueError("Invalid JWT Access Token")
 
 
-def verify_jwt(access_token: str, auth_method: str = JWT_AUTH_MODE) -> Union[None, UserInfo]:
+def verify_token(access_token: str, auth_method: str = None) -> Union[None, UserInfo]:
     if SERVER_VERSION.lower() == "dev":
         return
     if access_token == env("ETL_TOKEN"):
@@ -140,21 +176,18 @@ def verify_jwt(access_token: str, auth_method: str = JWT_AUTH_MODE) -> Union[Non
                         firstname="SparkJob",
                         lastname="SERVER")
     auth_method = auth_method or JWT_AUTH_MODE
-    if auth_method.lower() == JWT_AUTH_MODE:
-        url = f"{JWT_SERVER_URL}/jwt/verify/"
-        resp = requests.post(url=url,
-                             data={"token": access_token},
-                             headers=JWT_SERVER_HEADERS)
 
+    if auth_method.lower() == JWT_AUTH_MODE:
+        resp = requests.post(url=JWT_SERVER_VERIFY_URL, data={"token": access_token}, headers=JWT_SERVER_HEADERS)
+        resp.raise_for_status()
         if resp.status_code == status.HTTP_200_OK:
-            jwt.decode(access_token, leeway=15, algorithms=JWT_ALGORITHM, options=dict(verify_signature=False,
-                                                                                       verify_exp=True))
+            jwt.decode(jwt=access_token,
+                       leeway=15,
+                       algorithms=JWT_ALGORITHM,
+                       options=dict(verify_signature=False, verify_exp=True))
             return get_user_info(access_token)
-        elif status.is_server_error(resp.status_code):
-            raise ServerError(f"Error {resp.status_code} from authentication server ({url}): {resp.text}")
-        raise ValueError("Invalid JWT Access Token")
     elif auth_method.lower() == OIDC_AUTH_MODE:
-        resp = requests.get(OIDC_CERTS_URL)
+        resp = requests.get(url=OIDC_CERTS_URL)
         if resp.status_code != status.HTTP_200_OK:
             raise ServerError(f"Error {resp.status_code} from authentication server ({OIDC_CERTS_URL}): {resp.text}")
         jwks = resp.json()
@@ -176,14 +209,14 @@ def verify_jwt(access_token: str, auth_method: str = JWT_AUTH_MODE) -> Union[Non
                         firstname=decoded['name'],
                         key=key)
     else:
-        raise ValueError(f"Invalid authentication method : {auth_method}")
+        raise ValueError(f"Invalid authentication method: {auth_method}")
 
 
 def refresh_jwt(refresh) -> JwtTokens:
     if SERVER_VERSION.lower() == "dev":
         return JwtTokens(refresh, refresh)
 
-    resp = requests.post(url="{}/jwt/refresh/".format(JWT_SERVER_URL),
+    resp = requests.post(url=JWT_SERVER_REFRESH_URL,
                          data=dict(refresh=refresh),
                          headers=JWT_SERVER_HEADERS)
     if resp.status_code == 200:

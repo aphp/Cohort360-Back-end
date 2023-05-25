@@ -270,7 +270,7 @@ replace
 them in your CI/CD pipeline.
 
 1. [conf_perimeters](accesses/conf_perimeters.py)
-2. [conf_auth](admin_cohort/auth/auth_conf.py)
+2. [conf_auth](admin_cohort/auth/auth_utils.py)
 3. [conf_cohort_job_api](cohort/conf_cohort_job_api.py)
 4. [conf_exports](exports/conf_exports.py)
 5. [conf_workspaces](workspaces/conf_workspaces.py)

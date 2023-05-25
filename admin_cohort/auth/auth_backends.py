@@ -1,6 +1,4 @@
-from typing import Union
-
-from admin_cohort.auth.auth_conf import get_jwt_tokens, JwtTokens
+from admin_cohort.auth.auth_utils import get_jwt_tokens, JwtTokens
 from admin_cohort.models import User
 
 
@@ -14,5 +12,5 @@ class JWTAuthBackend:
         request.last_connection = tokens.last_connection
         return user
 
-    def get_user(self, user_id) -> Union[User, None]:
+    def get_user(self, user_id) -> User:
         return User.objects.get(provider_username=user_id)

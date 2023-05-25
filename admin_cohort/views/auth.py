@@ -1,4 +1,3 @@
-import requests
 from django.contrib.auth import login
 from django.contrib.auth.views import LoginView
 from django.http import JsonResponse, HttpResponseRedirect, Http404
@@ -7,13 +6,11 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
 from environ import environ
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from accesses.models import Profile, Access
 from accesses.serializers import AccessSerializer
-from admin_cohort.auth import auth_conf
-from admin_cohort.auth.auth_conf import verify_jwt
+from admin_cohort.auth import auth_utils
 from admin_cohort.auth.auth_form import AuthForm
 from admin_cohort.models import User
 from admin_cohort.serializers import UserSerializer
@@ -22,32 +19,41 @@ from admin_cohort.settings import MANUAL_SOURCE
 env = environ.Env()
 
 OIDC_SERVER_URL = env("OIDC_SERVER_URL")
-OIDC_SERVER_AUTH = f"{OIDC_SERVER_URL}/login-actions/authenticate"
+OIDC_SERVER_AUTH = f"{OIDC_SERVER_URL}/protocol/openid-connect/token"
+
+CLIENT_ID = env("CLIENT_ID")
+CLIENT_SECRET = env("CLIENT_SECRET")
+GRANT_TYPE = env("GRANT_TYPE")
+REDIRECT_URI = env("REDIRECT_URI")
 
 
 class OIDCTokensView(viewsets.GenericViewSet):
+    authentication_classes = []
+    permission_classes = []
 
-    @action(url_path='/', methods=['get'], detail=False)
-    def get_oidc_tokens(self, request, *args, **kwargs):
-        client_id = request.params.get("client_id")
-        client_secret = request.params.get("client_secret")
-        grant_type = request.params.get("grant_type")
-        code = request.params.get("code")
-        redirect_uri = request.params.get("redirect_uri")
+    @method_decorator(csrf_exempt)
+    @method_decorator(never_cache)
+    def post(self, request, *args, **kwargs):
+        code = request.data.get("code")
+        if not code:
+            return Response(data={"error": "OIDC Authorization Code not provided"}, status=status.HTTP_400_BAD_REQUEST)
 
-        if not all((client_id, client_secret, grant_type, code, redirect_uri)):
-            return Response(data={"error": "Request missing one or many OIDC auth params"},
-                            status=status.HTTP_400_BAD_REQUEST)
-
-        OIDC_SERVER_AUTH_URL = f"{OIDC_SERVER_AUTH}?client_id={client_id}&" \
-                               f"client_secret={client_secret}&" \
-                               f"grant_type={grant_type}&" \
-                               f"code={code}&" \
-                               f"redirect_uri={redirect_uri}"
-        response = requests.post(url=OIDC_SERVER_AUTH_URL)
-        response = response.json()
-        verify_jwt()
-        return Response(data={"success": "user logged in"}, status=status.HTTP_200_OK)
+        user, access_token, refresh_token = auth_utils.get_oidc_tokens(code=code)
+        user_valid_profiles_ids = [p.id for p in Profile.objects.filter(user_id=user.provider_username,
+                                                                        source=MANUAL_SOURCE) if p.is_valid]
+        valid_accesses = [a for a in Access.objects.filter(profile_id__in=user_valid_profiles_ids) if a.is_valid]
+        accesses = AccessSerializer(valid_accesses, many=True).data
+        user = UserSerializer(user).data
+        data = {"provider": user,
+                "user": user,
+                "session_id": self.request.session.session_key,
+                "accesses": accesses,
+                "jwt": {"access": access_token,
+                        "refresh": refresh_token,
+                        "last_connection": getattr(self.request, 'last_connection', dict())
+                        }
+                }
+        return Response(data=data, status=status.HTTP_200_OK)
 
 
 class CustomLoginView(LoginView):
@@ -103,7 +109,7 @@ def redirect_token_refresh_view(request):
     if request.method != "POST":
         raise Http404()
     try:
-        res = auth_conf.refresh_jwt(request.jwt_refresh_key)
+        res = auth_utils.refresh_jwt(request.jwt_refresh_key)
     except ValueError as e:
         raise Http404(e)
     return JsonResponse(data=res.__dict__)
