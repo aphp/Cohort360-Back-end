@@ -123,7 +123,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
 DJANGO_CPROFILE_MIDDLEWARE_REQUIRE_STAFF = False
 
-AUTHENTICATION_BACKENDS = ['admin_cohort.auth.auth_backends.JWTAuthBackend']
+AUTHENTICATION_BACKENDS = ['admin_cohort.auth.auth_backends.JWTAuthBackend',
+                           'admin_cohort.auth.auth_backends.OIDCAuthBackend']
 
 ROOT_URLCONF = 'admin_cohort.urls'
 
@@ -189,7 +190,6 @@ SWAGGER_SETTINGS = {'LOGOUT_URL': '/accounts/logout/',
 APPEND_SLASH = False
 
 AUTH_USER_MODEL = 'admin_cohort.User'
-LOGOUT_REDIRECT_URL = '/'
 
 # EMAILS
 EMAIL_USE_TLS = env("EMAIL_USE_TLS").lower() == "true"

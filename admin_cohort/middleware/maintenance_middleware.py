@@ -4,7 +4,7 @@ from django.http import JsonResponse
 from rest_framework.permissions import SAFE_METHODS
 from rest_framework.status import HTTP_503_SERVICE_UNAVAILABLE
 
-from admin_cohort.auth.auth_utils import get_token_from_headers
+from admin_cohort.auth.utils import get_token_from_headers
 from admin_cohort.models import get_next_maintenance
 
 env = os.environ

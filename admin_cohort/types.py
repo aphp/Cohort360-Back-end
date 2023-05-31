@@ -39,6 +39,27 @@ class UserInfo:
         self.lastname = lastname
         self.email = email or f"{firstname}.{lastname}@aphp.fr"
 
+    @classmethod
+    def solr(cls):
+        return cls(username="SOLR_ETL",
+                   firstname="Solr",
+                   lastname="ETL",
+                   email="solr.etl@aphp.fr")
+
+    @classmethod
+    def sjs(cls):
+        return cls(username="SPARK_JOB_SERVER",
+                   firstname="SparkJob",
+                   lastname="SERVER",
+                   email="spark.jobserver@aphp.fr")
+
+    @classmethod
+    def oidc(cls, oidc_vals):
+        return cls(username=oidc_vals.get('preferred_username'),
+                   firstname=oidc_vals.get('given_name'),
+                   lastname=oidc_vals.get('family_name'),
+                   email=oidc_vals.get('email'))
+
 
 class JobStatus(StrEnum):
     new = "new"
