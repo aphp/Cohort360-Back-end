@@ -32,6 +32,7 @@ JWT_ALGORITHM = env("JWT_ALGORITHM")
 OIDC_SERVER_URL = env("OIDC_SERVER_URL")
 OIDC_SERVER_TOKEN_URL = f"{OIDC_SERVER_URL}/protocol/openid-connect/token"
 OIDC_SERVER_USERINFO_URL = f"{OIDC_SERVER_URL}/protocol/openid-connect/userinfo"
+OIDC_SERVER_LOGOUT_URL = f"{OIDC_SERVER_URL}/protocol/openid-connect/logout"
 OIDC_CERTS_URL = f"{OIDC_SERVER_URL}/protocol/openid-connect/certs"
 OIDC_AUDIENCES = env("OIDC_AUDIENCES").split(';')
 OIDC_SERVER_URL = env("OIDC_SERVER_URL")
@@ -92,8 +93,16 @@ def get_oidc_user_info(access_token: str) -> Union[None, UserInfo]:
     response = requests.get(url=OIDC_SERVER_USERINFO_URL,
                             headers={"Authorization": f"Bearer {access_token}"})
     response.raise_for_status()
-    response = response.json()
     return UserInfo.oidc(response.json())
+
+
+def oidc_logout(request):
+    response = requests.post(url=OIDC_SERVER_LOGOUT_URL,
+                             data={"client_id": OIDC_CLIENT_ID,
+                                   "client_secret": OIDC_CLIENT_SECRET,
+                                   "refresh_token": request.jwt_refresh_key},
+                             headers={"Authorization": f"Bearer {request.jwt_access_key}"})
+    response.raise_for_status()
 
 
 def verify_token(access_token: str) -> Union[None, UserInfo]:

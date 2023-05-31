@@ -9,7 +9,7 @@ from rest_framework.response import Response
 
 from accesses.models import Profile, Access
 from accesses.serializers import AccessSerializer
-from admin_cohort.auth.utils import refresh_jwt_token
+from admin_cohort.auth.utils import refresh_jwt_token, oidc_logout
 from admin_cohort.auth.auth_form import AuthForm
 from admin_cohort.models import User
 from admin_cohort.serializers import UserSerializer
@@ -83,7 +83,7 @@ class CustomLoginView(LoginView):
         return JsonResponse(data=data, status=status.HTTP_200_OK)
 
 
-class CustomLogoutView(LogoutView):                                                     #   /!\ refactor logout using OIDC
+class CustomLogoutView(LogoutView):
     http_method_names = ["post", "head", "options"]
 
     @method_decorator(csrf_exempt)
@@ -98,6 +98,7 @@ class CustomLogoutView(LogoutView):                                             
     @method_decorator(csrf_exempt)
     def post(self, request, *args, **kwargs):
         logout(request)
+        oidc_logout(request)
         return JsonResponse(data={}, status=status.HTTP_200_OK)
 
 
