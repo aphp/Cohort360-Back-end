@@ -106,3 +106,25 @@ def token_refresh_view(request):
     if request.method != "POST":
         return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
     return refresh_jwt_token(request.jwt_refresh_key)
+
+
+# class AuthViewSet(viewsets.ViewSet):
+#
+#     @method_decorator(csrf_exempt)
+#     @method_decorator(never_cache)
+#     @action(url_path="login", methods=['post'], detail=False)
+#     def login(self, request, *args, **kwargs):
+#         # bind by signature to forward the request to the appropriate view (jwt oe oidc)
+#         pass
+#
+#     @action(url_path="refresh", methods=['post'], detail=False)
+#     def refresh(self, request, *args, **kwargs):
+#         # bind by signature to forward the request to the appropriate view (jwt oe oidc)
+#         pass
+#
+#     @method_decorator(csrf_exempt)
+#     @method_decorator(never_cache)
+#     @action(url_path="logout", methods=['post'], detail=False)
+#     def logout(self, request, *args, **kwargs):
+#         # bind by signature to forward the request to the appropriate view (jwt oe oidc)
+#         pass
