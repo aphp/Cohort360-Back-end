@@ -1,16 +1,19 @@
+import json
+
 from django.contrib.auth import authenticate, logout
-from django.contrib.auth.views import LoginView, LogoutView
+from django.contrib.auth import views
 from django.http import JsonResponse, HttpResponseRedirect
 from django.utils.decorators import method_decorator
+from django.views import View
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
-from requests import HTTPError
-from rest_framework import viewsets, status
+from requests import RequestException
+from rest_framework import status
 from rest_framework.response import Response
 
 from accesses.models import Profile, Access
 from accesses.serializers import AccessSerializer
-from admin_cohort.auth.utils import oidc_logout, refresh_token
+from admin_cohort.auth.utils import oidc_logout, refresh_token, logout_user
 from admin_cohort.auth.auth_form import AuthForm
 from admin_cohort.models import User
 from admin_cohort.serializers import UserSerializer
@@ -38,24 +41,30 @@ def get_response_data(request, user: User):
     return data
 
 
-class OIDCTokensView(viewsets.GenericViewSet):
+class OIDCTokensView(View):
     authentication_classes = []
     permission_classes = []
 
     @method_decorator(csrf_exempt)
     @method_decorator(never_cache)
+    def dispatch(self, request, *args, **kwargs):
+        return super(OIDCTokensView, self).dispatch(request, *args, **kwargs)
+
+    @method_decorator(csrf_exempt)
+    @method_decorator(never_cache)
     def post(self, request, *args, **kwargs):
-        auth_code = request.data.get("auth_code")
+        data = json.loads(request.body)
+        auth_code = data.get("auth_code")
         if not auth_code:
-            return Response(data={"error": "OIDC Authorization Code not provided"},
-                            status=status.HTTP_400_BAD_REQUEST)
+            return JsonResponse(data={"error": "OIDC Authorization Code not provided"},
+                                status=status.HTTP_400_BAD_REQUEST)
 
         user = authenticate(request=request, code=auth_code)
-        return Response(data=get_response_data(request=request, user=user),
-                        status=status.HTTP_200_OK)
+        return JsonResponse(data=get_response_data(request=request, user=user),
+                            status=status.HTTP_200_OK)
 
 
-class CustomLoginView(LoginView):
+class JWTLoginView(views.LoginView):
     form_class = AuthForm
     http_method_names = ["post", "head", "options"]
 
@@ -79,12 +88,12 @@ class CustomLoginView(LoginView):
                             status=status.HTTP_401_UNAUTHORIZED)
 
     def post(self, request, *args, **kwargs):
-        super(CustomLoginView, self).post(request, *args, **kwargs)
+        super(JWTLoginView, self).post(request, *args, **kwargs)
         data = get_response_data(request=request, user=request.user)
         return JsonResponse(data=data, status=status.HTTP_200_OK)
 
 
-class CustomLogoutView(LogoutView):
+class LogoutView(views.LogoutView):
     http_method_names = ["post", "head", "options"]
 
     @method_decorator(csrf_exempt)
@@ -98,11 +107,7 @@ class CustomLogoutView(LogoutView):
 
     @method_decorator(csrf_exempt)
     def post(self, request, *args, **kwargs):
-        for auth_logout in (logout, oidc_logout):
-            try:
-                auth_logout(request)
-            except HTTPError:
-                continue
+        logout_user(request)
         return JsonResponse(data={}, status=status.HTTP_200_OK)
 
 

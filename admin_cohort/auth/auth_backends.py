@@ -16,9 +16,9 @@ class BaseAuthBackend:
 class JWTAuthBackend(BaseAuthBackend):
 
     def authenticate(self, request, username, password):
-        user = self.get_user(username)
         tokens: JwtTokens = get_jwt_tokens(username=username, password=password)
         self.set_tokens_for_request(request=request, tokens=tokens)
+        user = self.get_user(username)
         return user
 
 

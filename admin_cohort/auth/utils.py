@@ -3,7 +3,8 @@ from typing import Optional, Union
 
 import environ
 import requests
-from requests import HTTPError
+from django.contrib.auth import logout
+from requests import RequestException
 from rest_framework import status, HTTP_HEADER_ENCODING
 from rest_framework_simplejwt.exceptions import AuthenticationFailed, InvalidToken
 
@@ -113,7 +114,7 @@ def refresh_token(token: str):
         name = refresher.__name__
         try:
             return refresher(token)
-        except HTTPError:
+        except RequestException:
             continue
     raise InvalidToken()
 
@@ -127,6 +128,14 @@ def oidc_logout(request):
     response.raise_for_status()
 
 
+def logout_user(request):
+    for auth_logout in (logout, oidc_logout):
+        try:
+            auth_logout(request)
+        except RequestException:
+            continue
+
+
 def verify_token(access_token: str) -> Union[None, UserInfo]:
     if access_token == env("ETL_TOKEN"):
         _logger.info("ETL token connexion")
@@ -137,9 +146,8 @@ def verify_token(access_token: str) -> Union[None, UserInfo]:
 
     for userinfo_verifier in (get_jwt_user_info, get_oidc_user_info):
         try:
-            user_info = userinfo_verifier(access_token)
-            return user_info
-        except HTTPError:
+            return userinfo_verifier(access_token)
+        except RequestException:
             continue
     raise InvalidToken()
 
