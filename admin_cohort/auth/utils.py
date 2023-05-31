@@ -59,14 +59,6 @@ def get_jwt_tokens(username: str, password: str) -> JwtTokens:
     return JwtTokens(**resp.json())
 
 
-def refresh_jwt_token(refresh_token):
-    resp = requests.post(url=JWT_SERVER_REFRESH_URL,
-                         data={"refresh": refresh_token},
-                         headers=JWT_SERVER_HEADERS)
-    resp.raise_for_status()
-    return resp
-
-
 def get_jwt_user_info(access_token: str):
     resp = requests.post(url=JWT_SERVER_USERINFO_URL,
                          data={"token": access_token},
@@ -96,6 +88,36 @@ def get_oidc_user_info(access_token: str) -> Union[None, UserInfo]:
     return UserInfo.oidc(response.json())
 
 
+def refresh_jwt_token(token: str):
+    resp = requests.post(url=JWT_SERVER_REFRESH_URL,
+                         data={"refresh": token},
+                         headers=JWT_SERVER_HEADERS)
+    resp.raise_for_status()
+    return JwtTokens(**resp.json())
+
+
+def refresh_oidc_token(token: str):
+    resp = requests.post(url=OIDC_SERVER_TOKEN_URL,
+                         data={"client_id": OIDC_CLIENT_ID,
+                               "client_secret": OIDC_CLIENT_SECRET,
+                               "grant_type": "refresh_token",
+                               "refresh_token": token})
+    resp.raise_for_status()
+    resp = resp.json()
+    return JwtTokens(access=resp.get("access_token"),
+                     refresh=resp.get("refresh_token"))
+
+
+def refresh_token(token: str):
+    for refresher in (refresh_jwt_token, refresh_oidc_token):
+        name = refresher.__name__
+        try:
+            return refresher(token)
+        except HTTPError:
+            continue
+    raise InvalidToken()
+
+
 def oidc_logout(request):
     response = requests.post(url=OIDC_SERVER_LOGOUT_URL,
                              data={"client_id": OIDC_CLIENT_ID,
@@ -115,7 +137,8 @@ def verify_token(access_token: str) -> Union[None, UserInfo]:
 
     for userinfo_verifier in (get_jwt_user_info, get_oidc_user_info):
         try:
-            return userinfo_verifier(access_token)
+            user_info = userinfo_verifier(access_token)
+            return user_info
         except HTTPError:
             continue
     raise InvalidToken()

@@ -4,12 +4,13 @@ from django.http import JsonResponse, HttpResponseRedirect
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
+from requests import HTTPError
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 
 from accesses.models import Profile, Access
 from accesses.serializers import AccessSerializer
-from admin_cohort.auth.utils import refresh_jwt_token, oidc_logout
+from admin_cohort.auth.utils import oidc_logout, refresh_token
 from admin_cohort.auth.auth_form import AuthForm
 from admin_cohort.models import User
 from admin_cohort.serializers import UserSerializer
@@ -97,8 +98,11 @@ class CustomLogoutView(LogoutView):
 
     @method_decorator(csrf_exempt)
     def post(self, request, *args, **kwargs):
-        logout(request)
-        oidc_logout(request)
+        for auth_logout in (logout, oidc_logout):
+            try:
+                auth_logout(request)
+            except HTTPError:
+                continue
         return JsonResponse(data={}, status=status.HTTP_200_OK)
 
 
@@ -106,7 +110,8 @@ class CustomLogoutView(LogoutView):
 def token_refresh_view(request):
     if request.method != "POST":
         return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
-    return refresh_jwt_token(request.jwt_refresh_key)
+    resp = refresh_token(request.jwt_refresh_key)
+    return JsonResponse(data=resp.__dict__, status=status.HTTP_200_OK)
 
 
 # class AuthViewSet(viewsets.ViewSet):
