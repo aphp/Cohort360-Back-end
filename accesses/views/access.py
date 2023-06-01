@@ -239,8 +239,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
                                                               in_=openapi.IN_QUERY,
                                                               description="Filter accesses to expire soon",
                                                               type=openapi.TYPE_BOOLEAN)],
-                         responses={200: openapi.Response('All valid accesses or ones to expire soon', AccessSerializer),
-                                    404: openapi.Response('No accesses found')})
+                         responses={200: openapi.Response('All valid accesses or ones to expire soon', AccessSerializer)})
     @action(url_path="my-accesses", methods=['get'], detail=False)
     def my_accesses(self, request, *args, **kwargs):
         user = request.user
@@ -252,8 +251,8 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
             accesses_to_expire = accesses.filter(Q(profile__user=user) & to_expire_soon)
 
             if not accesses_to_expire:
-                return Response(data={"error": f"No accesses to expire in the next {ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS} days"},
-                                status=status.HTTP_404_NOT_FOUND)
+                return Response(data={"message": f"No accesses to expire in the next {ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS} days"},
+                                status=status.HTTP_200_OK)
 
             min_access_per_perimeter = {}
             for a in accesses_to_expire:

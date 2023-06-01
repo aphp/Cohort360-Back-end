@@ -1,7 +1,6 @@
 from functools import reduce
 
 from django.db.models import Q
-from django.http import Http404
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
@@ -115,7 +114,8 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
         all_read_ipp_accesses = user_accesses.filter(Role.is_search_ipp_role("role"))
 
         if not all_read_patient_nominative_accesses and not all_read_patient_pseudo_accesses:
-            raise Http404("ERROR: No accesses with read patient right found")
+            return Response(data={"message": "No accesses with read patient right found"},
+                            status=status.HTTP_200_OK)
 
         if request.query_params:
             main_perimeters = Perimeter.objects.filter(id__in={a.perimeter_id for a in user_accesses})
@@ -133,7 +133,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
         if page:
             serializer = ReadRightPerimeter(page, many=True)
             return self.get_paginated_response(serializer.data)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(data={}, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(method='get',
                          operation_summary="Whether or not the user has a `read patient data in pseudo mode` right for all searched perimeters",
