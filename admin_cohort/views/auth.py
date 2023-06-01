@@ -66,7 +66,7 @@ class OIDCTokensView(View):
 
 class JWTLoginView(views.LoginView):
     form_class = AuthForm
-    http_method_names = ["post", "head", "options"]
+    http_method_names = ["get", "post", "head", "options"]
 
     @method_decorator(csrf_exempt)
     @method_decorator(never_cache)
@@ -90,11 +90,11 @@ class JWTLoginView(views.LoginView):
     def post(self, request, *args, **kwargs):
         super(JWTLoginView, self).post(request, *args, **kwargs)
         data = get_response_data(request=request, user=request.user)
-        return JsonResponse(data=data, status=status.HTTP_200_OK)
+        redirect_url = self.get_redirect_url()
+        return JsonResponse(data=data, status=status.HTTP_200_OK) if not redirect_url else HttpResponseRedirect(redirect_url)
 
 
 class LogoutView(views.LogoutView):
-    http_method_names = ["post", "head", "options"]
 
     @method_decorator(csrf_exempt)
     @method_decorator(never_cache)
