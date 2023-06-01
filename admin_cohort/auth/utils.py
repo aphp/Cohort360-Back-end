@@ -111,7 +111,6 @@ def refresh_oidc_token(token: str):
 
 def refresh_token(token: str):
     for refresher in (refresh_jwt_token, refresh_oidc_token):
-        name = refresher.__name__
         try:
             return refresher(token)
         except RequestException:
