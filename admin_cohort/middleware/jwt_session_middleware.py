@@ -9,12 +9,9 @@ from admin_cohort.settings import JWT_ACCESS_COOKIE, JWT_REFRESH_COOKIE, SESSION
 
 class JWTSessionMiddleware(MiddlewareMixin):
     def process_request(self, request):
-        access_key = request.COOKIES.get(JWT_ACCESS_COOKIE)
-        refresh_key = request.COOKIES.get(JWT_REFRESH_COOKIE)
-        session_id = request.COOKIES.get(SESSION_COOKIE_NAME)
-        request.jwt_access_key = access_key
-        request.jwt_refresh_key = refresh_key
-        request.META['HTTP_SESSION_ID'] = session_id
+        request.jwt_access_key = request.COOKIES.get(JWT_ACCESS_COOKIE)
+        request.jwt_refresh_key = request.COOKIES.get(JWT_REFRESH_COOKIE)
+        request.META['HTTP_SESSION_ID'] = request.COOKIES.get(SESSION_COOKIE_NAME)
 
     def process_response(self, request, response):
         if request.path.startswith("/accounts/logout"):
@@ -31,7 +28,6 @@ class JWTSessionMiddleware(MiddlewareMixin):
             except json.JSONDecodeError:
                 pass
 
-        # see in admin_cohort.views.CustomLoginView.form_valid
         if 'jwt' in resp_data:                                      # jwt tokens sent as login response
             access_key = resp_data.get('jwt', {}).get('access')
             refresh_key = resp_data.get('jwt', {}).get('refresh')

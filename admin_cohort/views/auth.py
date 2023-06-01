@@ -1,6 +1,6 @@
 import json
 
-from django.contrib.auth import authenticate
+from django.contrib.auth import authenticate, login
 from django.contrib.auth import views
 from django.http import JsonResponse, HttpResponseRedirect
 from django.utils.decorators import method_decorator
@@ -16,7 +16,7 @@ from admin_cohort.auth.utils import refresh_token, logout_user
 from admin_cohort.auth.auth_form import AuthForm
 from admin_cohort.models import User
 from admin_cohort.serializers import UserSerializer
-from admin_cohort.settings import MANUAL_SOURCE
+from admin_cohort.settings import MANUAL_SOURCE, AUTHENTICATION_BACKENDS
 
 
 def get_response_data(request, user: User):
@@ -49,8 +49,6 @@ class OIDCTokensView(View):
     def dispatch(self, request, *args, **kwargs):
         return super(OIDCTokensView, self).dispatch(request, *args, **kwargs)
 
-    @method_decorator(csrf_exempt)
-    @method_decorator(never_cache)
     def post(self, request, *args, **kwargs):
         data = json.loads(request.body)
         auth_code = data.get("auth_code")
@@ -59,6 +57,7 @@ class OIDCTokensView(View):
                                 status=status.HTTP_400_BAD_REQUEST)
 
         user = authenticate(request=request, code=auth_code)
+        login(request=request, user=user, backend=AUTHENTICATION_BACKENDS[1])
         return JsonResponse(data=get_response_data(request=request, user=user),
                             status=status.HTTP_200_OK)
 
@@ -104,7 +103,6 @@ class LogoutView(views.LogoutView):
             handler = self.http_method_not_allowed
         return handler(request, *args, **kwargs)
 
-    @method_decorator(csrf_exempt)
     def post(self, request, *args, **kwargs):
         logout_user(request)
         return JsonResponse(data={}, status=status.HTTP_200_OK)
