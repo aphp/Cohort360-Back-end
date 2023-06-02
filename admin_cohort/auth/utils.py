@@ -3,7 +3,7 @@ from typing import Optional, Union
 
 import environ
 import requests
-from django.contrib.auth import logout
+from django.contrib.auth import logout as auth_logout
 from requests import RequestException
 from rest_framework import status, HTTP_HEADER_ENCODING
 from rest_framework_simplejwt.exceptions import AuthenticationFailed, InvalidToken
@@ -125,9 +125,9 @@ def oidc_logout(request):
 
 
 def logout_user(request):
-    for auth_logout in (logout, oidc_logout):
+    for logout in (auth_logout, oidc_logout):
         try:
-            auth_logout(request)
+            logout(request)
         except RequestException:
             continue
 
