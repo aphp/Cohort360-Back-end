@@ -81,15 +81,15 @@ class JWTLoginView(views.LoginView):
             handler = self.http_method_not_allowed
         return handler(request, *args, **kwargs)
 
+    def form_valid(self, form):
+        login(self.request, form.get_user())
+        data = get_response_data(request=self.request, user=self.request.user)
+        url = self.get_redirect_url()
+        return JsonResponse(data=data, status=status.HTTP_200_OK) if not url else HttpResponseRedirect(url)
+
     def form_invalid(self, form):
         return JsonResponse(data={"errors": form.errors.get('__all__')},
                             status=status.HTTP_401_UNAUTHORIZED)
-
-    def post(self, request, *args, **kwargs):
-        super(JWTLoginView, self).post(request, *args, **kwargs)
-        data = get_response_data(request=request, user=request.user)
-        redirect_url = self.get_redirect_url()
-        return JsonResponse(data=data, status=status.HTTP_200_OK) if not redirect_url else HttpResponseRedirect(redirect_url)
 
 
 class LogoutView(views.LogoutView):

@@ -42,9 +42,6 @@ OIDC_CLIENT_SECRET = env("OIDC_CLIENT_SECRET")
 OIDC_GRANT_TYPE = env("OIDC_GRANT_TYPE")
 OIDC_REDIRECT_URI = env("OIDC_REDIRECT_URI")
 
-JWT_AUTH_MODE = "jwt"
-OIDC_AUTH_MODE = "oidc"
-
 _logger = logging.getLogger('info')
 
 
