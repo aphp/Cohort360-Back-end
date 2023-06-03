@@ -25,16 +25,10 @@ SECRET_KEY = env("DJANGO_SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 # Debug will also send sensitive data with the response to an error
 DEBUG = int(env("DEBUG")) == 1
-CORS_ORIGIN_ALLOW_ALL = DEBUG
-CORS_ALLOW_ALL_ORIGINS = DEBUG
 
-if SERVER_VERSION == "dev":
-    CORS_ORIGIN_WHITELIST = [FRONT_URL, BACK_URL]
-    CSRF_TRUSTED_ORIGINS = [FRONT_URL, BACK_URL]
-
-elif SERVER_VERSION == "prod":
-    CORS_ORIGIN_WHITELIST = [BACK_URL] + FRONT_URLS
-    CSRF_TRUSTED_ORIGINS = [BACK_URL] + FRONT_URLS
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOWED_ORIGINS = [BACK_URL] + FRONT_URLS
+CSRF_TRUSTED_ORIGINS = [BACK_URL] + FRONT_URLS
 
 CORS_ALLOW_HEADERS = ['access-control-allow-origin',
                       'content-type',
@@ -173,7 +167,7 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'static'
 
 REST_FRAMEWORK = {'DEFAULT_PERMISSION_CLASSES': ('admin_cohort.permissions.IsAuthenticated',),
-                  'DEFAULT_AUTHENTICATION_CLASSES': ['admin_cohort.auth.auth.Authentication'],
+                  'DEFAULT_AUTHENTICATION_CLASSES': ['admin_cohort.auth.auth_class.Authentication'],
                   'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
                   'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema',
                   'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend',
