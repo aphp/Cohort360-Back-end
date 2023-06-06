@@ -1,6 +1,8 @@
 from django.db import models
 from django.utils import timezone
 
+from admin_cohort.cache_utils import flush_cache
+
 
 class UndeletableModelManager(models.Manager):
     def all(self, even_deleted=False):
@@ -30,3 +32,7 @@ class BaseModel(models.Model):
         if self.delete_datetime is None:
             self.delete_datetime = timezone.now()
             self.save()
+
+    def save(self, *args, **kwargs):
+        super(BaseModel, self).save(*args, **kwargs)
+        flush_cache(key_regex=self.__class__.__name__)

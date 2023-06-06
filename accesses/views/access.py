@@ -19,8 +19,8 @@ from admin_cohort.permissions import IsAuthenticated
 from admin_cohort.settings import PERIMETERS_TYPES, ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS
 from admin_cohort.tools import join_qs
 from admin_cohort.views import BaseViewset, CustomLoggingMixin
-from admin_cohort.cache_utils import flush_cache
-from ..models import Role, Access, get_user_valid_manual_accesses_queryset, intersect_queryset_criteria, build_data_rights, Profile
+from admin_cohort.cache_utils import cache_response
+from ..models import Role, Access, get_user_valid_manual_accesses_queryset, intersect_queryset_criteria, build_data_rights
 from ..permissions import AccessPermissions
 from ..serializers import AccessSerializer, DataRightSerializer, ExpiringAccessesSerializer
 
@@ -153,6 +153,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
                                                                   "role_name, start_datetime, end_datetime, is_valid. "
                                                                   "Use -field for descending order",
                                                       openapi.TYPE_STRING]])))
+    @cache_response()
     def list(self, request, *args, **kwargs):
         return super(AccessViewSet, self).list(request, *args, **kwargs)
 
@@ -178,8 +179,6 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
         data['profile_id'] = data.get('profile_id', data.get('provider_history_id'))
         data['perimeter_id'] = data.get('perimeter_id', data.get('care_site_id'))
         response = super(AccessViewSet, self).create(request, *args, **kwargs)
-        user = Profile.objects.get(pk=data['profile_id']).user
-        flush_cache(view_instance=self, user=user)
         return response
 
     @swagger_auto_schema(request_body=openapi.Schema(
@@ -200,8 +199,6 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
     @swagger_auto_schema(auto_schema=None)
     def update(self, request, *args, **kwargs):
         response = super(AccessViewSet, self).update(request, *args, **kwargs)
-        user = self.get_object().profile.user
-        flush_cache(view_instance=self, user=user)
         return response
 
     @swagger_auto_schema(request_body=openapi.Schema(type=openapi.TYPE_STRING, properties={}),
@@ -224,13 +221,11 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
 
     def destroy(self, request, *args, **kwargs):
         access = self.get_object()
-        user = access.profile.user
         if access.actual_start_datetime:
             if access.actual_start_datetime < timezone.now():
                 return Response(data="L'accès est déjà/a déjà été activé, il ne peut plus être supprimé.",
                                 status=status.HTTP_403_FORBIDDEN)
         self.perform_destroy(access)
-        flush_cache(view_instance=self, user=user)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @swagger_auto_schema(method='get',
@@ -241,6 +236,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
                                                               type=openapi.TYPE_BOOLEAN)],
                          responses={200: openapi.Response('All valid accesses or ones to expire soon', AccessSerializer)})
     @action(url_path="my-accesses", methods=['get'], detail=False)
+    @cache_response()
     def my_accesses(self, request, *args, **kwargs):
         user = request.user
         accesses = get_user_valid_manual_accesses_queryset(user=user)
@@ -279,6 +275,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
                          responses={200: openapi.Response('Rights found', DataRightSerializer),
                                     400: openapi.Response('perimeters_ids and pop_children are both null')})
     @action(url_path="my-rights", detail=False, methods=['get'], filter_backends=[], pagination_class=None)
+    @cache_response()
     def my_rights(self, request, *args, **kwargs):
         perimeters_ids = request.query_params.get('perimeters_ids',
                                                   request.query_params.get('care-site-ids'))

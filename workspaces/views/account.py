@@ -4,6 +4,7 @@ from drf_yasg.utils import swagger_auto_schema
 from rest_framework import viewsets
 
 from accesses.permissions import can_user_read_unix_accounts
+from admin_cohort.cache_utils import cache_response
 from admin_cohort.models import User
 from admin_cohort.views import YarnReadOnlyViewsetMixin
 from workspaces.conf_workspaces import get_account_groups_from_id_aph
@@ -71,5 +72,6 @@ class AccountViewSet(YarnReadOnlyViewsetMixin, viewsets.ModelViewSet):
                                                      ["ordering", f"To sort the result. Can be "
                                                                   f"{', '.join(search_fields)}. Use -field for "
                                                                   f"descending order", openapi.TYPE_STRING]])))
+    @cache_response()
     def list(self, request, *args, **kwargs):
         return super(AccountViewSet, self).list(request, *args, **kwargs)

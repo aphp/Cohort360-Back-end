@@ -7,6 +7,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from admin_cohort.auth import auth_conf
+from admin_cohort.cache_utils import cache_response
 from admin_cohort.models import User
 from admin_cohort.permissions import IsAuthenticated, can_user_read_users
 from admin_cohort.serializers import UserSerializer
@@ -76,6 +77,7 @@ class ProfileViewSet(CustomLoggingMixin, BaseViewset):
                                                      ["search", "Filter on several fields (provider_source_value, "
                                                                 "provider_name, lastname, firstname, email)",
                                                       openapi.TYPE_STRING]])))
+    @cache_response()
     def list(self, request, *args, **kwargs):
         return super(ProfileViewSet, self).list(request, *args, **kwargs)
 

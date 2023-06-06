@@ -3,10 +3,8 @@ import logging
 from django.core.cache import cache
 from django.core.cache.backends.dummy import DummyCache
 from django.utils.cache import patch_vary_headers
-from rest_framework.views import APIView
 from rest_framework_extensions.cache.decorators import CacheResponse
 
-from admin_cohort.models import User
 
 _logger = logging.getLogger("info")
 
@@ -24,18 +22,24 @@ cache_response = CustomCacheResponse
 
 
 def construct_cache_key(view_instance=None, view_method=None, request=None, *args, **kwargs):
-    key = f"{request.user.provider_username}.{view_instance.__class__.__name__}.{view_method.__name__}"
-    if view_instance.action == RETRIEVE_ACTION:
+    username = request.user.provider_username
+    view_class = view_instance.__class__.__name__
+    view_meth_name = view_method.__name__
+    key = ".".join((username, view_class, view_meth_name))
+
+    if view_instance.detail:
         lookup_field = view_instance.lookup_field
         record_id = view_instance.kwargs.get(lookup_field)
-        key = f"{key}.{lookup_field}.{record_id}"
+        key = ".".join((key, lookup_field, record_id))
+    if request.query_params:
+        key = f"{key}." + ".".join(map(str, (f"{k}={v}" for k, v in request.query_params.items())))
     return key
 
 
-def flush_cache(view_instance: APIView, user: User):
-    user_viewset_keys = f"{user.provider_username}.{view_instance.__class__.__name__}.*"
-    cache.delete_pattern(user_viewset_keys)
-    _logger.info(f"Cache flushed for user {user} on ViewSet {view_instance.__class__.__name__}")
+def flush_cache(key_regex: str):
+    key = f"*.{key_regex}ViewSet.*"
+    count = cache.delete_pattern(key)
+    _logger.info(f"Cache flushed for {count} records matching '*{key}*'")
 
 
 class CustomDummyCache(DummyCache):

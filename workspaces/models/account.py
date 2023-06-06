@@ -1,6 +1,7 @@
 from django.db import models
 from django.db.models import SET_NULL
 
+from admin_cohort.cache_utils import flush_cache
 from workspaces.models.jupyter_machine import JupyterMachine
 from workspaces.models.kernel import Kernel
 from workspaces.models.ldap_group import LdapGroup
@@ -33,3 +34,7 @@ class Account(models.Model):
     ranger_hive_policy = models.ForeignKey(RangerHivePolicy, related_name='users_uids', on_delete=SET_NULL, null=True)
     aphp_ldap_group_dn = models.CharField(max_length=255)
     spark_port_start = models.IntegerField(null=False)
+
+    def save(self, *args, **kwargs):
+        super(Account, self).save(*args, **kwargs)
+        flush_cache(key_regex=self.__class__.__name__)

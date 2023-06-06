@@ -9,6 +9,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
+from admin_cohort.cache_utils import cache_response
 from admin_cohort.permissions import IsAuthenticatedReadOnly
 from admin_cohort.settings import PERIMETERS_TYPES
 from admin_cohort.tools import join_qs
@@ -72,6 +73,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
                                            "-Inferior level right give only access to children of current perimeter.",
                          responses={'200': openapi.Response("manageable perimeters found", PerimeterLiteSerializer())})
     @action(detail=False, methods=['get'], url_path="manageable")
+    @cache_response()
     def get_manageable_perimeters(self, request, *args, **kwargs):
         user_accesses = get_user_valid_manual_accesses_queryset(self.request.user)
 
@@ -107,6 +109,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
                                            "If perimeters are not filtered, return user's top hierarchy perimeters",
                          responses={'200': openapi.Response("Rights per perimeter", DataReadRightSerializer())})
     @action(detail=False, methods=['get'], url_path="read-patient")
+    @cache_response()
     def get_perimeters_read_right_accesses(self, request, *args, **kwargs):
         user_accesses = get_user_valid_manual_accesses_queryset(request.user)
         all_read_patient_nominative_accesses = user_accesses.filter(Role.is_read_patient_role_nominative("role"))
@@ -139,6 +142,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
                          operation_summary="Whether or not the user has a `read patient data in pseudo mode` right for all searched perimeters",
                          responses={'200': openapi.Response("Return is_read_patient_pseudo boolean")})
     @action(detail=False, methods=['get'], url_path="is-read-patient-pseudo")
+    @cache_response()
     def get_read_patient_pseudo_right(self, request, *args, **kwargs):
         all_read_patient_nominative_accesses, all_read_patient_pseudo_accesses = get_all_read_patient_accesses(
             request.user)
@@ -163,6 +167,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
                          operation_summary="whether or not the user has a `read patient data in nominative mode` right on one or several perimeters",
                          responses={'200': openapi.Response("give rights in caresite perimeters found")})
     @action(detail=False, methods=['get'], url_path="is-one-read-patient-right")
+    @cache_response()
     def get_read_one_nominative_patient_right_access(self, request, *args, **kwargs):
         all_read_patient_nominative_accesses, all_read_patient_pseudo_accesses = get_all_read_patient_accesses(
             request.user)
@@ -193,6 +198,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
                                                       openapi.TYPE_STRING],
                                                      ["treefy", "If true, returns a tree-organised json, else a list",
                                                       openapi.TYPE_BOOLEAN]])))
+    @cache_response()
     def list(self, request, *args, **kwargs):
         treefy = request.GET.get("treefy")
         if str(treefy).lower() == 'true':
@@ -203,6 +209,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
                          responses={'201': openapi.Response("Perimeters found", YasgTreefiedPerimeterSerializer),
                                     '401': openapi.Response("Not authenticated")})
     @action(detail=False, methods=['get'], url_path="treefied")
+    @cache_response()
     def treefied(self, request, *args, **kwargs):
         # in that case, for each perimeter filtered, we want to show the
         # branch of the whole perimeter tree that leads to it

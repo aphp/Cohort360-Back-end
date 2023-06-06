@@ -15,6 +15,7 @@ from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from accesses.models import get_user_valid_manual_accesses_queryset
+from admin_cohort.cache_utils import cache_response
 from admin_cohort.settings import SJS_USERNAME, ETL_USERNAME
 from admin_cohort.tools import join_qs
 from admin_cohort.types import JobStatus
@@ -138,6 +139,10 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         if not jobs_count:
             return Response(status=status.HTTP_204_NO_CONTENT)
         return Response(data={"jobs_count": jobs_count}, status=status.HTTP_200_OK)
+
+    @cache_response()
+    def list(self, request, *args, **kwargs):
+        return super(CohortResultViewSet, self).list(request, *args, **kwargs)
 
     @swagger_auto_schema(method='get',
                          operation_summary="Give cohorts aggregation read patient rights, export csv rights and "

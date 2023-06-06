@@ -23,6 +23,7 @@ from accesses.models import Access, Profile
 from accesses.serializers import AccessSerializer
 from admin_cohort.auth import auth_conf
 from admin_cohort.auth.auth_form import AuthForm
+from admin_cohort.cache_utils import cache_response
 from admin_cohort.models import User, MaintenancePhase, get_next_maintenance
 from admin_cohort.permissions import LogsPermission, IsAuthenticatedReadOnly, can_user_read_users, MaintenancePermission
 from admin_cohort.serializers import APIRequestLogSerializer, UserSerializer, OpenUserSerializer, MaintenancePhaseSerializer
@@ -392,6 +393,7 @@ class UserViewSet(YarnReadOnlyViewsetMixin, BaseViewset):
                                                      ["search", "A search term on multiple fields (firstname, lastname, provider_username email)",
                                                       openapi.TYPE_STRING],
                                                      ["page", "A page number within the paginated result set.", openapi.TYPE_INTEGER]])))
+    @cache_response()
     def list(self, request, *args, **kwargs):
         if 'provider_source_value' in self.request.GET:
             request.GET._mutable = True

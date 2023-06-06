@@ -130,9 +130,9 @@ def can_roles_manage_access(user_accesses: List[Access], role: Role, perimeter: 
         and (has_csv_mng_role or not role.requires_manage_export_csv_role)
 
 
-def get_assignable_roles_on_perimeter(user: User, perimeter: Perimeter) -> List[Role]:
+def get_assignable_roles_on_perimeter(user: User, perimeter: Perimeter) -> List[int]:
     user_accesses = get_all_user_managing_accesses_on_perimeter(user, perimeter)
-    return [r for r in Role.objects.all() if can_roles_manage_access(list(user_accesses), r, perimeter)]
+    return [r.id for r in Role.objects.all() if can_roles_manage_access(list(user_accesses), r, perimeter)]
 
 
 def get_all_user_managing_accesses_on_perimeter(user: User, perimeter: Perimeter) -> QuerySet:
