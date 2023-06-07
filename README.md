@@ -1,3 +1,7 @@
+![image](https://img.shields.io/badge/Python-3.11-blue/?color=blue&logo=python&logoColor=9cf)
+![image](https://img.shields.io/badge/Django-4.2-%2344b78b/?color=%2344b78b&logo=django&logoColor=green)
+![image](https://img.shields.io/badge/Ruff-0.0.271-yellow/?color=yellow&logo=lightning&logoColor=yellow)
+
 <!-- TABLE OF CONTENTS -->
 <details open="open">
   <summary>Table of Contents</summary>
