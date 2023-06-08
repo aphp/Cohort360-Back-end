@@ -255,30 +255,6 @@ class ProfileCheckSerializer(serializers.Serializer):
     provider = UserSerializer(read_only=True, allow_null=True)
 
 
-class TreefiedPerimeterSerializer(serializers.ModelSerializer):
-    parent_id = serializers.CharField(read_only=True, allow_null=True)
-    names = serializers.DictField(allow_null=True, read_only=True, child=serializers.CharField())
-    type = serializers.CharField(allow_null=True, source='type_source_value')
-
-    class Meta:
-        model = Perimeter
-        exclude = ['insert_datetime',
-                   'update_datetime',
-                   'delete_datetime']
-
-    def get_fields(self):
-        fields = super(TreefiedPerimeterSerializer, self).get_fields()
-        fields['children'] = TreefiedPerimeterSerializer(many=True, source='prefetched_children', required=False)
-        return fields
-
-
-class YasgTreefiedPerimeterSerializer(TreefiedPerimeterSerializer):
-    children = serializers.ListSerializer(child=serializers.JSONField())
-
-    def get_fields(self):
-        return super(TreefiedPerimeterSerializer, self).get_fields()
-
-
 class PerimeterSerializer(serializers.ModelSerializer):
     parent_id = serializers.CharField(read_only=True, allow_null=True)
     # old fields
