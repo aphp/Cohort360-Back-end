@@ -11,7 +11,7 @@ from accesses.tests.tests_view_accesses import RightGroupForManage, \
     RIGHT_GROUPS, AccessListCase
 from accesses.views import PerimeterViewSet, NestedPerimeterViewSet
 from admin_cohort.settings import PERIMETERS_TYPES
-from admin_cohort.tests_tools import random_str, \
+from admin_cohort.tools.tests_tools import random_str, \
     new_user_and_profile, ViewSetTests, ListCase, \
     SimplePerimSetup, CreateCase, CaseRetrieveFilter, PatchCase, DeleteCase
 from admin_cohort.tools import prettify_json

@@ -71,13 +71,13 @@ LOGGING = dict(version=1,
                handlers={
                    'info_handler': {
                        'level': "INFO",
-                       'class': "admin_cohort.tools.CustomSocketHandler",
+                       'class': "admin_cohort.tools.logging.CustomSocketHandler",
                        'host': "localhost",
                        'port': DEFAULT_TCP_LOGGING_PORT,
                     },
                    'error_handler': {
                        'level': "ERROR",
-                       'class': "admin_cohort.tools.CustomSocketHandler",
+                       'class': "admin_cohort.tools.logging.CustomSocketHandler",
                        'host': "localhost",
                        'port': DEFAULT_TCP_LOGGING_PORT,
                     },
@@ -239,7 +239,7 @@ if 'workspaces' in INCLUDED_APPS:
     RANGER_HIVE_POLICY_TYPES = env('RANGER_HIVE_POLICY_TYPES').split(",")
 
 # CUSTOM EXCEPTION REPORTER
-DEFAULT_EXCEPTION_REPORTER_FILTER = 'admin_cohort.tools.CustomExceptionReporterFilter'
+DEFAULT_EXCEPTION_REPORTER_FILTER = 'admin_cohort.tools.except_report_filter.CustomExceptionReporterFilter'
 SENSITIVE_PARAMS = env('SENSITIVE_PARAMS').split(",")
 
 # COHORTS +20k
@@ -264,12 +264,12 @@ CACHES = {
     }
 }
 if env("SERVER_VERSION") == "test":
-    CACHES = {'default': {'BACKEND': 'admin_cohort.cache_utils.CustomDummyCache'}}
+    CACHES = {'default': {'BACKEND': 'admin_cohort.tools.cache.CustomDummyCache'}}
 
 REST_FRAMEWORK_EXTENSIONS = {"DEFAULT_PARENT_LOOKUP_KWARG_NAME_PREFIX": "",
                              "DEFAULT_USE_CACHE": "default",
                              "DEFAULT_CACHE_RESPONSE_TIMEOUT": 24 * 60 * 60,
-                             "DEFAULT_CACHE_KEY_FUNC": "admin_cohort.cache_utils.construct_cache_key",
+                             "DEFAULT_CACHE_KEY_FUNC": "admin_cohort.tools.cache.construct_cache_key",
                              "DEFAULT_CACHE_ERRORS": False
                              }
 

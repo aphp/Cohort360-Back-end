@@ -6,7 +6,7 @@ from django.utils import timezone
 from rest_framework import status
 
 from admin_cohort.models import User
-from admin_cohort.tests_tools import CaseRetrieveFilter, random_str, ListCase, RetrieveCase, CreateCase, DeleteCase, \
+from admin_cohort.tools.tests_tools import CaseRetrieveFilter, random_str, ListCase, RetrieveCase, CreateCase, DeleteCase, \
     PatchCase, RequestCase
 from cohort.models import Request, Folder
 from cohort.models.request import REQUEST_DATA_TYPE_CHOICES, PATIENT_REQUEST_TYPE

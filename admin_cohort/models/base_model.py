@@ -1,7 +1,7 @@
 from django.db import models
 from django.utils import timezone
 
-from admin_cohort.cache_utils import flush_cache
+from admin_cohort.tools.cache import flush_cache
 
 
 class UndeletableModelManager(models.Manager):

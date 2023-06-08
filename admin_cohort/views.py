@@ -23,7 +23,7 @@ from accesses.models import Access, Profile
 from accesses.serializers import AccessSerializer
 from admin_cohort.auth import auth_conf
 from admin_cohort.auth.auth_form import AuthForm
-from admin_cohort.cache_utils import cache_response
+from admin_cohort.tools.cache import cache_response
 from admin_cohort.models import User, MaintenancePhase, get_next_maintenance
 from admin_cohort.permissions import LogsPermission, IsAuthenticatedReadOnly, can_user_read_users, MaintenancePermission
 from admin_cohort.serializers import APIRequestLogSerializer, UserSerializer, OpenUserSerializer, MaintenancePhaseSerializer

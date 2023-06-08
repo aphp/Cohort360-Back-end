@@ -21,10 +21,10 @@ from accesses.rights import main_admin_rights, admin_manager_rights,\
     jup_review_manage_rights
 from accesses.views import AccessViewSet
 from admin_cohort.settings import MANUAL_SOURCE
-from admin_cohort.tests_tools import new_user_and_profile, CaseRetrieveFilter, \
+from admin_cohort.tools.tests_tools import new_user_and_profile, CaseRetrieveFilter, \
     ViewSetTestsWithBasicPerims, RequestCase, ALL_RIGHTS, DeleteCase, \
     PatchCase, CreateCase, ListCase, new_random_user
-from admin_cohort.tools import prettify_json, prettify_dict
+from admin_cohort.tools import prettify_dict, prettify_json
 
 
 # EXPECTED READ RESULTS #######################################################

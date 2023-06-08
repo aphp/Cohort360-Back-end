@@ -10,7 +10,7 @@ from rest_framework.test import force_authenticate
 
 from admin_cohort.models import User
 from admin_cohort.settings import SHARED_FOLDER_NAME
-from admin_cohort.tests_tools import CaseRetrieveFilter, CreateCase, random_str, ListCase, RetrieveCase, DeleteCase, \
+from admin_cohort.tools.tests_tools import CaseRetrieveFilter, CreateCase, random_str, ListCase, RetrieveCase, DeleteCase, \
     PatchCase
 from admin_cohort.tools import prettify_json
 from cohort.crb_responses import CRBValidateResponse

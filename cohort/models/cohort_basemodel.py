@@ -4,7 +4,7 @@ from django.db import models
 from safedelete import SOFT_DELETE_CASCADE
 from safedelete.models import SafeDeleteModel
 
-from admin_cohort.cache_utils import flush_cache
+from admin_cohort.tools.cache import flush_cache
 
 
 class CohortBaseModel(SafeDeleteModel):

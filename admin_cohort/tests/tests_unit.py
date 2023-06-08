@@ -1,5 +1,5 @@
 from accesses.models import get_all_level_children
-from admin_cohort.tests_tools import ViewSetTestsWithNumerousPerims
+from admin_cohort.tools.tests_tools import ViewSetTestsWithNumerousPerims
 
 
 class ModelsUnitTest(ViewSetTestsWithNumerousPerims):

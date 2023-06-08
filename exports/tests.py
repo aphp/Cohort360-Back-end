@@ -12,7 +12,7 @@ from rest_framework.test import force_authenticate
 from accesses.models import Access, Role, Perimeter
 from admin_cohort.types import JobStatus, MissingDataError
 from admin_cohort.models import User
-from admin_cohort.tests_tools import new_user_and_profile, ViewSetTestsWithBasicPerims, random_str, CreateCase, \
+from admin_cohort.tools.tests_tools import new_user_and_profile, ViewSetTestsWithBasicPerims, random_str, CreateCase, \
     CaseRetrieveFilter, ListCase, RequestCase, RetrieveCase, PatchCase, DeleteCase
 from admin_cohort.tools import prettify_json
 from cohort.models import CohortResult, RequestQuerySnapshot, Request, DatedMeasure, Folder

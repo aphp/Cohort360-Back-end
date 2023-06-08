@@ -4,7 +4,7 @@ from rest_framework.test import force_authenticate
 from accesses.models import Access, Role, Perimeter, Profile
 from admin_cohort.models import User
 from admin_cohort.settings import PERIMETERS_TYPES, MANUAL_SOURCE
-from admin_cohort.tests_tools import BaseTests
+from admin_cohort.tools.tests_tools import BaseTests
 from admin_cohort.views import UserViewSet
 
 USERS_URL = "/users"

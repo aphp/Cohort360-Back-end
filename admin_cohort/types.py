@@ -1,4 +1,5 @@
-from admin_cohort.tools import StrEnum
+from enum import Enum
+from typing import List
 
 
 class LoginError(Exception):
@@ -38,6 +39,16 @@ class UserInfo:
         self.firstname = firstname
         self.lastname = lastname
         self.email = email or f"{firstname}.{lastname}@aphp.fr"
+
+
+class StrEnum(str, Enum):
+    def __str__(self):
+        return self.value
+
+    @classmethod
+    def list(cls, exclude: List[str] = None):
+        exclude = exclude or [""]
+        return [c.value for c in cls if c.value not in exclude]
 
 
 class JobStatus(StrEnum):

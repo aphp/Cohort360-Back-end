@@ -7,7 +7,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
-from admin_cohort.cache_utils import cache_response
+from admin_cohort.tools.cache import cache_response
 from admin_cohort.permissions import IsAuthenticated
 from admin_cohort.views import BaseViewset, CustomLoggingMixin
 from ..models import Role, get_assignable_roles_on_perimeter, Perimeter

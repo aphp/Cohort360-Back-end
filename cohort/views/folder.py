@@ -2,7 +2,7 @@ from django_filters import rest_framework as filters, OrderingFilter
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
-from admin_cohort.cache_utils import cache_response
+from admin_cohort.tools.cache import cache_response
 from admin_cohort.views import CustomLoggingMixin
 from cohort.models import Folder
 from cohort.serializers import FolderSerializer
