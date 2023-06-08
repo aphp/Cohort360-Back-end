@@ -34,7 +34,6 @@ class RoleViewSet(CustomLoggingMixin, BaseViewset):
     permission_classes = (IsAuthenticated, RolePermissions)
 
     @action(url_path="users", detail=True, methods=['get'], permission_classes=(IsAuthenticated,))
-    @cache_response()
     def users_within_role(self, request, *args, **kwargs):
         role = self.get_object()
         users_perimeters = []
