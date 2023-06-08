@@ -37,7 +37,8 @@ def construct_cache_key(view_instance=None, view_method=None, request=None, *arg
 
 
 def flush_cache(model_name: str, user: str = "*"):
-    key = f"{user}.{model_name}ViewSet.*"
+    view_name = f"*{model_name}ViewSet"
+    key = f"{user}.{view_name}.*"
     count = cache.delete_pattern(key)
     _logger.info(f"Cache flushed for {count} records matching '*{key}*'")
 
