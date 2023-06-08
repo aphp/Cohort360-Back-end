@@ -19,4 +19,4 @@ class CohortBaseModel(SafeDeleteModel):
 
     def save(self, *args, **kwargs):
         super(CohortBaseModel, self).save(*args, **kwargs)
-        flush_cache(key_regex=self.__class__.__name__)
+        flush_cache(model_name=self.__class__.__name__, user=self.owner_id)

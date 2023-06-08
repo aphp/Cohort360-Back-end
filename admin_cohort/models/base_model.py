@@ -35,4 +35,4 @@ class BaseModel(models.Model):
 
     def save(self, *args, **kwargs):
         super(BaseModel, self).save(*args, **kwargs)
-        flush_cache(key_regex=self.__class__.__name__)
+        flush_cache(model_name=self.__class__.__name__)
