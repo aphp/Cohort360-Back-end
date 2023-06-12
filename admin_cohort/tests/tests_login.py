@@ -23,13 +23,13 @@ class LoginTests(APITestCase):
         self.unregistered_user_credentials = {"username": "spy-user",
                                               "password": "top-secret-007"}
 
-    @mock.patch("admin_cohort.auth.auth_backend.get_jwt_tokens")
+    @mock.patch("admin_cohort.auth.auth_backends.get_jwt_tokens")
     def test_login_with_unregistered_user(self, mock_get_tokens: MagicMock):
         mock_get_tokens.side_effect = User.DoesNotExist()
         response = self.client.post(path=self.login_url, data=self.unregistered_user_credentials)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    @mock.patch("admin_cohort.auth.auth_backend.get_jwt_tokens")
+    @mock.patch("admin_cohort.auth.auth_backends.get_jwt_tokens")
     def test_login_with_wrong_credentials(self, mock_get_tokens: MagicMock):
         mock_get_tokens.side_effect = LoginError("Invalid username or password")
         response = self.client.post(path=self.login_url, data={"username": self.regular_user.provider_username,
@@ -37,7 +37,7 @@ class LoginTests(APITestCase):
         mock_get_tokens.assert_called()
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    @mock.patch("admin_cohort.auth.auth_backend.get_jwt_tokens")
+    @mock.patch("admin_cohort.auth.auth_backends.get_jwt_tokens")
     def test_login_unavailable_jwt_server(self, mock_get_tokens: MagicMock):
         mock_get_tokens.side_effect = ServerError("JWT server unavailable")
         response = self.client.post(path=self.login_url, data={"username": self.regular_user.provider_username,
@@ -45,7 +45,7 @@ class LoginTests(APITestCase):
         mock_get_tokens.assert_called()
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    @mock.patch("admin_cohort.auth.auth_backend.get_jwt_tokens")
+    @mock.patch("admin_cohort.auth.auth_backends.get_jwt_tokens")
     def test_login_success(self, mock_get_tokens: MagicMock):
         mock_get_tokens.return_value = JwtTokens(access="aaa", refresh="rrr")
         response = self.client.post(path=self.login_url, data={"username": self.regular_user.provider_username,

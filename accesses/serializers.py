@@ -9,7 +9,7 @@ from django.utils.datetime_safe import datetime
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError, PermissionDenied
 
-from admin_cohort.auth.auth_conf import check_id_aph
+from admin_cohort.auth.utils import check_id_aph
 from admin_cohort.models import User
 from admin_cohort.serializers import BaseSerializer, ReducedUserSerializer, UserSerializer
 from admin_cohort.settings import MANUAL_SOURCE
