@@ -54,11 +54,11 @@ class JWTLoginTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
 
-class OIDCLoginTests(JWTLoginTests):
+class OIDCLoginTests(APITestCase):
 
     def setUp(self):
-        super(OIDCLoginTests, self).setUp()
         self.login_url = '/auth/oidc/login/'
+        self.regular_user = create_regular_user()
 
     @mock.patch("admin_cohort.auth.auth_backends.get_oidc_user_info")
     @mock.patch("admin_cohort.auth.auth_backends.get_oidc_tokens")
