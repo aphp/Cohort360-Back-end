@@ -1,4 +1,5 @@
 import logging
+from collections import defaultdict
 from typing import Optional, Union
 
 import environ
@@ -8,7 +9,7 @@ from requests import RequestException
 from rest_framework import status, HTTP_HEADER_ENCODING
 from rest_framework_simplejwt.exceptions import AuthenticationFailed, InvalidToken
 
-from admin_cohort.types import PersonIdentity, ServerError, JwtTokens, LoginError, UserInfo, MissingDataError
+from admin_cohort.types import PersonIdentity, ServerError, JwtTokens, LoginError, UserInfo, MissingDataError, TokenVerificationError
 
 env = environ.Env()
 
@@ -43,6 +44,7 @@ OIDC_GRANT_TYPE = env("OIDC_GRANT_TYPE")
 OIDC_REDIRECT_URI = env("OIDC_REDIRECT_URI")
 
 _logger = logging.getLogger('info')
+_logger_err = logging.getLogger('django.request')
 
 
 def get_jwt_tokens(username: str, password: str) -> JwtTokens:
@@ -58,11 +60,9 @@ def get_jwt_tokens(username: str, password: str) -> JwtTokens:
 
 
 def get_jwt_user_info(access_token: str):
-    resp = requests.post(url=JWT_SERVER_USERINFO_URL,
+    return requests.post(url=JWT_SERVER_USERINFO_URL,
                          data={"token": access_token},
                          headers=JWT_SERVER_HEADERS)
-    resp.raise_for_status()
-    return UserInfo(**resp.json())
 
 
 def get_oidc_tokens(code):
@@ -74,45 +74,26 @@ def get_oidc_tokens(code):
             }
     response = requests.post(url=OIDC_SERVER_TOKEN_URL, data=data)
     response.raise_for_status()
-    response = response.json()
-    return JwtTokens(access=response.get("access_token"),
-                     refresh=response.get("refresh_token"))
+    return JwtTokens(**response.json())
 
 
-def get_oidc_user_info(access_token: str) -> Union[None, UserInfo]:
-    response = requests.get(url=OIDC_SERVER_USERINFO_URL,
-                            headers={"Authorization": f"Bearer {access_token}"})
-    response.raise_for_status()
-    return UserInfo.oidc(response.json())
+def get_oidc_user_info(access_token: str):
+    return requests.get(url=OIDC_SERVER_USERINFO_URL,
+                        headers={"Authorization": f"Bearer {access_token}"})
 
 
 def refresh_jwt_token(token: str):
-    resp = requests.post(url=JWT_SERVER_REFRESH_URL,
+    return requests.post(url=JWT_SERVER_REFRESH_URL,
                          data={"refresh": token},
                          headers=JWT_SERVER_HEADERS)
-    resp.raise_for_status()
-    return JwtTokens(**resp.json())
 
 
 def refresh_oidc_token(token: str):
-    resp = requests.post(url=OIDC_SERVER_TOKEN_URL,
+    return requests.post(url=OIDC_SERVER_TOKEN_URL,
                          data={"client_id": OIDC_CLIENT_ID,
                                "client_secret": OIDC_CLIENT_SECRET,
                                "grant_type": "refresh_token",
                                "refresh_token": token})
-    resp.raise_for_status()
-    resp = resp.json()
-    return JwtTokens(access=resp.get("access_token"),
-                     refresh=resp.get("refresh_token"))
-
-
-def refresh_token(token: str):
-    for refresher in (refresh_jwt_token, refresh_oidc_token):
-        try:
-            return refresher(token)
-        except RequestException:
-            continue
-    raise InvalidToken()
 
 
 def oidc_logout(request):
@@ -125,11 +106,11 @@ def oidc_logout(request):
 
 
 def logout_user(request):
-    for logout in (auth_logout, oidc_logout):
-        try:
-            logout(request)
-        except RequestException:
-            continue
+    auth_logout(request)
+    try:
+        oidc_logout(request)
+    except RequestException as e:
+        _logger_err.error(f"Error logging user out from OIDC provider - {e}")
 
 
 def verify_token(access_token: str) -> Union[None, UserInfo]:
@@ -140,12 +121,20 @@ def verify_token(access_token: str) -> Union[None, UserInfo]:
         _logger.info("SJS token connexion")
         return UserInfo.sjs()
 
+    errors = defaultdict(list)
     for userinfo_verifier in (get_jwt_user_info, get_oidc_user_info):
         try:
-            return userinfo_verifier(access_token)
-        except RequestException:
-            continue
-    raise InvalidToken()
+            response = userinfo_verifier(access_token)
+            if response.status_code == status.HTTP_200_OK:
+                return UserInfo(**response.json())
+            elif response.status_code == status.HTTP_401_UNAUTHORIZED:
+                raise InvalidToken()
+            response.raise_for_status()
+        except (InvalidToken, RequestException) as e:
+            errors[userinfo_verifier.__name__].append(e)
+    if errors:
+        _logger_err.error(f"Error while verifying access token: {errors}")
+        raise TokenVerificationError()
 
 
 def get_raw_token(header: bytes) -> Union[str, None]:

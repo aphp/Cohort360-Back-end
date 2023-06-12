@@ -1,4 +1,6 @@
 import json
+import logging
+from collections import defaultdict
 
 from django.contrib.auth import authenticate, login
 from django.contrib.auth import views
@@ -7,17 +9,22 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
+from requests import RequestException
 from rest_framework import status
 from rest_framework.response import Response
+from rest_framework_simplejwt.exceptions import InvalidToken
 
 from accesses.models import Profile, Access
 from accesses.serializers import AccessSerializer
-from admin_cohort.auth.utils import refresh_token, logout_user
+from admin_cohort.auth.utils import logout_user, refresh_oidc_token, refresh_jwt_token
 from admin_cohort.auth.auth_form import AuthForm
 from admin_cohort.models import User
 from admin_cohort.serializers import UserSerializer
 from admin_cohort.settings import MANUAL_SOURCE, AUTHENTICATION_BACKENDS
+from admin_cohort.types import JwtTokens
 
+
+_logger = logging.getLogger("django.request")
 
 def get_response_data(request, user: User):
     # TODO for REST API: being returned with users/user_id/accesses
@@ -112,27 +119,20 @@ class LogoutView(views.LogoutView):
 def token_refresh_view(request):
     if request.method != "POST":
         return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
-    resp = refresh_token(request.jwt_refresh_key)
-    return JsonResponse(data=resp.__dict__, status=status.HTTP_200_OK)
+    errors = defaultdict(list)
+    for refresher in (refresh_jwt_token, refresh_oidc_token):
+        try:
+            response = refresher(request.jwt_refresh_key)
+            if response.status_code == status.HTTP_200_OK:
+                tokens = JwtTokens(**response.json())
+                return JsonResponse(data=tokens.__dict__, status=status.HTTP_200_OK)
+            elif response.status_code == status.HTTP_401_UNAUTHORIZED:
+                raise InvalidToken()
+            response.raise_for_status()
+        except (InvalidToken, RequestException) as e:
+            errors[refresher.__name__].append(e)
 
-
-# class AuthViewSet(viewsets.ViewSet):
-#
-#     @method_decorator(csrf_exempt)
-#     @method_decorator(never_cache)
-#     @action(url_path="login", methods=['post'], detail=False)
-#     def login(self, request, *args, **kwargs):
-#         # bind by signature to forward the request to the appropriate view (jwt oe oidc)
-#         pass
-#
-#     @action(url_path="refresh", methods=['post'], detail=False)
-#     def refresh(self, request, *args, **kwargs):
-#         # bind by signature to forward the request to the appropriate view (jwt oe oidc)
-#         pass
-#
-#     @method_decorator(csrf_exempt)
-#     @method_decorator(never_cache)
-#     @action(url_path="logout", methods=['post'], detail=False)
-#     def logout(self, request, *args, **kwargs):
-#         # bind by signature to forward the request to the appropriate view (jwt oe oidc)
-#         pass
+    if errors:
+        _logger.error(f"Error while refreshing access token: {errors}")
+        return JsonResponse(data={"errors": errors},
+                            status=status.HTTP_401_UNAUTHORIZED)

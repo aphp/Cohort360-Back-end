@@ -1,8 +1,8 @@
 from rest_framework.authentication import BaseAuthentication
-from rest_framework_simplejwt.exceptions import InvalidToken
 
 from admin_cohort.auth.utils import get_token_from_headers, verify_token
 from admin_cohort.models import User
+from admin_cohort.types import TokenVerificationError
 
 
 class Authentication(BaseAuthentication):
@@ -18,6 +18,6 @@ class Authentication(BaseAuthentication):
         try:
             user_info = verify_token(raw_token)
             user = User.objects.get(provider_username=user_info.username)
-        except (InvalidToken, User.DoesNotExist):
+        except (TokenVerificationError, User.DoesNotExist):
             return None
         return user, raw_token
