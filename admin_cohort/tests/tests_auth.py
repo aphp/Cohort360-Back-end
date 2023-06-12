@@ -2,10 +2,11 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 from rest_framework import status
-from rest_framework.test import APITestCase
+from rest_framework.test import APITestCase, APIRequestFactory
 
 from admin_cohort.models import User
-from admin_cohort.types import JwtTokens, LoginError, ServerError, UserInfo
+from admin_cohort.types import JwtTokens, LoginError, ServerError, UserInfo, TokenVerificationError
+from admin_cohort.views import UserViewSet
 
 
 def create_regular_user() -> User:
@@ -72,3 +73,44 @@ class OIDCLoginTests(APITestCase):
         mock_get_oidc_tokens.assert_called()
         mock_get_oidc_user_info.assert_called()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+
+class AuthClassTests(APITestCase):
+
+    def setUp(self):
+        self.factory = APIRequestFactory()
+        self.protected_url = '/users/'
+        self.regular_user = create_regular_user()
+
+    @mock.patch("admin_cohort.auth.auth_class.verify_token")
+    def test_verify_token_success(self, mock_verify_token: MagicMock):
+        random_token = "SoMERaNdoMStRIng"
+        mock_verify_token.return_value = UserInfo(username=self.regular_user.provider_username,
+                                                  firstname=self.regular_user.firstname,
+                                                  lastname=self.regular_user.lastname,
+                                                  email=self.regular_user.email)
+        request = self.factory.get(path=self.protected_url)
+        request.jwt_access_key = random_token
+        response = UserViewSet.as_view({'get': 'list'})(request)
+        mock_verify_token.assert_called()
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    @mock.patch("admin_cohort.auth.auth_class.verify_token")
+    def test_verify_token_error(self, mock_verify_token: MagicMock):
+        mock_verify_token.side_effect = TokenVerificationError()
+        request = self.factory.get(path=self.protected_url)
+        request.jwt_access_key = "SoMERaNdoMStRIng"
+        response = UserViewSet.as_view({'get': 'list'})(request)
+        mock_verify_token.assert_called()
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    @mock.patch("admin_cohort.auth.auth_class.verify_token")
+    @mock.patch("admin_cohort.auth.auth_class.get_token_from_headers")
+    def test_verify_token_error_with_bytes_token(self, mock_get_token_from_headers: MagicMock, mock_verify_token: MagicMock):
+        mock_get_token_from_headers.return_value = (b"SoMERaNdoMbYteS", None)
+        mock_verify_token.side_effect = TokenVerificationError()
+        request = self.factory.get(path=self.protected_url)
+        response = UserViewSet.as_view({'get': 'list'})(request)
+        mock_get_token_from_headers.assert_called()
+        mock_verify_token.assert_called()
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
