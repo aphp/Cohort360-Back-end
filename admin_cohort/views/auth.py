@@ -128,7 +128,7 @@ def token_refresh_view(request):
                 raise InvalidToken()
             response.raise_for_status()
         except (InvalidToken, RequestException) as e:
-            errors[refresher.__name__].append(e)
+            errors[refresher.__name__].append(str(e))
 
     if errors:
         _logger.error(f"Error while refreshing access token: {errors}")
