@@ -1,4 +1,3 @@
-import json
 import logging
 from collections import defaultdict
 
@@ -57,8 +56,7 @@ class OIDCTokensView(View):
         return super(OIDCTokensView, self).dispatch(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
-        data = json.loads(request.body)
-        auth_code = data.get("auth_code")
+        auth_code = request.POST.get("auth_code")
         if not auth_code:
             return JsonResponse(data={"error": "OIDC Authorization Code not provided"},
                                 status=status.HTTP_400_BAD_REQUEST)
