@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 from requests import Response
 from rest_framework import status
-from rest_framework.test import APITestCase, APIRequestFactory
+from rest_framework.test import APITestCase, APIRequestFactory, force_authenticate
 
 from admin_cohort.models import User
 from admin_cohort.types import JwtTokens, LoginError, ServerError, UserInfo, TokenVerificationError
@@ -25,6 +25,10 @@ class JWTLoginTests(APITestCase):
         self.regular_user = create_regular_user()
         self.unregistered_user_credentials = {"username": "spy-user",
                                               "password": "top-secret-007"}
+
+    def test_login_method_not_allowed(self):
+        response = self.client.patch(path=self.login_url)
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
     @mock.patch("admin_cohort.auth.auth_backends.get_jwt_tokens")
     def test_login_with_unregistered_user(self, mock_get_jwt_tokens: MagicMock):
@@ -62,6 +66,10 @@ class OIDCLoginTests(APITestCase):
     def setUp(self):
         self.login_url = '/auth/oidc/login/'
         self.regular_user = create_regular_user()
+
+    def test_login_without_auth_code(self):
+        response = self.client.post(path=self.login_url, data={"wrong_param": "doesnotmatter"})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     @mock.patch("admin_cohort.auth.auth_backends.get_oidc_user_info")
     @mock.patch("admin_cohort.auth.auth_backends.get_oidc_tokens")
@@ -165,3 +173,21 @@ class RefreshTokenTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         response = json.loads(response.content)
         self.assertEqual(len(response.get("errors")), 2)
+
+
+class LogoutTests(APITestCase):
+
+    def setUp(self):
+        self.logout_url = '/accounts/logout/'
+
+    def test_logout_method_not_allowed(self):
+        response = self.client.patch(path=self.logout_url)
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    @mock.patch("admin_cohort.views.auth.logout_user")
+    def test_logout_success(self, mock_logout_user: MagicMock):
+        mock_logout_user.return_value = None
+        response = self.client.post(path=self.logout_url)
+        mock_logout_user.assert_called()
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+

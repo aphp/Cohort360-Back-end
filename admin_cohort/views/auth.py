@@ -74,12 +74,6 @@ class JWTLoginView(views.LoginView):
     @method_decorator(csrf_exempt)
     @method_decorator(never_cache)
     def dispatch(self, request, *args, **kwargs):
-        if self.redirect_authenticated_user and self.request.user.is_authenticated:
-            redirect_to = self.get_success_url()
-            if redirect_to == self.request.path:
-                raise ValueError("Redirection loop for authenticated user detected. "
-                                 "Check that your LOGIN_REDIRECT_URL doesn't point to a login page.")
-            return HttpResponseRedirect(redirect_to)
         if request.method.lower() in self.http_method_names:
             handler = getattr(self, request.method.lower(), self.http_method_not_allowed)
         else:
