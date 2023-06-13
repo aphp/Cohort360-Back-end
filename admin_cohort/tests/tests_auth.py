@@ -75,10 +75,15 @@ class OIDCLoginTests(APITestCase):
     @mock.patch("admin_cohort.auth.auth_backends.get_oidc_tokens")
     def test_login_success(self, mock_get_oidc_tokens: MagicMock, mock_get_oidc_user_info: MagicMock):
         mock_get_oidc_tokens.return_value = JwtTokens(access_token="aaa", refresh_token="rrr")
-        mock_get_oidc_user_info.return_value = UserInfo(preferred_username=self.regular_user.provider_username,
-                                                        given_name=self.regular_user.firstname,
-                                                        family_name=self.regular_user.lastname,
-                                                        email=self.regular_user.email)
+        oidc_user_info_resp = Response()
+        oidc_user_info_resp.status_code = status.HTTP_200_OK
+        content = {"preferred_username": self.regular_user.provider_username,
+                   "given_name": self.regular_user.firstname,
+                   "family_name": self.regular_user.lastname,
+                   "email": self.regular_user.email
+                   }
+        oidc_user_info_resp._content = json.dumps(content, indent=2).encode('utf-8')
+        mock_get_oidc_user_info.return_value = oidc_user_info_resp
         response = self.client.post(path=self.login_url, data={"auth_code": "any-auth-code-will-do"})
         mock_get_oidc_tokens.assert_called()
         mock_get_oidc_user_info.assert_called()

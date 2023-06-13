@@ -5,11 +5,10 @@ from django.contrib.auth import authenticate, login
 from django.contrib.auth import views
 from django.http import JsonResponse, HttpResponseRedirect
 from django.utils.decorators import method_decorator
-from django.views import View
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
 from requests import RequestException
-from rest_framework import status
+from rest_framework import status, viewsets
 from rest_framework.response import Response
 from rest_framework_simplejwt.exceptions import InvalidToken
 
@@ -24,6 +23,7 @@ from admin_cohort.types import JwtTokens
 
 
 _logger = logging.getLogger("django.request")
+
 
 def get_response_data(request, user: User):
     # TODO for REST API: being returned with users/user_id/accesses
@@ -46,14 +46,9 @@ def get_response_data(request, user: User):
     return data
 
 
-class OIDCTokensView(View):
+class OIDCTokensView(viewsets.ViewSet):
     authentication_classes = []
     permission_classes = []
-
-    @method_decorator(csrf_exempt)
-    @method_decorator(never_cache)
-    def dispatch(self, request, *args, **kwargs):
-        return super(OIDCTokensView, self).dispatch(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
         auth_code = request.POST.get("auth_code")

@@ -26,7 +26,7 @@ router.register(r'users', UserViewSet, basename="users")
 router.register(r'logs', LoggingViewset, basename="logs")
 
 urlpatterns = [re_path(r'^', include(router.urls)),
-               re_path(r'^auth/oidc/login', OIDCTokensView.as_view(), name='oidc-login'),
+               re_path(r'^auth/oidc/login', OIDCTokensView.as_view({'post': 'post'}), name='oidc-login'),
                path("accounts/", include("admin_cohort.urls_auth", namespace="auth")),
                path("accesses/", include(("accesses.urls", "accesses"), namespace="accesses")),
                path("cohort/", include(("cohort.urls", "cohort"), namespace="cohort")),
