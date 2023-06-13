@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 from requests import Response
 from rest_framework import status
-from rest_framework.test import APITestCase, APIRequestFactory, force_authenticate
+from rest_framework.test import APITestCase, APIRequestFactory
 
 from admin_cohort.models import User
 from admin_cohort.types import JwtTokens, LoginError, ServerError, UserInfo, TokenVerificationError
