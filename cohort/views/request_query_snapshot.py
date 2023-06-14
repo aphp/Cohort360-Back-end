@@ -16,7 +16,7 @@ from cohort.serializers import RequestQuerySnapshotSerializer
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
 
-class RQSFilter(filters.FilterSet):
+class RequestQuerySnapshotFilter(filters.FilterSet):
     ordering = OrderingFilter(fields=('-created_at', 'modified_at'))
 
     class Meta:
@@ -32,11 +32,8 @@ class RequestQuerySnapshotViewSet(NestedViewSetMixin, UserObjectsRestrictedViewS
     lookup_field = "uuid"
     swagger_tags = ['Cohort - request-query-snapshots']
     pagination_class = LimitOffsetPagination
-    filterset_class = RQSFilter
+    filterset_class = RequestQuerySnapshotFilter
     search_fields = ('$serialized_query',)
-
-    def retrieve(self, request, *args, **kwargs):
-        return super(RequestQuerySnapshotViewSet, self).retrieve(request, *args, **kwargs)
 
     @swagger_auto_schema(method='post',
                          operation_summary="Share RequestQuerySnapshot with a User by creating a new Request in its Shared Folder.\n"
