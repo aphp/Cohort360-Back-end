@@ -56,7 +56,11 @@ class OIDCTokensView(viewsets.ViewSet):
             return JsonResponse(data={"error": "OIDC Authorization Code not provided"},
                                 status=status.HTTP_400_BAD_REQUEST)
 
-        user = authenticate(request=request, code=auth_code)
+        try:
+            user = authenticate(request=request, code=auth_code)
+        except User.DoesNotExist:
+            return JsonResponse(data={"error": "User not found in database"},
+                                status=status.HTTP_401_UNAUTHORIZED)
         login(request=request, user=user, backend=AUTHENTICATION_BACKENDS[1])
         return JsonResponse(data=get_response_data(request=request, user=user),
                             status=status.HTTP_200_OK)
