@@ -1,14 +1,18 @@
+import json
 import logging
 from collections import defaultdict
 from typing import Optional, Union
 
 import environ
+import jwt
 import requests
 from django.contrib.auth import logout as auth_logout
+from jwt import DecodeError
 from requests import RequestException
 from rest_framework import status, HTTP_HEADER_ENCODING
 from rest_framework_simplejwt.exceptions import AuthenticationFailed, InvalidToken
 
+from admin_cohort.models import User
 from admin_cohort.types import PersonIdentity, ServerError, JwtTokens, LoginError, UserInfo, MissingDataError, TokenVerificationError
 
 env = environ.Env()
@@ -26,22 +30,29 @@ id_checker_server_headers = {ID_CHECKER_TOKEN_HEADER: ID_CHECKER_TOKEN}
 JWT_SERVER_URL = env("JWT_SERVER_URL")
 JWT_SERVER_TOKEN_URL = f"{JWT_SERVER_URL}/jwt/"
 JWT_SERVER_REFRESH_URL = f"{JWT_SERVER_URL}/jwt/refresh/"
-JWT_SERVER_VERIFY_URL = f"{JWT_SERVER_URL}/jwt/verify/"
 JWT_SERVER_USERINFO_URL = f"{JWT_SERVER_URL}/jwt/user_info/"
+
 JWT_SIGNING_KEY = env("JWT_SIGNING_KEY")
-JWT_ALGORITHM = env("JWT_ALGORITHM")
+
+JWT_ALGORITHMS = env("JWT_ALGORITHMS").split(',')
 
 OIDC_SERVER_URL = env("OIDC_SERVER_URL")
 OIDC_SERVER_TOKEN_URL = f"{OIDC_SERVER_URL}/protocol/openid-connect/token"
 OIDC_SERVER_USERINFO_URL = f"{OIDC_SERVER_URL}/protocol/openid-connect/userinfo"
 OIDC_SERVER_LOGOUT_URL = f"{OIDC_SERVER_URL}/protocol/openid-connect/logout"
-OIDC_CERTS_URL = f"{OIDC_SERVER_URL}/protocol/openid-connect/certs"
+OIDC_SERVER_CERTS_URL = f"{OIDC_SERVER_URL}/protocol/openid-connect/certs"
 OIDC_AUDIENCES = env("OIDC_AUDIENCES").split(';')
 OIDC_SERVER_URL = env("OIDC_SERVER_URL")
 OIDC_CLIENT_ID = env("OIDC_CLIENT_ID")
 OIDC_CLIENT_SECRET = env("OIDC_CLIENT_SECRET")
 OIDC_GRANT_TYPE = env("OIDC_GRANT_TYPE")
 OIDC_REDIRECT_URI = env("OIDC_REDIRECT_URI")
+
+OIDC_SERVER_APPLICATIFS_URL = OIDC_SERVER_URL.replace("master", "ID-Applicatifs")
+OIDC_SERVER_APPLICATIFS_CERTS_URL = f"{OIDC_SERVER_APPLICATIFS_URL}/protocol/openid-connect/certs"
+
+JWT_AUTH_MODE = "JWT"
+OIDC_AUTH_MODE = "OIDC"
 
 _logger = logging.getLogger('info')
 _logger_err = logging.getLogger('django.request')
@@ -135,6 +146,97 @@ def verify_token(access_token: str) -> Union[None, UserInfo]:
     if errors:
         _logger_err.error(f"Error while verifying access token: {errors}")
         raise TokenVerificationError()
+
+
+def decode_oidc_token(access_token: str, oidc_server_url: str, oidc_certs_url: str):
+    resp = requests.get(url=oidc_certs_url)
+    if resp.status_code != status.HTTP_200_OK:
+        raise ServerError(f"Error {resp.status_code} from OIDC Auth Server ({oidc_certs_url}): {resp.text}")
+    jwks = resp.json()
+    public_keys = {}
+    for jwk in jwks['keys']:
+        kid = jwk['kid']
+        public_keys[kid] = jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(jwk))
+
+    kid = jwt.get_unverified_header(access_token)['kid']
+    key = public_keys[kid]
+    return jwt.decode(jwt=access_token,
+                      key=key,
+                      verify=True,
+                      algorithms=JWT_ALGORITHMS,
+                      issuer=oidc_server_url,
+                      audience=OIDC_AUDIENCES)
+
+
+def verify_oidc_token_from_realm_applicatifs(access_token: str):
+    decoded = decode_oidc_token(access_token=access_token,
+                                oidc_server_url=OIDC_SERVER_APPLICATIFS_URL,
+                                oidc_certs_url=OIDC_SERVER_APPLICATIFS_CERTS_URL)
+    print(f"{decoded=}")
+    return UserInfo(username=decoded['preferred_username'],
+                    lastname=decoded['family_name'],
+                    firstname=decoded['name'],                  # /!\ check if it is 'name' or 'given_name'
+                    # email=decoded['email'],                   # /!\ check if 'email' exists
+                    )
+
+
+def verify_oidc_token_from_realm_master(access_token: str):
+    decoded = decode_oidc_token(access_token=access_token,
+                                oidc_server_url=OIDC_SERVER_URL,
+                                oidc_certs_url=OIDC_SERVER_CERTS_URL)
+    print(f"{decoded=}")
+    return UserInfo(username=decoded['preferred_username'],
+                    lastname=decoded['family_name'],
+                    firstname=decoded['name'],                  # /!\ check if it is 'name' or 'given_name'
+                    # email=decoded['email'],                   # /!\ check if 'email' exists
+                    )
+
+
+def verify_token_2(access_token: str, auth_method: str = JWT_AUTH_MODE) -> Union[None, UserInfo]:
+    if access_token == env("ETL_TOKEN"):
+        _logger.info("ETL token connexion")
+        return UserInfo.solr()
+    if access_token == env("SJS_TOKEN"):
+        _logger.info("SJS token connexion")
+        return UserInfo.sjs()
+
+    if auth_method == JWT_AUTH_MODE:
+        try:
+            decoded = jwt.decode(access_token, leeway=15, algorithms=JWT_ALGORITHMS, options={"verify_signature": False})
+            user = User.objects.get(pk=decoded["username"])
+            return UserInfo(**user.__dict__)
+        except DecodeError as de:
+            raise ServerError(f"Invalid JWT Token. Error decoding token - {de}")
+        except User.DoesNotExist as e:
+            raise ServerError(f"Error verifying token. User not found - {e}")
+    elif auth_method == OIDC_AUTH_MODE:
+        try:
+            decoded = jwt.decode(access_token, leeway=15, algorithms=["RS256", "HS256"], verify=True)
+        except DecodeError as de:
+            raise ServerError(f"Invalid OIDC Token. Error decoding token - {de}")
+
+        if decoded["iss"] == OIDC_SERVER_APPLICATIFS_URL:
+            return verify_oidc_token_from_realm_applicatifs(access_token)
+        elif decoded["iss"] == OIDC_SERVER_URL:
+            return verify_oidc_token_from_realm_master(access_token)
+        else:
+            raise ServerError("Invalid OIDC Token: unknown issuer")
+    else:
+        raise ValueError(f"Invalid authentication method : {auth_method}")
+
+
+"""
+    back    --- jwt --->     front   --- jwt --->     fhir   --- jwt --->    back   --- jwt --->   JWT_Server/verify
+
+    back    --- oidc --->    front   --- oidc --->    fhir   --- oidc --->   back   --- oidc ---> jwt.decode(HS256,
+                                                                                                             iss=/realms/master,
+                                                                                                             aud=fhir-dev;portal-dev)
+
+    portail_patient   --- oidc --->     fhir    --- oidc --->   back  ;------>   OIDC_Server/certs
+                                                                       \----->   then:  jwt.decode(RS256,
+                                                                                                   iss=/realms/master,
+                                                                                                   aud=fhir-dev;portal-dev)
+"""
 
 
 def get_raw_token(header: bytes) -> Union[str, None]:
