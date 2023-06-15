@@ -12,6 +12,7 @@ from rest_framework import status, HTTP_HEADER_ENCODING
 from rest_framework_simplejwt.exceptions import AuthenticationFailed, InvalidToken
 
 from admin_cohort.models import User
+from admin_cohort.settings import JWT_AUTH_MODE, OIDC_AUTH_MODE
 from admin_cohort.types import PersonIdentity, ServerError, JwtTokens, LoginError, UserInfo, MissingDataError
 
 env = environ.Env()
@@ -46,9 +47,6 @@ OIDC_CLIENT_ID = env("OIDC_CLIENT_ID")
 OIDC_CLIENT_SECRET = env("OIDC_CLIENT_SECRET")
 OIDC_GRANT_TYPE = env("OIDC_GRANT_TYPE")
 OIDC_REDIRECT_URI = env("OIDC_REDIRECT_URI")
-
-JWT_AUTH_MODE = "JWT"
-OIDC_AUTH_MODE = "OIDC"
 
 _logger = logging.getLogger('info')
 _logger_err = logging.getLogger('django.request')

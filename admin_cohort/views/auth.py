@@ -1,5 +1,4 @@
 import logging
-from collections import defaultdict
 
 from django.contrib.auth import authenticate, login
 from django.contrib.auth import views
@@ -18,7 +17,7 @@ from admin_cohort.auth.utils import logout_user, refresh_oidc_token, refresh_jwt
 from admin_cohort.auth.auth_form import AuthForm
 from admin_cohort.models import User
 from admin_cohort.serializers import UserSerializer
-from admin_cohort.settings import MANUAL_SOURCE, AUTHENTICATION_BACKENDS
+from admin_cohort.settings import MANUAL_SOURCE, AUTHENTICATION_BACKENDS, OIDC_AUTH_MODE, JWT_AUTH_MODE
 from admin_cohort.types import JwtTokens
 
 
@@ -110,20 +109,16 @@ class LogoutView(views.LogoutView):
 def token_refresh_view(request):
     if request.method != "POST":
         return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
-    errors = defaultdict(list)
-    for refresher in (refresh_jwt_token, refresh_oidc_token):
-        try:
-            response = refresher(request.jwt_refresh_key)
-            if response.status_code == status.HTTP_200_OK:
-                tokens = JwtTokens(**response.json())
-                return JsonResponse(data=tokens.__dict__, status=status.HTTP_200_OK)
-            elif response.status_code == status.HTTP_401_UNAUTHORIZED:
-                raise InvalidToken()
-            response.raise_for_status()
-        except (InvalidToken, RequestException) as e:
-            errors[refresher.__name__].append(str(e))
-
-    if errors:
-        _logger.error(f"Error while refreshing access token: {errors}")
-        return JsonResponse(data={"errors": errors},
+    refreshers = {JWT_AUTH_MODE: refresh_jwt_token,
+                  OIDC_AUTH_MODE: refresh_oidc_token
+                  }
+    try:
+        refresher = refreshers[request.META.get("HTTP_AUTHORIZATIONMETHOD")]
+        response = refresher(request.jwt_refresh_key)
+        if response.status_code == status.HTTP_200_OK:
+            tokens = JwtTokens(**response.json())
+            return JsonResponse(data=tokens.__dict__, status=status.HTTP_200_OK)
+    except (KeyError, InvalidToken, RequestException) as e:
+        _logger.error(f"Error while refreshing access token: {e}")
+        return JsonResponse(data={"error": f"Could not refresh token, reason: {e}"},
                             status=status.HTTP_401_UNAUTHORIZED)
