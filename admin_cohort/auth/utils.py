@@ -1,6 +1,5 @@
 import json
 import logging
-from collections import defaultdict
 from typing import Optional, Union
 
 import environ
@@ -13,7 +12,7 @@ from rest_framework import status, HTTP_HEADER_ENCODING
 from rest_framework_simplejwt.exceptions import AuthenticationFailed, InvalidToken
 
 from admin_cohort.models import User
-from admin_cohort.types import PersonIdentity, ServerError, JwtTokens, LoginError, UserInfo, MissingDataError, TokenVerificationError
+from admin_cohort.types import PersonIdentity, ServerError, JwtTokens, LoginError, UserInfo, MissingDataError
 
 env = environ.Env()
 
@@ -32,24 +31,20 @@ JWT_SERVER_TOKEN_URL = f"{JWT_SERVER_URL}/jwt/"
 JWT_SERVER_REFRESH_URL = f"{JWT_SERVER_URL}/jwt/refresh/"
 JWT_SERVER_USERINFO_URL = f"{JWT_SERVER_URL}/jwt/user_info/"
 
-JWT_SIGNING_KEY = env("JWT_SIGNING_KEY")
-
 JWT_ALGORITHMS = env("JWT_ALGORITHMS").split(',')
 
-OIDC_SERVER_URL = env("OIDC_SERVER_URL")
-OIDC_SERVER_TOKEN_URL = f"{OIDC_SERVER_URL}/protocol/openid-connect/token"
-OIDC_SERVER_USERINFO_URL = f"{OIDC_SERVER_URL}/protocol/openid-connect/userinfo"
-OIDC_SERVER_LOGOUT_URL = f"{OIDC_SERVER_URL}/protocol/openid-connect/logout"
-OIDC_SERVER_CERTS_URL = f"{OIDC_SERVER_URL}/protocol/openid-connect/certs"
+OIDC_SERVER_MASTER_URL = env("OIDC_SERVER_MASTER_URL")
+
+OIDC_SERVER_APPLICATIFS_URL = env("OIDC_SERVER_APPLICATIFS_URL")
+OIDC_SERVER_TOKEN_URL = f"{OIDC_SERVER_APPLICATIFS_URL}/protocol/openid-connect/token"
+OIDC_SERVER_USERINFO_URL = f"{OIDC_SERVER_APPLICATIFS_URL}/protocol/openid-connect/userinfo"
+OIDC_SERVER_LOGOUT_URL = f"{OIDC_SERVER_APPLICATIFS_URL}/protocol/openid-connect/logout"
+
 OIDC_AUDIENCES = env("OIDC_AUDIENCES").split(';')
-OIDC_SERVER_URL = env("OIDC_SERVER_URL")
 OIDC_CLIENT_ID = env("OIDC_CLIENT_ID")
 OIDC_CLIENT_SECRET = env("OIDC_CLIENT_SECRET")
 OIDC_GRANT_TYPE = env("OIDC_GRANT_TYPE")
 OIDC_REDIRECT_URI = env("OIDC_REDIRECT_URI")
-
-OIDC_SERVER_APPLICATIFS_URL = OIDC_SERVER_URL.replace("master", "ID-Applicatifs")
-OIDC_SERVER_APPLICATIFS_CERTS_URL = f"{OIDC_SERVER_APPLICATIFS_URL}/protocol/openid-connect/certs"
 
 JWT_AUTH_MODE = "JWT"
 OIDC_AUTH_MODE = "OIDC"
@@ -68,12 +63,6 @@ def get_jwt_tokens(username: str, password: str) -> JwtTokens:
     if resp.status_code != status.HTTP_200_OK:
         raise ServerError(f"Error {resp.status_code} from authentication server: {resp.text}")
     return JwtTokens(**resp.json())
-
-
-def get_jwt_user_info(access_token: str):
-    return requests.post(url=JWT_SERVER_USERINFO_URL,
-                         data={"token": access_token},
-                         headers=JWT_SERVER_HEADERS)
 
 
 def get_oidc_tokens(code):
@@ -124,119 +113,68 @@ def logout_user(request):
         _logger_err.error(f"Error logging user out from OIDC provider - {e}")
 
 
-def verify_token(access_token: str) -> Union[None, UserInfo]:
-    if access_token == env("ETL_TOKEN"):
-        _logger.info("ETL token connexion")
-        return UserInfo.solr()
-    if access_token == env("SJS_TOKEN"):
-        _logger.info("SJS token connexion")
-        return UserInfo.sjs()
-
-    errors = defaultdict(list)
-    for userinfo_verifier in (get_jwt_user_info, get_oidc_user_info):
-        try:
-            response = userinfo_verifier(access_token)
-            if response.status_code == status.HTTP_200_OK:
-                return UserInfo(**response.json())
-            elif response.status_code == status.HTTP_401_UNAUTHORIZED:
-                raise InvalidToken()
-            response.raise_for_status()
-        except (InvalidToken, RequestException) as e:
-            errors[userinfo_verifier.__name__].append(e)
-    if errors:
-        _logger_err.error(f"Error while verifying access token: {errors}")
-        raise TokenVerificationError()
-
-
-def decode_oidc_token(access_token: str, oidc_server_url: str, oidc_certs_url: str):
-    resp = requests.get(url=oidc_certs_url)
+def decode_oidc_token(token: str, issuer: str):
+    issuer_certs_url = f"{issuer}/protocol/openid-connect/certs"
+    resp = requests.get(url=issuer_certs_url)
     if resp.status_code != status.HTTP_200_OK:
-        raise ServerError(f"Error {resp.status_code} from OIDC Auth Server ({oidc_certs_url}): {resp.text}")
+        raise ServerError(f"Error {resp.status_code} from OIDC Auth Server ({issuer_certs_url}): {resp.text}")
     jwks = resp.json()
     public_keys = {}
     for jwk in jwks['keys']:
         kid = jwk['kid']
         public_keys[kid] = jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(jwk))
 
-    kid = jwt.get_unverified_header(access_token)['kid']
-    key = public_keys[kid]
-    return jwt.decode(jwt=access_token,
+    kid = jwt.get_unverified_header(token)['kid']
+    key = public_keys.get(kid)
+    return jwt.decode(jwt=token,
                       key=key,
                       verify=True,
+                      issuer=issuer,
                       algorithms=JWT_ALGORITHMS,
-                      issuer=oidc_server_url,
                       audience=OIDC_AUDIENCES)
 
 
-def verify_oidc_token_from_realm_applicatifs(access_token: str):
-    decoded = decode_oidc_token(access_token=access_token,
-                                oidc_server_url=OIDC_SERVER_APPLICATIFS_URL,
-                                oidc_certs_url=OIDC_SERVER_APPLICATIFS_CERTS_URL)
-    print(f"{decoded=}")
-    return UserInfo(username=decoded['preferred_username'],
-                    lastname=decoded['family_name'],
-                    firstname=decoded['name'],                  # /!\ check if it is 'name' or 'given_name'
-                    # email=decoded['email'],                   # /!\ check if 'email' exists
-                    )
+def verify_oidc_token_for_issuer(token: str, issuer: str):
+    try:
+        return decode_oidc_token(token=token, issuer=issuer)
+    except DecodeError as de:
+        _logger_err.error(f"Error decoding token for issuer `{issuer}` - {de}")
+        return None
 
 
-def verify_oidc_token_from_realm_master(access_token: str):
-    decoded = decode_oidc_token(access_token=access_token,
-                                oidc_server_url=OIDC_SERVER_URL,
-                                oidc_certs_url=OIDC_SERVER_CERTS_URL)
-    print(f"{decoded=}")
-    return UserInfo(username=decoded['preferred_username'],
-                    lastname=decoded['family_name'],
-                    firstname=decoded['name'],                  # /!\ check if it is 'name' or 'given_name'
-                    # email=decoded['email'],                   # /!\ check if 'email' exists
-                    )
-
-
-def verify_token_2(access_token: str, auth_method: str = JWT_AUTH_MODE) -> Union[None, UserInfo]:
-    if access_token == env("ETL_TOKEN"):
+def get_userinfo_from_token(token: str, auth_method = None) -> Union[None, UserInfo]:
+    if token == env("ETL_TOKEN"):
         _logger.info("ETL token connexion")
         return UserInfo.solr()
-    if access_token == env("SJS_TOKEN"):
+    if token == env("SJS_TOKEN"):
         _logger.info("SJS token connexion")
         return UserInfo.sjs()
 
+    auth_method = auth_method or JWT_AUTH_MODE
     if auth_method == JWT_AUTH_MODE:
         try:
-            decoded = jwt.decode(access_token, leeway=15, algorithms=JWT_ALGORITHMS, options={"verify_signature": False})
+            decoded = jwt.decode(token, leeway=15, algorithms=JWT_ALGORITHMS, options={"verify_signature": False})
             user = User.objects.get(pk=decoded["username"])
-            return UserInfo(**user.__dict__)
+            return UserInfo(username=user.provider_username,
+                            firstname=user.firstname,
+                            lastname=user.lastname,
+                            email=user.email)
         except DecodeError as de:
             raise ServerError(f"Invalid JWT Token. Error decoding token - {de}")
         except User.DoesNotExist as e:
             raise ServerError(f"Error verifying token. User not found - {e}")
     elif auth_method == OIDC_AUTH_MODE:
-        try:
-            decoded = jwt.decode(access_token, leeway=15, algorithms=["RS256", "HS256"], verify=True)
-        except DecodeError as de:
-            raise ServerError(f"Invalid OIDC Token. Error decoding token - {de}")
-
-        if decoded["iss"] == OIDC_SERVER_APPLICATIFS_URL:
-            return verify_oidc_token_from_realm_applicatifs(access_token)
-        elif decoded["iss"] == OIDC_SERVER_URL:
-            return verify_oidc_token_from_realm_master(access_token)
-        else:
-            raise ServerError("Invalid OIDC Token: unknown issuer")
+        for issuer in (OIDC_SERVER_APPLICATIFS_URL, OIDC_SERVER_MASTER_URL):
+            decoded = verify_oidc_token_for_issuer(token=token,
+                                                   issuer=issuer)
+            if decoded:
+                return UserInfo(username=decoded['preferred_username'],
+                                firstname=decoded['name'],
+                                lastname=decoded['family_name'],
+                                email=decoded['email'])
+        raise InvalidToken("Invalid OIDC Token: unknown issuer")
     else:
         raise ValueError(f"Invalid authentication method : {auth_method}")
-
-
-"""
-    back    --- jwt --->     front   --- jwt --->     fhir   --- jwt --->    back   --- jwt --->   JWT_Server/verify
-
-    back    --- oidc --->    front   --- oidc --->    fhir   --- oidc --->   back   --- oidc ---> jwt.decode(HS256,
-                                                                                                             iss=/realms/master,
-                                                                                                             aud=fhir-dev;portal-dev)
-
-    portail_patient   --- oidc --->     fhir    --- oidc --->   back  ;------>   OIDC_Server/certs
-                                                                       \----->   then:  jwt.decode(RS256,
-                                                                                                   iss=/realms/master,
-                                                                                                   aud=fhir-dev;portal-dev)
-"""
 
 
 def get_raw_token(header: bytes) -> Union[str, None]:
