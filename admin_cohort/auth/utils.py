@@ -30,6 +30,7 @@ JWT_SERVER_URL = env("JWT_SERVER_URL")
 JWT_SERVER_TOKEN_URL = f"{JWT_SERVER_URL}/jwt/"
 JWT_SERVER_REFRESH_URL = f"{JWT_SERVER_URL}/jwt/refresh/"
 JWT_SERVER_USERINFO_URL = f"{JWT_SERVER_URL}/jwt/user_info/"
+JWT_SIGNING_KEY = env("JWT_SIGNING_KEY")
 
 JWT_ALGORITHMS = env("JWT_ALGORITHMS").split(',')
 
@@ -153,7 +154,7 @@ def get_userinfo_from_token(token: str, auth_method = None) -> Union[None, UserI
     auth_method = auth_method or JWT_AUTH_MODE
     if auth_method == JWT_AUTH_MODE:
         try:
-            decoded = jwt.decode(token, leeway=15, algorithms=JWT_ALGORITHMS, options={"verify_signature": False})
+            decoded = jwt.decode(token, key=JWT_SIGNING_KEY, algorithms=JWT_ALGORITHMS, leeway=15)
             user = User.objects.get(pk=decoded["username"])
             return UserInfo(username=user.provider_username,
                             firstname=user.firstname,
