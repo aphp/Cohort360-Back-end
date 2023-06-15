@@ -59,7 +59,9 @@ def fhir_to_job_status() -> Dict[str, JobStatus]:
 
 def get_authorization_header(request: Request) -> dict:
     key = request.jwt_access_key or request.META.get("HTTP_AUTHORIZATION")
-    return {"Authorization": f"Bearer {key}"}
+    return {"Authorization": f"Bearer {key}",
+            "authorizationMethod": request.META.get('HTTP_AUTHORIZATIONMETHOD')
+            }
 
 
 class JobResponse:
@@ -127,7 +129,6 @@ def cancel_job(job_id: str, auth_headers) -> JobStatus:
 
 
 def create_count_job(auth_headers: dict, json_query: str, global_estimate) -> Tuple[Response, dict]:
-    print(COUNT_API)
     resp = requests.post(url=GLOBAL_COUNT_API if global_estimate else COUNT_API,
                          json=json.loads(json_query),
                          headers=auth_headers)
