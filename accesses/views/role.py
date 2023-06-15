@@ -37,13 +37,16 @@ class RoleViewSet(CustomLoggingMixin, BaseViewset):
         role = self.get_object()
         users_perimeters = []
         valid_accesses = [a for a in role.accesses.all() if a.is_valid]
-        for a in valid_accesses:
-            user = a.profile.user
+        for access in valid_accesses:
+            user = access.profile.user
             users_perimeters.append({"provider_username": user.provider_username,
                                      "firstname": user.firstname,
                                      "lastname": user.lastname,
                                      "email": user.email,
-                                     "perimeter": a.perimeter.name
+                                     "perimeter": access.perimeter.name,
+                                     "start_datetime": access.actual_start_datetime,
+                                     "end_datetime": access.actual_end_datetime,
+                                     "role_name": access.role.name
                                      })
         if users_perimeters:
             data = UsersInRoleSerializer(users_perimeters, many=True).data

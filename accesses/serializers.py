@@ -158,6 +158,9 @@ class UsersInRoleSerializer(serializers.Serializer):
     lastname = serializers.CharField(read_only=True)
     email = serializers.CharField(read_only=True)
     perimeter = serializers.CharField(read_only=True)
+    start_datetime = serializers.CharField(read_only=True)
+    end_datetime = serializers.CharField(read_only=True)
+    role_name = serializers.CharField(read_only=True)
 
 
 class ReducedProfileSerializer(serializers.ModelSerializer):
