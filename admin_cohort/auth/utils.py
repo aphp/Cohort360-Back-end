@@ -95,21 +95,18 @@ def refresh_oidc_token(token: str):
                                "refresh_token": token})
 
 
-def oidc_logout(request):
-    response = requests.post(url=OIDC_SERVER_LOGOUT_URL,
-                             data={"client_id": OIDC_CLIENT_ID,
-                                   "client_secret": OIDC_CLIENT_SECRET,
-                                   "refresh_token": request.jwt_refresh_key},
-                             headers={"Authorization": f"Bearer {request.jwt_access_key}"})
-    response.raise_for_status()
-
-
 def logout_user(request):
-    auth_logout(request)
-    try:
-        oidc_logout(request)
-    except RequestException as e:
-        _logger_err.error(f"Error logging user out from OIDC provider - {e}")
+    auth_mode = request.META.get("HTTP_AUTHORIZATIONMETHOD")
+    if auth_mode == JWT_AUTH_MODE:
+        auth_logout(request)
+    elif auth_mode == OIDC_AUTH_MODE:
+        requests.post(url=OIDC_SERVER_LOGOUT_URL,
+                      data={"client_id": OIDC_CLIENT_ID,
+                            "client_secret": OIDC_CLIENT_SECRET,
+                            "refresh_token": request.jwt_refresh_key},
+                      headers={"Authorization": f"Bearer {request.jwt_access_key}"})
+    else:
+        raise ValueError(f"Unknown `AUTHORIZATIONMETHOD` header: {auth_mode}")
 
 
 def decode_oidc_token(token: str, issuer: str):
