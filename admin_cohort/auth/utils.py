@@ -7,7 +7,6 @@ import jwt
 import requests
 from django.contrib.auth import logout as auth_logout
 from jwt import DecodeError
-from requests import RequestException
 from rest_framework import status, HTTP_HEADER_ENCODING
 from rest_framework_simplejwt.exceptions import AuthenticationFailed, InvalidToken
 
