@@ -143,7 +143,7 @@ def verify_oidc_token_for_issuer(token: str, issuer: str):
         return None
 
 
-def get_userinfo_from_token(token: str, auth_method = None) -> Union[None, UserInfo]:
+def get_userinfo_from_token(token: str, auth_method=None) -> Union[None, UserInfo]:
     if token == env("ETL_TOKEN"):
         _logger.info("ETL token connexion")
         return UserInfo.solr()

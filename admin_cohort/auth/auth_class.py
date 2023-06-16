@@ -7,17 +7,11 @@ from admin_cohort.types import TokenVerificationError
 
 class Authentication(BaseAuthentication):
     def authenticate(self, request):
-        auth_method = None
-        if getattr(request, "jwt_access_key", None):
-            raw_token = request.jwt_access_key
-        else:
-            raw_token, auth_method = get_token_from_headers(request)
-            if not raw_token:
-                return None
-            if type(raw_token) == bytes:
-                raw_token = raw_token.decode('utf-8')
-            if type(auth_method) == bytes:
-                auth_method = auth_method.decode('utf-8')
+        raw_token, auth_method = get_token_from_headers(request)
+        if type(raw_token) == bytes:
+            raw_token = raw_token.decode('utf-8')
+        if type(auth_method) == bytes:
+            auth_method = auth_method.decode('utf-8')
         try:
             user_info = get_userinfo_from_token(raw_token, auth_method)
             user = User.objects.get(provider_username=user_info.username)
