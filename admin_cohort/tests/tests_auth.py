@@ -7,6 +7,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase, APIRequestFactory
 
 from admin_cohort.models import User
+from admin_cohort.settings import JWT_AUTH_MODE, OIDC_AUTH_MODE
 from admin_cohort.types import JwtTokens, LoginError, ServerError, UserInfo, TokenVerificationError
 from admin_cohort.views import UserViewSet, token_refresh_view
 
@@ -143,41 +144,47 @@ class RefreshTokenTests(APITestCase):
         response = token_refresh_view(request)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
-    # @mock.patch("admin_cohort.views.auth.refresh_oidc_token")
-    # @mock.patch("admin_cohort.views.auth.refresh_jwt_token")
-    # def test_refresh_token_jwt_InvalidToken_oidc_ok(self, mock_refresh_jwt_token: MagicMock, mock_refresh_oidc_token: MagicMock):
-    #     # the jwt refresher will raise an Invalid Token error, the oidc will return refreshed tokens
-    #     jwt_resp = Response()
-    #     jwt_resp.status_code = status.HTTP_401_UNAUTHORIZED
-    #     mock_refresh_jwt_token.__name__ = mock_refresh_jwt_token._mock_name
-    #     mock_refresh_jwt_token.return_value = jwt_resp
-    #     oidc_resp = Response()
-    #     oidc_resp.status_code = status.HTTP_200_OK
-    #     oidc_resp._content = b'{"access_token": "aaa", "refresh_token": "rrr"}'
-    #     mock_refresh_oidc_token.return_value = oidc_resp
-    #     request = self.factory.post(path=self.refresh_url)
-    #     request.jwt_refresh_key = "SoMERaNdoMStRIngAsrEfREshTOkEn"
-    #     response = token_refresh_view(request)
-    #     self.assertEqual(response.status_code, status.HTTP_200_OK)
-    #
-    # @mock.patch("admin_cohort.views.auth.refresh_oidc_token")
-    # @mock.patch("admin_cohort.views.auth.refresh_jwt_token")
-    # def test_refresh_token_jwt_InvalidToken_oidc_RequestError(self, mock_refresh_jwt_token: MagicMock, mock_refresh_oidc_token: MagicMock):
-    #     # the jwt refresher will raise an InvalidToken error, the oidc will raise RequestError
-    #     jwt_resp = Response()
-    #     jwt_resp.status_code = status.HTTP_401_UNAUTHORIZED
-    #     oidc_resp = Response()
-    #     oidc_resp.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-    #     mock_refresh_jwt_token.__name__ = mock_refresh_jwt_token._mock_name
-    #     mock_refresh_oidc_token.__name__ = mock_refresh_oidc_token._mock_name
-    #     mock_refresh_jwt_token.return_value = jwt_resp
-    #     mock_refresh_oidc_token.return_value = oidc_resp
-    #     request = self.factory.post(path=self.refresh_url)
-    #     request.jwt_refresh_key = "SoMERaNdoMStRIngAsrEfREshTOkEn"
-    #     response = token_refresh_view(request)
-    #     self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-    #     response = json.loads(response.content)
-    #     self.assertEqual(len(response.get("errors")), 2)
+    def test_refresh_token_with_invalid_auth_mode(self):
+        request = self.factory.post(path=self.refresh_url)
+        request.META["HTTP_AUTHORIZATIONMETHOD"] = "INVALID_AUTH_MODE"
+        request.jwt_refresh_key = "SoMERaNdoMStRIngAsrEfREshTOkEn"
+        response = token_refresh_view(request)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @mock.patch("admin_cohort.views.auth.refresh_jwt_token")
+    def test_refresh_token_with_jwt_auth_mode(self, mock_refresh_jwt_token: MagicMock):
+        jwt_resp = Response()
+        jwt_resp.status_code = status.HTTP_200_OK
+        jwt_resp._content = b'{"access": "aaa", "refresh": "rrr"}'
+        mock_refresh_jwt_token.return_value = jwt_resp
+        request = self.factory.post(path=self.refresh_url)
+        request.META["HTTP_AUTHORIZATIONMETHOD"] = JWT_AUTH_MODE
+        request.jwt_refresh_key = "SoMERaNdoMStRIngAsrEfREshTOkEn"
+        response = token_refresh_view(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    @mock.patch("admin_cohort.views.auth.refresh_oidc_token")
+    def test_refresh_token_with_oidc_auth_mode(self, mock_refresh_oidc_token: MagicMock):
+        oidc_resp = Response()
+        oidc_resp.status_code = status.HTTP_200_OK
+        oidc_resp._content = b'{"access_token": "aaa", "refresh_token": "rrr"}'
+        mock_refresh_oidc_token.return_value = oidc_resp
+        request = self.factory.post(path=self.refresh_url)
+        request.META["HTTP_AUTHORIZATIONMETHOD"] = OIDC_AUTH_MODE
+        request.jwt_refresh_key = "SoMERaNdoMStRIngAsrEfREshTOkEn"
+        response = token_refresh_view(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    @mock.patch("admin_cohort.views.auth.refresh_jwt_token")
+    def test_refresh_token_with_invalid_token(self, mock_refresh_jwt_token: MagicMock):
+        jwt_resp = Response()
+        jwt_resp.status_code = status.HTTP_401_UNAUTHORIZED
+        mock_refresh_jwt_token.return_value = jwt_resp
+        request = self.factory.post(path=self.refresh_url)
+        request.META["HTTP_AUTHORIZATIONMETHOD"] = JWT_AUTH_MODE
+        request.jwt_refresh_key = "SoMERaNdoMStRIngAsrEfREshTOkEn"
+        response = token_refresh_view(request)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
 
 class LogoutTests(APITestCase):

@@ -118,7 +118,12 @@ def token_refresh_view(request):
         if response.status_code == status.HTTP_200_OK:
             tokens = JwtTokens(**response.json())
             return JsonResponse(data=tokens.__dict__, status=status.HTTP_200_OK)
-    except (KeyError, InvalidToken, RequestException) as e:
+        if response.status_code == status.HTTP_401_UNAUTHORIZED:
+            raise InvalidToken("Token invalid or has expired")
+    except KeyError as ke:
+        return JsonResponse(data={"error": f"Missing authorization method: {ke}"},
+                            status=status.HTTP_400_BAD_REQUEST)
+    except (InvalidToken, RequestException) as e:
         _logger.error(f"Error while refreshing access token: {e}")
         return JsonResponse(data={"error": f"Could not refresh token, reason: {e}"},
                             status=status.HTTP_401_UNAUTHORIZED)
