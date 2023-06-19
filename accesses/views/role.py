@@ -46,7 +46,6 @@ class RoleViewSet(CustomLoggingMixin, BaseViewset):
                                      "perimeter": access.perimeter.name,
                                      "start_datetime": access.actual_start_datetime,
                                      "end_datetime": access.actual_end_datetime,
-                                     "role_name": access.role.name
                                      })
         if users_perimeters:
             data = UsersInRoleSerializer(users_perimeters, many=True).data
