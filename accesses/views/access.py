@@ -26,14 +26,6 @@ from ..serializers import AccessSerializer, DataRightSerializer, ExpiringAccesse
 
 
 class AccessFilter(filters.FilterSet):
-    def target_perimeter_filter(self, queryset, field, value):
-        if value:
-            return queryset.filter((join_qs([Q(**{'perimeter' + i * '__children': value})
-                                             for i in range(1, len(PERIMETERS_TYPES))])
-                                    & Role.impact_lower_levels_query('role'))
-                                   | Q(perimeter=value))
-        return queryset
-
     provider_email = filters.CharFilter(lookup_expr="icontains", field_name="profile__email")
     provider_lastname = filters.CharFilter(lookup_expr="icontains", field_name="profile__lastname")
     provider_firstname = filters.CharFilter(lookup_expr="icontains", field_name="profile__firstname")
@@ -49,9 +41,6 @@ class AccessFilter(filters.FilterSet):
 
     perimeter_name = filters.CharFilter(field_name="perimeter__name", lookup_expr="icontains")
     care_site_id = filters.CharFilter(field_name="perimeter_id")
-
-    target_care_site_id = filters.CharFilter(method="target_perimeter_filter")
-    target_perimeter_id = filters.CharFilter(method="target_perimeter_filter")
 
     ordering = OrderingFilter(fields=(('role__name', 'role_name'),
                                       ('sql_start_datetime', 'start_datetime'),

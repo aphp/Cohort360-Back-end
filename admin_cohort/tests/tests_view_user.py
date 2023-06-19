@@ -75,7 +75,7 @@ class UserTestsAsAdmin(UserTests):
     unsettable_default_fields = dict(last_login_datetime=None, source=None)
     unsettable_fields = ["provider_id"]
 
-    def test_get_provider_as_main_admin(self):
+    def test_get_user_as_main_admin(self):
         # As a main admin, I can get a user's full data
         request = self.factory.get(USERS_URL)
         force_authenticate(request, self.admin_user)
@@ -103,7 +103,7 @@ class UserTestsAsAdmin(UserTests):
             self.assertIn(i, user_found_ids, msg=msg)
         self.assertEqual(len(user_found_ids), len(users_to_find), msg=msg)
 
-    def test_update_provider_as_main_admin(self):
+    def test_update_user_as_main_admin(self):
         # As a main admin, I cannot update a user's manual data
         data = dict(firstname="Squall",
                     lastname="Leonheart",

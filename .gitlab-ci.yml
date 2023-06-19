@@ -12,10 +12,9 @@ stages:
 lint-job:
   stage: lint
   before_script:
-    - pip install flake8
+    - pip install ruff
   script:
-    - echo "test lint"
-    - flake8 accesses/ admin_cohort/ cohort/ workspaces/ exports/ --max-line-length 150
+    - ruff check .
   allow_failure: false
 
 test-job:

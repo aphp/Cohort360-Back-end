@@ -168,6 +168,7 @@ class CohortsGetTests(CohortsTests):
 
     def test_count_cohorts_with_active_jobs(self):
         request = self.factory.get(path=self.active_jobs_url)
+        force_authenticate(request, self.user1)
         response = self.__class__.get_active_jobs_view(request)
         self.assertIn(response.status_code, (200, 204))
         if response.status_code == 200:
@@ -178,6 +179,7 @@ class CohortsGetTests(CohortsTests):
             cohort.request_job_status = JobStatus.finished
             cohort.save()
         request = self.factory.get(path=self.active_jobs_url)
+        force_authenticate(request, self.user1)
         response = self.__class__.get_active_jobs_view(request)
         self.assertEqual(response.status_code, 204)
 
