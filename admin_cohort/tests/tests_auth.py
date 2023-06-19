@@ -95,18 +95,17 @@ class AuthClassTests(APITestCase):
 
     def setUp(self):
         self.factory = APIRequestFactory()
+        self.headers = {"HTTP_AUTHORIZATION": "Bearer SoMERaNdoMStRIng"}
         self.protected_url = '/users/'
         self.regular_user = create_regular_user()
 
     @mock.patch("admin_cohort.auth.auth_class.get_userinfo_from_token")
     def test_verify_token_success(self, mock_get_userinfo: MagicMock):
-        random_token = "SoMERaNdoMStRIng"
         mock_get_userinfo.return_value = UserInfo(username=self.regular_user.provider_username,
                                                   firstname=self.regular_user.firstname,
                                                   lastname=self.regular_user.lastname,
                                                   email=self.regular_user.email)
-        request = self.factory.get(path=self.protected_url)
-        request.jwt_access_key = random_token
+        request = self.factory.get(path=self.protected_url, **self.headers)
         response = UserViewSet.as_view({'get': 'list'})(request)
         mock_get_userinfo.assert_called()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -114,8 +113,7 @@ class AuthClassTests(APITestCase):
     @mock.patch("admin_cohort.auth.auth_class.get_userinfo_from_token")
     def test_verify_token_error(self, mock_get_userinfo: MagicMock):
         mock_get_userinfo.side_effect = TokenVerificationError()
-        request = self.factory.get(path=self.protected_url)
-        request.jwt_access_key = "SoMERaNdoMStRIng"
+        request = self.factory.get(path=self.protected_url, **self.headers)
         response = UserViewSet.as_view({'get': 'list'})(request)
         mock_get_userinfo.assert_called()
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
