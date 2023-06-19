@@ -20,7 +20,7 @@ from admin_cohort.settings import PERIMETERS_TYPES, ACCESS_EXPIRY_FIRST_ALERT_IN
 from admin_cohort.tools import join_qs
 from admin_cohort.views import BaseViewset, CustomLoggingMixin
 from admin_cohort.tools.cache import cache_response
-from ..models import Role, Access, get_user_valid_manual_accesses_queryset, intersect_queryset_criteria, build_data_rights
+from ..models import Access, get_user_valid_manual_accesses_queryset, intersect_queryset_criteria, build_data_rights
 from ..permissions import AccessPermissions
 from ..serializers import AccessSerializer, DataRightSerializer, ExpiringAccessesSerializer
 

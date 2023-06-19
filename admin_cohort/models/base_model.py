@@ -1,7 +1,7 @@
 from django.db import models
 from django.utils import timezone
 
-from admin_cohort.tools.cache import flush_cache
+from admin_cohort.tools.cache import invalidate_cache
 
 
 class UndeletableModelManager(models.Manager):
@@ -35,4 +35,4 @@ class BaseModel(models.Model):
 
     def save(self, *args, **kwargs):
         super(BaseModel, self).save(*args, **kwargs)
-        flush_cache(model_name=self.__class__.__name__)
+        invalidate_cache(model_name=self.__class__.__name__)
