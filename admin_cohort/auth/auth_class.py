@@ -8,6 +8,8 @@ from admin_cohort.types import TokenVerificationError
 class Authentication(BaseAuthentication):
     def authenticate(self, request):
         raw_token, auth_method = get_token_from_headers(request)
+        if raw_token is None:
+            return None
         if type(raw_token) == bytes:
             raw_token = raw_token.decode('utf-8')
         if type(auth_method) == bytes:
