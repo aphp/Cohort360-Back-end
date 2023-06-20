@@ -81,8 +81,10 @@ class JWTLoginView(views.LoginView):
     def form_valid(self, form):
         login(self.request, form.get_user())
         data = get_response_data(request=self.request, user=self.request.user)
-        url = self.get_redirect_url()
-        return JsonResponse(data=data, status=status.HTTP_200_OK) if not url else HttpResponseRedirect(url)
+        redirect_url = self.get_redirect_url()
+        if redirect_url:
+            return HttpResponseRedirect(redirect_url)
+        return JsonResponse(data=data, status=status.HTTP_200_OK)
 
     def form_invalid(self, form):
         return JsonResponse(data={"errors": form.errors.get('__all__')},

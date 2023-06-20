@@ -125,13 +125,13 @@ class AuthClassTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     @mock.patch("admin_cohort.auth.auth_class.get_userinfo_from_token")
-    @mock.patch("admin_cohort.auth.auth_class.get_token_from_headers")
-    def test_authenticate_error_with_bytes_token(self, mock_get_token_from_headers: MagicMock, mock_get_userinfo: MagicMock):
-        mock_get_token_from_headers.return_value = (b"SoMERaNdoMbYteS", None)
+    @mock.patch("admin_cohort.auth.auth_class.get_auth_data")
+    def test_authenticate_error_with_bytes_token(self, mock_get_auth_data: MagicMock, mock_get_userinfo: MagicMock):
+        mock_get_auth_data.return_value = (b"SoMERaNdoMbYteS", None)
         mock_get_userinfo.side_effect = TokenVerificationError()
         request = self.factory.get(path=self.protected_url)
         response = self.protected_view.as_view({'get': 'list'})(request)
-        mock_get_token_from_headers.assert_called()
+        mock_get_auth_data.assert_called()
         mock_get_userinfo.assert_called()
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 

@@ -11,7 +11,7 @@ from rest_framework import status, HTTP_HEADER_ENCODING
 from rest_framework_simplejwt.exceptions import AuthenticationFailed, InvalidToken
 
 from admin_cohort.models import User
-from admin_cohort.settings import JWT_AUTH_MODE, OIDC_AUTH_MODE
+from admin_cohort.settings import JWT_AUTH_MODE, OIDC_AUTH_MODE, JWT_ACCESS_COOKIE
 from admin_cohort.types import PersonIdentity, ServerError, JwtTokens, LoginError, UserInfo, MissingDataError
 
 env = environ.Env()
@@ -171,32 +171,14 @@ def get_userinfo_from_token(token: str, auth_method: str) -> Union[None, UserInf
         raise ValueError(f"Invalid authentication method : {auth_method}")
 
 
-def get_raw_token(header: bytes) -> Union[str, None]:
-    """
-    Extracts an unvalidated JSON web token from the given "Authorization"
-    header value.
-    """
-    from rest_framework_simplejwt.authentication import AUTH_HEADER_TYPE_BYTES
-
-    parts = header.split()
-    if len(parts) == 0:
-        # Empty AUTHORIZATION header sent
-        return None
-    if parts[0] not in AUTH_HEADER_TYPE_BYTES:
-        # Assume the header does not contain a JSON web token
-        return None
-    if len(parts) != 2:
-        raise AuthenticationFailed('Authorization header must contain two space-delimited values',
-                                   code='bad_authorization_header')
-    res = parts[1]
-    return res if not isinstance(res, bytes) else res.decode('utf-8')
+def get_auth_data(request) -> (str, str):
+    raw_token, auth_method = get_token_from_headers(request)
+    if not raw_token:
+        raw_token = request.COOKIES.get(JWT_ACCESS_COOKIE)
+    return raw_token, auth_method
 
 
 def get_token_from_headers(request) -> (str, str):
-    """
-    Extracts the header containing the JSON web token from the given
-    request.
-    """
     authorization_header = request.META.get('HTTP_AUTHORIZATION')
     authorization_method_header = request.META.get('HTTP_AUTHORIZATIONMETHOD')
 
@@ -208,6 +190,21 @@ def get_token_from_headers(request) -> (str, str):
     if authorization_header is None:
         return None, None
     return get_raw_token(authorization_header), authorization_method_header
+
+
+def get_raw_token(header: bytes) -> Union[str, None]:
+    from rest_framework_simplejwt.authentication import AUTH_HEADER_TYPE_BYTES
+
+    parts = header.split()
+    if len(parts) == 0:
+        return None
+    if parts[0] not in AUTH_HEADER_TYPE_BYTES:
+        return None
+    if len(parts) != 2:
+        raise AuthenticationFailed('Authorization header must contain two space-delimited values',
+                                   code='bad_authorization_header')
+    res = parts[1]
+    return res if not isinstance(res, bytes) else res.decode('utf-8')
 
 
 def check_id_aph(id_aph: str) -> Optional[PersonIdentity]:
