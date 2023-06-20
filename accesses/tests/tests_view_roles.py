@@ -8,7 +8,7 @@ from accesses.models import Access, Role
 from accesses.tests.tests_view_accesses import RightGroupForManage, \
     RIGHT_GROUPS, AccessListCase, any_manager_rights
 from accesses.views import RoleViewSet
-from admin_cohort.tests_tools import random_str, new_user_and_profile, \
+from admin_cohort.tools.tests_tools import random_str, new_user_and_profile, \
     CaseRetrieveFilter, ViewSetTestsWithBasicPerims, ListCase, \
     CreateCase, DeleteCase, PatchCase
 

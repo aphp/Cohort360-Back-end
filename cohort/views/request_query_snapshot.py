@@ -9,6 +9,7 @@ from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
+from admin_cohort.tools.cache import cache_response
 from admin_cohort.models import User
 from cohort.models import RequestQuerySnapshot
 from cohort.permissions import IsOwner
@@ -34,6 +35,13 @@ class RequestQuerySnapshotViewSet(NestedViewSetMixin, UserObjectsRestrictedViewS
     pagination_class = LimitOffsetPagination
     filterset_class = RequestQuerySnapshotFilter
     search_fields = ('$serialized_query',)
+
+    @cache_response()
+    def list(self, request, *args, **kwargs):
+        return super(RequestQuerySnapshotViewSet, self).list(request, *args, **kwargs)
+
+    def retrieve(self, request, *args, **kwargs):
+        return super(RequestQuerySnapshotViewSet, self).retrieve(request, *args, **kwargs)
 
     @swagger_auto_schema(method='post',
                          operation_summary="Share RequestQuerySnapshot with a User by creating a new Request in its Shared Folder.\n"

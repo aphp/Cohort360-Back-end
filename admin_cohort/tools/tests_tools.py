@@ -15,7 +15,7 @@ from accesses.models import Role, Profile, Perimeter
 from admin_cohort.models import BaseModel, User
 from cohort.models import CohortBaseModel
 from admin_cohort.settings import PERIMETERS_TYPES, ROOT_PERIMETER_TYPE, MANUAL_SOURCE
-from admin_cohort.tools import prettify_json, prettify_dict
+from admin_cohort.tools import prettify_dict, prettify_json
 from admin_cohort.types import MissingDataError
 
 

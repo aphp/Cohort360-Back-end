@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 from django.utils import timezone
 from rest_framework import status
 
-from admin_cohort.tests_tools import random_str, ListCase, RetrieveCase, CaseRetrieveFilter, CreateCase, DeleteCase
+from admin_cohort.tools.tests_tools import random_str, ListCase, RetrieveCase, CaseRetrieveFilter, CreateCase, DeleteCase
 from admin_cohort.types import JobStatus
 from cohort.models import DatedMeasure, RequestQuerySnapshot, Request
 from cohort.models.dated_measure import DATED_MEASURE_MODE_CHOICES

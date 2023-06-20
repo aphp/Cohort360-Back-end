@@ -7,6 +7,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
+from admin_cohort.tools.cache import cache_response
 from admin_cohort.permissions import IsAuthenticated
 from admin_cohort.views import BaseViewset, CustomLoggingMixin
 from ..models import Role, get_assignable_roles_on_perimeter, Perimeter
@@ -60,6 +61,7 @@ class RoleViewSet(CustomLoggingMixin, BaseViewset):
                                             openapi.Parameter(name="perimeter_id", in_=openapi.IN_QUERY,
                                                               description="Required", type=openapi.TYPE_INTEGER)])
     @action(url_path="assignable", detail=False, methods=['get'], permission_classes=(IsAuthenticated,))
+    @cache_response()
     def assignable(self, request, *args, **kwargs):
         perim_id = request.GET.get("perimeter_id", request.GET.get("care_site_id"))
         if not perim_id:
@@ -68,10 +70,14 @@ class RoleViewSet(CustomLoggingMixin, BaseViewset):
         if not perim:
             raise ValidationError(f"Perimeter with id {perim_id} not found.")
 
-        roles = get_assignable_roles_on_perimeter(request.user, perim)
-        q = Role.objects.filter(id__in=[r.id for r in roles])
+        role_ids = get_assignable_roles_on_perimeter(request.user, perim)
+        q = Role.objects.filter(id__in=role_ids)
         page = self.paginate_queryset(q)
         if page:
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @cache_response()
+    def list(self, request, *args, **kwargs):
+        return super(RoleViewSet, self).list(request, *args, **kwargs)

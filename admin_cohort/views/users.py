@@ -5,6 +5,7 @@ from drf_yasg.utils import swagger_auto_schema
 from admin_cohort.models import User
 from admin_cohort.permissions import IsAuthenticatedReadOnly, can_user_read_users
 from admin_cohort.serializers import UserSerializer, OpenUserSerializer
+from admin_cohort.tools.cache import cache_response
 from admin_cohort.views import YarnReadOnlyViewsetMixin, BaseViewset
 
 
@@ -52,5 +53,6 @@ class UserViewSet(YarnReadOnlyViewsetMixin, BaseViewset):
                                                      ["search", "A search term on multiple fields (firstname, lastname, provider_username email)",
                                                       openapi.TYPE_STRING],
                                                      ["page", "A page number within the paginated result set.", openapi.TYPE_INTEGER]])))
+    @cache_response()
     def list(self, request, *args, **kwargs):
         return super(UserViewSet, self).list(request, *args, **kwargs)

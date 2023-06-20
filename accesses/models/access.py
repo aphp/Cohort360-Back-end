@@ -9,6 +9,7 @@ from django.utils.datetime_safe import datetime
 from accesses.models.perimeter import Perimeter
 from accesses.models.profile import Profile
 from accesses.models.role import Role
+from admin_cohort.tools.cache import invalidate_cache
 from admin_cohort.models import BaseModel
 from admin_cohort.settings import MANUAL_SOURCE
 
@@ -23,6 +24,12 @@ class Access(BaseModel):
     end_datetime = models.DateTimeField(blank=True, null=True)
     manual_start_datetime = models.DateTimeField(blank=True, null=True)
     manual_end_datetime = models.DateTimeField(blank=True, null=True)
+
+    def save(self, *args, **kwargs):
+        super(Access, self).save(*args, **kwargs)
+        related_models = [f.related_model.__name__ for f in Access._meta.fields if f.is_relation]
+        for model in related_models:
+            invalidate_cache(model_name=model)
 
     @property
     def is_valid(self):

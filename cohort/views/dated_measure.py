@@ -4,6 +4,7 @@ from django_filters import rest_framework as filters, OrderingFilter
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
+from admin_cohort.tools.cache import cache_response
 from cohort.models import DatedMeasure
 from cohort.serializers import DatedMeasureSerializer
 from cohort.views.shared import UserObjectsRestrictedViewSet
@@ -33,3 +34,7 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     swagger_tags = ['Cohort - dated-measures']
     filterset_class = DatedMeasureFilter
     pagination_class = LimitOffsetPagination
+
+    @cache_response()
+    def list(self, request, *args, **kwargs):
+        return super(DatedMeasureViewSet, self).list(request, *args, **kwargs)

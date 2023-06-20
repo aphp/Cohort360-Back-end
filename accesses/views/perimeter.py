@@ -9,14 +9,12 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
+from admin_cohort.tools.cache import cache_response
 from admin_cohort.permissions import IsAuthenticatedReadOnly
-from admin_cohort.settings import PERIMETERS_TYPES
 from admin_cohort.tools import join_qs
 from admin_cohort.views import BaseViewset, YarnReadOnlyViewsetMixin
-from ..models import Role, Perimeter, get_user_valid_manual_accesses_queryset, get_all_perimeters_parents_queryset
-from ..serializers import PerimeterSerializer, TreefiedPerimeterSerializer, YasgTreefiedPerimeterSerializer, \
-    PerimeterLiteSerializer, \
-    DataReadRightSerializer, ReadRightPerimeter
+from ..models import Role, Perimeter, get_user_valid_manual_accesses_queryset
+from ..serializers import PerimeterSerializer, PerimeterLiteSerializer, DataReadRightSerializer, ReadRightPerimeter
 from ..tools.perimeter_process import get_top_perimeter_same_level, get_top_perimeter_inf_level, \
     filter_perimeter_by_top_hierarchy_perimeter_list, filter_accesses_by_search_perimeters, get_read_patient_right, \
     get_top_perimeter_from_read_patient_accesses, is_pseudo_perimeter_in_top_perimeter, \
@@ -72,11 +70,12 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
                                            "-Inferior level right give only access to children of current perimeter.",
                          responses={'200': openapi.Response("manageable perimeters found", PerimeterLiteSerializer())})
     @action(detail=False, methods=['get'], url_path="manageable")
+    @cache_response()
     def get_manageable_perimeters(self, request, *args, **kwargs):
-        user_accesses = get_user_valid_manual_accesses_queryset(self.request.user)
+        user_accesses = get_user_valid_manual_accesses_queryset(request.user)
 
         perimeters_filtered_by_search = []
-        if self.request.query_params:
+        if request.query_params:
             perimeters_filtered_by_search = self.filter_queryset(self.get_queryset())
             if not perimeters_filtered_by_search:
                 return Response(data={"WARN": "No Perimeters Found"}, status=status.HTTP_204_NO_CONTENT)
@@ -107,6 +106,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
                                            "If perimeters are not filtered, return user's top hierarchy perimeters",
                          responses={'200': openapi.Response("Rights per perimeter", DataReadRightSerializer())})
     @action(detail=False, methods=['get'], url_path="read-patient")
+    @cache_response()
     def get_perimeters_read_right_accesses(self, request, *args, **kwargs):
         user_accesses = get_user_valid_manual_accesses_queryset(request.user)
         all_read_patient_nominative_accesses = user_accesses.filter(Role.is_read_patient_role_nominative("role"))
@@ -139,6 +139,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
                          operation_summary="Whether or not the user has a `read patient data in pseudo mode` right for all searched perimeters",
                          responses={'200': openapi.Response("Return is_read_patient_pseudo boolean")})
     @action(detail=False, methods=['get'], url_path="is-read-patient-pseudo")
+    @cache_response()
     def get_read_patient_pseudo_right(self, request, *args, **kwargs):
         all_read_patient_nominative_accesses, all_read_patient_pseudo_accesses = get_all_read_patient_accesses(
             request.user)
@@ -163,6 +164,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
                          operation_summary="whether or not the user has a `read patient data in nominative mode` right on one or several perimeters",
                          responses={'200': openapi.Response("give rights in caresite perimeters found")})
     @action(detail=False, methods=['get'], url_path="is-one-read-patient-right")
+    @cache_response()
     def get_read_one_nominative_patient_right_access(self, request, *args, **kwargs):
         all_read_patient_nominative_accesses, all_read_patient_pseudo_accesses = get_all_read_patient_accesses(
             request.user)
@@ -193,35 +195,9 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
                                                       openapi.TYPE_STRING],
                                                      ["treefy", "If true, returns a tree-organised json, else a list",
                                                       openapi.TYPE_BOOLEAN]])))
+    @cache_response()
     def list(self, request, *args, **kwargs):
-        treefy = request.GET.get("treefy")
-        if str(treefy).lower() == 'true':
-            return self.treefied(request, *args, **kwargs)
         return super(PerimeterViewSet, self).list(request, *args, **kwargs)
-
-    @swagger_auto_schema(operation_description="Test",
-                         responses={'201': openapi.Response("Perimeters found", YasgTreefiedPerimeterSerializer),
-                                    '401': openapi.Response("Not authenticated")})
-    @action(detail=False, methods=['get'], url_path="treefied")
-    def treefied(self, request, *args, **kwargs):
-        # in that case, for each perimeter filtered, we want to show the
-        # branch of the whole perimeter tree that leads to it
-        q = self.filter_queryset(self.get_queryset())
-        if not q.count():
-            return Response([])
-
-        if q.count() != self.get_queryset().count():
-            q = (q | get_all_perimeters_parents_queryset(q)).distinct()
-            res = q.filter(~Q(parent__id__in=q.values_list("id", flat=True))).distinct()
-        else:
-            res = q.filter(parent__isnull=True)
-
-        prefetch = Perimeter.children_prefetch(q)
-        for _ in range(2, len(PERIMETERS_TYPES)):
-            prefetch = Perimeter.children_prefetch(q.prefetch_related(prefetch))
-
-        res = res.prefetch_related(prefetch)
-        return Response(TreefiedPerimeterSerializer(res, many=True).data)
 
 
 class NestedPerimeterViewSet(PerimeterViewSet):

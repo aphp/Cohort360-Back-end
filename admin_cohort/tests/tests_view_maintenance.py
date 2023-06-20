@@ -8,7 +8,7 @@ from rest_framework import status
 
 from accesses.models import Access, Role
 from admin_cohort.models import MaintenancePhase
-from admin_cohort.tests_tools import random_str, new_user_and_profile, \
+from admin_cohort.tools.tests_tools import random_str, new_user_and_profile, \
     CaseRetrieveFilter, ViewSetTestsWithBasicPerims, ListCase, \
     CreateCase, DeleteCase, PatchCase, RetrieveCase
 from admin_cohort.views import MaintenancePhaseViewSet
