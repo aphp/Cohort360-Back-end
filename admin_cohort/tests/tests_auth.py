@@ -97,34 +97,40 @@ class AuthClassTests(APITestCase):
         self.factory = APIRequestFactory()
         self.headers = {"HTTP_AUTHORIZATION": "Bearer SoMERaNdoMStRIng"}
         self.protected_url = '/users/'
+        self.protected_view = UserViewSet
         self.regular_user = create_regular_user()
 
     @mock.patch("admin_cohort.auth.auth_class.get_userinfo_from_token")
-    def test_verify_token_success(self, mock_get_userinfo: MagicMock):
+    def test_authenticate_success(self, mock_get_userinfo: MagicMock):
         mock_get_userinfo.return_value = UserInfo(username=self.regular_user.provider_username,
                                                   firstname=self.regular_user.firstname,
                                                   lastname=self.regular_user.lastname,
                                                   email=self.regular_user.email)
         request = self.factory.get(path=self.protected_url, **self.headers)
-        response = UserViewSet.as_view({'get': 'list'})(request)
+        response = self.protected_view.as_view({'get': 'list'})(request)
         mock_get_userinfo.assert_called()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
+    def test_authenticate_without_token(self):
+        request = self.factory.get(path=self.protected_url)
+        response = self.protected_view.as_view({'get': 'list'})(request)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
     @mock.patch("admin_cohort.auth.auth_class.get_userinfo_from_token")
-    def test_verify_token_error(self, mock_get_userinfo: MagicMock):
+    def test_authenticate_error(self, mock_get_userinfo: MagicMock):
         mock_get_userinfo.side_effect = TokenVerificationError()
         request = self.factory.get(path=self.protected_url, **self.headers)
-        response = UserViewSet.as_view({'get': 'list'})(request)
+        response = self.protected_view.as_view({'get': 'list'})(request)
         mock_get_userinfo.assert_called()
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     @mock.patch("admin_cohort.auth.auth_class.get_userinfo_from_token")
     @mock.patch("admin_cohort.auth.auth_class.get_token_from_headers")
-    def test_verify_token_error_with_bytes_token(self, mock_get_token_from_headers: MagicMock, mock_get_userinfo: MagicMock):
+    def test_authenticate_error_with_bytes_token(self, mock_get_token_from_headers: MagicMock, mock_get_userinfo: MagicMock):
         mock_get_token_from_headers.return_value = (b"SoMERaNdoMbYteS", None)
         mock_get_userinfo.side_effect = TokenVerificationError()
         request = self.factory.get(path=self.protected_url)
-        response = UserViewSet.as_view({'get': 'list'})(request)
+        response = self.protected_view.as_view({'get': 'list'})(request)
         mock_get_token_from_headers.assert_called()
         mock_get_userinfo.assert_called()
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)

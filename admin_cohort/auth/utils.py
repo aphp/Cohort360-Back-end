@@ -137,7 +137,7 @@ def verify_oidc_token_for_issuer(token: str, issuer: str):
         return None
 
 
-def get_userinfo_from_token(token: str, auth_method=None) -> Union[None, UserInfo]:
+def get_userinfo_from_token(token: str, auth_method: str) -> Union[None, UserInfo]:
     if token == env("ETL_TOKEN"):
         _logger.info("ETL token connexion")
         return UserInfo.solr()
@@ -145,7 +145,6 @@ def get_userinfo_from_token(token: str, auth_method=None) -> Union[None, UserInf
         _logger.info("SJS token connexion")
         return UserInfo.sjs()
 
-    auth_method = auth_method or JWT_AUTH_MODE
     if auth_method == JWT_AUTH_MODE:
         try:
             decoded = jwt.decode(token, key=JWT_SIGNING_KEY, algorithms=JWT_ALGORITHMS, leeway=15)
