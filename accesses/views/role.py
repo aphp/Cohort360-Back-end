@@ -49,8 +49,9 @@ class RoleViewSet(CustomLoggingMixin, BaseViewset):
                                      "end_datetime": access.actual_end_datetime,
                                      })
         if users_perimeters:
-            data = UsersInRoleSerializer(users_perimeters, many=True).data
-            return Response(data=data, status=status.HTTP_200_OK)
+            page = self.paginate_queryset(users_perimeters)
+            serializer = UsersInRoleSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @swagger_auto_schema(method='get',
