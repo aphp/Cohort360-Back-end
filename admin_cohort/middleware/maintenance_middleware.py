@@ -17,6 +17,7 @@ def is_allowed_request(request):
     is_sjs_etl_callback = auth_token in (SJS_TOKEN, ETL_TOKEN)
     return request.method in SAFE_METHODS or \
         request.path.startswith('/accounts/') or \
+        request.path.startswith('/auth/oidc/') or \
         request.path.startswith('/maintenances/') or \
         is_sjs_etl_callback
 
