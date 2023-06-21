@@ -21,7 +21,7 @@ class CustomCacheResponse(CacheResponse):
 cache_response = CustomCacheResponse
 
 
-def construct_cache_key(view_instance=None, view_method=None, request=None, *args, **kwargs):
+def construct_cache_key(view_instance=None, view_method=None, request=None):
     username = request.user.provider_username
     view_class = view_instance.__class__.__name__
     view_meth_name = view_method.__name__
@@ -40,7 +40,7 @@ def invalidate_cache(model_name: str, user: str = "*"):
     view_name = f"*{model_name}ViewSet"
     key = f"{user}.{view_name}.*"
     count = cache.delete_pattern(key)
-    _logger.info(f"Cache invalidated: deleted {count} records matching '*{key}*'")
+    _logger.info(f"Cache invalidated: deleted {count} records matching '{key}'")
 
 
 class CustomDummyCache(DummyCache):
