@@ -21,6 +21,7 @@ class RequestQuerySnapshot(CohortBaseModel):
     is_active_branch = models.BooleanField(default=True)
     shared_by = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='shared_query_snapshots', null=True, default=None)
     perimeters_ids = ArrayField(models.CharField(max_length=15), null=True, blank=True)
+    version = models.IntegerField(default=1)
 
     @property
     def has_linked_cohorts(self):
@@ -59,6 +60,7 @@ class RequestQuerySnapshot(CohortBaseModel):
                                         'owner': dct_recipients[o],
                                         'previous_snapshot': None,
                                         'is_active_branch': True,
+                                        'version': 1,
                                         'request': r
                                         })
                 for (o, r) in dct_requests.items()]

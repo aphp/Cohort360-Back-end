@@ -147,7 +147,8 @@ class ReducedRequestQuerySnapshotSerializer(BaseSerializer):
         fields = ["uuid",
                   "created_at",
                   "title",
-                  "has_linked_cohorts"]
+                  "has_linked_cohorts",
+                  "version"]
 
 
 class RequestQuerySnapshotSerializer(BaseSerializer):
@@ -184,6 +185,8 @@ class RequestQuerySnapshotSerializer(BaseSerializer):
         new_rqs = super(RequestQuerySnapshotSerializer, self).create(validated_data=validated_data)
 
         if new_rqs.previous_snapshot is not None:
+            new_rqs.version = new_rqs.previous_snapshot.version + 1
+            new_rqs.save()
             for rqs in new_rqs.previous_snapshot.next_snapshots.all():
                 rqs.is_active_branch = False
                 rqs.save()
@@ -206,6 +209,13 @@ class RequestSerializer(BaseSerializer):
         model = Request
         fields = "__all__"
         read_only_fields = ["query_snapshots", 'shared_by']
+
+    def to_representation(self, instance):
+        res = super().to_representation(instance)
+        res["query_snapshots"] = sorted(res["query_snapshots"],
+                                        key=lambda rqs: rqs["created_at"],
+                                        reverse=True)
+        return res
 
 
 class FolderSerializer(BaseSerializer):

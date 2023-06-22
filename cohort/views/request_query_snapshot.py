@@ -59,7 +59,7 @@ class RequestQuerySnapshotViewSet(NestedViewSetMixin, UserObjectsRestrictedViewS
             raise ValidationError("'recipients' doit être fourni")
 
         recipients = recipients.split(",")
-        name = request.data.get('name', None)
+        name = request.data.get('name')
 
         users = User.objects.filter(pk__in=recipients)
         users_ids = [str(u.pk) for u in users]
