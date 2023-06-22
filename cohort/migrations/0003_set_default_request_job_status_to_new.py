@@ -3,12 +3,6 @@
 from django.db import migrations, models
 
 
-STATUSES = [('new', 'new'), ('denied', 'denied'), ('validated', 'validated'),
-            ('pending', 'pending'), ('started', 'started'), ('failed', 'failed'),
-            ('cancelled', 'cancelled'), ('finished', 'finished'),
-            ('cleaned', 'cleaned'), ('unknown', 'unknown')]
-
-
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -19,11 +13,17 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='cohortresult',
             name='request_job_status',
-            field=models.CharField(choices=STATUSES, default='new', max_length=15, null=True),
+            field=models.CharField(
+                choices=[('new', 'new'), ('denied', 'denied'), ('validated', 'validated'), ('pending', 'pending'), ('long_pending', 'long_pending'),
+                         ('started', 'started'), ('failed', 'failed'), ('cancelled', 'cancelled'), ('finished', 'finished'), ('cleaned', 'cleaned'),
+                         ('unknown', 'unknown')], default='new', max_length=15, null=True),
         ),
         migrations.AlterField(
             model_name='datedmeasure',
             name='request_job_status',
-            field=models.CharField(choices=STATUSES, default='new', max_length=15, null=True),
+            field=models.CharField(
+                choices=[('new', 'new'), ('denied', 'denied'), ('validated', 'validated'), ('pending', 'pending'), ('long_pending', 'long_pending'),
+                         ('started', 'started'), ('failed', 'failed'), ('cancelled', 'cancelled'), ('finished', 'finished'), ('cleaned', 'cleaned'),
+                         ('unknown', 'unknown')], default='new', max_length=15, null=True),
         ),
     ]
