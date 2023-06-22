@@ -142,11 +142,12 @@ class CohortResultSerializerFullDatedMeasure(CohortResultSerializer):
 
 
 class ReducedRequestQuerySnapshotSerializer(BaseSerializer):
-    owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
-
     class Meta:
         model = RequestQuerySnapshot
-        fields = "__all__"
+        fields = ["uuid",
+                  "created_at",
+                  "title",
+                  "has_linked_cohorts"]
 
 
 class RequestQuerySnapshotSerializer(BaseSerializer):
@@ -197,7 +198,7 @@ class RequestQuerySnapshotSerializer(BaseSerializer):
 
 class RequestSerializer(BaseSerializer):
     owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
-    query_snapshots = serializers.SlugRelatedField(slug_field='uuid', many=True, read_only=True)
+    query_snapshots = ReducedRequestQuerySnapshotSerializer(read_only=True, many=True)
     shared_by = OpenUserSerializer(read_only=True)
     parent_folder = PrimaryKeyRelatedFieldWithOwner(queryset=Folder.objects.all())
 
