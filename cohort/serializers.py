@@ -164,7 +164,7 @@ class RequestQuerySnapshotSerializer(BaseSerializer):
         fields = "__all__"
         optional_fields = ["previous_snapshot", "request"]
         read_only_fields = ["is_active_branch", "care_sites_ids",
-                            "dated_measures", "cohort_results", 'shared_by']
+                            "dated_measures", "cohort_results", 'shared_by', "version"]
 
     def create(self, validated_data):
         previous_snapshot = validated_data.get("previous_snapshot")
@@ -181,12 +181,11 @@ class RequestQuerySnapshotSerializer(BaseSerializer):
 
         serialized_query = validated_data.get("serialized_query")
         validated_data["perimeters_ids"] = retrieve_perimeters(serialized_query)
+        validated_data["version"] = len(validated_data["request"].query_snapshots.all()) + 1
 
         new_rqs = super(RequestQuerySnapshotSerializer, self).create(validated_data=validated_data)
 
         if new_rqs.previous_snapshot is not None:
-            new_rqs.version = new_rqs.previous_snapshot.version + 1
-            new_rqs.save()
             for rqs in new_rqs.previous_snapshot.next_snapshots.all():
                 rqs.is_active_branch = False
                 rqs.save()
