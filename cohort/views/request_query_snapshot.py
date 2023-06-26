@@ -14,6 +14,7 @@ from admin_cohort.models import User
 from cohort.models import RequestQuerySnapshot
 from cohort.permissions import IsOwner
 from cohort.serializers import RequestQuerySnapshotSerializer
+from cohort.tools import send_email_notif_about_request_sharing
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
 
@@ -68,8 +69,10 @@ class RequestQuerySnapshotViewSet(NestedViewSetMixin, UserObjectsRestrictedViewS
         if errors:
             raise ValidationError(f"Les utilisateurs avec les IDs suivants n'ont pas été trouvés: {','.join(errors)}")
 
-        rqs = self.get_object()
+        rqs: RequestQuerySnapshot = self.get_object()
         shared_rqs = rqs.share(users, name)
+        for recipient in users:
+            send_email_notif_about_request_sharing(name or rqs.request.name, rqs.owner, recipient)
         return Response(data=RequestQuerySnapshotSerializer(shared_rqs, many=True).data,
                         status=status.HTTP_201_CREATED)
 
