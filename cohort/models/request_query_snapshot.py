@@ -14,6 +14,7 @@ from cohort.models import CohortBaseModel, Request, Folder
 
 class RequestQuerySnapshot(CohortBaseModel):
     title = models.CharField(default="", max_length=50)
+    version = models.IntegerField(default=1)
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='user_request_query_snapshots')
     request = models.ForeignKey(Request, on_delete=models.CASCADE, related_name='query_snapshots')
     serialized_query = models.TextField(default="{}")
