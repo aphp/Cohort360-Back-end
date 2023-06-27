@@ -24,6 +24,9 @@ class RoleFilter(filters.FilterSet):
         fields = "__all__"
 
 
+USERS_ORDERING_FIELDS = ["lastname", "firstname", "perimeter", "start_datetime", "end_datetime"]
+
+
 class RoleViewSet(CustomLoggingMixin, BaseViewset):
     serializer_class = RoleSerializer
     queryset = Role.objects.filter(delete_datetime__isnull=True).all()
@@ -33,6 +36,19 @@ class RoleViewSet(CustomLoggingMixin, BaseViewset):
     filterset_class = RoleFilter
     permission_classes = (IsAuthenticated, RolePermissions)
 
+    @swagger_auto_schema(method='get',
+                         operation_summary="Get the list of users that have that role",
+                         manual_parameters=[openapi.Parameter(name="order", in_=openapi.IN_QUERY,
+                                                              description=f"Ordering of the results (prepend with '-' "
+                                                                          f"to reverse order), ordering"
+                                                                          f" fields are "
+                                                                          f"{','.join(USERS_ORDERING_FIELDS)}",
+                                                              type=openapi.TYPE_STRING),
+                                            openapi.Parameter(name="filter_by_name", in_=openapi.IN_QUERY,
+                                                              description="Filter by name", type=openapi.TYPE_STRING)],
+                         responses={
+                             200: openapi.Response('All valid accesses or ones to expire soon', UsersInRoleSerializer),
+                             204: openapi.Response('No content')})
     @action(url_path="users", detail=True, methods=['get'], permission_classes=(IsAuthenticated,))
     def users_within_role(self, request, *args, **kwargs):
         role = self.get_object()
@@ -48,6 +64,24 @@ class RoleViewSet(CustomLoggingMixin, BaseViewset):
                                      "start_datetime": access.actual_start_datetime,
                                      "end_datetime": access.actual_end_datetime,
                                      })
+
+        # filtering
+        filter_by_name = request.query_params.get('filter_by_name')
+        if filter_by_name:
+            normalized_filter = filter_by_name.lower()
+            users_perimeters = [user_perimeter for user_perimeter in users_perimeters if
+                                normalized_filter in user_perimeter["provider_username"] or
+                                normalized_filter in user_perimeter['firstname'].lower() or
+                                normalized_filter in user_perimeter["lastname"].lower()]
+
+        # sorting
+        order = request.query_params.get("order", "lastname")
+        reverse_order = False
+        if order.startswith('-'):
+            reverse_order = True
+            order = order[1:]
+        users_perimeters = sorted(users_perimeters, key=lambda x: x.get(order, ''), reverse=reverse_order)
+
         if users_perimeters:
             page = self.paginate_queryset(users_perimeters)
             serializer = UsersInRoleSerializer(page, many=True)
