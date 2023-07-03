@@ -38,7 +38,7 @@ class QueryRequestUpdater:
             new_name = self.filter_mapping[resource][filter_name]
             LOGGER.info(f"Remapping {filter_name} for {resource} into {new_name}")
             return new_name, True
-        elif filter_name in self.filter_mapping[RESOURCE_DEFAULT]:
+        elif RESOURCE_DEFAULT in self.filter_mapping and filter_name in self.filter_mapping[RESOURCE_DEFAULT]:
             new_name = self.filter_mapping[RESOURCE_DEFAULT][filter_name]
             LOGGER.info(f"Remapping {filter_name} for {resource} into {new_name}")
             return new_name, True
@@ -152,11 +152,11 @@ class QueryRequestUpdater:
             elif "resource" == _type:
                 was_upgraded = self.process_resource(query, "fhirFilter")
             else:
-                raise Exception(f"Unknown query type {_type}")
+                raise ValueError(f"Unknown query type {_type}")
 
             query["version"] = new_version
         except Exception as e:
-            LOGGER.error(f"Failed to process query {query}", e)
+            LOGGER.error(f"Failed to process query {query}", exc_info=e)
             if debug_path:
                 failed_path, _ = tempfile.mkstemp(dir=str(debug_path))
                 with open(failed_path, "w") as fh:
@@ -164,16 +164,14 @@ class QueryRequestUpdater:
         # if the process failed then we don't want to save the changes
         return query.get("version", None) == new_version, was_upgraded
 
-    def update_old_query_snapshots(self, dry_run: bool = True, debug: bool = True):
-        LOGGER.info(f"Will update requests to version {self.version_name}. Dry run : {dry_run}")
-        all_rqs: List[RequestQuerySnapshot] = RequestQuerySnapshot.objects.all()
+    def do_update_old_query_snapshots(self, queries: List[Any], save_query: Callable[[Any], None], dry_run, debug):
         processed = 0
         upgraded = 0
         changed_queries = []
         debug_path: Optional[Path] = None
         if debug:
             debug_path = Path(tempfile.mkdtemp(prefix=f"update_{self.version_name}_"))
-        for rqs in all_rqs:
+        for rqs in queries:
             query = json.loads(rqs.serialized_query)
             has_changed, was_upgraded = self.process_query(query, self.version_name, debug_path)
             updated_query = json.dumps(query)
@@ -187,7 +185,7 @@ class QueryRequestUpdater:
                         changed_queries.append({"before": rqs.serialized_query, "after": updated_query})
                 rqs.serialized_query = updated_query
                 if not dry_run:
-                    rqs.save()
+                    save_query(rqs)
         print(f"Processed {processed} queries ({upgraded} upgraded)")
         LOGGER.info(f"Processed {processed} queries ({upgraded} upgraded)")
         if debug:
@@ -195,3 +193,8 @@ class QueryRequestUpdater:
                 json.dump([json.loads(c["before"]) for c in changed_queries], fh, indent=2)
             with open(debug_path / "after", "w") as fh:
                 json.dump([json.loads(c["after"]) for c in changed_queries], fh, indent=2)
+
+    def update_old_query_snapshots(self, dry_run: bool = True, debug: bool = True):
+        LOGGER.info(f"Will update requests to version {self.version_name}. Dry run : {dry_run}")
+        all_rqs: List[RequestQuerySnapshot] = RequestQuerySnapshot.objects.all()
+        self.do_update_old_query_snapshots(all_rqs, lambda r: r.save(), dry_run, debug)
