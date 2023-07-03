@@ -33,7 +33,7 @@ class Migration(migrations.Migration):
                 ('review_request_datetime', models.DateTimeField(null=True)),
                 ('id', models.BigAutoField(primary_key=True, serialize=False)),
                 ('motivation', models.TextField(null=True)),
-                ('output_format', models.CharField(choices=[('csv', 'csv'), ('hive', 'hive')], default='csv', max_length=20)),
+                ('output_format', models.CharField(choices=[('csv', 'csv'), ('hive', 'hive'), ('psql', 'psql')], default='csv', max_length=20)),
                 ('nominative', models.BooleanField(default=False)),
                 ('shift_dates', models.BooleanField(default=False)),
                 ('is_user_notified', models.BooleanField(default=False)),
