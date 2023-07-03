@@ -134,36 +134,35 @@ class QueryRequestUpdater:
         By default has_changed will be True even if there is no modification since we need to upgrade the version number
         Returns: A tuple has_changed, was_upgraded
         """
-        if query:
-            # skip queries already updated
-            if query.get("version", None) == new_version:
-                print("Skipping already updated query")
-                LOGGER.info("Skipping already updated query")
-                return False, False
-            _type = query.get("_type", None)
-            was_upgraded = False
-            try:
-                if "request" == _type:
-                    was_upgraded = self.process_request(query)
-                elif "InnerJoin" == _type:
-                    was_upgraded = self.process_inner_join(query)
-                elif "resource" == _type:
-                    was_upgraded = self.process_resource(query, "fhirFilter")
-                else:
-                    raise Exception(f"Unknown query type {_type}")
-
-                query["version"] = new_version
-            except Exception as e:
-                LOGGER.error(f"Failed to process query {query}", e)
-                if debug_path:
-                    failed_path, _ = tempfile.mkstemp(dir=str(debug_path))
-                    with open(failed_path, "w") as fh:
-                        json.dump(query, fh)
-            finally:
-                # if the process failed then we don't want to save the changes
-                return query["version"] == new_version, was_upgraded
-        else:
+        if not query:
             return False, False
+
+        # skip queries already updated
+        if query.get("version", None) == new_version:
+            print("Skipping already updated query")
+            LOGGER.info("Skipping already updated query")
+            return False, False
+        _type = query.get("_type", None)
+        was_upgraded = False
+        try:
+            if "request" == _type:
+                was_upgraded = self.process_request(query)
+            elif "InnerJoin" == _type:
+                was_upgraded = self.process_inner_join(query)
+            elif "resource" == _type:
+                was_upgraded = self.process_resource(query, "fhirFilter")
+            else:
+                raise Exception(f"Unknown query type {_type}")
+
+            query["version"] = new_version
+        except Exception as e:
+            LOGGER.error(f"Failed to process query {query}", e)
+            if debug_path:
+                failed_path, _ = tempfile.mkstemp(dir=str(debug_path))
+                with open(failed_path, "w") as fh:
+                    json.dump(query, fh)
+        # if the process failed then we don't want to save the changes
+        return query.get("version", None) == new_version, was_upgraded
 
     def update_old_query_snapshots(self, dry_run: bool = True, debug: bool = True):
         LOGGER.info(f"Will update requests to version {self.version_name}. Dry run : {dry_run}")
