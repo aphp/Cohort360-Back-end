@@ -96,4 +96,5 @@ deploy-job:
   only:
     - tags
     - develop
-    - ^feat_deploy_(\w*|\d*)
+    - /^feat_deploy_(\w*|\d*|-*|_*)+$/
+    - /^release_(\w*|\d*|-*|_*|\.*)+$/
