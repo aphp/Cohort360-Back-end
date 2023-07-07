@@ -1,9 +1,7 @@
 import json
 import struct
 import traceback
-import uuid
 from logging.handlers import SocketHandler
-from typing import Optional, Any, Type
 
 from admin_cohort.middleware.request_trace_id_middleware import get_trace_id
 

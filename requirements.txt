@@ -58,6 +58,7 @@ requests==2.31.0
 requests-kerberos==0.14.0
 ruamel.yaml==0.17.21
 ruff==0.0.271
+setuptools==68.0.0
 simplejson==3.18.0
 six==1.16.0
 sqlparse==0.4.4
