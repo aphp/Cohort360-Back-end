@@ -1,5 +1,6 @@
 import json
 import logging
+from typing import Tuple, Callable
 
 from coverage.annotate import os
 from django.core.mail import EmailMultiAlternatives
@@ -191,7 +192,7 @@ def log_create_task(cr_uuid, msg):
     _celery_logger.info(f"Cohort Create Task [CR: {cr_uuid}] {msg}")
 
 
-def get_single_cohort_email_data(cohort_name, cohort_id):
+def get_single_cohort_email_data(cohort_name, cohort_id) -> Tuple[str, str, str]:
     subject = "Votre cohorte est prête"
     cohort_link = f"{FRONT_URL}/cohort/{cohort_id}"
     html_body = f'Votre cohorte <a href="{cohort_link}">{cohort_name}</a> a été créée avec succès.'
@@ -199,8 +200,9 @@ def get_single_cohort_email_data(cohort_name, cohort_id):
     return subject, html_body, txt_body
 
 
-def send_email_notif_about_large_cohort(cohort_name: str, cohort_fhir_group_id: str, cohort_owner: User):
-    template_path = "cohort/email_templates/large_cohort_finished"
+def send_email(template_name: str, subject: str, owner_email: str, func_replace_html: Callable[[str], str],
+               func_replace_txt: Callable[[str], str]):
+    template_path = f"cohort/email_templates/{template_name}"
 
     with open(f"{template_path}.html") as f:
         html_content = "\n".join(f.readlines())
@@ -211,15 +213,8 @@ def send_email_notif_about_large_cohort(cohort_name: str, cohort_fhir_group_id: 
     html_mail = html_mail.replace(KEY_CONTENT, html_content)
     txt_mail = txt_mail.replace(KEY_CONTENT, txt_content)
 
-    subject, html_body, txt_body = get_single_cohort_email_data(cohort_name, cohort_fhir_group_id)
-    owner_fullname, owner_email = cohort_owner.displayed_name, cohort_owner.email
-
-    html_mail = html_mail.replace(KEY_NAME, owner_fullname)\
-                         .replace(KEY_EMAIL_BODY, html_body)\
-                         .replace(KEY_CONTACT_MAIL, EMAIL_SUPPORT_CONTACT)
-    txt_mail = txt_mail.replace(KEY_NAME, owner_fullname)\
-                       .replace(KEY_EMAIL_BODY, txt_body)\
-                       .replace(KEY_CONTACT_MAIL, EMAIL_SUPPORT_CONTACT)
+    html_mail = func_replace_html(html_mail)
+    txt_mail = func_replace_txt(txt_mail)
 
     msg = EmailMultiAlternatives(subject=subject,
                                  body=txt_mail,
@@ -228,4 +223,29 @@ def send_email_notif_about_large_cohort(cohort_name: str, cohort_fhir_group_id: 
     msg.attach_alternative(content=html_mail, mimetype="text/html")
     msg.attach_file('exports/email_templates/logoCohort360.png')
     msg.send()
+
+
+def send_email_notif_about_large_cohort(cohort_name: str, cohort_fhir_group_id: str, cohort_owner: User) -> None:
+    subject, html_body, txt_body = get_single_cohort_email_data(cohort_name, cohort_fhir_group_id)
+    owner_fullname, owner_email = cohort_owner.displayed_name, cohort_owner.email
+
+    def get_replace_txt(content: str):
+        def replace_txt(txt: str):
+            return txt.replace(KEY_NAME, owner_fullname) \
+                .replace(KEY_EMAIL_BODY, content) \
+                .replace(KEY_CONTACT_MAIL, EMAIL_SUPPORT_CONTACT)
+
+        return replace_txt
+
+    send_email("large_cohort_finished", subject, owner_email, get_replace_txt(html_body), get_replace_txt(txt_body))
+
     _logger.info(f"Notification email sent to user: {owner_fullname}. Cohort [{cohort_name} - {cohort_fhir_group_id}]")
+
+
+def send_email_notif_about_request_sharing(request_name: str, owner: User, recipient: User) -> None:
+    def replace_txt(txt: str):
+        return txt.replace(KEY_NAME, recipient.firstname) \
+            .replace("KEY_OWNER_NAME", f"{owner.firstname} {owner.lastname}") \
+            .replace("KEY_REQUEST_NAME", request_name)
+
+    send_email("shared_request", f"{owner.firstname} {owner.lastname} a partagé une requête avec vous", recipient.email, replace_txt, replace_txt)
