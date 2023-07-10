@@ -51,6 +51,7 @@ psycopg2-binary==2.9.5
 pycparser==2.21
 PyJWT==2.6.0
 pyspnego==0.7.0
+python-json-logger==2.0.7
 pytz==2022.7
 PyYAML==6.0
 redis==4.4.4
