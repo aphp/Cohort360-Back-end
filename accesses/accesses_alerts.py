@@ -1,3 +1,4 @@
+import logging
 from datetime import date, timedelta
 
 from django.core.mail import EmailMultiAlternatives
@@ -9,6 +10,8 @@ from admin_cohort.settings import EMAIL_SENDER_ADDRESS, MANUAL_SOURCE
 
 KEY_NAME = "KEY_NAME"
 KEY_EXPIRY_DAYS = "KEY_EXPIRY_DAYS"
+
+_logger = logging.getLogger("info")
 
 
 def replace_keys(source_text: str, user: User, days: int):
@@ -41,6 +44,7 @@ def send_alert_email(user: User, days: int):
 
 
 def send_access_expiry_alerts(days: int):
+    _logger.info("Checking expiring accesses")
     expiry_date = date.today() + timedelta(days=days)
     expiring_accesses = Access.objects.filter(Access.Q_is_valid() &
                                               Q(profile__source=MANUAL_SOURCE) &
@@ -50,4 +54,5 @@ def send_access_expiry_alerts(days: int):
                                       .annotate(total=Count("profile"))
     for access in expiring_accesses:
         user = Profile.objects.get(pk=access["profile"]).user
+        _logger.info(f"Sending mail to {str(user)} with access expiring in {days}")
         send_alert_email(user=user, days=days)

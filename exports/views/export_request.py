@@ -137,7 +137,7 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
                                                                                     "export. WIll be set to the "
                                                                                     "request creator if undefined.")
                                                 },
-                                    required=["cohort_fk", "tables"]))
+                                    required=["tables"]))
     def create(self, request, *args, **kwargs):
         # Local imports for mocking these functions during tests
         from exports.emails import email_info_request_confirmed

@@ -9,6 +9,7 @@ from requests import RequestException, HTTPError
 
 from admin_cohort.celery import celery_app
 from admin_cohort.settings import EXPORT_CSV_PATH
+from admin_cohort.tools.celery_periodic_task_helper import ensure_single_task
 from admin_cohort.types import JobStatus
 from exports import conf_exports
 from .emails import email_info_request_done, email_info_request_deleted
@@ -123,6 +124,7 @@ def launch_request(er_id: int):
 
 
 @celery_app.task()
+@ensure_single_task("delete_export_requests_csv_files")
 def delete_export_requests_csv_files():
     d = timezone.now() - timedelta(days=settings.DAYS_TO_DELETE_CSV_FILES)
     export_requests = ExportRequest.objects.filter(request_job_status=JobStatus.finished,
