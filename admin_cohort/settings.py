@@ -111,6 +111,7 @@ MIDDLEWARE = ['admin_cohort.middleware.influxdb_middleware.InfluxDBMiddleware',
               'django.contrib.messages.middleware.MessageMiddleware',
               'django.middleware.clickjacking.XFrameOptionsMiddleware',
               'admin_cohort.middleware.maintenance_middleware.MaintenanceModeMiddleware',
+              'admin_cohort.middleware.request_trace_id_middleware.RequestTraceIdMiddleware',
               'admin_cohort.middleware.jwt_session_middleware.JWTSessionMiddleware']
 
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
