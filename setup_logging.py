@@ -7,6 +7,9 @@ import struct
 import sys
 from logging.handlers import DEFAULT_TCP_LOGGING_PORT
 from pathlib import Path
+from typing import Dict, Any
+
+from pythonjsonlogger.jsonlogger import JsonFormatter
 
 BUILTIN_WARNINGS_LOGGER_NAME = 'py.warnings'
 INFO_LOGGER_NAME = 'info'
@@ -35,11 +38,30 @@ def configure_handlers() -> [logging.Handler]:
     guni_error_handler = CustomFileHandler(name='gunicorn.error', filename=BASE_DIR / "log/gunicorn.error.log")
     guni_access_handler = CustomFileHandler(name='gunicorn.access', filename=BASE_DIR / "log/gunicorn.access.log")
 
-    return [stream_handler,
-            dj_info_handler,
-            dj_error_handler,
-            guni_error_handler,
-            guni_access_handler]
+    handlers = [stream_handler,
+                dj_info_handler,
+                dj_error_handler,
+                guni_error_handler,
+                guni_access_handler]
+
+    formatter = JsonFormatter("%(asctime)s"
+                              " - %(process)s"
+                              " - %(name)s"
+                              " - %(filename)s"
+                              " - %(trace_id)s"
+                              " - %(threadName)s"
+                              " - %(levelname)s"
+                              " - %(message)s",
+                              rename_fields={
+                                  "asctime": "timestamp",
+                                  "trace_id": "traceId",
+                                  "levelname": "level",
+                                  "threadName": "thread",
+                                  "filename": "logger"
+                              })
+    for handler in handlers:
+        handler.setFormatter(formatter)
+    return handlers
 
 
 def handle_log_record(record):
@@ -86,7 +108,8 @@ class LogRecordSocketReceiver(socketserver.ThreadingTCPServer):
 
 
 def main():
-    fmt = "%(levelname)s %(asctime)s <%(name)s> pid=%(process)d module=%(filename)s msg=`%(message)s`"
+    fmt = "%(levelname)s %(asctime)s <%(name)s> traceId=%(trace_id)s " \
+          "pid=%(process)d module=%(filename)s msg=`%(message)s`"
     logging.basicConfig(level=logging.INFO,
                         format=fmt,
                         handlers=configure_handlers())
