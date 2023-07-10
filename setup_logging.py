@@ -7,7 +7,6 @@ import struct
 import sys
 from logging.handlers import DEFAULT_TCP_LOGGING_PORT
 from pathlib import Path
-from typing import Dict, Any
 
 from pythonjsonlogger.jsonlogger import JsonFormatter
 
