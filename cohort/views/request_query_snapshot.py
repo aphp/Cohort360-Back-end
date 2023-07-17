@@ -49,8 +49,12 @@ class RequestQuerySnapshotViewSet(NestedViewSetMixin, UserObjectsRestrictedViewS
                                            "'recipients' are strings joined with ','. 'name' is optional",
                          request_body=openapi.Schema(type=openapi.TYPE_OBJECT,
                                                      properties={"recipients": openapi.Schema(type=openapi.TYPE_STRING),
-                                                                 "name": openapi.Schema(type=openapi.TYPE_STRING)}),
-                         responses={'201': openapi.Response("New requests created for recipients", RequestQuerySnapshotSerializer(many=True)),
+                                                                 "name": openapi.Schema(type=openapi.TYPE_STRING),
+                                                                 "notify_by_email": openapi.Schema(
+                                                                     type=openapi.TYPE_BOOLEAN, default=False)
+                                                                 }),
+                         responses={'201': openapi.Response("New requests created for recipients",
+                                                            RequestQuerySnapshotSerializer(many=True)),
                                     '400': openapi.Response("One or more recipient's not found"),
                                     '404': openapi.Response("RequestQuerySnapshot not found (possibly not owned)")})
     @action(detail=True, methods=['post'], permission_classes=(IsOwner,), url_path="share")
@@ -71,8 +75,10 @@ class RequestQuerySnapshotViewSet(NestedViewSetMixin, UserObjectsRestrictedViewS
 
         rqs: RequestQuerySnapshot = self.get_object()
         shared_rqs = rqs.share(users, name)
-        for recipient in users:
-            send_email_notif_about_request_sharing(name or rqs.request.name, rqs.owner, recipient)
+        notify_by_email = request.data.get('notify_by_email', False)
+        if notify_by_email:
+            for recipient in users:
+                send_email_notif_about_request_sharing(name or rqs.request.name, rqs.owner, recipient)
         return Response(data=RequestQuerySnapshotSerializer(shared_rqs, many=True).data,
                         status=status.HTTP_201_CREATED)
 
