@@ -78,6 +78,7 @@ deploy-job:
   stage: deploy
   script:
     - export VERSION=$(cat ./admin_cohort/__init__.py | grep __version__ | head -1 | awk -F'=' '{ print $2 }' | sed "s/[' ]//g")
+    - cat ${CI_PROJECT_DIR}/Dockerfile | sed -e 's|^FROM |FROM harbor.eds.aphp.fr/cohort360/|g' > ${CI_PROJECT_DIR}/Dockerfile_fixed
     - mkdir -p /kaniko/.docker
     - |-
       KANIKOPROXYARGS=""
@@ -91,7 +92,7 @@ deploy-job:
     - >-
       /kaniko/executor
       --context "${CI_PROJECT_DIR}"
-      --dockerfile "${CI_PROJECT_DIR}/Dockerfile"
+      --dockerfile "${CI_PROJECT_DIR}/Dockerfile_fixed"
       $KANIKOPROXYARGS
       --destination "${CI_REGISTRY_IMAGE}:${VERSION}"
   only:
