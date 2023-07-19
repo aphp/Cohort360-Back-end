@@ -111,6 +111,7 @@ MIDDLEWARE = ['admin_cohort.middleware.influxdb_middleware.InfluxDBMiddleware',
               'django.contrib.messages.middleware.MessageMiddleware',
               'django.middleware.clickjacking.XFrameOptionsMiddleware',
               'admin_cohort.middleware.maintenance_middleware.MaintenanceModeMiddleware',
+              'admin_cohort.middleware.request_trace_id_middleware.RequestTraceIdMiddleware',
               'admin_cohort.middleware.jwt_session_middleware.JWTSessionMiddleware']
 
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
@@ -270,6 +271,7 @@ REST_FRAMEWORK_EXTENSIONS = {"DEFAULT_PARENT_LOOKUP_KWARG_NAME_PREFIX": "",
                              "DEFAULT_CACHE_ERRORS": False
                              }
 
-# ACCESSES EXPIRY
+# ACCESSES
 ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS = int(env("ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS", default=30))
 ACCESS_EXPIRY_SECOND_ALERT_IN_DAYS = int(env("ACCESS_EXPIRY_SECOND_ALERT_IN_DAYS", default=2))
+MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS = int(env("ACCESS_MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS", default=730))

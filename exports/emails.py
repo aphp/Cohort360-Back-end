@@ -105,7 +105,8 @@ def send_failed_email(req: ExportRequest, to_address: str):
     html_mail = html_mail.replace(KEY_CONTENT, html_content)
     txt_mail = txt_mail.replace(KEY_CONTENT, txt_content)
 
-    subject = f"[Cohorte {req.cohort_id}] Votre demande d'export n'a pas abouti"
+    export_name = f"\"{req.motivation}\"" if req.motivation else ""
+    subject = f"[Cohorte {req.cohort_id}] Votre demande d'export {export_name} n'a pas abouti"
     send_email(req, subject, txt_mail, html_mail, to_address)
 
 
@@ -123,7 +124,8 @@ def send_success_email(req: ExportRequest, to_address: str):
     html_mail, txt_mail = get_base_templates()
     html_mail = html_mail.replace(KEY_CONTENT, html_content)
     txt_mail = txt_mail.replace(KEY_CONTENT, txt_content)
-    subject = f"[Cohorte {req.cohort_id}] Export terminé"
+    export_name = f"\"{req.motivation}\"" if req.motivation else ""
+    subject = f"[Cohorte {req.cohort_id}] Export {export_name} terminé"
     send_email(req, subject, txt_mail, html_mail, to_address)
 
 
@@ -161,7 +163,8 @@ def email_info_request_confirmed(req: ExportRequest, to_address: str):
     html_mail = html_mail.replace(KEY_CONTENT, html_content)
     txt_mail = txt_mail.replace(KEY_CONTENT, txt_content)
 
-    action = req.output_format == ExportType.CSV and "Demande d'export CSV reçue" or "Demande reçue de transfert en environnement Jupyter"
+    export_name = f"\"{req.motivation}\"" if req.motivation else "CSV"
+    action = req.output_format == ExportType.CSV and f"Demande d'export {export_name} reçue" or "Demande reçue de transfert en environnement Jupyter"
     subject = f"[Cohorte {req.cohort_id}] {action}"
     send_email(req, subject, txt_mail, html_mail, to_address)
 

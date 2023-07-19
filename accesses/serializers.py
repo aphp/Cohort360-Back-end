@@ -12,7 +12,7 @@ from rest_framework.exceptions import ValidationError, PermissionDenied
 from admin_cohort.auth.utils import check_id_aph
 from admin_cohort.models import User
 from admin_cohort.serializers import BaseSerializer, ReducedUserSerializer, UserSerializer
-from admin_cohort.settings import MANUAL_SOURCE
+from admin_cohort.settings import MANUAL_SOURCE, MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS
 from .conf_perimeters import Provider
 from .models import Role, Access, Profile, Perimeter
 from .permissions import can_user_manage_access
@@ -76,7 +76,7 @@ def fix_csh_dates(validated_data, for_update: bool = False):
     if end_datetime != 0 or not for_update:
         validated_data["manual_end_datetime"] = end_datetime \
             if end_datetime is not None and not end_is_empty \
-            else validated_data["manual_start_datetime"] + timedelta(days=365)
+            else validated_data["manual_start_datetime"] + timedelta(days=MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS)
 
     return validated_data
 
