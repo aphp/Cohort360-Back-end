@@ -1,7 +1,8 @@
-from django_filters import rest_framework as filters
+from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import viewsets
+from rest_framework.pagination import LimitOffsetPagination
 
 from admin_cohort.permissions import either
 from admin_cohort.types import JobStatus
@@ -12,6 +13,8 @@ from exports.serializers import AnnexeCohortResultSerializer
 
 
 class CohortFilter(filters.FilterSet):
+    ordering = OrderingFilter(fields=('name', 'created_at'))
+
     class Meta:
         model = CohortResult
         fields = ('owner_id',)
@@ -24,6 +27,7 @@ class CohortViewSet(viewsets.ModelViewSet):
     queryset = CohortResult.objects.filter(request_job_status=JobStatus.finished)
     swagger_tags = ['Exports - cohorts']
     filterset_class = CohortFilter
+    pagination_class = LimitOffsetPagination
     search_fields = ('$name', '$description')
 
     def get_permissions(self):
