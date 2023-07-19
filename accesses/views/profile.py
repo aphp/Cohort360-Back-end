@@ -116,24 +116,21 @@ class ProfileViewSet(CustomLoggingMixin, BaseViewset):
         if not psv:
             return Response(data="No `provider_source_value` provided",
                             status=status.HTTP_400_BAD_REQUEST)
-        try:
-            person = check_id_aph(psv)
-            manual_profile: Profile = Profile.objects.filter(Profile.Q_is_valid()
-                                                             & Q(source=MANUAL_SOURCE)
-                                                             & Q(user__provider_username=person.user_id)
-                                                             ).first()
+        person = check_id_aph(psv)
+        manual_profile: Profile = Profile.objects.filter(Profile.Q_is_valid()
+                                                         & Q(source=MANUAL_SOURCE)
+                                                         & Q(user__provider_username=person.user_id)
+                                                         ).first()
 
-            user: User = User.objects.filter(provider_username=person.user_id).first()
-            user_data = user and UserSerializer(user).data or None
+        user: User = User.objects.filter(provider_username=person.user_id).first()
+        user_data = user and UserSerializer(user).data or None
 
-            data = ProfileCheckSerializer({"firstname": person.firstname,
-                                           "lastname": person.lastname,
-                                           "user_id": person.user_id,
-                                           "email": person.email,
-                                           "provider": user_data,
-                                           "user": user_data,
-                                           "manual_profile": manual_profile
-                                           }).data
-            return Response(data=data, status=status.HTTP_200_OK)
-        except (ServerError, MissingDataError):
-            return Response(status=status.HTTP_204_NO_CONTENT)
+        data = ProfileCheckSerializer({"firstname": person.firstname,
+                                       "lastname": person.lastname,
+                                       "user_id": person.user_id,
+                                       "email": person.email,
+                                       "provider": user_data,
+                                       "user": user_data,
+                                       "manual_profile": manual_profile
+                                       }).data
+        return Response(data=data, status=status.HTTP_200_OK)
