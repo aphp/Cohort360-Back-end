@@ -59,7 +59,9 @@ def fhir_to_job_status() -> Dict[str, JobStatus]:
 
 def get_authorization_header(request: Request) -> dict:
     key = request.jwt_access_key or request.META.get("HTTP_AUTHORIZATION")
-    return {"Authorization": f"Bearer {key}"}
+    return {"Authorization": f"Bearer {key}",
+            "authorizationMethod": request.META.get('HTTP_AUTHORIZATIONMETHOD')
+            }
 
 
 class JobResponse:
@@ -179,7 +181,7 @@ def post_count_cohort(auth_headers: dict, json_query: str, dm_uuid: str, global_
         time.sleep(2)
         try:
             job = get_job(job.job_id, auth_headers=auth_headers)
-            log_count_task(dm_uuid, "Step 3.x: Job created. Status: {job.status}.", global_estimate=global_estimate)
+            log_count_task(dm_uuid, f"Step 3.x: Job created. Status: {job.status}.", global_estimate=global_estimate)
         except RequestException as e:
             errors_count += 1
             log_count_task(dm_uuid, f"Step 3.x: Error {errors_count} found on getting status : {e}.", global_estimate=global_estimate)

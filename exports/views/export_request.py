@@ -13,7 +13,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 
-from admin_cohort.cache_utils import invalidate_cache
+from admin_cohort.tools.cache import cache_response
 from admin_cohort.models import User
 from admin_cohort.tools import join_qs
 from admin_cohort.types import JobStatus
@@ -95,11 +95,12 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
         if can_review_export_csv(reviewer):
             types.append(ExportType.CSV)
         if can_review_transfer_jupyter(reviewer):
-            types.extend([ExportType.PSQL, ExportType.HIVE])
+            types.append(ExportType.HIVE)
         return q.filter(owner=self.request.user) | q.filter(output_format__in=types)
 
     @swagger_auto_schema(responses={'200': openapi.Response("List of export requests", ExportRequestListSerializer()),
                                     '204': openapi.Response("HTTP_204 if no export requests found")})
+    @cache_response()
     def list(self, request, *args, **kwargs):
         q = self.filter_queryset(self.queryset)
         page = self.paginate_queryset(q)
@@ -136,7 +137,7 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
                                                                                     "export. WIll be set to the "
                                                                                     "request creator if undefined.")
                                                 },
-                                    required=["cohort_fk", "tables"]))
+                                    required=["tables"]))
     def create(self, request, *args, **kwargs):
         # Local imports for mocking these functions during tests
         from exports.emails import email_info_request_confirmed
@@ -154,7 +155,7 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
                             status=status.HTTP_400_BAD_REQUEST)
 
         creator: User = request.user
-        check_email_address(creator)
+        check_email_address(creator.email)
 
         owner_id = request.data.get('owner', request.data.get('provider_source_value', creator.pk))
         request.data['owner'] = owner_id
@@ -170,7 +171,6 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
         request.data['owner'] = request.data.get('owner', creator.pk)
 
         response = super(ExportRequestViewSet, self).create(request, *args, **kwargs)
-        invalidate_cache(view_instance=self, user=request.user)
         if response.status_code == http.HTTPStatus.CREATED and response.data["request_job_status"] != JobStatus.failed:
             try:
                 email_info_request_confirmed(response.data.serializer.instance, creator.email)

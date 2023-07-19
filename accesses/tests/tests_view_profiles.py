@@ -13,10 +13,10 @@ from accesses.models import Access, Profile, Role
 from accesses.views import ProfileViewSet
 from admin_cohort.models import User
 from admin_cohort.settings import MANUAL_SOURCE
-from admin_cohort.tests_tools import random_str, \
+from admin_cohort.tools.tests_tools import random_str, \
     new_user_and_profile, CaseRetrieveFilter, ViewSetTestsWithBasicPerims, \
     ListCase, CreateCase, DeleteCase, PatchCase, RequestCase
-from admin_cohort.tools import prettify_json, prettify_dict
+from admin_cohort.tools import prettify_dict, prettify_json
 from admin_cohort.types import PersonIdentity
 
 PROFILES_URL = "/profiles"

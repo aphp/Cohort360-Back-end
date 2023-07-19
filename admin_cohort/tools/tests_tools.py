@@ -15,7 +15,7 @@ from accesses.models import Role, Profile, Perimeter
 from admin_cohort.models import BaseModel, User
 from cohort.models import CohortBaseModel
 from admin_cohort.settings import PERIMETERS_TYPES, ROOT_PERIMETER_TYPE, MANUAL_SOURCE
-from admin_cohort.tools import prettify_json, prettify_dict
+from admin_cohort.tools import prettify_dict, prettify_json
 from admin_cohort.types import MissingDataError
 
 
@@ -380,15 +380,13 @@ class ViewSetTests(BaseTests):
     model_objects: Manager
     model_fields: List[Field]
 
-    def check_create_case(self, case: CreateCase, other_view: any = None,
-                          **view_kwargs):
-        request = self.factory.post(self.objects_url, case.json_data,
-                                    format='json')
+    def check_create_case(self, case: CreateCase, other_view: any = None, **view_kwargs):
+        request = self.factory.post(path=self.objects_url, data=case.json_data, format='json')
+        request.jwt_access_key = "dummy_jwt_access_key"
         if case.user:
             force_authenticate(request, case.user)
 
-        response = other_view(request, **view_kwargs) if other_view else \
-            self.__class__.create_view(request)
+        response = other_view and other_view(request, **view_kwargs) or self.__class__.create_view(request)
         response.render()
 
         self.assertEqual(

@@ -1,4 +1,4 @@
-from admin_cohort.tests_tools import ViewSetTests, new_random_user
+from admin_cohort.tools.tests_tools import ViewSetTests, new_random_user
 
 
 class CohortAppTests(ViewSetTests):

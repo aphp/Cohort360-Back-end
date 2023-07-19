@@ -8,7 +8,7 @@ from django.db import models, IntegrityError
 from django.utils import timezone
 
 from accesses.models import Perimeter, Access
-from admin_cohort import settings, app
+from admin_cohort import settings
 
 """
 This script define 3 data models and the function which will refresh by insert/update all modified Perimeters objects.
@@ -223,8 +223,8 @@ def is_care_site_different_from_perimeter(care_site: CareSite, perimeter: Perime
             care_site.care_site_name != perimeter.name or \
             care_site.care_site_short_name != perimeter.short_name or \
             care_site.delete_datetime != perimeter.delete_datetime or \
-            str(care_site.cohort_id) != perimeter.cohort_id or \
-            str(care_site.cohort_size) != perimeter.cohort_size or \
+            str(care_site.cohort_id) != str(perimeter.cohort_id) or \
+            str(care_site.cohort_size) != str(perimeter.cohort_size) or \
             relation_perimeter.above_levels_ids != perimeter.above_levels_ids or \
             relation_perimeter.full_path != perimeter.full_path or \
             relation_perimeter.children != perimeter.inferior_levels_ids:
@@ -553,13 +553,3 @@ def perimeters_data_model_objects_update():
     _logger.info("Start deletion of removed perimeters")
     delete_perimeters_and_accesses(existing_perimeters, all_valid_care_site_relationship)
     _logger.info("End of perimeters updating")
-
-
-# TODO : le Cron lance la fonction toutes les heures d'où la vérification du timezone now... solution sale à remplacer!
-
-
-@app.task()
-def care_sites_daily_update():
-    if timezone.now().hour != 2:
-        return
-    perimeters_data_model_objects_update()

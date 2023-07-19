@@ -1,4 +1,4 @@
-from .cohort_base_model import CohortBaseModel
+from .cohort_basemodel import CohortBaseModel
 from .folder import Folder
 from .request import Request
 from .request_query_snapshot import RequestQuerySnapshot

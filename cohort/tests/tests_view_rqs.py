@@ -1,18 +1,22 @@
 import random
 from datetime import timedelta
+from os import environ
+from pathlib import Path
 from typing import List
 from unittest import mock
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
+from django.core.mail import EmailMessage
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import force_authenticate
 
 from admin_cohort.models import User
 from admin_cohort.settings import SHARED_FOLDER_NAME
-from admin_cohort.tests_tools import CaseRetrieveFilter, CreateCase, random_str, ListCase, RetrieveCase, DeleteCase, \
-    PatchCase
 from admin_cohort.tools import prettify_json
+from admin_cohort.tools.tests_tools import CaseRetrieveFilter, CreateCase, random_str, ListCase, RetrieveCase, \
+    DeleteCase, \
+    PatchCase
 from cohort.crb_responses import CRBValidateResponse
 from cohort.models import RequestQuerySnapshot, Request, Folder
 from cohort.tests.tests_view_requests import RequestsTests, ShareCase
@@ -466,6 +470,26 @@ class RqsShareTests(RqsTests):
         self.check_share_case(self.basic_case.clone(
             new_name="new_request",
         ))
+
+    def check_mail(self, from_email: str, to_emails: List[str], body: str):
+        def check_mail_sent(me):
+            self.assertEqual(me.body, body)
+            self.assertEqual(me.from_email, from_email)
+            self.assertEqual(me.to, to_emails)
+
+        return check_mail_sent
+
+    def test_mail_sending(self):
+        with open(Path(__file__).resolve().parent.joinpath("resources/email_shared_request.txt"), "r") as fh:
+            email_content = fh.read()
+        with patch.object(EmailMessage, 'send', self.check_mail(
+                from_email=environ.get("EMAIL_SENDER_ADDRESS"),
+                to_emails=[self.user2.email],
+                body=email_content
+        )):
+            self.check_share_case(self.basic_case.clone(
+                recipients=[self.user2]
+            ))
 
     def test_error_share_unknown_users(self):
         # As a user, I cannot share a RQS with not existing recipients

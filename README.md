@@ -1,3 +1,7 @@
+![image](https://img.shields.io/badge/Python-3.11-blue/?color=blue&logo=python&logoColor=9cf)
+![image](https://img.shields.io/badge/Django-4.2-%2344b78b/?color=%2344b78b&logo=django&logoColor=green)
+![image](https://img.shields.io/badge/Ruff-0.0.271-yellow/?color=yellow&logo=lightning&logoColor=yellow)
+
 <!-- TABLE OF CONTENTS -->
 <details open="open">
   <summary>Table of Contents</summary>
@@ -270,7 +274,7 @@ replace
 them in your CI/CD pipeline.
 
 1. [conf_perimeters](accesses/conf_perimeters.py)
-2. [conf_auth](admin_cohort/conf_auth.py)
+2. [conf_auth](admin_cohort/auth/utils.py)
 3. [conf_cohort_job_api](cohort/conf_cohort_job_api.py)
 4. [conf_exports](exports/conf_exports.py)
 5. [conf_workspaces](workspaces/conf_workspaces.py)

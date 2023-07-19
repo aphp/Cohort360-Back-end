@@ -9,7 +9,6 @@ from django.core.mail import EmailMultiAlternatives
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
-from admin_cohort.models import User
 from admin_cohort.settings import EMAIL_BACK_HOST_URL, EMAIL_SENDER_ADDRESS, EMAIL_SUPPORT_CONTACT, \
     DAYS_TO_DELETE_CSV_FILES, EMAIL_REGEX_CHECK
 from admin_cohort.types import JobStatus
@@ -88,13 +87,11 @@ def get_base_templates() -> Tuple[str, str]:
     return html_content, txt_content
 
 
-def check_email_address(user: User):
-    if not user.email:
-        raise ValidationError(f"No email address is configured for user {user.displayed_name}. "
-                              f"Please contact an administrator")
-    if not re.match(EMAIL_REGEX_CHECK, user.email):
-        raise ValidationError(f"Invalid email address ({user.email}). Must match the RegEx {EMAIL_REGEX_CHECK}. "
-                              f"Please contact an administrator.")
+def check_email_address(email: str):
+    if not email:
+        raise ValidationError("No email address is configured. Please contact an administrator")
+    if not re.match(EMAIL_REGEX_CHECK, email):
+        raise ValidationError(f"Invalid email address '{email}'. Please contact an administrator.")
 
 
 def send_failed_email(req: ExportRequest, to_address: str):
@@ -108,7 +105,8 @@ def send_failed_email(req: ExportRequest, to_address: str):
     html_mail = html_mail.replace(KEY_CONTENT, html_content)
     txt_mail = txt_mail.replace(KEY_CONTENT, txt_content)
 
-    subject = f"[Cohorte {req.cohort_id}] Votre demande d'export n'a pas abouti"
+    export_name = f"\"{req.motivation}\"" if req.motivation else ""
+    subject = f"[Cohorte {req.cohort_id}] Votre demande d'export {export_name} n'a pas abouti"
     send_email(req, subject, txt_mail, html_mail, to_address)
 
 
@@ -126,17 +124,19 @@ def send_success_email(req: ExportRequest, to_address: str):
     html_mail, txt_mail = get_base_templates()
     html_mail = html_mail.replace(KEY_CONTENT, html_content)
     txt_mail = txt_mail.replace(KEY_CONTENT, txt_content)
-    subject = f"[Cohorte {req.cohort_id}] Export terminé"
+    export_name = f"\"{req.motivation}\"" if req.motivation else ""
+    subject = f"[Cohorte {req.cohort_id}] Export {export_name} terminé"
     send_email(req, subject, txt_mail, html_mail, to_address)
 
 
 def email_info_request_done(req: ExportRequest):
-    check_email_address(req.creator_fk)
+    email = req.creator_fk.email
+    check_email_address(email)
     try:
         if req.request_job_status == JobStatus.finished:
-            send_success_email(req, req.creator_fk.email)
+            send_success_email(req, email)
         elif req.request_job_status in [JobStatus.failed, JobStatus.cancelled]:
-            send_failed_email(req, req.creator_fk.email)
+            send_failed_email(req, email)
     except (SMTPException, TimeoutError):
         except_msg = f"Could not send export email - request status was '{req.request_job_status}'"
         _logger.exception(f"{except_msg} - Mark it as '{JobStatus.failed}'")
@@ -163,7 +163,8 @@ def email_info_request_confirmed(req: ExportRequest, to_address: str):
     html_mail = html_mail.replace(KEY_CONTENT, html_content)
     txt_mail = txt_mail.replace(KEY_CONTENT, txt_content)
 
-    action = req.output_format == ExportType.CSV and "Demande d'export CSV reçue" or "Demande reçue de transfert en environnement Jupyter"
+    export_name = f"\"{req.motivation}\"" if req.motivation else "CSV"
+    action = req.output_format == ExportType.CSV and f"Demande d'export {export_name} reçue" or "Demande reçue de transfert en environnement Jupyter"
     subject = f"[Cohorte {req.cohort_id}] {action}"
     send_email(req, subject, txt_mail, html_mail, to_address)
 

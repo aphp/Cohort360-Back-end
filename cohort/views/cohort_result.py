@@ -2,7 +2,7 @@ import logging
 from smtplib import SMTPException
 
 from django.db.models import Q, F
-from django.http import Http404, QueryDict
+from django.http import Http404
 from django.utils import timezone
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
@@ -15,6 +15,7 @@ from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from accesses.models import get_user_valid_manual_accesses_queryset
+from admin_cohort.tools.cache import cache_response
 from admin_cohort.settings import SJS_USERNAME, ETL_USERNAME
 from admin_cohort.tools import join_qs
 from admin_cohort.types import JobStatus
@@ -101,7 +102,6 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     pagination_class = LimitOffsetPagination
     filterset_class = CohortFilter
     search_fields = ('$name', '$description')
-    flush_cache_actions = ('create', 'destroy')
 
     def is_sjs_or_etl_user(self):
         return self.request.method in ("GET", "PATCH") and \
@@ -130,11 +130,19 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
 
     @action(methods=['get'], detail=False, url_path='jobs/active')
     def get_active_jobs(self, request, *args, **kwargs):
-        active_statuses = [JobStatus.new, JobStatus.validated, JobStatus.started, JobStatus.pending]
+        active_statuses = [JobStatus.new,
+                           JobStatus.validated,
+                           JobStatus.started,
+                           JobStatus.pending,
+                           JobStatus.long_pending]
         jobs_count = CohortResult.objects.filter(request_job_status__in=active_statuses).count()
         if not jobs_count:
             return Response(status=status.HTTP_204_NO_CONTENT)
         return Response(data={"jobs_count": jobs_count}, status=status.HTTP_200_OK)
+
+    @cache_response()
+    def list(self, request, *args, **kwargs):
+        return super(CohortResultViewSet, self).list(request, *args, **kwargs)
 
     @swagger_auto_schema(method='get',
                          operation_summary="Give cohorts aggregation read patient rights, export csv rights and "
@@ -215,13 +223,3 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                 else:
                     _logger.info(f"Cohort [{cohort.uuid}] successfully updated from ETL")
         return resp
-
-
-class NestedCohortResultViewSet(CohortResultViewSet):
-
-    def create(self, request, *args, **kwargs):
-        if type(request.data) == QueryDict:
-            request.data._mutable = True
-        if 'request_query_snapshot' in kwargs:
-            request.data["request_query_snapshot"] = kwargs['request_query_snapshot']
-        return super(NestedCohortResultViewSet, self).create(request, *args, **kwargs)

@@ -4,7 +4,7 @@ from django.http import JsonResponse
 from rest_framework.permissions import SAFE_METHODS
 from rest_framework.status import HTTP_503_SERVICE_UNAVAILABLE
 
-from admin_cohort.conf_auth import get_token_from_headers
+from admin_cohort.auth.utils import get_token_from_headers
 from admin_cohort.models import get_next_maintenance
 
 env = os.environ
@@ -17,6 +17,7 @@ def is_allowed_request(request):
     is_sjs_etl_callback = auth_token in (SJS_TOKEN, ETL_TOKEN)
     return request.method in SAFE_METHODS or \
         request.path.startswith('/accounts/') or \
+        request.path.startswith('/auth/oidc/') or \
         request.path.startswith('/maintenances/') or \
         is_sjs_etl_callback
 

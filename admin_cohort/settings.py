@@ -5,7 +5,7 @@ from pathlib import Path
 
 import environ
 import pytz
-
+from celery.schedules import crontab
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -25,16 +25,10 @@ SECRET_KEY = env("DJANGO_SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 # Debug will also send sensitive data with the response to an error
 DEBUG = int(env("DEBUG")) == 1
-CORS_ORIGIN_ALLOW_ALL = DEBUG
-CORS_ALLOW_ALL_ORIGINS = DEBUG
 
-if SERVER_VERSION == "dev":
-    CORS_ORIGIN_WHITELIST = [FRONT_URL, BACK_URL]
-    CSRF_TRUSTED_ORIGINS = [FRONT_URL, BACK_URL]
-
-elif SERVER_VERSION == "prod":
-    CORS_ORIGIN_WHITELIST = [BACK_URL] + FRONT_URLS
-    CSRF_TRUSTED_ORIGINS = [BACK_URL] + FRONT_URLS
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOWED_ORIGINS = [BACK_URL] + FRONT_URLS
+CSRF_TRUSTED_ORIGINS = [BACK_URL] + FRONT_URLS
 
 CORS_ALLOW_HEADERS = ['access-control-allow-origin',
                       'content-type',
@@ -71,13 +65,13 @@ LOGGING = dict(version=1,
                handlers={
                    'info_handler': {
                        'level': "INFO",
-                       'class': "admin_cohort.tools.CustomSocketHandler",
+                       'class': "admin_cohort.tools.logging.CustomSocketHandler",
                        'host': "localhost",
                        'port': DEFAULT_TCP_LOGGING_PORT,
                     },
                    'error_handler': {
                        'level': "ERROR",
-                       'class': "admin_cohort.tools.CustomSocketHandler",
+                       'class': "admin_cohort.tools.logging.CustomSocketHandler",
                        'host': "localhost",
                        'port': DEFAULT_TCP_LOGGING_PORT,
                     },
@@ -116,14 +110,16 @@ MIDDLEWARE = ['admin_cohort.middleware.influxdb_middleware.InfluxDBMiddleware',
               'django.contrib.auth.middleware.AuthenticationMiddleware',
               'django.contrib.messages.middleware.MessageMiddleware',
               'django.middleware.clickjacking.XFrameOptionsMiddleware',
-              'admin_cohort.middleware.MaintenanceModeMiddleware.MaintenanceModeMiddleware',
-              'admin_cohort.middleware.AuthMiddleware.CustomJwtSessionMiddleware']
+              'admin_cohort.middleware.maintenance_middleware.MaintenanceModeMiddleware',
+              'admin_cohort.middleware.request_trace_id_middleware.RequestTraceIdMiddleware',
+              'admin_cohort.middleware.jwt_session_middleware.JWTSessionMiddleware']
 
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
 DJANGO_CPROFILE_MIDDLEWARE_REQUIRE_STAFF = False
 
-AUTHENTICATION_BACKENDS = ['admin_cohort.auth_backend.AuthBackend']
+AUTHENTICATION_BACKENDS = ['admin_cohort.auth.auth_backends.JWTAuthBackend',
+                           'admin_cohort.auth.auth_backends.OIDCAuthBackend']
 
 ROOT_URLCONF = 'admin_cohort.urls'
 
@@ -172,7 +168,7 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'static'
 
 REST_FRAMEWORK = {'DEFAULT_PERMISSION_CLASSES': ('admin_cohort.permissions.IsAuthenticated',),
-                  'DEFAULT_AUTHENTICATION_CLASSES': ['admin_cohort.middleware.AuthMiddleware.CustomAuthentication'],
+                  'DEFAULT_AUTHENTICATION_CLASSES': ['admin_cohort.auth.auth_class.Authentication'],
                   'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
                   'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema',
                   'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend',
@@ -189,7 +185,6 @@ SWAGGER_SETTINGS = {'LOGOUT_URL': '/accounts/logout/',
 APPEND_SLASH = False
 
 AUTH_USER_MODEL = 'admin_cohort.User'
-LOGOUT_REDIRECT_URL = '/'
 
 # EMAILS
 EMAIL_USE_TLS = env("EMAIL_USE_TLS").lower() == "true"
@@ -211,20 +206,12 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_TASK_ALWAYS_EAGER = False
 
-CONFIG_TASKS = {}
 if env('LOCAL_TASKS', default=''):
-    CONFIG_TASKS = dict([(name, {'task': t, 'schedule': int(s)})
-                         for (name, t, s) in [task.split(',')
-                         for task in env('LOCAL_TASKS').split(';')]])
-
-CELERY_BEAT_SCHEDULE = {
-                        'task-delete_csv_files': {
-                                                  'task': 'exports.tasks.delete_export_requests_csv_files',
-                                                  'schedule': int(env("TASK_DELETE_CSV_FILES_SCHEDULE", default=3600))
-                                                  },
-                        **CONFIG_TASKS
-                        }
-
+    CELERY_BEAT_SCHEDULE = {task_name: {'task': task,
+                                        'schedule': crontab(hour=hour, minute=minute)}
+                            for (task_name, task, hour, minute) in [task.split(',')
+                            for task in env('LOCAL_TASKS').split(';')]
+                            }
 
 # CONSTANTS
 utc = pytz.UTC
@@ -242,12 +229,15 @@ JWT_REFRESH_COOKIE = "refresh"
 SESSION_COOKIE_NAME = "sessionid"
 SESSION_COOKIE_AGE = 24 * 60 * 60
 
+JWT_AUTH_MODE = "JWT"
+OIDC_AUTH_MODE = "OIDC"
+
 # WORKSPACES
 if 'workspaces' in INCLUDED_APPS:
     RANGER_HIVE_POLICY_TYPES = env('RANGER_HIVE_POLICY_TYPES').split(",")
 
 # CUSTOM EXCEPTION REPORTER
-DEFAULT_EXCEPTION_REPORTER_FILTER = 'admin_cohort.tools.CustomExceptionReporterFilter'
+DEFAULT_EXCEPTION_REPORTER_FILTER = 'admin_cohort.tools.except_report_filter.CustomExceptionReporterFilter'
 SENSITIVE_PARAMS = env('SENSITIVE_PARAMS').split(",")
 
 # COHORTS +20k
@@ -272,11 +262,16 @@ CACHES = {
     }
 }
 if env("SERVER_VERSION") == "test":
-    CACHES = {'default': {'BACKEND': 'admin_cohort.cache_utils.CustomDummyCache'}}
+    CACHES = {'default': {'BACKEND': 'admin_cohort.tools.cache.CustomDummyCache'}}
 
 REST_FRAMEWORK_EXTENSIONS = {"DEFAULT_PARENT_LOOKUP_KWARG_NAME_PREFIX": "",
                              "DEFAULT_USE_CACHE": "default",
                              "DEFAULT_CACHE_RESPONSE_TIMEOUT": 24 * 60 * 60,
-                             "DEFAULT_CACHE_KEY_FUNC": "admin_cohort.cache_utils.construct_cache_key",
+                             "DEFAULT_CACHE_KEY_FUNC": "admin_cohort.tools.cache.construct_cache_key",
                              "DEFAULT_CACHE_ERRORS": False
                              }
+
+# ACCESSES
+ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS = int(env("ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS", default=30))
+ACCESS_EXPIRY_SECOND_ALERT_IN_DAYS = int(env("ACCESS_EXPIRY_SECOND_ALERT_IN_DAYS", default=2))
+MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS = int(env("ACCESS_MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS", default=730))

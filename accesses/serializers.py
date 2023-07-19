@@ -9,10 +9,10 @@ from django.utils.datetime_safe import datetime
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError, PermissionDenied
 
-from admin_cohort.conf_auth import check_id_aph
+from admin_cohort.auth.utils import check_id_aph
 from admin_cohort.models import User
 from admin_cohort.serializers import BaseSerializer, ReducedUserSerializer, UserSerializer
-from admin_cohort.settings import MANUAL_SOURCE
+from admin_cohort.settings import MANUAL_SOURCE, MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS
 from .conf_perimeters import Provider
 from .models import Role, Access, Profile, Perimeter
 from .permissions import can_user_manage_access
@@ -76,7 +76,7 @@ def fix_csh_dates(validated_data, for_update: bool = False):
     if end_datetime != 0 or not for_update:
         validated_data["manual_end_datetime"] = end_datetime \
             if end_datetime is not None and not end_is_empty \
-            else validated_data["manual_start_datetime"] + timedelta(days=365)
+            else validated_data["manual_start_datetime"] + timedelta(days=MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS)
 
     return validated_data
 
@@ -158,6 +158,8 @@ class UsersInRoleSerializer(serializers.Serializer):
     lastname = serializers.CharField(read_only=True)
     email = serializers.CharField(read_only=True)
     perimeter = serializers.CharField(read_only=True)
+    start_datetime = serializers.CharField(read_only=True)
+    end_datetime = serializers.CharField(read_only=True)
 
 
 class ReducedProfileSerializer(serializers.ModelSerializer):
@@ -255,30 +257,6 @@ class ProfileCheckSerializer(serializers.Serializer):
     provider = UserSerializer(read_only=True, allow_null=True)
 
 
-class TreefiedPerimeterSerializer(serializers.ModelSerializer):
-    parent_id = serializers.CharField(read_only=True, allow_null=True)
-    names = serializers.DictField(allow_null=True, read_only=True, child=serializers.CharField())
-    type = serializers.CharField(allow_null=True, source='type_source_value')
-
-    class Meta:
-        model = Perimeter
-        exclude = ['insert_datetime',
-                   'update_datetime',
-                   'delete_datetime']
-
-    def get_fields(self):
-        fields = super(TreefiedPerimeterSerializer, self).get_fields()
-        fields['children'] = TreefiedPerimeterSerializer(many=True, source='prefetched_children', required=False)
-        return fields
-
-
-class YasgTreefiedPerimeterSerializer(TreefiedPerimeterSerializer):
-    children = serializers.ListSerializer(child=serializers.JSONField())
-
-    def get_fields(self):
-        return super(TreefiedPerimeterSerializer, self).get_fields()
-
-
 class PerimeterSerializer(serializers.ModelSerializer):
     parent_id = serializers.CharField(read_only=True, allow_null=True)
     # old fields
@@ -297,9 +275,7 @@ class PerimeterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Perimeter
-        exclude = ["parent",
-                   "above_levels_ids",
-                   "inferior_levels_ids"]
+        exclude = ["parent"]
 
 
 class PerimeterLiteSerializer(serializers.ModelSerializer):
@@ -313,6 +289,7 @@ class PerimeterLiteSerializer(serializers.ModelSerializer):
                   'source_value',
                   'parent_id',
                   'type',
+                  'above_levels_ids',
                   'inferior_levels_ids',
                   'cohort_id',
                   'cohort_size',
@@ -431,6 +408,13 @@ class AccessSerializer(BaseSerializer):
         if validated_data:
             return super(AccessSerializer, self).update(instance, validated_data)
         return instance
+
+
+class ExpiringAccessesSerializer(serializers.Serializer):
+    start_datetime = serializers.DateTimeField(source='actual_start_datetime', read_only=True)
+    end_datetime = serializers.DateTimeField(source='actual_end_datetime', read_only=True)
+    profile = serializers.SlugRelatedField(slug_field='provider_name', read_only=True)
+    perimeter = serializers.SlugRelatedField(slug_field='name', read_only=True)
 
 
 class DataRightSerializer(serializers.Serializer):

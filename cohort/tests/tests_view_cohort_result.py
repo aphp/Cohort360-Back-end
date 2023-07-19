@@ -9,12 +9,12 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import force_authenticate
 
-from admin_cohort.tests_tools import random_str, ListCase, RetrieveCase, CaseRetrieveFilter, CreateCase, PatchCase
+from admin_cohort.tools.tests_tools import random_str, ListCase, RetrieveCase, CaseRetrieveFilter, CreateCase, PatchCase
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult, RequestQuerySnapshot, DatedMeasure
 from cohort.models.dated_measure import GLOBAL_DM_MODE, SNAPSHOT_DM_MODE
 from cohort.tests.tests_view_dated_measure import DatedMeasuresTests, DMDeleteCase
-from cohort.views import CohortResultViewSet, NestedCohortResultViewSet
+from cohort.views import CohortResultViewSet
 
 
 class CohortsTests(DatedMeasuresTests):
@@ -22,7 +22,7 @@ class CohortsTests(DatedMeasuresTests):
                           "type", "create_task_id", "dated_measure",
                           "request_job_id",
                           "created_at", "modified_at", "deleted"]
-    unsettable_default_fields = dict(request_job_status=JobStatus.started)
+    unsettable_default_fields = dict(request_job_status=JobStatus.new)
     unsettable_fields = ["owner", "uuid", "create_task_id",
                          "created_at", "modified_at", "deleted", ]
     manual_dupplicated_fields = []
@@ -166,20 +166,9 @@ class CohortsGetTests(CohortsTests):
         ]
         [self.check_get_paged_list_case(case) for case in cases]
 
-    def test_rest_get_list_from_rqs(self):
-        # As a user, I can get the list of CRs from the RQS it is bound to
-        rqs = self.user1.user_request_query_snapshots.first()
-
-        self.check_get_paged_list_case(ListCase(
-            status=status.HTTP_200_OK,
-            success=True,
-            user=self.user1,
-            to_find=list(rqs.cohort_results.all())
-        ), NestedCohortResultViewSet.as_view({'get': 'list'}),
-            request_query_snapshot=rqs.pk)
-
     def test_count_cohorts_with_active_jobs(self):
         request = self.factory.get(path=self.active_jobs_url)
+        force_authenticate(request, self.user1)
         response = self.__class__.get_active_jobs_view(request)
         self.assertIn(response.status_code, (200, 204))
         if response.status_code == 200:
@@ -190,6 +179,7 @@ class CohortsGetTests(CohortsTests):
             cohort.request_job_status = JobStatus.finished
             cohort.save()
         request = self.factory.get(path=self.active_jobs_url)
+        force_authenticate(request, self.user1)
         response = self.__class__.get_active_jobs_view(request)
         self.assertEqual(response.status_code, 204)
 
@@ -310,13 +300,6 @@ class CohortsCreateTests(CohortsTests):
             status=status.HTTP_400_BAD_REQUEST,
             success=False,
         ))
-
-    def test_create_from_rqs(self):
-        # As a user, I can create a RQS specifying a previous snapshot using nestedViewSet
-        self.check_create_case(self.basic_case.clone(data={'name': self.test_name,
-                                                           'dated_measure': self.user1_req1_snap1_dm.pk}),
-                               NestedCohortResultViewSet.as_view({'post': 'create'}),
-                               request_query_snapshot=self.user1_req1_snap1.pk)
 
     def test_error_create_on_rqs_not_owned(self):
         # As a user, I cannot create a dm on a Rqs I don't own

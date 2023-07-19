@@ -1,4 +1,5 @@
 import urllib
+from datetime import date, timedelta
 from functools import reduce
 
 from django.db.models import Q, BooleanField, When, Case, Value, QuerySet
@@ -15,24 +16,16 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
 from admin_cohort.permissions import IsAuthenticated
-from admin_cohort.settings import PERIMETERS_TYPES
+from admin_cohort.settings import PERIMETERS_TYPES, ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS
 from admin_cohort.tools import join_qs
+from admin_cohort.tools.cache import cache_response
 from admin_cohort.views import BaseViewset, CustomLoggingMixin
-from admin_cohort.cache_utils import invalidate_cache
-from ..models import Role, Access, get_user_valid_manual_accesses_queryset, intersect_queryset_criteria, build_data_rights, Profile
+from ..models import Access, get_user_valid_manual_accesses_queryset, intersect_queryset_criteria, build_data_rights
 from ..permissions import AccessPermissions
-from ..serializers import AccessSerializer, DataRightSerializer
+from ..serializers import AccessSerializer, DataRightSerializer, ExpiringAccessesSerializer
 
 
 class AccessFilter(filters.FilterSet):
-    def target_perimeter_filter(self, queryset, field, value):
-        if value:
-            return queryset.filter((join_qs([Q(**{'perimeter' + i * '__children': value})
-                                             for i in range(1, len(PERIMETERS_TYPES))])
-                                    & Role.impact_lower_levels_query('role'))
-                                   | Q(perimeter=value))
-        return queryset
-
     provider_email = filters.CharFilter(lookup_expr="icontains", field_name="profile__email")
     provider_lastname = filters.CharFilter(lookup_expr="icontains", field_name="profile__lastname")
     provider_firstname = filters.CharFilter(lookup_expr="icontains", field_name="profile__firstname")
@@ -49,9 +42,6 @@ class AccessFilter(filters.FilterSet):
     perimeter_name = filters.CharFilter(field_name="perimeter__name", lookup_expr="icontains")
     care_site_id = filters.CharFilter(field_name="perimeter_id")
 
-    target_care_site_id = filters.CharFilter(method="target_perimeter_filter")
-    target_perimeter_id = filters.CharFilter(method="target_perimeter_filter")
-
     ordering = OrderingFilter(fields=(('role__name', 'role_name'),
                                       ('sql_start_datetime', 'start_datetime'),
                                       ('sql_end_datetime', 'end_datetime'),
@@ -59,13 +49,7 @@ class AccessFilter(filters.FilterSet):
 
     class Meta:
         model = Access
-        fields = ("profile_email", "provider_email",
-                  "profile_lastname", "provider_lastname",
-                  "profile_firstname", "provider_firstname",
-                  "profile_user_id", "provider_source_value",
-                  "provider_id", "profile_id", "provider_history_id",
-                  "perimeter", "care_site_id",
-                  "target_perimeter_id", "target_care_site_id")
+        fields = ("perimeter",)
 
 
 class AccessViewSet(CustomLoggingMixin, BaseViewset):
@@ -85,6 +69,11 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
         if self.action in ['my_accesses', 'my_rights']:
             return [IsAuthenticated()]
         return [IsAuthenticated(), AccessPermissions()]
+
+    def get_serializer_class(self):
+        if self.request.method == "GET" and "expiring" in self.request.query_params:
+            return ExpiringAccessesSerializer
+        return self.serializer_class
 
     def get_queryset(self) -> QuerySet:
         q = super(AccessViewSet, self).get_queryset()
@@ -114,14 +103,12 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
     def filter_queryset(self, queryset):
         now = timezone.now()
         queryset = queryset.annotate(sql_start_datetime=Coalesce('manual_start_datetime', 'start_datetime'),
-                                     sql_end_datetime=Coalesce('manual_end_datetime', 'end_datetime')
-                                     ).annotate(sql_is_valid=Case(When(sql_start_datetime__lte=now,
-                                                                       sql_end_datetime__gte=now,
-                                                                       then=Value(True)),
-                                                                  default=Value(False),
-                                                                  output_field=BooleanField()
-                                                                  )
-                                                )
+                                     sql_end_datetime=Coalesce('manual_end_datetime', 'end_datetime'))\
+                           .annotate(sql_is_valid=Case(When(sql_start_datetime__lte=now,
+                                                            sql_end_datetime__gte=now,
+                                                            then=Value(True)),
+                                                       default=Value(False),
+                                                       output_field=BooleanField()))
         return super(AccessViewSet, self).filter_queryset(queryset)
 
     def get_object(self):
@@ -155,6 +142,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
                                                                   "role_name, start_datetime, end_datetime, is_valid. "
                                                                   "Use -field for descending order",
                                                       openapi.TYPE_STRING]])))
+    @cache_response()
     def list(self, request, *args, **kwargs):
         return super(AccessViewSet, self).list(request, *args, **kwargs)
 
@@ -176,12 +164,10 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
     def create(self, request, *args, **kwargs):
         data = request.data
         if "care_site_id" not in data and 'perimeter_id' not in data:
-            return Response(data="perimeter_id is required", status=status.HTTP_404_NOT_FOUND)
+            return Response(data="perimeter_id is required", status=status.HTTP_400_BAD_REQUEST)
         data['profile_id'] = data.get('profile_id', data.get('provider_history_id'))
         data['perimeter_id'] = data.get('perimeter_id', data.get('care_site_id'))
         response = super(AccessViewSet, self).create(request, *args, **kwargs)
-        user = Profile.objects.get(pk=data['profile_id']).user
-        invalidate_cache(view_instance=self, user=user)
         return response
 
     @swagger_auto_schema(request_body=openapi.Schema(
@@ -202,8 +188,6 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
     @swagger_auto_schema(auto_schema=None)
     def update(self, request, *args, **kwargs):
         response = super(AccessViewSet, self).update(request, *args, **kwargs)
-        user = self.get_object().profile.user
-        invalidate_cache(view_instance=self, user=user)
         return response
 
     @swagger_auto_schema(request_body=openapi.Schema(type=openapi.TYPE_STRING, properties={}),
@@ -226,21 +210,44 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
 
     def destroy(self, request, *args, **kwargs):
         access = self.get_object()
-        user = access.profile.user
         if access.actual_start_datetime:
             if access.actual_start_datetime < timezone.now():
                 return Response(data="L'accès est déjà/a déjà été activé, il ne peut plus être supprimé.",
                                 status=status.HTTP_403_FORBIDDEN)
         self.perform_destroy(access)
-        invalidate_cache(view_instance=self, user=user)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @swagger_auto_schema(method='get', operation_summary="Get the authenticated user's valid accesses.")
-    @action(url_path="my-accesses", detail=False, methods=['get'])
+    @swagger_auto_schema(method='get',
+                         operation_summary="Get the authenticated user's valid accesses.",
+                         manual_parameters=[openapi.Parameter(name="expiring",
+                                                              in_=openapi.IN_QUERY,
+                                                              description="Filter accesses to expire soon",
+                                                              type=openapi.TYPE_BOOLEAN)],
+                         responses={200: openapi.Response('All valid accesses or ones to expire soon', AccessSerializer)})
+    @action(url_path="my-accesses", methods=['get'], detail=False)
+    @cache_response()
     def my_accesses(self, request, *args, **kwargs):
-        q = get_user_valid_manual_accesses_queryset(request.user)
-        serializer = self.get_serializer(q, many=True)
-        return Response(data=serializer.data, status=status.HTTP_200_OK)
+        user = request.user
+        accesses = get_user_valid_manual_accesses_queryset(user=user)
+        if request.query_params.get("expiring"):
+            today = date.today()
+            expiry_date = today + timedelta(days=ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS)
+            to_expire_soon = Q(manual_end_datetime__date__gte=today) & Q(manual_end_datetime__date__lte=expiry_date)
+            accesses_to_expire = accesses.filter(Q(profile__user=user) & to_expire_soon)
+
+            if not accesses_to_expire:
+                return Response(data={"message": f"No accesses to expire in the next {ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS} days"},
+                                status=status.HTTP_200_OK)
+
+            min_access_per_perimeter = {}
+            for a in accesses_to_expire:
+                if a.perimeter.id not in min_access_per_perimeter or \
+                   a.manual_end_datetime < min_access_per_perimeter[a.perimeter.id].manual_end_datetime:
+                    min_access_per_perimeter[a.perimeter.id] = a
+                else:
+                    continue
+            accesses = min_access_per_perimeter.values()
+        return Response(data=self.get_serializer(accesses, many=True).data, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(operation_description="Returns particular type of objects, describing the data rights that a "
                                                "user has on a care-sites. AT LEAST one parameter is necessary",
@@ -255,10 +262,12 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
                                                             ["pop_children", "If True, keeps only the biggest parents for each right",
                                                              openapi.TYPE_BOOLEAN]])],
                          responses={200: openapi.Response('Rights found', DataRightSerializer),
-                                    403: openapi.Response('perimeters_ids and pop_children are both null')})
+                                    400: openapi.Response('perimeters_ids and pop_children are both null')})
     @action(url_path="my-rights", detail=False, methods=['get'], filter_backends=[], pagination_class=None)
+    @cache_response()
     def my_rights(self, request, *args, **kwargs):
-        perimeters_ids = request.GET.get('perimeters_ids', request.GET.get('care-site-ids'))
+        perimeters_ids = request.query_params.get('perimeters_ids',
+                                                  request.query_params.get('care-site-ids'))
         if perimeters_ids:
             urldecode_perimeters = urllib.parse.unquote(urllib.parse.unquote((str(perimeters_ids))))
             required_perimeters_ids = [int(i) for i in urldecode_perimeters.split(",")]

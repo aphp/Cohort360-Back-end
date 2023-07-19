@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 from rest_framework import status
 from rest_framework.test import APIRequestFactory
 
-from admin_cohort.middleware.MaintenanceModeMiddleware import MaintenanceModeMiddleware
+from admin_cohort.middleware.maintenance_middleware import MaintenanceModeMiddleware
 from ..models import MaintenancePhase
 
 env = os.environ

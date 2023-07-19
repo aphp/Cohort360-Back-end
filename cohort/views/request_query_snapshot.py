@@ -9,14 +9,16 @@ from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
+from admin_cohort.tools.cache import cache_response
 from admin_cohort.models import User
 from cohort.models import RequestQuerySnapshot
 from cohort.permissions import IsOwner
 from cohort.serializers import RequestQuerySnapshotSerializer
+from cohort.tools import send_email_notif_about_request_sharing
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
 
-class RQSFilter(filters.FilterSet):
+class RequestQuerySnapshotFilter(filters.FilterSet):
     ordering = OrderingFilter(fields=('-created_at', 'modified_at'))
 
     class Meta:
@@ -32,8 +34,12 @@ class RequestQuerySnapshotViewSet(NestedViewSetMixin, UserObjectsRestrictedViewS
     lookup_field = "uuid"
     swagger_tags = ['Cohort - request-query-snapshots']
     pagination_class = LimitOffsetPagination
-    filterset_class = RQSFilter
+    filterset_class = RequestQuerySnapshotFilter
     search_fields = ('$serialized_query',)
+
+    @cache_response()
+    def list(self, request, *args, **kwargs):
+        return super(RequestQuerySnapshotViewSet, self).list(request, *args, **kwargs)
 
     def retrieve(self, request, *args, **kwargs):
         return super(RequestQuerySnapshotViewSet, self).retrieve(request, *args, **kwargs)
@@ -43,8 +49,12 @@ class RequestQuerySnapshotViewSet(NestedViewSetMixin, UserObjectsRestrictedViewS
                                            "'recipients' are strings joined with ','. 'name' is optional",
                          request_body=openapi.Schema(type=openapi.TYPE_OBJECT,
                                                      properties={"recipients": openapi.Schema(type=openapi.TYPE_STRING),
-                                                                 "name": openapi.Schema(type=openapi.TYPE_STRING)}),
-                         responses={'201': openapi.Response("New requests created for recipients", RequestQuerySnapshotSerializer(many=True)),
+                                                                 "name": openapi.Schema(type=openapi.TYPE_STRING),
+                                                                 "notify_by_email": openapi.Schema(
+                                                                     type=openapi.TYPE_BOOLEAN, default=False)
+                                                                 }),
+                         responses={'201': openapi.Response("New requests created for recipients",
+                                                            RequestQuerySnapshotSerializer(many=True)),
                                     '400': openapi.Response("One or more recipient's not found"),
                                     '404': openapi.Response("RequestQuerySnapshot not found (possibly not owned)")})
     @action(detail=True, methods=['post'], permission_classes=(IsOwner,), url_path="share")
@@ -54,7 +64,7 @@ class RequestQuerySnapshotViewSet(NestedViewSetMixin, UserObjectsRestrictedViewS
             raise ValidationError("'recipients' doit être fourni")
 
         recipients = recipients.split(",")
-        name = request.data.get('name', None)
+        name = request.data.get('name')
 
         users = User.objects.filter(pk__in=recipients)
         users_ids = [str(u.pk) for u in users]
@@ -63,8 +73,12 @@ class RequestQuerySnapshotViewSet(NestedViewSetMixin, UserObjectsRestrictedViewS
         if errors:
             raise ValidationError(f"Les utilisateurs avec les IDs suivants n'ont pas été trouvés: {','.join(errors)}")
 
-        rqs = self.get_object()
+        rqs: RequestQuerySnapshot = self.get_object()
         shared_rqs = rqs.share(users, name)
+        notify_by_email = request.data.get('notify_by_email', False)
+        if notify_by_email:
+            for recipient in users:
+                send_email_notif_about_request_sharing(name or rqs.request.name, rqs.owner, recipient)
         return Response(data=RequestQuerySnapshotSerializer(shared_rqs, many=True).data,
                         status=status.HTTP_201_CREATED)
 

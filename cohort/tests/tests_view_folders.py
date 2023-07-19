@@ -5,7 +5,7 @@ from typing import List
 from django.utils import timezone
 from rest_framework import status
 
-from admin_cohort.tests_tools import CaseRetrieveFilter, random_str, ListCase, RetrieveCase, CreateCase, DeleteCase, \
+from admin_cohort.tools.tests_tools import CaseRetrieveFilter, random_str, ListCase, RetrieveCase, CreateCase, DeleteCase, \
     PatchCase
 from cohort.models import Folder
 from cohort.tests.cohort_app_tests import CohortAppTests

@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from admin_cohort.middleware.request_trace_id_middleware import add_trace_id
+from cohort.tasks import get_count_task, cancel_previously_running_dm_jobs
 import cohort.conf_cohort_job_api as cohort_job_api
 from admin_cohort.models import User
 from admin_cohort.serializers import BaseSerializer, OpenUserSerializer
@@ -51,30 +53,26 @@ class DatedMeasureSerializer(BaseSerializer):
                             "mode",
                             "request"]
 
-    def update(self, instance, validated_data):
-        for f in ['request_query_snapshot']:
-            if f in validated_data:
-                raise ValidationError(f'{f} field cannot bu updated manually')
-        return super(DatedMeasureSerializer, self).update(instance, validated_data)
-
     def create(self, validated_data):
-        rqs = validated_data.get("request_query_snapshot")
+        query_snapshot = validated_data.get("request_query_snapshot")
         measure = validated_data.get("measure")
         fhir_datetime = validated_data.get("fhir_datetime")
 
-        if not rqs:
-            raise ValidationError("You have to provide a request_query_snapshot_id to bind the dated measure to it")
+        if not query_snapshot:
+            raise ValidationError("Invalid 'request_query_snapshot_id'")
 
-        if (measure and not fhir_datetime) or (not measure and fhir_datetime):
+        if (measure and not fhir_datetime) or (fhir_datetime and not measure):
             raise ValidationError("If you provide measure or fhir_datetime, you have to provide the other")
 
         dm = super(DatedMeasureSerializer, self).create(validated_data=validated_data)
 
+        auth_header = cohort_job_api.get_authorization_header(self.context.get("request"))
+        cancel_previously_running_dm_jobs.delay(add_trace_id(auth_header), dm.uuid)
+
         if not measure:
             try:
-                from cohort.tasks import get_count_task
                 auth_header = cohort_job_api.get_authorization_header(self.context.get("request"))
-                get_count_task.delay(auth_header, rqs.serialized_query, dm.uuid)
+                get_count_task.delay(add_trace_id(auth_header), query_snapshot.serialized_query, dm.uuid)
             except Exception as e:
                 dm.delete()
                 raise ValidationError(f"INTERNAL ERROR: Could not launch FHIR cohort count: {e}")
@@ -121,7 +119,7 @@ class CohortResultSerializer(BaseSerializer):
         if global_estimate:
             try:
                 from cohort.tasks import get_count_task
-                get_count_task.delay(cohort_job_api.get_authorization_header(self.context.get("request")),
+                get_count_task.delay(add_trace_id(cohort_job_api.get_authorization_header(self.context.get("request"))),
                                      str(rqs.serialized_query),
                                      dm_global.uuid)
             except Exception as e:
@@ -131,7 +129,7 @@ class CohortResultSerializer(BaseSerializer):
         try:
             from cohort.tasks import create_cohort_task
             auth_header = cohort_job_api.get_authorization_header(self.context.get("request"))
-            create_cohort_task.delay(auth_header, rqs.serialized_query, cohort_result.uuid)
+            create_cohort_task.delay(add_trace_id(auth_header), rqs.serialized_query, cohort_result.uuid)
         except Exception as e:
             cohort_result.delete()
             raise ValidationError(f"Error on pushing new message to the queue: {e}")
@@ -145,11 +143,13 @@ class CohortResultSerializerFullDatedMeasure(CohortResultSerializer):
 
 
 class ReducedRequestQuerySnapshotSerializer(BaseSerializer):
-    owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
-
     class Meta:
         model = RequestQuerySnapshot
-        fields = "__all__"
+        fields = ["uuid",
+                  "created_at",
+                  "title",
+                  "has_linked_cohorts",
+                  "version"]
 
 
 class RequestQuerySnapshotSerializer(BaseSerializer):
@@ -165,7 +165,7 @@ class RequestQuerySnapshotSerializer(BaseSerializer):
         fields = "__all__"
         optional_fields = ["previous_snapshot", "request"]
         read_only_fields = ["is_active_branch", "care_sites_ids",
-                            "dated_measures", "cohort_results", 'shared_by']
+                            "dated_measures", "cohort_results", 'shared_by', "version"]
 
     def create(self, validated_data):
         previous_snapshot = validated_data.get("previous_snapshot")
@@ -182,6 +182,7 @@ class RequestQuerySnapshotSerializer(BaseSerializer):
 
         serialized_query = validated_data.get("serialized_query")
         validated_data["perimeters_ids"] = retrieve_perimeters(serialized_query)
+        validated_data["version"] = len(validated_data["request"].query_snapshots.all()) + 1
 
         new_rqs = super(RequestQuerySnapshotSerializer, self).create(validated_data=validated_data)
 
@@ -200,7 +201,7 @@ class RequestQuerySnapshotSerializer(BaseSerializer):
 
 class RequestSerializer(BaseSerializer):
     owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
-    query_snapshots = serializers.SlugRelatedField(slug_field='uuid', many=True, read_only=True)
+    query_snapshots = ReducedRequestQuerySnapshotSerializer(read_only=True, many=True)
     shared_by = OpenUserSerializer(read_only=True)
     parent_folder = PrimaryKeyRelatedFieldWithOwner(queryset=Folder.objects.all())
 
@@ -208,6 +209,13 @@ class RequestSerializer(BaseSerializer):
         model = Request
         fields = "__all__"
         read_only_fields = ["query_snapshots", 'shared_by']
+
+    def to_representation(self, instance):
+        res = super().to_representation(instance)
+        res["query_snapshots"] = sorted(res["query_snapshots"],
+                                        key=lambda rqs: rqs["created_at"],
+                                        reverse=True)
+        return res
 
 
 class FolderSerializer(BaseSerializer):

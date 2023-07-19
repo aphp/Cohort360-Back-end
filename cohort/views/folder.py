@@ -2,6 +2,7 @@ from django_filters import rest_framework as filters, OrderingFilter
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
+from admin_cohort.tools.cache import cache_response
 from admin_cohort.views import CustomLoggingMixin
 from cohort.models import Folder
 from cohort.serializers import FolderSerializer
@@ -21,10 +22,12 @@ class FolderViewSet(CustomLoggingMixin, NestedViewSetMixin, UserObjectsRestricte
     serializer_class = FolderSerializer
     http_method_names = ['get', 'post', 'patch', 'delete']
     lookup_field = "uuid"
-
     swagger_tags = ['Cohort - folders']
     logging_methods = ['POST', 'PUT', 'PATCH', 'DELETE']
     pagination_class = LimitOffsetPagination
-
     filterset_class = FolderFilter
     search_fields = ('$name',)
+
+    @cache_response()
+    def list(self, request, *args, **kwargs):
+        return super(FolderViewSet, self).list(request, *args, **kwargs)

@@ -12,10 +12,9 @@ stages:
 lint-job:
   stage: lint
   before_script:
-    - pip install flake8
+    - pip install ruff
   script:
-    - echo "test lint"
-    - flake8 accesses/ admin_cohort/ cohort/ workspaces/ exports/ --max-line-length 150
+    - ruff check .
   allow_failure: false
 
 test-job:
@@ -63,16 +62,6 @@ sonarqube-check:
     - export VERSION=$(cat ./admin_cohort/__init__.py | grep __version__ | head -1 | awk -F'=' '{ print $2 }' | sed "s/[' ]//g")
     - sonar-scanner -Dsonar.projectVersion=$VERSION
 
-dependency-check-job:
-  stage: test
-  image:
-    name: python:3.11.1
-  script:
-    - pip install -r requirements.txt
-    - pip install safety
-    - safety check
-  allow_failure: true
-
 deploy-job:
   image: harbor.eds.aphp.fr/cohort360/kaniko:debug
   stage: deploy
@@ -98,4 +87,5 @@ deploy-job:
   only:
     - tags
     - develop
-    - ^feat_deploy_(\w*|\d*)
+    - /^feat_deploy_(\w*|\d*|-*|_*)+$/
+    - /^release_(\w*|\d*|-*|_*|\.*)+$/
