@@ -134,7 +134,8 @@ def get_job_status(service: str, job_id: str) -> ApiJobResponse:
               "return_err_logs": False
               }
     job_status_url = f"{INFRA_API_URL}/{service}/task_status"
-    response = requests.get(url=job_status_url, params=params, headers={'auth-token': INFRA_EXPORT_TOKEN})
+    auth_token = service == "hadoop" and INFRA_HADOOP_TOKEN or INFRA_EXPORT_TOKEN
+    response = requests.get(url=job_status_url, params=params, headers={'auth-token': auth_token})
     status_response = JobStatusResponse(response=response)
     job_status = statuses_mapper.get(status_response.task_status, JobStatus.unknown)
 
