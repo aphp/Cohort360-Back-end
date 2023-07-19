@@ -1,5 +1,5 @@
 __title__ = 'Portail/Cohort360 API'
-__version__ = '3.13.2'
+__version__ = '3.14.0-SNAPSHOT'
 __author__ = 'Assistance Publique - Hopitaux de Paris, Département I&D'
 
 
