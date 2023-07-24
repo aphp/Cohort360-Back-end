@@ -9,6 +9,7 @@ from django.db import models
 
 from admin_cohort.models import User
 from admin_cohort.settings import SHARED_FOLDER_NAME
+from admin_cohort.tools.cache import invalidate_cache
 from cohort.models import CohortBaseModel, Request, Folder
 
 
@@ -68,6 +69,8 @@ class RequestQuerySnapshot(CohortBaseModel):
         Folder.objects.bulk_create(folders_to_create)
         Request.objects.bulk_create(requests)
         created = RequestQuerySnapshot.objects.bulk_create(rqss)
+        for model in (Folder, Request, RequestQuerySnapshot):
+            invalidate_cache(model_name=model.__name__, user=str(self.owner_id))
         return created
 
     def save(self, *args, **kwargs):
