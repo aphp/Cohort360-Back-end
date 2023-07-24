@@ -5,7 +5,12 @@ variables:
 
 workflow:
   rules:
-    - if: $CI_COMMIT_BRANCH == "tags" || $CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH =~ /^feat_deploy_(\w*|\d*|-*|_*)+$/ || $CI_COMMIT_BRANCH =~ /^release_(\w*|\d*|-*|_*|\.*)+$/)
+    - if: |
+        $CI_COMMIT_BRANCH == "tags" ||
+        $CI_COMMIT_BRANCH == "develop" ||
+        $CI_COMMIT_BRANCH == "main" ||
+        $CI_COMMIT_BRANCH =~ /^feat_deploy_(\w*|\d*|-*|_*)+$/ ||
+        $CI_COMMIT_BRANCH =~ /^release_(\w*|\d*|-*|_*|\.*)+$/
 
 stages:
   - lint
