@@ -9,6 +9,7 @@ from django.utils import timezone
 
 from accesses.models import Perimeter, Access
 from admin_cohort import settings
+from admin_cohort.tools.cache import invalidate_cache
 
 """
 This script define 3 data models and the function which will refresh by insert/update all modified Perimeters objects.
@@ -552,4 +553,6 @@ def perimeters_data_model_objects_update():
                                                     existing_perimeters, top_perimeters_list)
     _logger.info("Start deletion of removed perimeters")
     delete_perimeters_and_accesses(existing_perimeters, all_valid_care_site_relationship)
-    _logger.info("End of perimeters updating")
+    _logger.info("End of perimeters updating. Invalidating cache for Perimeters and Accesses")
+    invalidate_cache(model_name=Perimeter.__name__)
+    invalidate_cache(model_name=Access.__name__)
