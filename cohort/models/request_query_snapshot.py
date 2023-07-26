@@ -70,7 +70,7 @@ class RequestQuerySnapshot(CohortBaseModel):
         Request.objects.bulk_create(requests)
         created = RequestQuerySnapshot.objects.bulk_create(rqss)
         for model in (Folder, Request, RequestQuerySnapshot):
-            invalidate_cache(model_name=model.__name__, user=str(self.owner_id))
+            invalidate_cache(model_name=model.__name__)
         return created
 
     def save(self, *args, **kwargs):
