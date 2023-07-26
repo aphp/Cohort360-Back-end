@@ -34,6 +34,7 @@ class Migration(migrations.Migration):
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
         ('accesses', '0003_access_created_by_access_updated_by'),
+        ('rest_framework_tracking', '0001_initial')
     ]
 
     operations = [
