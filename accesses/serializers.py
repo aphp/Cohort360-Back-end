@@ -319,6 +319,8 @@ class AccessSerializer(BaseSerializer):
     profile_id = serializers.PrimaryKeyRelatedField(queryset=Profile.objects.all(), source="profile", write_only=True)
     provider_history_id = serializers.IntegerField(source='profile_id', required=False)
     provider_history = ReducedProfileSerializer(read_only=True, source='profile')
+    created_by = serializers.SlugRelatedField(read_only=True, slug_field="displayed_name")
+    updated_by = serializers.SlugRelatedField(read_only=True, slug_field="displayed_name")
 
     class Meta:
         model = Access
@@ -338,7 +340,9 @@ class AccessSerializer(BaseSerializer):
                   "role_id",
                   "perimeter",
                   "perimeter_id",
-                  "care_site_history_id"]
+                  "care_site_history_id",
+                  "created_by",
+                  "updated_by"]
         write_only_fields = ["start_datetime", "end_datetime"]
         read_only_fields = ["_id",
                             "is_valid",
@@ -373,6 +377,9 @@ class AccessSerializer(BaseSerializer):
         if not can_user_manage_access(creator, role, perimeter):
             raise PermissionDenied("You are not allowed to manage accesses")
 
+        validated_data["created_by"] = creator
+        validated_data["updated_by"] = creator
+
         profile: Profile = validated_data.get("profile")
         provider_history_id = validated_data.get("provider_history_id")
         if not (profile or Profile.objects.filter(id=provider_history_id, source=MANUAL_SOURCE).first()):
@@ -399,6 +406,7 @@ class AccessSerializer(BaseSerializer):
         validated_data.pop("care_site_id", None)    # todo: remove when ready with perimeter
         validated_data.pop("profile", None)
         validated_data.pop("provider_history_id", None)
+        validated_data["updated_by"] = self.context.get('request').user
 
         validated_data = fix_csh_dates(validated_data, for_update=True)
         check_date_rules(new_start_datetime=validated_data.get("manual_start_datetime"),
