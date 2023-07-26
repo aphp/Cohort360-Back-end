@@ -268,6 +268,8 @@ class PerimeterSerializer(serializers.ModelSerializer):
     parents_ids = serializers.SerializerMethodField('build_parents_ids', read_only=True)
     type = serializers.CharField(allow_null=True, source='type_source_value')
     names = serializers.DictField(allow_null=True, read_only=True, child=serializers.CharField())
+    same_level_users_count = serializers.IntegerField(read_only=True)
+    same_and_inf_level_users_count = serializers.IntegerField(read_only=True)
 
     def build_parents_ids(self, cs: Perimeter) -> List[int]:
         p_id = getattr(cs, 'parent_id', None)

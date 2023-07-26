@@ -70,6 +70,28 @@ class Perimeter(BaseModel):
             _logger.error(f"Error getting inferior levels ids for perimeter {self}.\n {e}")
             raise e
 
+    @property
+    def same_level_users_count(self):
+        return len(set((access.profile.user for access in self.accesses.all())))
+
+    def count_extra_users_in_inferior_levels(self, perimeter, main_perimeter_users):
+        count = 0
+        if perimeter.inferior_levels_ids:
+            for inf_perimeter in Perimeter.objects.filter(id__in=perimeter.inferior_levels):
+                count += self.count_extra_users_in_inferior_levels(perimeter=inf_perimeter,
+                                                                   main_perimeter_users=main_perimeter_users)
+        else:
+            users_in = set(access.profile.user for access in perimeter.accesses.all())
+            extra_users = [user for user in users_in if user not in main_perimeter_users]
+            count += len(extra_users)
+        return count
+
+    @property
+    def same_and_inf_level_users_count(self):
+        perimeter_users = set(access.profile.user for access in self.accesses.all())
+        return self.same_level_users_count + self.count_extra_users_in_inferior_levels(perimeter=self,
+                                                                                       main_perimeter_users=perimeter_users)
+
     def all_parents_query(self, prefix: str = None) -> Q:
         prefix = f"{prefix}__" if prefix is not None else ""
         return join_qs([
