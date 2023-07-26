@@ -5,6 +5,25 @@ from django.conf import settings
 from django.db import migrations
 
 
+def set_creator_for_old_accesses(apps, schema_editor):
+    apiRequestLog = apps.get_model('rest_framework_tracking', 'APIRequestLog')
+    access_model = apps.get_model('accesses', 'Access')
+    db_alias = schema_editor.connection.alias
+
+    create_accesses_logs = apiRequestLog.objects.using(db_alias).filter(method="POST",
+                                                                        view_method="create",
+                                                                        status_code="201",
+                                                                        view__icontains="accesses.views.access")\
+                                                                .values("user_id", "response")
+    for log in create_accesses_logs:
+        response = json.loads(log.get("response"))
+        access_id = response.get("id")
+        access = access_model.objects.using(db_alias).filter(id=access_id).first()
+        if access:
+            access.created_by_id = log.get("user_id")
+            access.save()
+
+
 def set_last_updater_for_old_accesses(apps, schema_editor):
     apiRequestLog = apps.get_model('rest_framework_tracking', 'APIRequestLog')
     access_model = apps.get_model('accesses', 'Access')
@@ -38,15 +57,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunSQL(sql="""UPDATE accesses_access a
-                                 SET created_by = l.user_id
-                                 FROM rest_framework_tracking_apirequestlog l
-                                 WHERE l.method = 'POST' AND
-                                 l.view ILIKE '%accesses.views.access%' AND
-                                 l.view_method = 'create' AND
-                                 l.status_code = '201' AND
-                                 a.id = TRIM(BOTH ',' FROM SUBSTRING(l.response FROM 7 FOR 4))::int""",
-                          reverse_sql="UPDATE accesses_access SET created_by= NULL WHERE created_by IS NOT NULL"
-                          ),
+        migrations.RunPython(code=set_creator_for_old_accesses),
         migrations.RunPython(code=set_last_updater_for_old_accesses)
     ]
