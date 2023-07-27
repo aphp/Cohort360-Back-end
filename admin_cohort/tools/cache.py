@@ -25,14 +25,7 @@ def construct_cache_key(view_instance=None, view_method=None, request=None, *arg
     username = request.user.provider_username
     view_class = view_instance.__class__.__name__
     view_meth_name = view_method.__name__
-    key = ".".join((username, view_class, view_meth_name))
-
-    if view_instance.detail:
-        lookup_field = view_instance.lookup_field
-        record_id = view_instance.kwargs.get(lookup_field)
-        key = ".".join((key, lookup_field, record_id))
-    if request.query_params:
-        key = f"{key}." + ".".join(map(str, (f"{k}={v}" for k, v in request.query_params.items())))
+    key = ".".join((username, view_class, view_meth_name, request._request.path))
     return key
 
 
