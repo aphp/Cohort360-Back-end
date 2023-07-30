@@ -3,10 +3,12 @@ from __future__ import annotations
 import logging
 from typing import List, Union
 
+from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.db.models import Q
 from django.db.models.query import QuerySet, Prefetch
 
+from accesses.models import Access
 from admin_cohort.models import BaseModel
 from admin_cohort.settings import PERIMETERS_TYPES
 from admin_cohort.tools import join_qs
@@ -22,11 +24,15 @@ class Perimeter(BaseModel):
     short_name = models.TextField(blank=True, null=True)
     type_source_value = models.TextField(blank=True, null=True)
     parent = models.ForeignKey("accesses.perimeter", on_delete=models.CASCADE, related_name="children", null=True)
-    above_levels_ids = models.TextField(blank=True, null=True)
-    inferior_levels_ids = models.TextField(blank=True, null=True)
+    above_levels_ids = models.TextField(blank=True, null=True)  # todo: make it ArrayField instead
+    inferior_levels_ids = models.TextField(blank=True, null=True)   # todo: make it ArrayField instead
     cohort_id = models.TextField(blank=True, null=True)
     full_path = models.TextField(blank=True, null=True)
     cohort_size = models.TextField(blank=True, null=True)
+    level = models.IntegerField(blank=True, null=True)
+    allowed_users = ArrayField(models.CharField(max_length=25), null=True, blank=True)
+    allowed_users_inferior_levels = ArrayField(models.CharField(max_length=25), null=True, blank=True)
+    allowed_users_above_levels = ArrayField(models.CharField(max_length=25), null=True, blank=True)
 
     def __str__(self):
         return f"[{self.id}] {self.name}"
@@ -70,28 +76,6 @@ class Perimeter(BaseModel):
             _logger.error(f"Error getting inferior levels ids for perimeter {self}.\n {e}")
             raise e
 
-    @property
-    def same_level_users_count(self):
-        return len(set((access.profile.user for access in self.accesses.all())))
-
-    def count_extra_users_in_inferior_levels(self, perimeter, main_perimeter_users):
-        count = 0
-        if perimeter.inferior_levels_ids:
-            for inf_perimeter in Perimeter.objects.filter(id__in=perimeter.inferior_levels):
-                count += self.count_extra_users_in_inferior_levels(perimeter=inf_perimeter,
-                                                                   main_perimeter_users=main_perimeter_users)
-        else:
-            users_in = set(access.profile.user for access in perimeter.accesses.all())
-            extra_users = [user for user in users_in if user not in main_perimeter_users]
-            count += len(extra_users)
-        return count
-
-    @property
-    def same_and_inf_level_users_count(self):
-        perimeter_users = set(access.profile.user for access in self.accesses.all())
-        return self.same_level_users_count + self.count_extra_users_in_inferior_levels(perimeter=self,
-                                                                                       main_perimeter_users=perimeter_users)
-
     def all_parents_query(self, prefix: str = None) -> Q:
         prefix = f"{prefix}__" if prefix is not None else ""
         return join_qs([
@@ -115,6 +99,45 @@ class Perimeter(BaseModel):
         filtered_queryset = filtered_queryset or cls.objects.all()
         return Prefetch('children', queryset=filtered_queryset,
                         to_attr='prefetched_children')
+
+    def add_new_allowed_user(self, new_user_id):
+        perimeter = self
+        perimeter.allowed_users = list(set((perimeter.allowed_users or []) + [new_user_id]))
+        perimeter.save()
+        while perimeter.parent:
+            allowed_users_inferior_levels = perimeter.allowed_users_inferior_levels
+            is_leaf = bool(perimeter.inferior_levels_ids) is False
+            if is_leaf:
+                allowed_users_inferior_levels = perimeter.allowed_users
+            parent = perimeter.parent
+            parent_allowed_users_inferior_levels = parent.allowed_users_inferior_levels or []
+            parent.allowed_users_inferior_levels = list(set(parent_allowed_users_inferior_levels +
+                                                            allowed_users_inferior_levels))
+            parent.save()
+            perimeter = parent
+
+    def remove_user_from_allowed_users(self, user_id):
+        perimeter = self
+        perimeter.allowed_users.remove(user_id)
+        perimeter.save()
+
+        while perimeter.parent:
+            parent = perimeter.parent
+            remove_user = True
+            if parent.children.filter(Q(allowed_users__contains=[user_id]) |
+                                      Q(allowed_users_inferior_levels__contains=[user_id])):
+                remove_user = False
+            if remove_user:
+                parent.allowed_users_inferior_levels.remove(user_id)
+                parent.save()
+            perimeter = parent
+
+    def revoke_allowed_users(self, user_id):
+        # todo: remains the case when an access is no longer valid
+        user_accesses = self.accesses.filter(Access.Q_is_valid(), profile__user_id=user_id)
+        if not user_accesses:
+            # if the user had exactly one access, it would have been closed, thus no accesses found
+            self.remove_user_from_allowed_users(user_id=user_id)
 
 
 def get_all_perimeters_parents_queryset(perims: List[Perimeter], ) -> QuerySet:

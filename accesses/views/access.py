@@ -206,7 +206,9 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
                             status=status.HTTP_403_FORBIDDEN)
 
         request.data.update({'end_datetime': now})
-        return self.partial_update(request, *args, **kwargs)
+        response = self.partial_update(request, *args, **kwargs)
+        access.perimeter.revoke_allowed_users(user_id=access.profile.user_id)
+        return response
 
     def destroy(self, request, *args, **kwargs):
         access = self.get_object()
@@ -215,7 +217,9 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
                 return Response(data="L'accès est déjà/a déjà été activé, il ne peut plus être supprimé.",
                                 status=status.HTTP_403_FORBIDDEN)
         self.perform_destroy(access)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        response = Response(status=status.HTTP_204_NO_CONTENT)
+        access.perimeter.revoke_allowed_users(user_id=access.profile.user_id)
+        return response
 
     @swagger_auto_schema(method='get',
                          operation_summary="Get the authenticated user's valid accesses.",
