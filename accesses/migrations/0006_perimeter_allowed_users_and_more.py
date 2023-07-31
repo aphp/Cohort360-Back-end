@@ -4,7 +4,7 @@ from collections import defaultdict
 import django.contrib.postgres.fields
 from django.db import migrations, models
 
-from accesses.models import Access
+from accesses.models.tools import q_is_valid_access
 
 
 def compute_allowed_users(apps, schema_editor):
@@ -12,7 +12,7 @@ def compute_allowed_users(apps, schema_editor):
     access_model = apps.get_model('accesses', 'Access')
 
     perimeters_users = defaultdict(set)
-    for access in access_model.objects.using(db_alias).filter(Access.Q_is_valid()):
+    for access in access_model.objects.using(db_alias).filter(q_is_valid_access()):
         perimeters_users[access.perimeter].add(access.profile.user_id)
 
     print("perimeters_users count: ", len(perimeters_users))

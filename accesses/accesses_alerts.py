@@ -5,6 +5,7 @@ from django.core.mail import EmailMultiAlternatives
 from django.db.models import Q, Count
 
 from accesses.models import Access, Profile
+from accesses.models.tools import q_is_valid_access
 from admin_cohort.models import User
 from admin_cohort.settings import EMAIL_SENDER_ADDRESS, MANUAL_SOURCE
 
@@ -46,7 +47,7 @@ def send_alert_email(user: User, days: int):
 def send_access_expiry_alerts(days: int):
     _logger.info("Checking expiring accesses")
     expiry_date = date.today() + timedelta(days=days)
-    expiring_accesses = Access.objects.filter(Access.Q_is_valid() &
+    expiring_accesses = Access.objects.filter(q_is_valid_access() &
                                               Q(profile__source=MANUAL_SOURCE) &
                                               (Q(end_datetime__date=expiry_date) |
                                                Q(manual_end_datetime__date=expiry_date)))\

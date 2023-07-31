@@ -8,7 +8,6 @@ from django.db import models
 from django.db.models import Q
 from django.db.models.query import QuerySet, Prefetch
 
-from accesses.models import Access
 from admin_cohort.models import BaseModel
 from admin_cohort.settings import PERIMETERS_TYPES
 from admin_cohort.tools import join_qs
@@ -117,6 +116,7 @@ class Perimeter(BaseModel):
             perimeter = parent
 
     def remove_user_from_allowed_users(self, user_id):
+        # todo: remains the case when an access is no longer valid
         perimeter = self
         perimeter.allowed_users.remove(user_id)
         perimeter.save()
@@ -131,13 +131,6 @@ class Perimeter(BaseModel):
                 parent.allowed_users_inferior_levels.remove(user_id)
                 parent.save()
             perimeter = parent
-
-    def revoke_allowed_users(self, user_id):
-        # todo: remains the case when an access is no longer valid
-        user_accesses = self.accesses.filter(Access.Q_is_valid(), profile__user_id=user_id)
-        if not user_accesses:
-            # if the user had exactly one access, it would have been closed, thus no accesses found
-            self.remove_user_from_allowed_users(user_id=user_id)
 
 
 def get_all_perimeters_parents_queryset(perims: List[Perimeter], ) -> QuerySet:
