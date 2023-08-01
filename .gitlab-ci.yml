@@ -3,6 +3,15 @@ image: harbor.eds.aphp.fr/cohort360/python:3.11.1
 variables:
   PIP_EXTRA_CLI_PARAMETERS: "--proxy=http:\\/\\/proxym-inter.aphp.fr:8080"
 
+workflow:
+  rules:
+    - if: |
+        $CI_COMMIT_BRANCH == "tags" ||
+        $CI_COMMIT_BRANCH == "develop" ||
+        $CI_COMMIT_BRANCH == "main" ||
+        $CI_COMMIT_BRANCH =~ /^feat_deploy_(\w*|\d*|-*|_*)+$/ ||
+        $CI_COMMIT_BRANCH =~ /^release_(\w*|\d*|-*|_*|\.*)+$/
+
 stages:
   - lint
   - test
