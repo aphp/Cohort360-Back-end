@@ -105,7 +105,8 @@ def logout_user(request):
                             "refresh_token": request.jwt_refresh_key},
                       headers={"Authorization": f"Bearer {request.jwt_access_key}"})
     else:
-        raise ValueError(f"Unknown `AUTHORIZATIONMETHOD` header: {auth_mode}")
+        _logger.warning(f"Unknown `AUTHORIZATIONMETHOD` header: {auth_mode}."
+                        f"User: {request.user} ACCESS_TOKEN: {request.COOKIES.get('access')}")
 
 
 def decode_oidc_token(token: str, issuer: str):
