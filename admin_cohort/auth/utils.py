@@ -208,16 +208,18 @@ def get_raw_token(header: bytes) -> Union[str, None]:
 
 
 def check_id_aph(id_aph: str) -> Optional[PersonIdentity]:
-    resp = requests.post(url=ID_CHECKER_URL, data={'username': id_aph}, headers=id_checker_server_headers)
+    resp = requests.post(url=ID_CHECKER_URL,
+                         data={'username': id_aph},
+                         headers=id_checker_server_headers)
     if status.is_server_error(resp.status_code):
-        raise ServerError(f"Error {resp.status_code} from id-checker server ({ID_CHECKER_URL}): {resp.text}")
+        raise ServerError(f"Error {resp.status_code} from ID-CHECKER server ({ID_CHECKER_URL}): {resp.text}")
     if resp.status_code != status.HTTP_200_OK:
         raise ServerError(f"Internal error: {resp.text}")
 
     res: dict = resp.json().get('data', {}).get('attributes', {})
     for expected in ['givenName', 'sn', 'sAMAccountName', 'mail']:
         if expected not in res:
-            raise MissingDataError(f"JWT server response is missing {expected} ({resp.content})")
+            raise MissingDataError(f"ID-CHECKER server response is missing {expected} ({resp.content})")
     return PersonIdentity(firstname=res.get('givenName'),
                           lastname=res.get('sn'),
                           user_id=res.get('sAMAccountName'),
