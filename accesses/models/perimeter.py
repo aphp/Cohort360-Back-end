@@ -124,9 +124,10 @@ class Perimeter(BaseModel):
         while perimeter.parent:
             parent = perimeter.parent
             remove_user = True
-            if parent.children.filter(Q(allowed_users__contains=[user_id]) |
-                                      Q(allowed_users_inferior_levels__contains=[user_id])):
-                remove_user = False
+            for child in parent.children.all():
+                if user_id in child.allowed_users + child.allowed_users_inferior_levels:
+                    remove_user = False
+                    break
             if remove_user:
                 parent.allowed_users_inferior_levels.remove(user_id)
                 parent.save()
