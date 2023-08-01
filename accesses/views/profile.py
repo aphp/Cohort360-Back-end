@@ -15,6 +15,7 @@ from admin_cohort.models import User
 from admin_cohort.permissions import IsAuthenticated, can_user_read_users
 from admin_cohort.serializers import UserSerializer
 from admin_cohort.settings import MANUAL_SOURCE
+from admin_cohort.types import ServerError, MissingDataError
 from admin_cohort.views import BaseViewset, CustomLoggingMixin
 from ..models import Profile
 from ..permissions import ProfilePermissions, HasUserAddingPermission
@@ -120,22 +121,26 @@ class ProfileViewSet(CustomLoggingMixin, BaseViewset):
             return Response(data="No `username` was provided", status=status.HTTP_400_BAD_REQUEST)
         username_regex = re.compile(USERNAME_REGEX)
         if not username_regex.match(username):
-            return Response(data="The given username format is not allowed", status=status.HTTP_400_BAD_REQUEST)
-        person = check_id_aph(username)
-        manual_profile: Profile = Profile.objects.filter(Profile.Q_is_valid()
-                                                         & Q(source=MANUAL_SOURCE)
-                                                         & Q(user__provider_username=person.user_id)
-                                                         ).first()
+            return Response(data="The given username format is not allowed", status=status.HTTP_200_OK)
 
-        user: User = User.objects.filter(provider_username=person.user_id).first()
-        user_data = user and UserSerializer(user).data or None
+        try:
+            person = check_id_aph(username)
+            manual_profile: Profile = Profile.objects.filter(Profile.Q_is_valid()
+                                                             & Q(source=MANUAL_SOURCE)
+                                                             & Q(user__provider_username=person.user_id)
+                                                             ).first()
 
-        data = ProfileCheckSerializer({"firstname": person.firstname,
-                                       "lastname": person.lastname,
-                                       "user_id": person.user_id,
-                                       "email": person.email,
-                                       "provider": user_data,
-                                       "user": user_data,
-                                       "manual_profile": manual_profile
-                                       }).data
-        return Response(data=data, status=status.HTTP_200_OK)
+            user: User = User.objects.filter(provider_username=person.user_id).first()
+            user_data = user and UserSerializer(user).data or None
+
+            data = ProfileCheckSerializer({"firstname": person.firstname,
+                                           "lastname": person.lastname,
+                                           "user_id": person.user_id,
+                                           "email": person.email,
+                                           "provider": user_data,
+                                           "user": user_data,
+                                           "manual_profile": manual_profile
+                                           }).data
+            return Response(data=data, status=status.HTTP_200_OK)
+        except (ServerError, MissingDataError):
+            return Response(data="User not found", status=status.HTTP_204_NO_CONTENT)
