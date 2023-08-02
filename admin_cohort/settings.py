@@ -46,6 +46,7 @@ CSRF_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_SECURE = not DEBUG
 
 ADMINS = [a.split(',') for a in env("ADMINS").split(';')]
+NOTIFY_ADMINS = bool(env("NOTIFY_ADMINS", default=False))
 
 logging.captureWarnings(True)
 
@@ -59,7 +60,7 @@ LOGGING = dict(version=1,
                     },
                     'django.request': {
                        'level': "ERROR",
-                       'handlers': ['error_handler', 'mail_admins'],
+                       'handlers': ['error_handler'] + (NOTIFY_ADMINS and ['mail_admins'] or []),
                        'propagate': False
                     }},
                handlers={
