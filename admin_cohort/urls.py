@@ -34,4 +34,4 @@ urlpatterns = [re_path(r'^', include(router.urls)),
                path("workspaces/", include(("workspaces.urls", "workspaces"), namespace="workspaces")),
                re_path(r"^docs", schema_view.with_ui(renderer="swagger", cache_timeout=0, )),
                re_path(r"^redoc/$", schema_view.with_ui(renderer="redoc", cache_timeout=0), name="schema-redoc"),
-               ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+               ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
