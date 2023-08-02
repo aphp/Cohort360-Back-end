@@ -133,8 +133,8 @@ def decode_oidc_token(token: str, issuer: str):
 def verify_oidc_token_for_issuer(token: str, issuer: str):
     try:
         return decode_oidc_token(token=token, issuer=issuer)
-    except DecodeError as de:
-        _logger_err.error(f"Error decoding token for issuer `{issuer}` - {de}")
+    except Exception as e:
+        _logger_err.error(f"Error decoding token for issuer `{issuer}` - {e}")
         return None
 
 
@@ -163,10 +163,10 @@ def get_userinfo_from_token(token: str, auth_method: str) -> Union[None, UserInf
             decoded = verify_oidc_token_for_issuer(token=token,
                                                    issuer=issuer)
             if decoded:
-                return UserInfo(username=decoded['preferred_username'],
-                                firstname=decoded['name'],
-                                lastname=decoded['family_name'],
-                                email=decoded['email'])
+                return UserInfo(username=decoded.get('preferred_username'),
+                                firstname=decoded.get('name'),
+                                lastname=decoded.get('family_name'),
+                                email=decoded.get('email'))
         raise InvalidToken("Invalid OIDC Token: unknown issuer")
     else:
         raise ValueError(f"Invalid authentication method : {auth_method}")
