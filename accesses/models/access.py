@@ -10,7 +10,7 @@ from accesses.models.perimeter import Perimeter
 from accesses.models.profile import Profile
 from accesses.models.role import Role
 from admin_cohort.tools.cache import invalidate_cache
-from admin_cohort.models import BaseModel
+from admin_cohort.models import BaseModel, User
 from admin_cohort.settings import MANUAL_SOURCE
 
 
@@ -24,6 +24,8 @@ class Access(BaseModel):
     end_datetime = models.DateTimeField(blank=True, null=True)
     manual_start_datetime = models.DateTimeField(blank=True, null=True)
     manual_end_datetime = models.DateTimeField(blank=True, null=True)
+    created_by = models.ForeignKey(User, on_delete=SET_NULL, related_name='created_accesses', null=True, db_column="created_by")
+    updated_by = models.ForeignKey(User, on_delete=SET_NULL, related_name='updated_accesses', null=True, db_column="updated_by")
 
     def save(self, *args, **kwargs):
         super(Access, self).save(*args, **kwargs)
