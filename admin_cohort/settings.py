@@ -124,9 +124,6 @@ AUTHENTICATION_BACKENDS = ['admin_cohort.auth.auth_backends.JWTAuthBackend',
 
 ROOT_URLCONF = 'admin_cohort.urls'
 
-MEDIA_ROOT = BASE_DIR / 'admin_cohort/media'
-MEDIA_URL = '/media/'
-
 TEMPLATES = [{'BACKEND': 'django.template.backends.django.DjangoTemplates',
               'DIRS': [BASE_DIR / 'admin_cohort/templates'],
               'APP_DIRS': True,
@@ -167,6 +164,7 @@ USE_DEPRECATED_PYTZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'static'
+STATICFILES_DIRS = [BASE_DIR / 'admin_cohort/static/']
 
 REST_FRAMEWORK = {'DEFAULT_PERMISSION_CLASSES': ('admin_cohort.permissions.IsAuthenticated',),
                   'DEFAULT_AUTHENTICATION_CLASSES': ['admin_cohort.auth.auth_class.Authentication'],
