@@ -1,108 +1,28 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Login</title>
-</head>
-<body>
-<div id="login-form-wrap">
-    <div class="login">
-        <img src="/media/Logo_user_data_SVG_cohort360_small.png" alt="Cohort360" class="center"/>
-        <div class="login-background">
-            <form method="post" id="login-form">
-                {% csrf_token %}
-                <input type="text" id="id_username" name="username" placeholder="Username"><i
-                    class="validation"><span></span><span></span></i>
-                <input type="password" id="id_password" name="password" placeholder="Password" required><i
-                    class="validation"><span></span><span></span></i>
-                <input type="submit" id="login" value="Login">
-            </form>
-            <img src="/media/logo-aphp-white.png" alt="Cohort360" class="center"/>
+    <head>
+        <meta charset="UTF-8">
+        <link rel="icon" href="{% static 'admin_cohort/img/favicon.ico' %}"/>
+        <title>Login</title>
+        <link rel="stylesheet" href="{% static 'admin_cohort/css/login.css' %}">
+    </head>
+    <body>
+        <div id="login-form-wrap">
+            <div class="login">
+                <img src="{% static 'admin_cohort/img/Logo_user_data_SVG_cohort360_small.png' %}" alt="Cohort360" class="center"/>
+                <div class="login-background">
+                    <form method="post" id="login-form">
+                        {% csrf_token %}
+                        <input type="text" id="id_username" name="username" placeholder="Username"><i
+                            class="validation"><span></span><span></span></i>
+                        <input type="password" id="id_password" name="password" placeholder="Password" required><i
+                            class="validation"><span></span><span></span></i>
+                        <input type="submit" id="login" value="Login">
+                    </form>
+                    <img src="{% static 'admin_cohort/img/logo-aphp-white.png' %}" alt="Cohort360" class="center"/>
+                </div>
+            </div>
         </div>
-    </div>
-</div>
-
-</body>
+    </body>
 </html>
-
-<style media="screen">
-    .center {
-        display: block;
-        margin: 5% auto;
-        width: 50%;
-    }
-
-    body {
-        margin: 0;
-        padding: 0;
-        background-color: #FAFAFA;
-    }
-
-    .login {
-        width: 382px;
-        overflow: hidden;
-        margin: auto;
-        padding: 80px;
-        border-radius: 15px;
-    }
-
-    .login-background {
-        margin: auto;
-        padding-top: 15%;
-        padding-bottom: 2%;
-        border-radius: 15px;
-        background: #1e488e;
-        text-align: center;
-    }
-
-    h2 {
-        text-align: center;
-        color: #5BC5F2;
-        padding: 20px;
-    }
-
-    label {
-        color: #5BC5F2;
-        font-size: 17px;
-    }
-
-    #id_username {
-        width: 300px;
-        height: 30px;
-        padding-left: 8px;
-    }
-
-    #id_password {
-        width: 300px;
-        height: 30px;
-        padding-left: 8px;
-    }
-
-    #login {
-        width: 150px;
-        height: 30px;
-        border: none;
-        border-radius: 17px;
-        padding-left: 7px;
-        background-color: #5BC5F2;
-        color: #FFFFFF;
-        margin-top: 2%;
-    }
-
-    #login:hover {
-        cursor: pointer;
-    }
-
-    span {
-        color: white;
-        font-size: 17px;
-    }
-
-    input {
-        margin-bottom: 2%;
-    }
-
-    input:focus {
-        outline: none !important;
-    }
-</style>

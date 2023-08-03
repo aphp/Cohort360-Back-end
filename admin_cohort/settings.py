@@ -124,9 +124,6 @@ AUTHENTICATION_BACKENDS = ['admin_cohort.auth.auth_backends.JWTAuthBackend',
 
 ROOT_URLCONF = 'admin_cohort.urls'
 
-MEDIA_ROOT = BASE_DIR / 'admin_cohort/media'
-MEDIA_URL = '/media/'
-
 TEMPLATES = [{'BACKEND': 'django.template.backends.django.DjangoTemplates',
               'DIRS': [BASE_DIR / 'admin_cohort/templates'],
               'APP_DIRS': True,
