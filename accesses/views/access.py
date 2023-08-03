@@ -220,12 +220,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
                 return Response(data="L'accès est déjà/a déjà été activé, il ne peut plus être supprimé.",
                                 status=status.HTTP_403_FORBIDDEN)
         self.perform_destroy(access)
-        response = Response(status=status.HTTP_204_NO_CONTENT)
-
-        user_accesses = get_user_valid_manual_accesses(user=access.profile.user)
-        if not user_accesses:
-            access.perimeter.remove_user_from_allowed_users(user_id=access.profile.user.provider_username)
-        return response
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @swagger_auto_schema(method='get',
                          operation_summary="Get the authenticated user's valid accesses.",
