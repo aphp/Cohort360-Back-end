@@ -89,10 +89,11 @@ class CareSite(models.Model):
 
 
 class RelationPerimeter:
-    def __init__(self, above_levels_ids: Union[str, None], children: str, full_path: str):
+    def __init__(self, above_levels_ids: Union[str, None], inferior_levels_ids: str, full_path: str, level: int):
         self.above_levels_ids = above_levels_ids
-        self.children = children
+        self.inferior_levels_ids = inferior_levels_ids
         self.full_path = full_path
+        self.level = level
 
 
 def get_concept_filter_id() -> tuple:
@@ -173,8 +174,9 @@ def map_care_site_to_perimeter(care_site: CareSite, relation_perimeter: Relation
                      cohort_id=care_site.cohort_id,
                      cohort_size=care_site.cohort_size,
                      above_levels_ids=relation_perimeter.above_levels_ids,
-                     inferior_levels_ids=relation_perimeter.children,
-                     full_path=relation_perimeter.full_path
+                     inferior_levels_ids=relation_perimeter.inferior_levels_ids,
+                     full_path=relation_perimeter.full_path,
+                     level=relation_perimeter.level
                      )
 
 
@@ -188,7 +190,7 @@ def is_care_site_different_from_perimeter(care_site: CareSite, perimeter: Perime
                 str(care_site.cohort_size) != str(perimeter.cohort_size),
                 relation_perimeter.above_levels_ids != perimeter.above_levels_ids,
                 relation_perimeter.full_path != perimeter.full_path,
-                relation_perimeter.children != perimeter.inferior_levels_ids))
+                relation_perimeter.inferior_levels_ids != perimeter.inferior_levels_ids))
 
 
 def set_perimeters_to_create_and_update(perimeters_to_create: List[Perimeter],
@@ -227,9 +229,11 @@ def create_top_perimeter(top_care_site: CareSite, all_care_sites: QuerySet, all_
 
     children = get_child_care_sites(care_site=top_care_site,
                                     all_care_sites=all_care_sites)
+    top_level = 1
     relation_perimeters = RelationPerimeter(above_levels_ids=None,
-                                            children=children,
-                                            full_path=path)
+                                            inferior_levels_ids=children,
+                                            full_path=path,
+                                            level=top_level)
     set_perimeters_to_create_and_update(perimeters_to_create=perimeters_to_create,
                                         perimeters_to_update=perimeters_to_update,
                                         all_perimeters=all_perimeters,
@@ -248,10 +252,11 @@ def create_top_perimeter(top_care_site: CareSite, all_care_sites: QuerySet, all_
     return current_perimeters + perimeters_to_create + perimeters_to_update
 
 
-def sequential_recursive_create_children_perimeters(parents_ids: List[int],
-                                                    care_sites: List[CareSite],
-                                                    all_perimeters: QuerySet,
-                                                    previous_level_perimeters: List[Perimeter]):
+def recursively_create_child_perimeters(parents_ids: List[int],
+                                        care_sites: List[CareSite],
+                                        all_perimeters: QuerySet,
+                                        previous_level_perimeters: List[Perimeter],
+                                        level: int):
     if not all_perimeters:
         all_perimeters = Perimeter.objects.none()
 
@@ -280,8 +285,9 @@ def sequential_recursive_create_children_perimeters(parents_ids: List[int],
             full_path = f"{parent_perimeter.full_path}/{care_site.care_site_source_value}-{care_site.care_site_name}"
 
             relation_perimeter = RelationPerimeter(above_levels_ids=above_levels_ids,
-                                                   children=children,
-                                                   full_path=full_path)
+                                                   inferior_levels_ids=children,
+                                                   full_path=full_path,
+                                                   level=level)
 
             set_perimeters_to_create_and_update(perimeters_to_create=perimeters_to_create,
                                                 perimeters_to_update=perimeters_to_update,
@@ -305,10 +311,11 @@ def sequential_recursive_create_children_perimeters(parents_ids: List[int],
         insert_perimeters(perimeters_to_create)
         update_perimeters(perimeters_to_update)
         new_previous_level_list = new_previous_level_list + perimeters_to_create + perimeters_to_update
-        sequential_recursive_create_children_perimeters(parents_ids=current_parents_ids,
-                                                        care_sites=children_care_site_objects,
-                                                        all_perimeters=all_perimeters,
-                                                        previous_level_perimeters=new_previous_level_list)
+        recursively_create_child_perimeters(parents_ids=current_parents_ids,
+                                            care_sites=children_care_site_objects,
+                                            all_perimeters=all_perimeters,
+                                            previous_level_perimeters=new_previous_level_list,
+                                            level=level+1)
 
 
 def update_perimeters(perimeters_to_update: List[Perimeter]):
@@ -400,10 +407,12 @@ def perimeters_data_model_objects_update():
                                           all_care_sites=all_valid_care_sites,
                                           all_perimeters=all_perimeters)
     _logger.info("Start recursive Perimeter objects creation")
-    sequential_recursive_create_children_perimeters(parents_ids=[aphp_id],
-                                                    care_sites=all_valid_care_sites,
-                                                    all_perimeters=all_perimeters,
-                                                    previous_level_perimeters=top_perimeters)
+    second_level = 2
+    recursively_create_child_perimeters(parents_ids=[aphp_id],
+                                        care_sites=all_valid_care_sites,
+                                        all_perimeters=all_perimeters,
+                                        previous_level_perimeters=top_perimeters,
+                                        level=second_level)
     _logger.info("Start deleting removed perimeters")
     perimeters_to_delete = delete_perimeters(perimeters=all_perimeters, care_sites=all_valid_care_sites)
     close_accesses(perimeters_to_delete)
