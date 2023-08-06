@@ -11,11 +11,11 @@ _request_trace_id: ContextVar[Optional[str]] = ContextVar(
 TRACE_ID_HEADER = "X-Trace-Id"
 
 
-def add_trace_id(headers: Optional[dict]) -> dict:
-    non_null_headers = {} if headers is None else headers
-    if TRACE_ID_HEADER not in non_null_headers:
-        non_null_headers[TRACE_ID_HEADER] = _request_trace_id.get() or str(uuid.uuid4())
-    return non_null_headers
+def add_trace_id(headers: dict) -> dict:
+    headers = {} if headers is None else headers
+    if TRACE_ID_HEADER not in headers:
+        headers[TRACE_ID_HEADER] = _request_trace_id.get() or str(uuid.uuid4())
+    return headers
 
 
 def get_trace_id() -> str:
