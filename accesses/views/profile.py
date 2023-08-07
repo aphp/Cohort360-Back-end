@@ -126,7 +126,7 @@ class ProfileViewSet(CustomLoggingMixin, BaseViewset):
 
         try:
             person = check_id_aph(username)
-            manual_profile: Profile = Profile.objects.filter(Profile.Q_is_valid()
+            manual_profile: Profile = Profile.objects.filter(q_is_valid_profile()
                                                              & Q(source=MANUAL_SOURCE)
                                                              & Q(user__provider_username=person.user_id)
                                                              ).first()

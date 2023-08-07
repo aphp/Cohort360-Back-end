@@ -394,7 +394,7 @@ def perimeters_data_model_objects_update():
     try:
         top_care_site = [cs for cs in all_valid_care_sites if cs.care_site_id == aphp_id][0]
     except IndexError:
-        _logger_err.error(f"Perimeters daily update: missing top care site APHP")
+        _logger_err.error("Perimeters daily update: missing top care site APHP")
         return
     _logger.info(f"2. Fetch {len(all_valid_care_sites)} care sites from OMOP DB")
 
