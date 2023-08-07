@@ -406,15 +406,16 @@ def perimeters_data_model_objects_update():
     top_perimeters = create_top_perimeter(top_care_site=top_care_site,
                                           all_care_sites=all_valid_care_sites,
                                           all_perimeters=all_perimeters)
-    _logger.info("Start recursive Perimeter objects creation")
+    _logger.info("5. Start recursive Perimeter objects creation")
     second_level = 2
     recursively_create_child_perimeters(parents_ids=[aphp_id],
                                         care_sites=all_valid_care_sites,
                                         all_perimeters=all_perimeters,
                                         previous_level_perimeters=top_perimeters,
                                         level=second_level)
-    _logger.info("Start deleting removed perimeters")
+    _logger.info("6. Deleting removed perimeters")
     perimeters_to_delete = delete_perimeters(perimeters=all_perimeters, care_sites=all_valid_care_sites)
+    _logger.info("7. Closing linked accesses")
     close_accesses(perimeters_to_delete)
     _logger.info("End of perimeters updating. Invalidating cache for Perimeters and Accesses")
     invalidate_cache(model_name=Perimeter.__name__)

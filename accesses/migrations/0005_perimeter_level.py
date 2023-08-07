@@ -5,21 +5,10 @@ from django.db import migrations, models
 
 APHP_ID = 8312002244
 
-
-def compute_perimeters_levels(apps, schema_editor):
-    db_alias = schema_editor.connection.alias
-    perimeter_model = apps.get_model('accesses', 'Perimeter')
-    aphp = perimeter_model.objects.using(db_alias).get(id=APHP_ID)
-    top_level = 1
-
-    def set_level_for_child_perimeters(perimeter, level):
-        perimeter.level = level
-        perimeter.save()
-        level += 1
-        for child in perimeter.children.all():
-            set_level_for_child_perimeters(perimeter=child, level=level)
-
-    set_level_for_child_perimeters(perimeter=aphp, level=top_level)
+trim_trailing_commas = "UPDATE accesses_perimeter SET above_levels_ids=TRIM(trailing ',' from above_levels_ids)"
+set_level_aphp = f"UPDATE accesses_perimeter SET level=1 WHERE id = {APHP_ID}"
+set_level_other_perimeters = f"""UPDATE accesses_perimeter SET level=array_length(string_to_array(above_levels_ids, ','), 1)+1 
+                                 WHERE id <> {APHP_ID} AND above_levels_ids IS NOT NULL"""
 
 
 class Migration(migrations.Migration):
@@ -34,5 +23,7 @@ class Migration(migrations.Migration):
             name='level',
             field=models.IntegerField(blank=True, null=True),
         ),
-        migrations.RunPython(code=compute_perimeters_levels),
+        migrations.RunSQL(sql=trim_trailing_commas),
+        migrations.RunSQL(sql=set_level_aphp),
+        migrations.RunSQL(sql=set_level_other_perimeters),
     ]
