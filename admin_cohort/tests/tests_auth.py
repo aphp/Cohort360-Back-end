@@ -5,10 +5,11 @@ from unittest.mock import MagicMock
 from requests import Response
 from rest_framework import status
 from rest_framework.test import APITestCase, APIRequestFactory
+from rest_framework_simplejwt.exceptions import InvalidToken
 
 from admin_cohort.models import User
 from admin_cohort.settings import JWT_AUTH_MODE, OIDC_AUTH_MODE
-from admin_cohort.types import JwtTokens, LoginError, ServerError, UserInfo, TokenVerificationError
+from admin_cohort.types import JwtTokens, LoginError, ServerError, UserInfo
 from admin_cohort.views import UserViewSet, token_refresh_view
 
 
@@ -118,7 +119,7 @@ class AuthClassTests(APITestCase):
 
     @mock.patch("admin_cohort.auth.auth_class.get_userinfo_from_token")
     def test_authenticate_error(self, mock_get_userinfo: MagicMock):
-        mock_get_userinfo.side_effect = TokenVerificationError()
+        mock_get_userinfo.side_effect = InvalidToken()
         request = self.factory.get(path=self.protected_url, **self.headers)
         response = self.protected_view.as_view({'get': 'list'})(request)
         mock_get_userinfo.assert_called()
@@ -128,7 +129,7 @@ class AuthClassTests(APITestCase):
     @mock.patch("admin_cohort.auth.auth_class.get_auth_data")
     def test_authenticate_error_with_bytes_token(self, mock_get_auth_data: MagicMock, mock_get_userinfo: MagicMock):
         mock_get_auth_data.return_value = (b"SoMERaNdoMbYteS", None)
-        mock_get_userinfo.side_effect = TokenVerificationError()
+        mock_get_userinfo.side_effect = InvalidToken()
         request = self.factory.get(path=self.protected_url)
         response = self.protected_view.as_view({'get': 'list'})(request)
         mock_get_auth_data.assert_called()
