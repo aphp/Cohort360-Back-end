@@ -81,6 +81,8 @@ class JobResponse:
 
 
 def get_job(job_id: str, auth_headers) -> JobResponse:
+    # todo: replace this http call by the CRB job status logic below
+    # https://gitlab.eds.aphp.fr/dev/cohort360/cohort-request-builder/-/blob/develop/src/main/java/fr/aphp/eds/cohortrequestbuilder/controller/RequestController.java#L57
     resp = requests.get(f"{JOBS_API}/{job_id}", headers=auth_headers)
     resp.raise_for_status()
     result = resp.json()
@@ -129,6 +131,10 @@ def cancel_job(job_id: str, auth_headers) -> JobStatus:
 
 
 def create_count_job(auth_headers: dict, json_query: str, global_estimate) -> Tuple[Response, dict]:
+    # todo: replace this http call by the CRB count logic below
+    # https://gitlab.eds.aphp.fr/dev/cohort360/cohort-request-builder/-/blob/develop/src/main/java/fr/aphp/eds/cohortrequestbuilder/controller/RequestController.java#L43
+    # https://gitlab.eds.aphp.fr/dev/cohort360/cohort-request-builder/-/blob/develop/src/main/java/fr/aphp/eds/cohortrequestbuilder/controller/RequestController.java#L50
+    # note: would be wise to refactor to split count & countAll in different functions for more control
     resp = requests.post(url=GLOBAL_COUNT_API if global_estimate else COUNT_API,
                          json=json.loads(json_query),
                          headers=auth_headers)
@@ -184,7 +190,8 @@ def post_count_cohort(auth_headers: dict, json_query: str, dm_uuid: str, global_
             log_count_task(dm_uuid, f"Step 3.x: Job created. Status: {job.status}.", global_estimate=global_estimate)
         except RequestException as e:
             errors_count += 1
-            log_count_task(dm_uuid, f"Step 3.x: Error {errors_count} found on getting status : {e}.", global_estimate=global_estimate)
+            log_count_task(dm_uuid, f"Step 3.x: Error {errors_count} found on getting status : {e}.",
+                           global_estimate=global_estimate)
             if errors_count > 5:
                 return CRBCountResponse(success=False,
                                         job_duration=datetime.now() - d,
@@ -218,6 +225,9 @@ def post_count_cohort(auth_headers: dict, json_query: str, dm_uuid: str, global_
 
 
 def create_cohort_job(auth_headers: dict, json_query: dict) -> Tuple[Response, dict]:
+    # todo: replace this http call by the CRB create logic below
+    # https://gitlab.eds.aphp.fr/dev/cohort360/cohort-request-builder/-/blob/develop/src/main/java/fr/aphp/eds/cohortrequestbuilder/controller/RequestController.java#L35
+    # note: not checking for status code 200 ? (does not matter as it will be removed)
     resp = requests.post(url=CREATE_COHORT_API, json=json_query, headers=auth_headers)
     resp.raise_for_status()
     result = resp.json()
