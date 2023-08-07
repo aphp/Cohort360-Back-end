@@ -8,8 +8,6 @@ from rest_framework_extensions.cache.decorators import CacheResponse
 
 _logger = logging.getLogger("info")
 
-RETRIEVE_ACTION = "retrieve"
-
 
 class CustomCacheResponse(CacheResponse):
     def process_cache_response(self, view_instance, view_method, request, args, kwargs):

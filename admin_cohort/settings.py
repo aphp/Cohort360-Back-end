@@ -46,6 +46,7 @@ CSRF_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_SECURE = not DEBUG
 
 ADMINS = [a.split(',') for a in env("ADMINS").split(';')]
+NOTIFY_ADMINS = bool(env("NOTIFY_ADMINS", default=False))
 
 logging.captureWarnings(True)
 
@@ -59,7 +60,7 @@ LOGGING = dict(version=1,
                     },
                     'django.request': {
                        'level': "ERROR",
-                       'handlers': ['error_handler', 'mail_admins'],
+                       'handlers': ['error_handler'] + (NOTIFY_ADMINS and ['mail_admins'] or []),
                        'propagate': False
                     }},
                handlers={
@@ -122,9 +123,6 @@ AUTHENTICATION_BACKENDS = ['admin_cohort.auth.auth_backends.JWTAuthBackend',
                            'admin_cohort.auth.auth_backends.OIDCAuthBackend']
 
 ROOT_URLCONF = 'admin_cohort.urls'
-
-MEDIA_ROOT = BASE_DIR / 'admin_cohort/media'
-MEDIA_URL = '/media/'
 
 TEMPLATES = [{'BACKEND': 'django.template.backends.django.DjangoTemplates',
               'DIRS': [BASE_DIR / 'admin_cohort/templates'],
