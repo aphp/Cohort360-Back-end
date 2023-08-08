@@ -164,9 +164,10 @@ PERIMETER_TYPES you provide in _admin_cohort/.env_ file):
                                 right_manage_review_export_csv, right_manage_review_transfer_jupyter, 
                                 right_manage_transfer_jupyter, right_review_export_csv, right_review_transfer_jupyter, 
                                 right_transfer_jupyter_nominative, right_transfer_jupyter_pseudo_anonymised, 
-                                right_manage_env_unix_users, right_manage_env_user_links, right_read_env_unix_users) 
+                                right_manage_env_unix_users, right_manage_env_user_links, right_read_env_unix_users, 
+                                right_read_opposing_patient) 
                          VALUES(1,'FULL_ADMIN','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t',
-                                't','t','t','t','t','t','t','t','t','t','t','t');
+                                't','t','t','t','t','t','t','t','t','t','t','t','t');
     -- Attribute admin role to admin profile
     INSERT INTO accesses_access (role_id, perimeter_id, profile_id) VALUES (1, 1, 1);
   ```
@@ -185,9 +186,10 @@ PERIMETER_TYPES you provide in _admin_cohort/.env_ file):
                                 right_manage_review_export_csv, right_manage_review_transfer_jupyter, 
                                 right_manage_transfer_jupyter, right_review_export_csv, right_review_transfer_jupyter, 
                                 right_transfer_jupyter_nominative, right_transfer_jupyter_pseudo_anonymised, 
-                                right_manage_env_unix_users, right_manage_env_user_links, right_read_env_unix_users) 
+                                right_manage_env_unix_users, right_manage_env_user_links, right_read_env_unix_users,
+                                right_read_opposing_patient) 
                         VALUES (2,'Nominative Patient Reader','f','f','f','f','f','f','f','f','f','f','f','f','t','f',
-                                'f','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f');
+                                'f','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f', 'f');
     -- Pseudo-anonymised Data reading role
     INSERT INTO accesses_role (id, name, right_edit_roles, right_add_users, right_edit_users, right_read_users, 
                                right_manage_admin_accesses_same_level, right_read_admin_accesses_same_level, 
@@ -201,9 +203,10 @@ PERIMETER_TYPES you provide in _admin_cohort/.env_ file):
                                right_manage_review_transfer_jupyter, right_manage_transfer_jupyter, 
                                right_review_export_csv, right_review_transfer_jupyter, 
                                right_transfer_jupyter_nominative, right_transfer_jupyter_pseudo_anonymised, 
-                               right_manage_env_unix_users, right_manage_env_user_links, right_read_env_unix_users) 
+                               right_manage_env_unix_users, right_manage_env_user_links, right_read_env_unix_users, 
+                               right_read_opposing_patient) 
                        VALUES (3,'Pseudo-anonymised Patient Reader','f','f','f','f','f','f','f','f','f','f','f','f','f',
-                               'f','t','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f');
+                               'f','t','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f');
 
     -- Access to NominativeDataReader for User Admin ADMIN on Hospital 1
     INSERT INTO accesses_access (role_id, perimeter_id, profile_id) VALUES(2, 1, 1);
