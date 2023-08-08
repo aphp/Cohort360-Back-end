@@ -1,3 +1,6 @@
+import re
+
+import environ
 from django.db.models import Q
 from django_filters import rest_framework as filters
 from drf_yasg import openapi
@@ -18,6 +21,10 @@ from ..models import Profile
 from ..permissions import ProfilePermissions, HasUserAddingPermission
 from ..serializers import ProfileSerializer, ReducedProfileSerializer, \
     ProfileCheckSerializer
+
+env = environ.Env()
+
+USERNAME_REGEX = env("USERNAME_REGEX")
 
 
 class ProfileFilter(filters.FilterSet):
@@ -104,20 +111,20 @@ class ProfileViewSet(CustomLoggingMixin, BaseViewset):
         return super(ProfileViewSet, self).perform_destroy(instance)
 
     @swagger_auto_schema(request_body=openapi.Schema(type=openapi.TYPE_OBJECT,
-                                                     properties={"provider_source_value": openapi.Schema(
-                                                                 type=openapi.TYPE_STRING,
-                                                                 description="(to deprecate, use 'user_id' instead)"),
-                                                                 "user_id": openapi.Schema(type=openapi.TYPE_STRING)}),
-                         responses={'201': openapi.Response("User found", ProfileCheckSerializer()),
-                                    '204': openapi.Response("No user found")})
+                                                     properties={"username": openapi.Schema(type=openapi.TYPE_STRING)}),
+                         responses={'201': openapi.Response("Profile found", ProfileCheckSerializer()),
+                                    '204': openapi.Response("No profile found")})
     @action(detail=False, methods=['post'], permission_classes=(HasUserAddingPermission,), url_path="check")
-    def check_existing_user(self, request, *args, **kwargs):
-        psv = request.data.get("user_id", request.data.get("provider_source_value"))
-        if not psv:
-            return Response(data="No `provider_source_value` provided",
-                            status=status.HTTP_400_BAD_REQUEST)
+    def check_existing_profile(self, request, *args, **kwargs):
+        username = request.data.get("username")
+        if not username:
+            return Response(data="No `username` was provided", status=status.HTTP_400_BAD_REQUEST)
+        username_regex = re.compile(USERNAME_REGEX)
+        if not username_regex.match(username):
+            return Response(data="The given username format is not allowed", status=status.HTTP_200_OK)
+
         try:
-            person = check_id_aph(psv)
+            person = check_id_aph(username)
             manual_profile: Profile = Profile.objects.filter(Profile.Q_is_valid()
                                                              & Q(source=MANUAL_SOURCE)
                                                              & Q(user__provider_username=person.user_id)
@@ -136,4 +143,4 @@ class ProfileViewSet(CustomLoggingMixin, BaseViewset):
                                            }).data
             return Response(data=data, status=status.HTTP_200_OK)
         except (ServerError, MissingDataError):
-            return Response(status=status.HTTP_204_NO_CONTENT)
+            return Response(data="User not found", status=status.HTTP_204_NO_CONTENT)
