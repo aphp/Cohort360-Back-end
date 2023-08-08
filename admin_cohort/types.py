@@ -18,10 +18,6 @@ class MissingDataError(Exception):
     pass
 
 
-class TokenVerificationError(Exception):
-    pass
-
-
 class PersonIdentity:
     def __init__(self, firstname, lastname, user_id, email):
         self.firstname = firstname

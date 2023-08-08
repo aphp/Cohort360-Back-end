@@ -36,10 +36,10 @@ JWT_ALGORITHMS = env("JWT_ALGORITHMS").split(',')
 
 OIDC_SERVER_MASTER_URL = env("OIDC_SERVER_MASTER_URL")
 
-OIDC_SERVER_APPLICATIFS_URL = env("OIDC_SERVER_APPLICATIFS_URL")
-OIDC_SERVER_TOKEN_URL = f"{OIDC_SERVER_APPLICATIFS_URL}/protocol/openid-connect/token"
-OIDC_SERVER_USERINFO_URL = f"{OIDC_SERVER_APPLICATIFS_URL}/protocol/openid-connect/userinfo"
-OIDC_SERVER_LOGOUT_URL = f"{OIDC_SERVER_APPLICATIFS_URL}/protocol/openid-connect/logout"
+OIDC_SERVER_APHP_URL = env("OIDC_SERVER_APHP_URL")
+OIDC_SERVER_TOKEN_URL = f"{OIDC_SERVER_APHP_URL}/protocol/openid-connect/token"
+OIDC_SERVER_USERINFO_URL = f"{OIDC_SERVER_APHP_URL}/protocol/openid-connect/userinfo"
+OIDC_SERVER_LOGOUT_URL = f"{OIDC_SERVER_APHP_URL}/protocol/openid-connect/logout"
 
 OIDC_AUDIENCES = env("OIDC_AUDIENCES").split(';')
 OIDC_CLIENT_ID = env("OIDC_CLIENT_ID")
@@ -130,12 +130,13 @@ def decode_oidc_token(token: str, issuer: str):
                       audience=OIDC_AUDIENCES)
 
 
-def verify_oidc_token_for_issuer(token: str, issuer: str):
-    try:
-        return decode_oidc_token(token=token, issuer=issuer)
-    except Exception as e:
-        _logger_err.error(f"Error decoding token for issuer `{issuer}` - {e}")
-        return None
+def get_token_issuer(token: str) -> str:
+    decoded = jwt.decode(jwt=token,
+                         algorithms=JWT_ALGORITHMS,
+                         options={'verify_signature': False})
+    issuer = decoded.get("iss")
+    assert issuer in (OIDC_SERVER_APHP_URL, OIDC_SERVER_MASTER_URL), f"Unknown issuer: `{issuer}`"
+    return issuer
 
 
 def get_userinfo_from_token(token: str, auth_method: str) -> Union[None, UserInfo]:
@@ -159,15 +160,16 @@ def get_userinfo_from_token(token: str, auth_method: str) -> Union[None, UserInf
         except User.DoesNotExist as e:
             raise ServerError(f"Error verifying token. User not found - {e}")
     elif auth_method == OIDC_AUTH_MODE:
-        for issuer in (OIDC_SERVER_APPLICATIFS_URL, OIDC_SERVER_MASTER_URL):
-            decoded = verify_oidc_token_for_issuer(token=token,
-                                                   issuer=issuer)
-            if decoded:
-                return UserInfo(username=decoded.get('preferred_username'),
-                                firstname=decoded.get('name'),
-                                lastname=decoded.get('family_name'),
-                                email=decoded.get('email'))
-        raise InvalidToken("Invalid OIDC Token: unknown issuer")
+        try:
+            issuer = get_token_issuer(token=token)
+            decoded = decode_oidc_token(token=token, issuer=issuer)
+            return UserInfo(username=decoded.get('preferred_username'),
+                            firstname=decoded.get('name'),
+                            lastname=decoded.get('family_name'),
+                            email=decoded.get('email'))
+        except Exception as e:
+            _logger_err.error(f"Error decoding token: {e} - `{token}`")
+            raise InvalidToken()
     else:
         raise ValueError(f"Invalid authentication method : {auth_method}")
 
