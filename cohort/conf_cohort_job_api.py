@@ -1,13 +1,11 @@
 import json
 import logging
 import os
-import time
 from typing import Tuple, Dict
 
 import requests
-from django.utils import timezone
-from django.utils.datetime_safe import datetime
-from requests import Response, HTTPError, RequestException
+from datetime import datetime
+from requests import Response, HTTPError
 from rest_framework import status
 from rest_framework.request import Request
 
@@ -137,27 +135,22 @@ def create_count_job(auth_headers: dict, json_query: str, global_estimate: bool)
                          headers=auth_headers)
     resp.raise_for_status()
     result = resp.json()
-    if resp.status_code != status.HTTP_200_OK:
-        raise HTTPError(f"Unexpected response code: {resp.status_code}: "
-                        f"{result.get('error', 'no error')} - {result.get('message', 'no message')}")
     return resp, result
 
 
 def post_count_cohort(auth_headers: dict, json_query: str, dm_uuid: str, global_estimate=False) -> CRBCountResponse:
-    from datetime import datetime
-    d = datetime.now()
-
+    dt = datetime.now()
     try:
         log_count_task(dm_uuid, "Step 1: Posting count request", global_estimate=global_estimate)
         json_query = json.loads(json_query)
-        json_query["dm_uuid"] = dm_uuid
+        json_query["cohortUuid"] = dm_uuid  # todo: rename pram to `dm_uuid` once CRB is moved to Django
         resp, result = create_count_job(auth_headers, json_query, global_estimate)
         log_count_task(dm_uuid, "Step 2: Response being processed", global_estimate=global_estimate)
         job = JobResponse(resp, **result)
     except (json.JSONDecodeError, TypeError, ValueError, HTTPError) as e:
         return CRBCountResponse(success=False,
                                 fhir_job_status=JobStatus.failed,
-                                job_duration=datetime.now() - d,
+                                job_duration=datetime.now() - dt,
                                 err_msg=str(e))
     return CRBCountResponse(success=True, fhir_job_id=job.job_id)
 

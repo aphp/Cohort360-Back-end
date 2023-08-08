@@ -93,25 +93,3 @@ def get_count_task(auth_headers: dict, json_query: str, dm_uuid: str):
         dm.request_job_status = JobStatus.failed
         dm.request_job_fail_msg = resp.err_msg
     dm.save()
-
-    # if resp.success:
-    #     if not global_estimate:
-    #         dm.measure = resp.count
-    #     else:
-    #         dm.measure_min = resp.count_min
-    #         dm.measure_max = resp.count_max
-    #
-    #     dm.fhir_datetime = resp.fhir_datetime
-    #     dm.request_job_status = resp.fhir_job_status
-    #     dm.request_job_duration = resp.job_duration
-    #     dm.request_job_id = resp.fhir_job_id
-    #     dm.save()
-    #     log_count_task(dm_uuid, f"Dated Measure count: {dm.measure}")
-    #     log_count_task(dm_uuid, "Dated measure updated")
-    # else:
-    #     dm.request_job_status = resp.fhir_job_status
-    #     dm.request_job_fail_msg = resp.err_msg
-    #     dm.request_job_duration = resp.job_duration
-    #     dm.request_job_id = resp.fhir_job_id
-    #     dm.save()
-    #     log_count_task(dm_uuid, resp.err_msg)

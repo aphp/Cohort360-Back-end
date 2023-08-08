@@ -72,7 +72,6 @@ class DatedMeasureSerializer(BaseSerializer):
 
         if not measure:
             try:
-                auth_headers = cohort_job_api.get_authorization_header(self.context.get("request"))
                 transaction.on_commit(lambda: get_count_task.delay(auth_headers,
                                                                    query_snapshot.serialized_query,
                                                                    dm.uuid))

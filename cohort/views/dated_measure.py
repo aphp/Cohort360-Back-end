@@ -4,6 +4,7 @@ from django.utils import timezone
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
+from rest_framework import status
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
@@ -59,26 +60,26 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         dm = self.get_object()
         data: dict = request.data
 
-        status = data.get("fhir_job_status")
-        job_status = fhir_to_job_status().get(data["request_job_status"].upper())
+        sjs_job_status = data.get("status")
+        job_status = fhir_to_job_status().get(sjs_job_status.upper())
         if not job_status:
-            return Response(data=f"Invalid job status: {data.get('status')}",
+            return Response(data=f"Invalid job status: {sjs_job_status}",
                             status=status.HTTP_400_BAD_REQUEST)
         job_duration = str(timezone.now() - dm.created_at)
 
-        if status == JobStatus.finished:
+        if job_status == JobStatus.finished:
             if dm.global_estimate:
-                data.update({"measure_min": data.pop("count_min", None),
-                             "measure_max": data.pop("count_max", None)
+                data.update({"measure_min": data.pop("minimum", None),
+                             "measure_max": data.pop("maximum", None)
                              })
             else:
-                data["measure"] = data.pop("count", None)
+                data["measure"] = data.pop("group.count", data.pop("count", None))
             _logger.info(f"DatedMeasure [{dm.uuid}] successfully updated from SJS")
         else:
             data["request_job_fail_msg"] = data.pop("err_msg", None)
             _logger_err.exception(f"DatedMeasure [{dm.uuid}] - Error on SJS callback")
 
-        data.update({"request_job_status": status,
+        data.update({"request_job_status": job_status,
                      "request_job_duration": job_duration,
                      })
         return super(DatedMeasureViewSet, self).partial_update(request, *args, **kwargs)
