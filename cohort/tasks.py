@@ -16,18 +16,10 @@ _logger = logging.getLogger('django.request')
 
 @shared_task
 def create_cohort_task(auth_headers: dict, json_query: str, cohort_uuid: str):
-    # TODO: Useful? Is the create transaction already closed? latency in database saving (when calling this task)
-    cohort_result: CohortResult = None
-    tries = 0
-    while cohort_result is None and tries <= 5:
-        cohort_result = CohortResult.objects.filter(uuid=cohort_uuid).first()
-        if not cohort_result:
-            log_create_task(cohort_uuid, f"Error: could not find CohortResult to update after {tries - 1} sec")
-            tries += 1
-            sleep(1)
-
-    if not cohort_result:
-        log_create_task(cohort_uuid, "Error: could not find CohortResult to update after 5 sec")
+    try:
+        cohort_result = CohortResult.objects.get(uuid=cohort_uuid)
+    except CohortResult.DoesNotExist:
+        log_create_task(cohort_uuid, "Error: could not find CohortResult")
         return
 
     log_create_task(cohort_uuid, "Asking CRB to create cohort")
@@ -76,18 +68,10 @@ def cancel_previously_running_dm_jobs(auth_headers: dict, dm_uuid: str):
 
 @shared_task
 def get_count_task(auth_headers: dict, json_query: str, dm_uuid: str):
-    # in case of small latency in database saving (when calling this task)
-    dm: DatedMeasure = None
-    tries = 0
-    while dm is None and tries <= 5:
-        dm = DatedMeasure.objects.filter(uuid=dm_uuid).first()
-        if dm is None:
-            log_count_task(dm_uuid, f"Error: could not find DatedMeasure to update after {tries - 1} sec")
-            tries += 1
-            sleep(1)
-
-    if not dm:
-        log_count_task(dm_uuid, "Error: could not find DatedMeasure to update")
+    try:
+        dm = DatedMeasure.objects.get(uuid=dm_uuid)
+    except DatedMeasure.DoesNotExist:
+        log_count_task(dm_uuid, "Error: could not find DatedMeasure")
         return
 
     dm.count_task_id = current_task.request.id or ""
