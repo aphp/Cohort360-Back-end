@@ -2,6 +2,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from admin_cohort.middleware.request_trace_id_middleware import add_trace_id
+from cohort.models.fhir_filter import FhirFilter
 from cohort.tasks import get_count_task, cancel_previously_running_dm_jobs
 import cohort.conf_cohort_job_api as cohort_job_api
 from admin_cohort.models import User
@@ -230,3 +231,9 @@ class FolderSerializer(BaseSerializer):
 class CohortRightsSerializer(serializers.Serializer):
     cohort_id = serializers.CharField(read_only=True, allow_null=False)
     rights = serializers.DictField(read_only=True, allow_null=True)
+
+
+class FhirFilterSerializer(BaseSerializer):
+    class Meta:
+        model = FhirFilter
+        fields = '__all__'
