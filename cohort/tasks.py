@@ -1,5 +1,4 @@
 import logging
-from time import sleep
 
 from celery import shared_task, current_task
 

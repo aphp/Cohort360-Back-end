@@ -47,9 +47,6 @@ class DatedMeasureSerializer(BaseSerializer):
         fields = "__all__"
         read_only_fields = ["count_task_id",
                             "request_job_id",
-                            "request_job_status",
-                            "request_job_fail_msg",
-                            "request_job_duration",
                             "mode",
                             "request"]
 
