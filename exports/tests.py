@@ -19,7 +19,7 @@ from cohort.models import CohortResult, RequestQuerySnapshot, Request, DatedMeas
 from workspaces.models import Account
 from .conf_exports import create_hive_db, prepare_hive_db, wait_for_hive_db_creation_job, get_job_status
 from .models import ExportRequest, ExportRequestTable
-from .tasks import delete_export_requests_csv_files, wait_for_export_job
+from .tasks import delete_export_requests_csv_files, wait_for_export_job, launch_request
 from .types import ExportType, ApiJobResponse
 from .views import ExportRequestViewSet
 
@@ -238,11 +238,12 @@ class ExportsWithSimpleSetUp(ExportsTests):
         self.user1_exp_req_succ: ExportRequest = \
             ExportRequest.objects.create(
                 owner=self.user1,
+                creator_fk=self.user1,
                 cohort_fk=self.user1_cohort,
                 cohort_id=42,
                 output_format=ExportType.CSV.value,
                 provider_id=self.user1.provider_id,
-                request_job_status=JobStatus.finished.value,
+                request_job_status=JobStatus.finished,
                 target_location="user1_exp_req_succ",
                 is_user_notified=False,
             )
@@ -575,31 +576,6 @@ class ExportsRetrieveTests(ExportsWithSimpleSetUp):
 
 
 class ExportsJobsTests(ExportsWithSimpleSetUp):
-    def setUp(self):
-        super(ExportsJobsTests, self).setUp()
-        # self.user1_exp_req_csv_new: ExportRequest = \
-        #     ExportRequest.objects.create(
-        #         owner=self.user1,
-        #         cohort_fk=self.user1_cohort,
-        #         cohort_id=self.user1_cohort.fhir_group_id,
-        #         output_format=ExportType.CSV.value,
-        #         provider_id=self.user1.provider_id,
-        #         request_job_status=JobStatus.new.value,
-        #         target_location="user1_exp_req_csv_new",
-        #         is_user_notified=False,
-        #     )
-        #
-        # self.user1_exp_req_jup_new: ExportRequest = \
-        #     ExportRequest.objects.create(
-        #         owner=self.user1,
-        #         cohort_fk=self.user1_cohort,
-        #         cohort_id=self.user1_cohort.fhir_group_id,
-        #         output_format=ExportType.HIVE.value,
-        #         provider_id=self.user1.provider_id,
-        #         request_job_status=JobStatus.new.value,
-        #         target_location="user1_exp_req_jup_new",
-        #         is_user_notified=False,
-        #     )
 
     @mock.patch('exports.emails.send_email')
     @mock.patch('exports.conf_exports.delete_file')
@@ -616,14 +592,30 @@ class ExportsJobsTests(ExportsWithSimpleSetUp):
 
         delete_export_requests_csv_files()
 
-        deleted_ers = list(
-            ExportRequest.objects.filter(cleaned_at__isnull=False))
+        deleted_ers = list(ExportRequest.objects.filter(cleaned_at__isnull=False))
 
-        self.assertCountEqual([er.pk for er in deleted_ers],
-                              [self.user1_exp_req_succ.pk])
-        [self.assertAlmostEqual(
-            (er.cleaned_at - timezone.now()).total_seconds(), 0, delta=1)
-         for er in deleted_ers]
+        self.assertCountEqual([er.pk for er in deleted_ers], [self.user1_exp_req_succ.pk])
+        [self.assertAlmostEqual((er.cleaned_at - timezone.now()).total_seconds(), 0, delta=1) for er in deleted_ers]
+
+    @mock.patch('exports.emails.send_email')
+    @mock.patch('exports.conf_exports.prepare_hive_db')
+    @mock.patch('exports.conf_exports.post_export')
+    @mock.patch('exports.conf_exports.conclude_export_hive')
+    @mock.patch('exports.conf_exports.get_job_status')
+    def test_task_launch_request(self, mock_get_job_status, mock_prepare_hive_db, mock_post_export, mock_conclude_export_hive, mock_send_email):
+        mock_get_job_status.return_value = ApiJobResponse(status=JobStatus.finished)
+        mock_prepare_hive_db.return_value = None
+        mock_post_export.return_value = None
+        mock_conclude_export_hive.return_value = None
+        mock_send_email.return_value = None
+
+        launch_request(er_id=self.user1_exp_req_succ.id)
+
+        mock_get_job_status.assert_called()
+        mock_prepare_hive_db.assert_not_called()
+        mock_post_export.assert_called()
+        mock_conclude_export_hive.assert_not_called()
+        mock_send_email.assert_called()
 
 
 # POST ##################################################################
@@ -653,7 +645,7 @@ class ExportJupyterCreateCase(ExportCreateCase):
 
 class ExportsCreateTests(ExportsTests):
     @mock.patch('exports.tasks.launch_request.delay')
-    @mock.patch('exports.emails.email_info_request_confirmed')
+    @mock.patch('exports.emails.send_email')
     @mock.patch('exports.emails.EMAIL_REGEX_CHECK', REGEX_TEST_EMAIL)
     def check_create_case(self, case: ExportCreateCase, mock_send_email: MagicMock, mock_task: MagicMock):
         mock_task.return_value = None
