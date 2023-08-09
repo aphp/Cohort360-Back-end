@@ -43,3 +43,17 @@ class ExportRequest(JobModelWithReview, BaseModel, models.Model):
         if self.target_location and self.target_name:
             return f"{self.target_location}/{self.target_name}.zip"
         return ""
+
+    @property
+    def cohort_name(self) -> str:
+        cohort = CohortResult.objects.filter(fhir_group_id=self.cohort_id).first()
+        return cohort and cohort.name or ""
+
+    @property
+    def patients_count(self) -> int:
+        cohort = CohortResult.objects.filter(fhir_group_id=self.cohort_id).first()
+        return cohort and cohort.dated_measure.measure or -1
+
+    @property
+    def target_env(self) -> str:
+        return self.target_unix_account and self.target_unix_account.name or ""

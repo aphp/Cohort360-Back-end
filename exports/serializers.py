@@ -76,29 +76,22 @@ class ReviewFilteredPrimaryKeyRelatedField(serializers.PrimaryKeyRelatedField):
 
 
 class ExportRequestListSerializer(serializers.ModelSerializer):
-    owner = serializers.SerializerMethodField()
-    cohort_name = serializers.SerializerMethodField()
-    patients_count = serializers.SerializerMethodField()
-    target_env = serializers.SerializerMethodField()
+    owner = serializers.SlugRelatedField(read_only=True, slug_field="displayed_name")
+    cohort_name = serializers.CharField(read_only=True)
+    patients_count = serializers.IntegerField(read_only=True)
+    target_env = serializers.CharField(read_only=True)
 
     class Meta:
         model = ExportRequest
-        fields = ("owner", "output_format", "cohort_id", "cohort_name", "patients_count",
-                  "insert_datetime", "request_job_status", "target_env", "target_name")
-
-    def get_owner(self, er):
-        return er.owner and er.owner.displayed_name or ""
-
-    def get_cohort_name(self, er):
-        cohort = CohortResult.objects.filter(fhir_group_id=er.cohort_id).first()
-        return cohort and cohort.name or ""
-
-    def get_patients_count(self, er):
-        cohort = CohortResult.objects.filter(fhir_group_id=er.cohort_id).first()
-        return cohort and cohort.dated_measure.measure or ""
-
-    def get_target_env(self, er):
-        return er.target_unix_account and er.target_unix_account.name or ""
+        fields = ("owner",
+                  "output_format",
+                  "cohort_id",
+                  "cohort_name",
+                  "patients_count",
+                  "insert_datetime",
+                  "request_job_status",
+                  "target_env",
+                  "target_name")
 
 
 class ExportRequestSerializer(serializers.ModelSerializer):
