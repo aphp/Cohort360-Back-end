@@ -12,7 +12,7 @@ class FhirFilter(CohortBaseModel):
     """
     fhir_resource = models.CharField(max_length=255)
     fhir_version = models.CharField(max_length=50)
-    filter_name = models.CharField(validators=[MinLengthValidator(2), MaxLengthValidator(50)])
+    filter_name = models.CharField(max_length=50, validators=[MinLengthValidator(2)])
     fhir_filter = models.TextField()
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='user_fhir_filters')
 
