@@ -12,9 +12,9 @@ class Authentication(BaseAuthentication):
         if access_token is None:
             return None
         auth_method = auth_method or JWT_AUTH_MODE
-        if type(access_token) == bytes:
+        if isinstance(access_token, bytes):
             access_token = access_token.decode('utf-8')
-        if type(auth_method) == bytes:
+        if isinstance(auth_method, bytes):
             auth_method = auth_method.decode('utf-8')
         try:
             user_info = get_userinfo_from_token(token=access_token, auth_method=auth_method)
