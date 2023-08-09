@@ -206,7 +206,7 @@ class CohortsCreateTests(CohortsTests):
         mock_create_task.return_value = None
         mock_count_task.return_value = None
 
-        with self.captureOnCommitCallbacks(execute=True) as callbacks:
+        with self.captureOnCommitCallbacks(execute=True):
             super(CohortsCreateTests, self).check_create_case(case, other_view, **(view_kwargs or {}))
 
         if case.success:

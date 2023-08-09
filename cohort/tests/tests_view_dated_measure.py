@@ -177,7 +177,7 @@ class DatedMeasuresCreateTests(DatedMeasuresTests):
         mock_cancel_task.return_value = None
         mock_count_task.return_value = None
 
-        with self.captureOnCommitCallbacks(execute=True) as callbacks:
+        with self.captureOnCommitCallbacks(execute=True):
             super(DatedMeasuresCreateTests, self).check_create_case(case, other_view, **(view_kwargs or {}))
 
         mock_header.assert_called() if case.mock_header_called else mock_header.assert_not_called()
