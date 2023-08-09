@@ -6,4 +6,4 @@ from .dated_measure import DatedMeasure
 from .cohort_result import CohortResult
 from .fhir_filter import FhirFilter
 
-__all__ = ["CohortBaseModel", "Folder", "Request", "RequestQuerySnapshot", "DatedMeasure", "CohortResult"]
+__all__ = ["CohortBaseModel", "Folder", "Request", "RequestQuerySnapshot", "DatedMeasure", "CohortResult", "FhirFilter"]
