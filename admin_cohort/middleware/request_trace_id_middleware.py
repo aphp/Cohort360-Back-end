@@ -12,7 +12,6 @@ TRACE_ID_HEADER = "X-Trace-Id"
 
 
 def add_trace_id(headers: dict) -> dict:
-    headers = {} if headers is None else headers
     if TRACE_ID_HEADER not in headers:
         headers[TRACE_ID_HEADER] = _request_trace_id.get() or str(uuid.uuid4())
     return headers

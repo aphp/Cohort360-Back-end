@@ -17,6 +17,12 @@ from cohort.models.dated_measure import GLOBAL_DM_MODE
 from cohort.serializers import DatedMeasureSerializer
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
+JOB_STATUS = "status"
+COUNT = "count"
+MAXIMUM = "maximum"
+MINIMUM = "minimum"
+ERR_MESSAGE = "message"
+
 _logger = logging.getLogger('info')
 _logger_err = logging.getLogger('django.request')
 
@@ -51,18 +57,18 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     @swagger_auto_schema(operation_summary="Called by SJS to update DM's `measure` and other fields",
                          request_body=openapi.Schema(
                              type=openapi.TYPE_OBJECT,
-                             properties={"status": openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback"),
-                                         "minimum": openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback"),
-                                         "maximum": openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback"),
-                                         "count/group.count": openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback")},
-                             required=['request_job_status', 'group.id', 'group.count']),
+                             properties={JOB_STATUS: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback"),
+                                         MINIMUM: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback"),
+                                         MAXIMUM: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback"),
+                                         COUNT: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback")},
+                             required=[JOB_STATUS, MINIMUM, MAXIMUM, COUNT]),
                          responses={'200': openapi.Response("DatedMeasure updated successfully", DatedMeasureSerializer()),
                                     '400': openapi.Response("Bad Request")})
     def partial_update(self, request, *args, **kwargs):
         dm = self.get_object()
         data: dict = request.data
 
-        sjs_job_status = data.pop("status", "")
+        sjs_job_status = data.pop(JOB_STATUS, "")
         job_status = fhir_to_job_status().get(sjs_job_status.upper())
         if not job_status:
             return Response(data=f"Invalid job status: {sjs_job_status}",
@@ -71,14 +77,14 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
 
         if job_status == JobStatus.finished:
             if dm.mode == GLOBAL_DM_MODE:
-                data.update({"measure_min": data.pop("minimum", None),
-                             "measure_max": data.pop("maximum", None)
+                data.update({"measure_min": data.pop(MINIMUM, None),
+                             "measure_max": data.pop(MAXIMUM, None)
                              })
             else:
-                data["measure"] = data.pop("count", None)
+                data["measure"] = data.pop(COUNT, None)
             _logger.info(f"DatedMeasure [{dm.uuid}] successfully updated from SJS")
         else:
-            data["request_job_fail_msg"] = data.pop("message", None)
+            data["request_job_fail_msg"] = data.pop(ERR_MESSAGE, None)
             _logger_err.exception(f"DatedMeasure [{dm.uuid}] - Error on SJS callback")
 
         data.update({"request_job_status": job_status.value,

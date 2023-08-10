@@ -26,7 +26,7 @@ from cohort.serializers import CohortResultSerializer, CohortResultSerializerFul
 from cohort.tools import get_dict_cohort_pop_source, get_all_cohorts_rights, send_email_notif_about_large_cohort
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
-JOB_STATUS = "request_job_status"
+JOB_STATUS = "status"
 GROUP_ID = "group.id"
 GROUP_COUNT = "group.count"
 
