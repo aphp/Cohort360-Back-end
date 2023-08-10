@@ -19,9 +19,9 @@ def get_bound_roles(user: User) -> QuerySet:
     @return:
     @rtype:
     """
-    from accesses.models import get_user_valid_manual_accesses_queryset, Role
+    from accesses.models import get_user_valid_manual_accesses, Role
 
-    accesses = get_user_valid_manual_accesses_queryset(user)
+    accesses = get_user_valid_manual_accesses(user)
     return Role.objects.filter(id__in=[a.role_id for a in accesses])
 
 
