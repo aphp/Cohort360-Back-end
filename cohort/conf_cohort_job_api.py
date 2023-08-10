@@ -118,9 +118,9 @@ def cancel_job(job_id: str, auth_headers) -> JobStatus:
     return new_status
 
 
-def create_count_job(auth_headers: dict, json_query: str, global_estimate: bool) -> Tuple[Response, dict]:
+def create_count_job(auth_headers: dict, json_query: dict, global_estimate: bool) -> Tuple[Response, dict]:
     resp = requests.post(url=GLOBAL_COUNT_API if global_estimate else COUNT_API,
-                         json=json.loads(json_query),
+                         json=json_query,
                          headers=auth_headers)
     resp.raise_for_status()
     result = resp.json()
