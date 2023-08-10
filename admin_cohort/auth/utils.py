@@ -220,10 +220,10 @@ def check_id_aph(id_aph: str) -> Optional[PersonIdentity]:
         raise ServerError(f"Internal error: {resp.text}")
 
     res: dict = resp.json().get('data', {}).get('attributes', {})
-    for expected in ['givenName', 'sn', 'sAMAccountName', 'mail']:
+    for expected in ['givenName', 'sn', 'cn', 'mail']:
         if expected not in res:
             raise MissingDataError(f"ID-CHECKER server response is missing {expected} ({resp.content})")
     return PersonIdentity(firstname=res.get('givenName'),
                           lastname=res.get('sn'),
-                          user_id=res.get('sAMAccountName'),
+                          user_id=res.get('cn'),
                           email=res.get('mail'))
