@@ -16,14 +16,13 @@ from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from accesses.models import get_user_valid_manual_accesses_queryset
 from admin_cohort.tools.cache import cache_response
-from admin_cohort.settings import SJS_USERNAME, ETL_USERNAME
 from admin_cohort.tools import join_qs
 from admin_cohort.types import JobStatus
 from cohort.conf_cohort_job_api import fhir_to_job_status
 from cohort.models import CohortResult
 from cohort.permissions import SJSandETLCallbackPermission
 from cohort.serializers import CohortResultSerializer, CohortResultSerializerFullDatedMeasure, CohortRightsSerializer
-from cohort.tools import get_dict_cohort_pop_source, get_all_cohorts_rights, send_email_notif_about_large_cohort
+from cohort.tools import get_dict_cohort_pop_source, get_all_cohorts_rights, send_email_notif_about_large_cohort, is_sjs_or_etl_user
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
 JOB_STATUS = "request_job_status"
@@ -103,20 +102,15 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     filterset_class = CohortFilter
     search_fields = ('$name', '$description')
 
-    def is_sjs_or_etl_user(self):
-        return self.request.method in ("GET", "PATCH") and \
-               self.request.user.is_authenticated and \
-               self.request.user.provider_username in [SJS_USERNAME, ETL_USERNAME]
-
     def get_permissions(self):
-        if self.is_sjs_or_etl_user():
+        if is_sjs_or_etl_user(request=self.request):
             return [SJSandETLCallbackPermission()]
         if self.action == 'get_active_jobs':
             return [AllowAny()]
         return super(CohortResultViewSet, self).get_permissions()
 
     def get_queryset(self):
-        if self.is_sjs_or_etl_user():
+        if is_sjs_or_etl_user(request=self.request):
             return self.queryset
         return super(CohortResultViewSet, self).get_queryset()
 

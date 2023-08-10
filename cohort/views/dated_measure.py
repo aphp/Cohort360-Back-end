@@ -14,7 +14,9 @@ from admin_cohort.types import JobStatus
 from cohort.conf_cohort_job_api import fhir_to_job_status
 from cohort.models import DatedMeasure
 from cohort.models.dated_measure import GLOBAL_DM_MODE
+from cohort.permissions import SJSandETLCallbackPermission
 from cohort.serializers import DatedMeasureSerializer
+from cohort.tools import is_sjs_user
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
 JOB_STATUS = "request_job_status"
@@ -49,6 +51,16 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     swagger_tags = ['Cohort - dated-measures']
     filterset_class = DatedMeasureFilter
     pagination_class = LimitOffsetPagination
+
+    def get_permissions(self):
+        if is_sjs_user(request=self.request):
+            return [SJSandETLCallbackPermission()]
+        return super(DatedMeasureViewSet, self).get_permissions()
+
+    def get_queryset(self):
+        if is_sjs_user(request=self.request):
+            return self.queryset
+        return super(DatedMeasureViewSet, self).get_queryset()
 
     @cache_response()
     def list(self, request, *args, **kwargs):
