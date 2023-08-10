@@ -23,6 +23,7 @@ VALIDATE_QUERY_API = f"{COHORT_REQUEST_BUILDER_URL}/validate"
 FHIR_CANCEL_ACTION = "cancel"
 
 _logger = logging.getLogger("info")
+_logger_err = logging.getLogger("django.request")
 
 
 def parse_date(d):
@@ -118,8 +119,8 @@ def cancel_job(job_id: str, auth_headers) -> JobStatus:
     return new_status
 
 
-def create_count_job(auth_headers: dict, json_query: dict, global_estimate: bool) -> Tuple[Response, dict]:
-    resp = requests.post(url=GLOBAL_COUNT_API if global_estimate else COUNT_API,
+def create_job(url: str, json_query: dict, auth_headers: dict) -> Tuple[Response, dict]:
+    resp = requests.post(url=url,
                          json=json_query,
                          headers=auth_headers)
     resp.raise_for_status()
@@ -128,44 +129,38 @@ def create_count_job(auth_headers: dict, json_query: dict, global_estimate: bool
 
 
 def post_count_cohort(auth_headers: dict, json_query: str, dm_uuid: str, global_estimate=False) -> CRBCountResponse:
-    dt = datetime.now()
     try:
         log_count_task(dm_uuid, "Step 1: Posting count request", global_estimate=global_estimate)
         json_query = json.loads(json_query)
         json_query["cohortUuid"] = dm_uuid  # todo: rename param to `dm_uuid` once CRB is moved to Django
-        resp, result = create_count_job(auth_headers, json_query, global_estimate)
-        log_count_task(dm_uuid, "Step 2: Response being processed", global_estimate=global_estimate)
+        resp, result = create_job(url=GLOBAL_COUNT_API if global_estimate else COUNT_API,
+                                  json_query=json_query,
+                                  auth_headers=auth_headers)
+        log_count_task(dm_uuid, "Step 2: Processing CRB response", global_estimate=global_estimate)
         job = JobResponse(resp, **result)
     except (json.JSONDecodeError, TypeError, ValueError, HTTPError) as e:
+        _logger_err.error(f"Error sending `count` request: {e}")
         return CRBCountResponse(success=False,
                                 fhir_job_status=JobStatus.failed,
-                                job_duration=datetime.now() - dt,
                                 err_msg=str(e))
+    log_create_task(dm_uuid, "Step 3: SJS job created. Will be patched later by callback")
     return CRBCountResponse(success=True, fhir_job_id=job.job_id)
 
 
-def create_cohort_job(auth_headers: dict, json_query: dict) -> Tuple[Response, dict]:
-    resp = requests.post(url=CREATE_COHORT_API, json=json_query, headers=auth_headers)
-    resp.raise_for_status()
-    result = resp.json()
-    return resp, result
-
-
 def post_create_cohort(auth_headers: dict, json_query: str, cr_uuid: str) -> CRBCohortResponse:
-    log_create_task(cr_uuid, "Step 1: Post cohort creation request to CRB")
     try:
+        log_create_task(cr_uuid, "Step 1: Post cohort creation request to CRB")
         json_query = json.loads(json_query)
         json_query["cohortUuid"] = cr_uuid
-        resp, result = create_cohort_job(auth_headers, json_query)
-    except (json.JSONDecodeError, TypeError, HTTPError) as e:
-        return CRBCohortResponse(success=False, fhir_job_status=JobStatus.failed, err_msg=str(e))
-
-    log_create_task(cr_uuid, "Step 2: Processing CRB response")
-    try:
+        resp, result = create_job(url=CREATE_COHORT_API,
+                                  json_query=json_query,
+                                  auth_headers=auth_headers)
+        log_create_task(cr_uuid, "Step 2: Processing CRB response")
         job = JobResponse(resp, **result)
-        log_create_task(cr_uuid, f"Step 2.x: check job_id in job response: {job.job_id}")
-    except ValueError as e:
-        return CRBCohortResponse(success=False, fhir_job_status=JobStatus.failed, err_msg=str(e))
-
-    log_create_task(cr_uuid, "Step 3: SJS job created. Will be notified later by callback")
+    except (json.JSONDecodeError, TypeError, ValueError, HTTPError) as e:
+        _logger_err.error(f"Error sending `cohort creation` request: {e}")
+        return CRBCohortResponse(success=False,
+                                 fhir_job_status=JobStatus.failed,
+                                 err_msg=str(e))
+    log_create_task(cr_uuid, "Step 3: SJS job created. Will be patched later by callback")
     return CRBCohortResponse(success=True, fhir_job_id=job.job_id)

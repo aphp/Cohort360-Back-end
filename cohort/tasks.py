@@ -15,16 +15,10 @@ _logger = logging.getLogger('django.request')
 
 @shared_task
 def create_cohort_task(auth_headers: dict, json_query: str, cohort_uuid: str):
-    try:
-        cohort_result = CohortResult.objects.get(uuid=cohort_uuid)
-    except CohortResult.DoesNotExist:
-        log_create_task(cohort_uuid, "Error: could not find CohortResult")
-        return
-
-    log_create_task(cohort_uuid, "Asking CRB to create cohort")
-    resp = cohort_job_api.post_create_cohort(auth_headers=auth_headers,
+    cohort_result = CohortResult.objects.get(uuid=cohort_uuid)
+    resp = cohort_job_api.post_create_cohort(cr_uuid=cohort_uuid,
                                              json_query=json_query,
-                                             cr_uuid=cohort_uuid)
+                                             auth_headers=auth_headers)
 
     cohort_result.create_task_id = current_task.request.id or ""
     if resp.success:
@@ -36,6 +30,27 @@ def create_cohort_task(auth_headers: dict, json_query: str, cohort_uuid: str):
         cohort_result.request_job_fail_msg = resp.err_msg
     cohort_result.save()
     log_create_task(cohort_uuid, resp.success and "CohortResult updated" or resp.err_msg)
+
+
+@shared_task
+def get_count_task(auth_headers: dict, json_query: str, dm_uuid: str):
+    dm = DatedMeasure.objects.get(uuid=dm_uuid)
+    dm.count_task_id = current_task.request.id or ""
+    dm.request_job_status = JobStatus.pending
+    dm.save()
+
+    resp = cohort_job_api.post_count_cohort(dm_uuid=dm_uuid,
+                                            json_query=json_query,
+                                            auth_headers=auth_headers,
+                                            global_estimate=dm.mode == GLOBAL_DM_MODE)
+
+    if resp.success:
+        dm.request_job_id = resp.fhir_job_id
+    else:
+        dm.request_job_status = JobStatus.failed
+        dm.request_job_fail_msg = resp.err_msg
+    dm.save()
+    log_count_task(dm_uuid, resp.success and "DatedMeasure updated" or resp.err_msg)
 
 
 @shared_task
@@ -63,32 +78,3 @@ def cancel_previously_running_dm_jobs(auth_headers: dict, dm_uuid: str):
             dm.request_job_fail_msg = msg
         finally:
             dm.save()
-
-
-@shared_task
-def get_count_task(auth_headers: dict, json_query: str, dm_uuid: str):
-    try:
-        dm = DatedMeasure.objects.get(uuid=dm_uuid)
-    except DatedMeasure.DoesNotExist:
-        log_count_task(dm_uuid, "Error: could not find DatedMeasure")
-        return
-
-    dm.count_task_id = current_task.request.id or ""
-    dm.request_job_status = JobStatus.pending
-    dm.save()
-
-    global_estimate = dm.mode == GLOBAL_DM_MODE
-
-    log_count_task(dm_uuid, f"Asking CRB to get {'global ' if global_estimate else ''}count")
-
-    resp = cohort_job_api.post_count_cohort(auth_headers=auth_headers,
-                                            json_query=json_query,
-                                            dm_uuid=dm_uuid,
-                                            global_estimate=global_estimate)
-
-    if resp.success:
-        dm.request_job_id = resp.fhir_job_id
-    else:
-        dm.request_job_status = JobStatus.failed
-        dm.request_job_fail_msg = resp.err_msg
-    dm.save()
