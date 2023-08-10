@@ -4,10 +4,10 @@ from typing import List, Dict
 
 from django.db.models import Q, F
 from django.db.models.query import QuerySet, Prefetch
+from django.utils import timezone
 
 from accesses.models.access import Access
 from accesses.models.perimeter import Perimeter
-from accesses.models.profile import Profile
 from accesses.models.role import Role
 from admin_cohort.models import User
 from admin_cohort.settings import MANUAL_SOURCE, PERIMETERS_TYPES
@@ -79,6 +79,46 @@ def intersect_queryset_criteria(cs_a: List[Dict], cs_b: List[Dict]) -> List[Dict
     return res
 
 
+def q_is_valid_profile(field_prefix: str = '') -> Q:
+    """
+    Returns a query Q on Profile fields (can go with a prefix)
+    Filtering on validity :
+    - (valid_start or manual_valid_start if exist) is before now or null
+    - (valid_end or manual_valid_end if exist) is after now or null
+    - (active or manual_active if exist) is True
+    :param field_prefix: str set before each field in case the queryset is
+    used when Profile is a related object
+    :return:
+    """
+    now = timezone.now()
+    field_prefix = f"{field_prefix}__" if field_prefix else ""
+    fields = {"valid_start": f"{field_prefix}valid_start_datetime",
+              "manual_valid_start": f"{field_prefix}manual_valid_start_datetime",
+              "valid_end": f"{field_prefix}valid_end_datetime",
+              "manual_valid_end": f"{field_prefix}manual_valid_end_datetime",
+              "active": f"{field_prefix}is_active",
+              "manual_active": f"{field_prefix}manual_is_active"
+              }
+    q_actual_start_is_none = Q(**{fields['valid_start']: None,
+                                  fields['manual_valid_start']: None})
+    q_start_lte_now = ((Q(**{fields['manual_valid_start']: None})
+                        & Q(**{f"{fields['valid_start']}__lte": now}))
+                       | Q(**{f"{fields['manual_valid_start']}__lte": now}))
+
+    q_actual_end_is_none = Q(**{fields['valid_end']: None,
+                                fields['manual_valid_end']: None})
+    q_end_gte_now = ((Q(**{fields['manual_valid_end']: None})
+                      & Q(**{f"{fields['valid_end']}__gte": now}))
+                     | Q(**{f"{fields['manual_valid_end']}__gte": now}))
+
+    q_is_active = ((Q(**{fields['manual_active']: None})
+                    & Q(**{fields['active']: True}))
+                   | Q(**{fields['manual_active']: True}))
+    return ((q_actual_start_is_none | q_start_lte_now)
+            & (q_actual_end_is_none | q_end_gte_now)
+            & q_is_active)
+
+
 def get_admin_roles(access: Access, perimeter_id: int, just_read: bool):
     role = access.role
     if access.perimeter_id == perimeter_id:
@@ -146,28 +186,41 @@ def get_all_user_managing_accesses_on_perimeter(user: User, perimeter: Perimeter
     :return:
     """
 
-    return get_user_valid_manual_accesses_queryset(user).filter((perimeter.all_parents_query("perimeter") & Role.manage_on_lower_levels_query("role"))
-                                                                | (Q(perimeter=perimeter) & Role.manage_on_same_level_query("role"))
-                                                                | Role.manage_on_any_level_query("role")
-                                                                ).select_related("role")
+    return get_user_valid_manual_accesses(user).filter((perimeter.all_parents_query("perimeter") & Role.manage_on_lower_levels_query("role"))
+                                                       | (Q(perimeter=perimeter) & Role.manage_on_same_level_query("role"))
+                                                       | Role.manage_on_any_level_query("role")
+                                                       ).select_related("role")
 
 
-def get_user_valid_manual_accesses_queryset(user: User) -> QuerySet:
-    return Access.objects.filter(Profile.Q_is_valid(field_prefix="profile")
+def get_user_valid_manual_accesses(user: User) -> QuerySet:
+    return Access.objects.filter(q_is_valid_access()
+                                 & q_is_valid_profile(field_prefix="profile")
                                  & Q(profile__source=MANUAL_SOURCE)
-                                 & Access.Q_is_valid()
                                  & Q(profile__user=user))
 
 
 def get_user_data_accesses_queryset(user: User) -> QuerySet:
-    return get_user_valid_manual_accesses_queryset(user).filter(join_qs([Q(role__right_read_patient_nominative=True),
-                                                                         Q(role__right_read_patient_pseudo_anonymised=True),
-                                                                         Q(role__right_search_patient_with_ipp=True),
-                                                                         Q(role__right_export_csv_nominative=True),
-                                                                         Q(role__right_export_csv_pseudo_anonymised=True),
-                                                                         Q(role__right_transfer_jupyter_pseudo_anonymised=True),
-                                                                         Q(role__right_transfer_jupyter_nominative=True)]
-                                                                        )).prefetch_related('role')
+    return get_user_valid_manual_accesses(user).filter(join_qs([Q(role__right_read_patient_nominative=True),
+                                                                Q(role__right_read_patient_pseudo_anonymised=True),
+                                                                Q(role__right_search_patient_with_ipp=True),
+                                                                Q(role__right_export_csv_nominative=True),
+                                                                Q(role__right_export_csv_pseudo_anonymised=True),
+                                                                Q(role__right_transfer_jupyter_pseudo_anonymised=True),
+                                                                Q(role__right_transfer_jupyter_nominative=True)]
+                                                               )).prefetch_related('role')
+
+
+def q_is_valid_access() -> Q:
+    now = timezone.now()
+    q_actual_start_is_none = Q(start_datetime=None, manual_start_datetime=None)
+    q_start_lte_now = ((Q(manual_start_datetime=None) & Q(start_datetime__lte=now))
+                       | Q(manual_start_datetime__lte=now))
+
+    q_actual_end_is_none = Q(end_datetime=None, manual_end_datetime=None)
+    q_end_gte_now = ((Q(manual_end_datetime=None) & Q(end_datetime__gte=now))
+                     | Q(manual_end_datetime__gte=now))
+    return ((q_actual_start_is_none | q_start_lte_now)
+            & (q_actual_end_is_none | q_end_gte_now))
 
 
 class DataRight:
