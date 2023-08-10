@@ -181,7 +181,8 @@ class CohortsGetTests(CohortsTests):
         request = self.factory.get(path=self.active_jobs_url)
         force_authenticate(request, self.user1)
         response = self.__class__.get_active_jobs_view(request)
-        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data.get('jobs_count'), 0)
 
 
 class CohortCaseRetrieveFilter(CaseRetrieveFilter):
