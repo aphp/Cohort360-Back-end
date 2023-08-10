@@ -17,7 +17,7 @@ from cohort.models.dated_measure import GLOBAL_DM_MODE
 from cohort.serializers import DatedMeasureSerializer
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
-JOB_STATUS = "status"
+JOB_STATUS = "request_job_status"
 COUNT = "count"
 MAXIMUM = "maximum"
 MINIMUM = "minimum"
@@ -68,10 +68,10 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         dm = self.get_object()
         data: dict = request.data
 
-        sjs_job_status = data.pop(JOB_STATUS, "")
-        job_status = fhir_to_job_status().get(sjs_job_status.upper())
+        job_status = data.get(JOB_STATUS, "")
+        job_status = fhir_to_job_status().get(job_status.upper())
         if not job_status:
-            return Response(data=f"Invalid job status: {sjs_job_status}",
+            return Response(data=f"Invalid job status: {data.get(JOB_STATUS)}",
                             status=status.HTTP_400_BAD_REQUEST)
         job_duration = str(timezone.now() - dm.created_at)
 
@@ -87,9 +87,6 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             data["request_job_fail_msg"] = data.pop(ERR_MESSAGE, None)
             _logger_err.exception(f"DatedMeasure [{dm.uuid}] - Error on SJS callback")
 
-        data.update({"request_job_status": job_status.value,
-                     "request_job_duration": job_duration,
-                     })
-        resp = super(DatedMeasureViewSet, self).partial_update(request, *args, **kwargs)
-        return resp
+        data["request_job_duration"] = job_duration
+        return super(DatedMeasureViewSet, self).partial_update(request, *args, **kwargs)
 

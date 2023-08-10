@@ -296,7 +296,7 @@ class DMUpdateTests(DatedMeasuresTests):
 
     def test_update_dm_by_sjs_callback_status_finished(self):
         dm: DatedMeasure = self.model_objects.create(**self.basic_data)
-        data = {'status': 'finished',
+        data = {'request_job_status': 'finished',
                 'count': 10500
                 }
         request = self.factory.patch(self.objects_url, data=data, format='json')
@@ -308,7 +308,7 @@ class DMUpdateTests(DatedMeasuresTests):
 
     def test_update_dm_with_global_estimate_by_sjs_callback_status_finished(self):
         dm_global: DatedMeasure = self.model_objects.create(**self.data_global_estimate_mode)
-        data = {'status': 'finished',
+        data = {'request_job_status': 'finished',
                 'minimum': 10,
                 'maximum': 50}
         request = self.factory.patch(self.objects_url, data=data, format='json')
@@ -321,7 +321,7 @@ class DMUpdateTests(DatedMeasuresTests):
 
     def test_update_dm_by_sjs_callback_status_failed(self):
         dm: DatedMeasure = self.model_objects.create(**self.basic_data)
-        data = {'status': 'error',
+        data = {'request_job_status': 'error',
                 'message': 'Error on count job'
                 }
         request = self.factory.patch(self.objects_url, data=data, format='json')
@@ -334,5 +334,5 @@ class DMUpdateTests(DatedMeasuresTests):
 
     def test_error_update_dm_by_sjs_callback_invalid_status(self):
         invalid_status = 'invalid_status'
-        case = self.basic_err_case.clone(data_to_update={'status': invalid_status})
+        case = self.basic_err_case.clone(data_to_update={'request_job_status': invalid_status})
         self.check_patch_case(case)
