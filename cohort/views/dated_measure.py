@@ -87,6 +87,8 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             data["request_job_fail_msg"] = data.pop(ERR_MESSAGE, None)
             _logger_err.exception(f"DatedMeasure [{dm.uuid}] - Error on SJS callback")
 
-        data["request_job_duration"] = job_duration
+        data.update({"request_job_status": job_status,
+                     "request_job_duration": job_duration
+                     })
         return super(DatedMeasureViewSet, self).partial_update(request, *args, **kwargs)
 
