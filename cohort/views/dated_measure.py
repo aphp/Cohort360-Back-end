@@ -77,14 +77,15 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                          responses={'200': openapi.Response("DatedMeasure updated successfully", DatedMeasureSerializer()),
                                     '400': openapi.Response("Bad Request")})
     def partial_update(self, request, *args, **kwargs):
-        dm = self.get_object()
         data: dict = request.data
+        _logger.info(f"Received data for DM patch: {data}")
 
         job_status = data.get(JOB_STATUS, "")
         job_status = fhir_to_job_status().get(job_status.upper())
         if not job_status:
             return Response(data=f"Invalid job status: {data.get(JOB_STATUS)}",
                             status=status.HTTP_400_BAD_REQUEST)
+        dm = self.get_object()
         job_duration = str(timezone.now() - dm.created_at)
 
         if job_status == JobStatus.finished:

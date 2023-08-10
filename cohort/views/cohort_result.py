@@ -181,7 +181,6 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     def partial_update(self, request, *args, **kwargs):
         data: dict = request.data
         _logger.info(f"Received data for cohort patch: {data}")
-        cohort = self.get_object()
         sjs_data_keys = (JOB_STATUS, GROUP_ID, GROUP_COUNT)
         is_update_from_sjs = all([key in data for key in sjs_data_keys])
         is_update_from_etl = JOB_STATUS in data and len(data) == 1
@@ -191,6 +190,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         if not job_status:
             return Response(data=f"Invalid job status: {data.get(JOB_STATUS)}",
                             status=status.HTTP_400_BAD_REQUEST)
+        cohort = self.get_object()
         if job_status in (JobStatus.finished, JobStatus.failed):
             data["request_job_duration"] = str(timezone.now() - cohort.created_at)
             if job_status == JobStatus.failed:
