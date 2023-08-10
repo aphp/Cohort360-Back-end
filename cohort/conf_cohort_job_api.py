@@ -138,7 +138,7 @@ def post_count_cohort(auth_headers: dict, json_query: str, dm_uuid: str, global_
                                   auth_headers=auth_headers)
         log_count_task(dm_uuid, "Step 2: Processing CRB response", global_estimate=global_estimate)
         job = JobResponse(resp, **result)
-    except (json.JSONDecodeError, TypeError, ValueError, HTTPError) as e:
+    except (TypeError, ValueError, HTTPError) as e:
         _logger_err.error(f"Error sending `count` request: {e}")
         return CRBCountResponse(success=False,
                                 fhir_job_status=JobStatus.failed,
@@ -157,7 +157,7 @@ def post_create_cohort(auth_headers: dict, json_query: str, cr_uuid: str) -> CRB
                                   auth_headers=auth_headers)
         log_create_task(cr_uuid, "Step 2: Processing CRB response")
         job = JobResponse(resp, **result)
-    except (json.JSONDecodeError, TypeError, ValueError, HTTPError) as e:
+    except (TypeError, ValueError, HTTPError) as e:
         _logger_err.error(f"Error sending `cohort creation` request: {e}")
         return CRBCohortResponse(success=False,
                                  fhir_job_status=JobStatus.failed,
