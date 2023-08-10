@@ -57,14 +57,12 @@ class TasksTests(DatedMeasuresTests):
                                                         request_query_snapshot=self.user1_req1_snap1,
                                                         dated_measure=self.user1_req1_snap1_dm2)
 
-        self.basic_count_response = dict(count=self.test_count,
-                                         fhir_datetime=self.test_datetime,
-                                         fhir_job_id=self.test_job_id,
-                                         job_duration=self.test_job_duration,
-                                         success=True,
-                                         fhir_job_status=JobStatus.finished,
-                                         count_max=self.test_count,
-                                         count_min=self.test_count)
+        self.basic_count_response = {"success": True,
+                                     "fhir_job_id": self.test_job_id}
+
+        self.failed_count_response = {"success": False,
+                                      "fhir_job_status": JobStatus.failed,
+                                      "err_msg": self.test_count_err_msg}
 
         self.resp_create_cohort_success = {"success": True,
                                            "fhir_job_id": self.test_job_id,
@@ -117,14 +115,7 @@ class TasksTests(DatedMeasuresTests):
                        dm_uuid=self.user1_req1_snap1_initial_dm.uuid)
 
         new_dm = DatedMeasure.objects.filter(pk=self.user1_req1_snap1_initial_dm.uuid,
-                                             measure_min__isnull=True,
-                                             measure_max__isnull=True,
-                                             measure=self.test_count,
-                                             fhir_datetime=self.test_datetime,
-                                             request_job_duration=self.test_job_duration,
-                                             request_job_status=JobStatus.finished,
-                                             request_job_id=self.test_job_id,
-                                             ).first()
+                                             request_job_id=self.test_job_id).first()
         self.assertIsNotNone(new_dm)
 
     @mock.patch('cohort.tasks.celery_app.control.revoke')
@@ -158,36 +149,19 @@ class TasksTests(DatedMeasuresTests):
                        dm_uuid=self.user1_req1_snap1_initial_global_dm.uuid)
 
         new_dm = DatedMeasure.objects.filter(pk=self.user1_req1_snap1_initial_global_dm.uuid,
-                                             measure__isnull=True,
-                                             measure_min=self.test_count,
-                                             measure_max=self.test_count,
-                                             fhir_datetime=self.test_datetime,
-                                             request_job_duration=self.test_job_duration,
-                                             request_job_status=JobStatus.finished,
-                                             request_job_id=self.test_job_id,
-                                             ).first()
+                                             request_job_id=self.test_job_id).first()
         self.assertIsNotNone(new_dm)
 
     @mock.patch('cohort.tasks.cohort_job_api')
     def test_failed_get_count_task(self, mock_cohort_job_api):
-        mock_cohort_job_api.post_count_cohort.return_value = CRBCountResponse(fhir_job_id=self.test_job_id,
-                                                                              job_duration=self.test_job_duration,
-                                                                              fhir_job_status=JobStatus.failed,
-                                                                              success=False,
-                                                                              err_msg=self.test_count_err_msg)
+        mock_cohort_job_api.post_count_cohort.return_value = CRBCountResponse(**self.failed_count_response)
         get_count_task(auth_headers={},
                        json_query="{}",
                        dm_uuid=self.user1_req1_snap1_initial_dm.uuid)
         test_err_msg = "Error on getting count"
         new_dm = DatedMeasure.objects.filter(pk=self.user1_req1_snap1_initial_dm.uuid,
-                                             measure__isnull=True,
-                                             measure_min__isnull=True,
-                                             measure_max__isnull=True,
-                                             request_job_id=self.test_job_id,
-                                             request_job_duration=self.test_job_duration,
                                              request_job_status=JobStatus.failed,
-                                             request_job_fail_msg=test_err_msg,
-                                             ).first()
+                                             request_job_fail_msg=test_err_msg).first()
         self.assertIsNotNone(new_dm)
 
     @mock.patch('cohort.tasks.cohort_job_api')

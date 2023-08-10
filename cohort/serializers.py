@@ -1,3 +1,4 @@
+from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -48,12 +49,10 @@ class DatedMeasureSerializer(BaseSerializer):
         fields = "__all__"
         read_only_fields = ["count_task_id",
                             "request_job_id",
-                            "request_job_status",
-                            "request_job_fail_msg",
-                            "request_job_duration",
                             "mode",
                             "request"]
 
+    @transaction.atomic
     def create(self, validated_data):
         query_snapshot = validated_data.get("request_query_snapshot")
         measure = validated_data.get("measure")
@@ -67,16 +66,17 @@ class DatedMeasureSerializer(BaseSerializer):
 
         dm = super(DatedMeasureSerializer, self).create(validated_data=validated_data)
 
-        auth_header = cohort_job_api.get_authorization_header(self.context.get("request"))
-        cancel_previously_running_dm_jobs.delay(add_trace_id(auth_header), dm.uuid)
+        auth_headers = cohort_job_api.get_authorization_header(self.context.get("request"))
+        cancel_previously_running_dm_jobs.delay(auth_headers, dm.uuid)
 
         if not measure:
             try:
-                auth_header = cohort_job_api.get_authorization_header(self.context.get("request"))
-                get_count_task.delay(add_trace_id(auth_header), query_snapshot.serialized_query, dm.uuid)
+                transaction.on_commit(lambda: get_count_task.delay(auth_headers,
+                                                                   query_snapshot.serialized_query,
+                                                                   dm.uuid))
             except Exception as e:
                 dm.delete()
-                raise ValidationError(f"INTERNAL ERROR: Could not launch FHIR cohort count: {e}")
+                raise ValidationError(f"INTERNAL ERROR: Could not launch count request: {e}")
         return dm
 
 
@@ -104,6 +104,7 @@ class CohortResultSerializer(BaseSerializer):
                 raise ValidationError(f'{f} field cannot be updated manually')
         return super(CohortResultSerializer, self).update(instance, validated_data)
 
+    @transaction.atomic
     def create(self, validated_data):
         global_estimate = validated_data.pop("global_estimate", None) and \
                           validated_data.get('dated_measure_global') is None
@@ -119,18 +120,21 @@ class CohortResultSerializer(BaseSerializer):
 
         if global_estimate:
             try:
-                from cohort.tasks import get_count_task
-                get_count_task.delay(add_trace_id(cohort_job_api.get_authorization_header(self.context.get("request"))),
-                                     str(rqs.serialized_query),
-                                     dm_global.uuid)
+                auth_headers = cohort_job_api.get_authorization_header(self.context.get("request"))
+                transaction.on_commit(lambda: get_count_task.delay(auth_headers,
+                                                                   str(rqs.serialized_query),
+                                                                   dm_global.uuid))
+
             except Exception as e:
                 dm_global.request_job_fail_msg = f"ERROR: Could not launch FHIR cohort count: {e}"
                 dm_global.request_job_status = JobStatus.failed
                 dm_global.save()
         try:
             from cohort.tasks import create_cohort_task
-            auth_header = cohort_job_api.get_authorization_header(self.context.get("request"))
-            create_cohort_task.delay(add_trace_id(auth_header), rqs.serialized_query, cohort_result.uuid)
+            auth_headers = cohort_job_api.get_authorization_header(self.context.get("request"))
+            transaction.on_commit(lambda: create_cohort_task.delay(auth_headers,
+                                                                   rqs.serialized_query,
+                                                                   cohort_result.uuid))
         except Exception as e:
             cohort_result.delete()
             raise ValidationError(f"Error on pushing new message to the queue: {e}")

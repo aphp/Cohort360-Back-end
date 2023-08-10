@@ -1,16 +1,15 @@
 import json
 import logging
 import os
-import time
 from typing import Tuple, Dict
 
 import requests
-from django.utils import timezone
-from django.utils.datetime_safe import datetime
-from requests import Response, HTTPError, RequestException
+from datetime import datetime
+from requests import Response, HTTPError
 from rest_framework import status
 from rest_framework.request import Request
 
+from admin_cohort.middleware.request_trace_id_middleware import add_trace_id
 from admin_cohort.types import JobStatus, MissingDataError
 from cohort.crb_responses import CRBCountResponse, CRBCohortResponse
 from cohort.tools import log_count_task, log_create_task
@@ -59,9 +58,11 @@ def fhir_to_job_status() -> Dict[str, JobStatus]:
 
 def get_authorization_header(request: Request) -> dict:
     key = request.jwt_access_key or request.META.get("HTTP_AUTHORIZATION")
-    return {"Authorization": f"Bearer {key}",
-            "authorizationMethod": request.META.get('HTTP_AUTHORIZATIONMETHOD')
-            }
+    headers = {"Authorization": f"Bearer {key}",
+               "authorizationMethod": request.META.get('HTTP_AUTHORIZATIONMETHOD')
+               }
+    headers = add_trace_id(headers)
+    return headers
 
 
 class JobResponse:
@@ -71,24 +72,13 @@ class JobResponse:
             raise ValueError(f"Expected valid status value, got None : {resp.json()}")
         self.job_id: str = kwargs.get('jobId')
         self.source: str = kwargs.get('source')
-        self.count = kwargs.get("group.count", kwargs.get("count"))
+        self.count = kwargs.get("count")
         self.count_min = kwargs.get("minimum")
         self.count_max = kwargs.get("maximum")
         self.group_id = kwargs.get("group.id")
-        self.message = kwargs.get('message', f'could not read the message. Full response: {resp.text}')
+        self.message = kwargs.get('message', f'No message. Full response: {resp.text}')
         self.stack = kwargs.get("stack", resp.text)
         self.request_response: Response = resp
-
-
-def get_job(job_id: str, auth_headers) -> JobResponse:
-    resp = requests.get(f"{JOBS_API}/{job_id}", headers=auth_headers)
-    resp.raise_for_status()
-    result = resp.json()
-    _logger.info(f"Result received from get_job: {result}")
-    if resp.status_code != status.HTTP_200_OK:
-        raise HTTPError(f"Unexpected response code: {resp.status_code}: "
-                        f"{result.get('error', 'no error')} - {result.get('message', 'no message')}")
-    return JobResponse(resp, **result)
 
 
 def cancel_job(job_id: str, auth_headers) -> JobStatus:
@@ -128,93 +118,30 @@ def cancel_job(job_id: str, auth_headers) -> JobStatus:
     return new_status
 
 
-def create_count_job(auth_headers: dict, json_query: str, global_estimate) -> Tuple[Response, dict]:
+def create_count_job(auth_headers: dict, json_query: str, global_estimate: bool) -> Tuple[Response, dict]:
     resp = requests.post(url=GLOBAL_COUNT_API if global_estimate else COUNT_API,
                          json=json.loads(json_query),
                          headers=auth_headers)
     resp.raise_for_status()
     result = resp.json()
-    if resp.status_code != status.HTTP_200_OK:
-        raise HTTPError(f"Unexpected response code: {resp.status_code}: "
-                        f"{result.get('error', 'no error')} - {result.get('message', 'no message')}")
     return resp, result
 
 
 def post_count_cohort(auth_headers: dict, json_query: str, dm_uuid: str, global_estimate=False) -> CRBCountResponse:
-    from datetime import datetime
-    d = datetime.now()
-    log_count_task(dm_uuid, "Step 1: Posting count request", global_estimate=global_estimate)
-
+    dt = datetime.now()
     try:
+        log_count_task(dm_uuid, "Step 1: Posting count request", global_estimate=global_estimate)
+        json_query = json.loads(json_query)
+        json_query["cohortUuid"] = dm_uuid  # todo: rename param to `dm_uuid` once CRB is moved to Django
         resp, result = create_count_job(auth_headers, json_query, global_estimate)
-    except RequestException as e:
-        return CRBCountResponse(success=False,
-                                job_duration=datetime.now() - d,
-                                fhir_job_status=JobStatus.failed,
-                                err_msg=str(e))
-
-    log_count_task(dm_uuid, "Step 2: Response being processed", global_estimate=global_estimate)
-    try:
+        log_count_task(dm_uuid, "Step 2: Response being processed", global_estimate=global_estimate)
         job = JobResponse(resp, **result)
-    except ValueError as e:
+    except (json.JSONDecodeError, TypeError, ValueError, HTTPError) as e:
         return CRBCountResponse(success=False,
-                                job_duration=datetime.now() - d,
                                 fhir_job_status=JobStatus.failed,
-                                err_msg=f"Error while interpreting response: {e} - {resp.text}")
-
-    if job.status == JobStatus.failed:
-        reason = job.message
-        if reason:
-            if job.stack is None or len(job.stack) == 0:
-                reason = f'message and stack message are empty. Full result: {resp.text}'
-            else:
-                reason = f'message is empty. Stack message: {job.stack}'
-        err_msg = f"FHIR ERROR {job.request_response.status_code}: {reason}"
-        return CRBCountResponse(success=False,
-                                job_duration=datetime.now() - d,
-                                fhir_job_status=JobStatus.failed,
-                                err_msg=err_msg)
-
-    log_count_task(dm_uuid, "Step 3: Job created. Waiting for it to be finished", global_estimate=global_estimate)
-    errors_count = 0
-    while job.status not in [JobStatus.cancelled, JobStatus.finished, JobStatus.failed]:
-        time.sleep(2)
-        try:
-            job = get_job(job.job_id, auth_headers=auth_headers)
-            log_count_task(dm_uuid, f"Step 3.x: Job created. Status: {job.status}.", global_estimate=global_estimate)
-        except RequestException as e:
-            errors_count += 1
-            log_count_task(dm_uuid, f"Step 3.x: Error {errors_count} found on getting status : {e}.", global_estimate=global_estimate)
-            if errors_count > 5:
-                return CRBCountResponse(success=False,
-                                        job_duration=datetime.now() - d,
-                                        fhir_job_status=JobStatus.failed,
-                                        err_msg=f"5 errors in a row while getting job status : {e}")
-            time.sleep(10)
-
-    log_count_task(dm_uuid, "Step 4: Job ended, returning result.", global_estimate=global_estimate)
-    if job.status in (JobStatus.cancelled, JobStatus.failed):
-        return CRBCountResponse(success=False,
-                                job_duration=datetime.now() - d,
-                                fhir_job_status=job.status,
-                                err_msg=job.status == JobStatus.failed and job.message or "Job cancelled")
-
-    if job.count is None and job.count_max is None:
-        err_msg = f"INTERNAL ERROR: format of received response not anticipated: {job}"
-        return CRBCountResponse(success=False,
-                                fhir_job_id=job.job_id,
-                                job_duration=datetime.now() - d,
-                                fhir_job_status=JobStatus.failed,
-                                err_msg=err_msg)
-
-    return CRBCountResponse(fhir_datetime=timezone.now(),
-                            fhir_job_id=job.job_id,
-                            job_duration=datetime.now() - d,
-                            success=True,
-                            count=job.count,
-                            count_min=job.count_min,
-                            count_max=job.count_max,
-                            fhir_job_status=job.status)
+                                job_duration=datetime.now() - dt,
+                                err_msg=str(e))
+    return CRBCountResponse(success=True, fhir_job_id=job.job_id)
 
 
 def create_cohort_job(auth_headers: dict, json_query: dict) -> Tuple[Response, dict]:
