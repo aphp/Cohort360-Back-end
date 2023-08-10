@@ -26,7 +26,7 @@ from cohort.serializers import CohortResultSerializer, CohortResultSerializerFul
 from cohort.tools import get_dict_cohort_pop_source, get_all_cohorts_rights, send_email_notif_about_large_cohort
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
-JOB_STATUS = "request_job_status"
+JOB_STATUS = "status"
 GROUP_ID = "group.id"
 GROUP_COUNT = "group.count"
 
@@ -180,10 +180,10 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                                            "By ETL to update request_job_status on delayed large cohorts",
                          request_body=openapi.Schema(
                              type=openapi.TYPE_OBJECT,
-                             properties={"request_job_status": openapi.Schema(type=openapi.TYPE_STRING, description="For SJS and ETL callback"),
-                                         "group.id": openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback"),
-                                         "group.count": openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback")},
-                             required=['request_job_status', 'group.id', 'group.count']),
+                             properties={JOB_STATUS: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS and ETL callback"),
+                                         GROUP_ID: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback"),
+                                         GROUP_COUNT: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback")},
+                             required=[JOB_STATUS, GROUP_ID, GROUP_COUNT]),
                          responses={'200': openapi.Response("Cohort updated successfully", CohortRightsSerializer()),
                                     '400': openapi.Response("Bad Request")})
     def partial_update(self, request, *args, **kwargs):
@@ -194,16 +194,16 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         is_update_from_sjs = all([key in data for key in sjs_data_keys])
         is_update_from_etl = JOB_STATUS in data and len(data) == 1
 
-        if JOB_STATUS in data:
-            job_status = fhir_to_job_status().get(data[JOB_STATUS].upper())
-            if not job_status:
-                return Response(data=f"Invalid job status: {data.get('status')}",
-                                status=status.HTTP_400_BAD_REQUEST)
-            if job_status in (JobStatus.finished, JobStatus.failed):
-                data["request_job_duration"] = str(timezone.now() - cohort.created_at)
-                if job_status == JobStatus.failed:
-                    data["request_job_fail_msg"] = "Received a failed status from SJS"
-            data['request_job_status'] = job_status
+        job_status = data.get(JOB_STATUS, "")
+        job_status = fhir_to_job_status().get(job_status.upper())
+        if not job_status:
+            return Response(data=f"Invalid job status: {data.get(JOB_STATUS)}",
+                            status=status.HTTP_400_BAD_REQUEST)
+        if job_status in (JobStatus.finished, JobStatus.failed):
+            data["request_job_duration"] = str(timezone.now() - cohort.created_at)
+            if job_status == JobStatus.failed:
+                data["request_job_fail_msg"] = "Received a failed status from SJS"
+        data['request_job_status'] = job_status
         if GROUP_ID in data:
             data["fhir_group_id"] = data.pop(GROUP_ID)
         if GROUP_COUNT in data:

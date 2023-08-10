@@ -1,5 +1,4 @@
 import logging
-from time import sleep
 
 from celery import shared_task, current_task
 
@@ -16,18 +15,10 @@ _logger = logging.getLogger('django.request')
 
 @shared_task
 def create_cohort_task(auth_headers: dict, json_query: str, cohort_uuid: str):
-    # TODO: Useful? Is the create transaction already closed? latency in database saving (when calling this task)
-    cohort_result: CohortResult = None
-    tries = 0
-    while cohort_result is None and tries <= 5:
-        cohort_result = CohortResult.objects.filter(uuid=cohort_uuid).first()
-        if not cohort_result:
-            log_create_task(cohort_uuid, f"Error: could not find CohortResult to update after {tries - 1} sec")
-            tries = tries + 1
-            sleep(1)
-
-    if not cohort_result:
-        log_create_task(cohort_uuid, "Error: could not find CohortResult to update after 5 sec")
+    try:
+        cohort_result = CohortResult.objects.get(uuid=cohort_uuid)
+    except CohortResult.DoesNotExist:
+        log_create_task(cohort_uuid, "Error: could not find CohortResult")
         return
 
     log_create_task(cohort_uuid, "Asking CRB to create cohort")
@@ -50,9 +41,10 @@ def create_cohort_task(auth_headers: dict, json_query: str, cohort_uuid: str):
 @shared_task
 def cancel_previously_running_dm_jobs(auth_headers: dict, dm_uuid: str):
     dm = DatedMeasure.objects.get(pk=dm_uuid)
-    request = dm.request_query_snapshot
-    running_dms = request.dated_measures.exclude(uuid=dm.uuid).filter(request_job_status__in=(JobStatus.started, JobStatus.pending))\
-                                                              .prefetch_related('cohort', 'restricted_cohort')
+    rqs = dm.request_query_snapshot
+    running_dms = rqs.dated_measures.exclude(uuid=dm.uuid)\
+                                    .filter(request_job_status__in=(JobStatus.started, JobStatus.pending))\
+                                    .prefetch_related('cohort', 'restricted_cohort')
     for dm in running_dms:
         if dm.cohort.all() or dm.restricted_cohort.all():
             continue
@@ -75,18 +67,10 @@ def cancel_previously_running_dm_jobs(auth_headers: dict, dm_uuid: str):
 
 @shared_task
 def get_count_task(auth_headers: dict, json_query: str, dm_uuid: str):
-    # in case of small latency in database saving (when calling this task)
-    dm: DatedMeasure = None
-    tries = 0
-    while dm is None and tries <= 5:
-        dm = DatedMeasure.objects.filter(uuid=dm_uuid).first()
-        if dm is None:
-            log_count_task(dm_uuid, f"Error: could not find DatedMeasure to update after {tries - 1} sec")
-            tries = tries + 1
-            sleep(1)
-
-    if not dm:
-        log_count_task(dm_uuid, "Error: could not find DatedMeasure to update")
+    try:
+        dm = DatedMeasure.objects.get(uuid=dm_uuid)
+    except DatedMeasure.DoesNotExist:
+        log_count_task(dm_uuid, "Error: could not find DatedMeasure")
         return
 
     dm.count_task_id = current_task.request.id or ""
@@ -101,24 +85,10 @@ def get_count_task(auth_headers: dict, json_query: str, dm_uuid: str):
                                             json_query=json_query,
                                             dm_uuid=dm_uuid,
                                             global_estimate=global_estimate)
-    if resp.success:
-        if not global_estimate:
-            dm.measure = resp.count
-        else:
-            dm.measure_min = resp.count_min
-            dm.measure_max = resp.count_max
 
-        dm.fhir_datetime = resp.fhir_datetime
-        dm.request_job_status = resp.fhir_job_status
-        dm.request_job_duration = resp.job_duration
+    if resp.success:
         dm.request_job_id = resp.fhir_job_id
-        dm.save()
-        log_count_task(dm_uuid, f"Dated Measure count: {dm.measure}")
-        log_count_task(dm_uuid, "Dated measure updated")
     else:
-        dm.request_job_status = resp.fhir_job_status
+        dm.request_job_status = JobStatus.failed
         dm.request_job_fail_msg = resp.err_msg
-        dm.request_job_duration = resp.job_duration
-        dm.request_job_id = resp.fhir_job_id
-        dm.save()
-        log_count_task(dm_uuid, resp.err_msg)
+    dm.save()
