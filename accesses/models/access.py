@@ -2,8 +2,7 @@ from __future__ import annotations
 from typing import List, Dict
 
 from django.db import models
-from django.db.models import CASCADE, Q, SET_NULL
-from django.utils import timezone
+from django.db.models import CASCADE, SET_NULL
 from django.utils.datetime_safe import datetime
 
 from accesses.models.perimeter import Perimeter
@@ -55,23 +54,6 @@ class Access(BaseModel):
             if actual_end_datetime <= today:
                 return False
         return True
-
-    @classmethod
-    def Q_is_valid(cls) -> Q:
-        now = timezone.now()
-        q_actual_start_is_none = Q(start_datetime=None,
-                                   manual_start_datetime=None)
-        q_start_lte_now = ((Q(manual_start_datetime=None)
-                            & Q(start_datetime__lte=now))
-                           | Q(manual_start_datetime__lte=now))
-
-        q_actual_end_is_none = Q(end_datetime=None,
-                                 manual_end_datetime=None)
-        q_end_gte_now = ((Q(manual_end_datetime=None)
-                          & Q(end_datetime__gte=now))
-                         | Q(manual_end_datetime__gte=now))
-        return ((q_actual_start_is_none | q_start_lte_now)
-                & (q_actual_end_is_none | q_end_gte_now))
 
     @property
     def care_site_id(self):

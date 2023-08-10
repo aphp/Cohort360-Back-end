@@ -18,6 +18,7 @@ from admin_cohort.settings import MANUAL_SOURCE
 from admin_cohort.types import ServerError, MissingDataError
 from admin_cohort.views import BaseViewset, CustomLoggingMixin
 from ..models import Profile
+from ..models.tools import q_is_valid_profile
 from ..permissions import ProfilePermissions, HasUserAddingPermission
 from ..serializers import ProfileSerializer, ReducedProfileSerializer, \
     ProfileCheckSerializer
@@ -125,7 +126,7 @@ class ProfileViewSet(CustomLoggingMixin, BaseViewset):
 
         try:
             person = check_id_aph(username)
-            manual_profile: Profile = Profile.objects.filter(Profile.Q_is_valid()
+            manual_profile: Profile = Profile.objects.filter(q_is_valid_profile()
                                                              & Q(source=MANUAL_SOURCE)
                                                              & Q(user__provider_username=person.user_id)
                                                              ).first()

@@ -20,7 +20,7 @@ from admin_cohort.settings import PERIMETERS_TYPES, ACCESS_EXPIRY_FIRST_ALERT_IN
 from admin_cohort.tools import join_qs
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.views import BaseViewset, CustomLoggingMixin
-from ..models import Access, get_user_valid_manual_accesses_queryset, intersect_queryset_criteria, build_data_rights
+from ..models import Access, get_user_valid_manual_accesses, intersect_queryset_criteria, build_data_rights
 from ..permissions import AccessPermissions
 from ..serializers import AccessSerializer, DataRightSerializer, ExpiringAccessesSerializer
 
@@ -79,7 +79,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
         q = super(AccessViewSet, self).get_queryset()
         user = self.request.user
         if not user.is_anonymous:
-            accesses = get_user_valid_manual_accesses_queryset(user).select_related("role")
+            accesses = get_user_valid_manual_accesses(user).select_related("role")
         else:
             accesses = []
         to_exclude = [a.accesses_criteria_to_exclude for a in accesses]
@@ -206,7 +206,12 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
                             status=status.HTTP_403_FORBIDDEN)
 
         request.data.update({'end_datetime': now})
-        return self.partial_update(request, *args, **kwargs)
+        response = self.partial_update(request, *args, **kwargs)
+
+        user_accesses = get_user_valid_manual_accesses(user=access.profile.user)
+        if not user_accesses:
+            access.perimeter.remove_user_from_allowed_users(user_id=access.profile.user.provider_username)
+        return response
 
     def destroy(self, request, *args, **kwargs):
         access = self.get_object()
@@ -228,7 +233,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
     @cache_response()
     def my_accesses(self, request, *args, **kwargs):
         user = request.user
-        accesses = get_user_valid_manual_accesses_queryset(user=user)
+        accesses = get_user_valid_manual_accesses(user=user)
         if request.query_params.get("expiring"):
             today = date.today()
             expiry_date = today + timedelta(days=ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS)

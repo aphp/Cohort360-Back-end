@@ -14,7 +14,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
-from accesses.models import get_user_valid_manual_accesses_queryset
+from accesses.models import get_user_valid_manual_accesses
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools import join_qs
 from admin_cohort.types import JobStatus
@@ -130,8 +130,6 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                            JobStatus.pending,
                            JobStatus.long_pending]
         jobs_count = CohortResult.objects.filter(request_job_status__in=active_statuses).count()
-        if not jobs_count:
-            return Response(status=status.HTTP_204_NO_CONTENT)
         return Response(data={"jobs_count": jobs_count}, status=status.HTTP_200_OK)
 
     @cache_response()
@@ -145,7 +143,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                          responses={'201': openapi.Response("Cohorts rights found", CohortRightsSerializer())})
     @action(detail=False, methods=['get'], url_path="cohort-rights")
     def get_cohort_right_accesses(self, request, *args, **kwargs):
-        user_accesses = get_user_valid_manual_accesses_queryset(request.user)
+        user_accesses = get_user_valid_manual_accesses(request.user)
 
         if not user_accesses:
             raise Http404("ERROR: No Accesses found")
