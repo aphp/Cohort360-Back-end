@@ -105,3 +105,30 @@ class TestFhirFilterAPI(CohortAppTests):
         with pytest.raises(IntegrityError):
             FhirFilter.objects.create(**kwargs)
 
+    def test_uniqueness_only_on_unique_together(self):
+        users = User.objects.all()[:2]  # The test DB has 2 users (todo: to improve to be more reliable)
+        FhirFilter.objects.create(
+            fhir_resource="Resource 1", filter_name="name 1", owner=users[0],
+            fhir_filter='{"some": "filter"}', fhir_version='1.0.0'
+        )
+        # Same object but different resource showing filter_name & owner may not be unique without resource
+        FhirFilter.objects.create(
+            fhir_resource="Resource 2", filter_name="name 1", owner=users[0],
+            fhir_filter='{"some": "filter"}', fhir_version='1.0.0'
+        )
+        # Same object but different filter_name showing resource & owner may not be unique without filter_name
+        FhirFilter.objects.create(
+            fhir_resource="Resource 1", filter_name="name 1", owner=users[1],
+            fhir_filter='{"some": "filter"}', fhir_version='1.0.0'
+        )
+        # Same object but different owner showing resource & filter_name may not be unique without owner
+        FhirFilter.objects.create(
+            fhir_resource="Resource 1", filter_name="name 2", owner=users[0],
+            fhir_filter='{"some": "filter"}', fhir_version='1.0.0'
+        )
+        # Finally, a new object with all unique fields together the same as the first and other fields different
+        with pytest.raises(IntegrityError):
+            FhirFilter.objects.create(
+                fhir_resource="Resource 1", filter_name="name 1", owner=users[0],
+                fhir_filter='{"another": "new filter"}', fhir_version='1.1.0'
+            )
