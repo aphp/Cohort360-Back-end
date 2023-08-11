@@ -175,3 +175,11 @@ class TestFhirFilterAPI(CohortAppTests):
         )
         assert FhirFilter.objects.count() == 1
 
+    def test_filter_name_max_length(self):
+        user = User.objects.first()
+        FhirFilter.objects.create(
+            fhir_resource="Resource 1", filter_name="x" * 50, owner=user,
+            fhir_filter='{"some": "filter"}', fhir_version='1.0.0'
+        )
+        assert FhirFilter.objects.count() == 1
+
