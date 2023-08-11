@@ -21,6 +21,5 @@ class TestFhirFilterAPI(CohortAppTests):
         request = self.factory.get(url)
         force_authenticate(request, self.user1)
         response: Response = self.__class__.list_view(request)
-        assert response.status_code == 200
         assert response.status_code == status.HTTP_200_OK
 
