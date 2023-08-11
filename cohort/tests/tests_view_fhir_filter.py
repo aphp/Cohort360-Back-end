@@ -1,3 +1,5 @@
+from random import randint
+
 import pytest
 from django.db import IntegrityError
 from django.urls import reverse
@@ -132,3 +134,13 @@ class TestFhirFilterAPI(CohortAppTests):
                 fhir_resource="Resource 1", filter_name="name 1", owner=users[0],
                 fhir_filter='{"another": "new filter"}', fhir_version='1.1.0'
             )
+
+    def test_hundred_of_filters_no_api(self):
+        user = User.objects.first()
+        loops = randint(100, 600)
+        for i in range(loops):
+            FhirFilter.objects.create(
+                fhir_resource=f"res {i}", filter_name="filter_name", owner=user,
+                fhir_filter='{"some": "filter"}', fhir_version='1.0.0'
+            )
+        assert FhirFilter.objects.count() == loops
