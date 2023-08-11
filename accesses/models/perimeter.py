@@ -106,9 +106,6 @@ class Perimeter(BaseModel):
         while perimeter.parent:
             allowed_users_inferior_levels = list(set((perimeter.allowed_users_inferior_levels or []) +
                                                      perimeter.allowed_users))
-            is_leaf = bool(perimeter.inferior_levels_ids) is False
-            if is_leaf:
-                allowed_users_inferior_levels = perimeter.allowed_users
             parent = perimeter.parent
             parent_allowed_users_inferior_levels = parent.allowed_users_inferior_levels or []
             parent.allowed_users_inferior_levels = list(set(parent_allowed_users_inferior_levels +
