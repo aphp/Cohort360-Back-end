@@ -12,6 +12,7 @@ from cohort.views.fhir_filter import FhirFilterViewSet
 class TestFhirFilterAPI(CohortAppTests):
     list_view = FhirFilterViewSet.as_view({'get': 'list'})
     post_view = FhirFilterViewSet.as_view({'post': 'create'})
+    patch_view = FhirFilterViewSet.as_view({'patch': 'partial_update'})
 
     def test_always_true(self):
         assert True
@@ -54,3 +55,22 @@ class TestFhirFilterAPI(CohortAppTests):
         assert fhir_object.fhir_version == '1.0.0'
         assert fhir_object.filter_name == 'test_filter'
 
+    def test_edit_filter_name(self):
+        # Create a new FhirFilter instance
+        fhir_filter = FhirFilter.objects.create(
+            fhir_resource='Patient',
+            fhir_version='1.0.0',
+            filter_name='original_name',
+            fhir_filter='{"some": "filter"}',
+            owner=User.objects.first()
+        )
+
+        # Edit the filter_name field
+        new_filter_name = 'new_name'
+        url = reverse("cohort:fhir-filters-detail", args=[fhir_filter.pk])
+        request = self.factory.patch(url, data={'filter_name': new_filter_name}, format='json')
+        force_authenticate(request, self.user1)
+        response: Response = self.__class__.patch_view(request, pk=fhir_filter.pk)
+        assert response.status_code == status.HTTP_200_OK
+        fhir_filter.refresh_from_db()
+        assert fhir_filter.filter_name == new_filter_name
