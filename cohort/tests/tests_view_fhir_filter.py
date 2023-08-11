@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 from random import randint
 
 import pytest
@@ -266,6 +267,26 @@ class TestFhirFilterAPI(CohortAppTests):
             fhir_resource='Resource 3', filter_name='Filter 3', fhir_filter='{"some": "filter"}', owner=user,
             fhir_version="1.0.0"
         )
+
+        url = reverse("cohort:fhir-filters-recent-filters")
+        request = self.factory.get(url)
+        force_authenticate(request, self.user1)
+        response: Response = self.__class__.list_view(request)
+
+        filters = response.data.get('results')
+        created_dates = [f['created_at'] for f in filters]
+        assert created_dates == sorted(created_dates)  # dates are in ISO 8601 which makes this possible
+
+    def test_order_by_recent_date_random_dates(self):
+        # Create FhirFilter instances with different created_at values
+        user = User.objects.first()
+        for i in range(100):
+            f = FhirFilter.objects.create(
+                fhir_resource=f"res {i}", filter_name="filter_name", owner=user,
+                fhir_filter='{"some": "filter"}', fhir_version='1.0.0'
+            )
+            f.created_at = datetime.now() - timedelta(days=randint(0, 100))
+            f.save()
 
         url = reverse("cohort:fhir-filters-recent-filters")
         request = self.factory.get(url)
