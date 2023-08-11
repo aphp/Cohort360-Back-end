@@ -191,3 +191,11 @@ class TestFhirFilterAPI(CohortAppTests):
                 fhir_filter='{"some": "filter"}', fhir_version='1.0.0'
             )
 
+    def test_filter_name_min_length_minus_one(self):
+        user = User.objects.first()
+        with pytest.raises(DataError):
+            FhirFilter.objects.create(
+                fhir_resource="Resource 1", filter_name="x" * 1, owner=user,
+                fhir_filter='{"some": "filter"}', fhir_version='1.0.0'
+            )
+
