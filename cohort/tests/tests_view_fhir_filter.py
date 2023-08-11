@@ -23,3 +23,10 @@ class TestFhirFilterAPI(CohortAppTests):
         response: Response = self.__class__.list_view(request)
         assert response.status_code == status.HTTP_200_OK
 
+    def test_list_count_zero_when_empty(self):
+        url = reverse("cohort:fhir-filters-list")
+        request = self.factory.get(url)
+        force_authenticate(request, self.user1)
+        response: Response = self.__class__.list_view(request)
+        assert response.data.get("count") == 0
+
