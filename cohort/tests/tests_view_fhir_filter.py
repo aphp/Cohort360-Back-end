@@ -144,3 +144,25 @@ class TestFhirFilterAPI(CohortAppTests):
                 fhir_filter='{"some": "filter"}', fhir_version='1.0.0'
             )
         assert FhirFilter.objects.count() == loops
+
+    def test_hundred_of_filters_api_call(self):
+        user = User.objects.first()
+        loops = randint(100, 600)
+        url = reverse("cohort:fhir-filters-list")
+        for i in range(loops):
+            data = {
+                'fhir_resource': f'res {i}',
+                'fhir_version': '1.0.0',
+                'filter_name': 'test_filter',
+                'fhir_filter': '{"some": "filter"}',
+                'owner': user.pk
+            }
+            request = self.factory.post(url, data=data, format='json')
+            force_authenticate(request, self.user1)
+            self.__class__.post_view(request)
+
+        count_url = reverse("cohort:fhir-filters-list")
+        count_request = self.factory.get(count_url)
+        force_authenticate(count_request, self.user1)
+        response: Response = self.__class__.list_view(count_request)
+        assert FhirFilter.objects.count() == loops == response.data.get("count")
