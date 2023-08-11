@@ -1,6 +1,5 @@
 from django.urls import reverse
-
-from cohort.tests.cohort_app_tests import CohortAppTests
+from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.test import force_authenticate
 
@@ -23,3 +22,5 @@ class TestFhirFilterAPI(CohortAppTests):
         force_authenticate(request, self.user1)
         response: Response = self.__class__.list_view(request)
         assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
+
