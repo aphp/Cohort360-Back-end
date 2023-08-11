@@ -250,3 +250,28 @@ class TestFhirFilterAPI(CohortAppTests):
         force_authenticate(request, self.user1)
         response: Response = self.__class__.post_view(request)
         assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_order_by_recent_date(self):
+        # Create FhirFilter instances with different created_at values
+        user = User.objects.first()
+        FhirFilter.objects.create(
+            fhir_resource='Resource 1', filter_name='Filter 1', fhir_filter='{"some": "filter"}', owner=user,
+            fhir_version="1.0.0"
+        )
+        FhirFilter.objects.create(
+            fhir_resource='Resource 2', filter_name='Filter 2', fhir_filter='{"some": "filter"}', owner=user,
+            fhir_version="1.0.0"
+        )
+        FhirFilter.objects.create(
+            fhir_resource='Resource 3', filter_name='Filter 3', fhir_filter='{"some": "filter"}', owner=user,
+            fhir_version="1.0.0"
+        )
+
+        url = reverse("cohort:fhir-filters-recent-filters")
+        request = self.factory.get(url)
+        force_authenticate(request, self.user1)
+        response: Response = self.__class__.list_view(request)
+
+        filters = response.data.get('results')
+        created_dates = [f['created_at'] for f in filters]
+        assert created_dates == sorted(created_dates)  # dates are in ISO 8601 which makes this possible
