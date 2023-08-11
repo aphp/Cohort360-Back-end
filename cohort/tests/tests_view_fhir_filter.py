@@ -236,3 +236,17 @@ class TestFhirFilterAPI(CohortAppTests):
                 fhir_resource="Resource 1", filter_name="name of filter", owner=User.objects.first(),
                 fhir_filter='{"some": "filter"}', fhir_version=None
             )
+
+    def test_null_with_api(self):
+        url = reverse("cohort:fhir-filters-list")
+        data = {
+            'fhir_resource': 'Patient',
+            'fhir_version': '1.0.0',
+            'filter_name': 'test_filter',
+            'fhir_filter': '{"some": "filter"}',
+            'owner': None
+        }
+        request = self.factory.post(url, data=data, format='json')
+        force_authenticate(request, self.user1)
+        response: Response = self.__class__.post_view(request)
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
