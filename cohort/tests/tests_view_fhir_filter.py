@@ -1,7 +1,7 @@
 from random import randint
 
 import pytest
-from django.db import IntegrityError
+from django.db import IntegrityError, DataError
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.response import Response
@@ -166,3 +166,12 @@ class TestFhirFilterAPI(CohortAppTests):
         force_authenticate(count_request, self.user1)
         response: Response = self.__class__.list_view(count_request)
         assert FhirFilter.objects.count() == loops == response.data.get("count")
+
+    def test_filter_name_minimal_length(self):
+        user = User.objects.first()
+        FhirFilter.objects.create(
+            fhir_resource="Resource 1", filter_name="x" * 2, owner=user,
+            fhir_filter='{"some": "filter"}', fhir_version='1.0.0'
+        )
+        assert FhirFilter.objects.count() == 1
+
