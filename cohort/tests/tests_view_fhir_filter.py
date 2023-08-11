@@ -1,6 +1,7 @@
 from random import randint
 
 import pytest
+from django.core.exceptions import ValidationError
 from django.db import IntegrityError, DataError
 from django.urls import reverse
 from rest_framework import status
@@ -193,11 +194,12 @@ class TestFhirFilterAPI(CohortAppTests):
 
     def test_filter_name_min_length_minus_one(self):
         user = User.objects.first()
-        with pytest.raises(DataError):
-            FhirFilter.objects.create(
+        with pytest.raises(ValidationError):
+            f = FhirFilter.objects.create(
                 fhir_resource="Resource 1", filter_name="x" * 1, owner=user,
                 fhir_filter='{"some": "filter"}', fhir_version='1.0.0'
             )
+            f.full_clean()  # needed because of a validator check, # todo: abstract implementation detail for the test
 
     def test_null_resource(self):
         with pytest.raises(IntegrityError):
