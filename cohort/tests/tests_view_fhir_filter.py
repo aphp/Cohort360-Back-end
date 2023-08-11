@@ -1,3 +1,5 @@
+import pytest
+from django.db import IntegrityError
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.response import Response
@@ -92,3 +94,14 @@ class TestFhirFilterAPI(CohortAppTests):
         assert fhir_filter.fhir_version == kwargs['fhir_version']
         assert fhir_filter.fhir_filter == kwargs['fhir_filter']
         assert fhir_filter.owner == kwargs['owner']
+
+    def test_uniqueness_same_object(self):
+        user = User.objects.first()
+        kwargs = {
+            'fhir_resource': 'Patient', 'fhir_version': '1.0.0', 'filter_name': 'original_name',
+            'fhir_filter': '{"some": "filter"}', 'owner': user
+        }
+        FhirFilter.objects.create(**kwargs)
+        with pytest.raises(IntegrityError):
+            FhirFilter.objects.create(**kwargs)
+
