@@ -199,3 +199,38 @@ class TestFhirFilterAPI(CohortAppTests):
                 fhir_filter='{"some": "filter"}', fhir_version='1.0.0'
             )
 
+    def test_null_resource(self):
+        with pytest.raises(IntegrityError):
+            FhirFilter.objects.create(
+                fhir_resource=None, filter_name="name of filter", owner=User.objects.first(),
+                fhir_filter='{"some": "filter"}', fhir_version='1.0.0'
+            )
+
+    def test_null_filter_name(self):
+        with pytest.raises(IntegrityError):
+            FhirFilter.objects.create(
+                fhir_resource="Resource 1", filter_name=None, owner=User.objects.first(),
+                fhir_filter='{"some": "filter"}', fhir_version='1.0.0'
+            )
+
+    def test_null_user(self):
+        with pytest.raises(IntegrityError):
+            FhirFilter.objects.create(
+                fhir_resource="Resource 1", filter_name="name of filter", owner=None,
+                fhir_filter='{"some": "filter"}', fhir_version='1.0.0'
+            )
+
+    def test_null_filter(self):
+
+        with pytest.raises(IntegrityError):
+            FhirFilter.objects.create(
+                fhir_resource="Resource 1", filter_name="name of filter", owner=User.objects.first(),
+                fhir_filter=None, fhir_version='1.0.0'
+            )
+
+    def test_null_version(self):
+        with pytest.raises(IntegrityError):
+            FhirFilter.objects.create(
+                fhir_resource="Resource 1", filter_name="name of filter", owner=User.objects.first(),
+                fhir_filter='{"some": "filter"}', fhir_version=None
+            )
