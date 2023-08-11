@@ -1,3 +1,4 @@
+import logging
 import re
 
 import environ
@@ -24,6 +25,8 @@ from ..serializers import ProfileSerializer, ReducedProfileSerializer, \
     ProfileCheckSerializer
 
 env = environ.Env()
+
+_logger = logging.getLogger("django.request")
 
 USERNAME_REGEX = env("USERNAME_REGEX")
 
@@ -143,5 +146,6 @@ class ProfileViewSet(CustomLoggingMixin, BaseViewset):
                                            "manual_profile": manual_profile
                                            }).data
             return Response(data=data, status=status.HTTP_200_OK)
-        except (ServerError, MissingDataError):
+        except (ServerError, MissingDataError) as e:
+            _logger.error(f"Error checking username validity, username: {username}: {e}")
             return Response(data="User not found", status=status.HTTP_204_NO_CONTENT)
