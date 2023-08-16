@@ -3,7 +3,6 @@ from datetime import date, timedelta
 from functools import reduce
 
 from django.db.models import Q, BooleanField, When, Case, Value, QuerySet
-from django.db.models.functions import Coalesce
 from django.http import Http404
 from django.utils import timezone
 from django_filters import OrderingFilter
