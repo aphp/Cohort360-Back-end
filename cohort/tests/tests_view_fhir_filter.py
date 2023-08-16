@@ -271,12 +271,12 @@ class TestFhirFilterAPI(CohortAppTests):
 
         url = reverse("cohort:fhir-filters-recent-filters")
         request = self.factory.get(url)
-        force_authenticate(request, self.user1)
-        response: Response = self.__class__.list_view(request)
+        force_authenticate(request, user)
+        response: Response = self.__class__.recent_list_view(request)
 
-        filters = response.data.get('results')
-        created_dates = [f['created_at'] for f in filters]
-        assert created_dates == sorted(created_dates)  # dates are in ISO 8601 which makes this possible
+        created_dates = [f['created_at'] for f in response.data]
+        assert len(created_dates) == 3
+        assert created_dates == sorted(created_dates, reverse=True)  # dates are in ISO 8601 which makes this possible
 
     def test_order_by_recent_date_random_dates(self):
         # Create FhirFilter instances with different created_at values
