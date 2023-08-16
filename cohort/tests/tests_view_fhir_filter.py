@@ -53,7 +53,7 @@ class TestFhirFilterAPI(CohortAppTests):
             'owner': user.pk
         }
         request = self.factory.post(url, data=data, format='json')
-        force_authenticate(request, self.user1)
+        force_authenticate(request, user)
         response: Response = self.__class__.post_view(request)
         assert response.status_code == status.HTTP_201_CREATED
         assert FhirFilter.objects.count() == 1
@@ -91,7 +91,7 @@ class TestFhirFilterAPI(CohortAppTests):
         fhir_filter = FhirFilter.objects.create(**kwargs)
         url = reverse("cohort:fhir-filters-detail", args=[fhir_filter.pk])
         request = self.factory.patch(url, data={'filter_name': 'new_name'}, format='json')
-        force_authenticate(request, self.user1)
+        force_authenticate(request, user)
         self.__class__.patch_view(request, pk=fhir_filter.pk)
         fhir_filter.refresh_from_db()
         assert fhir_filter.filter_name == 'new_name'
@@ -161,12 +161,12 @@ class TestFhirFilterAPI(CohortAppTests):
                 'owner': user.pk
             }
             request = self.factory.post(url, data=data, format='json')
-            force_authenticate(request, self.user1)
+            force_authenticate(request, user)
             self.__class__.post_view(request)
 
         count_url = reverse("cohort:fhir-filters-list")
         count_request = self.factory.get(count_url)
-        force_authenticate(count_request, self.user1)
+        force_authenticate(count_request, user)
         response: Response = self.__class__.list_view(count_request)
         assert FhirFilter.objects.count() == loops == response.data.get("count")
 
