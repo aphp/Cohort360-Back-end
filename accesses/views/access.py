@@ -208,7 +208,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
         request.data.update({'end_datetime': now})
         response = self.partial_update(request, *args, **kwargs)
 
-        user_accesses = get_user_valid_manual_accesses(user=access.profile.user)
+        user_accesses = get_user_valid_manual_accesses(user=access.profile.user).filter(perimeter_id=access.perimeter_id)
         if not user_accesses:
             access.perimeter.remove_user_from_allowed_users(user_id=access.profile.user.provider_username)
         return response
