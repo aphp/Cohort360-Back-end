@@ -25,12 +25,12 @@ class Migration(migrations.Migration):
                 ('modified_at', models.DateTimeField(auto_now=True)),
                 ('fhir_resource', models.CharField(max_length=255)),
                 ('fhir_version', models.CharField(max_length=50)),
-                ('filter_name', models.CharField(max_length=50, validators=[django.core.validators.MinLengthValidator(2)])),
+                ('name', models.CharField(max_length=50, validators=[django.core.validators.MinLengthValidator(2)])),
                 ('fhir_filter', models.TextField()),
                 ('owner', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='user_fhir_filters', to=settings.AUTH_USER_MODEL)),
             ],
             options={
-                'unique_together': {('fhir_resource', 'filter_name', 'owner_id')},
+                'unique_together': {('fhir_resource', 'name', 'owner_id')},
             },
         ),
     ]
