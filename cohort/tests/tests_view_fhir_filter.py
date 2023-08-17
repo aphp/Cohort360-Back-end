@@ -60,7 +60,7 @@ class TestFhirFilterAPI(CohortAppTests):
         fhir_object = FhirFilter.objects.get()
         assert fhir_object.owner.pk == user.pk
         assert fhir_object.fhir_version == '1.0.0'
-        assert fhir_object.filter_name == 'test_filter'
+        assert fhir_object.name == 'test_filter'
 
     def test_edit_filter_name(self):
         # Create a new FhirFilter instance
@@ -80,7 +80,7 @@ class TestFhirFilterAPI(CohortAppTests):
         response: Response = self.__class__.patch_view(request, pk=fhir_filter.pk)
         assert response.status_code == status.HTTP_200_OK
         fhir_filter.refresh_from_db()
-        assert fhir_filter.filter_name == new_filter_name
+        assert fhir_filter.name == new_filter_name
 
     def test_edit_filter_name_only_modifies_name(self):
         user = User.objects.first()
@@ -94,7 +94,7 @@ class TestFhirFilterAPI(CohortAppTests):
         force_authenticate(request, user)
         self.__class__.patch_view(request, pk=fhir_filter.pk)
         fhir_filter.refresh_from_db()
-        assert fhir_filter.filter_name == 'new_name'
+        assert fhir_filter.name == 'new_name'
         assert fhir_filter.fhir_resource == kwargs['fhir_resource']
         assert fhir_filter.fhir_version == kwargs['fhir_version']
         assert fhir_filter.fhir_filter == kwargs['fhir_filter']
