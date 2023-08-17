@@ -6,10 +6,6 @@ from cohort.models import CohortBaseModel
 
 
 class FhirFilter(CohortBaseModel):
-    """
-    From this following UML:
-    https://gitlab.eds.aphp.fr/dev/cohort360/gestion-de-projet/-/issues/2200
-    """
     fhir_resource = models.CharField(max_length=255)
     fhir_version = models.CharField(max_length=50)
     name = models.CharField(max_length=50, validators=[MinLengthValidator(2)])
