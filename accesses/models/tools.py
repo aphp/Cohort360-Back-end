@@ -212,15 +212,8 @@ def get_user_data_accesses_queryset(user: User) -> QuerySet:
 
 def q_is_valid_access() -> Q:
     now = timezone.now()
-    q_actual_start_is_none = Q(start_datetime=None, manual_start_datetime=None)
-    q_start_lte_now = ((Q(manual_start_datetime=None) & Q(start_datetime__lte=now))
-                       | Q(manual_start_datetime__lte=now))
-
-    q_actual_end_is_none = Q(end_datetime=None, manual_end_datetime=None)
-    q_end_gte_now = ((Q(manual_end_datetime=None) & Q(end_datetime__gte=now))
-                     | Q(manual_end_datetime__gte=now))
-    return ((q_actual_start_is_none | q_start_lte_now)
-            & (q_actual_end_is_none | q_end_gte_now))
+    return ((Q(start_datetime=None) | Q(start_datetime__lte=now))
+            & (Q(end_datetime=None) | Q(end_datetime__gte=now)))
 
 
 class DataRight:

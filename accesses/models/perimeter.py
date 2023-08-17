@@ -8,6 +8,7 @@ from django.db import models
 from django.db.models import Q
 from django.db.models.query import QuerySet, Prefetch
 
+from accesses.signals import onchange_allowed_users
 from admin_cohort.models import BaseModel
 from admin_cohort.settings import PERIMETERS_TYPES
 from admin_cohort.tools import join_qs
@@ -99,37 +100,17 @@ class Perimeter(BaseModel):
         return Prefetch('children', queryset=filtered_queryset,
                         to_attr='prefetched_children')
 
-    def add_new_allowed_user(self, new_user_id):
-        perimeter = self
-        perimeter.allowed_users = list(set((perimeter.allowed_users or []) + [new_user_id]))
-        perimeter.save()
-        while perimeter.parent:
-            allowed_users_inferior_levels = list(set((perimeter.allowed_users_inferior_levels or []) +
-                                                     perimeter.allowed_users))
-            parent = perimeter.parent
-            parent_allowed_users_inferior_levels = parent.allowed_users_inferior_levels or []
-            parent.allowed_users_inferior_levels = list(set(parent_allowed_users_inferior_levels +
-                                                            allowed_users_inferior_levels))
-            parent.save()
-            perimeter = parent
+    def send_signal(self, user_id: int, operation: str):
+        onchange_allowed_users.send(sender=self.__class__,
+                                    perimeter=self,
+                                    user_id=user_id,
+                                    operation=operation)
+
+    def add_new_allowed_user(self, user_id):
+        self.send_signal(user_id=user_id, operation="add")
 
     def remove_user_from_allowed_users(self, user_id):
-        # todo: remains the case when an access is no longer valid
-        perimeter = self
-        perimeter.allowed_users.remove(user_id)
-        perimeter.save()
-
-        while perimeter.parent:
-            parent = perimeter.parent
-            remove_user = True
-            for child in parent.children.all():
-                if user_id in child.allowed_users + child.allowed_users_inferior_levels:
-                    remove_user = False
-                    break
-            if remove_user:
-                parent.allowed_users_inferior_levels.remove(user_id)
-                parent.save()
-            perimeter = parent
+        self.send_signal(user_id=user_id, operation="revoke")
 
 
 def get_all_perimeters_parents_queryset(perims: List[Perimeter], ) -> QuerySet:

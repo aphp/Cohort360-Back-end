@@ -63,8 +63,8 @@ class RoleViewSet(CustomLoggingMixin, BaseViewset):
                                      "lastname": user.lastname,
                                      "email": user.email,
                                      "perimeter": access.perimeter.name,
-                                     "start_datetime": access.actual_start_datetime,
-                                     "end_datetime": access.actual_end_datetime,
+                                     "start_datetime": access.start_datetime,
+                                     "end_datetime": access.end_datetime,
                                      })
 
         # filtering

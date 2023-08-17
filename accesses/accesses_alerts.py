@@ -49,8 +49,7 @@ def send_access_expiry_alerts(days: int):
     expiry_date = date.today() + timedelta(days=days)
     expiring_accesses = Access.objects.filter(q_is_valid_access() &
                                               Q(profile__source=MANUAL_SOURCE) &
-                                              (Q(end_datetime__date=expiry_date) |
-                                               Q(manual_end_datetime__date=expiry_date)))\
+                                              Q(end_datetime__date=expiry_date))\
                                       .values("profile")\
                                       .annotate(total=Count("profile"))
     for access in expiring_accesses:
