@@ -17,7 +17,7 @@ def compute_allowed_users_above_levels(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accesses', '0006_perimeter_allowed_users_and_more'),
+        ('accesses', '0008_remove_access_end_datetime_and_more'),
     ]
 
     operations = [
