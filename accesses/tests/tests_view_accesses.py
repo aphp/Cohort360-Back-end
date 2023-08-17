@@ -116,7 +116,7 @@ class ReadAccess(ReadObject):
             assert isinstance(o.get(k), t)
             setattr(self, k, o.get(k))
 
-        for dt_field in ["actual_start_datetime", "actual_end_datetime"]:
+        for dt_field in ["start_datetime", "end_datetime"]:
             assert dt_field in o
             v = o.get(dt_field)
             assert isinstance(v, (type(None), str))
@@ -588,11 +588,11 @@ class AccessTests(ViewSetTestsWithBasicPerims):
         access = Access.objects.filter(id=acc_id).first()
 
         if case.success:
-            delta = (access.manual_end_datetime - timezone.now())
+            delta = (access.end_datetime - timezone.now())
             self.assertAlmostEqual(delta.total_seconds(), 0, delta=1)
         else:
             self.assertEqual(
-                access.manual_end_datetime, acc.manual_end_datetime
+                access.end_datetime, acc.end_datetime
             )
 
         if user_access:
@@ -710,8 +710,8 @@ def create_accesses(roles: List[Role], profiles: List[Profile],
             profile=random.choice(profiles),
             perimeter=perim,
             role=r,
-            manual_start_datetime=timezone.now() - timedelta(days=1),
-            manual_end_datetime=timezone.now() + timedelta(days=2),
+            start_datetime=timezone.now() - timedelta(days=1),
+            end_datetime=timezone.now() + timedelta(days=2),
         ) for (perim, r,
                # start, end
                ) in product(
@@ -1065,8 +1065,8 @@ class AccessDataRightsTests(ViewSetTestsWithBasicPerims):
             perimeter=perim,
             role=role,
             profile=self.profile1,
-            manual_start_datetime=timezone.now() - timedelta(days=1),
-            manual_end_datetime=timezone.now() + timedelta(days=2),
+            start_datetime=timezone.now() - timedelta(days=1),
+            end_datetime=timezone.now() + timedelta(days=2),
         )
 
     def basic_right_list_case(self, **kwargs) -> RightListCase:
@@ -1410,8 +1410,8 @@ class AccessMyAccessesTests(ViewSetTestsWithBasicPerims):
             perimeter=perim,
             role=role,
             profile=self.profile1,
-            manual_start_datetime=timezone.now() - timedelta(days=1),
-            manual_end_datetime=timezone.now() + timedelta(days=2),
+            start_datetime=timezone.now() - timedelta(days=1),
+            end_datetime=timezone.now() + timedelta(days=2),
         )
 
     def basic_right_list_case(self, **kwargs) -> RightListCase:
@@ -1454,7 +1454,6 @@ class AccessMyAccessesTests(ViewSetTestsWithBasicPerims):
         self.user1_accesses: List[Access] = Access.objects.bulk_create([
             Access(
                 profile=prof, start_datetime=sd, end_datetime=ed,
-                manual_start_datetime=msd, manual_end_datetime=med,
                 **base_access
             ) for (prof, sd, ed, msd, med) in product(
                 user1_profiles, start_dates, end_dates, start_dates,
@@ -1604,8 +1603,8 @@ class AccessAsSuperAdminTests(AccessTests):
             profile=self.ph2_with_nothing.id,
             role=self.role_empty.id,
             source='oui',
-            manual_start_datetime=timezone.now() + timedelta(days=1),
-            manual_end_datetime=timezone.now() + timedelta(days=2),
+            start_datetime=timezone.now() + timedelta(days=1),
+            end_datetime=timezone.now() + timedelta(days=2),
         )
 
         cases = [PatchCase(

@@ -344,8 +344,8 @@ def close_accesses(perimeters_to_delete: QuerySet):
     perimeters_to_delete_ids = perimeters_to_delete.values_list("id", flat=True)
     accesses_to_delete = Access.objects.filter(q_is_valid_access()
                                                & (Q(perimeter_id__in=perimeters_to_delete_ids) | Q(perimeter_id__isnull=True)))
-    accesses_to_delete.update(manual_end_datetime=timezone.now())
-    Access.objects.bulk_update(accesses_to_delete, ["manual_end_datetime"])
+    accesses_to_delete.update(end_datetime=timezone.now())
+    Access.objects.bulk_update(accesses_to_delete, ["end_datetime"])
     _logger.info(f"{len(accesses_to_delete)} accesses have been closed: {accesses_to_delete}")
 
 
