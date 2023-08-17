@@ -111,26 +111,3 @@ class Perimeter(BaseModel):
 
     def remove_user_from_allowed_users(self, user_id):
         self.send_signal(user_id=user_id, operation="revoke")
-
-
-def get_all_perimeters_parents_queryset(perims: List[Perimeter], ) -> QuerySet:
-    return Perimeter.objects.filter(join_qs([
-        p.all_parents_query() for p in perims
-    ]))
-
-
-def get_all_level_children(
-        perimeters_ids: Union[int, List[int]], strict: bool = False,
-        filtered_ids: List[str] = [], ids_only: bool = False
-) -> List[Union[Perimeter, str]]:
-    qs = join_qs(
-        [Perimeter.objects.filter(
-            **{i * 'parent__' + 'id__in': perimeters_ids}
-        ) for i in range(0 + strict, len(PERIMETERS_TYPES))]
-    )
-    if len(filtered_ids):
-        return qs.filter(id__in=filtered_ids)
-
-    if ids_only:
-        return [str(i[0]) for i in qs.values_list('id')]
-    return list(qs)
