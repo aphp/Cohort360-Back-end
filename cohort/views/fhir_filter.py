@@ -25,5 +25,4 @@ class FhirFilterViewSet(viewsets.ModelViewSet):
 
     @cache_response()
     def list(self, request, *args, **kwargs):
-        """Method added only to have it cached, it only calls the super class with the input."""
         return super(FhirFilterViewSet, self).list(request, *args, **kwargs)
