@@ -1,9 +1,11 @@
 from __future__ import annotations
+
+import datetime
 from typing import List, Dict
 
 from django.db import models
 from django.db.models import CASCADE, SET_NULL
-from django.utils.datetime_safe import datetime
+from django.utils.datetime_safe import date, datetime as dt
 
 from accesses.models.perimeter import Perimeter
 from accesses.models.profile import Profile
@@ -21,8 +23,6 @@ class Access(BaseModel):
     source = models.TextField(blank=True, null=True, default=MANUAL_SOURCE)
     start_datetime = models.DateTimeField(blank=True, null=True)
     end_datetime = models.DateTimeField(blank=True, null=True)
-    manual_start_datetime = models.DateTimeField(blank=True, null=True)
-    manual_end_datetime = models.DateTimeField(blank=True, null=True)
     created_by = models.ForeignKey(User, on_delete=SET_NULL, related_name='created_accesses', null=True, db_column="created_by")
     updated_by = models.ForeignKey(User, on_delete=SET_NULL, related_name='updated_accesses', null=True, db_column="updated_by")
 
@@ -34,26 +34,25 @@ class Access(BaseModel):
 
     @property
     def is_valid(self):
-        today = datetime.now()
-        if self.actual_start_datetime is not None:
-            actual_start_datetime = datetime.combine(
-                self.actual_start_datetime.date()
-                if isinstance(self.actual_start_datetime, datetime) else
-                self.actual_start_datetime,
-                datetime.min
-            )
-            if actual_start_datetime > today:
-                return False
-        if self.actual_end_datetime is not None:
-            actual_end_datetime = datetime.combine(
-                self.actual_end_datetime.date()
-                if isinstance(self.actual_end_datetime, datetime)
-                else self.actual_end_datetime,
-                datetime.min
-            )
-            if actual_end_datetime <= today:
-                return False
-        return True
+        now = datetime.datetime.now(tz=datetime.timezone.utc)
+        valid = True
+        if self.start_datetime:
+            if isinstance(self.start_datetime, date):
+                start_datetime = dt.combine(self.start_datetime, dt.min)
+            else:
+                start_datetime = self.start_datetime
+            if start_datetime > now:
+                valid = False
+        if self.end_datetime:
+            if isinstance(self.end_datetime, date):
+                end_datetime = dt.combine(self.end_datetime, dt.min)
+            else:
+                end_datetime = self.end_datetime
+            if end_datetime <= now:
+                valid = False
+        if not valid:
+            self.perimeter.remove_user_from_allowed_users(user_id=self.profile.user_id)
+        return valid
 
     @property
     def care_site_id(self):
@@ -68,16 +67,6 @@ class Access(BaseModel):
             'care_site_type_source_value': self.perimeter.type_source_value,
             'care_site_source_value': self.perimeter.source_value,
         } if self.perimeter else None
-
-    @property
-    def actual_start_datetime(self):
-        return self.start_datetime if self.manual_start_datetime is None \
-            else self.manual_start_datetime
-
-    @property
-    def actual_end_datetime(self):
-        return self.end_datetime if self.manual_end_datetime is None \
-            else self.manual_end_datetime
 
     @property
     def accesses_criteria_to_exclude(self) -> List[Dict]:

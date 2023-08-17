@@ -198,7 +198,7 @@ For any of the groups of rights A that has the upper hand on on groups Bs (cf. r
 
 
 `/accesses/{id}/close` :
-'close' call will set manual_end_datetime to now().
+'close' call will set end_datetime to now().
 
 For any of the groups of rights A that has the upper hand on on groups Bs (cf. rules.md):
 - [x] As a user with the right to manage and read B-role-accesses on the same level, :

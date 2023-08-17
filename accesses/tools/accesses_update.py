@@ -18,13 +18,10 @@ def create_children_perimeters_accesses(parents_perimeters: [Perimeter]):
         role = access.role
         profil = access.profile
         start_datetime, end_datetime = access.start_datetime, access.end_datetime
-        manual_start_datetime, manual_end_datetime = access.manual_start_datetime, access.manual_end_datetime
 
         # duplicate current access with all children perimeters
         for perimeter in children_perimeter:
-            user_access = Access(profile=profil, perimeter=perimeter, role=role, start_datetime=start_datetime,
-                                 manual_start_datetime=manual_start_datetime, end_datetime=end_datetime,
-                                 manual_end_datetime=manual_end_datetime)
+            user_access = Access(profile=profil, perimeter=perimeter, role=role, start_datetime=start_datetime, end_datetime=end_datetime)
             user_access.save()
             # add accesses for trace
             new_accesses.append(user_access)

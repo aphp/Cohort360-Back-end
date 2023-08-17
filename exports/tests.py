@@ -987,7 +987,7 @@ class ExportsJupyterCreateTests(ExportsCreateTests):
         # without the right to do it
 
         # we close the access that should allow reviewer to review exports
-        self.user1_jup_nomi_acc.manual_end_datetime = \
+        self.user1_jup_nomi_acc.end_datetime = \
             timezone.now() - timedelta(days=2)
         self.user1_jup_nomi_acc.save()
 
