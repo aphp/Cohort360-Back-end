@@ -10,14 +10,21 @@ from accesses.models.tools import q_is_valid_access
 def compute_allowed_users(apps, schema_editor):
     db_alias = schema_editor.connection.alias
     access_model = apps.get_model('accesses', 'Access')
+    perimeter_model = apps.get_model('accesses', 'Perimeter')
 
     perimeters_users = defaultdict(set)
+    perimeters_ids = set()
     for access in access_model.objects.using(db_alias).filter(q_is_valid_access()):
         perimeters_users[access.perimeter].add(access.profile.user_id)
+        perimeters_ids.add(access.perimeter.id)
 
     for perimeter, users_ids in perimeters_users.items():
         perimeter.allowed_users = list(users_ids)
         perimeter.save()
+
+    perimeter_model.objects.using(db_alias)\
+                           .exclude(id__in=perimeters_ids)\
+                           .update(allowed_users=[])
 
 
 def re_compute_allowed_users_inferior_levels(perimeter):

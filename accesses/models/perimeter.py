@@ -114,10 +114,12 @@ class Perimeter(BaseModel):
             perimeter = parent
 
     def remove_user_from_allowed_users(self, user_id):
-        # todo: remains the case when an access is no longer valid
         perimeter = self
-        perimeter.allowed_users.remove(user_id)
-        perimeter.save()
+        try:
+            perimeter.allowed_users.remove(user_id)
+            perimeter.save()
+        except ValueError:
+            return
 
         while perimeter.parent:
             parent = perimeter.parent
