@@ -1,8 +1,8 @@
-from django.core.validators import MinLengthValidator, MaxLengthValidator
+from django.core.validators import MinLengthValidator
+from django.db import models
 
 from admin_cohort.models import User
 from cohort.models import CohortBaseModel
-from django.db import models
 
 
 class FhirFilter(CohortBaseModel):
