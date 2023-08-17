@@ -26,7 +26,7 @@ class Migration(migrations.Migration):
                 ('fhir_resource', models.CharField(max_length=255)),
                 ('fhir_version', models.CharField(max_length=50)),
                 ('name', models.CharField(max_length=50, validators=[django.core.validators.MinLengthValidator(2)])),
-                ('fhir_filter', models.TextField()),
+                ('filter', models.TextField()),
                 ('owner', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='user_fhir_filters', to=settings.AUTH_USER_MODEL)),
             ],
             options={

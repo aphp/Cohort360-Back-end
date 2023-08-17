@@ -42,14 +42,14 @@ class TestFhirFilterAPI(CohortAppTests):
         response: Response = self.__class__.list_view(request)
         assert response.data.get("count") == 0
 
-    def test_create_fhir_filter(self):
+    def test_create_filter(self):
         url = reverse("cohort:fhir-filters-list")
         user = User.objects.first()
         data = {
             'fhir_resource': 'Patient',
             'fhir_version': '1.0.0',
             'name': 'test_filter',
-            'fhir_filter': '{"some": "filter"}',
+            'filter': '{"some": "filter"}',
             'owner': user.pk
         }
         request = self.factory.post(url, data=data, format='json')
@@ -64,47 +64,47 @@ class TestFhirFilterAPI(CohortAppTests):
 
     def test_edit_name(self):
         # Create a new FhirFilter instance
-        fhir_filter = FhirFilter.objects.create(
+        filter = FhirFilter.objects.create(
             fhir_resource='Patient',
             fhir_version='1.0.0',
             name='original_name',
-            fhir_filter='{"some": "filter"}',
+            filter='{"some": "filter"}',
             owner=User.objects.first()
         )
 
         # Edit the name field
         new_name = 'new_name'
-        url = reverse("cohort:fhir-filters-detail", args=[fhir_filter.pk])
+        url = reverse("cohort:fhir-filters-detail", args=[filter.pk])
         request = self.factory.patch(url, data={'name': new_name}, format='json')
         force_authenticate(request, self.user1)
-        response: Response = self.__class__.patch_view(request, pk=fhir_filter.pk)
+        response: Response = self.__class__.patch_view(request, pk=filter.pk)
         assert response.status_code == status.HTTP_200_OK
-        fhir_filter.refresh_from_db()
-        assert fhir_filter.name == new_name
+        filter.refresh_from_db()
+        assert filter.name == new_name
 
     def test_edit_name_only_modifies_name(self):
         user = User.objects.first()
         kwargs = {
             'fhir_resource': 'Patient', 'fhir_version': '1.0.0', 'name': 'original_name',
-            'fhir_filter': '{"some": "filter"}', 'owner': user
+            'filter': '{"some": "filter"}', 'owner': user
         }
-        fhir_filter = FhirFilter.objects.create(**kwargs)
-        url = reverse("cohort:fhir-filters-detail", args=[fhir_filter.pk])
+        filter = FhirFilter.objects.create(**kwargs)
+        url = reverse("cohort:fhir-filters-detail", args=[filter.pk])
         request = self.factory.patch(url, data={'name': 'new_name'}, format='json')
         force_authenticate(request, user)
-        self.__class__.patch_view(request, pk=fhir_filter.pk)
-        fhir_filter.refresh_from_db()
-        assert fhir_filter.name == 'new_name'
-        assert fhir_filter.fhir_resource == kwargs['fhir_resource']
-        assert fhir_filter.fhir_version == kwargs['fhir_version']
-        assert fhir_filter.fhir_filter == kwargs['fhir_filter']
-        assert fhir_filter.owner == kwargs['owner']
+        self.__class__.patch_view(request, pk=filter.pk)
+        filter.refresh_from_db()
+        assert filter.name == 'new_name'
+        assert filter.fhir_resource == kwargs['fhir_resource']
+        assert filter.fhir_version == kwargs['fhir_version']
+        assert filter.filter == kwargs['filter']
+        assert filter.owner == kwargs['owner']
 
     def test_uniqueness_same_object(self):
         user = User.objects.first()
         kwargs = {
             'fhir_resource': 'Patient', 'fhir_version': '1.0.0', 'name': 'original_name',
-            'fhir_filter': '{"some": "filter"}', 'owner': user
+            'filter': '{"some": "filter"}', 'owner': user
         }
         FhirFilter.objects.create(**kwargs)
         with pytest.raises(IntegrityError):
@@ -114,28 +114,28 @@ class TestFhirFilterAPI(CohortAppTests):
         users = User.objects.all()[:2]  # The test DB has 2 users (todo: to improve to be more reliable)
         FhirFilter.objects.create(
             fhir_resource="Resource 1", name="name 1", owner=users[0],
-            fhir_filter='{"some": "filter"}', fhir_version='1.0.0'
+            filter='{"some": "filter"}', fhir_version='1.0.0'
         )
         # Same object but different resource showing name & owner may not be unique without resource
         FhirFilter.objects.create(
             fhir_resource="Resource 2", name="name 1", owner=users[0],
-            fhir_filter='{"some": "filter"}', fhir_version='1.0.0'
+            filter='{"some": "filter"}', fhir_version='1.0.0'
         )
         # Same object but different name showing resource & owner may not be unique without name
         FhirFilter.objects.create(
             fhir_resource="Resource 1", name="name 1", owner=users[1],
-            fhir_filter='{"some": "filter"}', fhir_version='1.0.0'
+            filter='{"some": "filter"}', fhir_version='1.0.0'
         )
         # Same object but different owner showing resource & name may not be unique without owner
         FhirFilter.objects.create(
             fhir_resource="Resource 1", name="name 2", owner=users[0],
-            fhir_filter='{"some": "filter"}', fhir_version='1.0.0'
+            filter='{"some": "filter"}', fhir_version='1.0.0'
         )
         # Finally, a new object with all unique fields together the same as the first and other fields different
         with pytest.raises(IntegrityError):
             FhirFilter.objects.create(
                 fhir_resource="Resource 1", name="name 1", owner=users[0],
-                fhir_filter='{"another": "new filter"}', fhir_version='1.1.0'
+                filter='{"another": "new filter"}', fhir_version='1.1.0'
             )
 
     def test_hundred_of_filters_no_api(self):
@@ -144,7 +144,7 @@ class TestFhirFilterAPI(CohortAppTests):
         for i in range(loops):
             FhirFilter.objects.create(
                 fhir_resource=f"res {i}", name="name", owner=user,
-                fhir_filter='{"some": "filter"}', fhir_version='1.0.0'
+                filter='{"some": "filter"}', fhir_version='1.0.0'
             )
         assert FhirFilter.objects.count() == loops
 
@@ -157,7 +157,7 @@ class TestFhirFilterAPI(CohortAppTests):
                 'fhir_resource': f'res {i}',
                 'fhir_version': '1.0.0',
                 'name': 'test_filter',
-                'fhir_filter': '{"some": "filter"}',
+                'filter': '{"some": "filter"}',
                 'owner': user.pk
             }
             request = self.factory.post(url, data=data, format='json')
@@ -174,7 +174,7 @@ class TestFhirFilterAPI(CohortAppTests):
         user = User.objects.first()
         FhirFilter.objects.create(
             fhir_resource="Resource 1", name="x" * 2, owner=user,
-            fhir_filter='{"some": "filter"}', fhir_version='1.0.0'
+            filter='{"some": "filter"}', fhir_version='1.0.0'
         )
         assert FhirFilter.objects.count() == 1
 
@@ -182,7 +182,7 @@ class TestFhirFilterAPI(CohortAppTests):
         user = User.objects.first()
         FhirFilter.objects.create(
             fhir_resource="Resource 1", name="x" * 50, owner=user,
-            fhir_filter='{"some": "filter"}', fhir_version='1.0.0'
+            filter='{"some": "filter"}', fhir_version='1.0.0'
         )
         assert FhirFilter.objects.count() == 1
 
@@ -191,7 +191,7 @@ class TestFhirFilterAPI(CohortAppTests):
         with pytest.raises(DataError):
             FhirFilter.objects.create(
                 fhir_resource="Resource 1", name="x" * 51, owner=user,
-                fhir_filter='{"some": "filter"}', fhir_version='1.0.0'
+                filter='{"some": "filter"}', fhir_version='1.0.0'
             )
 
     def test_name_min_length_minus_one(self):
@@ -199,7 +199,7 @@ class TestFhirFilterAPI(CohortAppTests):
         with pytest.raises(ValidationError):
             f = FhirFilter.objects.create(
                 fhir_resource="Resource 1", name="x" * 1, owner=user,
-                fhir_filter='{"some": "filter"}', fhir_version='1.0.0'
+                filter='{"some": "filter"}', fhir_version='1.0.0'
             )
             f.full_clean()  # needed because of a validator check, # todo: abstract implementation detail for the test
 
@@ -207,21 +207,21 @@ class TestFhirFilterAPI(CohortAppTests):
         with pytest.raises(IntegrityError):
             FhirFilter.objects.create(
                 fhir_resource=None, name="name of filter", owner=User.objects.first(),
-                fhir_filter='{"some": "filter"}', fhir_version='1.0.0'
+                filter='{"some": "filter"}', fhir_version='1.0.0'
             )
 
     def test_null_name(self):
         with pytest.raises(IntegrityError):
             FhirFilter.objects.create(
                 fhir_resource="Resource 1", name=None, owner=User.objects.first(),
-                fhir_filter='{"some": "filter"}', fhir_version='1.0.0'
+                filter='{"some": "filter"}', fhir_version='1.0.0'
             )
 
     def test_null_user(self):
         with pytest.raises(IntegrityError):
             FhirFilter.objects.create(
                 fhir_resource="Resource 1", name="name of filter", owner=None,
-                fhir_filter='{"some": "filter"}', fhir_version='1.0.0'
+                filter='{"some": "filter"}', fhir_version='1.0.0'
             )
 
     def test_null_filter(self):
@@ -229,14 +229,14 @@ class TestFhirFilterAPI(CohortAppTests):
         with pytest.raises(IntegrityError):
             FhirFilter.objects.create(
                 fhir_resource="Resource 1", name="name of filter", owner=User.objects.first(),
-                fhir_filter=None, fhir_version='1.0.0'
+                filter=None, fhir_version='1.0.0'
             )
 
     def test_null_version(self):
         with pytest.raises(IntegrityError):
             FhirFilter.objects.create(
                 fhir_resource="Resource 1", name="name of filter", owner=User.objects.first(),
-                fhir_filter='{"some": "filter"}', fhir_version=None
+                filter='{"some": "filter"}', fhir_version=None
             )
 
     def test_null_with_api(self):
@@ -245,7 +245,7 @@ class TestFhirFilterAPI(CohortAppTests):
             'fhir_resource': 'Patient',
             'fhir_version': '1.0.0',
             'name': 'test_filter',
-            'fhir_filter': '{"some": "filter"}',
+            'filter': '{"some": "filter"}',
             'owner': None
         }
         request = self.factory.post(url, data=data, format='json')
@@ -257,15 +257,15 @@ class TestFhirFilterAPI(CohortAppTests):
         # Create FhirFilter instances with different created_at values
         user = User.objects.first()
         FhirFilter.objects.create(
-            fhir_resource='Resource 1', name='Filter 1', fhir_filter='{"some": "filter"}', owner=user,
+            fhir_resource='Resource 1', name='Filter 1', filter='{"some": "filter"}', owner=user,
             fhir_version="1.0.0"
         )
         FhirFilter.objects.create(
-            fhir_resource='Resource 2', name='Filter 2', fhir_filter='{"some": "filter"}', owner=user,
+            fhir_resource='Resource 2', name='Filter 2', filter='{"some": "filter"}', owner=user,
             fhir_version="1.0.0"
         )
         FhirFilter.objects.create(
-            fhir_resource='Resource 3', name='Filter 3', fhir_filter='{"some": "filter"}', owner=user,
+            fhir_resource='Resource 3', name='Filter 3', filter='{"some": "filter"}', owner=user,
             fhir_version="1.0.0"
         )
 
@@ -284,7 +284,7 @@ class TestFhirFilterAPI(CohortAppTests):
         for i in range(100):
             f = FhirFilter.objects.create(
                 fhir_resource=f"res {i}", name="name", owner=user,
-                fhir_filter='{"some": "filter"}', fhir_version='1.0.0'
+                filter='{"some": "filter"}', fhir_version='1.0.0'
             )
             f.created_at = datetime.now() - timedelta(weeks=randint(0, 52 * 10))
             f.save()
