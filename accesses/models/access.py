@@ -51,7 +51,11 @@ class Access(BaseModel):
             if end_datetime <= now:
                 valid = False
         if not valid:
-            self.perimeter.remove_user_from_allowed_users(user_id=self.profile.user_id)
+            from django.db.models import signals
+            signals.post_save.send(sender=self.__class__,
+                                   instance=self,
+                                   created=False,
+                                   invalid=True)
         return valid
 
     @property

@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 import logging
-from typing import List, Union
 
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.db.models import Q
 from django.db.models.query import QuerySet, Prefetch
 
-from accesses.signals import onchange_allowed_users
 from admin_cohort.models import BaseModel
 from admin_cohort.settings import PERIMETERS_TYPES
 from admin_cohort.tools import join_qs
@@ -99,15 +97,3 @@ class Perimeter(BaseModel):
         filtered_queryset = filtered_queryset or cls.objects.all()
         return Prefetch('children', queryset=filtered_queryset,
                         to_attr='prefetched_children')
-
-    def send_signal(self, user_id: int, operation: str):
-        onchange_allowed_users.send(sender=self.__class__,
-                                    perimeter=self,
-                                    user_id=user_id,
-                                    operation=operation)
-
-    def add_new_allowed_user(self, user_id):
-        self.send_signal(user_id=user_id, operation="add")
-
-    def remove_user_from_allowed_users(self, user_id):
-        self.send_signal(user_id=user_id, operation="revoke")

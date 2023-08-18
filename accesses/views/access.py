@@ -164,8 +164,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
             return Response(data="perimeter_id is required", status=status.HTTP_400_BAD_REQUEST)
         data['profile_id'] = data.get('profile_id', data.get('provider_history_id'))
         data['perimeter_id'] = data.get('perimeter_id', data.get('care_site_id'))
-        response = super(AccessViewSet, self).create(request, *args, **kwargs)
-        return response
+        return super(AccessViewSet, self).create(request, *args, **kwargs)
 
     @swagger_auto_schema(request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
@@ -184,11 +183,10 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
 
     @swagger_auto_schema(auto_schema=None)
     def update(self, request, *args, **kwargs):
-        response = super(AccessViewSet, self).update(request, *args, **kwargs)
-        return response
+        return super(AccessViewSet, self).update(request, *args, **kwargs)
 
-    @swagger_auto_schema(request_body=openapi.Schema(type=openapi.TYPE_STRING, properties={}),
-                         method="PATCH",
+    @swagger_auto_schema(method="PATCH",
+                         request_body=openapi.Schema(type=openapi.TYPE_STRING, properties={}),
                          operation_summary="Will set end_datetime to now, to close the access.")
     @action(url_path="close", detail=True, methods=['patch'])
     def close(self, request, *args, **kwargs):
@@ -203,21 +201,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
                             status=status.HTTP_403_FORBIDDEN)
 
         request.data.update({'end_datetime': now})
-        response = self.partial_update(request, *args, **kwargs)
-
-        user_accesses = get_user_valid_manual_accesses(user=access.profile.user).filter(perimeter_id=access.perimeter_id)
-        if not user_accesses:
-            access.perimeter.remove_user_from_allowed_users(user_id=access.profile.user.provider_username)
-        return response
-
-    """
-    when closing an access:
-        if the user has no further accesses:
-            remove him from the list of allowed user on the corresponding perimeter
-        if he has other accesses:
-            if he has other accesses to the same perimeter:
-                
-    """
+        return self.partial_update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
         access = self.get_object()
