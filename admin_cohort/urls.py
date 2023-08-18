@@ -6,7 +6,7 @@ from rest_framework import routers, permissions
 from rest_framework_extensions.routers import NestedRouterMixin
 
 from . import __version__, __title__, settings
-from admin_cohort.views import OIDCTokensView, UserViewSet, LoggingViewset, MaintenancePhaseViewSet
+from admin_cohort.views import OIDCTokensView, UserViewSet, LoggingViewset, MaintenancePhaseViewSet, CacheViewSet
 
 schema_view = get_schema_view(info=openapi.Info(title=__title__,
                                                 default_version=f'v{__version__}',
@@ -32,6 +32,7 @@ urlpatterns = [re_path(r'^', include(router.urls)),
                path("cohort/", include(("cohort.urls", "cohort"), namespace="cohort")),
                path("exports/", include(("exports.urls", "exports"), namespace="exports")),
                path("workspaces/", include(("workspaces.urls", "workspaces"), namespace="workspaces")),
+               re_path(r'^cache', CacheViewSet.as_view(), name='cache'),
                re_path(r"^docs", schema_view.with_ui(renderer="swagger", cache_timeout=0, )),
                re_path(r"^redoc/$", schema_view.with_ui(renderer="redoc", cache_timeout=0), name="schema-redoc"),
                ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

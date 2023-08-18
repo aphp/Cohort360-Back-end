@@ -3,7 +3,7 @@ from rest_framework import permissions
 from rest_framework.permissions import OR as drf_OR
 
 from admin_cohort.models import User
-from admin_cohort.settings import ETL_USERNAME
+from admin_cohort.settings import ETL_USERNAME, ADMINS
 
 
 def user_is_authenticated(user):
@@ -84,6 +84,16 @@ class IsAuthenticatedReadOnlyListOnly(permissions.BasePermission):
 
     def has_object_permission(self, request, view, obj):
         return False
+
+
+class CachePermission(permissions.BasePermission):
+    def has_permission(self, request, view):
+        is_allowed_method = request.method.lower() in ["get", "delete"]
+        user = request.user
+        admins_emails = [a[1] for a in ADMINS]
+        return (user_is_authenticated(user)
+                and is_allowed_method
+                and user.email in admins_emails)
 
 
 def either(*perms):
