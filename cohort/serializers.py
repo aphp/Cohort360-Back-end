@@ -2,13 +2,13 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from cohort.tasks import get_count_task, cancel_previously_running_dm_jobs
 import cohort.conf_cohort_job_api as cohort_job_api
 from admin_cohort.models import User
 from admin_cohort.serializers import BaseSerializer, OpenUserSerializer
 from admin_cohort.types import JobStatus, MissingDataError
-from cohort.models import CohortResult, DatedMeasure, Folder, Request, RequestQuerySnapshot
+from cohort.models import CohortResult, DatedMeasure, Folder, Request, RequestQuerySnapshot, FhirFilter
 from cohort.models.dated_measure import GLOBAL_DM_MODE
+from cohort.tasks import get_count_task, cancel_previously_running_dm_jobs
 from cohort.tools import retrieve_perimeters
 
 
@@ -233,3 +233,9 @@ class FolderSerializer(BaseSerializer):
 class CohortRightsSerializer(serializers.Serializer):
     cohort_id = serializers.CharField(read_only=True, allow_null=False)
     rights = serializers.DictField(read_only=True, allow_null=True)
+
+
+class FhirFilterSerializer(BaseSerializer):
+    class Meta:
+        model = FhirFilter
+        fields = '__all__'
