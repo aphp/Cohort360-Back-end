@@ -3,7 +3,7 @@ from django.urls import include, path
 from admin_cohort.urls import NestedDefaultRouter
 from cohort.views import RequestViewSet, RequestQuerySnapshotViewSet, CohortResultViewSet, DatedMeasureViewSet, \
     NestedRequestViewSet, NestedRqsViewSet, FolderViewSet
-
+from cohort.views.fhir_filter import FhirFilterViewSet
 
 router = NestedDefaultRouter()
 
@@ -21,5 +21,6 @@ rqs_router.register('next-snapshots', NestedRqsViewSet, basename="request-query-
 
 router.register(r'dated-measures', DatedMeasureViewSet, basename="dated-measures")
 router.register(r'cohorts', CohortResultViewSet, basename="cohort-results")
+router.register(r'fhir-filters', FhirFilterViewSet, basename="fhir-filters")
 
 urlpatterns = [path('', include(router.urls))]
