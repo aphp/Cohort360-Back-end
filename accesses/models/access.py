@@ -50,12 +50,6 @@ class Access(BaseModel):
                 end_datetime = self.end_datetime
             if end_datetime <= now:
                 valid = False
-        if not valid:
-            from django.db.models import signals
-            signals.post_save.send(sender=self.__class__,
-                                   instance=self,
-                                   created=False,
-                                   invalid=True)
         return valid
 
     @property

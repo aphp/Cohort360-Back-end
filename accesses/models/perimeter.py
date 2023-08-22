@@ -28,9 +28,9 @@ class Perimeter(BaseModel):
     full_path = models.TextField(blank=True, null=True)
     cohort_size = models.TextField(blank=True, null=True)
     level = models.IntegerField(blank=True, null=True)
-    allowed_users = ArrayField(models.CharField(max_length=25), null=True, blank=True)
-    allowed_users_inferior_levels = ArrayField(models.CharField(max_length=25), null=True, blank=True)
-    allowed_users_above_levels = ArrayField(models.CharField(max_length=25), null=True, blank=True)
+    count_allowed_users = models.IntegerField(blank=True, null=True, default=0)
+    count_allowed_users_inferior_levels = models.IntegerField(blank=True, null=True, default=0)
+    count_allowed_users_above_levels = models.IntegerField(blank=True, null=True, default=0)
 
     def __str__(self):
         return f"[{self.id}] {self.name}"

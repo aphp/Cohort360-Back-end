@@ -268,24 +268,10 @@ class PerimeterSerializer(serializers.ModelSerializer):
     parents_ids = serializers.SerializerMethodField('build_parents_ids', read_only=True)
     type = serializers.CharField(allow_null=True, source='type_source_value')
     names = serializers.DictField(allow_null=True, read_only=True, child=serializers.CharField())
-    perimeter_only_users_count = serializers.SerializerMethodField(read_only=True)
-    perimeter_and_inferior_levels_users_count = serializers.SerializerMethodField(read_only=True)
-    perimeter_and_above_levels_users_count = serializers.SerializerMethodField(read_only=True)
 
     def build_parents_ids(self, perimeter: Perimeter) -> List[int]:
         p_id = getattr(perimeter, 'parent_id', None)
         return [p_id] if p_id else []
-
-    def get_perimeter_only_users_count(self, perimeter: Perimeter) -> int:
-        return len(perimeter.allowed_users)
-
-    def get_perimeter_and_inferior_levels_users_count(self, perimeter: Perimeter) -> int:
-        return len(perimeter.allowed_users +
-                   perimeter.allowed_users_inferior_levels)
-
-    def get_perimeter_and_above_levels_users_count(self, perimeter: Perimeter) -> int:
-        return len(perimeter.allowed_users +
-                   perimeter.allowed_users_above_levels)
 
     class Meta:
         model = Perimeter
