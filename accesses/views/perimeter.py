@@ -6,6 +6,7 @@ from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.decorators import action
+from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
@@ -57,7 +58,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
     queryset = Perimeter.objects.all()
     lookup_field = "id"
     permission_classes = (IsAuthenticatedReadOnly,)
-
+    pagination_class = LimitOffsetPagination
     swagger_tags = ['Accesses - perimeters']
     filterset_class = PerimeterFilter
     search_fields = ["name",
