@@ -58,7 +58,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
     queryset = Perimeter.objects.all()
     lookup_field = "id"
     permission_classes = (IsAuthenticatedReadOnly,)
-    pagination_class = LimitOffsetPagination
+    pagination_class = None
     swagger_tags = ['Accesses - perimeters']
     filterset_class = PerimeterFilter
     search_fields = ["name",
