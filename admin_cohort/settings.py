@@ -174,6 +174,8 @@ REST_FRAMEWORK = {'DEFAULT_PERMISSION_CLASSES': ('admin_cohort.permissions.IsAut
                   'PAGE_SIZE': 20
                   }
 
+PAGINATION_MAX_LIMIT = 10_000
+
 SWAGGER_SETTINGS = {'LOGOUT_URL': '/accounts/logout/',
                     'LOGIN_URL': '/accounts/login/',
                     'DEFAULT_AUTHENTICATION_CLASSES': ('rest_framework.authentication.TokenAuthentication',),
