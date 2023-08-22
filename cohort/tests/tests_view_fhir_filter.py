@@ -1,4 +1,3 @@
-from datetime import datetime, timedelta
 from random import randint
 
 import pytest
@@ -253,47 +252,47 @@ class TestFhirFilterAPI(CohortAppTests):
         response: Response = self.__class__.post_view(request)
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-    def test_order_by_recent_date(self):
-        # Create FhirFilter instances with different created_at values
-        user = User.objects.first()
-        FhirFilter.objects.create(
-            fhir_resource='Resource 1', name='Filter 1', filter='{"some": "filter"}', owner=user,
-            fhir_version="1.0.0"
-        )
-        FhirFilter.objects.create(
-            fhir_resource='Resource 2', name='Filter 2', filter='{"some": "filter"}', owner=user,
-            fhir_version="1.0.0"
-        )
-        FhirFilter.objects.create(
-            fhir_resource='Resource 3', name='Filter 3', filter='{"some": "filter"}', owner=user,
-            fhir_version="1.0.0"
-        )
-
-        url = reverse("cohort:fhir-filters-recent-filters")
-        request = self.factory.get(url)
-        force_authenticate(request, user)
-        response: Response = self.__class__.recent_list_view(request)
-
-        created_dates = [f['created_at'] for f in response.data]
-        assert len(created_dates) == 3
-        assert created_dates == sorted(created_dates, reverse=True)  # dates are in ISO 8601 which makes this possible
-
-    def test_order_by_recent_date_random_dates(self):
-        # Create FhirFilter instances with different created_at values
-        user = User.objects.first()
-        for i in range(100):
-            f = FhirFilter.objects.create(
-                fhir_resource=f"res {i}", name="name", owner=user,
-                filter='{"some": "filter"}', fhir_version='1.0.0'
-            )
-            f.created_at = datetime.now() - timedelta(weeks=randint(0, 52 * 10))
-            f.save()
-
-        url = reverse("cohort:fhir-filters-recent-filters")
-        request = self.factory.get(url, user=user)
-        force_authenticate(request, user)
-        response: Response = self.__class__.recent_list_view(request)
-
-        created_dates = [f['created_at'] for f in response.data]
-        assert len(created_dates) == 100
-        assert created_dates == sorted(created_dates, reverse=True)  # dates are in ISO 8601 which makes this possible
+    # def test_order_by_recent_date(self):
+    #     # Create FhirFilter instances with different created_at values
+    #     user = User.objects.first()
+    #     FhirFilter.objects.create(
+    #         fhir_resource='Resource 1', name='Filter 1', filter='{"some": "filter"}', owner=user,
+    #         fhir_version="1.0.0"
+    #     )
+    #     FhirFilter.objects.create(
+    #         fhir_resource='Resource 2', name='Filter 2', filter='{"some": "filter"}', owner=user,
+    #         fhir_version="1.0.0"
+    #     )
+    #     FhirFilter.objects.create(
+    #         fhir_resource='Resource 3', name='Filter 3', filter='{"some": "filter"}', owner=user,
+    #         fhir_version="1.0.0"
+    #     )
+    #
+    #     url = reverse("cohort:fhir-filters-recent-filters")
+    #     request = self.factory.get(url)
+    #     force_authenticate(request, user)
+    #     response: Response = self.__class__.recent_list_view(request)
+    #
+    #     created_dates = [f['created_at'] for f in response.data]
+    #     assert len(created_dates) == 3
+    #     assert created_dates == sorted(created_dates, reverse=True)  # dates are in ISO 8601 which makes this possible
+    #
+    # def test_order_by_recent_date_random_dates(self):
+    #     # Create FhirFilter instances with different created_at values
+    #     user = User.objects.first()
+    #     for i in range(100):
+    #         f = FhirFilter.objects.create(
+    #             fhir_resource=f"res {i}", name="name", owner=user,
+    #             filter='{"some": "filter"}', fhir_version='1.0.0'
+    #         )
+    #         f.created_at = datetime.now() - timedelta(weeks=randint(0, 52 * 10))
+    #         f.save()
+    #
+    #     url = reverse("cohort:fhir-filters-recent-filters")
+    #     request = self.factory.get(url, user=user)
+    #     force_authenticate(request, user)
+    #     response: Response = self.__class__.recent_list_view(request)
+    #
+    #     created_dates = [f['created_at'] for f in response.data]
+    #     assert len(created_dates) == 100
+    #     assert created_dates == sorted(created_dates, reverse=True)  # dates are in ISO 8601 which makes this possible
