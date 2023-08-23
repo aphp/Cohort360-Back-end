@@ -1,9 +1,9 @@
 from django.http import QueryDict
 from django_filters import rest_framework as filters, OrderingFilter
-from rest_framework.pagination import LimitOffsetPagination
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from admin_cohort.tools.cache import cache_response
+from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from cohort.models import Request
 from cohort.serializers import RequestSerializer
 from cohort.views.shared import UserObjectsRestrictedViewSet
@@ -23,7 +23,7 @@ class RequestViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     http_method_names = ["get", "post", "patch", "delete"]
     lookup_field = "uuid"
     swagger_tags = ["Cohort - requests"]
-    pagination_class = LimitOffsetPagination
+    pagination_class = NegativeLimitOffsetPagination
     filterset_class = RequestFilter
     search_fields = ("$name", "$description",)
 
