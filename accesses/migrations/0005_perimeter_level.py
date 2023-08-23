@@ -3,8 +3,6 @@
 from django.db import migrations, models
 
 
-APHP_ID = 8312002244
-
 trim_trailing_commas = "UPDATE accesses_perimeter SET above_levels_ids=TRIM(trailing ',' from above_levels_ids)"
 set_level_aphp = "UPDATE accesses_perimeter SET level=1 WHERE parent_id IS NULL"
 set_level_other_perimeters = """UPDATE accesses_perimeter SET level=array_length(string_to_array(above_levels_ids, ','), 1)+1 
