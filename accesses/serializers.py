@@ -265,15 +265,10 @@ class PerimeterSerializer(serializers.ModelSerializer):
     care_site_source_value = serializers.CharField(read_only=True, source='source_value')
     care_site_short_name = serializers.CharField(read_only=True, source='short_name')
     care_site_type_source_value = serializers.CharField(read_only=True, source='type_source_value')
-    parents_ids = serializers.SerializerMethodField('build_parents_ids', read_only=True)
     type = serializers.CharField(allow_null=True, source='type_source_value')
     names = serializers.DictField(allow_null=True, read_only=True, child=serializers.CharField())
     same_level_users_count = serializers.SerializerMethodField(read_only=True)
     same_and_inferior_level_users_count = serializers.SerializerMethodField(read_only=True)
-
-    def build_parents_ids(self, perimeter: Perimeter) -> List[int]:
-        p_id = getattr(perimeter, 'parent_id', None)
-        return [p_id] if p_id else []
 
     def get_same_level_users_count(self, perimeter: Perimeter) -> int:
         return len(perimeter.allowed_users)
