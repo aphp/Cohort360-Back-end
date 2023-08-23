@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 
-from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.db.models import Q
 from django.db.models.query import QuerySet, Prefetch
