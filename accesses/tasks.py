@@ -3,7 +3,7 @@ from django.db.models import Count
 from accesses.accesses_alerts import send_access_expiry_alerts
 from accesses.conf_perimeters import perimeters_data_model_objects_update
 from accesses.models import Perimeter, Access
-from accesses.models.tools import q_is_valid_access
+from accesses.models.tools import q_is_valid_access, q_role_impacts_lower_levels
 from admin_cohort import celery_app
 from admin_cohort.settings import ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS, ACCESS_EXPIRY_SECOND_ALERT_IN_DAYS
 from admin_cohort.tools.celery_periodic_task_helper import ensure_single_task
@@ -61,7 +61,10 @@ def re_count_allowed_users_inferior_levels(perimeter):
 
 def count_allowed_users_from_above_levels():
     for perimeter in Perimeter.objects.all():
-        parents_ids = perimeter.above_levels_ids and (int(i) for i in perimeter.above_levels_ids.split(",") if i) or []
-        parents_chain = Perimeter.objects.filter(id__in=parents_ids)
-        perimeter.count_allowed_users_above_levels = sum([p.count_allowed_users for p in parents_chain])
+        parent_perimeters = Perimeter.objects.filter(id__in=perimeter.above_levels)
+        count_accesses_impacting_inferior_levels = 0
+        for p in parent_perimeters:
+            accesses_impacting_inferior_levels = p.accesses.all().filter(q_role_impacts_lower_levels(prefix="Role"))
+            count_accesses_impacting_inferior_levels += accesses_impacting_inferior_levels.count()
+        perimeter.count_allowed_users_above_levels = count_accesses_impacting_inferior_levels
         perimeter.save()

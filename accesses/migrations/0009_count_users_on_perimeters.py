@@ -3,10 +3,10 @@ from collections import Counter
 
 from django.db import migrations, models
 
-from accesses.models.tools import q_is_valid_access
+from accesses.models.tools import q_is_valid_access, q_role_impacts_lower_levels
 
 
-def compute_allowed_users(apps, schema_editor):
+def count_allowed_users(apps, schema_editor):
     db_alias = schema_editor.connection.alias
     access_model = apps.get_model('accesses', 'Access')
     perimeter_model = apps.get_model('accesses', 'Perimeter')
@@ -25,13 +25,23 @@ def compute_allowed_users(apps, schema_editor):
             continue
 
 
-def compute_allowed_users_from_above_levels(apps, schema_editor):
+def count_allowed_users_from_above_levels(apps, schema_editor):
     db_alias = schema_editor.connection.alias
     perimeter_model = apps.get_model('accesses', 'Perimeter')
+    role_model = apps.get_model('accesses', 'Role')
+
+    roles_impacting_inferior_levels = role_model.objects.using(db_alias).filter(q_role_impacts_lower_levels())
+
     for perimeter in perimeter_model.objects.using(db_alias).all():
         parents_ids = perimeter.above_levels_ids and (int(i) for i in perimeter.above_levels_ids.split(",") if i) or []
-        parents_chain = perimeter_model.objects.using(db_alias).filter(id__in=parents_ids)
-        perimeter.count_allowed_users_above_levels = sum([p.count_allowed_users for p in parents_chain])
+        parent_perimeters = perimeter_model.objects.using(db_alias).filter(id__in=parents_ids)
+
+        count_accesses_impacting_inferior_levels = 0
+        for p in parent_perimeters:
+            accesses_impacting_inferior_levels = p.accesses.all()\
+                                                           .filter(role_id__in=roles_impacting_inferior_levels)
+            count_accesses_impacting_inferior_levels += accesses_impacting_inferior_levels.count()
+        perimeter.count_allowed_users_above_levels = count_accesses_impacting_inferior_levels
         perimeter.save()
 
 
@@ -45,7 +55,7 @@ def re_count_allowed_users_inferior_levels(perimeter):
     return count
 
 
-def compute_allowed_users_from_inferior_levels(apps, schema_editor):
+def count_allowed_users_from_inferior_levels(apps, schema_editor):
     db_alias = schema_editor.connection.alias
     perimeter_model = apps.get_model('accesses', 'Perimeter')
     for perimeter in perimeter_model.objects.using(db_alias).filter(level=1):
@@ -86,7 +96,7 @@ class Migration(migrations.Migration):
             name='count_allowed_users_inferior_levels',
             field=models.IntegerField(blank=True, default=0, null=True),
         ),
-        migrations.RunPython(code=compute_allowed_users),
-        migrations.RunPython(code=compute_allowed_users_from_above_levels),
-        migrations.RunPython(code=compute_allowed_users_from_inferior_levels),
+        migrations.RunPython(code=count_allowed_users),
+        migrations.RunPython(code=count_allowed_users_from_above_levels),
+        migrations.RunPython(code=count_allowed_users_from_inferior_levels),
     ]

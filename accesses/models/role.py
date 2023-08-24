@@ -172,11 +172,6 @@ class Role(BaseModel):
         return [f.name for f in cls._meta.fields if f.name.startswith("right_")]
 
     @classmethod
-    def impact_lower_levels_query(cls, prefix: str = None) -> Q:
-        prefix = format_prefix(prefix)
-        return join_qs([Q(**{f'{prefix}{r.name}': True}) for r in [right for right in all_rights if right.impact_lower_levels]])
-
-    @classmethod
     def manage_on_lower_levels_query(cls, prefix: str = None) -> Q:
         prefix = format_prefix(prefix)
         return join_qs([Q(**{f'{prefix}{r.name}': True}) for r in [right for right in all_rights if right.allow_edit_rights_on_inf_levels
