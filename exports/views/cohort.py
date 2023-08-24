@@ -2,9 +2,9 @@ from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import viewsets
-from rest_framework.pagination import LimitOffsetPagination
 
 from admin_cohort.permissions import either
+from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult
 from cohort.permissions import IsOwner
@@ -27,7 +27,7 @@ class CohortViewSet(viewsets.ModelViewSet):
     queryset = CohortResult.objects.filter(request_job_status=JobStatus.finished)
     swagger_tags = ['Exports - cohorts']
     filterset_class = CohortFilter
-    pagination_class = LimitOffsetPagination
+    pagination_class = NegativeLimitOffsetPagination
     search_fields = ('$name', '$description')
 
     def get_permissions(self):

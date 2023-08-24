@@ -44,6 +44,8 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 CSRF_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_SECURE = not DEBUG
+JWT_ACCESS_COOKIE_SECURE = not DEBUG
+JWT_REFRESH_COOKIE_SECURE = not DEBUG
 
 ADMINS = [a.split(',') for a in env("ADMINS").split(';')]
 NOTIFY_ADMINS = bool(env("NOTIFY_ADMINS", default=False))
@@ -173,6 +175,8 @@ REST_FRAMEWORK = {'DEFAULT_PERMISSION_CLASSES': ('admin_cohort.permissions.IsAut
                                               'rest_framework.filters.SearchFilter'],
                   'PAGE_SIZE': 20
                   }
+
+PAGINATION_MAX_LIMIT = 10_000
 
 SWAGGER_SETTINGS = {'LOGOUT_URL': '/accounts/logout/',
                     'LOGIN_URL': '/accounts/login/',

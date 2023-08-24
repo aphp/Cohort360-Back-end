@@ -12,6 +12,7 @@ from rest_framework_extensions.mixins import NestedViewSetMixin
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.permissions import IsAuthenticatedReadOnly
 from admin_cohort.tools import join_qs
+from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from admin_cohort.views import BaseViewset, YarnReadOnlyViewsetMixin
 from ..models import Role, Perimeter, get_user_valid_manual_accesses
 from ..serializers import PerimeterSerializer, PerimeterLiteSerializer, DataReadRightSerializer, ReadRightPerimeter
@@ -57,7 +58,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
     queryset = Perimeter.objects.all()
     lookup_field = "id"
     permission_classes = (IsAuthenticatedReadOnly,)
-
+    pagination_class = NegativeLimitOffsetPagination
     swagger_tags = ['Accesses - perimeters']
     filterset_class = PerimeterFilter
     search_fields = ["name",

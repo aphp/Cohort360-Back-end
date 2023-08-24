@@ -265,13 +265,8 @@ class PerimeterSerializer(serializers.ModelSerializer):
     care_site_source_value = serializers.CharField(read_only=True, source='source_value')
     care_site_short_name = serializers.CharField(read_only=True, source='short_name')
     care_site_type_source_value = serializers.CharField(read_only=True, source='type_source_value')
-    parents_ids = serializers.SerializerMethodField('build_parents_ids', read_only=True)
     type = serializers.CharField(allow_null=True, source='type_source_value')
     names = serializers.DictField(allow_null=True, read_only=True, child=serializers.CharField())
-
-    def build_parents_ids(self, perimeter: Perimeter) -> List[int]:
-        p_id = getattr(perimeter, 'parent_id', None)
-        return [p_id] if p_id else []
 
     class Meta:
         model = Perimeter
