@@ -1,7 +1,6 @@
 import logging
 import re
 from datetime import timedelta
-from typing import List
 
 from django.db.models import Max, Q
 from django.utils import timezone
