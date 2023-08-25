@@ -31,10 +31,16 @@ class AccessFilter(filters.FilterSet):
         perimeter = Perimeter.objects.get(pk=value)
         valid_accesses = queryset.filter(q_is_valid_access())
         accesses_on_perimeter = valid_accesses.filter(perimeter_id=value)
-        accesses_on_parent_perimeters = valid_accesses.filter(Q(perimeter_id__in=perimeter.above_levels)
-                                                              &
-                                                              Q(Role.impact_lower_levels_query('role')))
-        return accesses_on_perimeter.union(accesses_on_parent_perimeters)
+
+        user_accesses = get_user_valid_manual_accesses(user=self.request.user)
+        user_is_allowed_to_read_accesses_from_above_levels = user_accesses.filter(role__right_read_admin_accesses_above_levels=True)\
+                                                                          .exists()
+        if user_is_allowed_to_read_accesses_from_above_levels:
+            accesses_on_parent_perimeters = valid_accesses.filter(Q(perimeter_id__in=perimeter.above_levels)
+                                                                  &
+                                                                  Q(Role.impact_lower_levels_query('role')))
+            return accesses_on_perimeter.union(accesses_on_parent_perimeters)
+        return accesses_on_perimeter
 
     provider_email = filters.CharFilter(lookup_expr="icontains", field_name="profile__email")
     provider_lastname = filters.CharFilter(lookup_expr="icontains", field_name="profile__lastname")
