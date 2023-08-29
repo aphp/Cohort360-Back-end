@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import List, Union
 
-from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.db.models import Q
 from django.db.models.query import QuerySet, Prefetch
@@ -29,9 +27,9 @@ class Perimeter(BaseModel):
     full_path = models.TextField(blank=True, null=True)
     cohort_size = models.TextField(blank=True, null=True)
     level = models.IntegerField(blank=True, null=True)
-    allowed_users = ArrayField(models.CharField(max_length=25), null=True, blank=True)
-    allowed_users_inferior_levels = ArrayField(models.CharField(max_length=25), null=True, blank=True)
-    allowed_users_above_levels = ArrayField(models.CharField(max_length=25), null=True, blank=True)
+    count_allowed_users = models.IntegerField(blank=True, null=True, default=0)
+    count_allowed_users_inferior_levels = models.IntegerField(blank=True, null=True, default=0)
+    count_allowed_users_above_levels = models.IntegerField(blank=True, null=True, default=0)
 
     def __str__(self):
         return f"[{self.id}] {self.name}"
@@ -98,60 +96,3 @@ class Perimeter(BaseModel):
         filtered_queryset = filtered_queryset or cls.objects.all()
         return Prefetch('children', queryset=filtered_queryset,
                         to_attr='prefetched_children')
-
-    def add_new_allowed_user(self, new_user_id):
-        perimeter = self
-        perimeter.allowed_users = list(set((perimeter.allowed_users or []) + [new_user_id]))
-        perimeter.save()
-        while perimeter.parent:
-            allowed_users_inferior_levels = list(set((perimeter.allowed_users_inferior_levels or []) +
-                                                     perimeter.allowed_users))
-            parent = perimeter.parent
-            parent_allowed_users_inferior_levels = parent.allowed_users_inferior_levels or []
-            parent.allowed_users_inferior_levels = list(set(parent_allowed_users_inferior_levels +
-                                                            allowed_users_inferior_levels))
-            parent.save()
-            perimeter = parent
-
-    def remove_user_from_allowed_users(self, user_id):
-        perimeter = self
-        try:
-            perimeter.allowed_users.remove(user_id)
-            perimeter.save()
-        except ValueError:
-            return
-
-        while perimeter.parent:
-            parent = perimeter.parent
-            remove_user = True
-            for child in parent.children.all():
-                if user_id in child.allowed_users + child.allowed_users_inferior_levels:
-                    remove_user = False
-                    break
-            if remove_user:
-                parent.allowed_users_inferior_levels.remove(user_id)
-                parent.save()
-            perimeter = parent
-
-
-def get_all_perimeters_parents_queryset(perims: List[Perimeter], ) -> QuerySet:
-    return Perimeter.objects.filter(join_qs([
-        p.all_parents_query() for p in perims
-    ]))
-
-
-def get_all_level_children(
-        perimeters_ids: Union[int, List[int]], strict: bool = False,
-        filtered_ids: List[str] = [], ids_only: bool = False
-) -> List[Union[Perimeter, str]]:
-    qs = join_qs(
-        [Perimeter.objects.filter(
-            **{i * 'parent__' + 'id__in': perimeters_ids}
-        ) for i in range(0 + strict, len(PERIMETERS_TYPES))]
-    )
-    if len(filtered_ids):
-        return qs.filter(id__in=filtered_ids)
-
-    if ids_only:
-        return [str(i[0]) for i in qs.values_list('id')]
-    return list(qs)

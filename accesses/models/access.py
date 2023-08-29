@@ -50,8 +50,6 @@ class Access(BaseModel):
                 end_datetime = self.end_datetime
             if end_datetime <= now:
                 valid = False
-        if not valid:
-            self.perimeter.remove_user_from_allowed_users(user_id=self.profile.user_id)
         return valid
 
     @property
