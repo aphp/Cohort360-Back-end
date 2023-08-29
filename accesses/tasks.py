@@ -1,4 +1,5 @@
-from django.db.models import Count
+from collections import Counter
+
 
 from accesses.accesses_alerts import send_access_expiry_alerts
 from accesses.conf_perimeters import perimeters_data_model_objects_update
@@ -31,14 +32,15 @@ def count_users_on_perimeters():
 
 
 def count_allowed_users():
-    perimeters_count = Access.objects.filter(q_is_valid_access())\
-                                     .distinct("profile__user_id")\
-                                     .values("perimeter_id")\
-                                     .annotate(count=Count("perimeter_id"))
-    for p in perimeters_count:
+    perimeters_ids = Access.objects.filter(q_is_valid_access())\
+                                   .distinct("profile__user_id") \
+                                   .values_list("perimeter_id", flat=True)
+    counter = Counter(perimeters_ids)
+
+    for perimeter_id, count in counter.items():
         try:
-            perimeter = Perimeter.objects.get(pk=p.get("perimeter_id"))
-            perimeter.count_allowed_users = p.get("count")
+            perimeter = Perimeter.objects.get(pk=perimeter_id)
+            perimeter.count_allowed_users = count
             perimeter.save()
         except Perimeter.DoesNotExist:
             continue
@@ -64,7 +66,7 @@ def count_allowed_users_from_above_levels():
         parent_perimeters = Perimeter.objects.filter(id__in=perimeter.above_levels)
         count_accesses_impacting_inferior_levels = 0
         for p in parent_perimeters:
-            accesses_impacting_inferior_levels = p.accesses.all().filter(q_role_impacts_lower_levels(prefix="Role"))
+            accesses_impacting_inferior_levels = p.accesses.all().filter(q_role_impacts_lower_levels(prefix="role"))
             count_accesses_impacting_inferior_levels += accesses_impacting_inferior_levels.count()
         perimeter.count_allowed_users_above_levels = count_accesses_impacting_inferior_levels
         perimeter.save()
