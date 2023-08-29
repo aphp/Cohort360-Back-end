@@ -6,22 +6,10 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accesses', '0008_remove_access_end_datetime_and_more'),
+        ('accesses', '0007_remove_access_end_datetime_and_more'),
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name='perimeter',
-            name='allowed_users',
-        ),
-        migrations.RemoveField(
-            model_name='perimeter',
-            name='allowed_users_above_levels',
-        ),
-        migrations.RemoveField(
-            model_name='perimeter',
-            name='allowed_users_inferior_levels',
-        ),
         migrations.AddField(
             model_name='perimeter',
             name='count_allowed_users',

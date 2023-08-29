@@ -11,7 +11,7 @@ unify_datetime_fields = """UPDATE accesses_access
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accesses', '0006_perimeter_allowed_users_and_more'),
+        ('accesses', '0005_perimeter_level'),
     ]
 
     operations = [
