@@ -9,6 +9,7 @@ from django.utils import timezone
 from accesses.models.access import Access
 from accesses.models.perimeter import Perimeter
 from accesses.models.role import Role
+from accesses.rights import all_rights
 from admin_cohort.models import User
 from admin_cohort.settings import MANUAL_SOURCE, PERIMETERS_TYPES
 from admin_cohort.tools import join_qs
@@ -214,6 +215,12 @@ def q_is_valid_access() -> Q:
     now = timezone.now()
     return ((Q(start_datetime=None) | Q(start_datetime__lte=now))
             & (Q(end_datetime=None) | Q(end_datetime__gte=now)))
+
+
+def q_role_impacts_lower_levels(prefix=None) -> Q:
+    prefix = prefix and f"{prefix}__" or ""
+    rights_impacting_lower_levels = [right for right in all_rights if right.impact_lower_levels]
+    return join_qs([Q(**{f'{prefix}{r.name}': True}) for r in rights_impacting_lower_levels])
 
 
 class DataRight:

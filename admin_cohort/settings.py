@@ -211,7 +211,7 @@ CELERY_TASK_ALWAYS_EAGER = False
 if env('LOCAL_TASKS', default=''):
     CELERY_BEAT_SCHEDULE = {task_name: {'task': task,
                                         'schedule': crontab(hour=hour, minute=minute)}
-                            for (task_name, task, hour, minute) in [task.split(',')
+                            for (task_name, task, hour, minute) in [task.strip().split(',')
                             for task in env('LOCAL_TASKS').split(';')]
                             }
 
