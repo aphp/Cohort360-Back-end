@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accesses', '0007_unify_access_datetime_fields'),
+        ('accesses', '0006_unify_access_datetime_fields'),
     ]
 
     operations = [
