@@ -12,8 +12,9 @@ from rest_framework_extensions.mixins import NestedViewSetMixin
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.permissions import IsAuthenticatedReadOnly
 from admin_cohort.tools import join_qs
+from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from admin_cohort.views import BaseViewset, YarnReadOnlyViewsetMixin
-from ..models import Role, Perimeter, get_user_valid_manual_accesses_queryset
+from ..models import Role, Perimeter, get_user_valid_manual_accesses
 from ..serializers import PerimeterSerializer, PerimeterLiteSerializer, DataReadRightSerializer, ReadRightPerimeter
 from ..tools.perimeter_process import get_top_perimeter_same_level, get_top_perimeter_inf_level, \
     filter_perimeter_by_top_hierarchy_perimeter_list, filter_accesses_by_search_perimeters, get_read_patient_right, \
@@ -57,7 +58,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
     queryset = Perimeter.objects.all()
     lookup_field = "id"
     permission_classes = (IsAuthenticatedReadOnly,)
-
+    pagination_class = NegativeLimitOffsetPagination
     swagger_tags = ['Accesses - perimeters']
     filterset_class = PerimeterFilter
     search_fields = ["name",
@@ -72,7 +73,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
     @action(detail=False, methods=['get'], url_path="manageable")
     @cache_response()
     def get_manageable_perimeters(self, request, *args, **kwargs):
-        user_accesses = get_user_valid_manual_accesses_queryset(request.user)
+        user_accesses = get_user_valid_manual_accesses(request.user)
 
         perimeters_filtered_by_search = []
         if request.query_params:
@@ -108,7 +109,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
     @action(detail=False, methods=['get'], url_path="read-patient")
     @cache_response()
     def get_perimeters_read_right_accesses(self, request, *args, **kwargs):
-        user_accesses = get_user_valid_manual_accesses_queryset(request.user)
+        user_accesses = get_user_valid_manual_accesses(request.user)
         all_read_patient_nominative_accesses = user_accesses.filter(Role.is_read_patient_role_nominative("role"))
         all_read_patient_pseudo_accesses = user_accesses.filter(Role.is_read_patient_role("role"))
         all_read_ipp_accesses = user_accesses.filter(Role.is_search_ipp_role("role"))

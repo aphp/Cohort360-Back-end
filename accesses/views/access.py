@@ -3,7 +3,6 @@ from datetime import date, timedelta
 from functools import reduce
 
 from django.db.models import Q, BooleanField, When, Case, Value, QuerySet
-from django.db.models.functions import Coalesce
 from django.http import Http404
 from django.utils import timezone
 from django_filters import OrderingFilter
@@ -20,7 +19,7 @@ from admin_cohort.settings import PERIMETERS_TYPES, ACCESS_EXPIRY_FIRST_ALERT_IN
 from admin_cohort.tools import join_qs
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.views import BaseViewset, CustomLoggingMixin
-from ..models import Access, get_user_valid_manual_accesses_queryset, intersect_queryset_criteria, build_data_rights
+from ..models import Access, get_user_valid_manual_accesses, intersect_queryset_criteria, build_data_rights
 from ..permissions import AccessPermissions
 from ..serializers import AccessSerializer, DataRightSerializer, ExpiringAccessesSerializer
 
@@ -43,8 +42,8 @@ class AccessFilter(filters.FilterSet):
     care_site_id = filters.CharFilter(field_name="perimeter_id")
 
     ordering = OrderingFilter(fields=(('role__name', 'role_name'),
-                                      ('sql_start_datetime', 'start_datetime'),
-                                      ('sql_end_datetime', 'end_datetime'),
+                                      'start_datetime',
+                                      'end_datetime',
                                       ('sql_is_valid', 'is_valid')))
 
     class Meta:
@@ -79,7 +78,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
         q = super(AccessViewSet, self).get_queryset()
         user = self.request.user
         if not user.is_anonymous:
-            accesses = get_user_valid_manual_accesses_queryset(user).select_related("role")
+            accesses = get_user_valid_manual_accesses(user).select_related("role")
         else:
             accesses = []
         to_exclude = [a.accesses_criteria_to_exclude for a in accesses]
@@ -102,10 +101,8 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
 
     def filter_queryset(self, queryset):
         now = timezone.now()
-        queryset = queryset.annotate(sql_start_datetime=Coalesce('manual_start_datetime', 'start_datetime'),
-                                     sql_end_datetime=Coalesce('manual_end_datetime', 'end_datetime'))\
-                           .annotate(sql_is_valid=Case(When(sql_start_datetime__lte=now,
-                                                            sql_end_datetime__gte=now,
+        queryset = queryset.annotate(sql_is_valid=Case(When(start_datetime__lte=now,
+                                                            end_datetime__gte=now,
                                                             then=Value(True)),
                                                        default=Value(False),
                                                        output_field=BooleanField()))
@@ -167,8 +164,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
             return Response(data="perimeter_id is required", status=status.HTTP_400_BAD_REQUEST)
         data['profile_id'] = data.get('profile_id', data.get('provider_history_id'))
         data['perimeter_id'] = data.get('perimeter_id', data.get('care_site_id'))
-        response = super(AccessViewSet, self).create(request, *args, **kwargs)
-        return response
+        return super(AccessViewSet, self).create(request, *args, **kwargs)
 
     @swagger_auto_schema(request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
@@ -187,20 +183,19 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
 
     @swagger_auto_schema(auto_schema=None)
     def update(self, request, *args, **kwargs):
-        response = super(AccessViewSet, self).update(request, *args, **kwargs)
-        return response
+        return super(AccessViewSet, self).update(request, *args, **kwargs)
 
-    @swagger_auto_schema(request_body=openapi.Schema(type=openapi.TYPE_STRING, properties={}),
-                         method="PATCH",
+    @swagger_auto_schema(method="PATCH",
+                         request_body=openapi.Schema(type=openapi.TYPE_STRING, properties={}),
                          operation_summary="Will set end_datetime to now, to close the access.")
     @action(url_path="close", detail=True, methods=['patch'])
     def close(self, request, *args, **kwargs):
         access = self.get_object()
         now = timezone.now()
-        if access.actual_end_datetime and access.actual_end_datetime < now:
+        if access.end_datetime and access.end_datetime < now:
             return Response(data="L'accès est déjà clôturé.", status=status.HTTP_403_FORBIDDEN)
 
-        if access.actual_start_datetime and access.actual_start_datetime > now:
+        if access.start_datetime and access.start_datetime > now:
             return Response(data="L'accès n'a pas encore commencé, il ne peut pas être déjà fermé."
                                  "Il peut cependant être supprimé, avec la méthode DELETE.",
                             status=status.HTTP_403_FORBIDDEN)
@@ -210,8 +205,8 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
 
     def destroy(self, request, *args, **kwargs):
         access = self.get_object()
-        if access.actual_start_datetime:
-            if access.actual_start_datetime < timezone.now():
+        if access.start_datetime:
+            if access.start_datetime < timezone.now():
                 return Response(data="L'accès est déjà/a déjà été activé, il ne peut plus être supprimé.",
                                 status=status.HTTP_403_FORBIDDEN)
         self.perform_destroy(access)
@@ -228,11 +223,11 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
     @cache_response()
     def my_accesses(self, request, *args, **kwargs):
         user = request.user
-        accesses = get_user_valid_manual_accesses_queryset(user=user)
+        accesses = get_user_valid_manual_accesses(user=user)
         if request.query_params.get("expiring"):
             today = date.today()
             expiry_date = today + timedelta(days=ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS)
-            to_expire_soon = Q(manual_end_datetime__date__gte=today) & Q(manual_end_datetime__date__lte=expiry_date)
+            to_expire_soon = Q(end_datetime__date__gte=today) & Q(end_datetime__date__lte=expiry_date)
             accesses_to_expire = accesses.filter(Q(profile__user=user) & to_expire_soon)
 
             if not accesses_to_expire:
@@ -242,7 +237,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
             min_access_per_perimeter = {}
             for a in accesses_to_expire:
                 if a.perimeter.id not in min_access_per_perimeter or \
-                   a.manual_end_datetime < min_access_per_perimeter[a.perimeter.id].manual_end_datetime:
+                   a.end_datetime < min_access_per_perimeter[a.perimeter.id].end_datetime:
                     min_access_per_perimeter[a.perimeter.id] = a
                 else:
                     continue

@@ -4,7 +4,7 @@ from django.conf.global_settings import CSRF_COOKIE_NAME
 from django.http import StreamingHttpResponse, FileResponse
 from django.utils.deprecation import MiddlewareMixin
 
-from admin_cohort.settings import JWT_ACCESS_COOKIE, JWT_REFRESH_COOKIE, SESSION_COOKIE_NAME
+from admin_cohort.settings import JWT_ACCESS_COOKIE, JWT_REFRESH_COOKIE, SESSION_COOKIE_NAME, JWT_ACCESS_COOKIE_SECURE, JWT_REFRESH_COOKIE_SECURE
 
 
 class JWTSessionMiddleware(MiddlewareMixin):
@@ -38,7 +38,7 @@ class JWTSessionMiddleware(MiddlewareMixin):
                 refresh_key = resp_data[JWT_REFRESH_COOKIE]
 
         if access_key:
-            response.set_cookie(JWT_ACCESS_COOKIE, access_key)
+            response.set_cookie(key=JWT_ACCESS_COOKIE, value=access_key, secure=JWT_ACCESS_COOKIE_SECURE)
         if refresh_key:
-            response.set_cookie(JWT_REFRESH_COOKIE, refresh_key)
+            response.set_cookie(key=JWT_REFRESH_COOKIE, value=refresh_key, secure=JWT_REFRESH_COOKIE_SECURE)
         return response
