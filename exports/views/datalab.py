@@ -16,6 +16,6 @@ class DatalabFilter(filters.FilterSet):
 class DatalabViewSet(ExportsBaseViewSet):
     serializer_class = DatalabSerializer
     queryset = Datalab.objects.all()
-    swagger_tags = ['Exports - Datalab']
+    swagger_tags = ['Exports - Datalabs']
     filterset_class = DatalabFilter
     search_fields = ("infrastructure_provider__name",)

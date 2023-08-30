@@ -12,6 +12,12 @@ class ExportStatus(StrEnum):
     DELIVERED: str = "Livré"
 
 
+class StatType(StrEnum):
+    INT: str = "Integer"
+    TXT: str = "Text"
+    SIZE_BYTES: str = "Size Bytes"
+
+
 class ApiJobResponse:
     def __init__(self, status: JobStatus, output: str = "", err: str = ""):
         self.status: JobStatus = status

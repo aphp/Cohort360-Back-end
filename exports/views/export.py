@@ -37,7 +37,7 @@ class ExportFilter(filters.FilterSet):
 class ExportViewSet(ExportsBaseViewSet):
     serializer_class = ExportSerializer
     queryset = Export.objects.all()
-    swagger_tags = ['Exports - Export']
+    swagger_tags = ['Exports - Exports']
     filterset_class = ExportFilter
     search_fields = ("name",
                      "owner__provider_username",

@@ -236,7 +236,6 @@ class AnnexeCohortResultSerializer(serializers.ModelSerializer):
 
 
 class DatalabSerializer(serializers.ModelSerializer):
-    infrastructure_provider = serializers.SlugRelatedField(read_only=True, slug_field='name')
 
     class Meta:
         model = Datalab

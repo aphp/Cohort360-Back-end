@@ -16,7 +16,7 @@ class InfrastructureProviderFilter(filters.FilterSet):
 class InfrastructureProviderViewSet(ExportsBaseViewSet):
     serializer_class = InfrastructureProviderSerializer
     queryset = InfrastructureProvider.objects.all()
-    swagger_tags = ['Exports - InfrastructureProvider']
+    swagger_tags = ['Exports - Infrastructure Providers']
     filterset_class = InfrastructureProviderFilter
     search_fields = ("infrastructure_provider__name",)
 
