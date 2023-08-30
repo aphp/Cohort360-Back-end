@@ -1,12 +1,10 @@
 from django.db.models import Q
 from django_filters import rest_framework as filters, OrderingFilter
-from rest_framework import viewsets
 
 from admin_cohort.tools import join_qs
-from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from exports.models import Export
-from exports.permissions import ExportRequestPermissions
 from exports.serializers import ExportSerializer
+from exports.views.base_viewset import ExportsBaseViewSet
 
 
 class ExportFilter(filters.FilterSet):
@@ -36,14 +34,11 @@ class ExportFilter(filters.FilterSet):
                   "owner")
 
 
-class ExportViewSet(viewsets.ModelViewSet):
-    http_method_names = ["get", "post", "patch", "delete"]
+class ExportViewSet(ExportsBaseViewSet):
     serializer_class = ExportSerializer
     queryset = Export.objects.all()
     swagger_tags = ['Exports - Export']
     filterset_class = ExportFilter
-    pagination_class = NegativeLimitOffsetPagination
-    permission_classes = (ExportRequestPermissions,)
     search_fields = ("name",
                      "owner__provider_username",
                      "owner__firstname",

@@ -1,10 +1,8 @@
 from django_filters import rest_framework as filters, OrderingFilter
-from rest_framework import viewsets
 
-from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from exports.models import ExportResultStat
-from exports.permissions import ExportRequestPermissions
 from exports.serializers import ExportResultStatSerializer
+from exports.views.base_viewset import ExportsBaseViewSet
 
 
 class ExportResultStatFilter(filters.FilterSet):
@@ -23,12 +21,9 @@ class ExportResultStatFilter(filters.FilterSet):
                   "type")
 
 
-class ExportResultStatViewSet(viewsets.ModelViewSet):
-    http_method_names = ["get", "post", "patch", "delete"]
+class ExportResultStatViewSet(ExportsBaseViewSet):
     serializer_class = ExportResultStatSerializer
     queryset = ExportResultStat.objects.all()
     swagger_tags = ['Exports - ExportResultStat']
     filterset_class = ExportResultStatFilter
-    pagination_class = NegativeLimitOffsetPagination
-    permission_classes = (ExportRequestPermissions,)
 
