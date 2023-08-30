@@ -18,6 +18,7 @@ BACK_HOST = env("BACK_HOST")
 BACK_URL = f"https://{env('BACK_HOST')}"
 FRONT_URL = env("FRONT_URL")
 FRONT_URLS = env("FRONT_URLS").split(',')
+SJS_URL = env('SJS_URL')
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = env("DJANGO_SECRET_KEY")
