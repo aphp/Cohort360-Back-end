@@ -24,6 +24,9 @@ class SjsClient:
         result = resp.json()
         return resp, result
 
+    def create(self, request):
+        ...
+
 
 def format_spark_job_request_for_sjs(spark_job_request: SparkJobObject) -> str:
     res = json.dumps(asdict(spark_job_request))
