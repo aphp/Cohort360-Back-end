@@ -191,22 +191,23 @@ class CohortCaseRetrieveFilter(CaseRetrieveFilter):
 
 
 class CohortCreateCase(CreateCase):
-    def __init__(self, mock_task_called: bool, **kwargs):
+    def __init__(self, mock_create_task_called: bool, **kwargs):
         super(CohortCreateCase, self).__init__(**kwargs)
-        self.mock_task_called = mock_task_called
+        self.mock_create_task_called = mock_create_task_called
 
 
 class CohortsCreateTests(CohortsTests):
     @mock.patch('cohort.serializers.cohort_job_api.get_authorization_header')
     @mock.patch('cohort.tasks.create_cohort_task.delay')
     @mock.patch('cohort.tasks.get_count_task.delay')
-    def check_create_case_with_mock(self, case: CohortCreateCase, mock_task_count: MagicMock, mock_task: MagicMock,
+    def check_create_case_with_mock(self, case: CohortCreateCase, mock_count_task: MagicMock, mock_create_task: MagicMock,
                                     mock_header: MagicMock, other_view: any, view_kwargs: dict):
         mock_header.return_value = None
-        mock_task.return_value = None
-        mock_task_count.return_value = None
+        mock_create_task.return_value = None
+        mock_count_task.return_value = None
 
-        super(CohortsCreateTests, self).check_create_case(case, other_view, **(view_kwargs or {}))
+        with self.captureOnCommitCallbacks(execute=True):
+            super(CohortsCreateTests, self).check_create_case(case, other_view, **(view_kwargs or {}))
 
         if case.success:
             inst = self.model_objects.filter(**case.retrieve_filter.args)\
@@ -215,10 +216,10 @@ class CohortsCreateTests(CohortsTests):
 
             if case.data.get('global_estimate'):
                 self.assertIsNotNone(inst.dated_measure_global)
-                mock_task.assert_called() if case.mock_task_called else mock_task.assert_not_called()
+                mock_create_task.assert_called() if case.mock_create_task_called else mock_create_task.assert_not_called()
 
-        mock_task.assert_called() if case.mock_task_called else mock_task.assert_not_called()
-        mock_header.assert_called() if case.mock_task_called else mock_header.assert_not_called()
+        mock_create_task.assert_called() if case.mock_create_task_called else mock_create_task.assert_not_called()
+        mock_header.assert_called() if case.mock_create_task_called else mock_header.assert_not_called()
 
     def check_create_case(self, case: CohortCreateCase, other_view: any = None, **view_kwargs):
         return self.check_create_case_with_mock(case, other_view=other_view or None, view_kwargs=view_kwargs)
@@ -249,12 +250,12 @@ class CohortsCreateTests(CohortsTests):
             status=status.HTTP_201_CREATED,
             user=self.user1,
             success=True,
-            mock_task_called=True,
+            mock_create_task_called=True,
             retrieve_filter=CohortCaseRetrieveFilter(name=self.test_name),
             global_estimate=False
         )
         self.basic_err_case = self.basic_case.clone(
-            mock_task_called=False,
+            mock_create_task_called=False,
             success=False,
             status=status.HTTP_400_BAD_REQUEST,
         )
@@ -415,7 +416,6 @@ class CohortsUpdateTests(CohortsTests):
         [self.check_patch_case(case) for case in cases]
 
     def test_update_cohort_by_sjs_callback_status_finished(self):
-        # test patch cohort with status `finished` from SJS
         new_cohort: CohortResult = self.model_objects.create(**self.basic_data)
         data = {'request_job_status': 'finished',
                 'group.id': '123456',
@@ -431,7 +431,6 @@ class CohortsUpdateTests(CohortsTests):
         self.assertEqual(response.data.get("result_size"), data['group.count'])
 
     def test_update_cohort_by_sjs_callback_status_failed(self):
-        # test patch cohort with status `failed` from SJS
         new_cohort: CohortResult = self.model_objects.create(**self.basic_data)
         data = {'request_job_status': 'error',
                 'group.id': '',
@@ -447,14 +446,12 @@ class CohortsUpdateTests(CohortsTests):
         self.assertIsNotNone(response.data.get("request_job_duration"))
 
     def test_error_update_cohort_by_sjs_callback_invalid_status(self):
-        # test getting http_400_bad_request
         invalid_status = 'INVALID_STATUS'
         case = self.basic_err_case.clone(data_to_update={'request_job_status': invalid_status})
         self.check_patch_case(case)
 
     @mock.patch('cohort.views.cohort_result.send_email_notif_about_large_cohort')
     def test_update_cohort_status_by_etl_callback(self, mock_send_email_notif: MagicMock):
-        # test request_job_status gets updated and send_email is called
         case = self.basic_case.clone(data_to_update={'request_job_status': 'finished'})
         mock_send_email_notif.side_effect = SMTPException("SMTP server error")
         self.check_patch_case(case)
