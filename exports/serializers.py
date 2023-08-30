@@ -10,7 +10,7 @@ from admin_cohort.models import User
 from cohort.models import CohortResult
 from workspaces.models import Account
 from exports.emails import check_email_address
-from exports.models import ExportRequest, ExportRequestTable
+from exports.models import ExportRequest, ExportRequestTable, Datalab, InfrastructureProvider, ExportTable, ExportResultStat, Export
 from exports.permissions import can_review_transfer_jupyter, can_review_export
 from exports.types import ExportType
 
@@ -233,3 +233,41 @@ class AnnexeCohortResultSerializer(serializers.ModelSerializer):
                   'created_at', 'request_job_status', 'fhir_group_id')
         read_only_fields = ('owner', 'name', 'description', 'dated_measure',
                             'created_at', 'request_job_status', 'fhir_group_id')
+
+
+class DatalabSerializer(serializers.ModelSerializer):
+    infrastructure_provider = serializers.SlugRelatedField(read_only=True, slug_field='name')
+
+    class Meta:
+        model = Datalab
+        fields = "__all__"
+
+
+class InfrastructureProviderSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = InfrastructureProvider
+        fields = "__all__"
+
+
+class ExportResultStatSerializer(serializers.ModelSerializer):
+    export = serializers.SlugRelatedField(read_only=True, slug_field='name')
+
+    class Meta:
+        model = ExportResultStat
+        fields = "__all__"
+
+
+class ExportTableSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = ExportTable
+        fields = "__all__"
+
+
+class ExportSerializer(serializers.ModelSerializer):
+    tables = ExportTableSerializer(many=True)
+
+    class Meta:
+        model = Export
+        fields = "__all__"
