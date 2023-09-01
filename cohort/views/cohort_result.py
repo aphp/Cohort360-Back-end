@@ -1,9 +1,4 @@
-import logging
-from smtplib import SMTPException
-
 from django.db.models import Q, F
-from django.http import Http404
-from django.utils import timezone
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
@@ -13,24 +8,15 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
-from accesses.models import get_user_valid_manual_accesses
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools import join_qs
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
-from admin_cohort.types import JobStatus
-from cohort.conf_cohort_job_api import fhir_to_job_status
+from cohort.services.cohort_result import cohort_service, JOB_STATUS, GROUP_ID, GROUP_COUNT
 from cohort.models import CohortResult
 from cohort.permissions import SJSandETLCallbackPermission
 from cohort.serializers import CohortResultSerializer, CohortResultSerializerFullDatedMeasure, CohortRightsSerializer
-from cohort.tools import get_dict_cohort_pop_source, get_all_cohorts_rights, send_email_notif_about_large_cohort, is_sjs_or_etl_user
+from cohort.tools import is_sjs_or_etl_user
 from cohort.views.shared import UserObjectsRestrictedViewSet
-
-JOB_STATUS = "request_job_status"
-GROUP_ID = "group.id"
-GROUP_COUNT = "group.count"
-
-_logger = logging.getLogger('info')
-_logger_err = logging.getLogger('django.request')
 
 
 class CohortFilter(filters.FilterSet):
@@ -124,12 +110,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
 
     @action(methods=['get'], detail=False, url_path='jobs/active')
     def get_active_jobs(self, request, *args, **kwargs):
-        active_statuses = [JobStatus.new,
-                           JobStatus.validated,
-                           JobStatus.started,
-                           JobStatus.pending,
-                           JobStatus.long_pending]
-        jobs_count = CohortResult.objects.filter(request_job_status__in=active_statuses).count()
+        jobs_count = cohort_service.count_active_jobs()
         return Response(data={"jobs_count": jobs_count}, status=status.HTTP_200_OK)
 
     @cache_response()
@@ -143,28 +124,9 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                          responses={'201': openapi.Response("Cohorts rights found", CohortRightsSerializer())})
     @action(detail=False, methods=['get'], url_path="cohort-rights")
     def get_cohort_right_accesses(self, request, *args, **kwargs):
-        user_accesses = get_user_valid_manual_accesses(request.user)
-
-        if not user_accesses:
-            raise Http404("ERROR: No Accesses found")
-        if request.query_params:
-            # Case with perimeters search params
-            cohorts_filtered_by_search = self.filter_queryset(self.get_queryset())
-            if not cohorts_filtered_by_search:
-                raise Http404("ERROR: No Cohort Found")
-            list_cohort_id = [cohort.fhir_group_id for cohort in cohorts_filtered_by_search if cohort.fhir_group_id]
-            cohort_dict_pop_source = get_dict_cohort_pop_source(list_cohort_id)
-
-            return Response(CohortRightsSerializer(get_all_cohorts_rights(user_accesses, cohort_dict_pop_source),
-                                                   many=True).data)
-
-        all_user_cohorts = CohortResult.objects.filter(owner=request.user)
-        if not all_user_cohorts:
-            return Response("WARN: You do not have any cohort")
-        list_cohort_id = [cohort.fhir_group_id for cohort in all_user_cohorts if cohort.fhir_group_id]
-        cohort_dict_pop_source = get_dict_cohort_pop_source(list_cohort_id)
-        return Response(CohortRightsSerializer(get_all_cohorts_rights(user_accesses, cohort_dict_pop_source),
-                                               many=True).data)
+        cohorts = self.filter_queryset(self.get_queryset())
+        cohorts_rights = cohort_service.get_cohorts_rights(cohorts=cohorts, user=request.user)
+        return Response(data=CohortRightsSerializer(data=cohorts_rights, many=True).data)
 
     @swagger_auto_schema(operation_summary="Used by Front to update cohort's name, description and favorite."
                                            "By SJS to update cohort's request_job_status, request_job_duration and "
@@ -179,39 +141,12 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                          responses={'200': openapi.Response("Cohort updated successfully", CohortRightsSerializer()),
                                     '400': openapi.Response("Bad Request")})
     def partial_update(self, request, *args, **kwargs):
-        data: dict = request.data
-        _logger.info(f"Received data for cohort patch: {data}")
-        sjs_data_keys = (JOB_STATUS, GROUP_ID, GROUP_COUNT)
-        is_update_from_sjs = all([key in data for key in sjs_data_keys])
-        is_update_from_etl = JOB_STATUS in data and len(data) == 1
-
-        if JOB_STATUS in data:
-            job_status = fhir_to_job_status().get(data[JOB_STATUS].upper())
-            if not job_status:
-                return Response(data=f"Invalid job status: {data.get(JOB_STATUS)}",
-                                status=status.HTTP_400_BAD_REQUEST)
-            cohort = self.get_object()
-            if job_status in (JobStatus.finished, JobStatus.failed):
-                data["request_job_duration"] = str(timezone.now() - cohort.created_at)
-                if job_status == JobStatus.failed:
-                    data["request_job_fail_msg"] = "Received a failed status from SJS"
-            data['request_job_status'] = job_status
-        if GROUP_ID in data:
-            data["fhir_group_id"] = data.pop(GROUP_ID)
-        if GROUP_COUNT in data:
-            cohort.dated_measure.measure = data.pop(GROUP_COUNT)
-            cohort.dated_measure.save()
-
-        resp = super(CohortResultViewSet, self).partial_update(request, *args, **kwargs)
-
-        if status.is_success(resp.status_code):
-            if is_update_from_sjs:
-                _logger.info(f"Cohort [{cohort.uuid}] successfully updated from SJS")
-            if is_update_from_etl:
-                try:
-                    send_email_notif_about_large_cohort(cohort.name, cohort.fhir_group_id, cohort.owner)
-                except (ValueError, SMTPException) as e:
-                    _logger_err.exception(f"Cohort [{cohort.uuid}] - Couldn't send email to user after ETL patch: {e}")
-                else:
-                    _logger.info(f"Cohort [{cohort.uuid}] successfully updated from ETL")
-        return resp
+        cohort = self.get_object()
+        is_update_from_sjs, is_update_from_etl = cohort_service.process_patch_data(cohort=cohort,
+                                                                                   data=request.data)
+        response = super(CohortResultViewSet, self).partial_update(request, *args, **kwargs)
+        if status.is_success(response.status_code):
+            cohort_service.send_email_notification(cohort=cohort,
+                                                   is_update_from_sjs=is_update_from_sjs,
+                                                   is_update_from_etl=is_update_from_etl)
+        return response

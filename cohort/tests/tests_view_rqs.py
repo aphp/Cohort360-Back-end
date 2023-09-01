@@ -17,7 +17,7 @@ from admin_cohort.tools import prettify_json
 from admin_cohort.tools.tests_tools import CaseRetrieveFilter, CreateCase, random_str, ListCase, RetrieveCase, \
     DeleteCase, \
     PatchCase
-from cohort.crb_responses import CRBValidateResponse
+from cohort.services.crb_responses import CRBValidateResponse
 from cohort.models import RequestQuerySnapshot, Request, Folder
 from cohort.tests.tests_view_requests import RequestsTests, ShareCase
 from cohort.views import RequestQuerySnapshotViewSet, NestedRqsViewSet

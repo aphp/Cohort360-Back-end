@@ -2,7 +2,7 @@ import logging
 
 from celery import shared_task, current_task
 
-import cohort.conf_cohort_job_api as cohort_job_api
+import cohort.services.conf_cohort_job_api as cohort_job_api
 from admin_cohort import celery_app
 from admin_cohort.types import JobStatus
 from admin_cohort.settings import COHORT_LIMIT

@@ -2,7 +2,7 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-import cohort.conf_cohort_job_api as cohort_job_api
+import cohort.services.conf_cohort_job_api as cohort_job_api
 from admin_cohort.models import User
 from admin_cohort.serializers import BaseSerializer, OpenUserSerializer
 from admin_cohort.types import JobStatus, MissingDataError
@@ -38,7 +38,7 @@ class CohortBaseSerializer(serializers.ModelSerializer):
 class DatedMeasureSerializer(BaseSerializer):
     owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
     request = serializers.UUIDField(read_only=True, required=False, source='request_query_snapshot__request__pk')
-    request_query_snapshot = PrimaryKeyRelatedFieldWithOwner(queryset=RequestQuerySnapshot.objects.all())
+    request_query_snapshot = PrimaryKeyRelatedFieldWithOwner(queryset=RequestQuerySnapshot.objects.all())   # todo: required=True
     count_outdated = serializers.BooleanField(read_only=True)
     cohort_limit = serializers.IntegerField(read_only=True)
 
@@ -49,33 +49,6 @@ class DatedMeasureSerializer(BaseSerializer):
                             "request_job_id",
                             "mode",
                             "request"]
-
-    @transaction.atomic
-    def create(self, validated_data):
-        query_snapshot = validated_data.get("request_query_snapshot")
-        measure = validated_data.get("measure")
-        fhir_datetime = validated_data.get("fhir_datetime")
-
-        if not query_snapshot:
-            raise ValidationError("Invalid 'request_query_snapshot_id'")
-
-        if (measure and not fhir_datetime) or (fhir_datetime and not measure):
-            raise ValidationError("If you provide measure or fhir_datetime, you have to provide the other")
-
-        dm = super(DatedMeasureSerializer, self).create(validated_data=validated_data)
-
-        auth_headers = cohort_job_api.get_authorization_header(self.context.get("request"))
-        cancel_previously_running_dm_jobs.delay(auth_headers, dm.uuid)
-
-        if not measure:
-            try:
-                transaction.on_commit(lambda: get_count_task.delay(auth_headers,
-                                                                   query_snapshot.serialized_query,
-                                                                   dm.uuid))
-            except Exception as e:
-                dm.delete()
-                raise ValidationError(f"INTERNAL ERROR: Could not launch count request: {e}")
-        return dm
 
 
 class CohortResultSerializer(BaseSerializer):
@@ -97,7 +70,7 @@ class CohortResultSerializer(BaseSerializer):
                             "type"]
 
     def update(self, instance, validated_data):
-        for f in ['owner', 'request_query_snapshot', 'dated_measure', 'type']:
+        for f in ['owner', 'request_query_snapshot', 'dated_measure']:
             if f in validated_data:
                 raise ValidationError(f'{f} field cannot be updated manually')
         return super(CohortResultSerializer, self).update(instance, validated_data)

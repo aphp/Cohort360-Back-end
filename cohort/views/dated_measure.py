@@ -1,6 +1,6 @@
 import logging
 
-from django.utils import timezone
+from django.db import transaction
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
@@ -10,12 +10,10 @@ from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
-from admin_cohort.types import JobStatus
-from cohort.conf_cohort_job_api import fhir_to_job_status
 from cohort.models import DatedMeasure
-from cohort.models.dated_measure import GLOBAL_DM_MODE
 from cohort.permissions import SJSandETLCallbackPermission
 from cohort.serializers import DatedMeasureSerializer
+from cohort.services.dated_measure import dated_measure_service
 from cohort.tools import is_sjs_user
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
@@ -66,6 +64,23 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     def list(self, request, *args, **kwargs):
         return super(DatedMeasureViewSet, self).list(request, *args, **kwargs)
 
+    @swagger_auto_schema(request_body=openapi.Schema(
+                             type=openapi.TYPE_OBJECT,
+                             properties={"request_query_snapshot_id": openapi.Schema(type=openapi.TYPE_STRING),
+                                         "request_id": openapi.Schema(type=openapi.TYPE_STRING)},
+                             required=["request_query_snapshot_id", "request_id"]),
+                         responses={'200': openapi.Response("DatedMeasure created", DatedMeasureSerializer()),
+                                    '400': openapi.Response("Bad Request")})
+    @transaction.atomic
+    def create(self, request, *args, **kwargs):
+        if not request.data.get("request_query_snapshot"):  # todo: check vis-à-vis required=True set on the serializer
+            return Response(data="Invalid 'request_query_snapshot_id'",
+                            status=status.HTTP_400_BAD_REQUEST)
+        response = super().create(request, *args, **kwargs)
+        transaction.on_commit(lambda: dated_measure_service.process_dated_measure(dm_uuid=response.data.get("uuid"),
+                                                                                  request=request))
+        return response
+
     @swagger_auto_schema(operation_summary="Called by SJS to update DM's `measure` and other fields",
                          request_body=openapi.Schema(
                              type=openapi.TYPE_OBJECT,
@@ -77,31 +92,7 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                          responses={'200': openapi.Response("DatedMeasure updated successfully", DatedMeasureSerializer()),
                                     '400': openapi.Response("Bad Request")})
     def partial_update(self, request, *args, **kwargs):
-        data: dict = request.data
-        _logger.info(f"Received data for DM patch: {data}")
-
-        job_status = data.get(JOB_STATUS, "")
-        job_status = fhir_to_job_status().get(job_status.upper())
-        if not job_status:
-            return Response(data=f"Invalid job status: {data.get(JOB_STATUS)}",
-                            status=status.HTTP_400_BAD_REQUEST)
-        dm = self.get_object()
-        job_duration = str(timezone.now() - dm.created_at)
-
-        if job_status == JobStatus.finished:
-            if dm.mode == GLOBAL_DM_MODE:
-                data.update({"measure_min": data.pop(MINIMUM, None),
-                             "measure_max": data.pop(MAXIMUM, None)
-                             })
-            else:
-                data["measure"] = data.pop(COUNT, None)
-            _logger.info(f"DatedMeasure [{dm.uuid}] successfully updated from SJS")
-        else:
-            data["request_job_fail_msg"] = data.pop(ERR_MESSAGE, None)
-            _logger_err.exception(f"DatedMeasure [{dm.uuid}] - Error on SJS callback")
-
-        data.update({"request_job_status": job_status,
-                     "request_job_duration": job_duration
-                     })
+        dated_measure_service.process_patch_data(dm=self.get_object(),
+                                                 data=request.data)
         return super(DatedMeasureViewSet, self).partial_update(request, *args, **kwargs)
 

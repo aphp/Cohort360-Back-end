@@ -1,5 +1,6 @@
 import json
 import logging
+from collections import defaultdict
 from typing import Tuple, Callable
 
 from coverage.annotate import os
@@ -151,12 +152,9 @@ def get_dict_cohort_pop_source(cohorts_ids: list):
     Give the mapping of cohort_id and the list of Perimete.cohort_id population source for this cohort
     """
     fact_relationships = FactRelationShip.objects.raw(psql_query_get_pop_source_from_cohort(cohorts_ids))
-    cohort_pop_source = {}
+    cohort_pop_source = defaultdict(list)
     for fact in fact_relationships:
-        if fact.fact_id_1 in cohort_pop_source:
-            cohort_pop_source[fact.fact_id_1] = cohort_pop_source[fact.fact_id_1] + [fact.fact_id_2]
-        else:
-            cohort_pop_source[fact.fact_id_1] = [fact.fact_id_2]
+        cohort_pop_source[fact.fact_id_1].append(fact.fact_id_2)
     return cohort_pop_source
 
 
@@ -259,4 +257,8 @@ def send_email_notif_about_request_sharing(request_name: str, owner: User, recip
             .replace("KEY_OWNER_NAME", f"{owner.firstname} {owner.lastname}") \
             .replace("KEY_REQUEST_NAME", request_name)
 
-    send_email("shared_request", f"{owner.firstname} {owner.lastname} a partagé une requête avec vous", recipient.email, replace_txt, replace_txt)
+    send_email(template_name="shared_request",
+               subject=f"{owner.firstname} {owner.lastname} a partagé une requête avec vous",
+               owner_email=recipient.email,
+               func_replace_html=replace_txt,
+               func_replace_txt=replace_txt)

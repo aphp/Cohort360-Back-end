@@ -20,7 +20,7 @@ class FhirFilterViewSet(viewsets.ModelViewSet):
     serializer_class = FhirFilterSerializer
     pagination_class = NegativeLimitOffsetPagination
     filterset_class = FhirFilterFilter
-    lookup_field = "pk"  # Change this line to use "pk" as the lookup field
+    lookup_field = "uuid"
     swagger_tags = ["Cohort - fhir_filter"]
     http_method_names = ["get", "post", "patch"]
 

@@ -11,7 +11,7 @@ from rest_framework.request import Request
 
 from admin_cohort.middleware.request_trace_id_middleware import add_trace_id
 from admin_cohort.types import JobStatus, MissingDataError
-from cohort.crb_responses import CRBCountResponse, CRBCohortResponse
+from cohort.services.crb_responses import CRBCountResponse, CRBCohortResponse
 from cohort.tools import log_count_task, log_create_task
 
 COHORT_REQUEST_BUILDER_URL = os.environ.get('COHORT_REQUEST_BUILDER_URL')

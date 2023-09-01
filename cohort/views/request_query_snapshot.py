@@ -4,17 +4,15 @@ from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.decorators import action
-from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from admin_cohort.tools.cache import cache_response
-from admin_cohort.models import User
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from cohort.models import RequestQuerySnapshot
 from cohort.permissions import IsOwner
 from cohort.serializers import RequestQuerySnapshotSerializer
-from cohort.tools import send_email_notif_about_request_sharing
+from cohort.services.request_query_snapshot import rqs_service
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
 
@@ -59,26 +57,10 @@ class RequestQuerySnapshotViewSet(NestedViewSetMixin, UserObjectsRestrictedViewS
                                     '404': openapi.Response("RequestQuerySnapshot not found (possibly not owned)")})
     @action(detail=True, methods=['post'], permission_classes=(IsOwner,), url_path="share")
     def share(self, request, *args, **kwargs):
-        recipients = request.data.get('recipients')
-        if not recipients:
-            raise ValidationError("'recipients' doit être fourni")
-
-        recipients = recipients.split(",")
-        name = request.data.get('name')
-
-        users = User.objects.filter(pk__in=recipients)
-        users_ids = [str(u.pk) for u in users]
-        errors = [r for r in recipients if r not in users_ids]
-
-        if errors:
-            raise ValidationError(f"Les utilisateurs avec les IDs suivants n'ont pas été trouvés: {','.join(errors)}")
-
-        rqs: RequestQuerySnapshot = self.get_object()
-        shared_rqs = rqs.share(users, name)
-        notify_by_email = request.data.get('notify_by_email', False)
-        if notify_by_email:
-            for recipient in users:
-                send_email_notif_about_request_sharing(name or rqs.request.name, rqs.owner, recipient)
+        shared_rqs = rqs_service.share_snapshot(rqs=self.get_object(),
+                                                request_name=request.data.get('name'),
+                                                recipients_ids=request.data.get('recipients'),
+                                                notify_by_email=request.data.get('notify_by_email', False))
         return Response(data=RequestQuerySnapshotSerializer(shared_rqs, many=True).data,
                         status=status.HTTP_201_CREATED)
 
