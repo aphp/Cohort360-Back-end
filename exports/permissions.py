@@ -1,7 +1,7 @@
 from rest_framework import permissions
 from rest_framework.exceptions import PermissionDenied
 
-from accesses.permissions import can_user_manage_unix_accounts
+from accesses.permissions import can_user_manage_unix_accounts, can_user_read_unix_accounts
 from admin_cohort.models import User
 from admin_cohort.permissions import user_is_authenticated, get_bound_roles
 from exports.types import ExportType
@@ -74,11 +74,19 @@ class AnnexesPermissions(permissions.BasePermission):
                and request.method in permissions.SAFE_METHODS
 
 
+class ReadWorkspacesPermissions(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return user_is_authenticated(request.user) \
+            and can_user_read_unix_accounts(user=request.user)
+
+    def has_object_permission(self, request, view, obj):
+        return self.has_permission(request, view)
+
+
 class ManageWorkspacesPermissions(permissions.BasePermission):
     def has_permission(self, request, view):
         return user_is_authenticated(request.user) \
             and can_user_manage_unix_accounts(user=request.user)
 
     def has_object_permission(self, request, view, obj):
-        return user_is_authenticated(request.user) \
-               and obj.owner_id == request.user.provider_username
+        return self.has_permission(request, view)

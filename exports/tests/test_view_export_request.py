@@ -17,11 +17,11 @@ from admin_cohort.tools.tests_tools import new_user_and_profile, ViewSetTestsWit
 from admin_cohort.tools import prettify_json
 from cohort.models import CohortResult, RequestQuerySnapshot, Request, DatedMeasure, Folder
 from workspaces.models import Account
-from .conf_exports import create_hive_db, prepare_hive_db, wait_for_hive_db_creation_job, get_job_status
-from .models import ExportRequest, ExportRequestTable
-from .tasks import delete_export_requests_csv_files, wait_for_export_job, launch_request
-from .types import ExportType, ApiJobResponse
-from .views import ExportRequestViewSet
+from exports.conf_exports import create_hive_db, prepare_hive_db, wait_for_hive_db_creation_job, get_job_status
+from exports.models import ExportRequest, ExportRequestTable
+from exports.tasks import delete_export_requests_csv_files, wait_for_export_job, launch_request
+from exports.types import ExportType, ApiJobResponse
+from exports.views import ExportRequestViewSet
 
 EXPORTS_URL = "/exports"
 

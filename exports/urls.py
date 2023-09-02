@@ -5,6 +5,7 @@ from exports.views import ExportRequestViewSet, CohortViewSet, ExportViewSet, Ex
                           DatalabViewSet, InfrastructureProviderViewSet
 from exports.views.unix_account import UnixAccountViewSet
 
+
 router = DefaultRouter()
 router.register(r'unix-accounts', UnixAccountViewSet, basename="unix-accounts")
 router.register(r'cohorts', CohortViewSet, basename="cohorts")
@@ -18,4 +19,4 @@ router_v1.register(r'export_tables', ExportTableViewSet, basename="export_tables
 router_v1.register(r'exports', ExportViewSet, basename="exports")
 
 urlpatterns = [path('', include(router.urls)),
-               path('v1/', include(router_v1.urls))]
+               path('v1/', include((router_v1.urls, 'exports'), namespace="v1"))]
