@@ -4,7 +4,7 @@ from django_filters import rest_framework as filters, OrderingFilter
 from admin_cohort.tools import join_qs
 from exports.models import Export
 from exports.serializers import ExportSerializer
-from exports.views.base_viewset import ExportsBaseViewSet
+from exports.views.v1.base_viewset import ExportsBaseViewSet
 
 
 class ExportFilter(filters.FilterSet):

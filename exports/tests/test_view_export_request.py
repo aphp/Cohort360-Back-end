@@ -191,6 +191,21 @@ class ExportsTests(ViewSetTestsWithBasicPerims):
             profile=self.prof_1,
             role=self.role_read_nomi
         )
+        self.user1_exp_jup_nomi_acc: Access = Access.objects.create(
+            perimeter=self.aphp,
+            profile=self.prof_1,
+            role=self.role_exp_jup_nomi
+        )
+        self.user1_exp_jup_pseudo_acc: Access = Access.objects.create(
+            perimeter=self.aphp,
+            profile=self.prof_1,
+            role=self.role_exp_jup_pseudo
+        )
+        self.user2_exp_jup_nomi_acc: Access = Access.objects.create(
+            perimeter=self.aphp,
+            profile=self.prof_2,
+            role=self.role_exp_jup_nomi
+        )
 
         # COHORTS
         _, _, _, _, self.user1_cohort = new_cohort_result(owner=self.user1,

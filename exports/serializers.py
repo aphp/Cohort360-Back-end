@@ -250,7 +250,7 @@ class InfrastructureProviderSerializer(serializers.ModelSerializer):
 
 
 class ExportResultStatSerializer(serializers.ModelSerializer):
-    export = serializers.SlugRelatedField(read_only=True, slug_field='name')
+    export_name = serializers.SlugRelatedField(read_only=True, slug_field='name')
 
     class Meta:
         model = ExportResultStat
@@ -262,11 +262,27 @@ class ExportTableSerializer(serializers.ModelSerializer):
     class Meta:
         model = ExportTable
         fields = "__all__"
+        read_only_fields = ["uuid",
+                            "fhir_filter",
+                            "cohort_result_subset",
+                            "respect_table_relationships"]
 
 
 class ExportSerializer(serializers.ModelSerializer):
-    tables = ExportTableSerializer(many=True)
+    export_tables = ExportTableSerializer(many=True)
 
     class Meta:
         model = Export
         fields = "__all__"
+
+    @staticmethod
+    def create_tables(tables, export):
+        for table in tables:
+            ExportTable.objects.create(export=export, **table)
+
+    def create(self, validated_data):
+        export_tables = validated_data.pop("export_tables", [])
+        export = super(ExportSerializer, self).create(validated_data)
+        self.create_tables(export_tables, export)
+        return export
+

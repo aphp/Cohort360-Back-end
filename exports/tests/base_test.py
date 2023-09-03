@@ -6,10 +6,12 @@ from rest_framework.test import APIRequestFactory, force_authenticate
 
 from accesses.models import Role, Perimeter, Access
 from admin_cohort.tools.tests_tools import new_user_and_profile
+from exports.models import InfrastructureProvider
 
 
 class ExportsTestBase(TestCase):
     view_set: Union[View, None] = None
+    view_root = ""
     model = None
     lookup_field = "uuid"
 
@@ -21,6 +23,8 @@ class ExportsTestBase(TestCase):
             self.create_view = self.view_set.as_view({'post': 'create'})
             self.patch_view = self.view_set.as_view({'patch': 'partial_update'})
             self.delete_view = self.view_set.as_view({'delete': 'destroy'})
+        self.viewname_list = f"{self.view_root}-list"
+        self.viewname_detail = f"{self.view_root}-detail"
 
         self.workspaces_reader_user, self.profile1 = new_user_and_profile(firstname="Workspaces",
                                                                           lastname="READER",
@@ -37,6 +41,7 @@ class ExportsTestBase(TestCase):
                                                                role=Role.objects.create(name="WORKSPACES MANAGER",
                                                                                         right_read_env_unix_users=True,
                                                                                         right_manage_env_unix_users=True))
+        self.infra_provider_aphp = InfrastructureProvider.objects.create(name="APHP")
 
     def make_request(self, url, http_verb, request_user, request_data=None):
         handler = getattr(self.factory, http_verb)

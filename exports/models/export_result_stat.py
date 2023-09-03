@@ -4,7 +4,7 @@ from django.db.models import CASCADE
 from exports.models import ExportsBaseModel, Export
 from exports.types import StatType
 
-STAT_TYPES = [(type.name, type.value) for type in StatType]
+STAT_TYPES = [(type.value, type.value) for type in StatType]
 
 
 class ExportResultStat(ExportsBaseModel):

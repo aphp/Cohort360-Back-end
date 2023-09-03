@@ -15,7 +15,7 @@ class ExportStatus(StrEnum):
 class StatType(StrEnum):
     INT: str = "Integer"
     TXT: str = "Text"
-    SIZE_BYTES: str = "Size Bytes"
+    SIZE_BYTES: str = "SizeBytes"
 
 
 class ApiJobResponse:
