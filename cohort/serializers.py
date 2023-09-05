@@ -1,14 +1,10 @@
-from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-import cohort.services.conf_cohort_job_api as cohort_job_api
 from admin_cohort.models import User
 from admin_cohort.serializers import BaseSerializer, OpenUserSerializer
-from admin_cohort.types import JobStatus, MissingDataError
+from admin_cohort.types import MissingDataError
 from cohort.models import CohortResult, DatedMeasure, Folder, Request, RequestQuerySnapshot, FhirFilter
-from cohort.models.dated_measure import GLOBAL_DM_MODE
-from cohort.tasks import get_count_task, cancel_previously_running_dm_jobs
 from cohort.tools import retrieve_perimeters
 
 
@@ -38,7 +34,7 @@ class CohortBaseSerializer(serializers.ModelSerializer):
 class DatedMeasureSerializer(BaseSerializer):
     owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
     request = serializers.UUIDField(read_only=True, required=False, source='request_query_snapshot__request__pk')
-    request_query_snapshot = PrimaryKeyRelatedFieldWithOwner(queryset=RequestQuerySnapshot.objects.all())   # todo: required=True
+    request_query_snapshot = PrimaryKeyRelatedFieldWithOwner(queryset=RequestQuerySnapshot.objects.all())
     count_outdated = serializers.BooleanField(read_only=True)
     cohort_limit = serializers.IntegerField(read_only=True)
 
@@ -74,43 +70,6 @@ class CohortResultSerializer(BaseSerializer):
             if f in validated_data:
                 raise ValidationError(f'{f} field cannot be updated manually')
         return super(CohortResultSerializer, self).update(instance, validated_data)
-
-    @transaction.atomic
-    def create(self, validated_data):
-        global_estimate = validated_data.pop("global_estimate", None) and \
-                          validated_data.get('dated_measure_global') is None
-        rqs = validated_data.get("request_query_snapshot")
-        dm_global: DatedMeasure = None
-        if global_estimate:
-            dm_global = DatedMeasure.objects.create(owner=rqs.owner,
-                                                    request_query_snapshot=rqs,
-                                                    mode=GLOBAL_DM_MODE)
-            validated_data["dated_measure_global"] = dm_global
-
-        cohort_result: CohortResult = super(CohortResultSerializer, self).create(validated_data=validated_data)
-
-        if global_estimate:
-            try:
-                auth_headers = cohort_job_api.get_authorization_header(self.context.get("request"))
-                transaction.on_commit(lambda: get_count_task.delay(auth_headers,
-                                                                   str(rqs.serialized_query),
-                                                                   dm_global.uuid))
-
-            except Exception as e:
-                dm_global.request_job_fail_msg = f"ERROR: Could not launch FHIR cohort count: {e}"
-                dm_global.request_job_status = JobStatus.failed
-                dm_global.save()
-        try:
-            from cohort.tasks import create_cohort_task
-            auth_headers = cohort_job_api.get_authorization_header(self.context.get("request"))
-            transaction.on_commit(lambda: create_cohort_task.delay(auth_headers,
-                                                                   rqs.serialized_query,
-                                                                   cohort_result.uuid))
-        except Exception as e:
-            cohort_result.delete()
-            raise ValidationError(f"Error on pushing new message to the queue: {e}")
-
-        return cohort_result
 
 
 class CohortResultSerializerFullDatedMeasure(CohortResultSerializer):

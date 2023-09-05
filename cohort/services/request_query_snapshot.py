@@ -10,6 +10,28 @@ from cohort.tools import send_email_notif_about_request_sharing
 class RequestQuerySnapshotService:
 
     @staticmethod
+    def process_creation_data(data: dict) -> None:
+        previous_snapshot_id = data.get("previous_snapshot")
+        request_id = data.get("request")
+        if previous_snapshot_id:
+            previous_snapshot = RequestQuerySnapshot.objects.get(pk=previous_snapshot_id)
+            if request_id != previous_snapshot.request.uuid:
+                raise ValueError("The provided request is different from the previous_snapshot's request")
+            data["request"] = previous_snapshot.request.uuid
+        elif request_id:
+            request = Request.objects.get(pk=request_id)
+            count_request_previous_snapshots = request.query_snapshots.all().count()
+            if count_request_previous_snapshots:
+                raise ValueError("Must provide a `previous_snapshot` if the request already has snapshots")
+            data["version"] = count_request_previous_snapshots + 1
+        else:
+            raise ValueError("No `previous_snapshot` or `request` were provided")
+
+        serialized_query = data.get("serialized_query")
+        data["perimeters_ids"] = retrieve_perimeters(serialized_query)
+
+
+    @staticmethod
     def check_shared_folders(recipients: List[User]) -> tuple[List[Folder], dict[str, Folder]]:
         existing_shared_folders = Folder.objects.filter(name=SHARED_FOLDER_NAME,
                                                         owner__in=recipients)

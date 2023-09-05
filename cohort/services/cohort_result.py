@@ -8,9 +8,11 @@ from django.utils import timezone
 from accesses.models import get_user_valid_manual_accesses
 from admin_cohort.models import User
 from admin_cohort.types import JobStatus
-from cohort.models import CohortResult
-from cohort.services.conf_cohort_job_api import fhir_to_job_status
+from cohort.models import CohortResult, DatedMeasure, RequestQuerySnapshot
+from cohort.models.dated_measure import GLOBAL_DM_MODE
+from cohort.services.conf_cohort_job_api import fhir_to_job_status, get_authorization_header
 from cohort.tools import get_dict_cohort_pop_source, get_all_cohorts_rights, send_email_notif_about_large_cohort
+from cohort.tasks import get_count_task, create_cohort_task
 
 JOB_STATUS = "request_job_status"
 GROUP_ID = "group.id"
@@ -31,6 +33,38 @@ class CohortResultService:
                            JobStatus.long_pending]
         return CohortResult.objects.filter(request_job_status__in=active_statuses)\
                                    .count()
+
+    @staticmethod
+    def process_creation_data(data: dict) -> None:
+        if data.get("global_estimate"):
+            snapshot_id = data.get("request_query_snapshot_id")
+            snapshot = RequestQuerySnapshot.objects.get(pk=snapshot_id)
+            dm_global = DatedMeasure.objects.create(owner=snapshot.owner,
+                                                    request_query_snapshot=snapshot,
+                                                    mode=GLOBAL_DM_MODE)
+            data["dated_measure_global_id"] = dm_global.uuid
+
+    @staticmethod
+    def process_cohort_creation(request, cohort_uuid: str):
+        cohort = CohortResult.objects.get(pk=cohort_uuid)
+        auth_headers = get_authorization_header(request=request)
+        if cohort.dated_measure_global:
+            dm_global = cohort.dated_measure_global
+            try:
+                get_count_task.delay(auth_headers,
+                                     cohort.request_query_snapshot.serialized_query,
+                                     dm_global.uuid)
+            except Exception as e:
+                dm_global.request_job_fail_msg = f"ERROR: Could not launch cohort global count: {e}"
+                dm_global.request_job_status = JobStatus.failed
+                dm_global.save()
+        try:
+            create_cohort_task.delay(auth_headers,
+                                     cohort.request_query_snapshot.serialized_query,
+                                     cohort_uuid)
+        except Exception as e:
+            cohort.delete()
+            raise Exception("INTERNAL ERROR: Could not launch cohort creation") from e
 
     @staticmethod
     def get_cohorts_rights(cohorts: QuerySet, user: User):

@@ -4,8 +4,6 @@ from django.db import transaction
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework import status
-from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from admin_cohort.tools.cache import cache_response
@@ -66,16 +64,12 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
 
     @swagger_auto_schema(request_body=openapi.Schema(
                              type=openapi.TYPE_OBJECT,
-                             properties={"request_query_snapshot_id": openapi.Schema(type=openapi.TYPE_STRING),
-                                         "request_id": openapi.Schema(type=openapi.TYPE_STRING)},
-                             required=["request_query_snapshot_id", "request_id"]),
+                             properties={"request_query_snapshot_id": openapi.Schema(type=openapi.TYPE_STRING)},
+                             required=["request_query_snapshot_id"]),
                          responses={'200': openapi.Response("DatedMeasure created", DatedMeasureSerializer()),
                                     '400': openapi.Response("Bad Request")})
     @transaction.atomic
     def create(self, request, *args, **kwargs):
-        if not request.data.get("request_query_snapshot"):  # todo: check vis-à-vis required=True set on the serializer
-            return Response(data="Invalid 'request_query_snapshot_id'",
-                            status=status.HTTP_400_BAD_REQUEST)
         response = super().create(request, *args, **kwargs)
         transaction.on_commit(lambda: dated_measure_service.process_dated_measure(dm_uuid=response.data.get("uuid"),
                                                                                   request=request))

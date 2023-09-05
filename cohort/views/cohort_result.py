@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.db.models import Q, F
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
@@ -116,6 +117,14 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     @cache_response()
     def list(self, request, *args, **kwargs):
         return super(CohortResultViewSet, self).list(request, *args, **kwargs)
+
+    @transaction.atomic
+    def create(self, request, *args, **kwargs):
+        cohort_service.process_creation_data(data=request.data)
+        response = super().create(request, *args, **kwargs)
+        transaction.on_commit(lambda: cohort_service.process_cohort_creation(request=request,
+                                                                             cohort_uuid=response.data.get("uuid")))
+        return response
 
     @swagger_auto_schema(method='get',
                          operation_summary="Give cohorts aggregation read patient rights, export csv rights and "

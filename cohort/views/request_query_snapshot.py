@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.http import QueryDict
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
@@ -41,6 +42,14 @@ class RequestQuerySnapshotViewSet(NestedViewSetMixin, UserObjectsRestrictedViewS
 
     def retrieve(self, request, *args, **kwargs):
         return super(RequestQuerySnapshotViewSet, self).retrieve(request, *args, **kwargs)
+
+    @transaction.atomic
+    def create(self, request, *args, **kwargs):
+        rqs_service.process_creation_data(data=request.data)
+        response = super().create(request, *args, **kwargs)
+        transaction.on_commit(lambda: rqs_service.process_cohort_creation(request=request,
+                                                                             cohort_uuid=response.data.get("uuid")))
+        return response
 
     @swagger_auto_schema(method='post',
                          operation_summary="Share RequestQuerySnapshot with a User by creating a new Request in its Shared Folder.\n"
