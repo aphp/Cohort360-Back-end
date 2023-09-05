@@ -9,21 +9,20 @@ from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.decorators import action
-from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
-from accesses.models import get_user_valid_manual_accesses_queryset
+from accesses.models import get_user_valid_manual_accesses
 from admin_cohort.tools.cache import cache_response
-from admin_cohort.settings import SJS_USERNAME, ETL_USERNAME
 from admin_cohort.tools import join_qs
+from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from admin_cohort.types import JobStatus
 from cohort.conf_cohort_job_api import fhir_to_job_status
 from cohort.models import CohortResult
 from cohort.permissions import SJSandETLCallbackPermission
 from cohort.serializers import CohortResultSerializer, CohortResultSerializerFullDatedMeasure, CohortRightsSerializer
-from cohort.tools import get_dict_cohort_pop_source, get_all_cohorts_rights, send_email_notif_about_large_cohort
+from cohort.tools import get_dict_cohort_pop_source, get_all_cohorts_rights, send_email_notif_about_large_cohort, is_sjs_or_etl_user
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
 JOB_STATUS = "request_job_status"
@@ -99,24 +98,19 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     http_method_names = ['get', 'post', 'patch', 'delete']
     lookup_field = "uuid"
     swagger_tags = ['Cohort - cohorts']
-    pagination_class = LimitOffsetPagination
+    pagination_class = NegativeLimitOffsetPagination
     filterset_class = CohortFilter
     search_fields = ('$name', '$description')
 
-    def is_sjs_or_etl_user(self):
-        return self.request.method in ("GET", "PATCH") and \
-               self.request.user.is_authenticated and \
-               self.request.user.provider_username in [SJS_USERNAME, ETL_USERNAME]
-
     def get_permissions(self):
-        if self.is_sjs_or_etl_user():
+        if is_sjs_or_etl_user(request=self.request):
             return [SJSandETLCallbackPermission()]
         if self.action == 'get_active_jobs':
             return [AllowAny()]
         return super(CohortResultViewSet, self).get_permissions()
 
     def get_queryset(self):
-        if self.is_sjs_or_etl_user():
+        if is_sjs_or_etl_user(request=self.request):
             return self.queryset
         return super(CohortResultViewSet, self).get_queryset()
 
@@ -136,8 +130,6 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                            JobStatus.pending,
                            JobStatus.long_pending]
         jobs_count = CohortResult.objects.filter(request_job_status__in=active_statuses).count()
-        if not jobs_count:
-            return Response(status=status.HTTP_204_NO_CONTENT)
         return Response(data={"jobs_count": jobs_count}, status=status.HTTP_200_OK)
 
     @cache_response()
@@ -151,7 +143,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                          responses={'201': openapi.Response("Cohorts rights found", CohortRightsSerializer())})
     @action(detail=False, methods=['get'], url_path="cohort-rights")
     def get_cohort_right_accesses(self, request, *args, **kwargs):
-        user_accesses = get_user_valid_manual_accesses_queryset(request.user)
+        user_accesses = get_user_valid_manual_accesses(request.user)
 
         if not user_accesses:
             raise Http404("ERROR: No Accesses found")
@@ -180,16 +172,15 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                                            "By ETL to update request_job_status on delayed large cohorts",
                          request_body=openapi.Schema(
                              type=openapi.TYPE_OBJECT,
-                             properties={"request_job_status": openapi.Schema(type=openapi.TYPE_STRING, description="For SJS and ETL callback"),
-                                         "group.id": openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback"),
-                                         "group.count": openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback")},
-                             required=['request_job_status', 'group.id', 'group.count']),
+                             properties={JOB_STATUS: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS and ETL callback"),
+                                         GROUP_ID: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback"),
+                                         GROUP_COUNT: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback")},
+                             required=[JOB_STATUS, GROUP_ID, GROUP_COUNT]),
                          responses={'200': openapi.Response("Cohort updated successfully", CohortRightsSerializer()),
                                     '400': openapi.Response("Bad Request")})
     def partial_update(self, request, *args, **kwargs):
         data: dict = request.data
         _logger.info(f"Received data for cohort patch: {data}")
-        cohort = self.get_object()
         sjs_data_keys = (JOB_STATUS, GROUP_ID, GROUP_COUNT)
         is_update_from_sjs = all([key in data for key in sjs_data_keys])
         is_update_from_etl = JOB_STATUS in data and len(data) == 1
@@ -197,8 +188,9 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         if JOB_STATUS in data:
             job_status = fhir_to_job_status().get(data[JOB_STATUS].upper())
             if not job_status:
-                return Response(data=f"Invalid job status: {data.get('status')}",
+                return Response(data=f"Invalid job status: {data.get(JOB_STATUS)}",
                                 status=status.HTTP_400_BAD_REQUEST)
+            cohort = self.get_object()
             if job_status in (JobStatus.finished, JobStatus.failed):
                 data["request_job_duration"] = str(timezone.now() - cohort.created_at)
                 if job_status == JobStatus.failed:

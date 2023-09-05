@@ -5,12 +5,12 @@ from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
-from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.models import User
+from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from cohort.models import RequestQuerySnapshot
 from cohort.permissions import IsOwner
 from cohort.serializers import RequestQuerySnapshotSerializer
@@ -33,7 +33,7 @@ class RequestQuerySnapshotViewSet(NestedViewSetMixin, UserObjectsRestrictedViewS
     http_method_names = ['get', 'post']
     lookup_field = "uuid"
     swagger_tags = ['Cohort - request-query-snapshots']
-    pagination_class = LimitOffsetPagination
+    pagination_class = NegativeLimitOffsetPagination
     filterset_class = RequestQuerySnapshotFilter
     search_fields = ('$serialized_query',)
 

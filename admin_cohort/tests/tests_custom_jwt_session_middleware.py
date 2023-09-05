@@ -40,9 +40,12 @@ class CustomJwtSessionMiddlewareTests(TestCase):
     def test_set_cookies_on_response(self):
         request = self.factory.get(path=self.test_safe_route)
         request.COOKIES = self.cookies
+        secure = False
         self.middleware.process_request(request)
         self.get_response.content = "{}"
         response: MagicMock = self.middleware.process_response(request, self.get_response)
         self.assertEqual(response.set_cookie.call_count, 2)
-        self.assertEqual(response.set_cookie.call_args_list[0].args, (JWT_ACCESS_COOKIE, self.cookies.get(JWT_ACCESS_COOKIE)))
-        self.assertEqual(response.set_cookie.call_args_list[1].args, (JWT_REFRESH_COOKIE, self.cookies.get(JWT_REFRESH_COOKIE)))
+        self.assertEqual(list(response.set_cookie.call_args_list[0].kwargs.values()),
+                         [JWT_ACCESS_COOKIE, self.cookies.get(JWT_ACCESS_COOKIE), secure])
+        self.assertEqual(list(response.set_cookie.call_args_list[1].kwargs.values()),
+                         [JWT_REFRESH_COOKIE, self.cookies.get(JWT_REFRESH_COOKIE), secure])

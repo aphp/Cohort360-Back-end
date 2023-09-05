@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from typing import List, Union
 
 from django.db import models
 from django.db.models import Q
@@ -22,11 +21,15 @@ class Perimeter(BaseModel):
     short_name = models.TextField(blank=True, null=True)
     type_source_value = models.TextField(blank=True, null=True)
     parent = models.ForeignKey("accesses.perimeter", on_delete=models.CASCADE, related_name="children", null=True)
-    above_levels_ids = models.TextField(blank=True, null=True)
-    inferior_levels_ids = models.TextField(blank=True, null=True)
+    above_levels_ids = models.TextField(blank=True, null=True)  # todo: make it ArrayField instead
+    inferior_levels_ids = models.TextField(blank=True, null=True)   # todo: make it ArrayField instead
     cohort_id = models.TextField(blank=True, null=True)
     full_path = models.TextField(blank=True, null=True)
     cohort_size = models.TextField(blank=True, null=True)
+    level = models.IntegerField(blank=True, null=True)
+    count_allowed_users = models.IntegerField(blank=True, null=True, default=0)
+    count_allowed_users_inferior_levels = models.IntegerField(blank=True, null=True, default=0)
+    count_allowed_users_above_levels = models.IntegerField(blank=True, null=True, default=0)
 
     def __str__(self):
         return f"[{self.id}] {self.name}"
@@ -93,26 +96,3 @@ class Perimeter(BaseModel):
         filtered_queryset = filtered_queryset or cls.objects.all()
         return Prefetch('children', queryset=filtered_queryset,
                         to_attr='prefetched_children')
-
-
-def get_all_perimeters_parents_queryset(perims: List[Perimeter], ) -> QuerySet:
-    return Perimeter.objects.filter(join_qs([
-        p.all_parents_query() for p in perims
-    ]))
-
-
-def get_all_level_children(
-        perimeters_ids: Union[int, List[int]], strict: bool = False,
-        filtered_ids: List[str] = [], ids_only: bool = False
-) -> List[Union[Perimeter, str]]:
-    qs = join_qs(
-        [Perimeter.objects.filter(
-            **{i * 'parent__' + 'id__in': perimeters_ids}
-        ) for i in range(0 + strict, len(PERIMETERS_TYPES))]
-    )
-    if len(filtered_ids):
-        return qs.filter(id__in=filtered_ids)
-
-    if ids_only:
-        return [str(i[0]) for i in qs.values_list('id')]
-    return list(qs)

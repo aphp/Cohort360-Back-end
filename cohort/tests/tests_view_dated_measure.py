@@ -6,11 +6,12 @@ from unittest.mock import MagicMock
 
 from django.utils import timezone
 from rest_framework import status
+from rest_framework.test import force_authenticate
 
-from admin_cohort.tools.tests_tools import random_str, ListCase, RetrieveCase, CaseRetrieveFilter, CreateCase, DeleteCase
+from admin_cohort.tools.tests_tools import random_str, ListCase, RetrieveCase, CaseRetrieveFilter, CreateCase, DeleteCase, PatchCase
 from admin_cohort.types import JobStatus
 from cohort.models import DatedMeasure, RequestQuerySnapshot, Request
-from cohort.models.dated_measure import DATED_MEASURE_MODE_CHOICES
+from cohort.models.dated_measure import DATED_MEASURE_MODE_CHOICES, GLOBAL_DM_MODE
 from cohort.tests.tests_view_rqs import RqsTests
 from cohort.views import DatedMeasureViewSet
 
@@ -18,7 +19,6 @@ from cohort.views import DatedMeasureViewSet
 class DatedMeasuresTests(RqsTests):
     unupdatable_fields = ["owner", "request_query_snapshot", "uuid",
                           "mode", "count_task_id", "fhir_datetime",
-                          "measure", "measure_min", "measure_max",
                           "created_at", "modified_at", "deleted"]
     unsettable_default_fields = {}
     unsettable_fields = ["owner", "uuid", "count_task_id",
@@ -177,7 +177,8 @@ class DatedMeasuresCreateTests(DatedMeasuresTests):
         mock_cancel_task.return_value = None
         mock_count_task.return_value = None
 
-        super(DatedMeasuresCreateTests, self).check_create_case(case, other_view, **(view_kwargs or {}))
+        with self.captureOnCommitCallbacks(execute=True):
+            super(DatedMeasuresCreateTests, self).check_create_case(case, other_view, **(view_kwargs or {}))
 
         mock_header.assert_called() if case.mock_header_called else mock_header.assert_not_called()
         mock_cancel_task.assert_called() if case.mock_cancel_task_called else mock_cancel_task.assert_not_called()
@@ -268,3 +269,70 @@ class DMDeleteCase(DeleteCase):
     def __init__(self, with_cohort: bool = False, **kwargs):
         super(DMDeleteCase, self).__init__(**kwargs)
         self.with_cohort = with_cohort
+
+
+class DMUpdateTests(DatedMeasuresTests):
+    def setUp(self):
+        super(DMUpdateTests, self).setUp()
+        self.user1_req1_snap1_dm: DatedMeasure = DatedMeasure.objects.create(
+                                                                        owner=self.user1,
+                                                                        request_query_snapshot=self.user1_req1_snap1,
+                                                                        measure=1,
+                                                                        fhir_datetime=timezone.now())
+        self.basic_data = dict(request_query_snapshot_id=self.user1_req1_snap1.pk,
+                               mode=DATED_MEASURE_MODE_CHOICES[0][0],
+                               owner=self.user1)
+        self.data_global_estimate_mode = self.basic_data.copy()
+        self.data_global_estimate_mode.update({"mode": GLOBAL_DM_MODE})
+
+        self.basic_case = PatchCase(initial_data=self.basic_data,
+                                    status=status.HTTP_200_OK,
+                                    success=True,
+                                    user=self.user1,
+                                    data_to_update={})
+
+        self.basic_err_case = self.basic_case.clone(status=status.HTTP_400_BAD_REQUEST,
+                                                    success=False)
+
+    def test_update_dm_by_sjs_callback_status_finished(self):
+        dm: DatedMeasure = self.model_objects.create(**self.basic_data)
+        data = {'request_job_status': 'finished',
+                'count': 10500
+                }
+        request = self.factory.patch(self.objects_url, data=data, format='json')
+        force_authenticate(request, dm.owner)
+        response = self.__class__.update_view(request, **{self.model._meta.pk.name: dm.uuid})
+        response.render()
+        self.assertEqual(response.data.get("request_job_status"), JobStatus.finished.value)
+        self.assertEqual(response.data.get("measure"), data['count'])
+
+    def test_update_dm_with_global_estimate_by_sjs_callback_status_finished(self):
+        dm_global: DatedMeasure = self.model_objects.create(**self.data_global_estimate_mode)
+        data = {'request_job_status': 'finished',
+                'minimum': 10,
+                'maximum': 50}
+        request = self.factory.patch(self.objects_url, data=data, format='json')
+        force_authenticate(request, dm_global.owner)
+        response = self.__class__.update_view(request, **{self.model._meta.pk.name: dm_global.uuid})
+        response.render()
+        self.assertEqual(response.data.get("request_job_status"), JobStatus.finished.value)
+        self.assertEqual(response.data.get("measure_min"), data['minimum'])
+        self.assertEqual(response.data.get("measure_max"), data['maximum'])
+
+    def test_update_dm_by_sjs_callback_status_failed(self):
+        dm: DatedMeasure = self.model_objects.create(**self.basic_data)
+        data = {'request_job_status': 'error',
+                'message': 'Error on count job'
+                }
+        request = self.factory.patch(self.objects_url, data=data, format='json')
+        force_authenticate(request, dm.owner)
+        response = self.__class__.update_view(request, **{self.model._meta.pk.name: dm.uuid})
+        response.render()
+        self.assertEqual(response.data.get("request_job_status"), JobStatus.failed.value)
+        self.assertIsNotNone(response.data.get("request_job_fail_msg"))
+        self.assertIsNotNone(response.data.get("request_job_duration"))
+
+    def test_error_update_dm_by_sjs_callback_invalid_status(self):
+        invalid_status = 'invalid_status'
+        case = self.basic_err_case.clone(data_to_update={'request_job_status': invalid_status})
+        self.check_patch_case(case)

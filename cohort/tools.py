@@ -7,11 +7,12 @@ from django.core.mail import EmailMultiAlternatives
 from django.db import models
 from django.db.models import QuerySet
 from django.http import Http404
+from rest_framework.request import Request
 
 from accesses.conf_perimeters import OmopModelManager
 from accesses.models import Perimeter, Access, Role
 from admin_cohort.models import User
-from admin_cohort.settings import EMAIL_SENDER_ADDRESS, FRONT_URL, EMAIL_SUPPORT_CONTACT
+from admin_cohort.settings import EMAIL_SENDER_ADDRESS, FRONT_URL, EMAIL_SUPPORT_CONTACT, SJS_USERNAME, ETL_USERNAME
 from cohort.models import CohortResult
 from exports.emails import get_base_templates, KEY_CONTENT, KEY_NAME, KEY_CONTACT_MAIL
 
@@ -29,6 +30,16 @@ KEY_EMAIL_BODY = "KEY_EMAIL_BODY"
 
 env = os.environ
 _logger_err = logging.getLogger('django.request')
+
+
+def is_sjs_or_etl_user(request: Request):
+    return request.method in ("GET", "PATCH") and \
+           request.user.is_authenticated and \
+           request.user.provider_username in [SJS_USERNAME, ETL_USERNAME]
+
+
+def is_sjs_user(request: Request):
+    return is_sjs_or_etl_user(request=request)
 
 
 def get_dict_right_accesses(user_accesses: [Access]) -> dict:

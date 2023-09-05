@@ -1,7 +1,7 @@
 from django.http import Http404
 from rest_framework.exceptions import ValidationError
 
-from accesses.models import Perimeter, Access, Role, get_user_valid_manual_accesses_queryset
+from accesses.models import Perimeter, Access, Role, get_user_valid_manual_accesses
 from accesses.tools.data_right_mapping import PerimeterReadRight
 from cohort.models import CohortResult
 from cohort.tools import get_list_cohort_id_care_site
@@ -216,7 +216,7 @@ def get_all_read_patient_accesses(user) -> tuple:
         read patient pseudo only at True
         If both are empty there is an issue with user right, it will raise an error
     """
-    user_accesses = get_user_valid_manual_accesses_queryset(user)
+    user_accesses = get_user_valid_manual_accesses(user)
     all_read_patient_nominative_accesses = user_accesses.filter(Role.is_read_patient_role_nominative("role"))
     all_read_patient_pseudo_accesses = user_accesses.filter(Role.is_read_patient_role_pseudo("role"))
     if not all_read_patient_nominative_accesses and not all_read_patient_pseudo_accesses:
@@ -229,7 +229,7 @@ def get_read_opposing_patient_accesses(user) -> bool:
         Return a boolean of accesses opposing patient. It is a global role, so if we found it at least on one care_site
         it will be effective for every perimeters
     """
-    user_accesses = get_user_valid_manual_accesses_queryset(user)
+    user_accesses = get_user_valid_manual_accesses(user)
     opposing_patient_accesses = user_accesses.filter(Role.is_search_opposing_patient_role("role"))
     return opposing_patient_accesses.exists()
 

@@ -1,7 +1,6 @@
 import logging
 import re
 from datetime import timedelta
-from typing import List
 
 from django.db.models import Max, Q
 from django.utils import timezone
@@ -58,12 +57,12 @@ def fix_csh_dates(validated_data, for_update: bool = False):
 
     # if creating a csh, then start_date will be now() if empty or null
     if not for_update:
-        validated_data["manual_start_datetime"] = start_datetime \
+        validated_data["start_datetime"] = start_datetime \
             if start_datetime is not None and not start_is_empty \
             else timezone.now()
     # if updating a csh, then start_date will be now() if null
     elif not start_is_empty:
-        validated_data["manual_start_datetime"] = start_datetime \
+        validated_data["start_datetime"] = start_datetime \
             if start_datetime is not None \
             else timezone.now()
 
@@ -74,9 +73,9 @@ def fix_csh_dates(validated_data, for_update: bool = False):
 
     # if there is no value, and it is not for updating, we set end_datetime
     if end_datetime != 0 or not for_update:
-        validated_data["manual_end_datetime"] = end_datetime \
+        validated_data["end_datetime"] = end_datetime \
             if end_datetime is not None and not end_is_empty \
-            else validated_data["manual_start_datetime"] + timedelta(days=MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS)
+            else validated_data["start_datetime"] + timedelta(days=MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS)
 
     return validated_data
 
@@ -265,13 +264,8 @@ class PerimeterSerializer(serializers.ModelSerializer):
     care_site_source_value = serializers.CharField(read_only=True, source='source_value')
     care_site_short_name = serializers.CharField(read_only=True, source='short_name')
     care_site_type_source_value = serializers.CharField(read_only=True, source='type_source_value')
-    parents_ids = serializers.SerializerMethodField('build_parents_ids', read_only=True)
     type = serializers.CharField(allow_null=True, source='type_source_value')
     names = serializers.DictField(allow_null=True, read_only=True, child=serializers.CharField())
-
-    def build_parents_ids(self, cs: Perimeter) -> List[int]:
-        p_id = getattr(cs, 'parent_id', None)
-        return [p_id] if p_id else []
 
     class Meta:
         model = Perimeter
@@ -306,8 +300,8 @@ class CareSiteSerializer(serializers.Serializer):
 
 class AccessSerializer(BaseSerializer):
     is_valid = serializers.BooleanField(read_only=True)
-    actual_start_datetime = serializers.DateTimeField(read_only=True)
-    actual_end_datetime = serializers.DateTimeField(read_only=True)
+    actual_start_datetime = serializers.DateTimeField(read_only=True, source="start_datetime")
+    actual_end_datetime = serializers.DateTimeField(read_only=True, source="end_datetime")
     perimeter = PerimeterSerializer(allow_null=True, required=False)
     perimeter_id = serializers.CharField(allow_null=True, required=False)
     # todo : remove when ready with perimeter
@@ -331,10 +325,9 @@ class AccessSerializer(BaseSerializer):
                   "profile_id",
                   "care_site",
                   "role",
-                  "start_datetime",
-                  "end_datetime",
                   "actual_start_datetime",
                   "actual_end_datetime",
+                  "end_datetime",
                   "care_site_id",
                   "provider_history_id",
                   "role_id",
@@ -348,16 +341,15 @@ class AccessSerializer(BaseSerializer):
                             "is_valid",
                             "provider",
                             "care_site",
-                            "role",
                             "actual_start_datetime",
                             "actual_end_datetime",
+                            "role",
                             "perimeter",
                             "profile_id",
                             "care_site_history_id"]
 
     def create(self, validated_data):
         creator: User = self.context.get('request').user
-
         # todo : remove/fix when ready with perimeter
         if 'perimeter' not in validated_data:
             perimeter_id = validated_data.get("perimeter_id", validated_data.pop("care_site_id", None))
@@ -390,13 +382,12 @@ class AccessSerializer(BaseSerializer):
             raise ValidationError(f"No role found matching the provided ID: {role_id}")
 
         validated_data = fix_csh_dates(validated_data)
-        check_date_rules(new_start_datetime=validated_data.get("manual_start_datetime"),
-                         new_end_datetime=validated_data.get("manual_end_datetime"))
+        check_date_rules(new_start_datetime=validated_data.get("start_datetime"),
+                         new_end_datetime=validated_data.get("end_datetime"))
 
         # todo : remove/fix when ready with perimeter
         validated_data["perimeter_id"] = perimeter_id
         validated_data["perimeter"] = perimeter
-
         return super(AccessSerializer, self).create(validated_data)
 
     def update(self, instance, validated_data):
@@ -409,18 +400,18 @@ class AccessSerializer(BaseSerializer):
         validated_data["updated_by"] = self.context.get('request').user
 
         validated_data = fix_csh_dates(validated_data, for_update=True)
-        check_date_rules(new_start_datetime=validated_data.get("manual_start_datetime"),
-                         new_end_datetime=validated_data.get("manual_end_datetime"),
-                         old_start_datetime=instance.actual_start_datetime,
-                         old_end_datetime=instance.actual_end_datetime)
+        check_date_rules(new_start_datetime=validated_data.get("start_datetime"),
+                         new_end_datetime=validated_data.get("end_datetime"),
+                         old_start_datetime=instance.start_datetime,
+                         old_end_datetime=instance.end_datetime)
         if validated_data:
             return super(AccessSerializer, self).update(instance, validated_data)
         return instance
 
 
 class ExpiringAccessesSerializer(serializers.Serializer):
-    start_datetime = serializers.DateTimeField(source='actual_start_datetime', read_only=True)
-    end_datetime = serializers.DateTimeField(source='actual_end_datetime', read_only=True)
+    start_datetime = serializers.DateTimeField(read_only=True)
+    end_datetime = serializers.DateTimeField(read_only=True)
     profile = serializers.SlugRelatedField(slug_field='provider_name', read_only=True)
     perimeter = serializers.SlugRelatedField(slug_field='name', read_only=True)
 

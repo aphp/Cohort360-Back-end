@@ -5,11 +5,11 @@ from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
-from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.permissions import IsAuthenticated
+from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from admin_cohort.views import BaseViewset, CustomLoggingMixin
 from ..models import Role, get_assignable_roles_on_perimeter, Perimeter
 from ..permissions import RolePermissions
@@ -36,7 +36,7 @@ class RoleViewSet(CustomLoggingMixin, BaseViewset):
     swagger_tags = ['Accesses - roles']
     filterset_class = RoleFilter
     permission_classes = (IsAuthenticated, RolePermissions)
-    pagination_class = LimitOffsetPagination
+    pagination_class = NegativeLimitOffsetPagination
 
     @swagger_auto_schema(method='get',
                          operation_summary="Get the list of users that have that role",
@@ -63,8 +63,8 @@ class RoleViewSet(CustomLoggingMixin, BaseViewset):
                                      "lastname": user.lastname,
                                      "email": user.email,
                                      "perimeter": access.perimeter.name,
-                                     "start_datetime": access.actual_start_datetime,
-                                     "end_datetime": access.actual_end_datetime,
+                                     "start_datetime": access.start_datetime,
+                                     "end_datetime": access.end_datetime,
                                      })
 
         # filtering

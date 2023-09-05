@@ -42,7 +42,6 @@
 - [ ] get_specific_roles
 - [ ] get_all_readable_accesses_perimeters
 - [ ] get_all_level_parents_perimeters
-- [ ] get_all_level_children
 - [ ] can_roles_manage_access
 - [ ] get_assignable_roles_on_perimeter
 - [ ] get_all_user_managing_accesses_on_perimeter
@@ -198,7 +197,7 @@ For any of the groups of rights A that has the upper hand on on groups Bs (cf. r
 
 
 `/accesses/{id}/close` :
-'close' call will set manual_end_datetime to now().
+'close' call will set end_datetime to now().
 
 For any of the groups of rights A that has the upper hand on on groups Bs (cf. rules.md):
 - [x] As a user with the right to manage and read B-role-accesses on the same level, :
