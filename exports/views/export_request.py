@@ -65,7 +65,7 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
     queryset = ExportRequest.objects.all()
     serializer_class = ExportRequestSerializer
     lookup_field = "id"
-    permission_classes = (ExportRequestPermissions, ExportJupyterPermissions)
+    permissions = (ExportRequestPermissions, ExportJupyterPermissions)
     swagger_tags = ['Exports']
     pagination_class = NegativeLimitOffsetPagination
     filterset_class = ExportRequestFilter
