@@ -27,6 +27,7 @@ class ExportTableFilter(filters.FilterSet):
 class ExportTableViewSet(ExportsBaseViewSet):
     serializer_class = ExportTableSerializer
     queryset = ExportTable.objects.all()
+    http_method_names = ["get"]
     swagger_tags = ['Exports - Export Tables']
     filterset_class = ExportTableFilter
 

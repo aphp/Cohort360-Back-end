@@ -28,14 +28,14 @@ class ExportsTestBase(TestCase):
 
         self.workspaces_reader_user, self.profile1 = new_user_and_profile(firstname="Workspaces",
                                                                           lastname="READER",
-                                                                          email=f"w.r@aphp.fr")
+                                                                          email="w.r@aphp.fr")
         self.workspaces_reader_access = Access.objects.create(profile=self.profile1,
                                                               perimeter=Perimeter.objects.create(name="Perim1", local_id="1"),
                                                               role=Role.objects.create(name="WORKSPACES READER",
                                                                                        right_read_env_unix_users=True))
         self.workspaces_manager_user, self.profile2 = new_user_and_profile(firstname="Workspaces",
                                                                            lastname="MANAGER",
-                                                                           email=f"w.m@aphp.fr")
+                                                                           email="w.m@aphp.fr")
         self.workspaces_manager_access = Access.objects.create(profile=self.profile2,
                                                                perimeter=Perimeter.objects.create(name="Perim2", local_id="2"),
                                                                role=Role.objects.create(name="WORKSPACES MANAGER",

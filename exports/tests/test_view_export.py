@@ -49,7 +49,7 @@ class ExportViewSetTestBase(ExportsTestBase):
                         "datalab": self.datalab.uuid,
                         "status": ExportStatus.PENDING,
                         "target_name": "12345_09092023_151500",
-                        "export_tables": [dict(name=f"Some export table")]
+                        "export_tables": [dict(name="Some export table")]
                         }
         self.check_test_create_view(request_user=self.workspaces_manager_user,
                                     create_url=create_url,

@@ -263,6 +263,7 @@ class ExportTableSerializer(serializers.ModelSerializer):
         model = ExportTable
         fields = "__all__"
         read_only_fields = ["uuid",
+                            "export",
                             "fhir_filter",
                             "cohort_result_subset",
                             "respect_table_relationships"]

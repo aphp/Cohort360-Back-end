@@ -1,7 +1,7 @@
 from django.urls import reverse
 from rest_framework import status
 
-from exports.models import ExportResultStat, Export, InfrastructureProvider, Datalab
+from exports.models import ExportResultStat, Export, Datalab
 from exports.tests.base_test import ExportsTestBase
 from exports.types import StatType, ExportStatus, ExportType
 from exports.views import ExportResultStatViewSet
