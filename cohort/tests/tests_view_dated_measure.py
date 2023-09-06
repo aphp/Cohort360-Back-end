@@ -48,7 +48,6 @@ class DatedMeasuresTests(RqsTests):
             request=self.user1_req1,
             previous_snapshot=self.user1_req1_snap1,
             serialized_query='{"perimeter": "Terra"}',
-            is_active_branch=True,
         )
         self.user2_req1_snap1 = RequestQuerySnapshot.objects.create(
             owner=self.user2,

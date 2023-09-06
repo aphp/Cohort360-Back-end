@@ -19,6 +19,7 @@ class TestFhirFilterAPI(CohortAppTests):
     post_view = FhirFilterViewSet.as_view({'post': 'create'})
     patch_view = FhirFilterViewSet.as_view({'patch': 'partial_update'})
     recent_list_view = FhirFilterViewSet.as_view({'get': 'recent_filters'})
+    lookup_field = "uuid"
 
     def test_always_true(self):
         assert True
@@ -63,7 +64,7 @@ class TestFhirFilterAPI(CohortAppTests):
 
     def test_edit_name(self):
         # Create a new FhirFilter instance
-        filter = FhirFilter.objects.create(
+        fhir_filter = FhirFilter.objects.create(
             fhir_resource='Patient',
             fhir_version='1.0.0',
             name='original_name',
@@ -73,13 +74,13 @@ class TestFhirFilterAPI(CohortAppTests):
 
         # Edit the name field
         new_name = 'new_name'
-        url = reverse("cohort:fhir-filters-detail", args=[filter.pk])
+        url = reverse("cohort:fhir-filters-detail", args=[fhir_filter.pk])
         request = self.factory.patch(url, data={'name': new_name}, format='json')
         force_authenticate(request, self.user1)
-        response: Response = self.__class__.patch_view(request, pk=filter.pk)
+        response: Response = self.__class__.patch_view(request, **{self.__class__.lookup_field: fhir_filter.pk})
         assert response.status_code == status.HTTP_200_OK
-        filter.refresh_from_db()
-        assert filter.name == new_name
+        fhir_filter.refresh_from_db()
+        assert fhir_filter.name == new_name
 
     def test_edit_name_only_modifies_name(self):
         user = User.objects.first()
@@ -87,17 +88,17 @@ class TestFhirFilterAPI(CohortAppTests):
             'fhir_resource': 'Patient', 'fhir_version': '1.0.0', 'name': 'original_name',
             'filter': '{"some": "filter"}', 'owner': user
         }
-        filter = FhirFilter.objects.create(**kwargs)
-        url = reverse("cohort:fhir-filters-detail", args=[filter.pk])
+        fhir_filter = FhirFilter.objects.create(**kwargs)
+        url = reverse("cohort:fhir-filters-detail", args=[fhir_filter.pk])
         request = self.factory.patch(url, data={'name': 'new_name'}, format='json')
         force_authenticate(request, user)
-        self.__class__.patch_view(request, pk=filter.pk)
-        filter.refresh_from_db()
-        assert filter.name == 'new_name'
-        assert filter.fhir_resource == kwargs['fhir_resource']
-        assert filter.fhir_version == kwargs['fhir_version']
-        assert filter.filter == kwargs['filter']
-        assert filter.owner == kwargs['owner']
+        self.__class__.patch_view(request, **{self.__class__.lookup_field: fhir_filter.pk})
+        fhir_filter.refresh_from_db()
+        assert fhir_filter.name == 'new_name'
+        assert fhir_filter.fhir_resource == kwargs['fhir_resource']
+        assert fhir_filter.fhir_version == kwargs['fhir_version']
+        assert fhir_filter.filter == kwargs['filter']
+        assert fhir_filter.owner == kwargs['owner']
 
     def test_uniqueness_same_object(self):
         user = User.objects.first()

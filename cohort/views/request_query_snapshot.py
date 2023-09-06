@@ -1,4 +1,3 @@
-from django.db import transaction
 from django.http import QueryDict
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
@@ -22,7 +21,7 @@ class RequestQuerySnapshotFilter(filters.FilterSet):
 
     class Meta:
         model = RequestQuerySnapshot
-        fields = ('uuid', 'request', 'is_active_branch', 'shared_by',
+        fields = ('uuid', 'request', 'shared_by',
                   'previous_snapshot', 'request', 'request__parent_folder')
 
 
@@ -43,26 +42,19 @@ class RequestQuerySnapshotViewSet(NestedViewSetMixin, UserObjectsRestrictedViewS
     def retrieve(self, request, *args, **kwargs):
         return super(RequestQuerySnapshotViewSet, self).retrieve(request, *args, **kwargs)
 
-    @transaction.atomic
     def create(self, request, *args, **kwargs):
         rqs_service.process_creation_data(data=request.data)
-        response = super().create(request, *args, **kwargs)
-        transaction.on_commit(lambda: rqs_service.process_cohort_creation(request=request,
-                                                                             cohort_uuid=response.data.get("uuid")))
-        return response
+        return super().create(request, *args, **kwargs)
 
     @swagger_auto_schema(method='post',
-                         operation_summary="Share RequestQuerySnapshot with a User by creating a new Request in its Shared Folder.\n"
-                                           "'recipients' are strings joined with ','. 'name' is optional",
+                         operation_summary="Share a Snapshot with users by creating a new Request in their Shared Folder",
                          request_body=openapi.Schema(type=openapi.TYPE_OBJECT,
-                                                     properties={"recipients": openapi.Schema(type=openapi.TYPE_STRING),
-                                                                 "name": openapi.Schema(type=openapi.TYPE_STRING),
-                                                                 "notify_by_email": openapi.Schema(
-                                                                     type=openapi.TYPE_BOOLEAN, default=False)
-                                                                 }),
-                         responses={'201': openapi.Response("New requests created for recipients",
-                                                            RequestQuerySnapshotSerializer(many=True)),
-                                    '400': openapi.Response("One or more recipient's not found"),
+                                                     properties={"recipients": openapi.Schema(type=openapi.TYPE_STRING,
+                                                                                              description="Comma separated users IDs"),
+                                                                 "name": openapi.Schema(type=openapi.TYPE_STRING, description="Optional"),
+                                                                 "notify_by_email": openapi.Schema(type=openapi.TYPE_BOOLEAN, default=False)}),
+                         responses={'201': openapi.Response("New requests created for users", RequestQuerySnapshotSerializer(many=True)),
+                                    '400': openapi.Response("One or many recipient's not found"),
                                     '404': openapi.Response("RequestQuerySnapshot not found (possibly not owned)")})
     @action(detail=True, methods=['post'], permission_classes=(IsOwner,), url_path="share")
     def share(self, request, *args, **kwargs):

@@ -39,10 +39,10 @@ class RqsCreateCase(CreateCase):
 
 class RqsTests(RequestsTests):
     unupdatable_fields = ["owner", "request", "uuid", "previous_snapshot",
-                          "shared_by", "is_active_branch",
+                          "shared_by",
                           "created_at", "modified_at", "deleted"]
     unsettable_default_fields = dict()
-    unsettable_fields = ["owner", "uuid", "shared_by", "is_active_branch",
+    unsettable_fields = ["owner", "uuid", "shared_by",
                          "created_at", "modified_at", "deleted", ]
     manual_dupplicated_fields = []
 
@@ -108,7 +108,6 @@ class RqsGetTests(RqsTests):
                 serialized_query=random_json(),
                 shared_by=(next(u for u in self.users if u != r.owner)
                            if random.random() > .5 else None),
-                is_active_branch=random.random() > .5,
             ))
         RequestQuerySnapshot.objects.bulk_create(base_rqss)
 
@@ -121,7 +120,6 @@ class RqsGetTests(RqsTests):
                 serialized_query=random_json(),
                 shared_by=(next(u for u in self.users if u != prev.owner)
                            if random.random() > .5 else None),
-                is_active_branch=prev.is_active_branch and random.random() > .2,
             ))
         RequestQuerySnapshot.objects.bulk_create(new_rqss)
         self.rqss = base_rqss + new_rqss
@@ -169,10 +167,6 @@ class RqsGetTests(RqsTests):
         req = folder.requests.first()
         prev_rqs = req.query_snapshots.first()
         cases = [
-            basic_case.clone(
-                params=dict(is_active_branch=True),
-                to_find=[rqs for rqs in user1_rqss if rqs.is_active_branch],
-            ),
             basic_case.clone(
                 params=dict(shared_by=self.user2.pk),
                 to_find=[rqs for rqs in user1_rqss
@@ -242,17 +236,6 @@ class RqsCreateTests(RqsTests):
         mock_retrieve_perimeters.assert_called() if case.mock_fhir_called \
             else mock_retrieve_perimeters.assert_not_called()
 
-        if case.success:
-            # we check that the new rqs is the only with active_branch True,
-            # among other 'next_snapshots' from the previous one
-            rqs: RequestQuerySnapshot = self.model_objects.filter(
-                **case.retrieve_filter.args).first()
-            if rqs.previous_snapshot:
-                self.assertTrue(all(
-                    not r.is_active_branch for r in
-                    rqs.previous_snapshot.next_snapshots.exclude(pk=rqs.pk)
-                ))
-
     def check_create_case(self, case: RqsCreateCase, other_view: any = None,
                           **view_kwargs):
         return self.check_create_case_with_mock(
@@ -275,7 +258,6 @@ class RqsCreateTests(RqsTests):
             request=self.user1_req1,
             previous_snapshot=self.user1_req1_snap1,
             serialized_query='{"perimeter": "Terra"}',
-            is_active_branch=True,
         )
 
         self.test_query = '{"test": "query"}'
@@ -315,7 +297,6 @@ class RqsCreateTests(RqsTests):
         # As a user, I can create a request
         self.check_create_case(self.basic_case.clone(
             data={**self.basic_data,
-                  'is_active_branch': False,
                   'created_at': timezone.now() + timedelta(hours=1),
                   'modified_at': timezone.now() + timedelta(hours=1),
                   'deleted': timezone.now() + timedelta(hours=1),

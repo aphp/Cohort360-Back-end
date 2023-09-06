@@ -5,7 +5,6 @@ from admin_cohort.models import User
 from admin_cohort.serializers import BaseSerializer, OpenUserSerializer
 from admin_cohort.types import MissingDataError
 from cohort.models import CohortResult, DatedMeasure, Folder, Request, RequestQuerySnapshot, FhirFilter
-from cohort.tools import retrieve_perimeters
 
 
 class PrimaryKeyRelatedFieldWithOwner(serializers.PrimaryKeyRelatedField):
@@ -98,40 +97,11 @@ class RequestQuerySnapshotSerializer(BaseSerializer):
     class Meta:
         model = RequestQuerySnapshot
         fields = "__all__"
-        optional_fields = ["previous_snapshot", "request"]
-        read_only_fields = ["is_active_branch", "care_sites_ids",
-                            "dated_measures", "cohort_results", 'shared_by', "version"]
-
-    def create(self, validated_data):
-        previous_snapshot = validated_data.get("previous_snapshot")
-        request = validated_data.get("request")
-        if previous_snapshot:
-            if request and request.uuid != previous_snapshot.request.uuid:
-                raise ValidationError("The provided request is different from the previous_snapshot's request")
-            validated_data["request"] = previous_snapshot.request
-        elif request:
-            if len(request.query_snapshots.all()) != 0:
-                raise ValidationError("Must provide a previous_snapshot if the request is not empty of snapshots")
-        else:
-            raise ValidationError("No previous_snapshot or request were provided")
-
-        serialized_query = validated_data.get("serialized_query")
-        validated_data["perimeters_ids"] = retrieve_perimeters(serialized_query)
-        validated_data["version"] = len(validated_data["request"].query_snapshots.all()) + 1
-
-        new_rqs = super(RequestQuerySnapshotSerializer, self).create(validated_data=validated_data)
-
-        if new_rqs.previous_snapshot is not None:
-            for rqs in new_rqs.previous_snapshot.next_snapshots.all():
-                rqs.is_active_branch = False
-                rqs.save()
-        return new_rqs
-
-    def update(self, instance, validated_data):
-        for f in ['request', 'request_id']:
-            if f in validated_data:
-                raise ValidationError(f'{f} field cannot be updated manually')
-        return super(RequestQuerySnapshotSerializer, self).update(instance, validated_data)
+        read_only_fields = ["care_sites_ids",
+                            "dated_measures",
+                            "cohort_results",
+                            "shared_by",
+                            "version"]
 
 
 class RequestSerializer(BaseSerializer):

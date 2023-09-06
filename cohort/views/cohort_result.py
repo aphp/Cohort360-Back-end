@@ -21,14 +21,6 @@ from cohort.views.shared import UserObjectsRestrictedViewSet
 
 
 class CohortFilter(filters.FilterSet):
-    name = filters.CharFilter(field_name='name', lookup_expr="icontains")
-    min_result_size = filters.NumberFilter(field_name='dated_measure__measure', lookup_expr='gte')
-    max_result_size = filters.NumberFilter(field_name='dated_measure__measure', lookup_expr='lte')
-    # ?min_created_at=2015-04-23
-    min_fhir_datetime = filters.IsoDateTimeFilter(field_name='dated_measure__fhir_datetime', lookup_expr="gte")
-    max_fhir_datetime = filters.IsoDateTimeFilter(field_name='dated_measure__fhir_datetime', lookup_expr="lte")
-    request_id = filters.CharFilter(field_name='request_query_snapshot__request__pk')
-
     # unused, untested
     def perimeter_filter(self, queryset, field, value):
         return queryset.filter(request_query_snapshot__perimeters_ids__contains=[value])
@@ -42,6 +34,13 @@ class CohortFilter(filters.FilterSet):
             return queryset.filter(join_qs([Q(**{field: v}) for v in sub_values]))
         return queryset
 
+    name = filters.CharFilter(field_name='name', lookup_expr="icontains")
+    min_result_size = filters.NumberFilter(field_name='dated_measure__measure', lookup_expr='gte')
+    max_result_size = filters.NumberFilter(field_name='dated_measure__measure', lookup_expr='lte')
+    # ?min_created_at=2015-04-23
+    min_fhir_datetime = filters.IsoDateTimeFilter(field_name='dated_measure__fhir_datetime', lookup_expr="gte")
+    max_fhir_datetime = filters.IsoDateTimeFilter(field_name='dated_measure__fhir_datetime', lookup_expr="lte")
+    request_id = filters.CharFilter(field_name='request_query_snapshot__request__pk')
     type = filters.AllValuesMultipleFilter()
     perimeter_id = filters.CharFilter(method="perimeter_filter")
     perimeters_ids = filters.CharFilter(method="perimeters_filter")
@@ -118,6 +117,17 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     def list(self, request, *args, **kwargs):
         return super(CohortResultViewSet, self).list(request, *args, **kwargs)
 
+    @swagger_auto_schema(operation_summary="Create a CohortResult",
+                         request_body=openapi.Schema(
+                             type=openapi.TYPE_OBJECT,
+                             properties={"dated_measure_id": openapi.Schema(type=openapi.TYPE_STRING),
+                                         "request_query_snapshot_id": openapi.Schema(type=openapi.TYPE_STRING),
+                                         "request_id": openapi.Schema(type=openapi.TYPE_STRING),
+                                         "name": openapi.Schema(type=openapi.TYPE_STRING),
+                                         "description": openapi.Schema(type=openapi.TYPE_STRING),
+                                         "global_estimate": openapi.Schema(type=openapi.TYPE_BOOLEAN, default=True)}),
+                         responses={'201': openapi.Response("CohortResult created successfully", CohortRightsSerializer()),
+                                    '400': openapi.Response("Bad Request")})
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         cohort_service.process_creation_data(data=request.data)
@@ -130,7 +140,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                          operation_summary="Give cohorts aggregation read patient rights, export csv rights and "
                                            "transfer jupyter rights. It check accesses with perimeters population "
                                            "source for each cohort found.",
-                         responses={'201': openapi.Response("Cohorts rights found", CohortRightsSerializer())})
+                         responses={'200': openapi.Response("Cohorts rights found", CohortRightsSerializer())})
     @action(detail=False, methods=['get'], url_path="cohort-rights")
     def get_cohort_right_accesses(self, request, *args, **kwargs):
         cohorts = self.filter_queryset(self.get_queryset())

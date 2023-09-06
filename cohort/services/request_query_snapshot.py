@@ -4,7 +4,7 @@ from admin_cohort.models import User
 from admin_cohort.settings import SHARED_FOLDER_NAME
 from admin_cohort.tools.cache import invalidate_cache
 from cohort.models import RequestQuerySnapshot, Folder, Request
-from cohort.tools import send_email_notif_about_request_sharing
+from cohort.tools import send_email_notif_about_request_sharing, retrieve_perimeters
 
 
 class RequestQuerySnapshotService:
@@ -20,16 +20,15 @@ class RequestQuerySnapshotService:
             data["request"] = previous_snapshot.request.uuid
         elif request_id:
             request = Request.objects.get(pk=request_id)
-            count_request_previous_snapshots = request.query_snapshots.all().count()
-            if count_request_previous_snapshots:
+            if request.query_snapshots.all().count():
                 raise ValueError("Must provide a `previous_snapshot` if the request already has snapshots")
-            data["version"] = count_request_previous_snapshots + 1
         else:
-            raise ValueError("No `previous_snapshot` or `request` were provided")
+            raise ValueError("Neither `previous_snapshot` or `request` were provided")
 
         serialized_query = data.get("serialized_query")
         data["perimeters_ids"] = retrieve_perimeters(serialized_query)
-
+        request = Request.objects.get(pk=data.get("request"))
+        data["version"] = request.query_snapshots.all().count() + 1
 
     @staticmethod
     def check_shared_folders(recipients: List[User]) -> tuple[List[Folder], dict[str, Folder]]:
@@ -75,7 +74,6 @@ class RequestQuerySnapshotService:
                                                      'shared_by': snapshot.owner,
                                                      'owner_id': owner_id,
                                                      'previous_snapshot': None,
-                                                     'is_active_branch': True,
                                                      'request': request,
                                                      'version': 1,
                                                      }))
