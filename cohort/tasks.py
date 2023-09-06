@@ -59,9 +59,9 @@ def cancel_previously_running_dm_jobs(auth_headers: dict, dm_uuid: str):
     rqs = dm.request_query_snapshot
     running_dms = rqs.dated_measures.exclude(uuid=dm.uuid)\
                                     .filter(request_job_status__in=(JobStatus.started, JobStatus.pending))\
-                                    .prefetch_related('cohort', 'restricted_cohort')
+                                    .prefetch_related('cohorts', 'global_cohorts')
     for dm in running_dms:
-        if dm.cohort.all() or dm.restricted_cohort.all():
+        if dm.cohorts.all() or dm.global_cohorts.all():
             continue
         job_status = dm.request_job_status
         try:

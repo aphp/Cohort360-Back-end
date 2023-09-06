@@ -4,6 +4,8 @@ from django.db import transaction
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
+from rest_framework import status
+from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from admin_cohort.tools.cache import cache_response
@@ -86,7 +88,9 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                          responses={'200': openapi.Response("DatedMeasure updated successfully", DatedMeasureSerializer()),
                                     '400': openapi.Response("Bad Request")})
     def partial_update(self, request, *args, **kwargs):
-        dated_measure_service.process_patch_data(dm=self.get_object(),
-                                                 data=request.data)
+        try:
+            dated_measure_service.process_patch_data(dm=self.get_object(), data=request.data)
+        except ValueError as ve:
+            return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
         return super(DatedMeasureViewSet, self).partial_update(request, *args, **kwargs)
 

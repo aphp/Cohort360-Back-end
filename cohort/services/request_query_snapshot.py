@@ -15,7 +15,7 @@ class RequestQuerySnapshotService:
         request_id = data.get("request")
         if previous_snapshot_id:
             previous_snapshot = RequestQuerySnapshot.objects.get(pk=previous_snapshot_id)
-            if request_id != previous_snapshot.request.uuid:
+            if request_id and request_id != previous_snapshot.request.uuid:
                 raise ValueError("The provided request is different from the previous_snapshot's request")
             data["request"] = previous_snapshot.request.uuid
         elif request_id:

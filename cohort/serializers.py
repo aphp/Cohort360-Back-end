@@ -1,5 +1,4 @@
 from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
 
 from admin_cohort.models import User
 from admin_cohort.serializers import BaseSerializer, OpenUserSerializer
@@ -53,7 +52,6 @@ class CohortResultSerializer(BaseSerializer):
     request_query_snapshot = PrimaryKeyRelatedFieldWithOwner(queryset=RequestQuerySnapshot.objects.all())
     dated_measure = PrimaryKeyRelatedFieldWithOwner(queryset=DatedMeasure.objects.all())
     dated_measure_global = PrimaryKeyRelatedFieldWithOwner(queryset=DatedMeasure.objects.all(), required=False)
-    global_estimate = serializers.BooleanField(write_only=True, allow_null=True, default=True)
     fhir_group_id = serializers.CharField(allow_blank=True, allow_null=True, required=False)
     exportable = serializers.BooleanField(read_only=True)
 
@@ -63,12 +61,6 @@ class CohortResultSerializer(BaseSerializer):
         read_only_fields = ["create_task_id",
                             "request_job_id",
                             "type"]
-
-    def update(self, instance, validated_data):
-        for f in ['owner', 'request_query_snapshot', 'dated_measure']:
-            if f in validated_data:
-                raise ValidationError(f'{f} field cannot be updated manually')
-        return super(CohortResultSerializer, self).update(instance, validated_data)
 
 
 class CohortResultSerializerFullDatedMeasure(CohortResultSerializer):

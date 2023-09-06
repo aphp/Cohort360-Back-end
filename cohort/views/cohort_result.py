@@ -87,6 +87,9 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     pagination_class = NegativeLimitOffsetPagination
     filterset_class = CohortFilter
     search_fields = ('$name', '$description')
+    non_updatable_fields = ['owner', 'owner_id',
+                            'request_query_snapshot', 'request_query_snapshot_id',
+                            'dated_measure', 'dated_measure_id']
 
     def get_permissions(self):
         if is_sjs_or_etl_user(request=self.request):
@@ -136,6 +139,39 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                                                                              cohort_uuid=response.data.get("uuid")))
         return response
 
+    @swagger_auto_schema(operation_summary="Used by Front to update cohort's name, description and favorite."
+                                           "By SJS to update cohort's request_job_status, request_job_duration and "
+                                           "fhir_group_id. Also update count on DM."
+                                           "By ETL to update request_job_status on delayed large cohorts",
+                         request_body=openapi.Schema(
+                             type=openapi.TYPE_OBJECT,
+                             properties={JOB_STATUS: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS and ETL callback"),
+                                         GROUP_ID: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback"),
+                                         GROUP_COUNT: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback"),
+                                         "name": openapi.Schema(type=openapi.TYPE_STRING),
+                                         "description": openapi.Schema(type=openapi.TYPE_STRING),
+                                         "favorite": openapi.Schema(type=openapi.TYPE_STRING)},
+                             required=[JOB_STATUS, GROUP_ID, GROUP_COUNT]),
+                         responses={'200': openapi.Response("Cohort updated successfully", CohortRightsSerializer()),
+                                    '400': openapi.Response("Bad Request")})
+    def partial_update(self, request, *args, **kwargs):
+        for field in self.non_updatable_fields:
+            if field in request.data:
+                return Response(data=f"`{field}` field cannot be updated",
+                                status=status.HTTP_400_BAD_REQUEST)
+        cohort = self.get_object()
+        try:
+            is_update_from_sjs, is_update_from_etl = cohort_service.process_patch_data(cohort=cohort,
+                                                                                       data=request.data)
+        except ValueError as ve:
+            return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
+        response = super(CohortResultViewSet, self).partial_update(request, *args, **kwargs)
+        if status.is_success(response.status_code):
+            cohort_service.send_email_notification(cohort=cohort,
+                                                   is_update_from_sjs=is_update_from_sjs,
+                                                   is_update_from_etl=is_update_from_etl)
+        return response
+
     @swagger_auto_schema(method='get',
                          operation_summary="Give cohorts aggregation read patient rights, export csv rights and "
                                            "transfer jupyter rights. It check accesses with perimeters population "
@@ -146,26 +182,3 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         cohorts = self.filter_queryset(self.get_queryset())
         cohorts_rights = cohort_service.get_cohorts_rights(cohorts=cohorts, user=request.user)
         return Response(data=CohortRightsSerializer(data=cohorts_rights, many=True).data)
-
-    @swagger_auto_schema(operation_summary="Used by Front to update cohort's name, description and favorite."
-                                           "By SJS to update cohort's request_job_status, request_job_duration and "
-                                           "fhir_group_id. Also update count on DM."
-                                           "By ETL to update request_job_status on delayed large cohorts",
-                         request_body=openapi.Schema(
-                             type=openapi.TYPE_OBJECT,
-                             properties={JOB_STATUS: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS and ETL callback"),
-                                         GROUP_ID: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback"),
-                                         GROUP_COUNT: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback")},
-                             required=[JOB_STATUS, GROUP_ID, GROUP_COUNT]),
-                         responses={'200': openapi.Response("Cohort updated successfully", CohortRightsSerializer()),
-                                    '400': openapi.Response("Bad Request")})
-    def partial_update(self, request, *args, **kwargs):
-        cohort = self.get_object()
-        is_update_from_sjs, is_update_from_etl = cohort_service.process_patch_data(cohort=cohort,
-                                                                                   data=request.data)
-        response = super(CohortResultViewSet, self).partial_update(request, *args, **kwargs)
-        if status.is_success(response.status_code):
-            cohort_service.send_email_notification(cohort=cohort,
-                                                   is_update_from_sjs=is_update_from_sjs,
-                                                   is_update_from_etl=is_update_from_etl)
-        return response

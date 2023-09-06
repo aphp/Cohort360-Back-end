@@ -36,13 +36,13 @@ class CohortResultService:
 
     @staticmethod
     def process_creation_data(data: dict) -> None:
-        if data.get("global_estimate"):
-            snapshot_id = data.get("request_query_snapshot_id")
+        if data.pop("global_estimate", False):
+            snapshot_id = data.get("request_query_snapshot")
             snapshot = RequestQuerySnapshot.objects.get(pk=snapshot_id)
             dm_global = DatedMeasure.objects.create(owner=snapshot.owner,
                                                     request_query_snapshot=snapshot,
                                                     mode=GLOBAL_DM_MODE)
-            data["dated_measure_global_id"] = dm_global.uuid
+            data["dated_measure_global"] = dm_global.uuid
 
     @staticmethod
     def process_cohort_creation(request, cohort_uuid: str):

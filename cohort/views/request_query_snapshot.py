@@ -43,7 +43,10 @@ class RequestQuerySnapshotViewSet(NestedViewSetMixin, UserObjectsRestrictedViewS
         return super(RequestQuerySnapshotViewSet, self).retrieve(request, *args, **kwargs)
 
     def create(self, request, *args, **kwargs):
-        rqs_service.process_creation_data(data=request.data)
+        try:
+            rqs_service.process_creation_data(data=request.data)
+        except ValueError as ve:
+            return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
         return super().create(request, *args, **kwargs)
 
     @swagger_auto_schema(method='post',
@@ -58,10 +61,13 @@ class RequestQuerySnapshotViewSet(NestedViewSetMixin, UserObjectsRestrictedViewS
                                     '404': openapi.Response("RequestQuerySnapshot not found (possibly not owned)")})
     @action(detail=True, methods=['post'], permission_classes=(IsOwner,), url_path="share")
     def share(self, request, *args, **kwargs):
-        shared_rqs = rqs_service.share_snapshot(rqs=self.get_object(),
-                                                request_name=request.data.get('name'),
-                                                recipients_ids=request.data.get('recipients'),
-                                                notify_by_email=request.data.get('notify_by_email', False))
+        try:
+            shared_rqs = rqs_service.share_snapshot(snapshot=self.get_object(),
+                                                    request_name=request.data.get('name'),
+                                                    recipients_ids=request.data.get('recipients'),
+                                                    notify_by_email=request.data.get('notify_by_email', False))
+        except ValueError as ve:
+            return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
         return Response(data=RequestQuerySnapshotSerializer(shared_rqs, many=True).data,
                         status=status.HTTP_201_CREATED)
 

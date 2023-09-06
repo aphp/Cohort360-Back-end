@@ -30,11 +30,9 @@ class RqsCaseRetrieveFilter(CaseRetrieveFilter):
 
 
 class RqsCreateCase(CreateCase):
-    def __init__(self, mock_fhir_resp: any, mock_fhir_called: bool, mock_retrieve_perimeters_value, **kwargs):
+    def __init__(self, mock_fhir_resp: any, **kwargs):
         super(RqsCreateCase, self).__init__(**kwargs)
         self.mock_fhir_resp = mock_fhir_resp
-        self.mock_fhir_called = mock_fhir_called
-        self.mock_retrieve_perimeters_value = mock_retrieve_perimeters_value
 
 
 class RqsTests(RequestsTests):
@@ -222,19 +220,11 @@ class RqsGetTests(RqsTests):
 
 
 class RqsCreateTests(RqsTests):
-    @mock.patch('cohort.serializers.cohort_job_api.get_authorization_header')
-    @mock.patch('cohort.serializers.retrieve_perimeters')
-    def check_create_case_with_mock(
-            self, case: RqsCreateCase, mock_retrieve_perimeters: MagicMock,
-            mock_header: MagicMock, other_view: any, view_kwargs: dict):
-        mock_header.return_value = None
-        mock_retrieve_perimeters.return_value = case.mock_retrieve_perimeters_value
+
+    def check_create_case_with_mock(self, case: RqsCreateCase, other_view: any, view_kwargs: dict):
 
         super(RqsCreateTests, self).check_create_case(
             case, other_view, **(view_kwargs or {}))
-
-        mock_retrieve_perimeters.assert_called() if case.mock_fhir_called \
-            else mock_retrieve_perimeters.assert_not_called()
 
     def check_create_case(self, case: RqsCreateCase, other_view: any = None,
                           **view_kwargs):
@@ -260,7 +250,7 @@ class RqsCreateTests(RqsTests):
             serialized_query='{"perimeter": "Terra"}',
         )
 
-        self.test_query = '{"test": "query"}'
+        self.test_query = '{"test": "query", "sourcePopulation": {"caresiteCohortList": ["1", "2", "3"]}}'
         self.basic_data = dict(
             request=self.user1_req2.pk,
             serialized_query=self.test_query,
@@ -273,11 +263,8 @@ class RqsCreateTests(RqsTests):
             retrieve_filter=RqsCaseRetrieveFilter(
                 serialized_query=self.test_query),
             mock_fhir_resp=CRBValidateResponse(True),
-            mock_fhir_called=True,
-            mock_retrieve_perimeters_value=[]
         )
         self.basic_err_case = self.basic_case.clone(
-            mock_fhir_called=False,
             success=False,
             status=status.HTTP_400_BAD_REQUEST,
         )
@@ -313,17 +300,14 @@ class RqsCreateTests(RqsTests):
     def test_create_from_previous(self):
         # As a user, I can create a RQS specifying a previous snapshot
         # using nestedViewSet
-        self.check_create_case(self.basic_case.clone(
-            data={'serialized_query': self.test_query},
-        ), NestedRqsViewSet.as_view({'post': 'create'}),
-            previous_snapshot=self.user1_req1_snap1.pk)
+        self.check_create_case(case=self.basic_case.clone(data={'serialized_query': self.test_query}),
+                               other_view=NestedRqsViewSet.as_view({'post': 'create'}),
+                               previous_snapshot=self.user1_req1_snap1.pk)
 
     def test_error_create_missing_field(self):
-        # As a user, I cannot create a folder if some fields are missing
-        cases = (self.basic_err_case.clone(
-            data={**self.basic_data, k: None},
-        ) for k in ['serialized_query'])
-        [self.check_create_case(case) for case in cases]
+        # As a user, I cannot create a RQS if some fields are missing
+        case = self.basic_err_case.clone(data={**self.basic_data, 'serialized_query': None})
+        self.check_create_case(case)
 
     def test_error_create_missing_both_request_previous(self):
         # As a user, I cannot create a RQS not specifying either
@@ -339,7 +323,7 @@ class RqsCreateTests(RqsTests):
         ))
 
     def test_error_create_with_not_owned_request(self):
-        # As a user, I cannot create a RQS providing another user as owner
+        # As a user, I cannot create a RQS providing a request I don't own
         self.check_create_case(self.basic_err_case.clone(
             data={**self.basic_data, 'request': self.user2_req1.pk},
         ))

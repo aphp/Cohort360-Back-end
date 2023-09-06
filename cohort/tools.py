@@ -184,9 +184,10 @@ def retrieve_perimeters(json_query: str) -> [str]:
         perimeters_ids = query["sourcePopulation"]["caresiteCohortList"]
         assert all(i.isnumeric() for i in perimeters_ids), "Perimeters ids must be integers"
         return perimeters_ids
-    except json.JSONDecodeError as e:
-        _logger_err.exception(f"Error extracting perimeters ids from JSON query - {e}")
-        raise
+    except (json.JSONDecodeError, TypeError, KeyError) as e:
+        msg = f"Error extracting perimeters ids from JSON query - {e}"
+        _logger_err.exception(msg=msg)
+        raise ValueError(msg)
 
 
 _logger = logging.getLogger('info')
