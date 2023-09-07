@@ -37,7 +37,7 @@ class Migration(migrations.Migration):
                 ('deleted_by_cascade', models.BooleanField(default=False, editable=False)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('modified_at', models.DateTimeField(auto_now=True)),
-                ('infrastructure_provider', models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, related_name='datalabs',
+                ('infrastructure_provider', models.ForeignKey(on_delete=django.db.models.deletion.DO_NOTHING, related_name='datalabs',
                                                               to='exports.infrastructureprovider'))
             ],
             options={
@@ -56,7 +56,7 @@ class Migration(migrations.Migration):
                 ('motivation', models.TextField(null=True)),
                 ('clean_datetime', models.DateTimeField(null=True)),
                 ('status', models.CharField(choices=[('PENDING', 'En attente'), ('SENT_TO_DE', 'Envoyé au DataExporter'), ('DELIVERED', 'Livré')], max_length=55)),
-                ('output_format', models.CharField(choices=[('csv', 'csv'), ('hive', 'hive')], max_length=20, null=True)),
+                ('output_format', models.CharField(choices=[('CSV', 'csv'), ('HIVE', 'hive')], max_length=20)),
                 ('target_name', models.CharField(max_length=255, null=True)),
                 ('target_location', models.TextField(null=True)),
                 ('data_exporter_version', models.CharField(max_length=20, null=True)),
@@ -64,7 +64,7 @@ class Migration(migrations.Migration):
                 ('nominative', models.BooleanField(default=False)),
                 ('shift_dates', models.BooleanField(default=False)),
                 ('is_user_notified', models.BooleanField(default=False)),
-                ('datalab', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='exports', to='exports.datalab')),
+                ('datalab', models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, related_name='exports', to='exports.datalab')),
                 ('owner', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='exports', to=settings.AUTH_USER_MODEL)),
             ],
             options={
