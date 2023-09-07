@@ -28,6 +28,16 @@ def can_review_export(user: User) -> bool:
                 for r in get_bound_roles(user)])
 
 
+def can_user_make_csv_export(user: User) -> bool:
+    return any([r.right_export_csv_nominative or r.right_export_csv_pseudo_anonymised
+                for r in get_bound_roles(user)])
+
+
+def can_user_make_jupyter_export(user: User) -> bool:
+    return any([r.right_transfer_jupyter_nominative or r.right_transfer_jupyter_pseudo_anonymised
+                for r in get_bound_roles(user)])
+
+
 class ExportJupyterPermissions(permissions.BasePermission):
     message = "Cannot create a non-CSV export request for another user "\
               "without an access with right_review_transfer_jupyter."
@@ -74,7 +84,7 @@ class AnnexesPermissions(permissions.BasePermission):
                and request.method in permissions.SAFE_METHODS
 
 
-class ReadWorkspacesPermissions(permissions.BasePermission):
+class ReadDatalabsPermission(permissions.BasePermission):
     def has_permission(self, request, view):
         return user_is_authenticated(request.user) \
             and can_user_read_unix_accounts(user=request.user)
@@ -83,10 +93,26 @@ class ReadWorkspacesPermissions(permissions.BasePermission):
         return self.has_permission(request, view)
 
 
-class ManageWorkspacesPermissions(permissions.BasePermission):
+class ManageDatalabsPermission(permissions.BasePermission):
     def has_permission(self, request, view):
         return user_is_authenticated(request.user) \
+            and can_user_read_unix_accounts(user=request.user) \
             and can_user_manage_unix_accounts(user=request.user)
+
+
+class CSVExportPermission(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return user_is_authenticated(request.user) \
+            and can_user_make_csv_export(user=request.user)
+
+    def has_object_permission(self, request, view, obj):
+        return self.has_permission(request, view)
+
+
+class JupyterExportPermission(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return user_is_authenticated(request.user) \
+            and can_user_make_jupyter_export(user=request.user)
 
     def has_object_permission(self, request, view, obj):
         return self.has_permission(request, view)

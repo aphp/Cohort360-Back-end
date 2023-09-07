@@ -26,21 +26,34 @@ class ExportsTestBase(TestCase):
         self.viewname_list = f"{self.view_root}-list"
         self.viewname_detail = f"{self.view_root}-detail"
 
-        self.workspaces_reader_user, self.profile1 = new_user_and_profile(firstname="Workspaces",
-                                                                          lastname="READER",
-                                                                          email="w.r@aphp.fr")
-        self.workspaces_reader_access = Access.objects.create(profile=self.profile1,
-                                                              perimeter=Perimeter.objects.create(name="Perim1", local_id="1"),
-                                                              role=Role.objects.create(name="WORKSPACES READER",
-                                                                                       right_read_env_unix_users=True))
-        self.workspaces_manager_user, self.profile2 = new_user_and_profile(firstname="Workspaces",
-                                                                           lastname="MANAGER",
-                                                                           email="w.m@aphp.fr")
-        self.workspaces_manager_access = Access.objects.create(profile=self.profile2,
-                                                               perimeter=Perimeter.objects.create(name="Perim2", local_id="2"),
-                                                               role=Role.objects.create(name="WORKSPACES MANAGER",
-                                                                                        right_read_env_unix_users=True,
-                                                                                        right_manage_env_unix_users=True))
+        self.perimeter_aphp = Perimeter.objects.create(name="APHP", local_id="1")
+
+        self.csv_exporter_role = Role.objects.create(name="CSV EXPORTER", right_export_csv_nominative=True)
+        self.datalab_reader_role = Role.objects.create(name="DATALABS READER", right_read_env_unix_users=True)
+        self.datalab_manager_role = Role.objects.create(name="DATALABS MANAGER", right_read_env_unix_users=True, right_manage_env_unix_users=True)
+
+        self.datalabs_reader_user, self.datalabs_reader_profile = new_user_and_profile(firstname="Datalabs",
+                                                                                       lastname="READER",
+                                                                                       email="d.r@aphp.fr")
+        self.datalabs_manager_user, self.datalabs_manager_profile = new_user_and_profile(firstname="Datalabs",
+                                                                                         lastname="MANAGER",
+                                                                                         email="d.m@aphp.fr")
+        self.csv_exporter_user, self.csv_exporter_profile = new_user_and_profile(firstname="Exporter",
+                                                                                 lastname="CSV",
+                                                                                 email="csv.e@aphp.fr")
+        self.user_without_rights, _ = new_user_and_profile(firstname="User",
+                                                           lastname="NO_RIGHTS",
+                                                           email="no_rights@aphp.fr")
+
+        self.datalabs_reader_access = Access.objects.create(profile=self.datalabs_reader_profile,
+                                                            perimeter=self.perimeter_aphp,
+                                                            role=self.datalab_reader_role)
+        self.datalabs_manager_access = Access.objects.create(profile=self.datalabs_manager_profile,
+                                                             perimeter=self.perimeter_aphp,
+                                                             role=self.datalab_manager_role)
+        self.csv_exporter_access = Access.objects.create(profile=self.csv_exporter_profile,
+                                                         perimeter=self.perimeter_aphp,
+                                                         role=self.csv_exporter_role)
         self.infra_provider_aphp = InfrastructureProvider.objects.create(name="APHP")
 
     def make_request(self, url, http_verb, request_user, request_data=None):
