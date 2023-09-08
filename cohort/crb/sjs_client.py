@@ -29,16 +29,18 @@ class SjsClient:
 
 
 def format_spark_job_request_for_sjs(spark_job_request: SparkJobObject) -> str:
-    res = json.dumps(asdict(spark_job_request))
-    res = (
-        res.replace('["All"]', '"all"')
-        .replace('[true]', 'true')
-        .replace('[false]', 'false')
-    )
-    res = json.dumps(res)
+    # a = asdict(spark_job_request.cohort_definition_syntax)
+    # res = json.dumps(a)
+    # res = (
+    #     res.replace('["All"]', '"all"')
+    #     .replace('[true]', 'true')
+    #     .replace('[false]', 'false')
+    # )
+    # print(res)
+    # # res = json.dumps(res)
     return (
         f"input.cohortDefinitionName = {spark_job_request.cohort_definition_name},"
-        f"input.cohortDefinitionSyntax = \"{res}\","
+        # f"input.cohortDefinitionSyntax = \"{res}\","
         f"input.ownerEntityId = {spark_job_request.owner_entity_id},"
         f"input.mode = {spark_job_request.mode},"
         f"input.cohortUuid = {spark_job_request.cohort_definition_syntax.cohort_uuid}"

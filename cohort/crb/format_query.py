@@ -4,6 +4,7 @@ import requests
 
 from admin_cohort.settings import SJS_URL
 from cohort.crb.enums import CriteriaType, ResourceType
+from cohort.crb.exceptions import FhirException
 from cohort.crb.fhir_params import FhirParameters
 from cohort.crb.fhir_request import FhirRequest
 from cohort.crb.ranges import Criteria
@@ -46,27 +47,28 @@ class FormatQuery:
         return build_solr_criteria(fhir_request.request, fhir_request.source_population)
 
     def get_mapping_criteria_filter_fhir_to_solr(
-            self, filter_fhir: str, resource_type: ResourceType
+            self, filter_fhir: str, original_resource_type: ResourceType
     ) -> tuple[str, ResourceType]:
 
         ipp_list_filter = None
-        is_ipp_list = self.is_ipp_list(resource_type, filter_fhir)
+        resource_type = original_resource_type
+        is_ipp_list = self.is_ipp_list(original_resource_type, filter_fhir)
+
         if is_ipp_list:
             ipp_list_filter = self.filter_fhir_to_ipp(filter_fhir)
             filter_fhir = self.remove_identifier(filter_fhir)
             resource_type = ResourceType.PATIENT
 
         fhir_resources_filters = self.call_fhir_resource(resource_type, filter_fhir)
-        if is_ipp_list:
-            resource_type = fhir_resources_filters['collection']
+        final_resource_type = original_resource_type if is_ipp_list else fhir_resources_filters['collection']
         full_query = fhir_resources_filters['fq']
         _logger.info(f"FQ: {full_query}")
-        return self.merge_fq(full_query, ipp_list_filter), resource_type
+        return self.merge_fq(full_query, ipp_list_filter), final_resource_type
 
     def is_ipp_list(self, resource_type, filter_fhir) -> bool:
         return (
                 resource_type is not None
-                and resource_type.value != ResourceType.IPP_LIST
+                and resource_type.value == ResourceType.IPP_LIST
                 and self.IDENTIFIER_VALUE in filter_fhir
         )
 
@@ -77,9 +79,9 @@ class FormatQuery:
     def remove_identifier(self, filter_fhir: str) -> str:
         return "&".join([s for s in filter_fhir.split("&") if self.IDENTIFIER_VALUE not in s])
 
-    def call_fhir_resource(self, resource_type: ResourceType, filter_fhir: str) -> FhirParameters:
+    def call_fhir_resource(self, resource_type: ResourceType, filter_fhir: str) -> dict:
         if not resource_type:
-            raise ...
+            raise FhirException()
         fhir_params: dict[str, list[str]] = {}
         if filter_fhir:
             params = filter_fhir.split("&")
@@ -91,7 +93,7 @@ class FormatQuery:
                     fhir_params[key] = [value]
         params = query_fhir(resource_type, fhir_params)
         _logger.info(f"output: {params}")
-        return params
+        return params.to_dict()
 
     def merge_fq(self, full_query, ipp_list_filter) -> str:
         if ipp_list_filter is None:

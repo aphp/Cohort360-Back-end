@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from cohort.crb.enums import CriteriaType, ResourceType
 
@@ -52,19 +52,19 @@ class TemporalConstraint:
 
 @dataclass
 class Criteria:
-    criteria_type: CriteriaType
-    _id: int
-    is_inclusive: bool
-    resource_type: ResourceType
-    filter_solr: str
-    filter_fhir: str
-    patient_age: PatientAge
-    criteria: list['Criteria']
-    occurrence: Occurrence
-    date_range: DateRange
-    date_range_list: list[DateRange]
-    encounter_date_range: DateRange
-    temporal_constraints: list[TemporalConstraint]
+    criteria_type: CriteriaType = None
+    _id: int = None
+    is_inclusive: bool = None
+    resource_type: ResourceType = None
+    filter_solr: str = None
+    filter_fhir: str = None
+    patient_age: PatientAge = None
+    criteria: list['Criteria'] = field(default_factory=list)
+    occurrence: Occurrence = None
+    date_range: DateRange = None
+    date_range_list: list[DateRange] = field(default_factory=list)
+    encounter_date_range: DateRange = None
+    temporal_constraints: list[TemporalConstraint] = field(default_factory=list)
 
     def add_criteria(self, obj) -> str | None:
         if self.filter_fhir is None:
