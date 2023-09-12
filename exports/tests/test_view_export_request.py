@@ -17,11 +17,11 @@ from admin_cohort.tools.tests_tools import new_user_and_profile, ViewSetTestsWit
 from admin_cohort.tools import prettify_json
 from cohort.models import CohortResult, RequestQuerySnapshot, Request, DatedMeasure, Folder
 from workspaces.models import Account
-from .conf_exports import create_hive_db, prepare_hive_db, wait_for_hive_db_creation_job, get_job_status
-from .models import ExportRequest, ExportRequestTable
-from .tasks import delete_export_requests_csv_files, wait_for_export_job, launch_request
-from .types import ExportType, ApiJobResponse
-from .views import ExportRequestViewSet
+from exports.conf_exports import create_hive_db, prepare_hive_db, wait_for_hive_db_creation_job, get_job_status
+from exports.models import ExportRequest, ExportRequestTable
+from exports.tasks import delete_export_requests_csv_files, wait_for_export_job, launch_request
+from exports.types import ExportType, ApiJobResponse
+from exports.views import ExportRequestViewSet
 
 EXPORTS_URL = "/exports"
 
@@ -172,14 +172,16 @@ class ExportsTests(ViewSetTestsWithBasicPerims):
         self.user_csv_reviewer, ph_csv_reviewer = new_user_and_profile(
             email=f"csv_reviewer{END_TEST_EMAIL}")
 
-        self.user1, self.prof_1 = new_user_and_profile(
-            email=f"us1{END_TEST_EMAIL}")
-        self.user2, self.prof_2 = new_user_and_profile(
-            email=f"us2{END_TEST_EMAIL}")
+        self.user1, self.prof_1 = new_user_and_profile(email=f"us1{END_TEST_EMAIL}")
+        self.user2, self.prof_2 = new_user_and_profile(email=f"us2{END_TEST_EMAIL}")
+        self.user3, self.prof_3 = new_user_and_profile(email=f"us3{END_TEST_EMAIL}")
 
         # ACCESSES
         self.jup_review_access: Access = Access.objects.create(
             perimeter=self.aphp, role=self.role_review_jupyter,
+            profile=self.ph_jup_reviewer)
+        self.jup_review_nomi_access: Access = Access.objects.create(
+            perimeter=self.aphp, role=self.role_exp_jup_nomi,
             profile=self.ph_jup_reviewer)
 
         self.csv_review_access: Access = Access.objects.create(
@@ -190,6 +192,26 @@ class ExportsTests(ViewSetTestsWithBasicPerims):
             perimeter=self.aphp,
             profile=self.prof_1,
             role=self.role_read_nomi
+        )
+        self.user1_exp_jup_nomi_acc: Access = Access.objects.create(
+            perimeter=self.aphp,
+            profile=self.prof_1,
+            role=self.role_exp_jup_nomi
+        )
+        self.user1_exp_jup_pseudo_acc: Access = Access.objects.create(
+            perimeter=self.aphp,
+            profile=self.prof_1,
+            role=self.role_exp_jup_pseudo
+        )
+        self.user2_exp_jup_nomi_acc: Access = Access.objects.create(
+            perimeter=self.aphp,
+            profile=self.prof_2,
+            role=self.role_exp_jup_nomi
+        )
+        self.user3_exp_jup_pseudo_acc: Access = Access.objects.create(
+            perimeter=self.aphp,
+            profile=self.prof_3,
+            role=self.role_exp_jup_pseudo
         )
 
         # COHORTS
@@ -477,16 +499,18 @@ class ExportsRetrieveTests(ExportsWithSimpleSetUp):
             success=True,
         ))
 
-    def test_get_request_as_csv_reviewer(self):
-        # As a Csv export reviewer, I can retrieve a CSV ExportRequest
-        # from another user
-        self.check_retrieve_case(RetrieveCase(
-            to_find=self.user2_exp_req_succ,
-            view_params=dict(id=self.user2_exp_req_succ.id),
-            status=status.HTTP_200_OK,
-            user=self.user_csv_reviewer,
-            success=True,
-        ))
+    # disabled for now as the reviewing workflow is not established.
+    # for now, users can only retrieve their own export requests
+    # def test_get_request_as_csv_reviewer(self):
+    #     # As a Csv export reviewer, I can retrieve a CSV ExportRequest
+    #     # from another user
+    #     self.check_retrieve_case(RetrieveCase(
+    #         to_find=self.user2_exp_req_succ,
+    #         view_params=dict(id=self.user2_exp_req_succ.id),
+    #         status=status.HTTP_200_OK,
+    #         user=self.user_csv_reviewer,
+    #         success=True,
+    #     ))
 
     def test_error_get_request_not_owner(self):
         # As a simple user, I cannot retrieve another user's ExportRequest
@@ -787,11 +811,6 @@ class ExportsJupyterCreateTests(ExportsCreateTests):
     def setUp(self):
         super(ExportsJupyterCreateTests, self).setUp()
 
-        self.user1_jup_nomi_acc: Access = Access.objects.create(
-            perimeter=self.aphp,
-            profile=self.prof_1,
-            role=self.role_exp_jup_nomi
-        )
         self.user2_nomi_acc: Access = Access.objects.create(
             perimeter=self.aphp,
             profile=self.prof_2,
@@ -847,12 +866,10 @@ class ExportsJupyterCreateTests(ExportsCreateTests):
                                                            target_location="test/user/exports")
 
     @mock.patch('workspaces.conf_workspaces.is_user_bound_to_unix_account')
-    def check_create_case(self, case: ExportJupyterCreateCase,
-                          mock_user_bound: MagicMock):
+    def check_create_case(self, case: ExportJupyterCreateCase, mock_user_bound: MagicMock):
         mock_user_bound.return_value = case.mock_user_bound_resp
         super(ExportsJupyterCreateTests, self).check_create_case(case)
-        mock_user_bound.assert_called() if case.mock_user_bound_called \
-            else mock_user_bound.assert_not_called()
+        mock_user_bound.assert_called() if case.mock_user_bound_called else mock_user_bound.assert_not_called()
 
     def test_create_jup_full_request(self):
         # As a provider with right to read nominative data and export csv
@@ -987,14 +1004,13 @@ class ExportsJupyterCreateTests(ExportsCreateTests):
         # without the right to do it
 
         # we close the access that should allow reviewer to review exports
-        self.user1_jup_nomi_acc.end_datetime = \
-            timezone.now() - timedelta(days=2)
-        self.user1_jup_nomi_acc.save()
+        self.user1_exp_jup_nomi_acc.end_datetime = timezone.now() - timedelta(days=2)
+        self.user1_exp_jup_nomi_acc.save()
 
         self.check_create_case(self.err_basic_case.clone(
             created=False,
-            status=status.HTTP_400_BAD_REQUEST,
-            mock_user_bound_called=True,
+            status=status.HTTP_403_FORBIDDEN,
+            mock_user_bound_called=False,
         ))
 
     @mock.patch("exports.conf_exports.change_hive_db_ownership")
