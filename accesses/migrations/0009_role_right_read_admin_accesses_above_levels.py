@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accesses', '0008_count_users_on_perimeters'),
+        ('accesses', '0008_remove_access_end_datetime_and_more'),
     ]
 
     operations = [
