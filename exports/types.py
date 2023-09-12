@@ -6,6 +6,18 @@ class ExportType(StrEnum):
     HIVE: str = "hive"
 
 
+class ExportStatus(StrEnum):
+    PENDING: str = "En attente"
+    SENT_TO_DE: str = "Envoyé au DataExporter"
+    DELIVERED: str = "Livré"
+
+
+class StatType(StrEnum):
+    INT: str = "Integer"
+    TXT: str = "Text"
+    SIZE_BYTES: str = "SizeBytes"
+
+
 class ApiJobResponse:
     def __init__(self, status: JobStatus, output: str = "", err: str = ""):
         self.status: JobStatus = status
