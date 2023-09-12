@@ -42,7 +42,6 @@
 - [ ] get_specific_roles
 - [ ] get_all_readable_accesses_perimeters
 - [ ] get_all_level_parents_perimeters
-- [ ] get_all_level_children
 - [ ] can_roles_manage_access
 - [ ] get_assignable_roles_on_perimeter
 - [ ] get_all_user_managing_accesses_on_perimeter

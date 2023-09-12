@@ -10,12 +10,12 @@ from hdfs import HdfsError
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
-from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.models import User
 from admin_cohort.tools import join_qs
+from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from admin_cohort.types import JobStatus
 from admin_cohort.views import CustomLoggingMixin
 from cohort.models import CohortResult
@@ -65,9 +65,9 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
     queryset = ExportRequest.objects.all()
     serializer_class = ExportRequestSerializer
     lookup_field = "id"
-    permissions = (ExportRequestPermissions, ExportJupyterPermissions)
+    permission_classes = (ExportRequestPermissions, ExportJupyterPermissions)
     swagger_tags = ['Exports']
-    pagination_class = LimitOffsetPagination
+    pagination_class = NegativeLimitOffsetPagination
     filterset_class = ExportRequestFilter
     http_method_names = ['get', 'post']
     logging_methods = ['POST']

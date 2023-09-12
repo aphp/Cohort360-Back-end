@@ -19,12 +19,29 @@ from admin_cohort.settings import PERIMETERS_TYPES, ACCESS_EXPIRY_FIRST_ALERT_IN
 from admin_cohort.tools import join_qs
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.views import BaseViewset, CustomLoggingMixin
-from ..models import Access, get_user_valid_manual_accesses, intersect_queryset_criteria, build_data_rights
+from ..models import Access, get_user_valid_manual_accesses, intersect_queryset_criteria, build_data_rights, Perimeter, Role
+from ..models.tools import q_is_valid_access
 from ..permissions import AccessPermissions
 from ..serializers import AccessSerializer, DataRightSerializer, ExpiringAccessesSerializer
 
 
 class AccessFilter(filters.FilterSet):
+
+    def perimeter_filter(self, queryset, field, value):
+        perimeter = Perimeter.objects.get(pk=value)
+        valid_accesses = queryset.filter(q_is_valid_access())
+        accesses_on_perimeter = valid_accesses.filter(perimeter_id=value)
+
+        user_accesses = get_user_valid_manual_accesses(user=self.request.user)
+        user_is_allowed_to_read_accesses_from_above_levels = user_accesses.filter(role__right_read_admin_accesses_above_levels=True)\
+                                                                          .exists()
+        if user_is_allowed_to_read_accesses_from_above_levels:
+            accesses_on_parent_perimeters = valid_accesses.filter(Q(perimeter_id__in=perimeter.above_levels)
+                                                                  &
+                                                                  Q(Role.impact_lower_levels_query('role')))
+            return accesses_on_perimeter.union(accesses_on_parent_perimeters)
+        return accesses_on_perimeter
+
     provider_email = filters.CharFilter(lookup_expr="icontains", field_name="profile__email")
     provider_lastname = filters.CharFilter(lookup_expr="icontains", field_name="profile__lastname")
     provider_firstname = filters.CharFilter(lookup_expr="icontains", field_name="profile__firstname")
@@ -40,15 +57,16 @@ class AccessFilter(filters.FilterSet):
 
     perimeter_name = filters.CharFilter(field_name="perimeter__name", lookup_expr="icontains")
     care_site_id = filters.CharFilter(field_name="perimeter_id")
+    perimeter = filters.CharFilter(method="perimeter_filter")
 
-    ordering = OrderingFilter(fields=(('role__name', 'role_name'),
-                                      'start_datetime',
+    ordering = OrderingFilter(fields=('start_datetime',
                                       'end_datetime',
+                                      ('role__name', 'role_name'),
                                       ('sql_is_valid', 'is_valid')))
 
     class Meta:
         model = Access
-        fields = ("perimeter",)
+        fields = "__all__"
 
 
 class AccessViewSet(CustomLoggingMixin, BaseViewset):
@@ -164,8 +182,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
             return Response(data="perimeter_id is required", status=status.HTTP_400_BAD_REQUEST)
         data['profile_id'] = data.get('profile_id', data.get('provider_history_id'))
         data['perimeter_id'] = data.get('perimeter_id', data.get('care_site_id'))
-        response = super(AccessViewSet, self).create(request, *args, **kwargs)
-        return response
+        return super(AccessViewSet, self).create(request, *args, **kwargs)
 
     @swagger_auto_schema(request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
@@ -184,11 +201,10 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
 
     @swagger_auto_schema(auto_schema=None)
     def update(self, request, *args, **kwargs):
-        response = super(AccessViewSet, self).update(request, *args, **kwargs)
-        return response
+        return super(AccessViewSet, self).update(request, *args, **kwargs)
 
-    @swagger_auto_schema(request_body=openapi.Schema(type=openapi.TYPE_STRING, properties={}),
-                         method="PATCH",
+    @swagger_auto_schema(method="PATCH",
+                         request_body=openapi.Schema(type=openapi.TYPE_STRING, properties={}),
                          operation_summary="Will set end_datetime to now, to close the access.")
     @action(url_path="close", detail=True, methods=['patch'])
     def close(self, request, *args, **kwargs):
@@ -203,21 +219,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
                             status=status.HTTP_403_FORBIDDEN)
 
         request.data.update({'end_datetime': now})
-        response = self.partial_update(request, *args, **kwargs)
-
-        user_accesses = get_user_valid_manual_accesses(user=access.profile.user).filter(perimeter_id=access.perimeter_id)
-        if not user_accesses:
-            access.perimeter.remove_user_from_allowed_users(user_id=access.profile.user.provider_username)
-        return response
-
-    """
-    when closing an access:
-        if the user has no further accesses:
-            remove him from the list of allowed user on the corresponding perimeter
-        if he has other accesses:
-            if he has other accesses to the same perimeter:
-                
-    """
+        return self.partial_update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
         access = self.get_object()

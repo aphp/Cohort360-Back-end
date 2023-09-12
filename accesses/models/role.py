@@ -39,6 +39,25 @@ ROLES_HELP_TEXT = dict(right_edit_roles="Gérer les rôles",
                                                    "de leur données pour la recherche")
 
 
+def build_help_text(text_root: str, to_same_level: bool, to_inferior_levels: bool, to_above_levels: bool):
+    text = text_root
+    if to_same_level:
+        text = f"{text} sur un périmètre exclusivement"
+        if to_inferior_levels:
+            text = f"{text.replace(' exclusivement', '')} et ses sous-périmètres"
+        if to_above_levels:
+            text = f"{text.replace(' exclusivement', '')} et ses périmètres parents"
+    elif to_inferior_levels:
+        text = f"{text} sur les sous-périmètres exclusivement"
+        if to_above_levels:
+            text = f"{text.replace(' exclusivement', '')} et les périmètres parents"
+    elif to_above_levels:
+        text = f"{text} sur les périmètres parents exclusivement"
+    if text != text_root:
+        return text
+    return None
+
+
 def format_prefix(prefix: str) -> str:
     return prefix and f"{prefix}__" or ""
 
@@ -59,6 +78,8 @@ class Role(BaseModel):
     right_read_admin_accesses_same_level = models.BooleanField(default=False, null=False)
     right_manage_admin_accesses_inferior_levels = models.BooleanField(default=False, null=False)
     right_read_admin_accesses_inferior_levels = models.BooleanField(default=False, null=False)
+
+    right_read_admin_accesses_above_levels = models.BooleanField(default=False, null=False)
 
     right_manage_data_accesses_same_level = models.BooleanField(default=False, null=False)
     right_read_data_accesses_same_level = models.BooleanField(default=False, null=False)
@@ -170,11 +191,6 @@ class Role(BaseModel):
     @classmethod
     def all_rights(cls):
         return [f.name for f in cls._meta.fields if f.name.startswith("right_")]
-
-    @classmethod
-    def impact_lower_levels_query(cls, prefix: str = None) -> Q:
-        prefix = format_prefix(prefix)
-        return join_qs([Q(**{f'{prefix}{r.name}': True}) for r in [right for right in all_rights if right.impact_lower_levels]])
 
     @classmethod
     def manage_on_lower_levels_query(cls, prefix: str = None) -> Q:
@@ -302,6 +318,7 @@ class Role(BaseModel):
         return self.right_edit_roles \
                or self.right_read_admin_accesses_same_level \
                or self.right_read_admin_accesses_inferior_levels \
+               or self.right_read_admin_accesses_above_levels \
                or self.right_read_data_accesses_same_level \
                or self.right_read_data_accesses_inferior_levels \
                or self.right_manage_review_transfer_jupyter \
@@ -350,6 +367,7 @@ class Role(BaseModel):
                     self.right_read_admin_accesses_same_level,
                     self.right_manage_admin_accesses_inferior_levels,
                     self.right_read_admin_accesses_inferior_levels,
+                    self.right_read_admin_accesses_above_levels,
                     self.right_read_env_unix_users,
                     self.right_manage_env_unix_users,
                     self.right_manage_env_user_links,
@@ -365,57 +383,39 @@ class Role(BaseModel):
         return self.right_read_users
 
     def get_help_text_for_right_manage_admin_accesses(self):
-        texts = []
-        if self.right_manage_admin_accesses_same_level:
-            texts = ["Gérer les accès des administrateurs sur son périmètre exclusivement"]
-            if self.right_manage_admin_accesses_inferior_levels:
-                texts.append("Gérer les accès des administrateurs sur son périmètre et ses sous-périmètres")
-                return texts
-        if self.right_manage_admin_accesses_inferior_levels:
-            texts.append("Gérer les accès des administrateurs sur les sous-périmètres exclusivement")
-        return texts
+        return build_help_text(text_root="Gérer les accès des administrateurs",
+                               to_same_level=self.right_manage_admin_accesses_same_level,
+                               to_inferior_levels=self.right_manage_admin_accesses_inferior_levels,
+                               to_above_levels=False)
 
     def get_help_text_for_right_read_admin_accesses(self):
-        texts = []
-        if self.right_read_admin_accesses_same_level:
-            texts = ["Consulter la liste des accès administrateurs d'un périmètre"]
-            if self.right_read_admin_accesses_inferior_levels:
-                texts.append("Consulter la liste des accès administrateurs d'un périmètre et ses sous-périmètres")
-                return texts
-        if self.right_read_admin_accesses_inferior_levels:
-            texts.append("Consulter la liste des accès administrateurs des sous-périmètres")
-        return texts
+        return build_help_text(text_root="Consulter la liste des accès administrateurs",
+                               to_same_level=self.right_read_admin_accesses_same_level,
+                               to_inferior_levels=self.right_read_admin_accesses_inferior_levels,
+                               to_above_levels=self.right_read_admin_accesses_above_levels)
 
     def get_help_text_for_right_read_data_accesses(self):
-        texts = []
-        if self.right_read_data_accesses_same_level:
-            texts = ["Consulter la liste des accès aux données patients d'un périmètre"]
-            if self.right_read_data_accesses_inferior_levels:
-                texts.append("Consulter la liste des accès aux données patients d'un périmètre et ses sous-périmètres")
-                return texts
-        if self.right_read_data_accesses_inferior_levels:
-            texts.append("Consulter la liste des accès aux données patients d'un sous-périmètre")
-        return texts
+        return build_help_text(text_root="Consulter la liste des accès aux données patients",
+                               to_same_level=self.right_read_data_accesses_same_level,
+                               to_inferior_levels=self.right_read_data_accesses_inferior_levels,
+                               to_above_levels=False)
 
     def get_help_text_for_right_manage_data_accesses(self):
-        texts = []
-        if self.right_manage_data_accesses_same_level:
-            texts = ["Gérer les accès aux données sur son périmètre exclusivement"]
-            if self.right_manage_data_accesses_inferior_levels:
-                texts.append("Gérer les accès aux données sur son périmètre et ses sous-périmètres")
-                return texts
-        if self.right_manage_data_accesses_inferior_levels:
-            texts.append("Gérer les accès aux données sur les sous-périmètres exclusivement")
-        return texts
+        return build_help_text(text_root="Gérer les accès aux données patients",
+                               to_same_level=self.right_manage_data_accesses_same_level,
+                               to_inferior_levels=self.right_manage_data_accesses_inferior_levels,
+                               to_above_levels=False)
 
     @property
     def help_text(self):
-        level_agnostic_rights = [r for r in Role.all_rights() if not (r.endswith('same_level') or r.endswith('inferior_levels'))]
+        level_agnostic_rights = [r for r in Role.all_rights() if not (r.endswith('same_level')
+                                                                      or r.endswith('inferior_levels')
+                                                                      or r.endswith('above_levels'))]
         help_txt = [ROLES_HELP_TEXT.get(r) for r in level_agnostic_rights if self.__dict__.get(r)]
 
-        level_dependent_texts = self.get_help_text_for_right_manage_admin_accesses() + \
-            self.get_help_text_for_right_read_admin_accesses() + \
-            self.get_help_text_for_right_manage_data_accesses() + \
-            self.get_help_text_for_right_read_data_accesses()
-        help_txt.extend(level_dependent_texts)
+        level_dependent_texts = [self.get_help_text_for_right_manage_admin_accesses() or "",
+                                 self.get_help_text_for_right_read_admin_accesses() or "",
+                                 self.get_help_text_for_right_manage_data_accesses() or "",
+                                 self.get_help_text_for_right_read_data_accesses() or ""]
+        help_txt.extend([text for text in level_dependent_texts if text])
         return help_txt

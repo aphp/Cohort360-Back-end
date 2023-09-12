@@ -44,6 +44,8 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 CSRF_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_SECURE = not DEBUG
+JWT_ACCESS_COOKIE_SECURE = not DEBUG
+JWT_REFRESH_COOKIE_SECURE = not DEBUG
 
 ADMINS = [a.split(',') for a in env("ADMINS").split(';')]
 NOTIFY_ADMINS = bool(env("NOTIFY_ADMINS", default=False))
@@ -174,6 +176,8 @@ REST_FRAMEWORK = {'DEFAULT_PERMISSION_CLASSES': ('admin_cohort.permissions.IsAut
                   'PAGE_SIZE': 20
                   }
 
+PAGINATION_MAX_LIMIT = 10_000
+
 SWAGGER_SETTINGS = {'LOGOUT_URL': '/accounts/logout/',
                     'LOGIN_URL': '/accounts/login/',
                     'DEFAULT_AUTHENTICATION_CLASSES': ('rest_framework.authentication.TokenAuthentication',),
@@ -207,7 +211,7 @@ CELERY_TASK_ALWAYS_EAGER = False
 if env('LOCAL_TASKS', default=''):
     CELERY_BEAT_SCHEDULE = {task_name: {'task': task,
                                         'schedule': crontab(hour=hour, minute=minute)}
-                            for (task_name, task, hour, minute) in [task.split(',')
+                            for (task_name, task, hour, minute) in [task.strip().split(',')
                             for task in env('LOCAL_TASKS').split(';')]
                             }
 

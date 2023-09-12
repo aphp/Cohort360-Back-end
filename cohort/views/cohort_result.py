@@ -9,7 +9,6 @@ from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.decorators import action
-from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
@@ -17,6 +16,7 @@ from rest_framework_extensions.mixins import NestedViewSetMixin
 from accesses.models import get_user_valid_manual_accesses
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools import join_qs
+from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from admin_cohort.types import JobStatus
 from cohort.conf_cohort_job_api import fhir_to_job_status
 from cohort.models import CohortResult
@@ -98,7 +98,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     http_method_names = ['get', 'post', 'patch', 'delete']
     lookup_field = "uuid"
     swagger_tags = ['Cohort - cohorts']
-    pagination_class = LimitOffsetPagination
+    pagination_class = NegativeLimitOffsetPagination
     filterset_class = CohortFilter
     search_fields = ('$name', '$description')
 

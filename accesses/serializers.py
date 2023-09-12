@@ -1,7 +1,6 @@
 import logging
 import re
 from datetime import timedelta
-from typing import List
 
 from django.db.models import Max, Q
 from django.utils import timezone
@@ -265,22 +264,8 @@ class PerimeterSerializer(serializers.ModelSerializer):
     care_site_source_value = serializers.CharField(read_only=True, source='source_value')
     care_site_short_name = serializers.CharField(read_only=True, source='short_name')
     care_site_type_source_value = serializers.CharField(read_only=True, source='type_source_value')
-    parents_ids = serializers.SerializerMethodField('build_parents_ids', read_only=True)
     type = serializers.CharField(allow_null=True, source='type_source_value')
     names = serializers.DictField(allow_null=True, read_only=True, child=serializers.CharField())
-    same_level_users_count = serializers.SerializerMethodField(read_only=True)
-    same_and_inferior_level_users_count = serializers.SerializerMethodField(read_only=True)
-
-    def build_parents_ids(self, perimeter: Perimeter) -> List[int]:
-        p_id = getattr(perimeter, 'parent_id', None)
-        return [p_id] if p_id else []
-
-    def get_same_level_users_count(self, perimeter: Perimeter) -> int:
-        return len(perimeter.allowed_users)
-
-    def get_same_and_inferior_level_users_count(self, perimeter: Perimeter) -> int:
-        return len(perimeter.allowed_users +
-                   perimeter.allowed_users_inferior_levels)
 
     class Meta:
         model = Perimeter
@@ -342,6 +327,7 @@ class AccessSerializer(BaseSerializer):
                   "role",
                   "actual_start_datetime",
                   "actual_end_datetime",
+                  "end_datetime",
                   "care_site_id",
                   "provider_history_id",
                   "role_id",
@@ -364,7 +350,6 @@ class AccessSerializer(BaseSerializer):
 
     def create(self, validated_data):
         creator: User = self.context.get('request').user
-
         # todo : remove/fix when ready with perimeter
         if 'perimeter' not in validated_data:
             perimeter_id = validated_data.get("perimeter_id", validated_data.pop("care_site_id", None))
@@ -403,10 +388,7 @@ class AccessSerializer(BaseSerializer):
         # todo : remove/fix when ready with perimeter
         validated_data["perimeter_id"] = perimeter_id
         validated_data["perimeter"] = perimeter
-
-        access = super(AccessSerializer, self).create(validated_data)
-        perimeter.add_new_allowed_user(new_user_id=profile.user_id)
-        return access
+        return super(AccessSerializer, self).create(validated_data)
 
     def update(self, instance, validated_data):
         validated_data.pop("role_id", None)
