@@ -10,3 +10,6 @@ class CohortCreate(AbstractCohortRequest):
     def action(self, fhir_request: FhirRequest) -> str:
         request = self.create_request(fhir_request)
         return self.sjs_client.create(request)
+
+    def cancel(self, job_id: str) -> str:
+        return self.sjs_client.delete(job_id)
