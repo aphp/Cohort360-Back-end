@@ -12,7 +12,7 @@ from rest_framework import status
 
 from admin_cohort.tools import prettify_dict
 from admin_cohort.types import JobStatus, MissingDataError
-from exports.models import ExportRequest
+from exports.models import ExportRequest, Export
 from exports.types import ApiJobResponse, HdfsServerUnreachableError, ExportType
 
 _logger = logging.getLogger('info')
@@ -221,6 +221,26 @@ def post_export(export_request: ExportRequest) -> str:
     else:
         url = EXPORT_CSV_URL
         params.update({"file_path": export_request.target_full_path})
+    resp = requests.post(url=url, params=params, headers={'auth-token': INFRA_EXPORT_TOKEN})
+    return PostJobResponse(response=resp, url=url).task_id
+
+
+def post_export_v1(export: Export) -> str:
+    log_export_request_task(export.uuid, f"Asking to export for '{export.target_name}'")
+    tables = ",".join([f"{t.name}:{t.cohort_result_subset}:{t.respect_table_relationships}"
+                       for t in export.export_tables.all()])
+    params = {"tables": tables,
+              "environment": OMOP_ENVIRONMENT,
+              "no_date_shift": not export.nominative and export.shift_dates,
+              "overwrite": False,
+              "user_for_pseudo": not export.nominative and export.datalab.name or None,
+              }
+    if export.output_format == ExportType.HIVE:
+        url = EXPORT_HIVE_URL
+        params.update({"database_name": export.target_name})
+    else:
+        url = EXPORT_CSV_URL
+        params.update({"file_path": export.target_full_path})
     resp = requests.post(url=url, params=params, headers={'auth-token': INFRA_EXPORT_TOKEN})
     return PostJobResponse(response=resp, url=url).task_id
 

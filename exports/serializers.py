@@ -8,6 +8,7 @@ from accesses.models import DataRight, build_data_rights, Perimeter
 from admin_cohort.types import JobStatus
 from admin_cohort.models import User
 from cohort.models import CohortResult
+from exports.services.export import export_service
 from workspaces.models import Account
 from exports.emails import check_email_address
 from exports.models import ExportRequest, ExportRequestTable, Datalab, InfrastructureProvider, ExportTable, ExportResultStat, Export
@@ -276,14 +277,12 @@ class ExportSerializer(serializers.ModelSerializer):
         model = Export
         fields = "__all__"
 
-    @staticmethod
-    def create_tables(tables, export):
-        for table in tables:
-            ExportTable.objects.create(export=export, **table)
-
     def create(self, validated_data):
         export_tables = validated_data.pop("export_tables", [])
         export = super(ExportSerializer, self).create(validated_data)
-        self.create_tables(export_tables, export)
+        export_service.create_tables(http_request=self.context.get("request"),
+                                     tables_data=export_tables,
+                                     export=export)
+        export_service.launch_export(export=export)
         return export
 

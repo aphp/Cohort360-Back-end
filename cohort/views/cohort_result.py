@@ -24,6 +24,7 @@ from cohort.permissions import SJSandETLCallbackPermission
 from cohort.serializers import CohortResultSerializer, CohortResultSerializerFullDatedMeasure, CohortRightsSerializer
 from cohort.tools import get_dict_cohort_pop_source, get_all_cohorts_rights, send_email_notif_about_large_cohort, is_sjs_or_etl_user
 from cohort.views.shared import UserObjectsRestrictedViewSet
+from exports.services.export import export_service
 
 JOB_STATUS = "request_job_status"
 GROUP_ID = "group.id"
@@ -184,13 +185,13 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         sjs_data_keys = (JOB_STATUS, GROUP_ID, GROUP_COUNT)
         is_update_from_sjs = all([key in data for key in sjs_data_keys])
         is_update_from_etl = JOB_STATUS in data and len(data) == 1
+        cohort = self.get_object()
 
         if JOB_STATUS in data:
             job_status = fhir_to_job_status().get(data[JOB_STATUS].upper())
             if not job_status:
                 return Response(data=f"Invalid job status: {data.get(JOB_STATUS)}",
                                 status=status.HTTP_400_BAD_REQUEST)
-            cohort = self.get_object()
             if job_status in (JobStatus.finished, JobStatus.failed):
                 data["request_job_duration"] = str(timezone.now() - cohort.created_at)
                 if job_status == JobStatus.failed:
@@ -198,7 +199,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             data['request_job_status'] = job_status
         if GROUP_ID in data:
             data["fhir_group_id"] = data.pop(GROUP_ID)
-        if GROUP_COUNT in data:
+        if GROUP_COUNT in data and cohort.dated_measure:
             cohort.dated_measure.measure = data.pop(GROUP_COUNT)
             cohort.dated_measure.save()
 
@@ -207,6 +208,8 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         if status.is_success(resp.status_code):
             if is_update_from_sjs:
                 _logger.info(f"Cohort [{cohort.uuid}] successfully updated from SJS")
+                if cohort.export_table.exists():
+                    export_service.check_all_cohort_subsets_created(export=cohort.export_table.export)
             if is_update_from_etl:
                 try:
                     send_email_notif_about_large_cohort(cohort.name, cohort.fhir_group_id, cohort.owner)

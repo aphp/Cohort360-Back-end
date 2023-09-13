@@ -27,3 +27,9 @@ class Export(ExportsBaseModel):
 
     class Meta:
         db_table = 'export'
+
+    @property
+    def target_full_path(self) -> str:
+        if self.target_location and self.target_name:
+            return f"{self.target_location}/{self.target_name}.zip"
+        return ""
