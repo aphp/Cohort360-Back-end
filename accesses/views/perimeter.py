@@ -57,7 +57,7 @@ class PerimeterViewSet(YarnReadOnlyViewsetMixin, NestedViewSetMixin, BaseViewset
     serializer_class = PerimeterSerializer
     queryset = Perimeter.objects.all()
     lookup_field = "id"
-    permission_classes = (IsAuthenticatedReadOnly,)
+    permission_classes = (PerimetersPermission,)
     pagination_class = NegativeLimitOffsetPagination
     swagger_tags = ['Accesses - perimeters']
     filterset_class = PerimeterFilter

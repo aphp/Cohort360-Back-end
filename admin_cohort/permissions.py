@@ -76,14 +76,26 @@ class IsAuthenticatedReadOnly(permissions.BasePermission):
         return self.has_permission(request=request, view=view)
 
 
-class IsAuthenticatedReadOnlyListOnly(permissions.BasePermission):
+def can_user_add_users(user: User) -> bool:
+    return any([r.right_add_users for r in get_bound_roles(user)])
+
+
+def can_user_edit_users(user: User) -> bool:
+    return any([r.right_edit_users for r in get_bound_roles(user)])
+
+
+class UsersPermission(permissions.BasePermission):
     def has_permission(self, request, view):
         if not user_is_authenticated(request.user):
             return False
-        return request.method in permissions.SAFE_METHODS
+        if request.method == "POST":
+            return can_user_add_users(request.user)
+        if request.method == "PATCH":
+            return can_user_edit_users(request.user)
+        return request.method in permissions.SAFE_METHODS and can_user_read_users(request.user)
 
     def has_object_permission(self, request, view, obj):
-        return False
+        return self.has_permission(request=request, view=view)
 
 
 class CachePermission(permissions.BasePermission):

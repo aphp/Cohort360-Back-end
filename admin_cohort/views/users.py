@@ -3,7 +3,7 @@ from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 
 from admin_cohort.models import User
-from admin_cohort.permissions import IsAuthenticatedReadOnly, can_user_read_users
+from admin_cohort.permissions import UsersPermission, can_user_read_users
 from admin_cohort.serializers import UserSerializer, OpenUserSerializer
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.views import YarnReadOnlyViewsetMixin, BaseViewset
@@ -22,7 +22,7 @@ class UserViewSet(YarnReadOnlyViewsetMixin, BaseViewset):
     lookup_field = "provider_username"
     search_fields = ["firstname", "lastname", "provider_username", "email"]
     filterset_class = UserFilter
-    permission_classes = (IsAuthenticatedReadOnly,)
+    permission_classes = (UsersPermission,)
 
     def get_serializer_context(self):
         return {'request': self.request}
