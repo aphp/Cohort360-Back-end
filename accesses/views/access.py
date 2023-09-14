@@ -19,8 +19,8 @@ from admin_cohort.settings import PERIMETERS_TYPES, ACCESS_EXPIRY_FIRST_ALERT_IN
 from admin_cohort.tools import join_qs
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.views import BaseViewset, CustomLoggingMixin
-from ..models import Access, get_user_valid_manual_accesses, intersect_queryset_criteria, build_data_rights, Perimeter, Role
-from ..models.tools import q_is_valid_access
+from ..models import Access, get_user_valid_manual_accesses, intersect_queryset_criteria, build_data_rights, Perimeter
+from ..models.tools import q_is_valid_access, q_role_impacts_lower_levels
 from ..permissions import AccessPermissions
 from ..serializers import AccessSerializer, DataRightSerializer, ExpiringAccessesSerializer
 
@@ -38,7 +38,7 @@ class AccessFilter(filters.FilterSet):
         if user_is_allowed_to_read_accesses_from_above_levels:
             accesses_on_parent_perimeters = valid_accesses.filter(Q(perimeter_id__in=perimeter.above_levels)
                                                                   &
-                                                                  Q(Role.impact_lower_levels_query('role')))
+                                                                  q_role_impacts_lower_levels())
             return accesses_on_perimeter.union(accesses_on_parent_perimeters)
         return accesses_on_perimeter
 
