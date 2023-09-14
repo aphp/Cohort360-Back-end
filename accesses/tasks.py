@@ -66,7 +66,7 @@ def count_allowed_users_from_above_levels():
         count_accesses_impacting_inferior_levels = 0
         for p in parent_perimeters:
             accesses_impacting_inferior_levels = p.accesses.filter(q_is_valid_access(),
-                                                                   q_role_impacts_lower_levels(prefix="role"))\
+                                                                   q_role_impacts_lower_levels())\
                                                                  .distinct("perimeter_id", "profile__user_id")
             count_accesses_impacting_inferior_levels += accesses_impacting_inferior_levels.count()
         perimeter.count_allowed_users_above_levels = count_accesses_impacting_inferior_levels
