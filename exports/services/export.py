@@ -29,11 +29,11 @@ class ExportService:
 
     @staticmethod
     def check_all_cohort_subsets_created(export: Export):
-        for table in export.export_tables.all():
+        for table in export.export_tables.filter(cohort_result_subset__isnull=False):
             if table.cohort_result_subset.request_job_status != JobStatus.finished:
                 return
         _logger.info(f"Export [{export.uuid}]: all cohort subsets were successfully created. Launching export.")
-        export_service.launch_export(export=export)
+        ExportService.launch_export(export=export)
 
     @staticmethod
     def launch_export(export: Export):
