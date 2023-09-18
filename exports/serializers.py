@@ -265,7 +265,6 @@ class ExportTableSerializer(serializers.ModelSerializer):
         fields = "__all__"
         read_only_fields = ["uuid",
                             "export",
-                            "fhir_filter",
                             "cohort_result_subset",
                             "respect_table_relationships"]
 
@@ -283,6 +282,5 @@ class ExportSerializer(serializers.ModelSerializer):
         export_service.create_tables(http_request=self.context.get("request"),
                                      tables_data=export_tables,
                                      export=export)
-        export_service.launch_export(export=export)
         return export
 

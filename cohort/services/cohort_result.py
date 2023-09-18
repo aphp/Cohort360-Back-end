@@ -1,3 +1,5 @@
+from typing import Union
+
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
@@ -27,15 +29,14 @@ class CohortResultService:
         return str(query)
 
     @staticmethod
-    def create_cohort_subset(owner_id: str, table_name: str, cohort_id: str, filter_id: str, http_request) -> CohortResult:
-        cohort_subset = CohortResult.objects.create(name=f"{table_name}_{cohort_id}",
+    def create_cohort_subset(http_request, owner_id: str, table_name: str,
+                             source_cohort: CohortResult, fhir_filter: Union[FhirFilter, None] = None) -> CohortResult:
+        cohort_subset = CohortResult.objects.create(name=f"{table_name}_{source_cohort.fhir_group_id}",
                                                     owner_id=owner_id)
-        fhir_filter = FhirFilter.objects.get(pk=filter_id)
-
         with transaction.atomic():
-            query = CohortResultService.build_query(cohort_source_id=cohort_id,
+            query = CohortResultService.build_query(cohort_source_id=source_cohort.fhir_group_id,
                                                     cohort_uuid=cohort_subset.uuid,
-                                                    fhir_search_filter=fhir_filter.filter)
+                                                    fhir_search_filter=fhir_filter and fhir_filter.filter or None)
             try:
                 auth_headers = get_authorization_header(request=http_request)
                 create_cohort_task.delay(auth_headers,
