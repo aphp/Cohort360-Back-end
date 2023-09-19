@@ -279,6 +279,7 @@ class ExportSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         export_tables = validated_data.pop("export_tables", [])
         export = super(ExportSerializer, self).create(validated_data)
+        export_service.validate_tables_data(tables_data=export_tables)
         export_service.create_tables(http_request=self.context.get("request"),
                                      tables_data=export_tables,
                                      export=export)

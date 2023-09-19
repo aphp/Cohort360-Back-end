@@ -22,4 +22,15 @@ class Migration(migrations.Migration):
             name='cohort_result_subset',
             field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, related_name='export_table', to='cohort.cohortresult'),
         ),
+        migrations.AlterField(
+            model_name='export',
+            name='status',
+            field=models.CharField(choices=[('PENDING', 'En attente'), ('SENT_TO_DE', 'Envoyé au DataExporter'), ('DELIVERED', 'Livré')], max_length=55, null=True),
+        ),
+        migrations.AddField(
+            model_name='datalab',
+            name='name',
+            field=models.CharField(default='datalab01', max_length=255, unique=True, validators=[django.core.validators.RegexValidator(inverse_match=True, message='No spaces allowed', regex=' ')]),
+            preserve_default=False,
+        ),
     ]

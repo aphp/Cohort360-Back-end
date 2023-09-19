@@ -11,18 +11,16 @@ from cohort.tasks import create_cohort_task
 class CohortResultService:
 
     @staticmethod
-    def build_query(cohort_source_id: str, cohort_uuid: str, fhir_search_filter: str) -> str:
-        cohort_resource_type = "cohort_resource_type"
-        resource_type = "resource_type"
+    def build_query(cohort_source_id: str, cohort_uuid: str, fhir_filter: FhirFilter) -> str:
         query = {"_type": "request",
-                 "resourceType": cohort_resource_type,
+                 "resourceType": fhir_filter.fhir_resource,
                  "cohortUuid": cohort_uuid,
                  "request": {"_id": 1,
                              "_type": "basicResource",
-                             "filterFhir": fhir_search_filter,
+                             "filterFhir": fhir_filter.filter,
                              # "filterSolr": "fq=gender:f&fq=deceased:false&fq=active:true",    todo: rempli par le CRB
                              "isInclusive": True,
-                             "resourceType": resource_type
+                             "resourceType": fhir_filter.fhir_resource
                              },
                  "sourcePopulation": {"caresiteCohortList": [cohort_source_id]}
                  }
@@ -36,7 +34,7 @@ class CohortResultService:
         with transaction.atomic():
             query = CohortResultService.build_query(cohort_source_id=source_cohort.fhir_group_id,
                                                     cohort_uuid=cohort_subset.uuid,
-                                                    fhir_search_filter=fhir_filter and fhir_filter.filter or None)
+                                                    fhir_filter=fhir_filter)
             try:
                 auth_headers = get_authorization_header(request=http_request)
                 create_cohort_task.delay(auth_headers,
