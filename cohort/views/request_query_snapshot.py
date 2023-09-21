@@ -14,7 +14,7 @@ from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagin
 from cohort.models import RequestQuerySnapshot
 from cohort.permissions import IsOwner
 from cohort.serializers import RequestQuerySnapshotSerializer
-from cohort.tools import send_email_notif_about_request_sharing
+from cohort.emails import send_email_notif_about_shared_request
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
 
@@ -78,7 +78,7 @@ class RequestQuerySnapshotViewSet(NestedViewSetMixin, UserObjectsRestrictedViewS
         notify_by_email = request.data.get('notify_by_email', False)
         if notify_by_email:
             for recipient in users:
-                send_email_notif_about_request_sharing(name or rqs.request.name, rqs.owner, recipient)
+                send_email_notif_about_shared_request(name or rqs.request.name, rqs.owner, recipient)
         return Response(data=RequestQuerySnapshotSerializer(shared_rqs, many=True).data,
                         status=status.HTTP_201_CREATED)
 

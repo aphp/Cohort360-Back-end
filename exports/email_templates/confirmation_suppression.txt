@@ -1,7 +1,0 @@
-Bonjour KEY_NAME,
-
-Comme indiqué il y a 7 jours, votre résultat d'export de la cohorte KEY_COHORT_ID a bien été supprimé.
-
-Ce message est automatique, merci de ne pas répondre directement à cet email.
-
-Cordialement,

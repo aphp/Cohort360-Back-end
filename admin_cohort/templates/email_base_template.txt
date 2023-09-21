@@ -1,11 +1,12 @@
-Bonjour KEY_NAME,
+Bonjour {{ recipient_name }},
 
-KEY_CONTENT
+{% block content %}
+{% endblock %}
 
 Cordialement,
 
 L'équipe Cohort360
-Pôle Innovation et Données, DSI AP-HP
+Pôle Innovation et Données, DSN AP-HP
 
 ------------------------
 Ce message est envoyé automatiquement, merci de ne pas répondre directement à cet email.

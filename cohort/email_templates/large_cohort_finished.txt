@@ -1,4 +1,0 @@
-KEY_EMAIL_BODY
-
-
-Pour toute question, contactez le support Cohort360 à l'adresse KEY_CONTACT_MAIL

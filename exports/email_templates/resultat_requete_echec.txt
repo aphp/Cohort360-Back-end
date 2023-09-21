@@ -1,5 +1,0 @@
-Malheureusement, votre demande d'export de données concernant la cohorte numéro KEY_COHORT_ID n'a pas pu aboutir, pour la raison suivante :
-
-KEY_ERROR_MESSAGE
-
-Pour toute question, contactez le support Cohort360 à KEY_CONTACT_MAIL

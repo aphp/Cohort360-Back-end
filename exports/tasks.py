@@ -12,7 +12,7 @@ from admin_cohort.settings import EXPORT_CSV_PATH
 from admin_cohort.tools.celery_periodic_task_helper import ensure_single_task
 from admin_cohort.types import JobStatus
 from exports import conf_exports
-from .emails import email_info_request_done, email_info_request_deleted
+from .emails import email_info_csv_files_deleted, send_failure_email, send_success_email
 from .models import ExportRequest
 from .types import ExportType, HdfsServerUnreachableError, ApiJobResponse
 
@@ -24,24 +24,16 @@ def log_export_request_task(er_id, msg):
     _celery_logger.info(f"[ExportTask] [ExportRequest: {er_id}] {msg}")
 
 
-def manage_exception(er: ExportRequest, e: Exception, msg: str, start: datetime):
-    """
-    Will update er with context msg and exception e,
-    new 'failed' status if not done yet and job_duration given start datetime
-    Also logs the info
-    @param er:
-    @param e:
-    @param msg:
-    @param start:
-    @return:
-    """
+def mark_export_request_as_failed(er: ExportRequest, e: Exception, msg: str, start: datetime):
     err_msg = f"{msg}: {e}"
+    _logger_err.error(f"[ExportTask] [ExportRequest: {er.id}] {err_msg}")
     er.request_job_fail_msg = err_msg
     if er.request_job_status in [JobStatus.pending, JobStatus.validated, JobStatus.new]:
         er.request_job_status = JobStatus.failed
     er.request_job_duration = timezone.now() - start
+    send_failure_email(export_request=er)
+    er.is_user_notified = True
     er.save()
-    log_export_request_task(er.id, err_msg)
 
 
 def wait_for_export_job(er: ExportRequest):
@@ -90,7 +82,7 @@ def launch_request(er_id: int):
         try:
             conf_exports.prepare_hive_db(export_request)
         except RequestException as e:
-            manage_exception(export_request, e, f"Error while preparing for export {er_id}", now)
+            mark_export_request_as_failed(export_request, e, f"Error while preparing for export {er_id}", now)
             return
 
     try:
@@ -100,13 +92,13 @@ def launch_request(er_id: int):
         export_request.save()
         log_export_request_task(er_id, f"Request sent, job {job_id} is now {JobStatus.pending}")
     except RequestException as e:
-        manage_exception(export_request, e, f"Could not post export {er_id}", now)
+        mark_export_request_as_failed(export_request, e, f"Could not post export {er_id}", now)
         return
 
     try:
         wait_for_export_job(export_request)
     except HTTPError as e:
-        manage_exception(export_request, e, f"Failure during export job {er_id}", now)
+        mark_export_request_as_failed(export_request, e, f"Failure during export job {er_id}", now)
         return
 
     log_export_request_task(er_id, "Export job finished, now concluding.")
@@ -115,12 +107,12 @@ def launch_request(er_id: int):
         try:
             conf_exports.conclude_export_hive(export_request)
         except RequestException as e:
-            manage_exception(export_request, e, f"Could not conclude export {er_id}", now)
+            mark_export_request_as_failed(export_request, e, f"Could not conclude export {er_id}", now)
             return
 
     export_request.request_job_duration = timezone.now() - now
     export_request.save()
-    email_info_request_done(export_request)
+    send_success_email(export_request=export_request)
 
 
 @celery_app.task()
@@ -130,19 +122,17 @@ def delete_export_requests_csv_files():
     export_requests = ExportRequest.objects.filter(request_job_status=JobStatus.finished,
                                                    output_format=ExportType.CSV,
                                                    is_user_notified=True,
-                                                   review_request_datetime__lte=d,
+                                                   insert_datetime__lte=d,
                                                    cleaned_at__isnull=True)
     for export_request in export_requests:
-        user = export_request.owner
-        if not user:
+        owner = export_request.owner
+        if not owner:
             _logger_err.error(f"ExportRequest {export_request.id} has no owner")
             continue
         try:
             conf_exports.delete_file(export_request.target_full_path)
-            email_info_request_deleted(export_request, user.email)
+            email_info_csv_files_deleted(export_request=export_request)
             export_request.cleaned_at = timezone.now()
             export_request.save()
-        except HdfsServerUnreachableError:
-            _logger_err.exception(f"ExportRequest {export_request.id} - HDFS servers are unreachable or in stand-by")
-        except RequestException as e:
+        except (RequestException, HdfsServerUnreachableError) as e:
             _logger_err.exception(f"ExportRequest {export_request.id}: {e}")

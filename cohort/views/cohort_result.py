@@ -22,7 +22,8 @@ from cohort.conf_cohort_job_api import fhir_to_job_status
 from cohort.models import CohortResult
 from cohort.permissions import SJSandETLCallbackPermission
 from cohort.serializers import CohortResultSerializer, CohortResultSerializerFullDatedMeasure, CohortRightsSerializer
-from cohort.tools import get_dict_cohort_pop_source, get_all_cohorts_rights, send_email_notif_about_large_cohort, is_sjs_or_etl_user
+from cohort.tools import get_dict_cohort_pop_source, get_all_cohorts_rights, is_sjs_or_etl_user
+from cohort.emails import send_email_notif_about_large_cohort
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
 JOB_STATUS = "request_job_status"
