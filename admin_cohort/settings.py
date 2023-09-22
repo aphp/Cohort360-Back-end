@@ -130,7 +130,8 @@ AUTHENTICATION_BACKENDS = ['admin_cohort.auth.auth_backends.JWTAuthBackend',
 ROOT_URLCONF = 'admin_cohort.urls'
 
 TEMPLATES = [{'BACKEND': 'django.template.backends.django.DjangoTemplates',
-              'DIRS': [BASE_DIR / 'admin_cohort/templates'],
+              'DIRS': [BASE_DIR / 'admin_cohort/templates'] +
+                      [BASE_DIR / f'{app}/templates' for app in INCLUDED_APPS],
               'APP_DIRS': True,
               'OPTIONS': {'context_processors': ['django.template.context_processors.debug',
                                                  'django.template.context_processors.request',

@@ -251,7 +251,7 @@ def try_other_hdfs_servers():
             HDFS_CLIENTS_DICT[server] = KerberosClient(server)
             HDFS_CLIENTS_DICT['current'] = server
             return cl
-    raise HdfsServerUnreachableError()
+    raise HdfsServerUnreachableError("HDFS servers are unreachable or in stand-by")
 
 
 def get_client():

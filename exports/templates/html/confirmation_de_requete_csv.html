@@ -1,7 +1,15 @@
-Nous vous confirmons la réception de votre demande d'export de données concernant la cohorte numéro KEY_COHORT_ID.
+{% extends "email_base_template.html" %}
+
+{% block content %}
+
+Nous vous confirmons la réception de votre demande d'export de données concernant la cohorte numéro {{ cohort_id }}.
 <br>
 Les tables sélectionnées sont:
-KEY_SELECTED_TABLES
+<ul>
+    {% for table in selected_tables %}
+        <li>{{ table }}</li>
+    {% endfor %}
+</ul>
 <br>
 <br>
 Un lien de téléchargement vous sera envoyé par email lorsque les fichiers seront disponibles.
@@ -12,4 +20,6 @@ Un délai de 24h maximum peut s'appliquer en fonction du volume des données.
 Les fichiers de données seront alors disponibles et téléchargeables uniquement par vous pendant 7 jours. Passé cette date, le téléchargement ne sera plus possible.
 <br>
 <br>
-Pour toute question, contactez le support Cohort360 à KEY_CONTACT_MAIL
+Pour toute question, contactez le support Cohort360 à {{ contact_email_address }}
+
+{% endblock %}

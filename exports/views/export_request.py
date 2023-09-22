@@ -25,7 +25,7 @@ from exports.models import ExportRequest
 from exports.permissions import ExportRequestPermissions, ExportJupyterPermissions, can_review_transfer_jupyter, \
     can_review_export_csv
 from exports.serializers import ExportRequestSerializer, ExportRequestSerializerNoReviewer, ExportRequestListSerializer
-from exports.types import ExportType
+from exports.types import ExportType, HdfsServerUnreachableError
 
 _logger = logging.getLogger('django.request')
 
@@ -140,7 +140,7 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
                                     required=["tables"]))
     def create(self, request, *args, **kwargs):
         # Local imports for mocking these functions during tests
-        from exports.emails import email_info_request_confirmed
+        from exports.emails import email_info_request_received
 
         if 'cohort_fk' in request.data:
             request.data['cohort'] = request.data.get('cohort_fk')
@@ -173,7 +173,7 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
         response = super(ExportRequestViewSet, self).create(request, *args, **kwargs)
         if response.status_code == http.HTTPStatus.CREATED and response.data["request_job_status"] != JobStatus.failed:
             try:
-                email_info_request_confirmed(response.data.serializer.instance, creator.email)
+                email_info_request_received(export_request=response.data.serializer.instance)
             except Exception as e:
                 response.data['warning'] = f"L'email de confirmation n'a pas pu être envoyé à cause de l'erreur: {e}"
         return response
@@ -205,9 +205,6 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
             #     start_bytes, resp_size, resp_size
             # )
             return response
-        except HdfsError as e:
+        except (HdfsError, HdfsServerUnreachableError) as e:
             _logger.exception(e.message)
             return HttpResponse(e.message, status=http.HTTPStatus.INTERNAL_SERVER_ERROR)
-        except conf_exports.HdfsServerUnreachableError:
-            return HttpResponse("HDFS servers are unreachable or in stand-by",
-                                status=http.HTTPStatus.INTERNAL_SERVER_ERROR)
