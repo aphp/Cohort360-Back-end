@@ -19,7 +19,7 @@ from cohort.models import CohortResult, RequestQuerySnapshot, Request, DatedMeas
 from workspaces.models import Account
 from exports.conf_exports import create_hive_db, prepare_hive_db, wait_for_hive_db_creation_job, get_job_status
 from exports.models import ExportRequest, ExportRequestTable
-from exports.tasks import delete_export_requests_csv_files, wait_for_export_job, launch_request
+from exports.tasks import delete_export_requests_csv_files, wait_for_export_job, launch_request, mark_export_request_as_failed
 from exports.types import ExportType, ApiJobResponse
 from exports.views import ExportRequestViewSet
 
@@ -1107,6 +1107,18 @@ class ExportsJupyterCreateTests(ExportsCreateTests):
         mock_get_job_status.return_value = ApiJobResponse(status=JobStatus.finished)
         wait_for_export_job(er=self.export_request)
         self.assertEqual(self.export_request.request_job_status, JobStatus.finished.value)
+
+    @mock.patch("exports.tasks.push_email_notification")
+    def test_mark_export_request_as_failed(self, mock_push_email_notification):
+        mock_push_email_notification.return_value = None
+        mark_export_request_as_failed(er=self.export_request,
+                                      e=Exception("Error while processing export"),
+                                      msg="Error message",
+                                      start=timezone.now())
+        mock_push_email_notification.assert_called()
+        self.assertEqual(self.export_request.request_job_status, JobStatus.failed.value)
+        self.assertIsNotNone(self.export_request.request_job_duration)
+        self.assertTrue(self.export_request.is_user_notified)
 
 
 class ExportsNotAllowedTests(ExportsWithSimpleSetUp):
