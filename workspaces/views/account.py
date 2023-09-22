@@ -5,7 +5,6 @@ from rest_framework import viewsets
 
 from accesses.permissions import can_user_read_unix_accounts
 from admin_cohort.models import User
-from admin_cohort.views import YarnReadOnlyViewsetMixin
 from workspaces.conf_workspaces import get_account_groups_from_id_aph
 from workspaces.models import Account
 from workspaces.permissions import AccountPermissions
@@ -35,10 +34,11 @@ class AccountFilter(filters.FilterSet):
         fields = [f.name for f in Account._meta.fields]
 
 
-class AccountViewSet(YarnReadOnlyViewsetMixin, viewsets.ModelViewSet):
+class AccountViewSet(viewsets.ModelViewSet):
     serializer_class = AccountSerializer
     queryset = Account.objects.all()
     lookup_field = "uid"
+    http_method_names = ["get"]
     permission_classes = (AccountPermissions,)
     filterset_class = AccountFilter
     search_fields = ["username", "name", "firstname", "lastname", "mail"]

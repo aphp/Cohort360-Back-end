@@ -11,7 +11,6 @@ from rest_framework_tracking.models import APIRequestLog
 
 from admin_cohort.permissions import LogsPermission
 from admin_cohort.serializers import APIRequestLogSerializer
-from admin_cohort.views import YarnReadOnlyViewsetMixin
 
 
 class LogFilter(filters.FilterSet):
@@ -56,9 +55,10 @@ def log_related_names(log_data: dict):
     return dict(retrieve_object_names(d))
 
 
-class LoggingViewset(YarnReadOnlyViewsetMixin, viewsets.ModelViewSet):
+class LoggingViewset(viewsets.ModelViewSet):
     queryset = APIRequestLog.objects.all()
     serializer_class = APIRequestLogSerializer
+    http_method_names = ["get"]
     filterset_class = LogFilter
     search_fields = "__all__"
 
