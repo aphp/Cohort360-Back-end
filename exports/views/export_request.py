@@ -20,7 +20,7 @@ from admin_cohort.types import JobStatus
 from admin_cohort.views import CustomLoggingMixin
 from cohort.models import CohortResult
 from exports import conf_exports
-from exports.emails import check_email_address
+from exports.emails import check_email_address, push_email_notification
 from exports.models import ExportRequest
 from exports.permissions import ExportRequestPermissions, ExportJupyterPermissions, can_review_transfer_jupyter, \
     can_review_export_csv
@@ -173,7 +173,8 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
         response = super(ExportRequestViewSet, self).create(request, *args, **kwargs)
         if response.status_code == http.HTTPStatus.CREATED and response.data["request_job_status"] != JobStatus.failed:
             try:
-                email_info_request_received(export_request=response.data.serializer.instance)
+                push_email_notification(notification=email_info_request_received,
+                                        export_request=response.data.serializer.instance)
             except Exception as e:
                 response.data['warning'] = f"L'email de confirmation n'a pas pu être envoyé à cause de l'erreur: {e}"
         return response
