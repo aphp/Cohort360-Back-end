@@ -8,7 +8,6 @@ from rest_framework.exceptions import ValidationError
 
 from admin_cohort.emails import EmailNotification
 from admin_cohort.settings import EMAIL_BACK_HOST_URL, EMAIL_SUPPORT_CONTACT, DAYS_TO_DELETE_CSV_FILES, EMAIL_REGEX_CHECK
-from .models import ExportRequest
 from .types import ExportType
 
 locale.setlocale(locale.LC_ALL, 'fr_FR.utf8')
@@ -24,67 +23,62 @@ def check_email_address(email: str):
         raise ValidationError(f"Invalid email address '{email}'. Please contact an administrator.")
 
 
-def push_email_notification(notification: Callable[[ExportRequest], None], export_request):
-    notification(export_request)
+def push_email_notification(base_notification: Callable[[dict], dict], **kwargs):
+    data = base_notification(**kwargs)
+    EmailNotification(**data).push()
 
 
-def send_failure_email(export_request: ExportRequest):
-    subject = f"[Cohorte {export_request.cohort_id}] Votre demande d'export `{export_request.cohort_name or ''}` n'a pas abouti"
+def export_request_failed(**kwargs):
+    subject = f"[Cohorte {kwargs.get('cohort_id')}] Votre demande d'export `{kwargs.get('cohort_name', '')}` n'a pas abouti"
     context = {**BASE_CONTEXT,
-               "recipient_name": export_request.owner.displayed_name,
-               "cohort_id": export_request.cohort_id,
-               "error_message": export_request.request_job_fail_msg
+               "recipient_name": kwargs.get('recipient_name'),
+               "cohort_id": kwargs.get('cohort_id'),
+               "error_message": kwargs.get('error_message')
                }
-    email_notif = EmailNotification(subject=subject,
-                                    to=export_request.owner.email,
-                                    html_template="resultat_requete_echec.html",
-                                    txt_template="resultat_requete_echec.txt",
-                                    context=context)
-    email_notif.push()
+    return dict(subject=subject,
+                to=kwargs.get('recipient_email'),
+                html_template="html/resultat_requete_echec.html",
+                txt_template="txt/resultat_requete_echec.txt",
+                context=context)
 
 
-def send_success_email(export_request: ExportRequest):
-    subject = f"[Cohorte {export_request.cohort_id}] Export `{export_request.cohort_name or ''}` terminé"
+def export_request_succeeded(**kwargs):
+    subject = f"[Cohorte {kwargs.get('cohort_id')}] Export `{kwargs.get('cohort_name', '')}` terminé"
     context = {**BASE_CONTEXT,
-               "recipient_name": export_request.owner.displayed_name,
-               "cohort_id": export_request.cohort_id,
-               "selected_tables": export_request.tables.values_list("omop_table_name", flat=True),
-               "download_url": f"{BACKEND_URL}/accounts/login/?next=/exports/{export_request.id}/download/",
-               "database_name": export_request.target_name,
+               "recipient_name": kwargs.get('recipient_name'),
+               "cohort_id": kwargs.get('cohort_id'),
+               "selected_tables": kwargs.get('selected_tables'),
+               "download_url": f"{BACKEND_URL}/accounts/login/?next=/exports/{kwargs.get('export_request_id')}/download/",
+               "database_name": kwargs.get('database_name'),
                "delete_date": (timezone.now().date() + timedelta(days=int(DAYS_TO_DELETE_CSV_FILES))).strftime("%d %B %Y")
                }
-    email_notif = EmailNotification(subject=subject,
-                                    to=export_request.owner.email,
-                                    html_template=f"resultat_requete_succes_{export_request.output_format}.html",
-                                    txt_template=f"resultat_requete_succes_{export_request.output_format}.txt",
-                                    context=context)
-    email_notif.push()
+    return dict(subject=subject,
+                to=kwargs.get('recipient_email'),
+                html_template=f"html/resultat_requete_succes_{kwargs.get('output_format')}.html",
+                txt_template=f"txt/resultat_requete_succes_{kwargs.get('output_format')}.txt",
+                context=context)
 
 
-def email_info_request_received(export_request: ExportRequest):
-    action = f"Demande d'export `{export_request.cohort_name or 'CSV'}` reçue"
-    if export_request.output_format == ExportType.HIVE:
+def export_request_received(**kwargs):
+    action = f"Demande d'export `{kwargs.get('cohort_name', 'CSV')}` reçue"
+    if kwargs.get('output_format') == ExportType.HIVE:
         action = "Demande reçue de transfert en environnement Jupyter"
-    subject = f"[Cohorte {export_request.cohort_id}] {action}"
     context = {**BASE_CONTEXT,
-               "recipient_name": export_request.owner.displayed_name,
-               "cohort_id": export_request.cohort_id,
-               "selected_tables": export_request.tables.values_list("omop_table_name", flat=True)
+               "recipient_name": kwargs.get('recipient_name'),
+               "cohort_id": kwargs.get('cohort_id'),
+               "selected_tables": kwargs.get('selected_tables')
                }
-    email_notif = EmailNotification(subject=subject,
-                                    to=export_request.owner.email,
-                                    html_template=f"confirmation_de_requete_{export_request.output_format}.html",
-                                    txt_template=f"confirmation_de_requete_{export_request.output_format}.txt",
-                                    context=context)
-    email_notif.push()
+    return dict(subject=f"[Cohorte {kwargs.get('cohort_id')}] {action}",
+                to=kwargs.get('recipient_email'),
+                html_template=f"html/confirmation_de_requete_{kwargs.get('output_format')}.html",
+                txt_template=f"txt/confirmation_de_requete_{kwargs.get('output_format')}.txt",
+                context=context)
 
 
-def email_info_csv_files_deleted(export_request: ExportRequest):
-    subject = f"[Cohorte {export_request.cohort_id}] Confirmation de suppression de fichiers"
-    context = {'recipient_name': export_request.owner.displayed_name}
-    email_notif = EmailNotification(subject=subject,
-                                    to=export_request.owner.email,
-                                    html_template="confirmation_suppression_csv.html",
-                                    txt_template="confirmation_suppression_csv.txt",
-                                    context=context)
-    email_notif.push()
+def exported_csv_files_deleted(**kwargs):
+    context = {'recipient_name': kwargs.get('recipient_name')}
+    return dict(subject=f"[Cohorte {kwargs.get('cohort_id')}] Confirmation de suppression de fichiers",
+                to=kwargs.get('recipient_email'),
+                html_template="html/confirmation_suppression_csv.html",
+                txt_template="txt/confirmation_suppression_csv.txt",
+                context=context)

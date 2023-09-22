@@ -12,7 +12,7 @@ from admin_cohort.settings import EXPORT_CSV_PATH
 from admin_cohort.tools.celery_periodic_task_helper import ensure_single_task
 from admin_cohort.types import JobStatus
 from exports import conf_exports
-from .emails import email_info_csv_files_deleted, send_failure_email, send_success_email, push_email_notification
+from .emails import exported_csv_files_deleted, export_request_failed, export_request_succeeded, push_email_notification
 from .models import ExportRequest
 from .types import ExportType, HdfsServerUnreachableError, ApiJobResponse
 
@@ -31,8 +31,17 @@ def mark_export_request_as_failed(er: ExportRequest, e: Exception, msg: str, sta
     if er.request_job_status in [JobStatus.pending, JobStatus.validated, JobStatus.new]:
         er.request_job_status = JobStatus.failed
     er.request_job_duration = timezone.now() - start
-    push_email_notification(notification=send_failure_email, export_request=er)
-    er.is_user_notified = True
+    try:
+        notification_data = dict(recipient_name=er.owner.displayed_name,
+                                 recipient_email=er.owner.email,
+                                 cohort_id=er.cohort_id,
+                                 cohort_name=er.cohort_name,
+                                 error_message=er.request_job_fail_msg)
+        push_email_notification(base_notification=export_request_failed, **notification_data)
+    except OSError:
+        _logger_err.error(f"[ExportTask] [ExportRequest: {er.id}] Error sending export failure email notification")
+    else:
+        er.is_user_notified = True
     er.save()
 
 
@@ -112,7 +121,15 @@ def launch_request(er_id: int):
 
     export_request.request_job_duration = timezone.now() - now
     export_request.save()
-    push_email_notification(notification=send_success_email, export_request=export_request)
+    notification_data = dict(recipient_name=export_request.owner.displayed_name,
+                             recipient_email=export_request.owner.email,
+                             export_request_id=export_request.id,
+                             cohort_id=export_request.cohort_id,
+                             cohort_name=export_request.cohort_name,
+                             output_format=export_request.output_format,
+                             database_name=export_request.target_name,
+                             selected_tables=export_request.tables.values_list("omop_table_name", flat=True))
+    push_email_notification(base_notification=export_request_succeeded, **notification_data)
 
 
 @celery_app.task()
@@ -131,7 +148,10 @@ def delete_export_requests_csv_files():
             continue
         try:
             conf_exports.delete_file(export_request.target_full_path)
-            push_email_notification(notification=email_info_csv_files_deleted, export_request=export_request)
+            notification_data = dict(recipient_name=export_request.owner.displayed_name,
+                                     recipient_email=export_request.owner.email,
+                                     cohort_id=export_request.cohort_id)
+            push_email_notification(base_notification=exported_csv_files_deleted, **notification_data)
             export_request.cleaned_at = timezone.now()
             export_request.save()
         except (RequestException, HdfsServerUnreachableError) as e:

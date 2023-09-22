@@ -16,8 +16,8 @@ def send_email_notif_about_large_cohort(cohort_name: str, cohort_id: str, cohort
                }
     email_notif = EmailNotification(subject="Votre cohorte est prête",
                                     to=cohort_owner.email,
-                                    html_template="large_cohort_finished.html",
-                                    txt_template="large_cohort_finished.txt",
+                                    html_template="html/large_cohort_finished.html",
+                                    txt_template="txt/large_cohort_finished.txt",
                                     context=context)
     email_notif.push()
     _logger.info(f"Email notification sent to user: {cohort_owner}. Cohort [{cohort_name} - {cohort_id}]")
@@ -32,7 +32,7 @@ def send_email_notif_about_shared_request(request_name: str, owner: User, recipi
                }
     email_notif = EmailNotification(subject=subject,
                                     to=recipient.email,
-                                    html_template="shared_request.html",
-                                    txt_template="shared_request.txt",
+                                    html_template="html/shared_request.html",
+                                    txt_template="txt/shared_request.txt",
                                     context=context)
     email_notif.push()
