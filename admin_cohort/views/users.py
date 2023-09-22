@@ -6,7 +6,7 @@ from admin_cohort.models import User
 from admin_cohort.permissions import UsersPermission, can_user_read_users
 from admin_cohort.serializers import UserSerializer, OpenUserSerializer
 from admin_cohort.tools.cache import cache_response
-from admin_cohort.views import YarnReadOnlyViewsetMixin, BaseViewset
+from admin_cohort.views import BaseViewset
 
 
 class UserFilter(filters.FilterSet):
@@ -17,12 +17,13 @@ class UserFilter(filters.FilterSet):
         fields = ['firstname', "lastname", "provider_username", "email"]
 
 
-class UserViewSet(YarnReadOnlyViewsetMixin, BaseViewset):
+class UserViewSet(BaseViewset):
     queryset = User.objects.all()
     lookup_field = "provider_username"
     search_fields = ["firstname", "lastname", "provider_username", "email"]
     filterset_class = UserFilter
     permission_classes = (UsersPermission,)
+    http_method_names = ["get"]
 
     def get_serializer_context(self):
         return {'request': self.request}
