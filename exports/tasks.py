@@ -12,7 +12,7 @@ from admin_cohort.settings import EXPORT_CSV_PATH
 from admin_cohort.tools.celery_periodic_task_helper import ensure_single_task
 from admin_cohort.types import JobStatus
 from exports import conf_exports
-from .emails import email_info_csv_files_deleted, send_failure_email, send_success_email
+from .emails import email_info_csv_files_deleted, send_failure_email, send_success_email, push_email_notification
 from .models import ExportRequest
 from .types import ExportType, HdfsServerUnreachableError, ApiJobResponse
 
@@ -31,7 +31,7 @@ def mark_export_request_as_failed(er: ExportRequest, e: Exception, msg: str, sta
     if er.request_job_status in [JobStatus.pending, JobStatus.validated, JobStatus.new]:
         er.request_job_status = JobStatus.failed
     er.request_job_duration = timezone.now() - start
-    send_failure_email(export_request=er)
+    push_email_notification(notification=send_failure_email, export_request=er)
     er.is_user_notified = True
     er.save()
 
@@ -112,7 +112,7 @@ def launch_request(er_id: int):
 
     export_request.request_job_duration = timezone.now() - now
     export_request.save()
-    send_success_email(export_request=export_request)
+    push_email_notification(notification=send_success_email, export_request=export_request)
 
 
 @celery_app.task()
@@ -131,7 +131,7 @@ def delete_export_requests_csv_files():
             continue
         try:
             conf_exports.delete_file(export_request.target_full_path)
-            email_info_csv_files_deleted(export_request=export_request)
+            push_email_notification(notification=email_info_csv_files_deleted, export_request=export_request)
             export_request.cleaned_at = timezone.now()
             export_request.save()
         except (RequestException, HdfsServerUnreachableError) as e:

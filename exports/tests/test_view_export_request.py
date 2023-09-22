@@ -601,16 +601,15 @@ class ExportsRetrieveTests(ExportsWithSimpleSetUp):
 
 class ExportsJobsTests(ExportsWithSimpleSetUp):
 
-    @mock.patch('exports.emails.send_email')
+    @mock.patch('exports.tasks.push_email_notification')
     @mock.patch('exports.conf_exports.delete_file')
-    def test_task_delete_export_requests_csv_files(self, mock_delete_hdfs_file, mock_send_email):
+    def test_task_delete_export_requests_csv_files(self, mock_delete_hdfs_file, mock_push_email_notif):
         from admin_cohort.settings import DAYS_TO_DELETE_CSV_FILES
 
         mock_delete_hdfs_file.return_value = None
-        mock_send_email.return_value = None
+        mock_push_email_notif.return_value = None
 
-        self.user1_exp_req_succ.review_request_datetime = (
-                timezone.now() - timedelta(days=DAYS_TO_DELETE_CSV_FILES))
+        self.user1_exp_req_succ.insert_datetime = (timezone.now() - timedelta(days=DAYS_TO_DELETE_CSV_FILES))
         self.user1_exp_req_succ.is_user_notified = True
         self.user1_exp_req_succ.save()
 
@@ -621,17 +620,18 @@ class ExportsJobsTests(ExportsWithSimpleSetUp):
         self.assertCountEqual([er.pk for er in deleted_ers], [self.user1_exp_req_succ.pk])
         [self.assertAlmostEqual((er.cleaned_at - timezone.now()).total_seconds(), 0, delta=1) for er in deleted_ers]
 
-    @mock.patch('exports.emails.send_email')
+    @mock.patch('exports.tasks.push_email_notification')
     @mock.patch('exports.conf_exports.prepare_hive_db')
     @mock.patch('exports.conf_exports.post_export')
     @mock.patch('exports.conf_exports.conclude_export_hive')
     @mock.patch('exports.conf_exports.get_job_status')
-    def test_task_launch_request(self, mock_get_job_status, mock_prepare_hive_db, mock_post_export, mock_conclude_export_hive, mock_send_email):
+    def test_task_launch_request(self, mock_get_job_status, mock_prepare_hive_db, mock_post_export, mock_conclude_export_hive,
+                                 mock_send_success_email):
         mock_get_job_status.return_value = ApiJobResponse(status=JobStatus.finished)
         mock_prepare_hive_db.return_value = None
         mock_post_export.return_value = None
         mock_conclude_export_hive.return_value = None
-        mock_send_email.return_value = None
+        mock_send_success_email.return_value = None
 
         launch_request(er_id=self.user1_exp_req_succ.id)
 
@@ -639,7 +639,7 @@ class ExportsJobsTests(ExportsWithSimpleSetUp):
         mock_prepare_hive_db.assert_not_called()
         mock_post_export.assert_called()
         mock_conclude_export_hive.assert_not_called()
-        mock_send_email.assert_called()
+        mock_send_success_email.assert_called()
 
 
 # POST ##################################################################
@@ -669,16 +669,14 @@ class ExportJupyterCreateCase(ExportCreateCase):
 
 class ExportsCreateTests(ExportsTests):
     @mock.patch('exports.tasks.launch_request.delay')
-    @mock.patch('exports.emails.send_email')
+    @mock.patch('exports.views.export_request.push_email_notification')
     @mock.patch('exports.emails.EMAIL_REGEX_CHECK', REGEX_TEST_EMAIL)
-    def check_create_case(self, case: ExportCreateCase, mock_send_email: MagicMock, mock_task: MagicMock):
+    def check_create_case(self, case: ExportCreateCase, mock_push_email_notif: MagicMock, mock_task: MagicMock):
         mock_task.return_value = None
-        mock_send_email.return_value = None
-
+        mock_push_email_notif.return_value = None
         super(ExportsCreateTests, self).check_create_case(case)
-
-        mock_send_email.assert_called() if case.success else mock_send_email.assert_not_called()
         mock_task.assert_called() if case.success else mock_task.assert_not_called()
+        mock_push_email_notif.assert_called() if case.success else mock_push_email_notif.assert_not_called()
 
 
 class ExportsCsvCreateTests(ExportsCreateTests):

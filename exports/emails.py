@@ -1,6 +1,8 @@
 import locale
 import re
 from datetime import timedelta
+from typing import Callable
+
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
@@ -20,6 +22,10 @@ def check_email_address(email: str):
         raise ValidationError("No email address is configured. Please contact an administrator")
     if not re.match(EMAIL_REGEX_CHECK, email):
         raise ValidationError(f"Invalid email address '{email}'. Please contact an administrator.")
+
+
+def push_email_notification(notification: Callable[[ExportRequest], None], export_request):
+    notification(export_request)
 
 
 def send_failure_email(export_request: ExportRequest):
