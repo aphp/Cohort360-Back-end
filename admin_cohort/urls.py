@@ -3,6 +3,7 @@ from django.urls import include, path, re_path
 from drf_yasg import openapi
 from drf_yasg.views import get_schema_view
 from rest_framework import routers, permissions
+from rest_framework.routers import SimpleRouter
 from rest_framework_extensions.routers import NestedRouterMixin
 
 from . import __version__, __title__, settings
@@ -20,7 +21,7 @@ class NestedDefaultRouter(NestedRouterMixin, routers.DefaultRouter):
     pass
 
 
-router = NestedDefaultRouter()
+router = SimpleRouter()
 router.register(r'maintenances', MaintenancePhaseViewSet, basename="maintenances")
 router.register(r'users', UserViewSet, basename="users")
 router.register(r'logs', LoggingViewset, basename="logs")

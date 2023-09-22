@@ -12,7 +12,7 @@ from admin_cohort.tools.cache import cache_response
 from admin_cohort.models import User
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from cohort.models import RequestQuerySnapshot
-from cohort.permissions import IsOwner
+from cohort.permissions import IsOwnerPermission
 from cohort.serializers import RequestQuerySnapshotSerializer
 from cohort.tools import send_email_notif_about_request_sharing
 from cohort.views.shared import UserObjectsRestrictedViewSet
@@ -57,7 +57,7 @@ class RequestQuerySnapshotViewSet(NestedViewSetMixin, UserObjectsRestrictedViewS
                                                             RequestQuerySnapshotSerializer(many=True)),
                                     '400': openapi.Response("One or more recipient's not found"),
                                     '404': openapi.Response("RequestQuerySnapshot not found (possibly not owned)")})
-    @action(detail=True, methods=['post'], permission_classes=(IsOwner,), url_path="share")
+    @action(detail=True, methods=['post'], permission_classes=(IsOwnerPermission,), url_path="share")
     def share(self, request, *args, **kwargs):
         recipients = request.data.get('recipients')
         if not recipients:

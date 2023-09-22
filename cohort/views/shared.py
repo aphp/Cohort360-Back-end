@@ -2,11 +2,11 @@ from django.http import QueryDict
 from rest_framework import viewsets
 from rest_framework.relations import RelatedField
 
-from cohort.permissions import IsOwner
+from cohort.permissions import IsOwnerPermission
 
 
 class BaseViewSet(viewsets.ModelViewSet):
-    permission_classes = (IsOwner,)
+    permission_classes = (IsOwnerPermission,)
 
     def get_serializer_context(self):
         return {'request': self.request}
