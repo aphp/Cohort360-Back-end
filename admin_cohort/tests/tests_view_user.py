@@ -103,28 +103,29 @@ class UserTestsAsAdmin(UserTests):
             self.assertIn(i, user_found_ids, msg=msg)
         self.assertEqual(len(user_found_ids), len(users_to_find), msg=msg)
 
-    def test_update_user_as_main_admin(self):
-        # As a main admin, I cannot update a user's manual data
-        data = dict(firstname="Squall",
-                    lastname="Leonheart",
-                    email="s.l@aphp.fr",
-                    perimeter_id=self.hospital1.id)
+    def test_create_user_permission_denied(self):
+        data = dict(provider_username="000000", firstname="New", lastname="USER", email="new.user@aphp.fr")
+        request = self.factory.post(USERS_URL, data, format='json')
+        force_authenticate(request, self.admin_user)
+        response = UserViewSet.as_view({'post': 'create'})(request)
+        response.render()
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN, response.content)
+
+    def test_update_user_permission_denied(self):
+        data = dict(email="updated.email.address@aphp.fr")
         request = self.factory.patch(USERS_URL, data, format='json')
         force_authenticate(request, self.admin_user)
         response = UserViewSet.as_view({'patch': 'partial_update'})(request, provider_username=self.user2.provider_username)
         response.render()
-        # self.assertEqual(response.status_code, status.HTTP_200_OK,
-        # response.content)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN, response.content)
         user = User.objects.get(pk=self.user2.provider_username)
         self.check_unupdatable_not_updated(user, self.user2)
 
-    def test_delete_user_as_main_admin(self):
-        # As a main admin, I can delete a user
+    def test_delete_user_permission_denied(self):
         request = self.factory.delete(USERS_URL)
         force_authenticate(request, self.admin_user)
         response = UserViewSet.as_view({'delete': 'destroy'})(request, provider_username=self.user2.provider_username)
         response.render()
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN, response.content)
-        user = User.objects.filter(provider_id=self.user2.provider_username).first()
-        self.assertIsNone(user)
+        user2 = User.objects.get(pk=self.user2.provider_username)
+        self.assertIsNotNone(user2)
