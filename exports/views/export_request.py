@@ -140,7 +140,7 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
                                     required=["tables"]))
     def create(self, request, *args, **kwargs):
         # Local imports for mocking these functions during tests
-        from exports.emails import email_info_request_received
+        from exports.emails import export_request_received
 
         if 'cohort_fk' in request.data:
             request.data['cohort'] = request.data.get('cohort_fk')
@@ -173,8 +173,14 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
         response = super(ExportRequestViewSet, self).create(request, *args, **kwargs)
         if response.status_code == http.HTTPStatus.CREATED and response.data["request_job_status"] != JobStatus.failed:
             try:
-                push_email_notification(notification=email_info_request_received,
-                                        export_request=response.data.serializer.instance)
+                export_request = response.data.serializer.instance
+                notification_data = dict(recipient_name=export_request.owner.displayed_name,
+                                         recipient_email=export_request.owner.email,
+                                         cohort_id=export_request.cohort_id,
+                                         cohort_name=export_request.cohort_name,
+                                         output_format=export_request.output_format,
+                                         selected_tables=export_request.tables.values_list("omop_table_name", flat=True))
+                push_email_notification(base_notification=export_request_received, **notification_data)
             except Exception as e:
                 response.data['warning'] = f"L'email de confirmation n'a pas pu être envoyé à cause de l'erreur: {e}"
         return response
