@@ -7,8 +7,10 @@ from rest_framework import status
 from rest_framework.test import APITestCase, APIRequestFactory
 from rest_framework_simplejwt.exceptions import InvalidToken
 
+from accesses.models import Access, Perimeter, Role
 from admin_cohort.models import User
 from admin_cohort.settings import JWT_AUTH_MODE, OIDC_AUTH_MODE
+from admin_cohort.tools.tests_tools import new_user_and_profile
 from admin_cohort.types import JwtTokens, LoginError, ServerError, UserInfo
 from admin_cohort.views import UserViewSet, token_refresh_view
 
@@ -99,7 +101,14 @@ class AuthClassTests(APITestCase):
         self.headers = {"HTTP_AUTHORIZATION": "Bearer SoMERaNdoMStRIng"}
         self.protected_url = '/users/'
         self.protected_view = UserViewSet
-        self.regular_user = create_regular_user()
+        self.regular_user, self.regular_profile = new_user_and_profile(firstname="Regular",
+                                                                       lastname="USER",
+                                                                       email="regular.user@aphp.fr")
+        self.perimeter_aphp = Perimeter.objects.create(name="APHP", local_id="1")
+        self.users_reader_role = Role.objects.create(name="USERS READER", right_read_users=True)
+        self.users_reader_access = Access.objects.create(profile=self.regular_profile,
+                                                         perimeter=self.perimeter_aphp,
+                                                         role=self.users_reader_role)
 
     @mock.patch("admin_cohort.auth.auth_class.get_userinfo_from_token")
     def test_authenticate_success(self, mock_get_userinfo: MagicMock):
@@ -108,6 +117,7 @@ class AuthClassTests(APITestCase):
                                                   lastname=self.regular_user.lastname,
                                                   email=self.regular_user.email)
         request = self.factory.get(path=self.protected_url, **self.headers)
+        request.user = self.regular_user
         response = self.protected_view.as_view({'get': 'list'})(request)
         mock_get_userinfo.assert_called()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -121,6 +131,7 @@ class AuthClassTests(APITestCase):
     def test_authenticate_error(self, mock_get_userinfo: MagicMock):
         mock_get_userinfo.side_effect = InvalidToken()
         request = self.factory.get(path=self.protected_url, **self.headers)
+        request.user = self.regular_user
         response = self.protected_view.as_view({'get': 'list'})(request)
         mock_get_userinfo.assert_called()
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
@@ -131,6 +142,7 @@ class AuthClassTests(APITestCase):
         mock_get_auth_data.return_value = (b"SoMERaNdoMbYteS", None)
         mock_get_userinfo.side_effect = InvalidToken()
         request = self.factory.get(path=self.protected_url)
+        request.user = self.regular_user
         response = self.protected_view.as_view({'get': 'list'})(request)
         mock_get_auth_data.assert_called()
         mock_get_userinfo.assert_called()
