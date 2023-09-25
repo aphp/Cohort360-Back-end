@@ -36,6 +36,7 @@ class EmailNotification:
                                        from_email=EMAIL_SENDER_ADDRESS,
                                        to=[self.to])
         email.attach_alternative(content=self.html_content, mimetype="text/html")
+        email.attach()
         try:
             self.send_email(email)
         except (SMTPException, TimeoutError):
