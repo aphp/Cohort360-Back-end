@@ -10,7 +10,7 @@ from cohort.crb.spark_job_object import SparkJobObject
 @dataclass
 class CohortQueryBuilder:
     username: str
-    format_query: FormatQuery = FormatQuery()
+    format_query: FormatQuery
 
     def create_request(self, fhir_request: FhirRequest, mode: Mode) -> SparkJobObject:
         if fhir_request is None:
