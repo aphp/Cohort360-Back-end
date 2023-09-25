@@ -1,19 +1,17 @@
-from dataclasses import dataclass
+from pydantic import BaseModel, Field
 
 from cohort.crb.enums import ResourceType
 from cohort.crb.exceptions import FhirException
 
 
-@dataclass
-class FhirParameter:
-    name: str
-    value: str
+class FhirParameter(BaseModel):
+    name: str = Field(...)
+    value: str = Field(alias="valueString")
 
 
-@dataclass
-class FhirParameters:
-    resource: ResourceType
-    params: list[FhirParameter]
+class FhirParameters(BaseModel):
+    resource: ResourceType = Field(alias="resourceType")
+    params: list[FhirParameter] = Field(default_factory=list, alias="parameter")
 
     def to_dict(self):
         if not self.params:
