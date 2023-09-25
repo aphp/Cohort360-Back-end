@@ -2,27 +2,32 @@ import logging
 
 import requests
 
-from admin_cohort.settings import SJS_URL
+from admin_cohort.settings import FHIR_URL
+from cohort.crb.criteria import Criteria
 from cohort.crb.enums import CriteriaType, ResourceType
 from cohort.crb.exceptions import FhirException
 from cohort.crb.fhir_params import FhirParameters
 from cohort.crb.fhir_request import FhirRequest
-from cohort.crb.ranges import Criteria
+from cohort.tools import log_create_task
 
 _logger = logging.getLogger("info")
 _logger_err = logging.getLogger("django.request")
 
 
-def query_fhir(resource: str, params: dict[str, list[str]]) -> FhirParameters:
-    url = f"{SJS_URL}/{resource}"
-    response = requests.get(url, params=params)
+def query_fhir(resource: str, params: dict[str, list[str]], auth_headers: dict) -> FhirParameters:
+    url = f"{FHIR_URL}/{resource}/$query"
+    log_create_task("anddy", f"Attempting to query fhir with {url=}\n{params=}\n")
+    response = requests.get(url, params=params, headers=auth_headers)
     response.raise_for_status()
     result = response.json()
-    # return resp, result
+    return FhirParameters(**result)
 
 
 class FormatQuery:
     IDENTIFIER_VALUE = "identifier.value"
+
+    def __init__(self, auth_headers: dict):
+        self.auth_headers = auth_headers
 
     def format_to_fhir(self, fhir_request: FhirRequest) -> Criteria | None:
         def build_solr_criteria(criteria: Criteria, obj) -> Criteria | None:
@@ -91,7 +96,7 @@ class FormatQuery:
                     fhir_params[key].append(value)
                 else:
                     fhir_params[key] = [value]
-        params = query_fhir(resource_type, fhir_params)
+        params = query_fhir(resource_type, fhir_params, self.auth_headers)
         _logger.info(f"output: {params}")
         return params.to_dict()
 
