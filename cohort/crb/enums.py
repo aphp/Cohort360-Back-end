@@ -3,20 +3,20 @@ from enum import StrEnum
 
 class Mode(StrEnum):
     COUNT = 'count'
-    COUNT_ALL = 'count_all'
+    COUNT_ALL = 'countAll'
     CREATE = 'create'
 
 
 class CriteriaType(StrEnum):
-    BASIC_RESOURCE = 'basic_resource'
-    AND_GROUP = 'and_group'
-    OR_GROUP = 'or_group'
-    N_AMONG_M = 'n_among_m'
+    BASIC_RESOURCE = 'basicResource'
+    AND_GROUP = 'andGroup'
+    OR_GROUP = 'orGroup'
+    N_AMONG_M = 'nAmongM'
     REQUEST = 'request'
 
 
 class ResourceType(StrEnum):
-    PATIENT = "patient"
+    PATIENT = "Patient"
     CONDITION = "condition"
     COMPOSITION = "composition"
     CLAIM = "claim"
@@ -24,17 +24,27 @@ class ResourceType(StrEnum):
     SPECIMEN = "specimen"
     OBSERVATION = "observation"
     ENCOUNTER = "encounter"
-    MEDICATION_REQUEST = "medication_request"
-    MEDICATION_ADMINISTRATION = "medication_administration"
-    DOCUMENT_REFERENCE = "document_reference"
-    PATIENT_APHP = "patient_aphp"
-    CLAIM_APHP = "claim_aphp"
-    COMPOSITION_APHP = "composition_aphp"
-    PROCEDURE_APHP = "procedure_aphp"
-    OBSERVATION_APHP = "observation_aphp"
-    ENCOUNTER_APHP = "encounter_aphp"
-    MEDICATION_REQUEST_APHP = "medication_request_aphp"
-    MEDICATION_ADMINISTRATION_APHP = "medication_administration_aphp"
-    DOCUMENT_REFERENCE_APHP = "document_reference_aphp"
-    CONDITION_APHP = "condition_aphp"
-    IPP_LIST = "ipp_list"
+    MEDICATION_REQUEST = "medicationRequest"
+    MEDICATION_ADMINISTRATION = "medicationAdministration"
+    DOCUMENT_REFERENCE = "documentReference"
+    PATIENT_APHP = "patientAphp"
+    CLAIM_APHP = "claimAphp"
+    COMPOSITION_APHP = "compositionAphp"
+    PROCEDURE_APHP = "procedureAphp"
+    OBSERVATION_APHP = "observationAphp"
+    ENCOUNTER_APHP = "encounterAphp"
+    MEDICATION_REQUEST_APHP = "medicationRequestAphp"
+    MEDICATION_ADMINISTRATION_APHP = "medicationAdministrationAphp"
+    DOCUMENT_REFERENCE_APHP = "documentReferenceAphp"
+    CONDITION_APHP = "conditionAphp"
+    IPP_LIST = "ippList"
+    PARAMETERS = "parameters"
+
+    @classmethod
+    def _missing_(cls, value: str):
+        """Get the value comparing to the lower case version of the given string."""
+        value = value.lower()
+        for member in cls:
+            if member.lower() == value:
+                return member
+        return None
