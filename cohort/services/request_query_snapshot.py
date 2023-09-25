@@ -3,8 +3,9 @@ from typing import List
 from admin_cohort.models import User
 from admin_cohort.settings import SHARED_FOLDER_NAME
 from admin_cohort.tools.cache import invalidate_cache
+from cohort.emails import send_email_notif_about_shared_request
 from cohort.models import RequestQuerySnapshot, Folder, Request
-from cohort.tools import send_email_notif_about_request_sharing, retrieve_perimeters
+from cohort.tools import retrieve_perimeters
 
 
 class RequestQuerySnapshotService:
@@ -109,9 +110,9 @@ class RequestQuerySnapshotService:
 
         if notify_by_email:
             for recipient in recipients:
-                send_email_notif_about_request_sharing(request_name=request_name,
-                                                       owner=snapshot.owner,
-                                                       recipient=recipient)
+                send_email_notif_about_shared_request(request_name=request_name,
+                                                      owner=snapshot.owner,
+                                                      recipient=recipient)
         return shared_snapshots
 
 
