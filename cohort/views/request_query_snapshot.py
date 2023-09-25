@@ -10,8 +10,9 @@ from rest_framework_extensions.mixins import NestedViewSetMixin
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from cohort.models import RequestQuerySnapshot
-from cohort.permissions import IsOwner
+from cohort.permissions import IsOwnerPermission
 from cohort.serializers import RequestQuerySnapshotSerializer
+from cohort.emails import send_email_notif_about_shared_request
 from cohort.services.request_query_snapshot import rqs_service
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
@@ -59,7 +60,7 @@ class RequestQuerySnapshotViewSet(NestedViewSetMixin, UserObjectsRestrictedViewS
                          responses={'201': openapi.Response("New requests created for users", RequestQuerySnapshotSerializer(many=True)),
                                     '400': openapi.Response("One or many recipient's not found"),
                                     '404': openapi.Response("RequestQuerySnapshot not found (possibly not owned)")})
-    @action(detail=True, methods=['post'], permission_classes=(IsOwner,), url_path="share")
+    @action(detail=True, methods=['post'], permission_classes=(IsOwnerPermission,), url_path="share")
     def share(self, request, *args, **kwargs):
         try:
             shared_rqs = rqs_service.share_snapshot(snapshot=self.get_object(),

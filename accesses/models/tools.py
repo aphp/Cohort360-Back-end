@@ -217,8 +217,8 @@ def q_is_valid_access() -> Q:
             & (Q(end_datetime=None) | Q(end_datetime__gte=now)))
 
 
-def q_role_impacts_lower_levels(prefix=None) -> Q:
-    prefix = prefix and f"{prefix}__" or ""
+def q_role_impacts_lower_levels() -> Q:
+    prefix = "role__"
     rights_impacting_lower_levels = [right for right in all_rights if right.impact_lower_levels]
     return join_qs([Q(**{f'{prefix}{r.name}': True}) for r in rights_impacting_lower_levels])
 

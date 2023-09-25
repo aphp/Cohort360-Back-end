@@ -7,7 +7,7 @@ from admin_cohort.permissions import either
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult
-from cohort.permissions import IsOwner
+from cohort.permissions import IsOwnerPermission
 from exports.permissions import AnnexesPermissions, can_review_transfer_jupyter, can_review_export_csv
 from exports.serializers import AnnexeCohortResultSerializer
 
@@ -31,7 +31,7 @@ class CohortViewSet(viewsets.ModelViewSet):
     search_fields = ('$name', '$description')
 
     def get_permissions(self):
-        return either(AnnexesPermissions(), IsOwner())
+        return either(AnnexesPermissions(), IsOwnerPermission())
 
     def get_queryset(self):
         user = self.request.user

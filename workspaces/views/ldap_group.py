@@ -1,12 +1,11 @@
 from rest_framework import viewsets
 
-from admin_cohort.views import YarnReadOnlyViewsetMixin
 from workspaces.models.ldap_group import LdapGroup
 from workspaces.permissions import AccountPermissions
 from workspaces.serializers import LdapGroupSerializer
 
 
-class LdapGroupViewSet(YarnReadOnlyViewsetMixin, viewsets.ModelViewSet):
+class LdapGroupViewSet(viewsets.ModelViewSet):
     serializer_class = LdapGroupSerializer
     queryset = LdapGroup.objects.all()
     lookup_field = "id"

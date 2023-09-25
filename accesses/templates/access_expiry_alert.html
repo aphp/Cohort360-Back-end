@@ -1,0 +1,12 @@
+{% extends "email_base_template.html" %}
+
+{% block content %}
+
+Nous vous informons que vos accès à Cohort360 arriveront à expiration dans <strong>{{ expiry_days }} jours</strong>.
+<br>
+Veuillez vous rapprocher de votre référent EDS pour faire renouveler vos accès à l'application.
+<br>
+<strong>Attention:</strong> si vous avez changé de service ou d'hôpital, veuillez en informer votre référent pour qu'il mette à
+jour votre compte.
+
+{% endblock %}

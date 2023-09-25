@@ -87,9 +87,6 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     pagination_class = NegativeLimitOffsetPagination
     filterset_class = CohortFilter
     search_fields = ('$name', '$description')
-    non_updatable_fields = ['owner', 'owner_id',
-                            'request_query_snapshot', 'request_query_snapshot_id',
-                            'dated_measure', 'dated_measure_id']
 
     def get_permissions(self):
         if is_sjs_or_etl_user(request=self.request):
