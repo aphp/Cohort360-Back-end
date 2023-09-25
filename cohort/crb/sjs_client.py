@@ -1,7 +1,16 @@
+from __future__ import annotations
+import json
+from typing import TYPE_CHECKING, Tuple, Any
+
 import requests
+from requests import Response
 
 from admin_cohort.settings import SJS_URL
 from cohort.crb.spark_job_object import SparkJobObject
+from cohort.tools import log_create_task
+
+if TYPE_CHECKING:
+    from cohort.crb import FhirRequest
 
 
 class SjsClient:
@@ -25,18 +34,22 @@ class SjsClient:
         result = resp.json()
         return resp, result
 
-    def create(self, request):
+    def create(self, input_payload: dict) -> tuple[Response, dict]:
+        uuid = input_payload['input']['cohortUuid']
         params = {
             'appName': self.APP_NAME,
             'classPath': self.CREATE_CLASSPATH,
             'context': self.CONTEXT,
-            'sync': 'false'
+            'sync': 'false',
+            **input_payload
         }
+        log_create_task(uuid, f"Before sending POST request to {self.url}/jobs with params: {params}"
+                              f" and request: {input_payload}")
 
-        resp = requests.post(f"{self.url}/jobs", params=params, json=request)
+        resp = requests.post(f"{self.url}/jobs", json=params)
+        log_create_task(uuid, f"After sending POST request, got response: {resp.text}")
         resp.raise_for_status()
-        result = resp.json()
-        return resp, result
+        return resp, resp.json()
 
     def delete(self, job_id: str) -> str:
         resp = requests.delete(f"{self.url}/jobs/{job_id}")
@@ -44,20 +57,27 @@ class SjsClient:
         return resp.text
 
 
-def format_spark_job_request_for_sjs(spark_job_request: SparkJobObject) -> str:
-    # a = asdict(spark_job_request.cohort_definition_syntax)
-    # res = json.dumps(a)
-    # res = (
-    #     res.replace('["All"]', '"all"')
-    #     .replace('[true]', 'true')
-    #     .replace('[false]', 'false')
-    # )
-    # print(res)
-    # # res = json.dumps(res)
-    return (
-        f"input.cohortDefinitionName = {spark_job_request.cohort_definition_name},"
-        # f"input.cohortDefinitionSyntax = \"{res}\","
-        f"input.ownerEntityId = {spark_job_request.owner_entity_id},"
-        f"input.mode = {spark_job_request.mode},"
-        f"input.cohortUuid = {spark_job_request.cohort_definition_syntax.cohort_uuid}"
-    )
+def replace_pattern(text: str, replacements: list[tuple[str, str]]) -> str:
+    for pattern, replacement in replacements:
+        text = text.replace(pattern, replacement)
+    return text
+
+
+def format_syntax(request: FhirRequest) -> dict:
+    log_create_task("anddy", str(request))
+    json_data = request.model_dump_json()
+    replacements = [('"["All"]"', '"all"'), ('"[true]"', 'true'), ('"[false]"', 'false')]
+    formatted_json = replace_pattern(json_data, replacements)
+    return json.loads(formatted_json)
+
+
+def format_spark_job_request_for_sjs(spark_job_request: SparkJobObject) -> dict:
+    return {
+        "input": {
+            "cohortDefinitionName": spark_job_request.cohort_definition_name,
+            "cohortDefinitionSyntax": format_syntax(spark_job_request.cohort_definition_syntax),
+            "ownerEntityId": spark_job_request.owner_entity_id,
+            "mode": spark_job_request.mode,
+            "cohortUuid": spark_job_request.cohort_definition_syntax.cohort_uuid
+        }
+    }
