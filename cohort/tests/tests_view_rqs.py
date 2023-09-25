@@ -17,7 +17,6 @@ from admin_cohort.tools import prettify_json
 from admin_cohort.tools.tests_tools import CaseRetrieveFilter, CreateCase, random_str, ListCase, RetrieveCase, \
     DeleteCase, \
     PatchCase
-from cohort.services.crb_responses import CRBValidateResponse
 from cohort.models import RequestQuerySnapshot, Request, Folder
 from cohort.tests.tests_view_requests import RequestsTests, ShareCase
 from cohort.views import RequestQuerySnapshotViewSet, NestedRqsViewSet
@@ -30,9 +29,8 @@ class RqsCaseRetrieveFilter(CaseRetrieveFilter):
 
 
 class RqsCreateCase(CreateCase):
-    def __init__(self, mock_fhir_resp: any, **kwargs):
+    def __init__(self, **kwargs):
         super(RqsCreateCase, self).__init__(**kwargs)
-        self.mock_fhir_resp = mock_fhir_resp
 
 
 class RqsTests(RequestsTests):
@@ -262,7 +260,6 @@ class RqsCreateTests(RqsTests):
             data=self.basic_data,
             retrieve_filter=RqsCaseRetrieveFilter(
                 serialized_query=self.test_query),
-            mock_fhir_resp=CRBValidateResponse(True),
         )
         self.basic_err_case = self.basic_case.clone(
             success=False,
