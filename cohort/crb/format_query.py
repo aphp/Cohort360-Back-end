@@ -7,7 +7,7 @@ from cohort.crb.criteria import Criteria
 from cohort.crb.enums import CriteriaType, ResourceType
 from cohort.crb.exceptions import FhirException
 from cohort.crb.fhir_params import FhirParameters
-from cohort.crb.fhir_request import FhirRequest
+from cohort.crb.cohort_query import CohortQuery
 from cohort.tools import log_create_task
 
 _logger = logging.getLogger("info")
@@ -29,7 +29,7 @@ class FormatQuery:
     def __init__(self, auth_headers: dict):
         self.auth_headers = auth_headers
 
-    def format_to_fhir(self, fhir_request: FhirRequest) -> Criteria | None:
+    def format_to_fhir(self, fhir_request: CohortQuery) -> Criteria | None:
         def build_solr_criteria(criteria: Criteria, obj) -> Criteria | None:
             if criteria is None:
                 return None

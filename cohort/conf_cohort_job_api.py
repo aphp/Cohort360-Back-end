@@ -11,7 +11,7 @@ from rest_framework.request import Request
 
 from admin_cohort.middleware.request_trace_id_middleware import add_trace_id
 from admin_cohort.types import JobStatus, MissingDataError
-from cohort.crb import CohortQueryBuilder, CRBFactory, FhirRequest
+from cohort.crb import CohortQueryBuilder, CRBFactory, CohortQuery
 from cohort.crb.format_query import FormatQuery
 from cohort.crb_responses import CRBCountResponse, CRBCohortResponse
 from cohort.tools import log_count_task, log_create_task
@@ -154,7 +154,7 @@ def post_create_cohort(auth_headers: dict, json_query: str, cr_uuid: str) -> CRB
     log_create_task(cr_uuid, f"Step 1: Generate CRB of {cr_uuid=} with {json_query=} and {auth_headers=}")
     crb = CRBFactory(CohortQueryBuilder(cr_uuid, FormatQuery(auth_headers))).create_cohort_create()
     log_create_task(cr_uuid, "Step 2: Parse the json query to make it CRB compatible")
-    fhir_request: FhirRequest = FhirRequest(cohort_uuid=cr_uuid, **json.loads(json_query))
+    fhir_request: CohortQuery = CohortQuery(cohort_uuid=cr_uuid, **json.loads(json_query))
 
     try:
         log_create_task(cr_uuid, f"Step 3: Send request to sjs: {fhir_request}")

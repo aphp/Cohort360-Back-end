@@ -11,6 +11,7 @@ from cohort.tools import log_create_task
 
 if TYPE_CHECKING:
     from cohort.crb import FhirRequest
+    from cohort.crb import CohortQuery
 
 
 class SjsClient:
@@ -35,6 +36,7 @@ class SjsClient:
         return resp, result
 
     def create(self, input_payload: dict) -> tuple[Response, dict]:
+        log_create_task("anddy", f"Input payload is: {input_payload}")
         uuid = input_payload['input']['cohortUuid']
         params = {
             'appName': self.APP_NAME,
@@ -64,6 +66,7 @@ def replace_pattern(text: str, replacements: list[tuple[str, str]]) -> str:
 
 
 def format_syntax(request: FhirRequest) -> dict:
+def format_syntax(request: CohortQuery) -> dict:
     log_create_task("anddy", str(request))
     json_data = request.model_dump_json()
     replacements = [('"["All"]"', '"all"'), ('"[true]"', 'true'), ('"[false]"', 'false')]
