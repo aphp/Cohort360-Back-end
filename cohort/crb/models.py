@@ -4,7 +4,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
-from cohort.crb.enums import CriteriaType, ResourceType
+from cohort.crb.enums import CriteriaType, ResourceType, Mode
 
 
 @dataclass
@@ -93,3 +93,11 @@ class CohortQuery(BaseModel):
     criteria_type: CriteriaType = Field(None, alias="_type")
     request: Criteria = Field(None)
     temporal_constraints: list[TemporalConstraint] = Field(default_factory=list)
+
+
+@dataclass
+class SparkJobObject:
+    cohort_definition_name: str
+    cohort_definition_syntax: CohortQuery
+    mode: Mode
+    owner_entity_id: str

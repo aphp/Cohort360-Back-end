@@ -6,11 +6,10 @@ import requests
 from requests import Response
 
 from admin_cohort.settings import SJS_URL
-from cohort.crb.spark_job_object import SparkJobObject
 from cohort.tools import log_create_task
 
 if TYPE_CHECKING:
-    from cohort.crb import CohortQuery
+    from cohort.crb import CohortQuery, SparkJobObject
 
 
 class SjsClient:
@@ -82,3 +81,5 @@ def format_spark_job_request_for_sjs(spark_job_request: SparkJobObject) -> dict:
             "cohortUuid": spark_job_request.cohort_definition_syntax.cohort_uuid
         }
     }
+
+

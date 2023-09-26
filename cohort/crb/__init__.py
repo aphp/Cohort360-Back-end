@@ -1,2 +1,2 @@
-from .cohort_query_builder import CohortQueryBuilder
 from .models import *
+from .cohort_requests import *

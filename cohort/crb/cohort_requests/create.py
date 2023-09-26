@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Tuple
+
+from requests import Response
 
 from cohort.crb.cohort_requests.abstract_cohort_request import AbstractCohortRequest
 from cohort.crb.enums import Mode
@@ -13,8 +15,8 @@ class CohortCreate(AbstractCohortRequest):
     def __init__(self, *args, **kwargs):
         super().__init__(mode=Mode.CREATE, *args, **kwargs)
 
-    def action(self, cohort_query: CohortQuery) -> str:
-        request = self.create_request(cohort_query)
+    def action(self, cohort_query: CohortQuery) -> tuple[Response, dict]:
+        request = self.create_request_for_sjs(cohort_query)
         return self.sjs_client.create(request)
 
     def cancel(self, job_id: str) -> str:
