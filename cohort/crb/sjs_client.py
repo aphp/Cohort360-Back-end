@@ -10,7 +10,6 @@ from cohort.crb.spark_job_object import SparkJobObject
 from cohort.tools import log_create_task
 
 if TYPE_CHECKING:
-    from cohort.crb import FhirRequest
     from cohort.crb import CohortQuery
 
 
@@ -65,7 +64,6 @@ def replace_pattern(text: str, replacements: list[tuple[str, str]]) -> str:
     return text
 
 
-def format_syntax(request: FhirRequest) -> dict:
 def format_syntax(request: CohortQuery) -> dict:
     log_create_task("anddy", str(request))
     json_data = request.model_dump_json()

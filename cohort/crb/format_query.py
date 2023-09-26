@@ -1,14 +1,17 @@
+from __future__ import annotations
 import logging
+from typing import TYPE_CHECKING
 
 import requests
 
 from admin_cohort.settings import FHIR_URL
-from cohort.crb.criteria import Criteria
 from cohort.crb.enums import CriteriaType, ResourceType
 from cohort.crb.exceptions import FhirException
 from cohort.crb.fhir_params import FhirParameters
-from cohort.crb.cohort_query import CohortQuery
 from cohort.tools import log_create_task
+
+if TYPE_CHECKING:
+    from cohort.crb import CohortQuery, Criteria
 
 _logger = logging.getLogger("info")
 _logger_err = logging.getLogger("django.request")

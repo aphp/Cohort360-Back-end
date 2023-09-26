@@ -1,10 +1,15 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from cohort.crb.enums import Mode
 from cohort.crb.exceptions import FhirException
-from cohort.crb.cohort_query import CohortQuery
 from cohort.crb.format_query import FormatQuery
 from cohort.crb.spark_job_object import SparkJobObject
+
+if TYPE_CHECKING:
+    from cohort.crb import CohortQuery
 
 
 @dataclass

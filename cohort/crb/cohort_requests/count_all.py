@@ -1,7 +1,12 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from cohort.crb.cohort_requests.abstract_cohort_request import AbstractCohortRequest
 from cohort.crb.enums import Mode
-from cohort.crb.cohort_query import CohortQuery
-from cohort.crb.source_population import SourcePopulation
+
+if TYPE_CHECKING:
+    from cohort.crb import CohortQuery, SourcePopulation
 
 
 class CohortCountAll(AbstractCohortRequest):
