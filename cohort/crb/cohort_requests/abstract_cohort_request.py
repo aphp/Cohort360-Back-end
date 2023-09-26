@@ -18,14 +18,14 @@ class AbstractCohortRequest(ABC):
         self.cohort_query_builder: CohortQueryBuilder = cohort_query_builder
         self.sjs_client = sjs_client
 
-    def create_request(self, fhir_request: CohortQuery) -> dict:
-        spark_job_request = self.cohort_query_builder.create_request(fhir_request, self.mode)
+    def create_request(self, cohort_query: CohortQuery) -> dict:
+        spark_job_request = self.cohort_query_builder.create_request(cohort_query, self.mode)
         return self.format_for_sjs(spark_job_request)
 
     def format_for_sjs(self, spark_job_request: SparkJobObject) -> dict:
         return format_spark_job_request_for_sjs(spark_job_request)
 
     @abstractmethod
-    def action(self, fhir_request: CohortQuery) -> dict:
-        """Perform the action (count, countAll, create) based on the fhir_request"""
+    def action(self, cohort_query: CohortQuery) -> dict:
+        """Perform the action (count, countAll, create) based on the cohort_query"""
         pass

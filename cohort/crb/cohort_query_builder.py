@@ -17,9 +17,9 @@ class CohortQueryBuilder:
     username: str
     format_query: FormatQuery
 
-    def create_request(self, fhir_request: CohortQuery, mode: Mode) -> SparkJobObject:
-        if fhir_request is None:
+    def create_request(self, cohort_query: CohortQuery, mode: Mode) -> SparkJobObject:
+        if cohort_query is None:
             raise FhirException()
-        sjs_request = self.format_query.format_to_fhir(fhir_request)
-        fhir_request.request = sjs_request
-        return SparkJobObject("Created from Django", fhir_request, mode, self.username)
+        sjs_request = self.format_query.format_to_fhir(cohort_query)
+        cohort_query.request = sjs_request
+        return SparkJobObject("Created from Django", cohort_query, mode, self.username)

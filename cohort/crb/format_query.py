@@ -32,7 +32,7 @@ class FormatQuery:
     def __init__(self, auth_headers: dict):
         self.auth_headers = auth_headers
 
-    def format_to_fhir(self, fhir_request: CohortQuery) -> Criteria | None:
+    def format_to_fhir(self, cohort_query: CohortQuery) -> Criteria | None:
         def build_solr_criteria(criteria: Criteria, obj) -> Criteria | None:
             if criteria is None:
                 return None
@@ -52,7 +52,7 @@ class FormatQuery:
                     build_solr_criteria(sub_criteria, obj)
             return criteria
 
-        return build_solr_criteria(fhir_request.request, fhir_request.source_population)
+        return build_solr_criteria(cohort_query.request, cohort_query.source_population)
 
     def get_mapping_criteria_filter_fhir_to_solr(
             self, filter_fhir: str, original_resource_type: ResourceType

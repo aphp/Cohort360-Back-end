@@ -13,8 +13,8 @@ class CohortCreate(AbstractCohortRequest):
     def __init__(self, *args, **kwargs):
         super().__init__(mode=Mode.CREATE, *args, **kwargs)
 
-    def action(self, fhir_request: CohortQuery) -> str:
-        request = self.create_request(fhir_request)
+    def action(self, cohort_query: CohortQuery) -> str:
+        request = self.create_request(cohort_query)
         return self.sjs_client.create(request)
 
     def cancel(self, job_id: str) -> str:

@@ -14,7 +14,7 @@ class CohortCountAll(AbstractCohortRequest):
         super().__init__(mode=Mode.COUNT_ALL, *args, **kwargs)
         self.source_population = source_population
 
-    def action(self, fhir_request: CohortQuery) -> str:
-        fhir_request.source_population = self.source_population
-        request = self.create_request(fhir_request)
+    def action(self, cohort_query: CohortQuery) -> str:
+        cohort_query.source_population = self.source_population
+        request = self.create_request(cohort_query)
         return self.sjs_client.count(request)

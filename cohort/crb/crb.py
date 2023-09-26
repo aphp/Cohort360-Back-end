@@ -12,5 +12,5 @@ class CRB:
     def __init__(self, cohort_action: AbstractCohortRequest):
         self.cohort_action = cohort_action
 
-    def request_to_sjs(self, fhir_request: CohortQuery) -> dict:
-        return self.cohort_action.action(fhir_request)
+    def request_to_sjs(self, cohort_query: CohortQuery) -> dict:
+        return self.cohort_action.action(cohort_query)
