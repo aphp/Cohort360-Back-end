@@ -14,7 +14,7 @@ class EmailNotificationsTests(TestCase):
                                cohort_id="cohort_id",
                                cohort_name="cohort_name",
                                export_request_id="export_request_id",
-                               output_format="output_format",
+                               output_format="csv",
                                database_name="database_name",
                                selected_tables="table01,table02",
                                error_message="error_message")
@@ -25,7 +25,9 @@ class EmailNotificationsTests(TestCase):
                                          ]
 
     @mock.patch("exports.emails.EmailNotification.push")
-    def test_push_email_notification(self, mock_notif_push: MagicMock):
+    @mock.patch("exports.emails.EmailNotification.attach_logo")
+    def test_push_email_notification(self, mock_attach_logo: MagicMock, mock_notif_push: MagicMock):
+        mock_attach_logo.return_value = None
         mock_notif_push.return_value = None
         for notif in self.registered_notifications:
             push_email_notification(notif, **self.notif_data)
