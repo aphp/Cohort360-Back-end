@@ -23,13 +23,17 @@ class EmailNotificationTest(TestCase):
         self.assertIn(expected_string_in_content, self.email_notif.txt_content)
 
     @mock.patch("admin_cohort.emails.EmailNotification.send_email")
-    def test_successfully_push_email_notif(self, mock_email_send: MagicMock):
+    @mock.patch("admin_cohort.emails.EmailNotification.attach_logo")
+    def test_successfully_push_email_notif(self, mock_attach_logo: MagicMock, mock_email_send: MagicMock):
+        mock_attach_logo.return_value = None
         mock_email_send.return_value = None
         self.email_notif.push()
         mock_email_send.assert_called()
 
     @mock.patch("admin_cohort.emails.EmailNotification.send_email")
-    def test_push_email_notif_with_error(self, mock_email_send: MagicMock):
+    @mock.patch("admin_cohort.emails.EmailNotification.attach_logo")
+    def test_push_email_notif_with_error(self, mock_attach_logo: MagicMock, mock_email_send: MagicMock):
+        mock_attach_logo.return_value = None
         mock_email_send.side_effect = SMTPException()
         self.email_notif.push()
         mock_email_send.assert_called()
