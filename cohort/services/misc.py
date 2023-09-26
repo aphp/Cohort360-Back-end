@@ -42,9 +42,6 @@ def is_sjs_user(request: Request):
 
 
 def get_dict_right_accesses(user_accesses: [Access]) -> dict:
-    """
-    mapping for read patient, export CSV and transfer Jupyter right and list of accesses
-    """
     return {READ_PATIENT_NOMI: user_accesses.filter(Role.is_read_patient_role_nominative(ROLE)),
             READ_PATIENT_PSEUDO: user_accesses.filter(Role.is_read_patient_role(ROLE)),
             EXPORT_CSV_NOMI: user_accesses.filter(Role.is_export_csv_nominative_role(ROLE)),
@@ -105,7 +102,6 @@ def get_all_cohorts_rights(user_accesses: [Access], cohort_pop_source: dict):
     for cohort_id, list_cohort_pop_source in cohort_pop_source.items():
         rights = get_rights_from_cohort(accesses_dict, list_cohort_pop_source)
         response_list.append(CohortRights(cohort_id, rights))
-
     return response_list
 
 

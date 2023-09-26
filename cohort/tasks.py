@@ -8,7 +8,7 @@ from admin_cohort.types import JobStatus
 from admin_cohort.settings import COHORT_LIMIT
 from cohort.models import CohortResult, DatedMeasure
 from cohort.models.dated_measure import GLOBAL_DM_MODE
-from cohort.tools import log_count_task, log_create_task
+from cohort.services.misc import log_count_task, log_create_task
 
 _logger = logging.getLogger('django.request')
 

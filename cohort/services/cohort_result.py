@@ -8,11 +8,11 @@ from django.utils import timezone
 from accesses.models import get_user_valid_manual_accesses
 from admin_cohort.models import User
 from admin_cohort.types import JobStatus
-from cohort.emails import send_email_notif_about_large_cohort
+from cohort.services.emails import send_email_notif_about_large_cohort
 from cohort.models import CohortResult, DatedMeasure, RequestQuerySnapshot
 from cohort.models.dated_measure import GLOBAL_DM_MODE
 from cohort.services.conf_cohort_job_api import fhir_to_job_status, get_authorization_header
-from cohort.tools import get_dict_cohort_pop_source, get_all_cohorts_rights
+from cohort.services.misc import get_dict_cohort_pop_source, get_all_cohorts_rights
 from cohort.tasks import get_count_task, create_cohort_task
 
 JOB_STATUS = "request_job_status"

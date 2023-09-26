@@ -14,9 +14,9 @@ from admin_cohort.tools import join_qs
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from cohort.services.cohort_result import cohort_service, JOB_STATUS, GROUP_ID, GROUP_COUNT
 from cohort.models import CohortResult
-from cohort.permissions import SJSandETLCallbackPermission
+from cohort.permissions import SJSorETLCallbackPermission
 from cohort.serializers import CohortResultSerializer, CohortResultSerializerFullDatedMeasure, CohortRightsSerializer
-from cohort.tools import is_sjs_or_etl_user
+from cohort.services.misc import is_sjs_or_etl_user
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
 
@@ -93,7 +93,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
 
     def get_permissions(self):
         if is_sjs_or_etl_user(request=self.request):
-            return [SJSandETLCallbackPermission()]
+            return [SJSorETLCallbackPermission()]
         if self.action == 'get_active_jobs':
             return [AllowAny()]
         return super(CohortResultViewSet, self).get_permissions()
@@ -113,8 +113,8 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
 
     @action(methods=['get'], detail=False, url_path='jobs/active')
     def get_active_jobs(self, request, *args, **kwargs):
-        jobs_count = cohort_service.count_active_jobs()
-        return Response(data={"jobs_count": jobs_count}, status=status.HTTP_200_OK)
+        return Response(data={"jobs_count": cohort_service.count_active_jobs()},
+                        status=status.HTTP_200_OK)
 
     @cache_response()
     def list(self, request, *args, **kwargs):

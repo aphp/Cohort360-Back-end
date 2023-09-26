@@ -3,9 +3,9 @@ from typing import List
 from admin_cohort.models import User
 from admin_cohort.settings import SHARED_FOLDER_NAME
 from admin_cohort.tools.cache import invalidate_cache
-from cohort.emails import send_email_notif_about_shared_request
+from cohort.services.emails import send_email_notif_about_shared_request
 from cohort.models import RequestQuerySnapshot, Folder, Request
-from cohort.tools import retrieve_perimeters
+from cohort.services.misc import retrieve_perimeters
 
 
 class RequestQuerySnapshotService:

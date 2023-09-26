@@ -11,10 +11,10 @@ from rest_framework_extensions.mixins import NestedViewSetMixin
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from cohort.models import DatedMeasure
-from cohort.permissions import SJSandETLCallbackPermission
+from cohort.permissions import SJSorETLCallbackPermission
 from cohort.serializers import DatedMeasureSerializer
 from cohort.services.dated_measure import dated_measure_service
-from cohort.tools import is_sjs_user
+from cohort.services.misc import is_sjs_user
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
 JOB_STATUS = "request_job_status"
@@ -52,7 +52,7 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
 
     def get_permissions(self):
         if is_sjs_user(request=self.request):
-            return [SJSandETLCallbackPermission()]
+            return [SJSorETLCallbackPermission()]
         return super(DatedMeasureViewSet, self).get_permissions()
 
     def get_queryset(self):

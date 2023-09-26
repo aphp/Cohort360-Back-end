@@ -12,7 +12,6 @@ from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagin
 from cohort.models import RequestQuerySnapshot
 from cohort.permissions import IsOwnerPermission
 from cohort.serializers import RequestQuerySnapshotSerializer
-from cohort.emails import send_email_notif_about_shared_request
 from cohort.services.request_query_snapshot import rqs_service
 from cohort.views.shared import UserObjectsRestrictedViewSet
 

@@ -4,7 +4,7 @@ from rest_framework.exceptions import ValidationError
 from accesses.models import Perimeter, Access, Role, get_user_valid_manual_accesses
 from accesses.tools.data_right_mapping import PerimeterReadRight
 from cohort.models import CohortResult
-from cohort.tools import get_list_cohort_id_care_site
+from cohort.services.misc import get_list_cohort_id_care_site
 
 
 def is_perimeter_in_top_hierarchy(above_list: [int], all_distinct_perimeters: [Perimeter]) -> bool:
