@@ -1,6 +1,7 @@
 from __future__ import annotations
+
 import json
-from typing import TYPE_CHECKING, Tuple, Any
+from typing import TYPE_CHECKING
 
 import requests
 from requests import Response
@@ -35,20 +36,14 @@ class SjsClient:
 
     def create(self, input_payload: str) -> tuple[Response, dict]:
         log_create_task("anddy", f"Input payload is: {input_payload}")
-        uuid = input_payload['input']['cohortUuid']
         params = {
             'appName': self.APP_NAME,
             'classPath': self.CREATE_CLASSPATH,
             'context': self.CONTEXT,
-            'sync': 'false',
-            **input_payload
             'sync': 'false'
         }
-        log_create_task(uuid, f"Before sending POST request to {self.url}/jobs with params: {params}"
-                              f" and request: {input_payload}")
 
-        resp = requests.post(f"{self.url}/jobs", json=params)
-        log_create_task(uuid, f"After sending POST request, got response: {resp.text}")
+        resp = requests.post(f"{self.url}/jobs", params=params, data=input_payload)
         resp.raise_for_status()
         return resp, resp.json()
 
