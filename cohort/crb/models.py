@@ -18,7 +18,7 @@ class PatientAge:
 @dataclass
 class DateRange:
     min_date: str
-    maxDate: str
+    max_date: str
     date_preference: list[str]
     date_is_not_null: bool
 
@@ -56,7 +56,7 @@ class TemporalConstraint:
 
 
 class SourcePopulation(BaseModel):
-    care_site_cohort_list: list[int] = Field(default_factory=list, alias="careSiteCohortList")
+    care_site_cohort_list: list[int] = Field(default_factory=list, alias="caresiteCohortList")
 
     def format_to_fhir(self) -> str:
         if not self.care_site_cohort_list:
@@ -101,3 +101,5 @@ class SparkJobObject:
     cohort_definition_syntax: CohortQuery
     mode: Mode
     owner_entity_id: str
+
+
