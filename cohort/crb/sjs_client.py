@@ -33,7 +33,7 @@ class SjsClient:
         result = resp.json()
         return resp, result
 
-    def create(self, input_payload: dict) -> tuple[Response, dict]:
+    def create(self, input_payload: str) -> tuple[Response, dict]:
         log_create_task("anddy", f"Input payload is: {input_payload}")
         uuid = input_payload['input']['cohortUuid']
         params = {
@@ -42,6 +42,7 @@ class SjsClient:
             'context': self.CONTEXT,
             'sync': 'false',
             **input_payload
+            'sync': 'false'
         }
         log_create_task(uuid, f"Before sending POST request to {self.url}/jobs with params: {params}"
                               f" and request: {input_payload}")
@@ -63,23 +64,19 @@ def replace_pattern(text: str, replacements: list[tuple[str, str]]) -> str:
     return text
 
 
-def format_syntax(request: CohortQuery) -> dict:
+def format_syntax(request: CohortQuery) -> str:
     log_create_task("anddy", str(request))
     json_data = request.model_dump_json()
     replacements = [('"["All"]"', '"all"'), ('"[true]"', 'true'), ('"[false]"', 'false')]
     formatted_json = replace_pattern(json_data, replacements)
-    return json.loads(formatted_json)
+    return json.dumps(formatted_json)
 
 
-def format_spark_job_request_for_sjs(spark_job_request: SparkJobObject) -> dict:
-    return {
-        "input": {
-            "cohortDefinitionName": spark_job_request.cohort_definition_name,
-            "cohortDefinitionSyntax": format_syntax(spark_job_request.cohort_definition_syntax),
-            "ownerEntityId": spark_job_request.owner_entity_id,
-            "mode": spark_job_request.mode,
-            "cohortUuid": spark_job_request.cohort_definition_syntax.cohort_uuid
-        }
-    }
-
-
+def format_spark_job_request_for_sjs(spark_job_request: SparkJobObject) -> str:
+    return str(
+        f"input.cohortDefinitionName = {spark_job_request.cohort_definition_name},"
+        f"input.cohortDefinitionSyntax = {format_syntax(spark_job_request.cohort_definition_syntax)},"
+        f"input.ownerEntityId = {spark_job_request.owner_entity_id},"
+        f"input.mode = {spark_job_request.mode},"
+        f"input.cohortUuid = {spark_job_request.cohort_definition_syntax.cohort_uuid}"
+    )
