@@ -19,7 +19,7 @@ class AbstractCohortRequest(ABC):
         self.sjs_client = sjs_client
         self.auth_headers = auth_headers
 
-    def create_request_for_sjs(self, cohort_query: CohortQuery) -> dict:
+    def create_request_for_sjs(self, cohort_query: CohortQuery) -> str:
         """Format the given query with the Fhir nomenclature and return a dict to be sent
         for the followup sjs request."""
         if cohort_query is None:
