@@ -66,7 +66,7 @@ def replace_pattern(text: str, replacements: list[tuple[str, str]]) -> str:
 
 def format_syntax(request: CohortQuery) -> str:
     log_create_task("anddy", str(request))
-    json_data = request.model_dump_json()
+    json_data = request.model_dump_json(by_alias=True, exclude_none=True)
     replacements = [('"["All"]"', '"all"'), ('"[true]"', 'true'), ('"[false]"', 'false')]
     formatted_json = replace_pattern(json_data, replacements)
     return json.dumps(formatted_json)
