@@ -3,8 +3,7 @@ from datetime import timedelta
 from os import environ
 from pathlib import Path
 from typing import List
-from unittest import mock
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from django.core.mail import EmailMessage
 from django.utils import timezone
@@ -15,8 +14,7 @@ from admin_cohort.models import User
 from admin_cohort.settings import SHARED_FOLDER_NAME
 from admin_cohort.tools import prettify_json
 from admin_cohort.tools.tests_tools import CaseRetrieveFilter, CreateCase, random_str, ListCase, RetrieveCase, \
-    DeleteCase, \
-    PatchCase
+    DeleteCase, PatchCase
 from cohort.models import RequestQuerySnapshot, Request, Folder
 from cohort.tests.tests_view_requests import RequestsTests, ShareCase
 from cohort.views import RequestQuerySnapshotViewSet, NestedRqsViewSet

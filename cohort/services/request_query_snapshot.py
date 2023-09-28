@@ -1,3 +1,5 @@
+import json
+import logging
 from typing import List
 
 from admin_cohort.models import User
@@ -5,7 +7,9 @@ from admin_cohort.settings import SHARED_FOLDER_NAME
 from admin_cohort.tools.cache import invalidate_cache
 from cohort.services.emails import send_email_notif_about_shared_request
 from cohort.models import RequestQuerySnapshot, Folder, Request
-from cohort.services.misc import retrieve_perimeters
+
+
+_logger_err = logging.getLogger('django.request')
 
 
 class RequestQuerySnapshotService:
@@ -27,7 +31,7 @@ class RequestQuerySnapshotService:
             raise ValueError("Neither `previous_snapshot` or `request` were provided")
 
         serialized_query = data.get("serialized_query")
-        data["perimeters_ids"] = retrieve_perimeters(serialized_query)
+        data["perimeters_ids"] = RequestQuerySnapshotService.retrieve_perimeters(json_query=serialized_query)
         request = Request.objects.get(pk=data.get("request"))
         data["version"] = request.query_snapshots.all().count() + 1
 
@@ -114,6 +118,18 @@ class RequestQuerySnapshotService:
                                                       owner=snapshot.owner,
                                                       recipient=recipient)
         return shared_snapshots
+
+    @staticmethod
+    def retrieve_perimeters(json_query: str) -> List[str]:
+        try:
+            query = json.loads(json_query)
+            perimeters_ids = query["sourcePopulation"]["caresiteCohortList"]
+            assert all(i.isnumeric() for i in perimeters_ids), "Perimeters IDs must be integers"
+            return perimeters_ids
+        except (json.JSONDecodeError, TypeError, KeyError) as e:
+            msg = f"Error extracting perimeters ids from JSON query - {e}"
+            _logger_err.exception(msg=msg)
+            raise ValueError(msg)
 
 
 rqs_service = RequestQuerySnapshotService()

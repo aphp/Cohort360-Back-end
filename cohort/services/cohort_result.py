@@ -1,18 +1,13 @@
 import logging
 from smtplib import SMTPException
 
-from django.db.models import QuerySet
-from django.http import Http404
 from django.utils import timezone
 
-from accesses.models import get_user_valid_manual_accesses
-from admin_cohort.models import User
 from admin_cohort.types import JobStatus
 from cohort.services.emails import send_email_notif_about_large_cohort
 from cohort.models import CohortResult, DatedMeasure, RequestQuerySnapshot
 from cohort.models.dated_measure import GLOBAL_DM_MODE
 from cohort.services.conf_cohort_job_api import fhir_to_job_status, get_authorization_header
-from cohort.services.misc import get_dict_cohort_pop_source, get_all_cohorts_rights
 from cohort.tasks import get_count_task, create_cohort_task
 
 JOB_STATUS = "request_job_status"
@@ -66,17 +61,6 @@ class CohortResultService:
         except Exception as e:
             cohort.delete()
             raise Exception("INTERNAL ERROR: Could not launch cohort creation") from e
-
-    @staticmethod
-    def get_cohorts_rights(cohorts: QuerySet, user: User):
-        if not cohorts:
-            raise Http404("ERROR: No cohorts found")
-        user_accesses = get_user_valid_manual_accesses(user=user)
-        if not user_accesses:
-            raise Http404("ERROR: No accesses found")
-        list_cohort_id = [cohort.fhir_group_id for cohort in cohorts if cohort.fhir_group_id]
-        cohort_dict_pop_source = get_dict_cohort_pop_source(list_cohort_id)
-        return get_all_cohorts_rights(user_accesses, cohort_dict_pop_source)
 
     @staticmethod
     def process_patch_data(cohort: CohortResult, data: dict) -> tuple[bool, bool]:

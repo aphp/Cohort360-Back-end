@@ -15,7 +15,8 @@ from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagin
 from cohort.services.cohort_result import cohort_service, JOB_STATUS, GROUP_ID, GROUP_COUNT
 from cohort.models import CohortResult
 from cohort.permissions import SJSorETLCallbackPermission
-from cohort.serializers import CohortResultSerializer, CohortResultSerializerFullDatedMeasure, CohortRightsSerializer
+from cohort.serializers import CohortResultSerializer, CohortResultSerializerFullDatedMeasure
+from cohort.services.cohort_rights import cohort_rights_service
 from cohort.services.misc import is_sjs_or_etl_user
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
@@ -129,7 +130,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                                          "name": openapi.Schema(type=openapi.TYPE_STRING),
                                          "description": openapi.Schema(type=openapi.TYPE_STRING),
                                          "global_estimate": openapi.Schema(type=openapi.TYPE_BOOLEAN, default=True)}),
-                         responses={'201': openapi.Response("CohortResult created successfully", CohortRightsSerializer()),
+                         responses={'201': openapi.Response("CohortResult created successfully"),
                                     '400': openapi.Response("Bad Request")})
     @transaction.atomic
     def create(self, request, *args, **kwargs):
@@ -152,7 +153,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                                          "description": openapi.Schema(type=openapi.TYPE_STRING),
                                          "favorite": openapi.Schema(type=openapi.TYPE_STRING)},
                              required=[JOB_STATUS, GROUP_ID, GROUP_COUNT]),
-                         responses={'200': openapi.Response("Cohort updated successfully", CohortRightsSerializer()),
+                         responses={'200': openapi.Response("Cohort updated successfully"),
                                     '400': openapi.Response("Bad Request")})
     def partial_update(self, request, *args, **kwargs):
         for field in self.non_updatable_fields:
@@ -173,12 +174,13 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         return response
 
     @swagger_auto_schema(method='get',
-                         operation_summary="Give cohorts aggregation read patient rights, export csv rights and "
-                                           "transfer jupyter rights. It check accesses with perimeters population "
-                                           "source for each cohort found.",
-                         responses={'200': openapi.Response("Cohorts rights found", CohortRightsSerializer())})
+                         operation_summary="Returns a dict of rights (booleans) for each cohort based on user accesses."
+                                           "Rights are computed by checking user accesses against every perimeter the cohort is built upon",
+                         responses={'200': openapi.Response("Cohorts rights found"),
+                                    '404': openapi.Response("No cohorts found matching the given fhir_group_ids or user has no valid accesses")})
     @action(detail=False, methods=['get'], url_path="cohort-rights")
-    def get_cohort_right_accesses(self, request, *args, **kwargs):
+    def get_rights_on_cohorts(self, request, *args, **kwargs):
         cohorts = self.filter_queryset(self.get_queryset())
-        cohorts_rights = cohort_service.get_cohorts_rights(cohorts=cohorts, user=request.user)
-        return Response(data=CohortRightsSerializer(data=cohorts_rights, many=True).data)
+        cohorts_rights = cohort_rights_service.get_user_rights_on_cohorts(cohorts=cohorts,
+                                                                          user=request.user)
+        return Response(data=cohorts_rights, status=status.HTTP_200_OK)
