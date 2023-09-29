@@ -14,12 +14,11 @@ if TYPE_CHECKING:
     from cohort.crb import CohortQuery, Criteria
 
 _logger = logging.getLogger("info")
-_logger_err = logging.getLogger("django.request")
 
 
 def query_fhir(resource: str, params: dict[str, list[str]], auth_headers: dict) -> FhirParameters:
     url = f"{FHIR_URL}/{resource}/$query"
-    log_create_task("anddy", f"Attempting to query fhir with {url=}\n{params=}\n")
+    _logger.info(f"Attempting to query fhir with {url=} {params=}")
     response = requests.get(url, params=params, headers=auth_headers)
     response.raise_for_status()
     result = response.json()
