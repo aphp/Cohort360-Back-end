@@ -18,3 +18,6 @@ class CohortCountAll(AbstractCohortRequest):
         cohort_query.source_population = self.source_population
         request = self.create_request_for_sjs(cohort_query)
         return self.sjs_client.count(request)
+
+def get_top_care_site_source_population() -> int:
+    return Perimeter.objects.get(level=1).cohort_id
