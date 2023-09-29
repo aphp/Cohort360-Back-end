@@ -7,7 +7,7 @@ import requests
 from requests import Response
 
 from admin_cohort.settings import SJS_URL
-from cohort.tools import log_create_task
+from cohort.tools import log_create_task, log_count_task
 
 if TYPE_CHECKING:
     from cohort.crb import CohortQuery, SparkJobObject
@@ -22,14 +22,14 @@ class SjsClient:
     CREATE_CLASSPATH = "fr.aphp.id.eds.requester.CreateQuery"
     CONTEXT = "shared"
 
-    def count(self, request):
+    def count(self, input_payload: str) -> tuple[Response, dict]:
         params = {
             'appName': self.APP_NAME,
             'classPath': self.COUNT_CLASSPATH,
             'context': self.CONTEXT
         }
 
-        resp = requests.post(f"{self.url}/jobs", params=params, json=request)
+        resp = requests.post(f"{self.url}/jobs", params=params, data=input_payload)
         resp.raise_for_status()
         result = resp.json()
         return resp, result
