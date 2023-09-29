@@ -3,7 +3,7 @@ from enum import StrEnum
 
 class Mode(StrEnum):
     COUNT = 'count'
-    COUNT_ALL = 'countAll'
+    COUNT_ALL = 'count_all'
     CREATE = 'create'
 
 
