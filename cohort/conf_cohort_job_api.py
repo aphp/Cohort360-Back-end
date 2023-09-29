@@ -2,7 +2,7 @@ import json
 import logging
 import os
 from datetime import datetime
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Type, TypeVar, Callable
 
 import requests
 from requests import Response, HTTPError
@@ -11,10 +11,11 @@ from rest_framework.request import Request
 
 from admin_cohort.middleware.request_trace_id_middleware import add_trace_id
 from admin_cohort.types import JobStatus, MissingDataError
-from cohort.crb import CohortQuery, CohortCreate
+from cohort.crb import CohortQuery, CohortCreate, CohortCountAll, CohortCount
+from cohort.crb.cohort_requests.abstract_cohort_request import AbstractCohortRequest
 from cohort.crb.sjs_client import SjsClient
 from cohort.crb_responses import CRBCountResponse, CRBCohortResponse
-from cohort.tools import log_count_task, log_create_task
+from cohort.tools import log_count_task, log_create_task, log_count_all_task
 
 COHORT_REQUEST_BUILDER_URL = os.environ.get('COHORT_REQUEST_BUILDER_URL')
 JOBS_API = f"{COHORT_REQUEST_BUILDER_URL}/jobs"
@@ -130,60 +131,31 @@ def create_job(url: str, json_query: dict, auth_headers: dict) -> Tuple[Response
     return resp, result
 
 
-def post_count_cohort(auth_headers: dict, json_query: str, dm_uuid: str, global_estimate=False) -> CRBCountResponse:
-    # log_count_task("anddy", "test anddy count")
-    # crb = CRBFactory(CohortQueryBuilder("anddy")).create_cohort_count()
-    # log_count_task("anddy", "anddy crb: ", crb)
-    # res = crb.request_to_sjs(FhirRequest(cohort_uuid=dm_uuid))
-    # log_count_task("anddy", "anddy res", res)
+T = TypeVar('T')
+LoggerType = Type[Callable[..., None]]
+
+
+def post_to_sjs(json_query: str, uuid: str, cohort_cls: AbstractCohortRequest, response_cls: Type[T],
+                logger: LoggerType) -> T:
+    logger(uuid, f"Step 1: Parse the json query to make it CRB compatible {json_query}")
+    cohort_query = CohortQuery(cohort_uuid=uuid, **json.loads(json_query))
+    logger(uuid, f"Step 2: Send request to sjs: {cohort_query}")
     try:
-        log_count_task(dm_uuid, "Step 1: Posting count request", global_estimate=global_estimate)
-        json_query = json.loads(json_query)
-        json_query["cohortUuid"] = dm_uuid  # todo: rename param to `dm_uuid` once CRB is moved to Django
-        resp, result = create_job(url=GLOBAL_COUNT_API if global_estimate else COUNT_API,
-                                  json_query=json_query,
-                                  auth_headers=auth_headers)
-        log_count_task(dm_uuid, "Step 2: Processing CRB response", global_estimate=global_estimate)
-        job = JobResponse(resp, **result)
+        resp, data = cohort_cls.action(cohort_query)
     except (TypeError, ValueError, HTTPError) as e:
-        raise e
         _logger_err.error(f"Error sending `count` request: {e}")
-        return CRBCountResponse(success=False,
-                                fhir_job_status=JobStatus.failed,
-                                err_msg=str(e))
-    log_create_task(dm_uuid, "Step 3: SJS job created. Will be patched later by callback")
-    return CRBCountResponse(success=True, fhir_job_id=job.job_id)
+        return response_cls(success=False, fhir_job_status=JobStatus.failed, err_msg=str(e))
+    job = JobResponse(resp, **data)
+    logger(uuid, f"Step 3: Get the response {job.__dict__=}")
+    return response_cls(success=True, fhir_job_id=job.job_id)
+
+
+def post_count_cohort(auth_headers: dict, json_query: str, dm_uuid: str, global_estimate=False) -> CRBCountResponse:
+    count_cls, logger = (CohortCountAll, log_count_all_task) if global_estimate else (CohortCount, log_count_task)
+    cohort_request = count_cls(auth_headers=auth_headers, sjs_client=SjsClient())
+    return post_to_sjs(json_query, dm_uuid, cohort_request, CRBCountResponse, logger)
 
 
 def post_create_cohort(auth_headers: dict, json_query: str, cr_uuid: str) -> CRBCohortResponse:
-    log_create_task(cr_uuid, "Step 2: Parse the json query to make it CRB compatible")
-    cohort_query = CohortQuery(cohort_uuid=cr_uuid, **json.loads(json_query))
-
-    try:
-        log_create_task(cr_uuid, f"Step 3: Send request to sjs: {cohort_query}")
-        resp, data = CohortCreate(auth_headers=auth_headers, sjs_client=SjsClient()).action(cohort_query)
-    except (TypeError, ValueError, HTTPError) as e:
-        _logger_err.error(f"Error sending `cohort creation` request: {e}")
-        return CRBCohortResponse(success=False, fhir_job_status=JobStatus.failed, err_msg=str(e))
-
-    job = JobResponse(resp, **data)
-    log_create_task(cr_uuid, f"Step 4: Get the response {job.__dict__=}")
-    return CRBCohortResponse(success=True, fhir_job_id=job.job_id)
-
-    # try:
-    #     log_create_task(cr_uuid, "Step 1: Post cohort creation request to CRB")
-    #     json_query = json.loads(json_query)
-    #     json_query["cohortUuid"] = cr_uuid
-    #     resp, result = create_job(url=CREATE_COHORT_API,
-    #                               json_query=json_query,
-    #                               auth_headers=auth_headers)
-    #     log_create_task(cr_uuid, "Step 2: Processing CRB response")
-    #     job = JobResponse(resp, **result)
-    #     log_create_task(cr_uuid, f"Step 2.1: {job.__dict__=}")
-    # except (TypeError, ValueError, HTTPError) as e:
-    #     _logger_err.error(f"Error sending `cohort creation` request: {e}")
-    #     return CRBCohortResponse(success=False,
-    #                              fhir_job_status=JobStatus.failed,
-    #                              err_msg=str(e))
-    # log_create_task(cr_uuid, "Step 3: SJS job created. Will be patched later by callback")
-    # return CRBCohortResponse(success=True, fhir_job_id=job.job_id)
+    cohort_request = CohortCreate(auth_headers=auth_headers, sjs_client=SjsClient())
+    return post_to_sjs(json_query, cr_uuid, cohort_request, CRBCohortResponse, log_create_task)
