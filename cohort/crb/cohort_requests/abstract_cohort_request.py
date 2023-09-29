@@ -23,7 +23,7 @@ class AbstractCohortRequest(ABC):
         """Format the given query with the Fhir nomenclature and return a dict to be sent
         for the followup sjs request."""
         if cohort_query is None:
-            raise FhirException()
+            raise FhirException("No query received to format.")
         format_query = FormatQuery(self.auth_headers)
         sjs_request = format_query.format_to_fhir(cohort_query)
         cohort_query.request = sjs_request

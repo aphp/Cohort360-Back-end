@@ -88,7 +88,7 @@ class FormatQuery:
 
     def call_fhir_resource(self, resource_type: ResourceType, filter_fhir: str) -> dict:
         if not resource_type:
-            raise FhirException()
+            raise FhirException(f"Resource type does not exist {resource_type=}, {filter_fhir=}")
         fhir_params: dict[str, list[str]] = {}
         if filter_fhir:
             params = filter_fhir.split("&")
