@@ -194,5 +194,9 @@ def log_count_task(dm_uuid, msg, global_estimate=False):
     _celery_logger.info(f"{'Global' if global_estimate else ''}Count Task [DM: {dm_uuid}] {msg}")
 
 
+def log_count_all_task(dm_uuid, msg):
+    _celery_logger.info(f"Global Count Task [DM: {dm_uuid}] {msg}")
+
+
 def log_create_task(cr_uuid, msg):
     _celery_logger.info(f"Cohort Create Task [CR: {cr_uuid}] {msg}")
