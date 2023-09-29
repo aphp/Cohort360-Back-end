@@ -35,7 +35,6 @@ class SjsClient:
         return resp, result
 
     def create(self, input_payload: str) -> tuple[Response, dict]:
-        log_create_task("anddy", f"Input payload is: {input_payload}")
         params = {
             'appName': self.APP_NAME,
             'classPath': self.CREATE_CLASSPATH,
@@ -60,7 +59,6 @@ def replace_pattern(text: str, replacements: list[tuple[str, str]]) -> str:
 
 
 def format_syntax(request: CohortQuery) -> str:
-    log_create_task("anddy", str(request))
     json_data = request.model_dump_json(by_alias=True, exclude_none=True)
     replacements = [('"["All"]"', '"all"'), ('"[true]"', 'true'), ('"[false]"', 'false')]
     formatted_json = replace_pattern(json_data, replacements)
