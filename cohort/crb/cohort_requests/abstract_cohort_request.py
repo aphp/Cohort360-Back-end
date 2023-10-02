@@ -26,7 +26,7 @@ class AbstractCohortRequest(ABC):
             raise FhirException("No query received to format.")
         format_query = QueryFormatter(self.auth_headers)
         sjs_request = format_query.format_to_fhir(cohort_query)
-        cohort_query.request = sjs_request
+        cohort_query.criteria = sjs_request
         spark_job_request = SparkJobObject("Created from Django", cohort_query, self.mode, cohort_query.cohort_uuid)
         return format_spark_job_request_for_sjs(spark_job_request)
 

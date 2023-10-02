@@ -92,7 +92,7 @@ class CohortQuery(BaseModel):
     cohort_name: str = Field(None)
     source_population: SourcePopulation = Field(alias="sourcePopulation")
     criteria_type: CriteriaType = Field(None, alias="_type")
-    request: Criteria = Field(None)
+    criteria: Criteria = Field(None, alias="request")
     temporal_constraints: list[TemporalConstraint] = Field(default_factory=list)
 
 

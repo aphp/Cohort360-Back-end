@@ -50,7 +50,7 @@ class QueryFormatter:
                     build_solr_criteria(sub_criteria, obj)
             return criteria
 
-        return build_solr_criteria(cohort_query.request, cohort_query.source_population)
+        return build_solr_criteria(cohort_query.criteria, cohort_query.source_population)
 
     def get_mapping_criteria_filter_fhir_to_solr(
             self, filter_fhir: str, original_resource_type: ResourceType
