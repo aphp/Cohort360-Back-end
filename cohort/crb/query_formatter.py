@@ -1,16 +1,17 @@
 from __future__ import annotations
+
 import logging
 from typing import TYPE_CHECKING
 
 import requests
 
 from admin_cohort.settings import FHIR_URL
+from cohort.crb import FhirParameters
 from cohort.crb.enums import CriteriaType, ResourceType
 from cohort.crb.exceptions import FhirException
-from cohort.crb import FhirParameters
 
 if TYPE_CHECKING:
-    from cohort.crb import CohortQuery, Criteria
+    from cohort.crb import CohortQuery, Criteria, SourcePopulation
 
 _logger = logging.getLogger("info")
 
@@ -31,13 +32,13 @@ class QueryFormatter:
         self.auth_headers = auth_headers
 
     def format_to_fhir(self, cohort_query: CohortQuery) -> Criteria | None:
-        def build_solr_criteria(criteria: Criteria, obj) -> Criteria | None:
+        def build_solr_criteria(criteria: Criteria, source_population: SourcePopulation) -> Criteria | None:
             if criteria is None:
                 return None
 
             for sub_criteria in criteria.criteria:
                 if sub_criteria.criteria_type == CriteriaType.BASIC_RESOURCE:
-                    filter_fhir_enriched = sub_criteria.add_criteria(obj)
+                    filter_fhir_enriched = sub_criteria.add_criteria(source_population)
 
                     _logger.info(f"filterFhirEnriched {filter_fhir_enriched}")
 
@@ -47,7 +48,7 @@ class QueryFormatter:
                     sub_criteria.filter_solr = solr_filter
                     sub_criteria.resource_type = resource_type
                 else:
-                    build_solr_criteria(sub_criteria, obj)
+                    build_solr_criteria(sub_criteria, source_population)
             return criteria
 
         return build_solr_criteria(cohort_query.criteria, cohort_query.source_population)
