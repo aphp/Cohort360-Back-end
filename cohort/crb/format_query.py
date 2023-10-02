@@ -7,8 +7,7 @@ import requests
 from admin_cohort.settings import FHIR_URL
 from cohort.crb.enums import CriteriaType, ResourceType
 from cohort.crb.exceptions import FhirException
-from cohort.crb.dto import FhirParameters
-from cohort.tools import log_create_task
+from cohort.crb import FhirParameters
 
 if TYPE_CHECKING:
     from cohort.crb import CohortQuery, Criteria
