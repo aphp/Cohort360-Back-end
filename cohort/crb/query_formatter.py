@@ -6,12 +6,12 @@ from typing import TYPE_CHECKING
 import requests
 
 from admin_cohort.settings import FHIR_URL
-from cohort.crb import FhirParameters
 from cohort.crb.enums import CriteriaType, ResourceType
 from cohort.crb.exceptions import FhirException
+from cohort.crb.schemas import FhirParameters
 
 if TYPE_CHECKING:
-    from cohort.crb import CohortQuery, Criteria, SourcePopulation
+    from cohort.crb.schemas import CohortQuery, Criteria, SourcePopulation
 
 _logger = logging.getLogger("info")
 

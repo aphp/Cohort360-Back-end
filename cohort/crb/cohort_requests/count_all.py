@@ -6,12 +6,12 @@ from typing import TYPE_CHECKING
 from requests import Response
 
 from accesses.models import Perimeter
-from cohort.crb import SourcePopulation
+from cohort.crb.schemas import SourcePopulation
 from cohort.crb.cohort_requests.abstract_cohort_request import AbstractCohortRequest
 from cohort.crb.enums import Mode
 
 if TYPE_CHECKING:
-    from cohort.crb import CohortQuery
+    from cohort.crb.schemas import CohortQuery
 
 env = os.environ
 

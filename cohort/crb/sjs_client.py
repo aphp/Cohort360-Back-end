@@ -7,10 +7,9 @@ import requests
 from requests import Response
 
 from admin_cohort.settings import SJS_URL
-from cohort.tools import log_create_task, log_count_task
 
 if TYPE_CHECKING:
-    from cohort.crb import CohortQuery, SparkJobObject
+    from cohort.crb.schemas import CohortQuery, SparkJobObject
 
 
 class SjsClient:

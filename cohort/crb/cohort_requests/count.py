@@ -8,7 +8,7 @@ from cohort.crb.cohort_requests.abstract_cohort_request import AbstractCohortReq
 from cohort.crb.enums import Mode
 
 if TYPE_CHECKING:
-    from cohort.crb import CohortQuery
+    from cohort.crb.schemas import CohortQuery
 
 
 class CohortCount(AbstractCohortRequest):

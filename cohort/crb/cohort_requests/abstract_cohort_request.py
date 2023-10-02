@@ -3,14 +3,14 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
-from cohort.crb import SparkJobObject
 from cohort.crb.enums import Mode
 from cohort.crb.exceptions import FhirException
 from cohort.crb.query_formatter import QueryFormatter
+from cohort.crb.schemas import SparkJobObject
 from cohort.crb.sjs_client import SjsClient, format_spark_job_request_for_sjs
 
 if TYPE_CHECKING:
-    from cohort.crb import CohortQuery
+    from cohort.crb.schemas import CohortQuery
 
 
 class AbstractCohortRequest(ABC):

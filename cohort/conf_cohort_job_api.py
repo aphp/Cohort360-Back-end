@@ -11,9 +11,7 @@ from rest_framework.request import Request
 
 from admin_cohort.middleware.request_trace_id_middleware import add_trace_id
 from admin_cohort.types import JobStatus, MissingDataError
-from cohort.crb import CohortQuery, CohortCreate, CohortCountAll, CohortCount
-from cohort.crb.cohort_requests.abstract_cohort_request import AbstractCohortRequest
-from cohort.crb.sjs_client import SjsClient
+from cohort.crb import CohortQuery, CohortCreate, CohortCountAll, CohortCount, AbstractCohortRequest, SjsClient
 from cohort.crb_responses import CRBCountResponse, CRBCohortResponse
 from cohort.tools import log_count_task, log_create_task, log_count_all_task
 
