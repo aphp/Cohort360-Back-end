@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from cohort.crb import SparkJobObject
 from cohort.crb.enums import Mode
 from cohort.crb.exceptions import FhirException
-from cohort.crb.format_query import FormatQuery
+from cohort.crb.query_formatter import QueryFormatter
 from cohort.crb.sjs_client import SjsClient, format_spark_job_request_for_sjs
 
 if TYPE_CHECKING:
@@ -24,7 +24,7 @@ class AbstractCohortRequest(ABC):
         for the followup sjs request."""
         if cohort_query is None:
             raise FhirException("No query received to format.")
-        format_query = FormatQuery(self.auth_headers)
+        format_query = QueryFormatter(self.auth_headers)
         sjs_request = format_query.format_to_fhir(cohort_query)
         cohort_query.request = sjs_request
         spark_job_request = SparkJobObject("Created from Django", cohort_query, self.mode, cohort_query.cohort_uuid)

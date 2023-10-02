@@ -24,7 +24,7 @@ def query_fhir(resource: str, params: dict[str, list[str]], auth_headers: dict) 
     return FhirParameters(**result)
 
 
-class FormatQuery:
+class QueryFormatter:
     IDENTIFIER_VALUE = "identifier.value"
 
     def __init__(self, auth_headers: dict):
