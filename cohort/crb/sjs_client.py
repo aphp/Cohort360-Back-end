@@ -45,10 +45,10 @@ class SjsClient:
         resp.raise_for_status()
         return resp, resp.json()
 
-    def delete(self, job_id: str) -> str:
+    def delete(self, job_id: str) -> tuple[Response, dict]:
         resp = requests.delete(f"{self.url}/jobs/{job_id}")
         resp.raise_for_status()
-        return resp.text
+        return resp, resp.json()
 
 
 def replace_pattern(text: str, replacements: list[tuple[str, str]]) -> str:
