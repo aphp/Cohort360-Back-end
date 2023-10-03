@@ -13,7 +13,7 @@ from admin_cohort.middleware.request_trace_id_middleware import add_trace_id
 from admin_cohort.types import JobStatus, MissingDataError
 from cohort.crb import CohortQuery, CohortCreate, CohortCountAll, CohortCount, AbstractCohortRequest, SjsClient
 from cohort.crb_responses import CRBCountResponse, CRBCohortResponse
-from cohort.tools import log_count_task, log_create_task, log_count_all_task
+from cohort.tools import log_count_task, log_create_task, log_count_all_task, log_delete_task
 
 COHORT_REQUEST_BUILDER_URL = os.environ.get('COHORT_REQUEST_BUILDER_URL')
 JOBS_API = f"{COHORT_REQUEST_BUILDER_URL}/jobs"
@@ -90,9 +90,9 @@ def cancel_job(job_id: str, auth_headers) -> JobStatus:
     """
     if not job_id:
         raise MissingDataError("No job_id provided")
-    resp = requests.patch(f"{JOBS_API}/{job_id}/{FHIR_CANCEL_ACTION}", headers=auth_headers)
-    resp.raise_for_status()
-    result = resp.json()
+    log_delete_task(job_id, f"Step 1: Job {job_id} cancelled")
+    resp, result = SjsClient().delete(job_id)
+    log_delete_task(job_id, f"Step 2: treat the response: {resp}, {result}")
     if resp.status_code == status.HTTP_403_FORBIDDEN:
         return JobStatus.finished
 
