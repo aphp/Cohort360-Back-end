@@ -2,6 +2,7 @@ from django.http import QueryDict
 from rest_framework import viewsets
 from rest_framework.relations import RelatedField
 
+from admin_cohort.views import CustomLoggingMixin
 from cohort.permissions import IsOwnerPermission
 
 
@@ -12,7 +13,9 @@ class BaseViewSet(viewsets.ModelViewSet):
         return {'request': self.request}
 
 
-class UserObjectsRestrictedViewSet(BaseViewSet):
+class UserObjectsRestrictedViewSet(CustomLoggingMixin, BaseViewSet):
+    logging_methods = ['POST', 'PATCH', 'DELETE']
+
     def get_queryset(self):
         return self.__class__.queryset.filter(owner=self.request.user)
 
