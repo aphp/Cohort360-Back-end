@@ -3,6 +3,15 @@
 import django.contrib.postgres.fields
 from django.db import migrations, models
 
+from admin_cohort.data.release_notes import release_notes
+
+
+def create_old_release_notes(apps, schema_editor):
+    release_note_model = apps.get_model('admin_cohort', 'ReleaseNote')
+    db_alias = schema_editor.connection.alias
+    for note in release_notes:
+        release_note_model.objects.using(db_alias).create(**note)
+
 
 class Migration(migrations.Migration):
 
@@ -20,10 +29,11 @@ class Migration(migrations.Migration):
                 ('id', models.AutoField(primary_key=True, serialize=False)),
                 ('title', models.TextField()),
                 ('message', django.contrib.postgres.fields.ArrayField(base_field=models.TextField(), blank=True, size=None)),
-                ('footer', models.TextField()),
+                ('author', models.TextField()),
             ],
             options={
                 'db_table': 'release_note',
             },
         ),
+        migrations.RunPython(code=create_old_release_notes)
     ]
