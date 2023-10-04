@@ -1,4 +1,4 @@
-from cohort.patches.query_request_updater import QueryRequestUpdater, RESOURCE_DEFAULT
+from cohort.scripts.query_request_updater import QueryRequestUpdater, RESOURCE_DEFAULT
 
 NEW_VERSION = "v1.3.0"
 
