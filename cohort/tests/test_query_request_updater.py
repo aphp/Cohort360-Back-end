@@ -2,7 +2,7 @@ import dataclasses
 import json
 
 from admin_cohort.tools.tests_tools import BaseTests
-from cohort.patches.query_request_updater import QueryRequestUpdater
+from cohort.scripts.query_request_updater import QueryRequestUpdater
 
 
 class TestQueryRequestUpdater(BaseTests):

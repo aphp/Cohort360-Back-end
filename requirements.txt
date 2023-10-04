@@ -66,7 +66,7 @@ simplejson==3.18.0
 six==1.16.0
 sqlparse==0.4.4
 uritemplate==4.1.1
-urllib3==1.26.13
+urllib3==1.26.17
 vine==5.0.0
 wcwidth==0.2.5
 zipp==3.11.0

@@ -1,17 +1,19 @@
 import http
 import logging
+from datetime import timedelta
 
 from django.db.models import Q
-from django.http import HttpResponse, StreamingHttpResponse
+from django.http import StreamingHttpResponse
+from django.utils import timezone
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from hdfs import HdfsError
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
+from admin_cohort.settings import DAYS_TO_DELETE_CSV_FILES as DAYS_TO_KEEP_CSV_FILES
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.models import User
 from admin_cohort.tools import join_qs
@@ -187,31 +189,23 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'], permission_classes=(ExportRequestPermissions,), url_path="download")
     def download(self, request, *args, **kwargs):
-        req: ExportRequest = self.get_object()
-        if req.request_job_status != JobStatus.finished:
-            return HttpResponse("The export request you asked for is not done yet or has failed.",
-                                status=http.HTTPStatus.FORBIDDEN)
-        if req.output_format != ExportType.CSV:
-            return HttpResponse(f"Can only download results of {ExportType.CSV} type. Got {req.output_format} instead",
-                                status=http.HTTPStatus.FORBIDDEN)
-        user: User = self.request.user
-        if req.owner.pk != user.pk:
-            raise PermissionDenied("L'utilisateur n'est pas à l'origine de l'export")
-
-        # start_bytes = re.search(r'bytes=(\d+)-',
-        #                         request.META.get('HTTP_RANGE', ''), re.S)
-        # start_bytes = int(start_bytes.group(1)) if start_bytes else 0
+        export = self.get_object()
+        if export.request_job_status != JobStatus.finished:
+            return Response(data="The export is not done yet or has failed.", status=status.HTTP_400_BAD_REQUEST)
+        if export.output_format != ExportType.CSV:
+            return Response(data=f"Can only download results of type CSV. Got {export.output_format} instead",
+                            status=status.HTTP_400_BAD_REQUEST)
+        if export.insert_datetime + timedelta(days=DAYS_TO_KEEP_CSV_FILES) < timezone.now():
+            return Response(data=f"The exported files are no longer available on the server.\n"
+                                 f"The export outcome is saved for {DAYS_TO_KEEP_CSV_FILES} days and is deleted afterwards",
+                            status=status.HTTP_204_NO_CONTENT)
         try:
-            response = StreamingHttpResponse(conf_exports.stream_gen(req.target_full_path))
-            resp_size = conf_exports.get_file_size(req.target_full_path)
-
+            response = StreamingHttpResponse(streaming_content=conf_exports.stream_gen(export.target_full_path))
+            file_size = conf_exports.get_file_size(file_name=export.target_full_path)
             response['Content-Type'] = 'application/zip'
-            response['Content-Length'] = resp_size
-            response['Content-Disposition'] = f"attachment; filename=export_{req.cohort_id}.zip"
-            # response['Content-Range'] = 'bytes %d-%d/%d' % (
-            #     start_bytes, resp_size, resp_size
-            # )
+            response['Content-Length'] = file_size
+            response['Content-Disposition'] = f"attachment; filename=export_{export.cohort_id}.zip"
             return response
         except (HdfsError, HdfsServerUnreachableError) as e:
             _logger.exception(e.message)
-            return HttpResponse(e.message, status=http.HTTPStatus.INTERNAL_SERVER_ERROR)
+            return Response(data=e.message, status=http.HTTPStatus.INTERNAL_SERVER_ERROR)
