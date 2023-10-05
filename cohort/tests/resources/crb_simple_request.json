@@ -1,0 +1,34 @@
+{
+  "version": "v1.3.0",
+  "_type": "request",
+  "sourcePopulation": {
+    "caresiteCohortList": [
+      "1234"
+    ]
+  },
+  "request": {
+    "_id": 0,
+    "_type": "andGroup",
+    "isInclusive": true,
+    "criteria": [
+      {
+        "_type": "basicResource",
+        "_id": 1,
+        "isInclusive": true,
+        "resourceType": "DocumentReference",
+        "filterFhir": "docstatus=final&type:not=doc-impor&empty=false&patient-active=true&_text=ok",
+        "occurrence": {
+          "n": 1,
+          "operator": ">="
+        }
+      }
+    ],
+    "temporalConstraints": [
+      {
+        "idList": [1, 2, 3],
+        "constraintType": "sameEncounter",
+        "id": 1
+      }
+    ]
+  }
+}

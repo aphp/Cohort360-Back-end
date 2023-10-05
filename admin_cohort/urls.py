@@ -9,6 +9,7 @@ from rest_framework_extensions.routers import NestedRouterMixin
 from . import __version__, __title__, settings
 from admin_cohort.views import OIDCTokensView, UserViewSet, LoggingViewset, MaintenancePhaseViewSet, CacheViewSet, ReleaseNotesViewSet
 
+
 schema_view = get_schema_view(info=openapi.Info(title=__title__,
                                                 default_version=f'v{__version__}',
                                                 description="Portail and Cohort360 API",
