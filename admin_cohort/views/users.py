@@ -6,7 +6,7 @@ from admin_cohort.models import User
 from admin_cohort.permissions import UsersPermission, can_user_read_users
 from admin_cohort.serializers import UserSerializer, OpenUserSerializer
 from admin_cohort.tools.cache import cache_response
-from admin_cohort.views import BaseViewset
+from admin_cohort.views import BaseViewSet
 
 
 class UserFilter(filters.FilterSet):
@@ -17,7 +17,7 @@ class UserFilter(filters.FilterSet):
         fields = ['firstname', "lastname", "provider_username", "email"]
 
 
-class UserViewSet(BaseViewset):
+class UserViewSet(BaseViewSet):
     queryset = User.objects.all()
     lookup_field = "provider_username"
     search_fields = ["firstname", "lastname", "provider_username", "email"]

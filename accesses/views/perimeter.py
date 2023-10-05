@@ -13,7 +13,7 @@ from admin_cohort.tools.cache import cache_response
 from admin_cohort.permissions import IsAuthenticatedReadOnly
 from admin_cohort.tools import join_qs
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
-from admin_cohort.views import BaseViewset
+from admin_cohort.views import BaseViewSet
 from ..models import Role, Perimeter, get_user_valid_manual_accesses
 from ..serializers import PerimeterSerializer, PerimeterLiteSerializer, DataReadRightSerializer, ReadRightPerimeter
 from ..tools.perimeter_process import get_top_perimeter_same_level, get_top_perimeter_inf_level, \
@@ -53,7 +53,7 @@ class PerimeterFilter(filters.FilterSet):
                   "id")
 
 
-class PerimeterViewSet(NestedViewSetMixin, BaseViewset):
+class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
     serializer_class = PerimeterSerializer
     queryset = Perimeter.objects.all()
     lookup_field = "id"

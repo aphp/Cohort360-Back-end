@@ -22,7 +22,7 @@ class FolderViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     http_method_names = ['get', 'post', 'patch', 'delete']
     lookup_field = "uuid"
     swagger_tags = ['Cohort - folders']
-    logging_methods = ['POST', 'PUT', 'PATCH', 'DELETE']
+    logging_methods = ['POST', 'PATCH', 'DELETE']
     pagination_class = NegativeLimitOffsetPagination
     filterset_class = FolderFilter
     search_fields = ('$name',)
