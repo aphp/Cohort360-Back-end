@@ -48,11 +48,12 @@ class TestQueryFormatter(CohortAppTests):
         self.query_formatter = QueryFormatter(self.auth_headers)
         self.cohort_query_complex = load_query("crb_complex_request.json")
         self.cohort_query_simple = load_query("crb_simple_request.json")
+        self.fq_value_string = 'fq=active:true&fq=gender:male'
         self.mocked_query_fhir_result = FhirParameters(
             resourceType=ResourceType.PATIENT,
             parameter=
             [
-                FhirParameter(name="fq", valueString="fq=active:true&fq=gender:male"),
+                FhirParameter(name="fq", valueString=self.fq_value_string),
                 FhirParameter(name="collection", valueString=ResourceType.PATIENT),
             ]
         )
@@ -64,7 +65,7 @@ class TestQueryFormatter(CohortAppTests):
         self.assertEquals(1, len(res.criteria))
         res_criteria = res.criteria[0]
         self.assertEquals(ResourceType.PATIENT, res_criteria.resource_type)
-        self.assertEquals("fq=active:true&fq=gender:male", res_criteria.filter_solr, )
+        self.assertEquals(self.fq_value_string, res_criteria.filter_solr, )
         self.assertEquals("docstatus=final&type:not=doc-impor&empty=false&patient-active=true&_text=ok",
                           res_criteria.filter_fhir)
 
@@ -75,5 +76,5 @@ class TestQueryFormatter(CohortAppTests):
         self.assertEquals(6, len(res.criteria))
         res_criteria = res.criteria[1]
         self.assertEquals(ResourceType.PATIENT, res_criteria.resource_type)
-        self.assertEquals("fq=active:true&fq=gender:male", res_criteria.filter_solr, )
+        self.assertEquals(self.fq_value_string, res_criteria.filter_solr, )
         self.assertEquals("patient-active=true&codeList=A00-B99", res_criteria.filter_fhir)

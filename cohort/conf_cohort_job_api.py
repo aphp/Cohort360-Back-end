@@ -83,7 +83,7 @@ class JobResponse:
         self.request_response: Response = resp
 
 
-def cancel_job(job_id: str, auth_headers) -> JobStatus:
+def cancel_job(job_id: str) -> JobStatus:
     """
     Sends a request to FHIR API to abort a job
     Its status will be then set to KILLED if it was not FINISHED already
@@ -136,7 +136,7 @@ LoggerType = Type[Callable[..., None]]
 def post_to_sjs(json_query: str, uuid: str, cohort_cls: AbstractCohortRequest, response_cls: Type[T],
                 logger: LoggerType) -> T:
     logger(uuid, f"Step 1: Parse the json query to make it CRB compatible {json_query}")
-    cohort_query = CohortQuery(cohort_uuid=uuid, **json.loads(json_query))
+    cohort_query = CohortQuery(cohortUuid=uuid, **json.loads(json_query))
     logger(uuid, f"Step 2: Send request to sjs: {cohort_query}")
     try:
         resp, data = cohort_cls.action(cohort_query)
