@@ -65,7 +65,7 @@ class DatedMeasureSerializer(BaseSerializer):
         dm = super(DatedMeasureSerializer, self).create(validated_data=validated_data)
 
         auth_headers = cohort_job_api.get_authorization_header(self.context.get("request"))
-        cancel_previously_running_dm_jobs.delay(auth_headers, dm.uuid)
+        cancel_previously_running_dm_jobs.delay(dm.uuid)
 
         if not measure:
             try:

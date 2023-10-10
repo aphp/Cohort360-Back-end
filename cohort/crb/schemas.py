@@ -8,52 +8,47 @@ from cohort.crb.enums import CriteriaType, ResourceType, Mode
 from cohort.crb.exceptions import FhirException
 
 
-@dataclass
-class PatientAge:
-    min_age: str
-    max_age: str
-    date_is_not_null: bool
-    date_preference: list[str]
+class PatientAge(BaseModel):
+    min_age: str = Field(alias='minAge')
+    max_age: str = Field(alias='maxAge')
+    date_is_not_null: bool = Field(alias='dateIsNotNull')
+    date_preference: list[str] = Field(alias='datePreference')
 
 
-@dataclass
-class DateRange:
-    min_date: str
-    max_date: str
-    date_preference: list[str]
-    date_is_not_null: bool
+class DateRange(BaseModel):
+    min_date: str = Field(alias='minDate')
+    max_date: str = Field(alias='maxDate')
+    date_preference: list[str] = Field(alias='datePreference')
+    date_is_not_null: bool = Field(alias='dateIsNotNull')
 
 
-@dataclass
-class Occurrence:
-    n: int
-    operator: str
-    time_delay_min: str = None
-    time_delay_max: str = None
-    same_encounter: bool = None
-    same_day: bool = None
+class Occurrence(BaseModel):
+    n: int = Field(alias='n')
+    operator: str = Field(alias='operator')
+    time_delay_min: str = Field(default=None, alias='timeDelayMin')
+    time_delay_max: str = Field(default=None, alias='timeDelayMax')
+    same_encounter: bool = Field(default=None, alias='sameEncounter')
+    same_day: bool = Field(default=None, alias='sameDay')
 
 
-@dataclass
-class TemporalConstraintDuration:
-    years: int
-    months: int
-    days: int
-    hours: int
-    minutes: int
-    seconds: int
+class TemporalConstraintDuration(BaseModel):
+    years: int = Field(...)
+    months: int = Field(...)
+    days: int = Field(...)
+    hours: int = Field(...)
+    minutes: int = Field(...)
+    seconds: int = Field(...)
 
 
-@dataclass
-class TemporalConstraint:
-    id_list: list = None
-    constraint_type: str = None
-    date_preference: list = None
-    time_relation_min_duration: TemporalConstraintDuration = None
-    timeRelationMaxDuration: TemporalConstraintDuration = None
-    occurrence_choices: list = None
-    dates_are_not_null: list = None
-    filtered_criteria_id: list = None
+class TemporalConstraint(BaseModel):
+    id_list: list = Field(default=None, alias="idList")
+    constraint_type: str = Field(default=None, alias="constraintType")
+    date_preference: list = Field(default=None, alias="datePreferenceList")
+    time_relation_min_duration: TemporalConstraintDuration = Field(default=None, alias="timeRelationMinDuration")
+    timeRelationMaxDuration: TemporalConstraintDuration = Field(default=None, alias="timeRelationMaxDuration")
+    occurrence_choices: list = Field(default=None, alias="occurrenceChoiceList")
+    dates_are_not_null: list = Field(default=None, alias="dateIsNotNullList")
+    filtered_criteria_id: list = Field(default=None, alias="filteredCriteriaIdList")
 
 
 class SourcePopulation(BaseModel):
@@ -88,12 +83,12 @@ class Criteria(BaseModel):
 
 
 class CohortQuery(BaseModel):
-    cohort_uuid: str = Field(None)
-    cohort_name: str = Field(None)
+    cohort_uuid: str = Field(None, alias='cohortUuid')
+    cohort_name: str = Field(None, alias='cohortName')
     source_population: SourcePopulation = Field(alias="sourcePopulation")
     criteria_type: CriteriaType = Field(None, alias="_type")
     criteria: Criteria = Field(None, alias="request")
-    temporal_constraints: list[TemporalConstraint] = Field(default_factory=list)
+    temporal_constraints: list[TemporalConstraint] = Field(default_factory=list, alias='temporalConstraints')
 
 
 @dataclass
