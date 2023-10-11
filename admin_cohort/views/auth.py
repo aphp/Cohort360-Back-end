@@ -1,10 +1,8 @@
 import logging
 
-from django.contrib.auth import authenticate, login, user_logged_in
+from django.contrib.auth import authenticate, login
 from django.contrib.auth import views
-from django.dispatch import receiver
 from django.http import JsonResponse, HttpResponseRedirect
-from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
@@ -12,7 +10,6 @@ from requests import RequestException
 from rest_framework import status, viewsets
 from rest_framework.response import Response
 from rest_framework_simplejwt.exceptions import InvalidToken
-from rest_framework_tracking.models import APIRequestLog
 
 from accesses.models import Profile, Access
 from accesses.serializers import AccessSerializer
@@ -22,7 +19,7 @@ from admin_cohort.models import User
 from admin_cohort.serializers import UserSerializer
 from admin_cohort.settings import MANUAL_SOURCE, AUTHENTICATION_BACKENDS, OIDC_AUTH_MODE, JWT_AUTH_MODE
 from admin_cohort.types import JwtTokens
-from admin_cohort.tools.request_log_mixin import RequestLogMixin
+from admin_cohort.tools.request_log_mixin import RequestLogMixin, LoginRequestLogMixin
 
 _logger = logging.getLogger("django.request")
 
@@ -69,7 +66,7 @@ class OIDCTokensView(RequestLogMixin, viewsets.ViewSet):
                             status=status.HTTP_200_OK)
 
 
-class JWTLoginView(views.LoginView, RequestLogMixin):
+class JWTLoginView(LoginRequestLogMixin, views.LoginView):
     form_class = AuthForm
     http_method_names = ["get", "post", "head", "options"]
     logging_methods = ['POST']
@@ -77,17 +74,16 @@ class JWTLoginView(views.LoginView, RequestLogMixin):
     @method_decorator(csrf_exempt)
     @method_decorator(never_cache)
     def dispatch(self, request, *args, **kwargs):
-        super(RequestLogMixin, self).initial(request, *args, **kwargs)
         if request.method.lower() in self.http_method_names:
             handler = getattr(self, request.method.lower(), self.http_method_not_allowed)
         else:
             handler = self.http_method_not_allowed
-        response = handler(request, *args, **kwargs)
-        return self.finalize_response(request, response, *args, **kwargs)
+        return handler(request, *args, **kwargs)
 
     def form_valid(self, form):
         login(self.request, form.get_user())
         data = get_response_data(request=self.request, user=self.request.user)
+        super().log_request(self.request)
         redirect_url = self.get_redirect_url()
         if redirect_url:
             return HttpResponseRedirect(redirect_url)
