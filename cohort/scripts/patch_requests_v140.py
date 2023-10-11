@@ -68,24 +68,25 @@ def find_related_atc(code: str):
         return code
     LOGGER.info(f"Searching for code {code}")
     cursor = connections["omop"].cursor()
-    cursor.execute(f'''
-    WITH orbis AS (
-        SELECT source_concept_id as orbis_atc_id,source_concept_code as orbis_atc_code 
-        FROM omop.concept_fhir 
-        WHERE source_vocabulary_reference = '{ATC_ORBIS_CODESYSTEM}' AND delete_datetime IS NULL
-        ),
-        atc AS (
-        SELECT source_concept_id as atc_id,source_concept_code as atc_code 
-        FROM omop.concept_fhir 
-        WHERE source_vocabulary_reference = '{ATC_CODEYSTEM}' AND delete_datetime IS NULL
-        )
-    SELECT atc_code FROM omop.concept_relationship r
-    INNER JOIN orbis o
-    ON o.orbis_atc_id = r.concept_id_1
-    INNER JOIN atc a
-    ON a.atc_id = r.concept_id_2
-    WHERE relationship_id = 'Maps to' AND r.delete_datetime IS NULL AND o.orbis_atc_code = '{code}';
-''')
+    q = '''
+        WITH orbis AS (
+            SELECT source_concept_id as orbis_atc_id,source_concept_code as orbis_atc_code 
+            FROM omop.concept_fhir 
+            WHERE source_vocabulary_reference = '%s' AND delete_datetime IS NULL
+            ),
+            atc AS (
+            SELECT source_concept_id as atc_id,source_concept_code as atc_code 
+            FROM omop.concept_fhir 
+            WHERE source_vocabulary_reference = '%s' AND delete_datetime IS NULL
+            )
+        SELECT atc_code FROM omop.concept_relationship r
+        INNER JOIN orbis o
+        ON o.orbis_atc_id = r.concept_id_1
+        INNER JOIN atc a
+        ON a.atc_id = r.concept_id_2
+        WHERE relationship_id = 'Maps to' AND r.delete_datetime IS NULL AND o.orbis_atc_code = '%s';
+        '''
+    cursor.execute(q, (ATC_ORBIS_CODESYSTEM, ATC_CODEYSTEM, code))
     res = cursor.fetchone()
     if not res:
         LOGGER.info(f"Failed to find related atc code {code}")

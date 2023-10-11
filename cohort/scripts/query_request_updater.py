@@ -180,7 +180,7 @@ class QueryRequestUpdater:
                 query = json.loads(rqs.serialized_query)
             except Exception as e:
                 error_loading += 1
-                LOGGER.error("Could not load query {}", rqs, exc_info=e)
+                LOGGER.error("Could not load query %s", rqs.serialized_query, exc_info=e)
                 continue
             has_changed, was_upgraded = self.process_query(query, self.version_name, debug_path)
             updated_query = json.dumps(query)
