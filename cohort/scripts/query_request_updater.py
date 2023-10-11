@@ -3,13 +3,14 @@ import logging
 import tempfile
 from functools import reduce
 from pathlib import Path
-from typing import List, Tuple, TypeVar, Callable, Any, Optional, Dict
+from typing import List, Tuple, TypeVar, Callable, Any, Optional, Dict, Union
 
 from cohort.models import RequestQuerySnapshot
 
 LOGGER = logging.getLogger("info")
 
 RESOURCE_DEFAULT = "_"
+MATCH_ALL_VALUES = "__MATCH_ALL_VALUES__"
 
 
 class QueryRequestUpdater:
@@ -17,7 +18,7 @@ class QueryRequestUpdater:
                  version_name: str,
                  filter_mapping: Dict[str, Dict[str, str]],
                  filter_names_to_skip: Dict[str, List[str]],
-                 filter_values_mapping: Dict[str, Dict[str, Dict[str, str]]],
+                 filter_values_mapping: Dict[str, Dict[str, Dict[str, Union[str, Callable[[str], str]]]]],
                  static_required_filters: Dict[str, List[str]],
                  resource_name_mapping: Dict[str, str]
                  ):
@@ -45,10 +46,12 @@ class QueryRequestUpdater:
         return filter_name, False
 
     def map_filter_value(self, filter_name: str, resource: str, filter_value: str) -> Tuple[str, bool]:
-        if resource in self.filter_values_mapping and filter_name in self.filter_values_mapping[
-            resource] and filter_value in \
-                self.filter_values_mapping[resource][filter_name]:
-            return self.filter_values_mapping[resource][filter_name][filter_value], True
+        if resource in self.filter_values_mapping and filter_name in self.filter_values_mapping[resource]:
+            if filter_value in self.filter_values_mapping[resource][filter_name]:
+                return self.filter_values_mapping[resource][filter_name][filter_value], True
+            elif MATCH_ALL_VALUES in self.filter_values_mapping[resource][filter_name]:
+                new_val = self.filter_values_mapping[resource][filter_name][MATCH_ALL_VALUES](filter_value)
+                return new_val, True
         return filter_value, False
 
     def add_static_required_filters(self, filters: List[str], resource: str) -> bool:
@@ -165,6 +168,7 @@ class QueryRequestUpdater:
         return query.get("version", None) == new_version, was_upgraded
 
     def do_update_old_query_snapshots(self, queries: List[Any], save_query: Callable[[Any], None], dry_run, debug):
+        error_loading = 0
         processed = 0
         upgraded = 0
         changed_queries = []
@@ -172,7 +176,12 @@ class QueryRequestUpdater:
         if debug:
             debug_path = Path(tempfile.mkdtemp(prefix=f"update_{self.version_name}_"))
         for rqs in queries:
-            query = json.loads(rqs.serialized_query)
+            try:
+                query = json.loads(rqs.serialized_query)
+            except Exception as e:
+                error_loading += 1
+                LOGGER.error("Could not load query %s", rqs.serialized_query, exc_info=e)
+                continue
             has_changed, was_upgraded = self.process_query(query, self.version_name, debug_path)
             updated_query = json.dumps(query)
             if has_changed:
@@ -188,6 +197,8 @@ class QueryRequestUpdater:
                     save_query(rqs)
         print(f"Processed {processed} queries ({upgraded} upgraded)")
         LOGGER.info(f"Processed {processed} queries ({upgraded} upgraded)")
+        if error_loading:
+            LOGGER.warning(f"{error_loading} failed to load")
         if debug:
             with open(debug_path / "before", "w") as fh:
                 json.dump([json.loads(c["before"]) for c in changed_queries], fh, indent=2)

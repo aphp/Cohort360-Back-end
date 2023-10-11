@@ -2,7 +2,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework_tracking.models import APIRequestLog
 
-from admin_cohort.models import MaintenancePhase, User
+from admin_cohort.models import MaintenancePhase, User, ReleaseNote
 
 
 class UserDetailsSerializer(serializers.Serializer):
@@ -98,3 +98,12 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = "__all__"
+
+
+class ReleaseNoteSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = ReleaseNote
+        exclude = ("insert_datetime",
+                   "update_datetime",
+                   "delete_datetime")
