@@ -17,7 +17,8 @@ from admin_cohort.permissions import IsAuthenticated, can_user_read_users
 from admin_cohort.serializers import UserSerializer
 from admin_cohort.settings import MANUAL_SOURCE
 from admin_cohort.types import ServerError, MissingDataError
-from admin_cohort.views import BaseViewSet, RequestLogMixin
+from admin_cohort.views import BaseViewSet
+from admin_cohort.tools.request_log_mixin import RequestLogMixin
 from ..models import Profile
 from ..models.tools import q_is_valid_profile
 from ..permissions import ProfilePermissions, HasUserAddingPermission

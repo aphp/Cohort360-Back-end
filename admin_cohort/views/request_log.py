@@ -6,7 +6,6 @@ from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import viewsets
 from rest_framework.response import Response
-from rest_framework_tracking.mixins import LoggingMixin
 from rest_framework_tracking.models import APIRequestLog
 
 from admin_cohort.models import User
@@ -107,10 +106,3 @@ class RequestLogViewSet(viewsets.ModelViewSet):
         if page is not None:
             return self.get_paginated_response(serializer.data)
         return Response(serializer.data)
-
-
-class RequestLogMixin(LoggingMixin):
-    def handle_log(self):
-        for f in ['query_params', 'data', 'errors', 'response']:
-            self.log.pop(f, None)
-        return super(RequestLogMixin, self).handle_log()

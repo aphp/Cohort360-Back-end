@@ -3,7 +3,7 @@ from rest_framework import viewsets
 
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
-from admin_cohort.views import RequestLogMixin
+from admin_cohort.tools.request_log_mixin import RequestLogMixin
 from cohort.models import FhirFilter
 from cohort.serializers import FhirFilterSerializer
 

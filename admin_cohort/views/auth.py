@@ -1,8 +1,10 @@
 import logging
 
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import authenticate, login, user_logged_in
 from django.contrib.auth import views
+from django.dispatch import receiver
 from django.http import JsonResponse, HttpResponseRedirect
+from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
@@ -10,6 +12,7 @@ from requests import RequestException
 from rest_framework import status, viewsets
 from rest_framework.response import Response
 from rest_framework_simplejwt.exceptions import InvalidToken
+from rest_framework_tracking.models import APIRequestLog
 
 from accesses.models import Profile, Access
 from accesses.serializers import AccessSerializer
@@ -19,7 +22,7 @@ from admin_cohort.models import User
 from admin_cohort.serializers import UserSerializer
 from admin_cohort.settings import MANUAL_SOURCE, AUTHENTICATION_BACKENDS, OIDC_AUTH_MODE, JWT_AUTH_MODE
 from admin_cohort.types import JwtTokens
-
+from admin_cohort.tools.request_log_mixin import RequestLogMixin
 
 _logger = logging.getLogger("django.request")
 
@@ -45,9 +48,10 @@ def get_response_data(request, user: User):
     return data
 
 
-class OIDCTokensView(viewsets.ViewSet):
+class OIDCTokensView(RequestLogMixin, viewsets.ViewSet):
     authentication_classes = []
     permission_classes = []
+    logging_methods = ['POST']
 
     def post(self, request, *args, **kwargs):
         auth_code = request.data.get("auth_code")
@@ -65,18 +69,21 @@ class OIDCTokensView(viewsets.ViewSet):
                             status=status.HTTP_200_OK)
 
 
-class JWTLoginView(views.LoginView):
+class JWTLoginView(views.LoginView, RequestLogMixin):
     form_class = AuthForm
     http_method_names = ["get", "post", "head", "options"]
+    logging_methods = ['POST']
 
     @method_decorator(csrf_exempt)
     @method_decorator(never_cache)
     def dispatch(self, request, *args, **kwargs):
+        super(RequestLogMixin, self).initial(request, *args, **kwargs)
         if request.method.lower() in self.http_method_names:
             handler = getattr(self, request.method.lower(), self.http_method_not_allowed)
         else:
             handler = self.http_method_not_allowed
-        return handler(request, *args, **kwargs)
+        response = handler(request, *args, **kwargs)
+        return self.finalize_response(request, response, *args, **kwargs)
 
     def form_valid(self, form):
         login(self.request, form.get_user())
@@ -131,3 +138,18 @@ def token_refresh_view(request):
         _logger.error(f"Error while refreshing access token: {e}")
         return JsonResponse(data={"error": f"{e}"},
                             status=status.HTTP_401_UNAUTHORIZED)
+
+
+# @receiver(user_logged_in)
+# def log_user_login(sender, **kwargs):
+#     print("user logged in: ", kwargs)
+#     request = kwargs.get("request")
+#     APIRequestLog.objects.create(user=kwargs.get("user"),
+#                                  username_persistent=kwargs.get("user").displayed_name,
+#                                  requested_at=timezone.now(),
+#                                  path=request.path,
+#                                  method=request.method,
+#                                  view=request.resolver_match.func,
+#                                  status_code=201)
+#
+# # todo: make decorator @request_log

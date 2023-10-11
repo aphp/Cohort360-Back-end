@@ -10,7 +10,8 @@ from rest_framework.response import Response
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.permissions import IsAuthenticated
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
-from admin_cohort.views import BaseViewSet, RequestLogMixin
+from admin_cohort.views import BaseViewSet
+from admin_cohort.tools.request_log_mixin import RequestLogMixin
 from ..models import Role, get_assignable_roles_on_perimeter, Perimeter
 from ..permissions import RolePermissions
 from ..serializers import RoleSerializer, UsersInRoleSerializer

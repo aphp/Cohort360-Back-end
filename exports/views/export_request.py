@@ -19,7 +19,7 @@ from admin_cohort.models import User
 from admin_cohort.tools import join_qs
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from admin_cohort.types import JobStatus
-from admin_cohort.views import RequestLogMixin
+from admin_cohort.tools.request_log_mixin import RequestLogMixin
 from cohort.models import CohortResult
 from exports import conf_exports
 from exports.emails import check_email_address, push_email_notification

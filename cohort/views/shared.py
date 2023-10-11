@@ -2,7 +2,7 @@ from django.http import QueryDict
 from rest_framework import viewsets
 from rest_framework.relations import RelatedField
 
-from admin_cohort.views import RequestLogMixin
+from admin_cohort.tools.request_log_mixin import RequestLogMixin
 from cohort.permissions import IsOwnerPermission
 
 

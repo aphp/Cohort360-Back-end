@@ -18,7 +18,8 @@ from admin_cohort.permissions import IsAuthenticated
 from admin_cohort.settings import PERIMETERS_TYPES, ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS
 from admin_cohort.tools import join_qs
 from admin_cohort.tools.cache import cache_response
-from admin_cohort.views import BaseViewSet, RequestLogMixin
+from admin_cohort.views import BaseViewSet
+from admin_cohort.tools.request_log_mixin import RequestLogMixin
 from ..models import Access, get_user_valid_manual_accesses, intersect_queryset_criteria, build_data_rights, Perimeter
 from ..models.tools import q_is_valid_access, q_role_impacts_lower_levels
 from ..permissions import AccessPermissions
