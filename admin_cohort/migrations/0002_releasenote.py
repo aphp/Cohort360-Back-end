@@ -29,7 +29,7 @@ class Migration(migrations.Migration):
                 ('id', models.AutoField(primary_key=True, serialize=False)),
                 ('title', models.TextField()),
                 ('message', django.contrib.postgres.fields.ArrayField(base_field=models.TextField(), blank=True, size=None)),
-                ('author', models.TextField()),
+                ('author', models.TextField(null=True)),
             ],
             options={
                 'db_table': 'release_note',
