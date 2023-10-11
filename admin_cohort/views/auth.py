@@ -19,7 +19,7 @@ from admin_cohort.models import User
 from admin_cohort.serializers import UserSerializer
 from admin_cohort.settings import MANUAL_SOURCE, AUTHENTICATION_BACKENDS, OIDC_AUTH_MODE, JWT_AUTH_MODE
 from admin_cohort.types import JwtTokens
-from admin_cohort.tools.request_log_mixin import RequestLogMixin, LoginRequestLogMixin
+from admin_cohort.tools.request_log_mixin import RequestLogMixin, JWTLoginRequestLogMixin
 
 _logger = logging.getLogger("django.request")
 
@@ -66,7 +66,7 @@ class OIDCTokensView(RequestLogMixin, viewsets.ViewSet):
                             status=status.HTTP_200_OK)
 
 
-class JWTLoginView(LoginRequestLogMixin, views.LoginView):
+class JWTLoginView(JWTLoginRequestLogMixin, views.LoginView):
     form_class = AuthForm
     http_method_names = ["get", "post", "head", "options"]
     logging_methods = ['POST']

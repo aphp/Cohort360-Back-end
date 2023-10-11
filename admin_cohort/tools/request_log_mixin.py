@@ -14,12 +14,12 @@ class RequestLogMixin(LoggingMixin):
         return super(RequestLogMixin, self).handle_log()
 
 
-class LoginRequestLogMixin(RequestLogMixin):
+class JWTLoginRequestLogMixin(RequestLogMixin):
 
     initial = {}
 
     def __init__(self, *args, **kwargs):
-        super(LoginRequestLogMixin, self).__init__(*args, **kwargs)
+        super(JWTLoginRequestLogMixin, self).__init__(*args, **kwargs)
         self.log = {}
 
     def init_request_log(self, request):
