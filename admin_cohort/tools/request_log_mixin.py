@@ -20,10 +20,14 @@ class LoginRequestLogMixin(RequestLogMixin):
 
     def __init__(self, *args, **kwargs):
         super(LoginRequestLogMixin, self).__init__(*args, **kwargs)
-        self.log = {"requested_at": now()}
+        self.log = {}
 
-    def log_request(self, request):
-        if self.logging_methods == "__all__" or request.method in self.logging_methods:
+    def init_request_log(self, request):
+        if self.should_log(request=request, response=None):
+            self.log["requested_at"] = now()
+
+    def finalize_request_log(self, request):
+        if self.should_log(request=request, response=None):
             self.log.update({"remote_addr": self._get_ip_address(request),
                              "view": self._get_view_name(request),
                              "view_method": self._get_view_method(request),
@@ -33,8 +37,7 @@ class LoginRequestLogMixin(RequestLogMixin):
                              "user": self._get_user(request),
                              "username_persistent": self._get_user(request).get_username() if self._get_user(request) else "Anonymous",
                              "response_ms": self._get_response_ms(),
-                             "status_code": status.HTTP_200_OK
-                             })
+                             "status_code": status.HTTP_200_OK})
             try:
                 self.handle_log()
             except Exception as e:

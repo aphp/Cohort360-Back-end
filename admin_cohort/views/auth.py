@@ -74,16 +74,18 @@ class JWTLoginView(LoginRequestLogMixin, views.LoginView):
     @method_decorator(csrf_exempt)
     @method_decorator(never_cache)
     def dispatch(self, request, *args, **kwargs):
+        super().init_request_log(request)
         if request.method.lower() in self.http_method_names:
             handler = getattr(self, request.method.lower(), self.http_method_not_allowed)
         else:
             handler = self.http_method_not_allowed
-        return handler(request, *args, **kwargs)
+        response = handler(request, *args, **kwargs)
+        super().finalize_request_log(request)
+        return response
 
     def form_valid(self, form):
         login(self.request, form.get_user())
         data = get_response_data(request=self.request, user=self.request.user)
-        super().log_request(self.request)
         redirect_url = self.get_redirect_url()
         if redirect_url:
             return HttpResponseRedirect(redirect_url)
