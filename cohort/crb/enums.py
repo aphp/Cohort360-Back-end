@@ -37,7 +37,7 @@ class ResourceType(StrEnum):
     MEDICATION_ADMINISTRATION_APHP = "medicationAdministrationAphp"
     DOCUMENT_REFERENCE_APHP = "documentReferenceAphp"
     CONDITION_APHP = "conditionAphp"
-    IPP_LIST = "ippList"
+    IPP_LIST = "IPPList"
     PARAMETERS = "parameters"
 
     @classmethod
