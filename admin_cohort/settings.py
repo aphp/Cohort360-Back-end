@@ -57,15 +57,20 @@ LOGGING = dict(version=1,
                loggers={
                     'info': {
                        'level': "INFO",
-                       'handlers': ['info_handler'],
+                       'handlers': ['info_handler'] + (DEBUG and ['console'] or []),
                        'propagate': False
                     },
                     'django.request': {
                        'level': "ERROR",
-                       'handlers': ['error_handler'] + (NOTIFY_ADMINS and ['mail_admins'] or []),
+                       'handlers': ['error_handler'] + (DEBUG and ['console'] or []) + (NOTIFY_ADMINS and ['mail_admins'] or []),
                        'propagate': False
-                    }},
+                    }
+               },
                handlers={
+                   'console': {
+                       'level': "INFO",
+                       'class': "logging.StreamHandler"
+                    },
                    'info_handler': {
                        'level': "INFO",
                        'class': "admin_cohort.tools.logging.CustomSocketHandler",
