@@ -32,12 +32,12 @@ class Occurrence(BaseModel):
 
 
 class TemporalConstraintDuration(BaseModel):
-    years: Optional[int] = Field(...)
-    months: Optional[int] = Field(...)
-    days: Optional[int] = Field(...)
-    hours: Optional[int] = Field(...)
-    minutes: Optional[int] = Field(...)
-    seconds: Optional[int] = Field(...)
+    years: Optional[int] = Field(default=None)
+    months: Optional[int] = Field(default=None)
+    days: Optional[int] = Field(default=None)
+    hours: Optional[int] = Field(default=None)
+    minutes: Optional[int] = Field(default=None)
+    seconds: Optional[int] = Field(default=None)
 
 
 class TemporalConstraint(BaseModel):
