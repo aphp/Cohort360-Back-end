@@ -6,9 +6,9 @@ import environ
 import jwt
 import requests
 from django.contrib.auth import logout as auth_logout
-from jwt import DecodeError
+from jwt import InvalidTokenError
 from rest_framework import status, HTTP_HEADER_ENCODING
-from rest_framework_simplejwt.exceptions import AuthenticationFailed, InvalidToken
+from rest_framework_simplejwt.exceptions import AuthenticationFailed
 
 from admin_cohort.models import User
 from admin_cohort.settings import JWT_AUTH_MODE, OIDC_AUTH_MODE, JWT_ACCESS_COOKIE
@@ -155,8 +155,8 @@ def get_userinfo_from_token(token: str, auth_method: str) -> Union[None, UserInf
                             firstname=user.firstname,
                             lastname=user.lastname,
                             email=user.email)
-        except DecodeError as de:
-            raise ServerError(f"Invalid JWT Token. Error decoding token - {de}")
+        except InvalidTokenError as e:
+            _logger.info(f"Invalid JWT Token - {e}")
         except User.DoesNotExist as e:
             raise ServerError(f"Error verifying token. User not found - {e}")
     elif auth_method == OIDC_AUTH_MODE:
@@ -168,8 +168,7 @@ def get_userinfo_from_token(token: str, auth_method: str) -> Union[None, UserInf
                             lastname=decoded.get('family_name'),
                             email=decoded.get('email'))
         except Exception as e:
-            _logger_err.error(f"Error decoding token: {e} - `{token}`")
-            raise InvalidToken()
+            _logger.info(f"Error decoding token: {e} - `{token}`")
     else:
         raise ValueError(f"Invalid authentication method : {auth_method}")
 
