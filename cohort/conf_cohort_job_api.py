@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Tuple, Dict, Type, TypeVar, Callable
 
 import requests
+from pydantic import ValidationError
 from requests import Response, HTTPError
 from rest_framework import status
 from rest_framework.request import Request
@@ -135,12 +136,12 @@ LoggerType = Type[Callable[..., None]]
 
 def post_to_sjs(json_query: str, uuid: str, cohort_cls: AbstractCohortRequest, response_cls: Type[T],
                 logger: LoggerType) -> T:
-    logger(uuid, f"Step 1: Parse the json query to make it CRB compatible {json_query}")
-    cohort_query = CohortQuery(cohortUuid=uuid, **json.loads(json_query))
-    logger(uuid, f"Step 2: Send request to sjs: {cohort_query}")
     try:
+        logger(uuid, f"Step 1: Parse the json query to make it CRB compatible {json_query}")
+        cohort_query = CohortQuery(cohortUuid=uuid, **json.loads(json_query))
+        logger(uuid, f"Step 2: Send request to sjs: {cohort_query}")
         resp, data = cohort_cls.action(cohort_query)
-    except (TypeError, ValueError, HTTPError) as e:
+    except (TypeError, ValueError, ValidationError, HTTPError) as e:
         _logger_err.error(f"Error sending `count` request: {e}")
         return response_cls(success=False, fhir_job_status=JobStatus.failed, err_msg=str(e))
     job = JobResponse(resp, **data)

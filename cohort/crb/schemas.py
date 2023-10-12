@@ -9,17 +9,17 @@ from cohort.crb.exceptions import FhirException
 
 
 class PatientAge(BaseModel):
-    min_age: str = Field(alias='minAge')
-    max_age: str = Field(alias='maxAge')
-    date_is_not_null: bool = Field(alias='dateIsNotNull')
-    date_preference: list[str] = Field(alias='datePreference')
+    min_age: Optional[str] = Field(default=None, alias='minAge')
+    max_age: Optional[str] = Field(default=None, alias='maxAge')
+    date_is_not_null: Optional[bool] = Field(default=None, alias='dateIsNotNull')
+    date_preference: Optional[list[str]] = Field(default=None, alias='datePreference')
 
 
 class DateRange(BaseModel):
-    min_date: str = Field(alias='minDate')
-    max_date: str = Field(alias='maxDate')
-    date_preference: list[str] = Field(alias='datePreference')
-    date_is_not_null: bool = Field(alias='dateIsNotNull')
+    min_date: Optional[str] = Field(default=None, alias='minDate')
+    max_date: Optional[str] = Field(default=None, alias='maxDate')
+    date_preference: Optional[list[str]] = Field(default=None, alias='datePreference')
+    date_is_not_null: Optional[bool] = Field(default=None, alias='dateIsNotNull')
 
 
 class Occurrence(BaseModel):
@@ -32,12 +32,12 @@ class Occurrence(BaseModel):
 
 
 class TemporalConstraintDuration(BaseModel):
-    years: int = Field(...)
-    months: int = Field(...)
-    days: int = Field(...)
-    hours: int = Field(...)
-    minutes: int = Field(...)
-    seconds: int = Field(...)
+    years: Optional[int] = Field(...)
+    months: Optional[int] = Field(...)
+    days: Optional[int] = Field(...)
+    hours: Optional[int] = Field(...)
+    minutes: Optional[int] = Field(...)
+    seconds: Optional[int] = Field(...)
 
 
 class TemporalConstraint(BaseModel):
