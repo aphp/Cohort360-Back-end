@@ -12,40 +12,52 @@ NEW_VERSION = "v1.4.0"
 FILTER_MAPPING = {
     "Encounter": {
         "_has:Patient:encounter:active": "subject.active",
-        "service-provider": "encounter-care-site"
+        "service-provider": "encounter-care-site",
+        "destination-type": "admission-destination-type",
+        "destination": "discharge-disposition"
     },
     "DocumentReference": {
-        "patient-active": "subject.active"
+        "patient-active": "subject.active",
+        "encounter-service-provider": "encounter.encounter-care-site"
     },
     "MedicationAdministration": {
         "hierarchy-ATC": "medication",
         "medication-simple": "medication",
-        "patient-active": "subject.active"
+        "patient-active": "subject.active",
+        "route": "dosage-route",
+        "encounter-service-provider": "context.encounter-care-site"
     },
     "MedicationRequest": {
         "hierarchy-ATC": "medication",
         "medication-simple": "medication",
-        "patient-active": "subject.active"
+        "patient-active": "subject.active",
+        "route": "dosage-instruction-route",
+        "type": "category",
+        "encounter-service-provider": "encounter.encounter-care-site"
     },
     "Claim": {
         "code": "diagnosis",
         "codeList": "diagnosis",
-        "patient-active": "patient.active"
+        "patient-active": "patient.active",
+        "encounter-service-provider": "encounter.encounter-care-site"
     },
     "Procedure": {
         "codeList": "code",
-        "patient-active": "subject.active"
+        "patient-active": "subject.active",
+        "encounter-service-provider": "encounter.encounter-care-site"
     },
     "Condition": {
         "codeList": "code",
-        "patient-active": "subject.active"
+        "patient-active": "subject.active",
+        "type": "orbis-status",
+        "encounter-service-provider": "encounter.encounter-care-site"
     },
     "Observation": {
         "part-of": "code",
         "value-quantity-value": "value-quantity",
         "row_status": "status",
         "encounter-service-provider": "encounter.encounter-care-site",
-        "patient-active": "subject.active"
+        "patient-active": "subject.active",
     },
     RESOURCE_DEFAULT: {
     }
