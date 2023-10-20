@@ -19,6 +19,6 @@ class Authentication(BaseAuthentication):
         try:
             user_info = get_userinfo_from_token(token=access_token, auth_method=auth_method)
             user = User.objects.get(provider_username=user_info.username)
-        except (InvalidTokenError, ValueError, User.DoesNotExist) as e:
+        except (InvalidTokenError, ValueError, User.DoesNotExist):
             return None
         return user, access_token
