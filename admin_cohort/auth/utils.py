@@ -6,7 +6,6 @@ import environ
 import jwt
 import requests
 from django.contrib.auth import logout as auth_logout
-from jwt import InvalidTokenError
 from rest_framework import status, HTTP_HEADER_ENCODING
 from rest_framework_simplejwt.exceptions import AuthenticationFailed
 
@@ -155,8 +154,6 @@ def get_userinfo_from_token(token: str, auth_method: str) -> Union[None, UserInf
                             firstname=user.firstname,
                             lastname=user.lastname,
                             email=user.email)
-        except InvalidTokenError as e:
-            _logger.info(f"Invalid JWT Token - {e}")
         except User.DoesNotExist as e:
             raise ServerError(f"Error verifying token. User not found - {e}")
     elif auth_method == OIDC_AUTH_MODE:
