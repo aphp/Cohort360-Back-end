@@ -8,24 +8,11 @@ from exports.types import ExportType
 
 
 def can_export_jupyter_nomi(user: User):
-    return any([r.right_transfer_jupyter_nominative for r in get_bound_roles(user)])
+    return any([r.right_export_jupyter_nominative for r in get_bound_roles(user)])
 
 
 def can_export_jupyter_pseudo(user: User):
-    return any([r.right_transfer_jupyter_pseudo_anonymised for r in get_bound_roles(user)])
-
-
-def can_review_transfer_jupyter(user: User) -> bool:
-    return any([r.right_review_transfer_jupyter for r in get_bound_roles(user)])
-
-
-def can_review_export_csv(user: User) -> bool:
-    return any([r.right_review_export_csv for r in get_bound_roles(user)])
-
-
-def can_review_export(user: User) -> bool:
-    return any([r.right_review_export_csv or r.right_review_transfer_jupyter
-                for r in get_bound_roles(user)])
+    return any([r.right_export_jupyter_pseudo_anonymised for r in get_bound_roles(user)])
 
 
 def can_user_make_csv_export(user: User) -> bool:
@@ -34,21 +21,19 @@ def can_user_make_csv_export(user: User) -> bool:
 
 
 def can_user_make_jupyter_export(user: User) -> bool:
-    return any([r.right_transfer_jupyter_nominative or r.right_transfer_jupyter_pseudo_anonymised
+    return any([r.right_export_jupyter_nominative or r.right_export_jupyter_pseudo_anonymised
                 for r in get_bound_roles(user)])
 
 
 class ExportJupyterPermissions(permissions.BasePermission):
-    message = "Cannot create a non-CSV export request for another user "\
-              "without an access with right_review_transfer_jupyter."
 
     def has_permission(self, request, view):
         output_format = request.data.get('output_format')
 
-        if request.method == "POST" and output_format != ExportType.CSV:
+        if request.method == "POST" and output_format == ExportType.HIVE:
             owner_id = request.data.get('owner',
                                         request.data.get('provider_source_value', request.user.pk))
-            if request.user.pk != owner_id and not can_review_transfer_jupyter(request.user):
+            if request.user.pk != owner_id:
                 return False
         return True
 
@@ -64,19 +49,6 @@ class ExportRequestPermissions(permissions.BasePermission):
                     raise PermissionDenied("L'utilisateur destinataire n'a pas le droit d'export pseudonymisé")
 
         return user_is_authenticated(request.user)
-
-    def has_object_permission(self, request, view, obj):
-        return user_is_authenticated(request.user) \
-               and obj.owner_id == request.user.provider_username \
-               and request.method in permissions.SAFE_METHODS
-
-
-class AnnexesPermissions(permissions.BasePermission):
-    def has_permission(self, request, view):
-        return request.method == "GET" \
-               and user_is_authenticated(request.user) \
-               and (can_review_transfer_jupyter(request.user)
-                    or can_review_export_csv(request.user))
 
     def has_object_permission(self, request, view, obj):
         return user_is_authenticated(request.user) \

@@ -46,7 +46,7 @@ class RoleTests(ViewSetTestsWithBasicPerims):
         # can_mng_roles
         self.user_that_can_mng_roles, self.prof_that_can_mng_roles = \
             new_user_and_profile(email="can@mng.roles")
-        self.role_mng_roles = Role.objects.create(right_edit_roles=True)
+        self.role_mng_roles = Role.objects.create(right_manage_roles=True)
         Access.objects.create(
             perimeter_id=self.hospital3.id,
             profile=self.prof_that_can_mng_roles,
@@ -58,7 +58,7 @@ class RoleTests(ViewSetTestsWithBasicPerims):
             new_user_and_profile(email="cannot@mng.roles")
         self.role_all_but_edit_roles = Role.objects.create(
             **dict([(r, True) for r in self.all_rights
-                    if r != 'right_edit_roles']))
+                    if r != 'right_manage_roles']))
         Access.objects.create(
             perimeter_id=self.aphp.id,
             profile=self.prof_that_cannot_mng_roles,
@@ -214,7 +214,7 @@ class RoleGetAssignableTests(RoleTests):
         user_access: Access = Access.objects.create(
             role=r, profile=case.user_profile,
             perimeter_id=case.user_perimeter.id)
-        if r.right_edit_roles:
+        if r.right_manage_roles:
             case.to_find.append(r)
 
         self.check_get_paged_list_case(case, other_view, **view_kwargs)
@@ -306,7 +306,7 @@ class RoleCreateTests(RoleTests):
         )
 
     def test_create_as_role_admin(self):
-        # As a user with right_edit_roles, I can create a new role
+        # As a user with right_manage_roles, I can create a new role
         case = self.basic_create_case.clone(
             user=self.user_that_can_mng_roles,
             success=True,
@@ -315,7 +315,7 @@ class RoleCreateTests(RoleTests):
         self.check_create_case(case)
 
     def test_error_create_as_simple_user(self):
-        # As a user with everything but right_edit_roles,
+        # As a user with everything but right_manage_roles,
         # I cannot create a new role
         case = self.basic_create_case.clone(
             user=self.user_that_cannot_mng_roles,
@@ -344,7 +344,7 @@ class RolePatchTests(RoleTests):
         )
 
     def test_patch_as_user_admin(self):
-        # As a user with right_edit_roles, I can edit a role
+        # As a user with right_manage_roles, I can edit a role
         case = self.basic_patch_case.clone(
             user=self.user_that_can_mng_roles,
             success=True,
@@ -353,7 +353,7 @@ class RolePatchTests(RoleTests):
         self.check_patch_case(case)
 
     def test_error_patch_as_simple_user(self):
-        # As a user with everything but right_edit_roles,
+        # As a user with everything but right_manage_roles,
         # I cannot edit a role
         case = self.basic_patch_case.clone(
             user=self.user_that_cannot_mng_roles,
@@ -387,7 +387,7 @@ class RoleDeleteTests(RoleTests):
 
     # when we'll be safe with role deletion (cascade, deletion, etc.)
     # def test_delete_user_as_main_admin(self):
-    #     # As a user with right_edit_roles,
+    #     # As a user with right_manage_roles,
     #     # I can delete a role (set delete_datetime to now)
     #     case = self.basic_delete_case.clone(
     #         user=self.user_that_can_mng_roles,
@@ -397,7 +397,7 @@ class RoleDeleteTests(RoleTests):
     #     self.check_delete_case(case)
     #
     # def test_error_delete_user_as_simple_user(self):
-    #     # As a user with everything but right_edit_roles,
+    #     # As a user with everything but right_manage_roles,
     #     # I cannot delete a role
     #     case = self.basic_delete_case.clone(
     #         user=self.user_that_can_mng_roles,
@@ -407,7 +407,7 @@ class RoleDeleteTests(RoleTests):
     #     self.check_delete_case(case)
 
     def test_error_delete_user_as_god_admin(self):
-        # As a user with everything but right_edit_roles,
+        # As a user with everything but right_manage_roles,
         # I cannot delete a role
         case = self.basic_delete_case.clone(
             user=self.user_full_admin,

@@ -82,3 +82,49 @@ class Access(BaseModel):
             res.append(d)
 
         return res
+
+    @property
+    def requires_manage_export_csv_role(self):
+        return any([self.role.right_export_csv_nominative,
+                    self.role.right_export_csv_pseudo_anonymised])
+
+    @property
+    def requires_manage_export_jupyter_role(self):
+        return any([self.role.right_export_jupyter_nominative,
+                    self.role.right_export_jupyter_pseudo_anonymised])
+
+    @property
+    def requires_admin_role(self):
+        return any([self.role.right_read_patient_nominative,
+                    self.role.right_search_patients_by_ipp,
+                    self.role.right_read_patient_pseudo_anonymised])
+
+    @property
+    def requires_admin_managing_role(self):
+        return any([self.role.right_manage_data_accesses_same_level,
+                    self.role.right_read_data_accesses_same_level,
+                    self.role.right_manage_data_accesses_inferior_levels,
+                    self.role.right_read_data_accesses_inferior_levels])
+
+    @property
+    def requires_main_admin_role(self):
+        return any([self.role.right_manage_roles,
+                    self.role.right_read_logs,
+                    self.role.right_add_users,
+                    self.role.right_edit_users,
+                    self.role.right_manage_admin_accesses_same_level,
+                    self.role.right_read_admin_accesses_same_level,
+                    self.role.right_manage_admin_accesses_inferior_levels,
+                    self.role.right_read_admin_accesses_inferior_levels,
+                    self.role.right_read_admin_accesses_above_levels,
+                    self.role.right_read_env_unix_users,
+                    self.role.right_manage_env_unix_users,
+                    self.role.right_manage_env_user_links,
+                    self.role.right_manage_export_jupyter_accesses,
+                    self.role.right_manage_export_csv_accesses])
+
+    @property
+    def requires_any_admin_mng_role(self):
+        # to be managed, the role requires an access with
+        # main admin or admin manager
+        return self.role.right_read_users

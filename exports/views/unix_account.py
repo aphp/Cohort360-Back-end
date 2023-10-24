@@ -1,7 +1,5 @@
 from django_filters import rest_framework as filters
 
-from admin_cohort.permissions import either
-from exports.permissions import AnnexesPermissions, can_review_transfer_jupyter, can_review_export_csv
 from exports.serializers import AnnexeAccountSerializer
 from workspaces.conf_workspaces import get_account_groups_from_id_aph
 from workspaces.models import Account
@@ -25,16 +23,14 @@ class UnixAccountViewSet(AccountViewSet):
     lookup_field = "uid"
     serializer_class = AnnexeAccountSerializer
     http_method_names = ["get"]
+    permission_classes = [AccountPermissions]
     swagger_tags = ['Exports - users']
     filterset_class = UnixAccountFilter
-
-    def get_permissions(self):
-        return either(AnnexesPermissions(), AccountPermissions())
 
     def get_queryset(self):
         q = super(UnixAccountViewSet, self).get_queryset()
         user = self.request.user
-        if not user.is_anonymous and not can_review_transfer_jupyter(user) and not can_review_export_csv(user):
+        if not user.is_anonymous:
             ad_groups = get_account_groups_from_id_aph(user)
             return q.filter(aphp_ldap_group_dn__in=ad_groups)
         return q

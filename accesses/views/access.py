@@ -74,18 +74,15 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
     queryset = Access.objects.all()
     lookup_field = "id"
     filterset_class = AccessFilter
-    logging_methods = ['POST', 'PUT', 'PATCH', 'DELETE']
+    permission_classes = [IsAuthenticated, AccessPermissions]
+    http_method_names = ['post', 'patch', 'delete']
+    logging_methods = ['POST', 'PATCH', 'DELETE']
     swagger_tags = ['Accesses - accesses']
     search_fields = ["profile__lastname",
                      "profile__firstname",
                      "perimeter__name",
                      "profile__email",
                      "profile__user__provider_username"]
-
-    def get_permissions(self):
-        if self.action in ['my_accesses', 'my_rights']:
-            return [IsAuthenticated()]
-        return [IsAuthenticated(), AccessPermissions()]
 
     def get_serializer_class(self):
         if self.request.method == "GET" and "expiring" in self.request.query_params:
@@ -237,7 +234,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
                                                               description="Filter accesses to expire soon",
                                                               type=openapi.TYPE_BOOLEAN)],
                          responses={200: openapi.Response('All valid accesses or ones to expire soon', AccessSerializer)})
-    @action(url_path="my-accesses", methods=['get'], detail=False)
+    @action(url_path="my-accesses", methods=['get'], detail=False, permission_classes=[IsAuthenticated])
     @cache_response()
     def my_accesses(self, request, *args, **kwargs):
         user = request.user
@@ -276,7 +273,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
                                                              openapi.TYPE_BOOLEAN]])],
                          responses={200: openapi.Response('Rights found', DataRightSerializer),
                                     400: openapi.Response('perimeters_ids and pop_children are both null')})
-    @action(url_path="my-rights", detail=False, methods=['get'], filter_backends=[], pagination_class=None)
+    @action(url_path="my-rights", detail=False, methods=['get'], permission_classes=[IsAuthenticated], filter_backends=[], pagination_class=None)
     @cache_response()
     def my_rights(self, request, *args, **kwargs):
         perimeters_ids = request.query_params.get('perimeters_ids',

@@ -24,8 +24,7 @@ from cohort.models import CohortResult
 from exports import conf_exports
 from exports.emails import check_email_address, push_email_notification
 from exports.models import ExportRequest
-from exports.permissions import ExportRequestPermissions, ExportJupyterPermissions, can_review_transfer_jupyter, \
-    can_review_export_csv
+from exports.permissions import ExportRequestPermissions, ExportJupyterPermissions
 from exports.serializers import ExportRequestSerializer, ExportRequestSerializerNoReviewer, ExportRequestListSerializer
 from exports.types import ExportType, HdfsServerUnreachableError
 
@@ -83,22 +82,6 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
 
     def get_serializer_context(self):
         return {'request': self.request}
-
-    def get_serializer_class(self):
-        if can_review_transfer_jupyter(self.request.user):
-            return ExportRequestSerializer
-        else:
-            return ExportRequestSerializerNoReviewer
-
-    def get_queryset(self):
-        q = self.__class__.queryset
-        reviewer = self.request.user
-        types = []
-        if can_review_export_csv(reviewer):
-            types.append(ExportType.CSV)
-        if can_review_transfer_jupyter(reviewer):
-            types.append(ExportType.HIVE)
-        return q.filter(owner=self.request.user) | q.filter(output_format__in=types)
 
     @swagger_auto_schema(responses={'200': openapi.Response("List of export requests", ExportRequestListSerializer()),
                                     '204': openapi.Response("HTTP_204 if no export requests found")})

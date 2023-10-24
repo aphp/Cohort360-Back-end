@@ -11,7 +11,6 @@ from cohort.models import CohortResult
 from workspaces.models import Account
 from exports.emails import check_email_address
 from exports.models import ExportRequest, ExportRequestTable, Datalab, InfrastructureProvider, ExportTable, ExportResultStat, Export
-from exports.permissions import can_review_transfer_jupyter, can_review_export
 from exports.types import ExportType
 
 
@@ -48,9 +47,9 @@ def check_csv_export_rights_on_perimeters(rights: List[DataRight], is_nomi: bool
 
 def check_jupyter_export_rights_on_perimeters(rights: List[DataRight], is_nomi: bool):
     if is_nomi:
-        wrong_perims = [r.care_site_id for r in rights if not r.right_transfer_jupyter_nominative]
+        wrong_perims = [r.care_site_id for r in rights if not r.right_export_jupyter_nominative]
     else:
-        wrong_perims = [r.care_site_id for r in rights if not r.right_transfer_jupyter_pseudo_anonymised]
+        wrong_perims = [r.care_site_id for r in rights if not r.right_export_jupyter_pseudo_anonymised]
     if wrong_perims:
         raise ValidationError(f"L'utilisateur n'a pas le droit d'export Jupyter {is_nomi and 'nominatif' or 'pseudonymisé'} "
                               f"sur les périmètres {wrong_perims}.")
@@ -63,16 +62,6 @@ def check_rights_on_perimeters_for_exports(rights: List[DataRight], export_type:
         check_csv_export_rights_on_perimeters(rights=rights, is_nomi=is_nomi)
     else:
         check_jupyter_export_rights_on_perimeters(rights=rights, is_nomi=is_nomi)
-
-
-class ReviewFilteredPrimaryKeyRelatedField(serializers.PrimaryKeyRelatedField):
-    def get_queryset(self):
-        q = super(ReviewFilteredPrimaryKeyRelatedField, self).get_queryset()
-        creator = self.context.get('request').user
-        if can_review_export(creator):
-            return q
-        else:
-            return q.filter(owner=creator)
 
 
 class ExportRequestListSerializer(serializers.ModelSerializer):
@@ -96,7 +85,7 @@ class ExportRequestListSerializer(serializers.ModelSerializer):
 
 class ExportRequestSerializer(serializers.ModelSerializer):
     tables = ExportRequestTableSerializer(many=True)
-    cohort = ReviewFilteredPrimaryKeyRelatedField(queryset=CohortResult.objects.all(), source='cohort_fk')
+    cohort = serializers.PrimaryKeyRelatedField(queryset=CohortResult.objects.all(), source='cohort_fk')
     reviewer_fk = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), allow_null=True, required=False)
     cohort_id = serializers.IntegerField(required=False)
 
@@ -147,7 +136,7 @@ class ExportRequestSerializer(serializers.ModelSerializer):
         owner: User = validated_data.get('owner')
         check_email_address(owner.email)
         cohort: CohortResult = validated_data.get('cohort_fk')
-        creator_is_reviewer = can_review_transfer_jupyter(self.context.get('request').user)
+        creator_is_reviewer = True
 
         if not creator_is_reviewer and cohort.owner.pk != owner.pk:
             raise ValidationError("The cohort does not belong to the request owner!")

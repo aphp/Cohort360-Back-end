@@ -27,7 +27,7 @@ B1 --> B2
 ```mermaid
 classDiagram
 class RolesEditors {
-  right_edit_roles
+  right_manage_roles
 }
 class AdminManager {
   right_manage_admin_accesses_same_level
@@ -152,7 +152,7 @@ Les accès concernant des droits de type Action Validation ou Action Données : 
 - right_read_admin_accesses_same_level/inferior_levels.
 
 Les accès concernant au moins un droit de type _Rôles_, _Logs_, _Actions Admin_, _User Admin_ (sans read_users) ou _AdminManager_ avec, ou non, _ADMIN_ et/ou _Données_ mais aucun autre : 
-- lus par right_edit_roles
+- lus par right_manage_roles
 
 
 #### Spécifications pour les éditions
@@ -288,10 +288,10 @@ Imaginons un *Role* qui possède:
 
 Et bien pour pouvoir attribuer ce *Role* a quelqu'un, ou modifier un *Access* qui possède ce *Role*, il faut que moi-même j'ai un Role avec :
 - *right_manage_export_csv* (**ExportersAdmin**)
-- *right_edit_roles* (**RolesEditors**)
+- *right_manage_roles* (**RolesEditors**)
 - *right_manage_admin_accesses_* (**AdminManager**)
 
-Et en effet, *right_edit_roles* **ne suffit pas** pour créer un accès avec *right_read_data_accesses_same_level* (**DataReadersAdmin**)
+Et en effet, *right_manage_roles* **ne suffit pas** pour créer un accès avec *right_read_data_accesses_same_level* (**DataReadersAdmin**)
 
 #### Read
 
@@ -303,4 +303,4 @@ En revanche, côté lecture, lorsque je fais `GET /accesses/`, s'afficheront les
 Par exemple, si je possède _right_read_admin_accesses_ (**AdminManager**):
 - apparaîtront les _Access_ avec un _Role_ contenant uniquement _right_manage_data_accesses_same_level_ (**DataReadersAdmin**) et _right_read_users_ (**UsersReaders**)
 - ils apparaîtront encore si je rajoute, à ce _Role_, _right_read_patient_nominative_ (**DataReaders**) 
-- n'apparaîtront plus si je rajoute, à ce _Role_, _right_read_admin_accesses_ (**DataReaders**), _right_export_csv_nominative_ (**Exporters**) ou même pire _right_edit_roles_ (**RolesEditors**)
+- n'apparaîtront plus si je rajoute, à ce _Role_, _right_read_admin_accesses_ (**DataReaders**), _right_export_csv_nominative_ (**Exporters**) ou même pire _right_manage_roles_ (**RolesEditors**)

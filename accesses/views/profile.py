@@ -54,7 +54,7 @@ class ProfileFilter(filters.FilterSet):
 class ProfileViewSet(CustomLoggingMixin, BaseViewset):
     queryset = Profile.objects.filter(delete_datetime__isnull=True).all()
     lookup_field = "id"
-    logging_methods = ['POST', 'PUT', 'PATCH', 'DELETE']
+    logging_methods = ['POST', 'PATCH', 'DELETE']
     permission_classes = (IsAuthenticated, ProfilePermissions)
     swagger_tags = ['Accesses - profiles']
     filterset_class = ProfileFilter

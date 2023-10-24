@@ -8,7 +8,7 @@ VALUES (5, '7020135', 'Manual', 't', 'Nicolas', 'Puchois', 'nicolas.puchois-ext@
 
 
 ------- INSERT ROLE
-INSERT INTO accesses_role (id, name, right_edit_roles, right_add_users, right_edit_users, right_read_users,
+INSERT INTO accesses_role (id, name, right_manage_roles, right_add_users, right_edit_users, right_read_users,
                            right_manage_admin_accesses_same_level, right_read_admin_accesses_same_level,
                            right_manage_admin_accesses_inferior_levels, right_read_admin_accesses_inferior_levels,
                            right_manage_data_accesses_same_level, right_read_data_accesses_same_level,
@@ -23,7 +23,7 @@ INSERT INTO accesses_role (id, name, right_edit_roles, right_add_users, right_ed
 VALUES (-6, 'SAME_LEVEL', 'f', 'f', 'f', 'f', 't', 't', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f',
         'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f');
 
-INSERT INTO accesses_role (id, name, right_edit_roles, right_add_users, right_edit_users, right_read_users,
+INSERT INTO accesses_role (id, name, right_manage_roles, right_add_users, right_edit_users, right_read_users,
                            right_manage_admin_accesses_same_level, right_read_admin_accesses_same_level,
                            right_manage_admin_accesses_inferior_levels, right_read_admin_accesses_inferior_levels,
                            right_manage_data_accesses_same_level, right_read_data_accesses_same_level,

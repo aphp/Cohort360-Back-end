@@ -39,7 +39,7 @@ class AccountViewSet(viewsets.ModelViewSet):
     queryset = Account.objects.all()
     lookup_field = "uid"
     http_method_names = ["get"]
-    permission_classes = (AccountPermissions,)
+    permission_classes = [AccountPermissions]
     filterset_class = AccountFilter
     search_fields = ["username", "name", "firstname", "lastname", "mail"]
     swagger_tags = ['Workspaces - users']

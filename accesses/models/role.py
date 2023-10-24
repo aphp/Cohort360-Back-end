@@ -9,7 +9,7 @@ from accesses.rights import RightGroup, main_admin_rights, all_rights, Right
 from admin_cohort.models import BaseModel
 from admin_cohort.tools import join_qs
 
-ROLES_HELP_TEXT = dict(right_edit_roles="Gérer les rôles",
+ROLES_HELP_TEXT = dict(right_manage_roles="Gérer les rôles",
                        right_read_logs="Lire l'historique des requêtes des utilisateurs",
                        right_add_users="Ajouter un profil manuel pour un utilisateur de l'AP-HP.",
                        right_edit_users="Modifier les profils manuels et activer/désactiver les autres.",
@@ -17,19 +17,12 @@ ROLES_HELP_TEXT = dict(right_edit_roles="Gérer les rôles",
                        right_read_patient_nominative="Lire les données patient sous forme nominatives sur son périmètre et ses sous-périmètres",
                        right_read_patient_pseudo_anonymised="Lire les données patient sous forme pseudonymisée sur son périmètre et "
                                                             "ses sous-périmètres",
-                       right_search_patient_with_ipp="Utiliser une liste d'IPP comme critère d'une requête Cohort.",
-                       right_manage_review_transfer_jupyter="Gérer les accès permettant de valider ou non les demandes de transfert de données "
-                                                            "vers des environnements Jupyter",
-                       right_review_transfer_jupyter="Gérer les transferts de données vers des environnements Jupyter",
-                       right_manage_transfer_jupyter="Gérer les accès permettant de réaliser des demandes de transfert de données vers des "
-                                                     "environnements Jupyter",
-                       right_transfer_jupyter_nominative="Demander à transférer ses cohortes de patients sous forme nominative vers un "
-                                                         "environnement Jupyter.",
-                       right_transfer_jupyter_pseudo_anonymised="Demander à transférer ses cohortes de patients sous forme pseudonymisée vers un "
-                                                                "environnement Jupyter.",
-                       right_manage_review_export_csv="Gérer les accès permettant de valider ou non les demandes d'export de données en format CSV",
-                       right_review_export_csv="Valider ou non les demandes d'export de données en format CSV",
-                       right_manage_export_csv="Gérer les accès permettant de réaliser des demandes d'export de données en format CSV",
+                       right_search_patients_by_ipp="Utiliser une liste d'IPP comme critère d'une requête Cohort.",
+                       right_manage_export_jupyter_accesses="Gérer les accès permettant d'exporter les cohortes vers des environnements Jupyter",
+                       right_export_jupyter_nominative="Exporter ses cohortes de patients sous forme nominative vers un environnement Jupyter.",
+                       right_export_jupyter_pseudo_anonymised="Exporter ses cohortes de patients sous forme pseudonymisée vers un "
+                                                              "environnement Jupyter.",
+                       right_manage_export_csv_accesses="Gérer les accès permettant de réaliser des exports de données en format CSV",
                        right_export_csv_nominative="Demander à exporter ses cohortes de patients sous forme nominative en format CSV.",
                        right_export_csv_pseudo_anonymised="Demander à exporter ses cohortes de patients sous forme pseudonymisée en format CSV.",
                        right_read_env_unix_users="Consulter les informations liées aux environnements de travail",
@@ -67,7 +60,7 @@ class Role(BaseModel):
     name = models.TextField(blank=True, null=True)
     invalid_reason = models.TextField(blank=True, null=True)
 
-    right_edit_roles = models.BooleanField(default=False, null=False)
+    right_manage_roles = models.BooleanField(default=False, null=False)
     right_read_logs = models.BooleanField(default=False, null=False)
 
     right_add_users = models.BooleanField(default=False, null=False)
@@ -88,20 +81,16 @@ class Role(BaseModel):
 
     right_read_patient_nominative = models.BooleanField(default=False, null=False)
     right_read_patient_pseudo_anonymised = models.BooleanField(default=False, null=False)
-    right_search_patient_with_ipp = models.BooleanField(default=False, null=False)
+    right_search_patients_by_ipp = models.BooleanField(default=False, null=False)
     right_read_opposing_patient = models.BooleanField(default=False, null=False)
 
     # JUPYTER TRANSFER
-    right_manage_review_transfer_jupyter = models.BooleanField(default=False, null=False)
-    right_review_transfer_jupyter = models.BooleanField(default=False, null=False)
-    right_manage_transfer_jupyter = models.BooleanField(default=False, null=False)
-    right_transfer_jupyter_nominative = models.BooleanField(default=False, null=False)
-    right_transfer_jupyter_pseudo_anonymised = models.BooleanField(default=False, null=False)
+    right_manage_export_jupyter_accesses = models.BooleanField(default=False, null=False)
+    right_export_jupyter_nominative = models.BooleanField(default=False, null=False)
+    right_export_jupyter_pseudo_anonymised = models.BooleanField(default=False, null=False)
 
     # CSV EXPORT
-    right_manage_review_export_csv = models.BooleanField(default=False, null=False)
-    right_review_export_csv = models.BooleanField(default=False, null=False)
-    right_manage_export_csv = models.BooleanField(default=False, null=False)
+    right_manage_export_csv_accesses = models.BooleanField(default=False, null=False)
     right_export_csv_nominative = models.BooleanField(default=False, null=False)
     right_export_csv_pseudo_anonymised = models.BooleanField(default=False, null=False)
 
@@ -135,7 +124,7 @@ class Role(BaseModel):
     @classmethod
     def is_search_ipp_role(cls, prefix: str = "") -> Q:
         formatted_prefix = format_prefix(prefix)
-        return join_qs([Q(**{f'{formatted_prefix}right_search_patient_with_ipp': True})])
+        return join_qs([Q(**{f'{formatted_prefix}right_search_patients_by_ipp': True})])
 
     @classmethod
     def is_search_opposing_patient_role(cls, prefix: str = "") -> Q:
@@ -156,21 +145,19 @@ class Role(BaseModel):
     @classmethod
     def is_export_jupyter_nominative_role(cls, prefix: str = "") -> Q:
         formatted_prefix = format_prefix(prefix)
-        return join_qs([Q(**{f'{formatted_prefix}right_transfer_jupyter_nominative': True})])
+        return join_qs([Q(**{f'{formatted_prefix}right_export_jupyter_nominative': True})])
 
     @classmethod
     def is_export_jupyter_pseudo_role(cls, prefix: str = "") -> Q:
         formatted_prefix = format_prefix(prefix)
-        return join_qs([Q(**{f'{formatted_prefix}right_transfer_jupyter_nominative': True}),
-                        Q(**{f'{formatted_prefix}right_transfer_jupyter_pseudo_anonymised': True})])
+        return join_qs([Q(**{f'{formatted_prefix}right_export_jupyter_nominative': True}),
+                        Q(**{f'{formatted_prefix}right_export_jupyter_pseudo_anonymised': True})])
 
     @classmethod
     def is_manage_role_any_level(cls, prefix: str = "") -> Q:
         formatted_prefix = format_prefix(prefix)
-        return join_qs([Q(**{f'{formatted_prefix}right_manage_review_transfer_jupyter': True}),
-                        Q(**{f'{formatted_prefix}right_manage_review_export_csv': True}),
-                        Q(**{f'{formatted_prefix}right_manage_transfer_jupyter': True}),
-                        Q(**{f'{formatted_prefix}right_manage_export_csv': True})])
+        return join_qs([Q(**{f'{formatted_prefix}right_manage_export_jupyter_accesses': True}),
+                        Q(**{f'{formatted_prefix}right_manage_export_csv_accesses': True})])
 
     @classmethod
     def is_manage_role_same_level(cls, prefix: str = "") -> Q:
@@ -193,15 +180,17 @@ class Role(BaseModel):
         return [f.name for f in cls._meta.fields if f.name.startswith("right_")]
 
     @classmethod
-    def manage_on_lower_levels_query(cls, prefix: str = None) -> Q:
+    def manage_on_inf_levels_query(cls, prefix: str = None) -> Q:
         prefix = format_prefix(prefix)
-        return join_qs([Q(**{f'{prefix}{r.name}': True}) for r in [right for right in all_rights if right.allow_edit_rights_on_inf_levels
+        return join_qs([Q(**{f'{prefix}{r.name}': True}) for r in [right for right in all_rights
+                                                                   if right.allow_edit_accesses_on_inf_levels
                                                                    or right.allow_read_rights_on_inf_levels]])
 
     @classmethod
     def manage_on_same_level_query(cls, prefix: str = None) -> Q:
         prefix = format_prefix(prefix)
-        return join_qs([Q(**{f'{prefix}{r.name}': True}) for r in [right for right in all_rights if right.allow_edit_rights_on_same_level
+        return join_qs([Q(**{f'{prefix}{r.name}': True}) for r in [right for right in all_rights
+                                                                   if right.allow_edit_accesses_on_same_level
                                                                    or right.allow_read_rights_on_same_level]])
 
     @classmethod
@@ -209,25 +198,26 @@ class Role(BaseModel):
         additional = additional or {}
         prefix = format_prefix(prefix)
         return join_qs([Q(**{f'{prefix}{r.name}': True, **additional}) for r in [right for right in all_rights
-                                                                                 if right.allow_edit_rights_on_inf_levels]])
+                                                                                 if right.allow_edit_accesses_on_inf_levels]])
 
     @classmethod
     def edit_on_same_level_query(cls, prefix: str = None, additional: Dict = None) -> Q:
         additional = additional or {}
         prefix = format_prefix(prefix)
         return join_qs([Q(**{f'{prefix}{r.name}': True, **additional}) for r in [right for right in all_rights
-                                                                                 if right.allow_edit_rights_on_same_level]])
+                                                                                 if right.allow_edit_accesses_on_same_level]])
 
     @classmethod
     def manage_on_any_level_query(cls, prefix: str = None) -> Q:
         prefix = format_prefix(prefix)
-        return join_qs([Q(**{f'{prefix}{r.name}': True}) for r in [right for right in all_rights if right.allow_read_rights_on_any_level
-                                                                   or right.allow_edit_rights_on_any_level]])
+        return join_qs([Q(**{f'{prefix}{r.name}': True}) for r in [right for right in all_rights
+                                                                   if right.allow_read_rights_on_any_level
+                                                                   or right.allow_edit_accesses_on_any_level]])
 
     @classmethod
     def edit_on_any_level_query(cls, prefix: str = None) -> Q:
         prefix = format_prefix(prefix)
-        return join_qs([Q(**{f'{prefix}{r.name}': True}) for r in [right for right in all_rights if right.allow_edit_rights_on_any_level]])
+        return join_qs([Q(**{f'{prefix}{r.name}': True}) for r in [right for right in all_rights if right.allow_edit_accesses_on_any_level]])
 
     @property
     def right_groups(self) -> List[RightGroup]:
@@ -303,63 +293,59 @@ class Role(BaseModel):
 
     @property
     def can_manage_other_accesses(self):
-        return self.right_manage_admin_accesses_same_level \
+        return self.right_manage_roles \
+               or self.right_manage_admin_accesses_same_level \
                or self.right_manage_admin_accesses_inferior_levels \
                or self.right_manage_data_accesses_same_level \
                or self.right_manage_data_accesses_inferior_levels \
-               or self.right_edit_roles \
-               or self.right_manage_review_transfer_jupyter \
-               or self.right_manage_transfer_jupyter \
-               or self.right_manage_review_export_csv \
-               or self.right_manage_export_csv
+               or self.right_manage_export_jupyter_accesses \
+               or self.right_manage_export_csv_accesses
 
     @property
     def can_read_other_accesses(self):
-        return self.right_edit_roles \
+        return self.right_manage_roles \
                or self.right_read_admin_accesses_same_level \
                or self.right_read_admin_accesses_inferior_levels \
                or self.right_read_admin_accesses_above_levels \
                or self.right_read_data_accesses_same_level \
                or self.right_read_data_accesses_inferior_levels \
-               or self.right_manage_review_transfer_jupyter \
-               or self.right_manage_transfer_jupyter \
-               or self.right_manage_review_export_csv \
-               or self.right_manage_export_csv
+               or self.right_manage_export_jupyter_accesses \
+               or self.right_manage_export_csv_accesses
 
     @property
-    def requires_manage_review_export_csv_role(self):
-        return self.right_review_export_csv
-
-    @property
-    def requires_manage_export_csv_role(self):
+    def requires_csv_accesses_managing_role_to_be_managed(self):
         return any([self.right_export_csv_nominative,
                     self.right_export_csv_pseudo_anonymised])
 
     @property
-    def requires_manage_review_transfer_jupyter_role(self):
-        return self.right_review_transfer_jupyter
+    def requires_jupyter_accesses_managing_role_to_be_managed(self):
+        return any([self.right_export_jupyter_nominative,
+                    self.right_export_jupyter_pseudo_anonymised])
+
+    # @property
+    # def requires_admin_role_to_be_managed(self):
+    #     return any([self.right_read_patient_nominative,
+    #                 self.right_search_patients_by_ipp,
+    #                 self.right_read_patient_pseudo_anonymised])
 
     @property
-    def requires_manage_transfer_jupyter_role(self):
-        return any([self.right_transfer_jupyter_nominative,
-                    self.right_transfer_jupyter_pseudo_anonymised])
-
-    @property
-    def requires_admin_role(self):
-        return any([self.right_read_patient_nominative,
-                    self.right_search_patient_with_ipp,
-                    self.right_read_patient_pseudo_anonymised])
-
-    @property
-    def requires_admin_managing_role(self):
+    def requires_data_accesses_managing_role_to_be_managed(self):
         return any([self.right_manage_data_accesses_same_level,
                     self.right_read_data_accesses_same_level,
                     self.right_manage_data_accesses_inferior_levels,
                     self.right_read_data_accesses_inferior_levels])
 
     @property
-    def requires_main_admin_role(self):
-        return any([self.right_edit_roles,
+    def requires_admin_accesses_managing_role_to_be_managed(self):
+        return any([self.right_manage_admin_accesses_same_level,
+                    self.right_read_admin_accesses_same_level,
+                    self.right_manage_admin_accesses_inferior_levels,
+                    self.right_read_admin_accesses_inferior_levels,
+                    self.right_read_admin_accesses_above_levels])
+
+    @property
+    def requires_main_admin_role_to_be_managed(self):
+        return any([self.right_manage_roles,
                     self.right_read_logs,
                     self.right_add_users,
                     self.right_edit_users,
@@ -371,14 +357,12 @@ class Role(BaseModel):
                     self.right_read_env_unix_users,
                     self.right_manage_env_unix_users,
                     self.right_manage_env_user_links,
-                    self.right_manage_review_transfer_jupyter,
-                    self.right_manage_transfer_jupyter,
-                    self.right_manage_review_export_csv,
-                    self.right_manage_export_csv])
+                    self.right_manage_export_jupyter_accesses,
+                    self.right_manage_export_csv_accesses])
 
     @property
-    def requires_any_admin_mng_role(self):
-        # to be managed, the role requires an access with
+    def requires_any_admin_mng_role_to_be_managed(self):
+        # to be managed, the role requires access with
         # main admin or admin manager
         return self.right_read_users
 

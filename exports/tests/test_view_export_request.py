@@ -44,29 +44,29 @@ Cas à tester POST export_request:
   - il faut que le provider_id soit lié au target_unix_account (via API infra)
   - il faut que le provider ait créé la cohorte
   - si provider_id != user_id : il faut que le user ait accès
-    right_review_transfer_jupyter
+    right_review_export_jupyter
   - il faut que le provider ait accès read nomi/pseudo (demande FHIR)
-    et right_transfer_jupyter_nominative
+    et right_export_jupyter_nominative
 
   - si le user (créateur de la requête) a le droit
-  right_review_transfer_jupyter:
+  right_review_export_jupyter:
     - le status réponse doit être validated
     - sinon, le status est à new
 
 Cas à tester pour GET /exports/users :
   - réponse contient ses propres users (Account, dans workspaces)
-  - réponse de liste complète si le user a right_review_transfer_jupyter
+  - réponse de liste complète si le user a right_review_export_jupyter
   - permet filtre par provider_id : renvoie, grâce à l'API FHIR,
     uniquement les users unix liés au provider_id
 
 Cas à tester pour GET /exports/cohorts :
   - réponse contient les cohortes de l'utilisateur
-  - réponse de liste complète si le user a right_review_transfer_jupyter
+  - réponse de liste complète si le user a right_review_export_jupyter
 
 Cas à tester pour PATCH /exports/{id} :
   - renvoie 403
   - réussit seulement si on a /deny ou /validate dans l'url, si la requête
-    est en status created, si le user a right_review_transfer_jupyter
+    est en status created, si le user a right_review_export_jupyter
 """
 
 REGEX_TEST_EMAIL = r"^[\w.+-]+@test\.com$"
@@ -155,13 +155,13 @@ class ExportsTests(ViewSetTestsWithBasicPerims):
                 (f, f == right) for f in self.all_rights]), name=name)
             for (name, right) in [
                 ("REVIEW_CSV", "right_review_export_csv"),
-                ("REVIEW_JUPYTER", "right_review_transfer_jupyter"),
+                ("REVIEW_JUPYTER", "right_review_export_jupyter"),
                 ("READ_PSEUDO", "right_read_patient_pseudo_anonymised"),
                 ("READ_NOMI", "right_read_patient_nominative"),
                 ("EXP_CSV_PSEUDO", "right_export_csv_pseudo_anonymised"),
                 ("EXP_CSV_NOMI", "right_export_csv_nominative"),
-                ("EXP_JUP_PSEUDO", "right_transfer_jupyter_pseudo_anonymised"),
-                ("EXP_JUP_NOMI", "right_transfer_jupyter_nominative"),
+                ("EXP_JUP_PSEUDO", "right_export_jupyter_pseudo_anonymised"),
+                ("EXP_JUP_NOMI", "right_export_jupyter_nominative"),
             ]]
 
         # USERS

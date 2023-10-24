@@ -31,7 +31,7 @@ def can_user_read_users(user: User) -> bool:
 
 def can_user_read_logs(user: User) -> bool:
     return any([
-        r.right_read_logs or r.right_edit_roles
+        r.right_read_logs or r.right_manage_roles
         for r in get_bound_roles(user)
     ])
 

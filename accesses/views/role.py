@@ -32,7 +32,8 @@ class RoleViewSet(CustomLoggingMixin, BaseViewset):
     serializer_class = RoleSerializer
     queryset = Role.objects.filter(delete_datetime__isnull=True).all()
     lookup_field = "id"
-    logging_methods = ['POST', 'PUT', 'PATCH', 'DELETE']
+    http_method_names = ['post', 'patch', 'delete']
+    logging_methods = ['POST', 'PATCH', 'DELETE']
     swagger_tags = ['Accesses - roles']
     filterset_class = RoleFilter
     permission_classes = (IsAuthenticated, RolePermissions)
@@ -91,7 +92,7 @@ class RoleViewSet(CustomLoggingMixin, BaseViewset):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @swagger_auto_schema(method='get',
-                         operation_summary="Get roles that the user can assign to a user on the perimeter provided.",
+                         operation_summary="Get roles that the user can assign to a user on the provided perimeter",
                          manual_parameters=[openapi.Parameter(name="care_site_id", in_=openapi.IN_QUERY,
                                                               description="(to deprecate -> perimeter_id) Required",
                                                               type=openapi.TYPE_INTEGER),
@@ -100,16 +101,13 @@ class RoleViewSet(CustomLoggingMixin, BaseViewset):
     @action(url_path="assignable", detail=False, methods=['get'], permission_classes=(IsAuthenticated,))
     @cache_response()
     def assignable(self, request, *args, **kwargs):
-        perim_id = request.GET.get("perimeter_id", request.GET.get("care_site_id"))
-        if not perim_id:
-            raise ValidationError("Missing parameter 'perimeter_id'.")
-        perim = Perimeter.objects.filter(id=perim_id).first()
-        if not perim:
-            raise ValidationError(f"Perimeter with id {perim_id} not found.")
-
-        role_ids = get_assignable_roles_on_perimeter(request.user, perim)
-        q = Role.objects.filter(id__in=role_ids)
-        page = self.paginate_queryset(q)
+        perimeter_id = request.GET.get("perimeter_id", request.GET.get("care_site_id"))
+        if not perimeter_id:
+            return Response(data="Missing parameter `perimeter_id`", status=status.HTTP_400_BAD_REQUEST)
+        perimeter = Perimeter.objects.get(id=perimeter_id)
+        role_ids = get_assignable_roles_on_perimeter(user=request.user, perimeter=perimeter)
+        roles = Role.objects.filter(id__in=role_ids)
+        page = self.paginate_queryset(roles)
         if page:
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)

@@ -366,8 +366,8 @@ class AccessSerializer(BaseSerializer):
         if not role:
             raise ValidationError("Role field is missing")
 
-        if not can_user_manage_access(creator, role, perimeter):
-            raise PermissionDenied("You are not allowed to manage accesses")
+        # if not can_user_manage_access(creator, role, perimeter):
+        #     raise PermissionDenied("You are not allowed to manage accesses")
 
         validated_data["created_by"] = creator
         validated_data["updated_by"] = creator
@@ -424,11 +424,11 @@ class DataRightSerializer(serializers.Serializer):
     access_ids = serializers.ListSerializer(child=serializers.IntegerField(read_only=True, allow_null=True), allow_empty=True)
     right_read_patient_nominative = serializers.BooleanField(read_only=True, allow_null=True)
     right_read_patient_pseudo_anonymised = serializers.BooleanField(read_only=True, allow_null=True)
-    right_search_patient_with_ipp = serializers.BooleanField(read_only=True, allow_null=True)
+    right_search_patients_by_ipp = serializers.BooleanField(read_only=True, allow_null=True)
     right_export_csv_nominative = serializers.BooleanField(read_only=True, allow_null=True)
     right_export_csv_pseudo_anonymised = serializers.BooleanField(read_only=True, allow_null=True)
-    right_transfer_jupyter_nominative = serializers.BooleanField(read_only=True, allow_null=True)
-    right_transfer_jupyter_pseudo_anonymised = serializers.BooleanField(read_only=True, allow_null=True)
+    right_export_jupyter_nominative = serializers.BooleanField(read_only=True, allow_null=True)
+    right_export_jupyter_pseudo_anonymised = serializers.BooleanField(read_only=True, allow_null=True)
 
 
 class DataReadRightSerializer(serializers.Serializer):
@@ -445,4 +445,4 @@ class ReadRightPerimeter(serializers.Serializer):
     read_role = serializers.CharField(read_only=True, allow_null=True)
     right_read_patient_nominative = serializers.BooleanField(read_only=True, allow_null=True)
     right_read_patient_pseudo_anonymised = serializers.BooleanField(read_only=True, allow_null=True)
-    right_search_patient_with_ipp = serializers.BooleanField(read_only=True, allow_null=True)
+    right_search_patients_by_ipp = serializers.BooleanField(read_only=True, allow_null=True)

@@ -20,7 +20,7 @@
 - right_read_admin_accesses_inferior_levels
 
 *Main admin rights:*
-- right_edit_roles
+- right_manage_roles
 
 *Require admin managing or main admin rights*:
 - right_read_users
@@ -300,13 +300,13 @@ For any of the groups of rights A that has the upper hand on on groups Bs (cf. r
 
 #### POST
 
-- [x] As a user with right_edit_roles, I can create a role
-- [x] As a user with everything but right_edit_roles, I cannot create a role
+- [x] As a user with right_manage_roles, I can create a role
+- [x] As a user with everything but right_manage_roles, I cannot create a role
 
 #### PATCH
 
-- [x] As a user with right_edit_roles, I can edit a role
-- [x] As a user with everything but right_edit_roles, I cannot edit a role
+- [x] As a user with right_manage_roles, I can edit a role
+- [x] As a user with everything but right_manage_roles, I cannot edit a role
 
 #### DELETE
 
