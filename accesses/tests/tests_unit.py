@@ -97,8 +97,7 @@
 #         self.empty_rights = dict(
 #             right_manage_roles=False,
 #
-#             right_add_users=False,
-#             right_edit_users=False,
+#             right_manage_users=False,
 #             right_read_users=False,
 #
 #             right_manage_admin_accesses_same_level=False,
@@ -112,7 +111,7 @@
 #             right_read_data_accesses_inferior_levels=False,
 #
 #             right_read_patient_nominative=False,
-#             right_read_patient_pseudo_anonymised=False,
+#             right_read_patient_pseudonymized=False,
 #         )
 #
 #     def role_rights(self, role: Role) -> str:
@@ -234,8 +233,7 @@
 #             'name': 'full_admin_manager_role',
 #             'right_read_users': True,
 #             'right_manage_roles': True,
-#             'right_edit_users': True,
-#             'right_add_users': True,
+#             'right_manage_users': True,
 #             'right_manage_admin_accesses_same_level': True,
 #             'right_read_admin_accesses_same_level': True,
 #             'right_manage_admin_accesses_inferior_levels': True,
@@ -254,15 +252,14 @@
 #             **self.empty_rights,
 #             'name': 'full_data_access_role',
 #             'right_read_patient_nominative': True,
-#             'right_read_patient_pseudo_anonymised': True,
+#             'right_read_patient_pseudonymized': True,
 #         })
 #
 #         self.non_admin_manager_roles = [
 #             Role.objects.create(**{
 #                 **self.empty_rights,
 #                 'right_manage_roles': True,
-#                 'right_edit_users': True,
-#                 'right_add_users': True,
+#                 'right_manage_users': True,
 #                 'right_manage_admin_accesses_same_level': True,
 #                 'right_read_admin_accesses_same_level': True,
 #                 'right_manage_admin_accesses_inferior_levels': True,
@@ -286,7 +283,7 @@
 #             Role.objects.create(**{
 #                 **self.empty_rights,
 #                 'right_read_patient_nominative': True,
-#                 'right_read_patient_pseudo_anonymised': True,
+#                 'right_read_patient_pseudonymized': True,
 #                 list(self.empty_rights.keys())[i]: True,
 #             }) for i in list(range(0, 3)) + list(range(4, 12))
 #         ]
@@ -756,7 +753,7 @@
 #                     self.nominative_data_role,
 #                     *[r for r in non_roles
 #                       if r.right_read_patient_nominative
-#                       or r.right_read_patient_pseudo_anonymised
+#                       or r.right_read_patient_pseudonymized
 #                       ]
 #                 ], same_level=[
 #                     self.full_data_access_role,
@@ -764,7 +761,7 @@
 #                     self.nominative_data_role,
 #                     *[r for r in non_roles
 #                       if r.right_read_patient_nominative
-#                       or r.right_read_patient_pseudo_anonymised
+#                       or r.right_read_patient_pseudonymized
 #                       ]
 #                 ]),
 #             ),

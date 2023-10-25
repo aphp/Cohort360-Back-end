@@ -90,7 +90,7 @@ class RightGroup:
 
 
 right_read_patient_nominative = Right("right_read_patient_nominative", impact_lower_levels=True)
-right_read_patient_pseudo_anonymised = Right("right_read_patient_pseudo_anonymised", impact_lower_levels=True)
+right_read_patient_pseudonymized = Right("right_read_patient_pseudonymized", impact_lower_levels=True)
 right_search_patients_by_ipp = Right("right_search_patients_by_ipp", impact_lower_levels=True)
 right_manage_data_accesses_same_level = Right("right_manage_data_accesses_same_level", allow_edit_accesses_on_same_level=True)
 right_read_data_accesses_same_level = Right("right_read_data_accesses_same_level", allow_read_rights_on_same_level=True)
@@ -113,14 +113,13 @@ right_manage_export_csv_accesses = Right("right_manage_export_csv_accesses",
 right_read_env_unix_users = Right("right_read_env_unix_users")
 right_manage_env_unix_users = Right("right_manage_env_unix_users")
 right_manage_env_user_links = Right("right_manage_env_user_links")
-right_add_users = Right("right_add_users")
-right_edit_users = Right("right_edit_users")
+right_manage_users = Right("right_manage_users")
 right_read_users = Right("right_read_users")
 right_manage_roles = Right("right_manage_roles", allow_read_rights_on_any_level=True, allow_edit_accesses_on_any_level=True)
 right_read_logs = Right("right_read_logs")
 
 all_rights = [right_read_patient_nominative,
-              right_read_patient_pseudo_anonymised,
+              right_read_patient_pseudonymized,
               right_search_patients_by_ipp,
               right_manage_data_accesses_same_level,
               right_read_data_accesses_same_level,
@@ -139,14 +138,13 @@ all_rights = [right_read_patient_nominative,
               right_read_env_unix_users,
               right_manage_env_unix_users,
               right_manage_env_user_links,
-              right_add_users,
-              right_edit_users,
+              right_manage_users,
               right_read_users,
               right_manage_roles,
               right_read_logs]
 
 data_rights = RightGroup(name="data_rights", rights=[right_read_patient_nominative,
-                                                     right_read_patient_pseudo_anonymised,
+                                                     right_read_patient_pseudonymized,
                                                      right_search_patients_by_ipp],
                          description="Allows patient data reading")
 
@@ -187,8 +185,7 @@ workspaces_rights = RightGroup(name="workspaces_rights", rights=[right_read_env_
                                                                  right_manage_env_user_links],
                                description="Allows to manage/read workspaces models")
 
-user_rights = RightGroup(name="user_rights", rights=[right_add_users,
-                                                     right_edit_users,
+user_rights = RightGroup(name="user_rights", rights=[right_manage_users,
                                                      right_read_logs],
                          description="Manage Users and see what they do")
 

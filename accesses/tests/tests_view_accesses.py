@@ -49,8 +49,8 @@ class ReadRight(ReadObject):
         assert isinstance(o.get('perimeter_id'), int)
         assert 'right_read_patient_nominative' in o
         assert isinstance(o.get('right_read_patient_nominative'), bool)
-        assert 'right_read_patient_pseudo_anonymised' in o
-        assert isinstance(o.get('right_read_patient_pseudo_anonymised'), bool)
+        assert 'right_read_patient_pseudonymized' in o
+        assert isinstance(o.get('right_read_patient_pseudonymized'), bool)
         assert 'right_search_patients_by_ipp' in o
         assert isinstance(o.get('right_search_patients_by_ipp'), bool)
 
@@ -68,8 +68,8 @@ class ReadRight(ReadObject):
         self.access_ids: List[int] = o.get('access_ids')
         self.right_read_patient_nominative: bool = \
             o.get('right_read_patient_nominative')
-        self.right_read_patient_pseudo_anonymised: bool = \
-            o.get('right_read_patient_pseudo_anonymised')
+        self.right_read_patient_pseudonymized: bool = \
+            o.get('right_read_patient_pseudonymized')
         self.right_search_patients_by_ipp: bool = \
             o.get('right_search_patients_by_ipp')
         self.right_export_csv_nominative: bool = \
@@ -85,8 +85,8 @@ class ReadRight(ReadObject):
         return self.perimeter_id == other_right.perimeter_id \
                and self.right_read_patient_nominative == \
                other_right.right_read_patient_nominative \
-               and self.right_read_patient_pseudo_anonymised == \
-               other_right.right_read_patient_pseudo_anonymised \
+               and self.right_read_patient_pseudonymized == \
+               other_right.right_read_patient_pseudonymized \
                and self.right_search_patients_by_ipp == \
                other_right.right_search_patients_by_ipp \
                and self.right_export_csv_nominative == \
@@ -1084,12 +1084,12 @@ class AccessDataRightsTests(ViewSetTestsWithBasicPerims):
         self.full_data_read_role = Role.objects.create(
             name="full_data_read_role",
             right_read_patient_nominative=True,
-            right_read_patient_pseudo_anonymised=True,
+            right_read_patient_pseudonymized=True,
             right_search_patients_by_ipp=True,
         )
         self.pseudo_anonymised_data_role = Role.objects.create(
             name="PSEUDO_ANONYMISED_DATA_READER",
-            right_read_patient_pseudo_anonymised=True,
+            right_read_patient_pseudonymized=True,
         )
         self.nominative_data_role = Role.objects.create(
             name="NOMINATIVE_DATA_READER",
@@ -1109,7 +1109,7 @@ class AccessDataRightsTests(ViewSetTestsWithBasicPerims):
         )
         self.base_aphp_right_dict = dict(
             right_read_patient_nominative=False,
-            right_read_patient_pseudo_anonymised=False,
+            right_read_patient_pseudonymized=False,
             right_search_patients_by_ipp=False,
             right_export_csv_nominative=False,
             right_export_csv_pseudo_anonymised=False,
@@ -1173,12 +1173,12 @@ class AccessDataRightsTests(ViewSetTestsWithBasicPerims):
             params={'pop_children': True},
             to_find=[ReadRight(d) for d in [
                 {**self.base_aphp_right_dict,
-                 'right_read_patient_pseudo_anonymised': True,
+                 'right_read_patient_pseudonymized': True,
                  'access_ids': [access_pseudo_aphp.id]},
                 {**self.base_aphp_right_dict,
                  'right_read_patient_nominative': True,
                  'right_search_patients_by_ipp': True,
-                 'right_read_patient_pseudo_anonymised': True,
+                 'right_read_patient_pseudonymized': True,
                  'access_ids': [access_nomi_hosp3.id, access_ipp_hosp3.id,
                                 access_pseudo_aphp.id],
                  'perimeter_id': str(self.hospital3.id)}]],
@@ -1209,7 +1209,7 @@ class AccessDataRightsTests(ViewSetTestsWithBasicPerims):
                 {**self.base_aphp_right_dict,
                  'right_search_patients_by_ipp': True,
                  'right_read_patient_nominative': True,
-                 'right_read_patient_pseudo_anonymised': True,
+                 'right_read_patient_pseudonymized': True,
                  'access_ids': [access_pseudo_hosp1.id, access_ipp_hosp1.id,
                                 access_nomi_aphp.id],
                  'perimeter_id': str(self.hospital1.id)}]],
@@ -1237,7 +1237,7 @@ class AccessDataRightsTests(ViewSetTestsWithBasicPerims):
                 **self.base_aphp_right_dict,
                 'access_ids': [access_full_aphp.id],
                 'right_read_patient_nominative': True,
-                'right_read_patient_pseudo_anonymised': True,
+                'right_read_patient_pseudonymized': True,
                 'right_search_patients_by_ipp': True,
             })],
             title='With pseudo on hosp1 and aphp, also nomi on hosp3 and aphp,'
@@ -1272,12 +1272,12 @@ class AccessDataRightsTests(ViewSetTestsWithBasicPerims):
                 {**self.base_aphp_right_dict,
                  'access_ids': [access_pseudo_aphp.id,
                                 access_exp_pseudo_hosp3.id],
-                 'right_read_patient_pseudo_anonymised': True,
+                 'right_read_patient_pseudonymized': True,
                  'right_export_csv_pseudo_anonymised': True},
                 {**self.base_aphp_right_dict,
                  'access_ids': [access_pseudo_aphp.id, access_pseudo_aphp.id,
                                 access_exp_pseudo_hosp3.id, acc_ipp_hosp1.id],
-                 'right_read_patient_pseudo_anonymised': True,
+                 'right_read_patient_pseudonymized': True,
                  'right_search_patients_by_ipp': True,
                  'right_export_csv_pseudo_anonymised': True,
                  'perimeter_id': str(self.hospital1.id)},
@@ -1285,14 +1285,14 @@ class AccessDataRightsTests(ViewSetTestsWithBasicPerims):
                  'access_ids': [access_pseudo_aphp.id, access_nomi_hosp2.id,
                                 access_exp_pseudo_hosp3.id],
                  'right_read_patient_nominative': True,
-                 'right_read_patient_pseudo_anonymised': True,
+                 'right_read_patient_pseudonymized': True,
                  'right_export_csv_pseudo_anonymised': True,
                  'perimeter_id': str(self.hospital2.id)},
                 {**self.base_aphp_right_dict,
                  'access_ids': [access_pseudo_aphp.id, access_nomi_hosp2.id,
                                 access_exp_pseudo_hosp3.id],
                  'right_read_patient_nominative': True,
-                 'right_read_patient_pseudo_anonymised': True,
+                 'right_read_patient_pseudonymized': True,
                  'right_export_csv_pseudo_anonymised': True,
                  'perimeter_id': str(self.hospital3.id)},
             ]],
@@ -1332,7 +1332,7 @@ class AccessDataRightsTests(ViewSetTestsWithBasicPerims):
                  'access_ids': [access_nomi_aphp.id, access_exp_nomi_hosp3.id,
                                 access_pseudo_hosp1.id],
                  'right_read_patient_nominative': True,
-                 'right_read_patient_pseudo_anonymised': True,
+                 'right_read_patient_pseudonymized': True,
                  'right_export_csv_nominative': True,
                  'perimeter_id': str(self.hospital1.id)},
                 {**self.base_aphp_right_dict,
@@ -1376,23 +1376,23 @@ class AccessDataRightsTests(ViewSetTestsWithBasicPerims):
                  'access_ids': [access_full_aphp.id],
                  'right_read_patient_nominative': True,
                  'right_search_patients_by_ipp': True,
-                 'right_read_patient_pseudo_anonymised': True},
+                 'right_read_patient_pseudonymized': True},
                 {**self.base_aphp_right_dict,
                  'access_ids': [access_full_aphp.id, access_pseudo_hosp1.id],
                  'right_read_patient_nominative': True,
-                 'right_read_patient_pseudo_anonymised': True,
+                 'right_read_patient_pseudonymized': True,
                  'right_search_patients_by_ipp': True,
                  'perimeter_id': str(self.hospital1.id)},
                 {**self.base_aphp_right_dict,
                  'access_ids': [access_full_aphp.id, access_nomi_hosp2.id],
                  'right_read_patient_nominative': True,
-                 'right_read_patient_pseudo_anonymised': True,
+                 'right_read_patient_pseudonymized': True,
                  'right_search_patients_by_ipp': True,
                  'perimeter_id': str(self.hospital2.id)},
                 {**self.base_aphp_right_dict,
                  'access_ids': [access_full_aphp.id, access_nomi_hosp2.id],
                  'right_read_patient_nominative': True,
-                 'right_read_patient_pseudo_anonymised': True,
+                 'right_read_patient_pseudonymized': True,
                  'right_search_patients_by_ipp': True,
                  'perimeter_id': str(self.hospital3.id)}]],
             title='With pseudo on hosp1 and aphp, also nomi on hosp2 and aphp,'

@@ -2,7 +2,7 @@ from rest_framework import permissions
 
 from accesses.models import Role, do_user_accesses_allow_to_manage_role, Perimeter
 from admin_cohort.models import User
-from admin_cohort.permissions import get_bound_roles, can_user_read_users
+from admin_cohort.permissions import get_bound_roles
 
 
 def can_user_edit_roles(user: User) -> bool:
@@ -18,11 +18,11 @@ def can_user_read_access(user: User, role: Role, perimeter: Perimeter) -> bool:
 
 
 def can_user_manage_accesses(user: User) -> bool:
-    return any([role.can_manage_other_accesses for role in get_bound_roles(user)])
+    return any([role.can_manage_accesses for role in get_bound_roles(user)])
 
 
 def can_user_read_accesses(user: User) -> bool:
-    return any([role.can_read_other_accesses for role in get_bound_roles(user)])
+    return any([role.can_read_accesses for role in get_bound_roles(user)])
 
 
 def can_user_manage_export_jupyter_accesses(user: User) -> bool:
@@ -33,12 +33,12 @@ def can_user_manage_export_csv_accesses(user: User) -> bool:
     return any([role.right_manage_export_csv_accesses for role in get_bound_roles(user)])
 
 
-def can_user_edit_profiles(user: User) -> bool:
-    return any([role.right_edit_users for role in get_bound_roles(user)])
+def can_user_manage_profiles(user: User) -> bool:
+    return any([role.right_manage_users for role in get_bound_roles(user)])
 
 
-def can_user_add_profiles(user: User) -> bool:
-    return any([role.right_add_users for role in get_bound_roles(user)])
+def can_user_read_profiles(user: User) -> bool:
+    return any([role.right_read_users for role in get_bound_roles(user)])
 
 
 class RolePermissions(permissions.BasePermission):
@@ -72,28 +72,18 @@ class AccessPermissions(permissions.BasePermission):
         return request.method == "GET" and can_user_read_access(request.user, obj.role, obj.perimeter)
 
 
-class HasUserAddingPermission(permissions.BasePermission):
-    def has_permission(self, request, view):
-        return can_user_edit_profiles(request.user)
-
-
 class ProfilePermissions(permissions.BasePermission):
     def has_permission(self, request, view):
-        if request.method == "POST":
-            return can_user_add_profiles(request.user)
-        if request.method == "PATCH":
-            return can_user_edit_profiles(request.user)
-        return request.method in permissions.SAFE_METHODS and can_user_read_users(request.user)
+        if request.method in ("POST", "PATCH"):
+            return can_user_manage_profiles(request.user)
+        return request.method in permissions.SAFE_METHODS and can_user_read_profiles(request.user)
 
     def has_object_permission(self, request, view, obj):
-        if request.method in ["POST", "PATCH"]:
-            return can_user_edit_profiles(request.user)
-        return request.method == "GET"
+        if request.method in ("GET", "PATCH"):
+            return self.has_permission(request, view)
 
 
 # WORKSPACES
-
-
 def can_user_read_unix_accounts(user: User) -> bool:
     return any([role.right_read_env_unix_users for role in get_bound_roles(user)])
 

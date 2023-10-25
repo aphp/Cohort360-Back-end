@@ -20,7 +20,7 @@ from admin_cohort.types import ServerError, MissingDataError
 from admin_cohort.views import BaseViewset, CustomLoggingMixin
 from ..models import Profile
 from ..models.tools import q_is_valid_profile
-from ..permissions import ProfilePermissions, HasUserAddingPermission
+from ..permissions import ProfilePermissions
 from ..serializers import ProfileSerializer, ReducedProfileSerializer, \
     ProfileCheckSerializer
 
@@ -118,7 +118,7 @@ class ProfileViewSet(CustomLoggingMixin, BaseViewset):
                                                      properties={"username": openapi.Schema(type=openapi.TYPE_STRING)}),
                          responses={'201': openapi.Response("Profile found", ProfileCheckSerializer()),
                                     '204': openapi.Response("No profile found")})
-    @action(detail=False, methods=['post'], permission_classes=(HasUserAddingPermission,), url_path="check")
+    @action(detail=False, methods=['post'], url_path="check")
     def check_existing_profile(self, request, *args, **kwargs):
         username = request.data.get("username")
         if not username:

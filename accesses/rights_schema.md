@@ -18,7 +18,7 @@ class DataReadersAdmin {
 class DataReader {
   right_read_patient_nominative
   right_search_patient_with_ipp
-  right_read_patient_pseudo_anonymised
+  right_read_patient_pseudonymized
 }
 class CsvExportersAdmin {
   right_manage_export_csv
@@ -52,8 +52,7 @@ class WorkspacesManager {
   right_manage_env_user_links
 }
 class UsersAdmin {
-  right_add_users
-  right_edit_users
+  right_manage_users
   right_read_logs
 }
 RolesEditors --> AdminManager

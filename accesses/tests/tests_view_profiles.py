@@ -343,11 +343,11 @@ class ProfileCreateTests(ProfileTests):
         # can_add_users
         self.user_that_can_add_users, self.prof_that_can_add_users = \
             new_user_and_profile(email="can@mng.users")
-        role_add_users = Role.objects.create(right_add_users=True)
+        role_manage_users = Role.objects.create(right_manage_users=True)
         Access.objects.create(
             perimeter_id=self.hospital3.id,
             profile=self.prof_that_can_add_users,
-            role=role_add_users
+            role=role_manage_users
         )
 
         self.creation_data = dict(
@@ -404,13 +404,13 @@ class ProfileCheckTests(ProfileCreateTests):
         # cannot_add_users
         self.user_that_cannot_add_users, self.prof_that_cannot_add_users = \
             new_user_and_profile(email="cannot@mng.users")
-        role_all_but_add_users = Role.objects.create(
+        role_all_but_manage_users = Role.objects.create(
             **dict([(r, True) for r in self.all_rights
-                    if r != 'right_add_users']))
+                    if r != 'right_manage_users']))
         Access.objects.create(
             perimeter_id=self.aphp.id,
             profile=self.prof_that_cannot_add_users,
-            role=role_all_but_add_users
+            role=role_all_but_manage_users
         )
         self.user_random, self.prof_random = \
             new_user_and_profile(email="ran@do.m")
@@ -437,7 +437,7 @@ class ProfileCheckTests(ProfileCreateTests):
         )
 
     def test_check_profile(self):
-        # As a user with right_add_users,
+        # As a user with right_manage_users,
         # I can check the existence of a user on the control API,
         # and it returns User and Manual profile if it exists
         self.check_check_case(self.base_case.clone(
@@ -454,7 +454,7 @@ class ProfileCheckTests(ProfileCreateTests):
         ))
 
     def test_check_profile_not_existing(self):
-        # As a user with right_add_users,
+        # As a user with right_manage_users,
         # I can check the existence of a user on the control API,
         # and it returns None if the API's response is empty
         self.check_check_case(self.base_case.clone(
@@ -465,7 +465,7 @@ class ProfileCheckTests(ProfileCreateTests):
         ))
 
     def test_check_profile_not_existing_user(self):
-        # As a user with right_add_users,
+        # As a user with right_manage_users,
         # I can check the existence of a user on the control API,
         # and it returns with empty user and profile if user is not in database
         self.check_check_case(self.base_case.clone(
@@ -481,7 +481,7 @@ class ProfileCheckTests(ProfileCreateTests):
         ))
 
     def test_check_profile_not_existing_profile(self):
-        # As a user with right_add_users,
+        # As a user with right_manage_users,
         # I can check the existence of a user on the control API,
         # and it returns with empty profile if user has no manual profile
         user_random_no_profile: User = User.objects.create(
@@ -514,7 +514,7 @@ class ProfileCheckTests(ProfileCreateTests):
         ))
 
     def test_err_check_profile_unauthorized(self):
-        # As a user with everything but right_add_users,
+        # As a user with everything but right_manage_users,
         # I cannot check the existence of a user on the control API
         self.check_check_case(self.base_case.clone(
             mocked_value=self.base_person_identity,
@@ -534,17 +534,17 @@ class ProfileCreateWithUserTests(ProfileCreateTests):
         # cannot_add_users
         self.user_that_cannot_add_users, self.prof_that_cannot_add_users = \
             new_user_and_profile(email="cannot@mng.users")
-        role_all_but_add_users = Role.objects.create(
+        role_all_but_manage_users = Role.objects.create(
             **dict([(r, True) for r in self.all_rights
-                    if r != 'right_add_users']))
+                    if r != 'right_manage_users']))
         Access.objects.create(
             perimeter_id=self.aphp.id,
             profile=self.prof_that_cannot_add_users,
-            role=role_all_but_add_users
+            role=role_all_but_manage_users
         )
 
     def test_create_as_user_admin(self):
-        # As a user with right_add_users, I can create a new profile for a user
+        # As a user with right_manage_users, I can create a new profile for a user
         # that has no manual profile yet
         case = self.basic_create_case.clone(
             user=self.user_that_can_add_users,
@@ -554,7 +554,7 @@ class ProfileCreateWithUserTests(ProfileCreateTests):
         self.check_create_case(case)
 
     def test_error_create_as_simple_user(self):
-        # As a user with everything but right_add_users,
+        # As a user with everything but right_manage_users,
         # I cannot create a new profile
         case = self.basic_create_case.clone(
             user=self.user_that_cannot_add_users,
@@ -564,7 +564,7 @@ class ProfileCreateWithUserTests(ProfileCreateTests):
         self.check_create_case(case)
 
     def test_error_create_when_existing_profile(self):
-        # As a user with right_add_users, I cannot create a new profile to a
+        # As a user with right_manage_users, I cannot create a new profile to a
         # user that already has a manual profile
         existing_profile: Profile = Profile.objects.create(
             source=MANUAL_SOURCE, user=self.user_empty, manual_is_active=True,
@@ -582,7 +582,7 @@ class ProfileCreateWithUserTests(ProfileCreateTests):
         self.check_create_case(case)
 
     def test_error_create_with_forbidden_fields(self):
-        # As a user with right_add_users, when creating a new manual profile
+        # As a user with right_manage_users, when creating a new manual profile
         # specifying a source will return 400.
         cases = [self.basic_create_case.clone(
             user=self.user_full_admin,
@@ -596,7 +596,7 @@ class ProfileCreateWithUserTests(ProfileCreateTests):
         [self.check_create_case(case) for case in cases]
 
     def test_create_manual_fields_replacing_fields(self):
-        # As a user with right_add_users, when creating a new manual profile
+        # As a user with right_manage_users, when creating a new manual profile
         # the fields valid_start_datetime, valid_end_datetime and is_active will
         # actually fill manual_valid_start_datetime, etc.
         case = self.basic_create_case.clone(
@@ -612,7 +612,7 @@ class ProfileCreateWithUserTests(ProfileCreateTests):
         self.check_create_case(case)
 
     def test_error_create_with_both_field_and_manual_version(self):
-        # As a user with right_add_users, when creating a new manual profile
+        # As a user with right_manage_users, when creating a new manual profile
         # specifying a value to one of the previous fields AND to its manual_
         # version will return 400.
 
@@ -672,7 +672,7 @@ class ProfileCreateWithoutUserTests(ProfileCreateTests):
     @mock.patch('accesses.serializers.get_provider_id')
     def test_create_as_user_admin_without_user(
             self, mock_get_prov: Mock, mock_check_id_aph: Mock):
-        # As a user with right_add_users, I can create a profile for a
+        # As a user with right_manage_users, I can create a profile for a
         # non existing user, this will also create a User
         mock_check_id_aph.return_value = dict()
         mock_get_prov.return_value = self.test_prov_id
@@ -691,7 +691,7 @@ class ProfileCreateWithoutUserTests(ProfileCreateTests):
     @mock.patch('accesses.serializers.get_provider_id')
     def test_err_create_with_forbidden_id(
             self, mock_get_prov: Mock, mock_check_id_aph: Mock):
-        # As a user with right_add_users, I cannot create a profile for a
+        # As a user with right_manage_users, I cannot create a profile for a
         # non existing user if id is not validated with check_id_aph
         mock_check_id_aph.side_effect = Exception()
         mock_get_prov.return_value = self.test_prov_id
@@ -709,7 +709,7 @@ class ProfileCreateWithoutUserTests(ProfileCreateTests):
     @mock.patch('accesses.serializers.get_provider_id')
     def test_err_create_provider_id_not_found(
             self, mock_get_prov: Mock, mock_check_id_aph: Mock):
-        # As a user with right_add_users, I cannot create a profile for a
+        # As a user with right_manage_users, I cannot create a profile for a
         # non existing user if provider_id is not found by get_provider_id
         mock_check_id_aph.return_value = dict()
         mock_get_prov.side_effect = Exception()
@@ -739,11 +739,11 @@ class ProfilePatchTests(ProfileTests):
         # can_edit_users
         self.user_that_can_edit_users, self.prof_that_can_edit_users = \
             new_user_and_profile(email="can@mng.users")
-        role_edit_users = Role.objects.create(right_edit_users=True)
+        role_manage_users = Role.objects.create(right_manage_users=True)
         Access.objects.create(
             perimeter_id=self.hospital3.id,
             profile=self.prof_that_can_edit_users,
-            role=role_edit_users
+            role=role_manage_users
         )
 
         # cannot_edit_users
@@ -751,7 +751,7 @@ class ProfilePatchTests(ProfileTests):
             new_user_and_profile(email="cannot@mng.users")
         role_all_but_edit_users = Role.objects.create(
             **dict([(r, True) for r in self.all_rights
-                    if r != 'right_edit_users']))
+                    if r != 'right_manage_users']))
         Access.objects.create(
             perimeter_id=self.aphp.id,
             profile=self.prof_that_cannot_edit_users,
@@ -783,7 +783,7 @@ class ProfilePatchTests(ProfileTests):
         )
 
     def test_patch_as_user_admin(self):
-        # As a user with right_edit_users, I can edit a profile
+        # As a user with right_manage_users, I can edit a profile
         case = self.basic_patch_case.clone(
             user=self.user_that_can_edit_users,
             success=True,
@@ -792,7 +792,7 @@ class ProfilePatchTests(ProfileTests):
         self.check_patch_case(case)
 
     def test_error_patch_as_simple_user(self):
-        # As a user with everything but right_edit_users,
+        # As a user with everything but right_manage_users,
         # I cannot edit a profile
         case = self.basic_patch_case.clone(
             user=self.user_that_cannot_edit_users,

@@ -156,7 +156,7 @@ class ExportsTests(ViewSetTestsWithBasicPerims):
             for (name, right) in [
                 ("REVIEW_CSV", "right_review_export_csv"),
                 ("REVIEW_JUPYTER", "right_review_export_jupyter"),
-                ("READ_PSEUDO", "right_read_patient_pseudo_anonymised"),
+                ("READ_PSEUDO", "right_read_patient_pseudonymized"),
                 ("READ_NOMI", "right_read_patient_nominative"),
                 ("EXP_CSV_PSEUDO", "right_export_csv_pseudo_anonymised"),
                 ("EXP_CSV_NOMI", "right_export_csv_nominative"),

@@ -140,7 +140,6 @@ def do_user_accesses_allow_to_manage_role(user: User, role: Role, perimeter: Per
     return (has_main_admin_role or not role.requires_main_admin_role_to_be_managed) \
         and (has_admin_accesses_managing_role or not role.requires_admin_accesses_managing_role_to_be_managed) \
         and (has_data_accesses_managing_role or not role.requires_data_accesses_managing_role_to_be_managed) \
-        and (has_main_admin_role or has_admin_accesses_managing_role or not role.requires_any_admin_mng_role_to_be_managed) \
         and (has_jupyter_accesses_managing_role or not role.requires_jupyter_accesses_managing_role_to_be_managed) \
         and (has_csv_accesses_managing_role or not role.requires_csv_accesses_managing_role_to_be_managed)
 
@@ -187,7 +186,7 @@ def get_user_valid_manual_accesses(user: User) -> QuerySet:
 
 def get_user_data_accesses_queryset(user: User) -> QuerySet:
     return get_user_valid_manual_accesses(user).filter(join_qs([Q(role__right_read_patient_nominative=True),
-                                                                Q(role__right_read_patient_pseudo_anonymised=True),
+                                                                Q(role__right_read_patient_pseudonymized=True),
                                                                 Q(role__right_search_patients_by_ipp=True),
                                                                 Q(role__right_export_csv_nominative=True),
                                                                 Q(role__right_export_csv_pseudo_anonymised=True),
@@ -222,7 +221,7 @@ class DataRight:
         self.user_id = user_id
         self.access_ids = access_ids or []
         self.right_read_patient_nominative = nomi
-        self.right_read_patient_pseudo_anonymised = pseudo
+        self.right_read_patient_pseudonymized = pseudo
         self.right_search_patients_by_ipp = search_ipp
         self.right_export_csv_nominative = exp_nomi
         self.right_export_csv_pseudo_anonymised = exp_pseudo
@@ -232,7 +231,7 @@ class DataRight:
     @property
     def rights_granted(self) -> List[str]:
         return [r for r in ['right_read_patient_nominative',
-                            'right_read_patient_pseudo_anonymised',
+                            'right_read_patient_pseudonymized',
                             'right_search_patients_by_ipp'
                             ] if getattr(self, r)]
 
@@ -249,7 +248,7 @@ class DataRight:
         """
         self.access_ids = list(set(self.access_ids + right.access_ids))
         self.right_read_patient_nominative = self.right_read_patient_nominative or right.right_read_patient_nominative
-        self.right_read_patient_pseudo_anonymised = self.right_read_patient_pseudo_anonymised or right.right_read_patient_pseudo_anonymised
+        self.right_read_patient_pseudonymized = self.right_read_patient_pseudonymized or right.right_read_patient_pseudonymized
         self.right_search_patients_by_ipp = self.right_search_patients_by_ipp or right.right_search_patients_by_ipp
 
     def add_global_right(self, right: DataRight):
@@ -272,7 +271,7 @@ class DataRight:
     @property
     def has_data_read_right(self):
         return self.right_read_patient_nominative \
-               or self.right_read_patient_pseudo_anonymised \
+               or self.right_read_patient_pseudonymized \
                or self.right_search_patients_by_ipp
 
     @property
@@ -303,7 +302,7 @@ def get_access_data_rights(user: User) -> List[Access]:
                                                                            select_related(*["parent" + i * "__parent"
                                                                                             for i in range(0, len(PERIMETERS_TYPES) - 2)]))) \
                                                 .annotate(provider_id=F("profile__provider_id"),
-                                                          pseudo=F('role__right_read_patient_pseudo_anonymised'),
+                                                          pseudo=F('role__right_read_patient_pseudonymized'),
                                                           search_ipp=F('role__right_search_patients_by_ipp'),
                                                           nomi=F('role__right_read_patient_nominative'),
                                                           exp_pseudo=F('role__right_export_csv_pseudo_anonymised'),

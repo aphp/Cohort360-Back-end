@@ -11,11 +11,10 @@ from admin_cohort.tools import join_qs
 
 ROLES_HELP_TEXT = dict(right_manage_roles="Gérer les rôles",
                        right_read_logs="Lire l'historique des requêtes des utilisateurs",
-                       right_add_users="Ajouter un profil manuel pour un utilisateur de l'AP-HP.",
-                       right_edit_users="Modifier les profils manuels et activer/désactiver les autres.",
+                       right_manage_users="Gérer la liste des profils/utilisateurs manuels et activer/désactiver les autres.",
                        right_read_users="Consulter la liste des utilisateurs/profils",
                        right_read_patient_nominative="Lire les données patient sous forme nominatives sur son périmètre et ses sous-périmètres",
-                       right_read_patient_pseudo_anonymised="Lire les données patient sous forme pseudonymisée sur son périmètre et "
+                       right_read_patient_pseudonymized="Lire les données patient sous forme pseudonymisée sur son périmètre et "
                                                             "ses sous-périmètres",
                        right_search_patients_by_ipp="Utiliser une liste d'IPP comme critère d'une requête Cohort.",
                        right_manage_export_jupyter_accesses="Gérer les accès permettant d'exporter les cohortes vers des environnements Jupyter",
@@ -63,12 +62,12 @@ class Role(BaseModel):
     right_manage_roles = models.BooleanField(default=False, null=False)
     right_read_logs = models.BooleanField(default=False, null=False)
 
-    right_add_users = models.BooleanField(default=False, null=False)
-    right_edit_users = models.BooleanField(default=False, null=False)
+    right_manage_users = models.BooleanField(default=False, null=False)
     right_read_users = models.BooleanField(default=False, null=False)
 
     right_manage_admin_accesses_same_level = models.BooleanField(default=False, null=False)
     right_read_admin_accesses_same_level = models.BooleanField(default=False, null=False)
+
     right_manage_admin_accesses_inferior_levels = models.BooleanField(default=False, null=False)
     right_read_admin_accesses_inferior_levels = models.BooleanField(default=False, null=False)
 
@@ -76,11 +75,12 @@ class Role(BaseModel):
 
     right_manage_data_accesses_same_level = models.BooleanField(default=False, null=False)
     right_read_data_accesses_same_level = models.BooleanField(default=False, null=False)
+
     right_manage_data_accesses_inferior_levels = models.BooleanField(default=False, null=False)
     right_read_data_accesses_inferior_levels = models.BooleanField(default=False, null=False)
 
     right_read_patient_nominative = models.BooleanField(default=False, null=False)
-    right_read_patient_pseudo_anonymised = models.BooleanField(default=False, null=False)
+    right_read_patient_pseudonymized = models.BooleanField(default=False, null=False)
     right_search_patients_by_ipp = models.BooleanField(default=False, null=False)
     right_read_opposing_patient = models.BooleanField(default=False, null=False)
 
@@ -95,9 +95,9 @@ class Role(BaseModel):
     right_export_csv_pseudo_anonymised = models.BooleanField(default=False, null=False)
 
     # environments
-    right_read_env_unix_users = models.BooleanField(default=False, null=False)
-    right_manage_env_unix_users = models.BooleanField(default=False, null=False)
-    right_manage_env_user_links = models.BooleanField(default=False, null=False)
+    right_manage_env_unix_users = models.BooleanField(default=False, null=False)    # todo: rename to `right_manage_datalabs`
+    right_read_env_unix_users = models.BooleanField(default=False, null=False)      # todo: rename to `right_read_datalabs`
+    right_manage_env_user_links = models.BooleanField(default=False, null=False)    # todo: rename to `right_manage_datalabs_members`
 
     _readable_right_set = None
     _right_groups = None
@@ -112,13 +112,13 @@ class Role(BaseModel):
     @classmethod
     def is_read_patient_role_pseudo(cls, prefix: str = "") -> Q:
         formatted_prefix = format_prefix(prefix)
-        return join_qs([Q(**{f'{formatted_prefix}right_read_patient_pseudo_anonymised': True,
+        return join_qs([Q(**{f'{formatted_prefix}right_read_patient_pseudonymized': True,
                              f'{formatted_prefix}right_read_patient_nominative': False})])
 
     @classmethod
     def is_read_patient_role(cls, prefix: str = "") -> Q:
         formatted_prefix = format_prefix(prefix)
-        return join_qs([Q(**{f'{formatted_prefix}right_read_patient_pseudo_anonymised': True}),
+        return join_qs([Q(**{f'{formatted_prefix}right_read_patient_pseudonymized': True}),
                         Q(**{f'{formatted_prefix}right_read_patient_nominative': True})])
 
     @classmethod
@@ -292,7 +292,7 @@ class Role(BaseModel):
         return criteria
 
     @property
-    def can_manage_other_accesses(self):
+    def can_manage_accesses(self):
         return self.right_manage_roles \
                or self.right_manage_admin_accesses_same_level \
                or self.right_manage_admin_accesses_inferior_levels \
@@ -302,7 +302,7 @@ class Role(BaseModel):
                or self.right_manage_export_csv_accesses
 
     @property
-    def can_read_other_accesses(self):
+    def can_read_accesses(self):
         return self.right_manage_roles \
                or self.right_read_admin_accesses_same_level \
                or self.right_read_admin_accesses_inferior_levels \
@@ -322,18 +322,16 @@ class Role(BaseModel):
         return any([self.right_export_jupyter_nominative,
                     self.right_export_jupyter_pseudo_anonymised])
 
-    # @property
-    # def requires_admin_role_to_be_managed(self):
-    #     return any([self.right_read_patient_nominative,
-    #                 self.right_search_patients_by_ipp,
-    #                 self.right_read_patient_pseudo_anonymised])
-
     @property
     def requires_data_accesses_managing_role_to_be_managed(self):
         return any([self.right_manage_data_accesses_same_level,
                     self.right_read_data_accesses_same_level,
                     self.right_manage_data_accesses_inferior_levels,
-                    self.right_read_data_accesses_inferior_levels])
+                    self.right_read_data_accesses_inferior_levels,
+                    self.right_read_patient_nominative,
+                    self.right_read_patient_pseudonymized,
+                    self.right_search_patients_by_ipp
+                    ])
 
     @property
     def requires_admin_accesses_managing_role_to_be_managed(self):
@@ -347,8 +345,7 @@ class Role(BaseModel):
     def requires_main_admin_role_to_be_managed(self):
         return any([self.right_manage_roles,
                     self.right_read_logs,
-                    self.right_add_users,
-                    self.right_edit_users,
+                    self.right_manage_users,
                     self.right_manage_admin_accesses_same_level,
                     self.right_read_admin_accesses_same_level,
                     self.right_manage_admin_accesses_inferior_levels,
@@ -359,12 +356,6 @@ class Role(BaseModel):
                     self.right_manage_env_user_links,
                     self.right_manage_export_jupyter_accesses,
                     self.right_manage_export_csv_accesses])
-
-    @property
-    def requires_any_admin_mng_role_to_be_managed(self):
-        # to be managed, the role requires access with
-        # main admin or admin manager
-        return self.right_read_users
 
     def get_help_text_for_right_manage_admin_accesses(self):
         return build_help_text(text_root="Gérer les accès des administrateurs",

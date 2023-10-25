@@ -5,7 +5,7 @@
 *Data access rights:*
 - right_read_patient_nominative
 - right_search_patient_with_ipp
-- right_read_patient_pseudo_anonymised
+- right_read_patient_pseudonymized
 
 *Admin rights:*
 - right_manage_data_accesses_same_level
@@ -251,11 +251,11 @@ For any of the groups of rights A that has the upper hand on on groups Bs (cf. r
 #### POST
 
 `/profiles/` :
-- [x] As a user with right_add_users, :
+- [x] As a user with right_manage_users, :
   - [x] I can create a new profile for a user that has no manual profile yet
   - [x] when creating a new manual profile the fields valid_start_datetime, valid_end_datetime and is_active will actually fill manual_valid_start_datetime, etc.
   - [x] I can create a profile for a non existing user, this will also create a User
-- [x] As a user with everything but right_add_users, I cannot create a new profile
+- [x] As a user with everything but right_manage_users, I cannot create a new profile
 - [x] As a user with all the rights, :
   - [x] I cannot create a new profile to a user that already has a manual profile
   - [x] when creating a new manual profile specifying a source will return 400.
@@ -264,19 +264,19 @@ For any of the groups of rights A that has the upper hand on on groups Bs (cf. r
   - [x] I cannot create a profile for a non existing user if provider_id is not found by get_provider_id
 
 `/profiles/check` :
-- As a user with right_add_users, can check the existence of a user on the control API:
+- As a user with right_manage_users, can check the existence of a user on the control API:
   - [x] and it returns User and Manual profile if it exists
   - [x] and it returns None if the API's response is empty
   - [x] and it returns with empty user and profile if user is not in database
   - [x] and it returns with empty profile if user has no manual profile
-- [x] As a user with everything but right_add_users, I cannot check the existence of a user on the control API
+- [x] As a user with everything but right_manage_users, I cannot check the existence of a user on the control API
 - [x] (400) As a user with all the rights, I cannot call it without providing 'user_id' parameter
 
 
 #### PATCH
 
-- [x] As a user with right_edit_users, I can edit a profile
-- [x] As a user with everything but right_edit_users, I cannot edit a profile
+- [x] As a user with right_manage_users, I can edit a profile
+- [x] As a user with everything but right_manage_users, I cannot edit a profile
 - [x] As a user with all the rights, I cannot edit a profile with certain fields
 
 #### DELETE

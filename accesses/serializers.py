@@ -423,7 +423,7 @@ class DataRightSerializer(serializers.Serializer):
     care_site_history_ids = serializers.ListSerializer(child=serializers.IntegerField(read_only=True, allow_null=True), allow_empty=True)
     access_ids = serializers.ListSerializer(child=serializers.IntegerField(read_only=True, allow_null=True), allow_empty=True)
     right_read_patient_nominative = serializers.BooleanField(read_only=True, allow_null=True)
-    right_read_patient_pseudo_anonymised = serializers.BooleanField(read_only=True, allow_null=True)
+    right_read_patient_pseudonymized = serializers.BooleanField(read_only=True, allow_null=True)
     right_search_patients_by_ipp = serializers.BooleanField(read_only=True, allow_null=True)
     right_export_csv_nominative = serializers.BooleanField(read_only=True, allow_null=True)
     right_export_csv_pseudo_anonymised = serializers.BooleanField(read_only=True, allow_null=True)
@@ -436,7 +436,7 @@ class DataReadRightSerializer(serializers.Serializer):
     provider_id = serializers.CharField(read_only=True, allow_null=True)
     perimeter = PerimeterLiteSerializer(allow_null=True, required=False)
     right_read_patient_nominative = serializers.BooleanField(read_only=True, allow_null=True)
-    right_read_patient_pseudo_anonymised = serializers.BooleanField(read_only=True, allow_null=True)
+    right_read_patient_pseudonymized = serializers.BooleanField(read_only=True, allow_null=True)
     read_role = serializers.CharField(read_only=True, allow_null=True)
 
 
@@ -444,5 +444,5 @@ class ReadRightPerimeter(serializers.Serializer):
     perimeter = PerimeterLiteSerializer(allow_null=True, required=False)
     read_role = serializers.CharField(read_only=True, allow_null=True)
     right_read_patient_nominative = serializers.BooleanField(read_only=True, allow_null=True)
-    right_read_patient_pseudo_anonymised = serializers.BooleanField(read_only=True, allow_null=True)
+    right_read_patient_pseudonymized = serializers.BooleanField(read_only=True, allow_null=True)
     right_search_patients_by_ipp = serializers.BooleanField(read_only=True, allow_null=True)

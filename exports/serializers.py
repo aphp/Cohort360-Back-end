@@ -29,7 +29,7 @@ def check_read_rights_on_perimeters(rights: List[DataRight], is_nomi: bool):
     if is_nomi:
         wrong_perims = [r.care_site_id for r in rights if not r.right_read_patient_nominative]
     else:
-        wrong_perims = [r.care_site_id for r in rights if not r.right_read_patient_pseudo_anonymised]
+        wrong_perims = [r.care_site_id for r in rights if not r.right_read_patient_pseudonymized]
     if wrong_perims:
         raise ValidationError(f"L'utilisateur n'a pas le droit de lecture {is_nomi and 'nominative' or 'pseudonymisée'} "
                               f"sur les périmètres: {wrong_perims}.")
