@@ -18,7 +18,7 @@ class Migration(migrations.Migration):
         migrations.RenameField(
             model_name='role',
             old_name='right_transfer_jupyter_pseudo_anonymised',
-            new_name='right_export_jupyter_pseudo_anonymised',
+            new_name='right_export_jupyter_pseudonymized',
         ),
         migrations.RenameField(
             model_name='role',
@@ -50,5 +50,10 @@ class Migration(migrations.Migration):
             model_name='role',
             old_name='right_search_patient_with_ipp',
             new_name='right_search_patients_by_ipp',
+        ),
+        migrations.RenameField(
+            model_name='role',
+            old_name='right_read_admin_accesses_above_levels',
+            new_name='right_read_accesses_above_levels',
         ),
     ]

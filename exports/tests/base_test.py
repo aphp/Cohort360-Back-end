@@ -29,8 +29,8 @@ class ExportsTestBase(TestCase):
         self.perimeter_aphp = Perimeter.objects.create(name="APHP", local_id="1")
 
         self.csv_exporter_role = Role.objects.create(name="CSV EXPORTER", right_export_csv_nominative=True)
-        self.datalab_reader_role = Role.objects.create(name="DATALABS READER", right_read_env_unix_users=True)
-        self.datalab_manager_role = Role.objects.create(name="DATALABS MANAGER", right_read_env_unix_users=True, right_manage_env_unix_users=True)
+        self.datalab_reader_role = Role.objects.create(name="DATALABS READER", right_read_datalabs=True)
+        self.datalab_manager_role = Role.objects.create(name="DATALABS MANAGER", right_read_datalabs=True, right_manage_datalabs=True)
 
         self.datalabs_reader_user, self.datalabs_reader_profile = new_user_and_profile(firstname="Datalabs",
                                                                                        lastname="READER",

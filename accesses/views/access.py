@@ -21,7 +21,7 @@ from admin_cohort.tools.cache import cache_response
 from admin_cohort.views import BaseViewset, CustomLoggingMixin
 from ..models import Access, get_user_valid_manual_accesses, intersect_queryset_criteria, build_data_rights, Perimeter
 from ..models.tools import q_is_valid_access, q_role_impacts_lower_levels
-from ..permissions import AccessPermissions
+from ..permissions import AccessesPermission
 from ..serializers import AccessSerializer, DataRightSerializer, ExpiringAccessesSerializer
 
 
@@ -33,7 +33,7 @@ class AccessFilter(filters.FilterSet):
         accesses_on_perimeter = valid_accesses.filter(perimeter_id=value)
 
         user_accesses = get_user_valid_manual_accesses(user=self.request.user)
-        user_is_allowed_to_read_accesses_from_above_levels = user_accesses.filter(role__right_read_admin_accesses_above_levels=True)\
+        user_is_allowed_to_read_accesses_from_above_levels = user_accesses.filter(role__right_read_accesses_above_levels=True)\
                                                                           .exists()
         if user_is_allowed_to_read_accesses_from_above_levels:
             accesses_on_parent_perimeters = valid_accesses.filter(Q(perimeter_id__in=perimeter.above_levels)
@@ -74,7 +74,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
     queryset = Access.objects.all()
     lookup_field = "id"
     filterset_class = AccessFilter
-    permission_classes = [IsAuthenticated, AccessPermissions]
+    permission_classes = [IsAuthenticated, AccessesPermission]
     http_method_names = ['post', 'patch', 'delete']
     logging_methods = ['POST', 'PATCH', 'DELETE']
     swagger_tags = ['Accesses - accesses']

@@ -20,7 +20,7 @@ from admin_cohort.types import ServerError, MissingDataError
 from admin_cohort.views import BaseViewset, CustomLoggingMixin
 from ..models import Profile
 from ..models.tools import q_is_valid_profile
-from ..permissions import ProfilePermissions
+from ..permissions import ProfilesPermission
 from ..serializers import ProfileSerializer, ReducedProfileSerializer, \
     ProfileCheckSerializer
 
@@ -55,7 +55,7 @@ class ProfileViewSet(CustomLoggingMixin, BaseViewset):
     queryset = Profile.objects.filter(delete_datetime__isnull=True).all()
     lookup_field = "id"
     logging_methods = ['POST', 'PATCH', 'DELETE']
-    permission_classes = (IsAuthenticated, ProfilePermissions)
+    permission_classes = (IsAuthenticated, ProfilesPermission)
     swagger_tags = ['Accesses - profiles']
     filterset_class = ProfileFilter
     search_fields = ["lastname", "firstname", "email", "user_id"]

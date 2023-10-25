@@ -15,13 +15,13 @@ INSERT INTO accesses_role (id, name, right_manage_roles, right_manage_users, rig
                            right_manage_data_accesses_inferior_levels, right_read_data_accesses_inferior_levels,
                            right_read_patient_nominative, right_search_patient_with_ipp,
                            right_read_patient_pseudonymized, invalid_reason, right_read_logs,
-                           right_export_csv_nominative, right_export_csv_pseudo_anonymised, right_manage_export_csv,
+                           right_export_csv_nominative, right_export_csv_pseudonymized, right_manage_export_csv,
                            right_manage_review_export_csv, right_manage_review_transfer_jupyter,
                            right_manage_transfer_jupyter, right_review_export_csv, right_review_transfer_jupyter,
                            right_transfer_jupyter_nominative, right_transfer_jupyter_pseudo_anonymised,
-                           right_manage_env_unix_users, right_manage_env_user_links, right_read_env_unix_users)
+                           right_manage_datalabs, right_read_datalabs)
 VALUES (-10, 'READ_ALL', 'f', 'f', 'f', 'f', 't', 't', 'f', 'f', 'f', 'f', 'f', 'f', 't', 'f', 't', 'f', 'f', 'f',
-        'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f');
+        'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f');
 
 INSERT INTO accesses_role (id, name, right_manage_roles, right_manage_users, right_read_users,
                            right_manage_admin_accesses_same_level, right_read_admin_accesses_same_level,
@@ -30,14 +30,14 @@ INSERT INTO accesses_role (id, name, right_manage_roles, right_manage_users, rig
                            right_manage_data_accesses_inferior_levels, right_read_data_accesses_inferior_levels,
                            right_read_patient_nominative, right_search_patient_with_ipp,
                            right_read_patient_pseudonymized, invalid_reason, right_read_logs,
-                           right_export_csv_nominative, right_export_csv_pseudo_anonymised, right_manage_export_csv,
+                           right_export_csv_nominative, right_export_csv_pseudonymized, right_manage_export_csv,
                            right_manage_review_export_csv, right_manage_review_transfer_jupyter,
                            right_manage_transfer_jupyter, right_review_export_csv, right_review_transfer_jupyter,
                            right_transfer_jupyter_nominative, right_transfer_jupyter_pseudo_anonymised,
-                           right_manage_env_unix_users, right_manage_env_user_links, right_read_env_unix_users)
+                           right_manage_datalabs, right_read_datalabs)
 VALUES (-11, 'READ_ONLY_NOMINATIVE', 'f', 'f', 'f', 'f', 't', 't', 'f', 'f', 'f', 'f', 'f', 'f', 't', 'f', 'f', 'f',
         'f', 'f',
-        'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f');
+        'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f');
 
 INSERT INTO accesses_role (id, name, right_manage_roles, right_manage_users, right_read_users,
                            right_manage_admin_accesses_same_level, right_read_admin_accesses_same_level,
@@ -46,14 +46,14 @@ INSERT INTO accesses_role (id, name, right_manage_roles, right_manage_users, rig
                            right_manage_data_accesses_inferior_levels, right_read_data_accesses_inferior_levels,
                            right_read_patient_nominative, right_search_patient_with_ipp,
                            right_read_patient_pseudonymized, invalid_reason, right_read_logs,
-                           right_export_csv_nominative, right_export_csv_pseudo_anonymised, right_manage_export_csv,
+                           right_export_csv_nominative, right_export_csv_pseudonymized, right_manage_export_csv,
                            right_manage_review_export_csv, right_manage_review_transfer_jupyter,
                            right_manage_transfer_jupyter, right_review_export_csv, right_review_transfer_jupyter,
                            right_transfer_jupyter_nominative, right_transfer_jupyter_pseudo_anonymised,
-                           right_manage_env_unix_users, right_manage_env_user_links, right_read_env_unix_users)
+                           right_manage_datalabs, right_read_datalabs)
 VALUES (-12, 'READ_ONLY_PSEUDO', 'f', 'f', 'f', 'f', 't', 't', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 't', 'f', 'f',
         'f',
-        'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f');
+        'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f');
 
 INSERT INTO accesses_role (id, name, right_manage_roles, right_manage_users, right_read_users,
                            right_manage_admin_accesses_same_level, right_read_admin_accesses_same_level,
@@ -62,13 +62,13 @@ INSERT INTO accesses_role (id, name, right_manage_roles, right_manage_users, rig
                            right_manage_data_accesses_inferior_levels, right_read_data_accesses_inferior_levels,
                            right_read_patient_nominative, right_search_patient_with_ipp,
                            right_read_patient_pseudonymized, invalid_reason, right_read_logs,
-                           right_export_csv_nominative, right_export_csv_pseudo_anonymised, right_manage_export_csv,
+                           right_export_csv_nominative, right_export_csv_pseudonymized, right_manage_export_csv,
                            right_manage_review_export_csv, right_manage_review_transfer_jupyter,
                            right_manage_transfer_jupyter, right_review_export_csv, right_review_transfer_jupyter,
                            right_transfer_jupyter_nominative, right_transfer_jupyter_pseudo_anonymised,
-                           right_manage_env_unix_users, right_manage_env_user_links, right_read_env_unix_users)
+                           right_manage_datalabs, right_read_datalabs)
 VALUES (-13, 'NO_READ_RIGHT', 'f', 'f', 'f', 'f', 't', 't', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f',
-        'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f');
+        'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f');
 
 ---------------- PERIMETERS
 

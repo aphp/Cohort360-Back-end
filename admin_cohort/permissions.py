@@ -41,7 +41,7 @@ def user_is_admin(user) -> bool:
     return user.email in admins_emails
 
 
-class MaintenancePermission(permissions.BasePermission):
+class MaintenancesPermission(permissions.BasePermission):
     def has_permission(self, request, view):
         if request.method in permissions.SAFE_METHODS:
             return True

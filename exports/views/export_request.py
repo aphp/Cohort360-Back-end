@@ -24,8 +24,8 @@ from cohort.models import CohortResult
 from exports import conf_exports
 from exports.emails import check_email_address, push_email_notification
 from exports.models import ExportRequest
-from exports.permissions import ExportRequestPermissions, ExportJupyterPermissions
-from exports.serializers import ExportRequestSerializer, ExportRequestSerializerNoReviewer, ExportRequestListSerializer
+from exports.permissions import ExportRequestsPermission
+from exports.serializers import ExportRequestSerializer, ExportRequestListSerializer
 from exports.types import ExportType, HdfsServerUnreachableError
 
 _logger = logging.getLogger('django.request')
@@ -66,7 +66,7 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
     queryset = ExportRequest.objects.all()
     serializer_class = ExportRequestSerializer
     lookup_field = "id"
-    permission_classes = (ExportRequestPermissions, ExportJupyterPermissions)
+    permission_classes = [ExportRequestsPermission]
     swagger_tags = ['Exports']
     pagination_class = NegativeLimitOffsetPagination
     filterset_class = ExportRequestFilter
@@ -170,7 +170,7 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
                 response.data['warning'] = f"L'email de confirmation n'a pas pu être envoyé à cause de l'erreur: {e}"
         return response
 
-    @action(detail=True, methods=['get'], permission_classes=(ExportRequestPermissions,), url_path="download")
+    @action(detail=True, methods=['get'], permission_classes=(ExportRequestsPermission,), url_path="download")
     def download(self, request, *args, **kwargs):
         export = self.get_object()
         if export.request_job_status != JobStatus.finished:

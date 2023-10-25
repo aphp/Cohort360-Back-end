@@ -86,12 +86,12 @@ class Access(BaseModel):
     @property
     def requires_csv_accesses_managing_role_to_be_managed(self):
         return any([self.role.right_export_csv_nominative,
-                    self.role.right_export_csv_pseudo_anonymised])
+                    self.role.right_export_csv_pseudonymized])
 
     @property
     def requires_jupyter_accesses_managing_role_to_be_managed(self):
         return any([self.role.right_export_jupyter_nominative,
-                    self.role.right_export_jupyter_pseudo_anonymised])
+                    self.role.right_export_jupyter_pseudonymized])
 
     @property
     def requires_data_accesses_managing_role_to_be_managed(self):
@@ -110,7 +110,7 @@ class Access(BaseModel):
                     self.role.right_read_admin_accesses_same_level,
                     self.role.right_manage_admin_accesses_inferior_levels,
                     self.role.right_read_admin_accesses_inferior_levels,
-                    self.role.right_read_admin_accesses_above_levels])
+                    self.role.right_read_accesses_above_levels])
 
     @property
     def requires_main_admin_role_to_be_managed(self):
@@ -121,10 +121,9 @@ class Access(BaseModel):
                     self.role.right_read_admin_accesses_same_level,
                     self.role.right_manage_admin_accesses_inferior_levels,
                     self.role.right_read_admin_accesses_inferior_levels,
-                    self.role.right_read_admin_accesses_above_levels,
-                    self.role.right_read_env_unix_users,
-                    self.role.right_manage_env_unix_users,
-                    self.role.right_manage_env_user_links,
+                    self.role.right_read_accesses_above_levels,
+                    self.role.right_read_datalabs,
+                    self.role.right_manage_datalabs,
                     self.role.right_manage_export_jupyter_accesses,
                     self.role.right_manage_export_csv_accesses])
 

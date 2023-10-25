@@ -39,7 +39,7 @@ def check_csv_export_rights_on_perimeters(rights: List[DataRight], is_nomi: bool
     if is_nomi:
         wrong_perims = [r.care_site_id for r in rights if not r.right_export_csv_nominative]
     else:
-        wrong_perims = [r.care_site_id for r in rights if not r.right_export_csv_pseudo_anonymised]
+        wrong_perims = [r.care_site_id for r in rights if not r.right_export_csv_pseudonymized]
     if wrong_perims:
         raise ValidationError(f"L'utilisateur n'a pas le droit d'export CSV {is_nomi and 'nominatif' or 'pseudonymisé'} "
                               f"sur les périmètres {wrong_perims}.")
@@ -49,7 +49,7 @@ def check_jupyter_export_rights_on_perimeters(rights: List[DataRight], is_nomi: 
     if is_nomi:
         wrong_perims = [r.care_site_id for r in rights if not r.right_export_jupyter_nominative]
     else:
-        wrong_perims = [r.care_site_id for r in rights if not r.right_export_jupyter_pseudo_anonymised]
+        wrong_perims = [r.care_site_id for r in rights if not r.right_export_jupyter_pseudonymized]
     if wrong_perims:
         raise ValidationError(f"L'utilisateur n'a pas le droit d'export Jupyter {is_nomi and 'nominatif' or 'pseudonymisé'} "
                               f"sur les périmètres {wrong_perims}.")

@@ -14,7 +14,6 @@ from admin_cohort.serializers import BaseSerializer, ReducedUserSerializer, User
 from admin_cohort.settings import MANUAL_SOURCE, MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS
 from .conf_perimeters import Provider
 from .models import Role, Access, Profile, Perimeter
-from .permissions import can_user_manage_access
 
 _logger = logging.getLogger('django.request')
 
@@ -426,9 +425,9 @@ class DataRightSerializer(serializers.Serializer):
     right_read_patient_pseudonymized = serializers.BooleanField(read_only=True, allow_null=True)
     right_search_patients_by_ipp = serializers.BooleanField(read_only=True, allow_null=True)
     right_export_csv_nominative = serializers.BooleanField(read_only=True, allow_null=True)
-    right_export_csv_pseudo_anonymised = serializers.BooleanField(read_only=True, allow_null=True)
+    right_export_csv_pseudonymized = serializers.BooleanField(read_only=True, allow_null=True)
     right_export_jupyter_nominative = serializers.BooleanField(read_only=True, allow_null=True)
-    right_export_jupyter_pseudo_anonymised = serializers.BooleanField(read_only=True, allow_null=True)
+    right_export_jupyter_pseudonymized = serializers.BooleanField(read_only=True, allow_null=True)
 
 
 class DataReadRightSerializer(serializers.Serializer):

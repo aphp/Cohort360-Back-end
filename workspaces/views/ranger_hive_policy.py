@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from admin_cohort.permissions import IsAuthenticated
 from admin_cohort.settings import RANGER_HIVE_POLICY_TYPES
 from workspaces.models.ranger_hive_policy import RangerHivePolicy
-from workspaces.permissions import AccountPermissions
+from workspaces.permissions import AccountsPermission
 from workspaces.serializers import RangerHivePolicySerializer
 
 
@@ -18,7 +18,7 @@ class RangerHivePolicyViewSet(viewsets.ModelViewSet):
     queryset = RangerHivePolicy.objects.all()
     lookup_field = "id"
     http_method_names = ["get"]
-    permission_classes = [AccountPermissions]
+    permission_classes = [AccountsPermission]
     swagger_tags = ['Workspaces - ranger-hive-policies']
 
     def get_permissions(self):

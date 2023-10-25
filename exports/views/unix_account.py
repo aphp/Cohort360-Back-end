@@ -3,7 +3,7 @@ from django_filters import rest_framework as filters
 from exports.serializers import AnnexeAccountSerializer
 from workspaces.conf_workspaces import get_account_groups_from_id_aph
 from workspaces.models import Account
-from workspaces.permissions import AccountPermissions
+from workspaces.permissions import AccountsPermission
 from workspaces.views import AccountViewSet
 
 
@@ -23,7 +23,7 @@ class UnixAccountViewSet(AccountViewSet):
     lookup_field = "uid"
     serializer_class = AnnexeAccountSerializer
     http_method_names = ["get"]
-    permission_classes = [AccountPermissions]
+    permission_classes = [AccountsPermission]
     swagger_tags = ['Exports - users']
     filterset_class = UnixAccountFilter
 

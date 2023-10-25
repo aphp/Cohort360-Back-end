@@ -158,9 +158,9 @@ class ExportsTests(ViewSetTestsWithBasicPerims):
                 ("REVIEW_JUPYTER", "right_review_export_jupyter"),
                 ("READ_PSEUDO", "right_read_patient_pseudonymized"),
                 ("READ_NOMI", "right_read_patient_nominative"),
-                ("EXP_CSV_PSEUDO", "right_export_csv_pseudo_anonymised"),
+                ("EXP_CSV_PSEUDO", "right_export_csv_pseudonymized"),
                 ("EXP_CSV_NOMI", "right_export_csv_nominative"),
-                ("EXP_JUP_PSEUDO", "right_export_jupyter_pseudo_anonymised"),
+                ("EXP_JUP_PSEUDO", "right_export_jupyter_pseudonymized"),
                 ("EXP_JUP_NOMI", "right_export_jupyter_nominative"),
             ]]
 

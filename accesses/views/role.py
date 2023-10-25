@@ -4,15 +4,14 @@ from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.decorators import action
-from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
 from admin_cohort.tools.cache import cache_response
-from admin_cohort.permissions import IsAuthenticated
+from admin_cohort.permissions import IsAuthenticated, UsersPermission
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from admin_cohort.views import BaseViewset, CustomLoggingMixin
-from ..models import Role, get_assignable_roles_on_perimeter, Perimeter
-from ..permissions import RolePermissions
+from ..models import Role, Perimeter, do_user_accesses_allow_to_manage_role
+from ..permissions import RolesPermission
 from ..serializers import RoleSerializer, UsersInRoleSerializer
 
 
@@ -36,7 +35,7 @@ class RoleViewSet(CustomLoggingMixin, BaseViewset):
     logging_methods = ['POST', 'PATCH', 'DELETE']
     swagger_tags = ['Accesses - roles']
     filterset_class = RoleFilter
-    permission_classes = (IsAuthenticated, RolePermissions)
+    permission_classes = [IsAuthenticated, RolesPermission]
     pagination_class = NegativeLimitOffsetPagination
 
     @swagger_auto_schema(method='get',
@@ -52,7 +51,7 @@ class RoleViewSet(CustomLoggingMixin, BaseViewset):
                          responses={
                              200: openapi.Response('All valid accesses or ones to expire soon', UsersInRoleSerializer),
                              204: openapi.Response('No content')})
-    @action(url_path="users", detail=True, methods=['get'], permission_classes=(IsAuthenticated,))
+    @action(url_path="users", detail=True, methods=['get'], permission_classes=permission_classes+[UsersPermission])
     def users_within_role(self, request, *args, **kwargs):
         role = self.get_object()
         users_perimeters = []
@@ -98,16 +97,17 @@ class RoleViewSet(CustomLoggingMixin, BaseViewset):
                                                               type=openapi.TYPE_INTEGER),
                                             openapi.Parameter(name="perimeter_id", in_=openapi.IN_QUERY,
                                                               description="Required", type=openapi.TYPE_INTEGER)])
-    @action(url_path="assignable", detail=False, methods=['get'], permission_classes=(IsAuthenticated,))
+    @action(url_path="assignable", detail=False, methods=['get'])
     @cache_response()
     def assignable(self, request, *args, **kwargs):
         perimeter_id = request.GET.get("perimeter_id", request.GET.get("care_site_id"))
         if not perimeter_id:
             return Response(data="Missing parameter `perimeter_id`", status=status.HTTP_400_BAD_REQUEST)
         perimeter = Perimeter.objects.get(id=perimeter_id)
-        role_ids = get_assignable_roles_on_perimeter(user=request.user, perimeter=perimeter)
-        roles = Role.objects.filter(id__in=role_ids)
-        page = self.paginate_queryset(roles)
+        assignable_roles_ids = [role.id for role in Role.objects.all()
+                                if do_user_accesses_allow_to_manage_role(request.user, role, perimeter)]
+        assignable_roles = Role.objects.filter(id__in=assignable_roles_ids)
+        page = self.paginate_queryset(assignable_roles)
         if page:
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)

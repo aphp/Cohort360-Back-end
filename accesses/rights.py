@@ -100,19 +100,19 @@ right_manage_admin_accesses_same_level = Right("right_manage_admin_accesses_same
 right_read_admin_accesses_same_level = Right("right_read_admin_accesses_same_level", allow_read_rights_on_same_level=True)
 right_manage_admin_accesses_inferior_levels = Right("right_manage_admin_accesses_inferior_levels", allow_edit_accesses_on_inf_levels=True)
 right_read_admin_accesses_inferior_levels = Right("right_read_admin_accesses_inferior_levels", allow_read_rights_on_inf_levels=True)
+right_read_accesses_above_levels = Right("right_read_accesses_above_levels")
 right_export_jupyter_nominative = Right("right_export_jupyter_nominative")
-right_export_jupyter_pseudo_anonymised = Right("right_export_jupyter_pseudo_anonymised")
+right_export_jupyter_pseudonymized = Right("right_export_jupyter_pseudonymized")
 right_manage_export_jupyter_accesses = Right("right_manage_export_jupyter_accesses",
                                              allow_read_rights_on_any_level=True,
                                              allow_edit_accesses_on_any_level=True)
 right_export_csv_nominative = Right("right_export_csv_nominative")
-right_export_csv_pseudo_anonymised = Right("right_export_csv_pseudo_anonymised")
+right_export_csv_pseudonymized = Right("right_export_csv_pseudonymized")
 right_manage_export_csv_accesses = Right("right_manage_export_csv_accesses",
                                          allow_read_rights_on_any_level=True,
                                          allow_edit_accesses_on_any_level=True)
-right_read_env_unix_users = Right("right_read_env_unix_users")
-right_manage_env_unix_users = Right("right_manage_env_unix_users")
-right_manage_env_user_links = Right("right_manage_env_user_links")
+right_read_datalabs = Right("right_read_datalabs")
+right_manage_datalabs = Right("right_manage_datalabs")
 right_manage_users = Right("right_manage_users")
 right_read_users = Right("right_read_users")
 right_manage_roles = Right("right_manage_roles", allow_read_rights_on_any_level=True, allow_edit_accesses_on_any_level=True)
@@ -129,15 +129,15 @@ all_rights = [right_read_patient_nominative,
               right_read_admin_accesses_same_level,
               right_manage_admin_accesses_inferior_levels,
               right_read_admin_accesses_inferior_levels,
+              right_read_accesses_above_levels,
               right_export_jupyter_nominative,
-              right_export_jupyter_pseudo_anonymised,
+              right_export_jupyter_pseudonymized,
               right_manage_export_jupyter_accesses,
               right_export_csv_nominative,
-              right_export_csv_pseudo_anonymised,
+              right_export_csv_pseudonymized,
               right_manage_export_csv_accesses,
-              right_read_env_unix_users,
-              right_manage_env_unix_users,
-              right_manage_env_user_links,
+              right_read_datalabs,
+              right_manage_datalabs,
               right_manage_users,
               right_read_users,
               right_manage_roles,
@@ -163,7 +163,7 @@ admin_manager_rights = RightGroup(name="admin_manager_rights", rights=[right_man
 data_admin_rights.parent = admin_manager_rights
 
 jup_export_rights = RightGroup(name="jup_export_rights", rights=[right_export_jupyter_nominative,
-                                                                 right_export_jupyter_pseudo_anonymised],
+                                                                 right_export_jupyter_pseudonymized],
                                description="Allows to make exports of type hive")
 
 jup_export_manage_rights = RightGroup(name="jup_export_manage_rights", rights=[right_manage_export_jupyter_accesses],
@@ -172,7 +172,7 @@ jup_export_manage_rights = RightGroup(name="jup_export_manage_rights", rights=[r
 jup_export_rights.parent = jup_export_manage_rights
 
 csv_export_rights = RightGroup(name="csv_export_rights", rights=[right_export_csv_nominative,
-                                                                 right_export_csv_pseudo_anonymised],
+                                                                 right_export_csv_pseudonymized],
                                description="Allows to make exports of type csv")
 
 csv_export_manage_rights = RightGroup(name="csv_export_manage_rights", rights=[right_manage_export_csv_accesses],
@@ -180,9 +180,8 @@ csv_export_manage_rights = RightGroup(name="csv_export_manage_rights", rights=[r
                                       children=[csv_export_rights])
 csv_export_rights.parent = csv_export_manage_rights
 
-workspaces_rights = RightGroup(name="workspaces_rights", rights=[right_read_env_unix_users,
-                                                                 right_manage_env_unix_users,
-                                                                 right_manage_env_user_links],
+workspaces_rights = RightGroup(name="workspaces_rights", rights=[right_read_datalabs,
+                                                                 right_manage_datalabs],
                                description="Allows to manage/read workspaces models")
 
 user_rights = RightGroup(name="user_rights", rights=[right_manage_users,

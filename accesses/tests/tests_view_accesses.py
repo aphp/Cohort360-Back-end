@@ -13,12 +13,8 @@ from rest_framework import status as http_status
 from rest_framework.test import force_authenticate
 
 from accesses.models import Access, Role, Profile, Perimeter
-from accesses.rights import main_admin_rights, admin_manager_rights,\
-    csv_export_manage_rights, jup_export_manage_rights,\
-    csv_review_manage_rights, workspaces_rights, user_rights,\
-    data_admin_rights, data_rights, csv_export_rights, jup_export_rights,\
-    jup_review_rights, csv_review_rights, right_read_users,\
-    jup_review_manage_rights
+from accesses.rights import main_admin_rights, admin_manager_rights, csv_export_manage_rights, jup_export_manage_rights, \
+    workspaces_rights, user_rights, data_admin_rights, data_rights, csv_export_rights, jup_export_rights, right_read_users
 from accesses.views import AccessViewSet
 from admin_cohort.settings import MANUAL_SOURCE
 from admin_cohort.tools.tests_tools import new_user_and_profile, CaseRetrieveFilter, \
@@ -56,12 +52,12 @@ class ReadRight(ReadObject):
 
         assert 'right_export_csv_nominative' in o
         assert isinstance(o.get('right_export_csv_nominative'), bool)
-        assert 'right_export_csv_pseudo_anonymised' in o
-        assert isinstance(o.get('right_export_csv_pseudo_anonymised'), bool)
+        assert 'right_export_csv_pseudonymized' in o
+        assert isinstance(o.get('right_export_csv_pseudonymized'), bool)
         assert 'right_export_jupyter_nominative' in o
         assert isinstance(o.get('right_export_jupyter_nominative'), bool)
-        assert 'right_export_jupyter_pseudo_anonymised' in o
-        assert isinstance(o.get('right_export_jupyter_pseudo_anonymised'),
+        assert 'right_export_jupyter_pseudonymized' in o
+        assert isinstance(o.get('right_export_jupyter_pseudonymized'),
                           bool)
 
         self.perimeter_id: int = o.get('perimeter_id')
@@ -74,12 +70,12 @@ class ReadRight(ReadObject):
             o.get('right_search_patients_by_ipp')
         self.right_export_csv_nominative: bool = \
             o.get('right_export_csv_nominative')
-        self.right_export_csv_pseudo_anonymised: bool = \
-            o.get('right_export_csv_pseudo_anonymised')
+        self.right_export_csv_pseudonymized: bool = \
+            o.get('right_export_csv_pseudonymized')
         self.right_export_jupyter_nominative: bool = \
             o.get('right_export_jupyter_nominative')
-        self.right_export_jupyter_pseudo_anonymised: bool = \
-            o.get('right_export_jupyter_pseudo_anonymised')
+        self.right_export_jupyter_pseudonymized: bool = \
+            o.get('right_export_jupyter_pseudonymized')
 
     def match(self, other_right: ReadRight) -> bool:
         return self.perimeter_id == other_right.perimeter_id \
@@ -91,12 +87,12 @@ class ReadRight(ReadObject):
                other_right.right_search_patients_by_ipp \
                and self.right_export_csv_nominative == \
                other_right.right_export_csv_nominative \
-               and self.right_export_csv_pseudo_anonymised == \
-               other_right.right_export_csv_pseudo_anonymised \
+               and self.right_export_csv_pseudonymized == \
+               other_right.right_export_csv_pseudonymized \
                and self.right_export_jupyter_nominative == \
                other_right.right_export_jupyter_nominative \
-               and self.right_export_jupyter_pseudo_anonymised == \
-               other_right.right_export_jupyter_pseudo_anonymised \
+               and self.right_export_jupyter_pseudonymized == \
+               other_right.right_export_jupyter_pseudonymized \
                and all([i in other_right.access_ids for i in self.access_ids]) \
                and len(self.access_ids) == len(other_right.access_ids)
 
@@ -1101,7 +1097,7 @@ class AccessDataRightsTests(ViewSetTestsWithBasicPerims):
         )
         self.pseudo_anonymised_export_role = Role.objects.create(
             name="PSEUDO_ANONYMISED_EXPORT_ROLE",
-            right_export_csv_pseudo_anonymised=True,
+            right_export_csv_pseudonymized=True,
         )
         self.nominative_export_role = Role.objects.create(
             name="NOMINATIVE_EXPORT_ROLE",
@@ -1112,9 +1108,9 @@ class AccessDataRightsTests(ViewSetTestsWithBasicPerims):
             right_read_patient_pseudonymized=False,
             right_search_patients_by_ipp=False,
             right_export_csv_nominative=False,
-            right_export_csv_pseudo_anonymised=False,
+            right_export_csv_pseudonymized=False,
             right_export_jupyter_nominative=False,
-            right_export_jupyter_pseudo_anonymised=False,
+            right_export_jupyter_pseudonymized=False,
             perimeter_id=str(self.aphp.id),
         )
 
@@ -1273,27 +1269,27 @@ class AccessDataRightsTests(ViewSetTestsWithBasicPerims):
                  'access_ids': [access_pseudo_aphp.id,
                                 access_exp_pseudo_hosp3.id],
                  'right_read_patient_pseudonymized': True,
-                 'right_export_csv_pseudo_anonymised': True},
+                 'right_export_csv_pseudonymized': True},
                 {**self.base_aphp_right_dict,
                  'access_ids': [access_pseudo_aphp.id, access_pseudo_aphp.id,
                                 access_exp_pseudo_hosp3.id, acc_ipp_hosp1.id],
                  'right_read_patient_pseudonymized': True,
                  'right_search_patients_by_ipp': True,
-                 'right_export_csv_pseudo_anonymised': True,
+                 'right_export_csv_pseudonymized': True,
                  'perimeter_id': str(self.hospital1.id)},
                 {**self.base_aphp_right_dict,
                  'access_ids': [access_pseudo_aphp.id, access_nomi_hosp2.id,
                                 access_exp_pseudo_hosp3.id],
                  'right_read_patient_nominative': True,
                  'right_read_patient_pseudonymized': True,
-                 'right_export_csv_pseudo_anonymised': True,
+                 'right_export_csv_pseudonymized': True,
                  'perimeter_id': str(self.hospital2.id)},
                 {**self.base_aphp_right_dict,
                  'access_ids': [access_pseudo_aphp.id, access_nomi_hosp2.id,
                                 access_exp_pseudo_hosp3.id],
                  'right_read_patient_nominative': True,
                  'right_read_patient_pseudonymized': True,
-                 'right_export_csv_pseudo_anonymised': True,
+                 'right_export_csv_pseudonymized': True,
                  'perimeter_id': str(self.hospital3.id)},
             ]],
             title="With pseudo on hosp1 and aphp, aphp dominates,"

@@ -54,7 +54,7 @@ class JupyterExportersAdmin {
 }
 class CsvExporters {
   right_export_csv_nominative
-  right_export_csv_pseudo_anonymised
+  right_export_csv_pseudonymized
 }
 class JupyterExporters {
   right_transfer_jupyter_nominative
@@ -73,9 +73,8 @@ class JupyterExportReviewers {
   right_review_transfer_jupyter
 }
 class WorkspacesManager {
-  right_read_env_unix_users
-  right_manage_env_unix_users
-  right_manage_env_user_links
+  right_read_datalabs
+  right_manage_datalabs
 }
 class UsersAdmin {
   right_manage_users
@@ -282,7 +281,7 @@ Comment lire ce schéma :
 
 Imaginons un *Role* qui possède:
 - *right_export_csv_nominative*  (**Exporters**)
-- *right_manage_env_unix_users* (**WorkspacesManager**)
+- *right_manage_datalabs* (**WorkspacesManager**)
 - *right_read_data_accesses_same_level* (**DataReadersAdmin**)
 
 Et bien pour pouvoir attribuer ce *Role* a quelqu'un, ou modifier un *Access* qui possède ce *Role*, il faut que moi-même j'ai un Role avec :

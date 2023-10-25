@@ -92,33 +92,25 @@ def q_is_valid_profile(field_prefix: str = '') -> Q:
             & q_is_active)
 
 
-def check_accesses_managing_roles(access: Access, perimeter_id: int, readonly: bool):
+def check_accesses_managing_roles(access: Access, perimeter: Perimeter, readonly: bool):
     role = access.role
-    if access.perimeter_id == perimeter_id:
+
+    if access.perimeter == perimeter:
         has_admin_accesses_managing_role = readonly and role.right_read_admin_accesses_same_level or role.right_manage_admin_accesses_same_level
         has_data_accesses_managing_role = readonly and role.right_read_data_accesses_same_level or role.right_manage_data_accesses_same_level
-    else:
+    elif access.perimeter.level > perimeter.level:
         has_admin_accesses_managing_role = (readonly and role.right_read_admin_accesses_inferior_levels
                                             or role.right_manage_admin_accesses_inferior_levels)
         has_data_accesses_managing_role = (readonly and role.right_read_data_accesses_inferior_levels
                                            or role.right_manage_data_accesses_inferior_levels)
+    else:
+        has_admin_accesses_managing_role = False
+        has_data_accesses_managing_role = False
     return has_admin_accesses_managing_role, has_data_accesses_managing_role
 
 
 def do_user_accesses_allow_to_manage_role(user: User, role: Role, perimeter: Perimeter, readonly: bool = False) -> bool:
-    """
-    Given accesses from a user (perimeter + role), will determine if the user
-    has specific rights to manage or read other accesses,
-    either on the perimeter or ones from inferior levels
-    Then, depending on what the role requires to be managed,
-    or read if just_read=True, will return if the accesses are sufficient
-    @param user:
-    @param role:
-    @param perimeter:
-    @param readonly: True if we should check the possibility to read, instead of to manage
-    @return:
-    """
-    has_main_admin_role = False
+    has_full_admin_role = False
     has_admin_accesses_managing_role = False
     has_data_accesses_managing_role = False
     has_jupyter_accesses_managing_role = False
@@ -129,37 +121,22 @@ def do_user_accesses_allow_to_manage_role(user: User, role: Role, perimeter: Per
     for access in user_accesses:
         role = access.role
         has_admin_accesses_managing_role_2, has_data_accesses_managing_role_2 = check_accesses_managing_roles(access=access,
-                                                                                                              perimeter_id=perimeter.id,
+                                                                                                              perimeter=perimeter,
                                                                                                               readonly=readonly)
-        has_main_admin_role = has_main_admin_role or role.right_manage_roles
+        has_full_admin_role = has_full_admin_role or role.right_full_admin
         has_admin_accesses_managing_role = has_admin_accesses_managing_role or has_admin_accesses_managing_role_2
         has_data_accesses_managing_role = has_data_accesses_managing_role or has_data_accesses_managing_role_2
         has_jupyter_accesses_managing_role = has_jupyter_accesses_managing_role or role.right_manage_export_jupyter_accesses
         has_csv_accesses_managing_role = has_csv_accesses_managing_role or role.right_manage_export_csv_accesses
 
-    return (has_main_admin_role or not role.requires_main_admin_role_to_be_managed) \
+    return (has_full_admin_role or not role.requires_full_admin_role_to_be_managed) \
         and (has_admin_accesses_managing_role or not role.requires_admin_accesses_managing_role_to_be_managed) \
         and (has_data_accesses_managing_role or not role.requires_data_accesses_managing_role_to_be_managed) \
         and (has_jupyter_accesses_managing_role or not role.requires_jupyter_accesses_managing_role_to_be_managed) \
         and (has_csv_accesses_managing_role or not role.requires_csv_accesses_managing_role_to_be_managed)
 
 
-"""
-access must define requirements to allow to be managed/read:
-    @property like requires_main_admin_role, requires_admin_role ...
-
-role must define requirements to allow to be assignable:
-    the user trying to assign a role must 
-"""
-
-
 def get_assignable_roles_on_perimeter(user: User, perimeter: Perimeter) -> List[int]:
-    """
-    when user_1 is creating access for user_2, the list of possible Roles to assign is limited
-    depending on the user_1's accesses.
-    if user_1 has one access linked to a Role (DATA_NOMI_READER: right_read_patient_data_nominative)
-    he can not assign the Role (MAIN_ADMIN: right_manage_roles) to user_2
-    """
     return [role.id for role in Role.objects.all() if do_user_accesses_allow_to_manage_role(user, role, perimeter)]
 
 
@@ -189,30 +166,30 @@ def get_user_data_accesses_queryset(user: User) -> QuerySet:
                                                                 Q(role__right_read_patient_pseudonymized=True),
                                                                 Q(role__right_search_patients_by_ipp=True),
                                                                 Q(role__right_export_csv_nominative=True),
-                                                                Q(role__right_export_csv_pseudo_anonymised=True),
-                                                                Q(role__right_export_jupyter_pseudo_anonymised=True),
+                                                                Q(role__right_export_csv_pseudonymized=True),
+                                                                Q(role__right_export_jupyter_pseudonymized=True),
                                                                 Q(role__right_export_jupyter_nominative=True)]
-                                                               )).prefetch_related('role')
+                                                               ))\
+                                               .prefetch_related('role')
 
 
 def q_is_valid_access() -> Q:
     now = timezone.now()
-    return ((Q(start_datetime=None) | Q(start_datetime__lte=now))
-            & (Q(end_datetime=None) | Q(end_datetime__gte=now)))
+    return ((Q(start_datetime=None) | Q(start_datetime__lte=now)) &
+            (Q(end_datetime=None) | Q(end_datetime__gte=now)))
 
 
 def q_role_impacts_lower_levels() -> Q:
-    prefix = "role__"
-    rights_impacting_lower_levels = [right for right in all_rights if right.impact_lower_levels]
-    return join_qs([Q(**{f'{prefix}{r.name}': True}) for r in rights_impacting_lower_levels])
+    rights_impacting_lower_levels = filter(lambda right: right.impact_lower_levels, all_rights)
+    return join_qs([Q(**{f"role__{right.name}": True}) for right in rights_impacting_lower_levels])
 
 
 class DataRight:
     def __init__(self, perimeter_id: int, user_id: str, provider_id: str,
                  access_ids: List[int] = None,
                  pseudo: bool = False, nomi: bool = False,
-                 exp_pseudo: bool = False, exp_nomi: bool = False,
-                 jupy_pseudo: bool = False, jupy_nomi: bool = False,
+                 exp_csv_pseudo: bool = False, exp_csv_nomi: bool = False,
+                 exp_jupy_pseudo: bool = False, exp_jupy_nomi: bool = False,
                  search_ipp: bool = False, **kwargs):
         if 'perimeter' in kwargs:
             self.perimeter: Perimeter = kwargs['perimeter']
@@ -223,10 +200,10 @@ class DataRight:
         self.right_read_patient_nominative = nomi
         self.right_read_patient_pseudonymized = pseudo
         self.right_search_patients_by_ipp = search_ipp
-        self.right_export_csv_nominative = exp_nomi
-        self.right_export_csv_pseudo_anonymised = exp_pseudo
-        self.right_export_jupyter_nominative = jupy_nomi
-        self.right_export_jupyter_pseudo_anonymised = jupy_pseudo
+        self.right_export_csv_nominative = exp_csv_nomi
+        self.right_export_csv_pseudonymized = exp_csv_pseudo
+        self.right_export_jupyter_nominative = exp_jupy_nomi
+        self.right_export_jupyter_pseudonymized = exp_jupy_pseudo
 
     @property
     def rights_granted(self) -> List[str]:
@@ -260,13 +237,10 @@ class DataRight:
         """
         self.access_ids = list(set(self.access_ids + right.access_ids))
         self.right_export_csv_nominative = self.right_export_csv_nominative or right.right_export_csv_nominative
-        self.right_export_csv_pseudo_anonymised = self.right_export_csv_pseudo_anonymised or right.right_export_csv_pseudo_anonymised
+        self.right_export_csv_pseudonymized = self.right_export_csv_pseudonymized or right.right_export_csv_pseudonymized
         self.right_export_jupyter_nominative = self.right_export_jupyter_nominative or right.right_export_jupyter_nominative
-        self.right_export_jupyter_pseudo_anonymised = \
-            self.right_export_jupyter_pseudo_anonymised or right.right_export_jupyter_pseudo_anonymised
-
-    def add_access_ids(self, ids: List[int]):
-        self.access_ids = list(set(self.access_ids + ids))
+        self.right_export_jupyter_pseudonymized = \
+            self.right_export_jupyter_pseudonymized or right.right_export_jupyter_pseudonymized
 
     @property
     def has_data_read_right(self):
@@ -277,9 +251,9 @@ class DataRight:
     @property
     def has_global_data_right(self):
         return self.right_export_csv_nominative \
-               or self.right_export_csv_pseudo_anonymised \
+               or self.right_export_csv_pseudonymized \
                or self.right_export_jupyter_nominative \
-               or self.right_export_jupyter_pseudo_anonymised
+               or self.right_export_jupyter_pseudonymized
 
     @property
     def care_site_history_ids(self) -> List[int]:
@@ -305,9 +279,9 @@ def get_access_data_rights(user: User) -> List[Access]:
                                                           pseudo=F('role__right_read_patient_pseudonymized'),
                                                           search_ipp=F('role__right_search_patients_by_ipp'),
                                                           nomi=F('role__right_read_patient_nominative'),
-                                                          exp_pseudo=F('role__right_export_csv_pseudo_anonymised'),
+                                                          exp_pseudo=F('role__right_export_csv_pseudonymized'),
                                                           exp_nomi=F('role__right_export_csv_nominative'),
-                                                          jupy_pseudo=F('role__right_export_jupyter_pseudo_anonymised'),
+                                                          jupy_pseudo=F('role__right_export_jupyter_pseudonymized'),
                                                           jupy_nomi=F('role__right_export_jupyter_nominative'))
 
 
