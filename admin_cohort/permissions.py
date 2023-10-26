@@ -3,7 +3,7 @@ from rest_framework import permissions
 from rest_framework.permissions import OR as drf_OR
 
 from admin_cohort.models import User
-from admin_cohort.settings import ETL_USERNAME, ADMINS
+from admin_cohort.settings import ETL_USERNAME
 
 
 def user_is_authenticated(user):
@@ -25,20 +25,16 @@ def get_bound_roles(user: User) -> QuerySet:
     return Role.objects.filter(id__in=[a.role_id for a in accesses])
 
 
+def user_is_full_admin(user: User) -> bool:
+    return any(filter(lambda role: role.right_full_admin, get_bound_roles(user)))
+
+
 def can_user_read_users(user: User) -> bool:
-    return any([r.right_read_users for r in get_bound_roles(user)])
+    return any(filter(lambda role: role.right_read_users, get_bound_roles(user)))
 
 
 def can_user_read_logs(user: User) -> bool:
-    return any([
-        r.right_read_logs or r.right_manage_roles
-        for r in get_bound_roles(user)
-    ])
-
-
-def user_is_admin(user) -> bool:
-    admins_emails = [a[1] for a in ADMINS]
-    return user.email in admins_emails
+    return any(filter(lambda role: role.right_read_logs, get_bound_roles(user)))
 
 
 class MaintenancesPermission(permissions.BasePermission):
@@ -46,7 +42,7 @@ class MaintenancesPermission(permissions.BasePermission):
         if request.method in permissions.SAFE_METHODS:
             return True
         user = request.user
-        return user_is_authenticated(user) and (user_is_admin(user) or
+        return user_is_authenticated(user) and (user_is_full_admin(user) or
                                                 user.provider_username == ETL_USERNAME)
 
 
@@ -92,7 +88,7 @@ class CachePermission(permissions.BasePermission):
     def has_permission(self, request, view):
         return user_is_authenticated(user=request.user) \
             and request.method in ["GET", "DELETE"] \
-            and user_is_admin(user=request.user)
+            and user_is_full_admin(user=request.user)
 
 
 def either(*perms):

@@ -26,8 +26,8 @@ ROLES_HELP_TEXT = dict(right_manage_roles="Gérer les rôles",
                        right_export_csv_pseudonymized="Demander à exporter ses cohortes de patients sous forme pseudonymisée en format CSV.",
                        right_read_datalabs="Consulter les informations liées aux environnements de travail",
                        right_manage_datalabs="Gérer les environnements de travail",
-                       right_read_opposing_patient="Détermine le droit de lecture des patients opposés à l'utilisation "
-                                                   "de leur données pour la recherche")
+                       right_read_opposing_patients_data="Détermine le droit de lecture de données des patients opposés à l'utilisation "
+                                                         "de leur données pour la recherche")
 
 
 def build_help_text(text_root: str, to_same_level: bool, to_inferior_levels: bool, to_above_levels: bool):
@@ -84,7 +84,7 @@ class Role(BaseModel):
     right_read_patient_nominative = models.BooleanField(default=False, null=False)
     right_read_patient_pseudonymized = models.BooleanField(default=False, null=False)
     right_search_patients_by_ipp = models.BooleanField(default=False, null=False)
-    right_read_opposing_patient = models.BooleanField(default=False, null=False)
+    right_read_opposing_patients_data = models.BooleanField(default=False, null=False)
 
     # JUPYTER EXPORT
     right_manage_export_jupyter_accesses = models.BooleanField(default=False, null=False)
@@ -105,94 +105,62 @@ class Role(BaseModel):
     _inf_level_readable_rights = None
     _same_level_readable_rights = None
 
-    @classmethod
-    def is_read_patient_role_nominative(cls, prefix: str = "") -> Q:
-        formatted_prefix = format_prefix(prefix)
-        return join_qs([Q(**{f'{formatted_prefix}right_read_patient_nominative': True})])
+    @staticmethod
+    def q_allow_read_patient_data_nominative() -> Q:
+        return Q(role__right_read_patient_nominative=True)
 
-    @classmethod
-    def is_read_patient_role_pseudo(cls, prefix: str = "") -> Q:
-        formatted_prefix = format_prefix(prefix)
-        return join_qs([Q(**{f'{formatted_prefix}right_read_patient_pseudonymized': True,
-                             f'{formatted_prefix}right_read_patient_nominative': False})])
+    @staticmethod
+    def q_allow_read_patient_data_pseudo() -> Q:
+        return Q(role__right_read_patient_pseudonymized=True,
+                 role__right_read_patient_nominative=False)
 
-    @classmethod
-    def is_read_patient_role(cls, prefix: str = "") -> Q:
-        formatted_prefix = format_prefix(prefix)
-        return join_qs([Q(**{f'{formatted_prefix}right_read_patient_pseudonymized': True}),
-                        Q(**{f'{formatted_prefix}right_read_patient_nominative': True})])
+    @staticmethod
+    def q_allow_read_patient_data() -> Q:
+        return join_qs([Q(**{'role__right_read_patient_pseudonymized': True}),
+                        Q(**{'role__right_read_patient_nominative': True})])
 
-    @classmethod
-    def is_search_ipp_role(cls, prefix: str = "") -> Q:
-        formatted_prefix = format_prefix(prefix)
-        return join_qs([Q(**{f'{formatted_prefix}right_search_patients_by_ipp': True})])
+    @staticmethod
+    def q_allow_search_patients_by_ipp() -> Q:
+        return Q(role__right_search_patients_by_ipp=True)
 
-    @classmethod
-    def is_search_opposing_patient_role(cls, prefix: str = "") -> Q:
-        formatted_prefix = format_prefix(prefix)
-        return join_qs([Q(**{f'{formatted_prefix}right_read_opposing_patient': True})])
+    @staticmethod
+    def q_allow_read_opposing_patients_data() -> Q:
+        return Q(role__right_read_opposing_patients_data=True)
 
-    @classmethod
-    def is_export_csv_nominative_role(cls, prefix: str = "") -> Q:
-        formatted_prefix = format_prefix(prefix)
-        return join_qs([Q(**{f'{formatted_prefix}right_export_csv_nominative': True})])
+    @staticmethod
+    def q_allow_export_csv_nominative() -> Q:
+        return Q(role__right_export_csv_nominative=True)
 
-    @classmethod
-    def is_export_csv_pseudo_role(cls, prefix: str = "") -> Q:
-        formatted_prefix = format_prefix(prefix)
-        return join_qs([Q(**{f'{formatted_prefix}right_export_csv_nominative': True}),
-                        Q(**{f'{formatted_prefix}right_export_csv_pseudonymized': True})])
+    @staticmethod
+    def q_allow_export_csv_pseudo() -> Q:
+        return join_qs([Q(role__right_export_csv_nominative=True),
+                        Q(role__right_export_csv_pseudonymized=True)])
 
-    @classmethod
-    def is_export_jupyter_nominative_role(cls, prefix: str = "") -> Q:
-        formatted_prefix = format_prefix(prefix)
-        return join_qs([Q(**{f'{formatted_prefix}right_export_jupyter_nominative': True})])
+    @staticmethod
+    def q_allow_export_jupyter_nominative() -> Q:
+        return Q(role__right_export_jupyter_nominative=True)
 
-    @classmethod
-    def is_export_jupyter_pseudo_role(cls, prefix: str = "") -> Q:
-        formatted_prefix = format_prefix(prefix)
-        return join_qs([Q(**{f'{formatted_prefix}right_export_jupyter_nominative': True}),
-                        Q(**{f'{formatted_prefix}right_export_jupyter_pseudonymized': True})])
+    @staticmethod
+    def q_allow_export_jupyter_pseudo() -> Q:
+        return join_qs([Q(role__right_export_jupyter_nominative=True),
+                        Q(role__right_export_jupyter_pseudonymized=True)])
 
-    @classmethod
-    def is_manage_role_any_level(cls, prefix: str = "") -> Q:
-        formatted_prefix = format_prefix(prefix)
-        return join_qs([Q(**{f'{formatted_prefix}right_manage_export_jupyter_accesses': True}),
-                        Q(**{f'{formatted_prefix}right_manage_export_csv_accesses': True})])
+    @staticmethod
+    def q_allow_manage_accesses_on_any_level() -> Q:
+        return join_qs([Q(role__right_manage_export_jupyter_accesses=True),
+                        Q(role__right_manage_export_csv_accesses=True)])
 
-    @classmethod
-    def is_manage_role_same_level(cls, prefix: str = "") -> Q:
-        formatted_prefix = format_prefix(prefix)
-        return join_qs([Q(**{f'{formatted_prefix}right_manage_data_accesses_same_level': True}),
-                        Q(**{f'{formatted_prefix}right_manage_admin_accesses_same_level': True}),
-                        Q(**{f'{formatted_prefix}right_read_data_accesses_same_level': True}),
-                        Q(**{f'{formatted_prefix}right_read_admin_accesses_same_level': True})])
+    @staticmethod
+    def q_allow_manage_accesses_on_inf_levels() -> Q:
+        return join_qs([Q(**{f'role__{r.name}': True}) for r in [right for right in all_rights
+                                                                 if right.allow_edit_accesses_on_inf_levels
+                                                                 or right.allow_read_accesses_on_inf_levels]])
 
-    @classmethod
-    def is_manage_role_inf_level(cls, prefix: str = "") -> Q:
-        formatted_prefix = format_prefix(prefix)
-        return join_qs([Q(**{f'{formatted_prefix}right_manage_admin_accesses_inferior_levels': True}),
-                        Q(**{f'{formatted_prefix}right_read_admin_accesses_inferior_levels': True}),
-                        Q(**{f'{formatted_prefix}right_manage_data_accesses_inferior_levels': True}),
-                        Q(**{f'{formatted_prefix}right_read_data_accesses_inferior_levels': True})])
-
-    @classmethod
-    def all_rights(cls):
-        return [f.name for f in cls._meta.fields if f.name.startswith("right_")]
-
-    @classmethod
-    def manage_on_inf_levels_query(cls, prefix: str = None) -> Q:
-        prefix = format_prefix(prefix)
-        return join_qs([Q(**{f'{prefix}{r.name}': True}) for r in [right for right in all_rights
-                                                                   if right.allow_edit_accesses_on_inf_levels
-                                                                   or right.allow_read_rights_on_inf_levels]])
-
-    @classmethod
-    def manage_on_same_level_query(cls, prefix: str = None) -> Q:
-        prefix = format_prefix(prefix)
-        return join_qs([Q(**{f'{prefix}{r.name}': True}) for r in [right for right in all_rights
-                                                                   if right.allow_edit_accesses_on_same_level
-                                                                   or right.allow_read_rights_on_same_level]])
+    @staticmethod
+    def q_allow_manage_accesses_on_same_level() -> Q:
+        return join_qs([Q(**{f'role__{r.name}': True}) for r in [right for right in all_rights
+                                                                 if right.allow_edit_accesses_on_same_level
+                                                                 or right.allow_read_accesses_on_same_level]])
 
     @classmethod
     def edit_on_lower_levels_query(cls, prefix: str = None, additional: Dict = None) -> Q:
@@ -208,12 +176,11 @@ class Role(BaseModel):
         return join_qs([Q(**{f'{prefix}{r.name}': True, **additional}) for r in [right for right in all_rights
                                                                                  if right.allow_edit_accesses_on_same_level]])
 
-    @classmethod
-    def manage_on_any_level_query(cls, prefix: str = None) -> Q:
-        prefix = format_prefix(prefix)
-        return join_qs([Q(**{f'{prefix}{r.name}': True}) for r in [right for right in all_rights
-                                                                   if right.allow_read_rights_on_any_level
-                                                                   or right.allow_edit_accesses_on_any_level]])
+    @staticmethod
+    def q_manage_accesses_on_any_level() -> Q:
+        return join_qs([Q(**{f'role__{r.name}': True}) for r in [right for right in all_rights
+                                                                 if right.allow_read_accesses_on_any_level
+                                                                 or right.allow_edit_accesses_on_any_level]])
 
     @classmethod
     def edit_on_any_level_query(cls, prefix: str = None) -> Q:
@@ -336,7 +303,7 @@ class Role(BaseModel):
                     self.right_read_patient_nominative,
                     self.right_read_patient_pseudonymized,
                     self.right_search_patients_by_ipp,
-                    self.right_read_opposing_patient
+                    self.right_read_opposing_patients_data
                     ])
 
     @property
@@ -385,9 +352,9 @@ class Role(BaseModel):
 
     @property
     def help_text(self):
-        level_agnostic_rights = [r for r in Role.all_rights() if not (r.endswith('same_level')
-                                                                      or r.endswith('inferior_levels')
-                                                                      or r.endswith('above_levels'))]
+        level_agnostic_rights = [r.name for r in all_rights if not (r.name.endswith('same_level')
+                                                                    or r.name.endswith('inferior_levels')
+                                                                    or r.name.endswith('above_levels'))]
         help_txt = [ROLES_HELP_TEXT.get(r) for r in level_agnostic_rights if self.__dict__.get(r)]
 
         level_dependent_texts = [self.get_help_text_for_right_manage_admin_accesses() or "",

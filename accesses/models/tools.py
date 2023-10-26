@@ -136,10 +136,6 @@ def do_user_accesses_allow_to_manage_role(user: User, role: Role, perimeter: Per
         and (has_csv_accesses_managing_role or not role.requires_csv_accesses_managing_role_to_be_managed)
 
 
-def get_assignable_roles_on_perimeter(user: User, perimeter: Perimeter) -> List[int]:
-    return [role.id for role in Role.objects.all() if do_user_accesses_allow_to_manage_role(user, role, perimeter)]
-
-
 def get_all_user_managing_accesses_on_perimeter(user: User, perimeter: Perimeter) -> QuerySet:
     """
     filter user's valid accesses to extract:
@@ -148,9 +144,9 @@ def get_all_user_managing_accesses_on_perimeter(user: User, perimeter: Perimeter
       + those allowing to read/manage accesses on any level
     """
 
-    return get_user_valid_manual_accesses(user).filter((Q(perimeter=perimeter) & Role.manage_on_same_level_query("role"))
-                                                       | (perimeter.all_parents_query("perimeter") & Role.manage_on_inf_levels_query("role"))
-                                                       | Role.manage_on_any_level_query("role"))\
+    return get_user_valid_manual_accesses(user).filter((Q(perimeter=perimeter) & Role.q_allow_manage_accesses_on_same_level())
+                                                       | (perimeter.all_parents_query("perimeter") & Role.q_allow_manage_accesses_on_inf_levels())
+                                                       | Role.q_manage_accesses_on_any_level())\
                                                .select_related("role")
 
 

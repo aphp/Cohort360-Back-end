@@ -42,12 +42,12 @@ def get_dict_right_accesses(user_accesses: [Access]) -> dict:
     """
     mapping for read patient, export CSV and transfer Jupyter right and list of accesses
     """
-    return {READ_PATIENT_NOMI: user_accesses.filter(Role.is_read_patient_role_nominative(ROLE)),
-            READ_PATIENT_PSEUDO: user_accesses.filter(Role.is_read_patient_role(ROLE)),
-            EXPORT_CSV_NOMI: user_accesses.filter(Role.is_export_csv_nominative_role(ROLE)),
-            EXPORT_CSV_PSEUDO: user_accesses.filter(Role.is_export_csv_pseudo_role(ROLE)),
-            EXPORT_JUPYTER_NOMI: user_accesses.filter(Role.is_export_jupyter_nominative_role(ROLE)),
-            EXPORT_JUPYTER_PSEUDO: user_accesses.filter(Role.is_export_jupyter_pseudo_role(ROLE))}
+    return {READ_PATIENT_NOMI: user_accesses.filter(Role.q_allow_read_patient_data_nominative()),
+            READ_PATIENT_PSEUDO: user_accesses.filter(Role.q_allow_read_patient_data()),
+            EXPORT_CSV_NOMI: user_accesses.filter(Role.q_allow_export_csv_nominative()),
+            EXPORT_CSV_PSEUDO: user_accesses.filter(Role.q_allow_export_csv_pseudo()),
+            EXPORT_JUPYTER_NOMI: user_accesses.filter(Role.q_allow_export_jupyter_nominative()),
+            EXPORT_JUPYTER_PSEUDO: user_accesses.filter(Role.q_allow_export_jupyter_pseudo())}
 
 
 def is_right_on_accesses(accesses: QuerySet, perimeter_ids: [int]):

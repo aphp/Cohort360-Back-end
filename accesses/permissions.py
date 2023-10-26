@@ -6,11 +6,11 @@ from admin_cohort.permissions import get_bound_roles
 
 
 def can_user_manage_roles(user: User) -> bool:
-    return any([role.right_manage_roles for role in get_bound_roles(user)])
+    return any(filter(lambda role: role.right_manage_roles, get_bound_roles(user)))
 
 
 def can_user_read_roles(user: User) -> bool:
-    return any([role.right_read_roles for role in get_bound_roles(user)])
+    return any(filter(lambda role: role.right_read_roles, get_bound_roles(user)))
 
 
 def can_user_manage_access(user: User, role: Role, perimeter: Perimeter) -> bool:
@@ -22,27 +22,19 @@ def can_user_read_access(user: User, role: Role, perimeter: Perimeter) -> bool:
 
 
 def can_user_manage_accesses(user: User) -> bool:
-    return any([role.can_manage_accesses for role in get_bound_roles(user)])
+    return any(filter(lambda role: role.can_manage_accesses, get_bound_roles(user)))
 
 
 def can_user_read_accesses(user: User) -> bool:
-    return any([role.can_read_accesses for role in get_bound_roles(user)])
-
-
-def can_user_manage_export_jupyter_accesses(user: User) -> bool:
-    return any([role.right_manage_export_jupyter_accesses for role in get_bound_roles(user)])
-
-
-def can_user_manage_export_csv_accesses(user: User) -> bool:
-    return any([role.right_manage_export_csv_accesses for role in get_bound_roles(user)])
+    return any(filter(lambda role: role.can_read_accesses, get_bound_roles(user)))
 
 
 def can_user_manage_profiles(user: User) -> bool:
-    return any([role.right_manage_users for role in get_bound_roles(user)])
+    return any(filter(lambda role: role.right_manage_users, get_bound_roles(user)))
 
 
 def can_user_read_profiles(user: User) -> bool:
-    return any([role.right_read_users for role in get_bound_roles(user)])
+    return any(filter(lambda role: role.right_read_users, get_bound_roles(user)))
 
 
 class RolesPermission(permissions.BasePermission):

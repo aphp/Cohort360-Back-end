@@ -14,7 +14,7 @@ from rest_framework.test import force_authenticate
 
 from accesses.models import Access, Role, Profile, Perimeter
 from accesses.rights import main_admin_rights, admin_manager_rights, csv_export_manage_rights, jup_export_manage_rights, \
-    workspaces_rights, user_rights, data_admin_rights, data_rights, csv_export_rights, jup_export_rights, right_read_users
+    workspaces_rights, user_rights, data_admin_rights, data_rights, csv_export_rights, jup_export_rights, right_read_users, all_rights
 from accesses.views import AccessViewSet
 from admin_cohort.settings import MANUAL_SOURCE
 from admin_cohort.tools.tests_tools import new_user_and_profile, CaseRetrieveFilter, \
@@ -653,12 +653,12 @@ class AccessTests(ViewSetTestsWithBasicPerims):
             self, case_a: AccessListCase, case_b: AccessListCase,
             additional_accesses: List[Access]):
         r_a: Role = Role.objects.filter(
-            **{**dict([(r, r in case_a.user_rights)
-                       for r in Role.all_rights()])}) \
+            **{**dict([(r.name, r.name in case_a.user_rights)
+                       for r in all_rights])}) \
             .first()
         r_b: Role = Role.objects.filter(
-            **{**dict([(r, r in case_b.user_rights)
-                       for r in Role.all_rights()])}) \
+            **{**dict([(r.name, r.name in case_b.user_rights)
+                       for r in all_rights])}) \
             .first()
 
         self.assertIsNotNone(r_a, msg=case_a.title)

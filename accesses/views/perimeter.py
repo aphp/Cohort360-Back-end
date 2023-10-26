@@ -82,12 +82,12 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewset):
             if not perimeters_filtered_by_search:
                 return Response(data={"WARN": "No Perimeters Found"}, status=status.HTTP_204_NO_CONTENT)
 
-        if user_accesses.filter(Role.is_manage_role_any_level("role")):
+        if user_accesses.filter(Role.q_allow_manage_accesses_on_any_level()):
             # if edit on any level, we don't care about perimeters' accesses; return the top perimeter hierarchy:
             top_hierarchy_perimeter = Perimeter.objects.filter(parent__isnull=True)
         else:
-            access_same_level = user_accesses.filter(Role.is_manage_role_same_level("role"))
-            access_inf_level = user_accesses.filter(Role.is_manage_role_inf_level("role"))
+            access_same_level = user_accesses.filter(Role.q_allow_manage_accesses_on_same_level())
+            access_inf_level = user_accesses.filter(Role.q_allow_manage_accesses_on_inf_levels())
 
             all_perimeters = {access.perimeter for access in access_same_level.union(access_inf_level)}
 
@@ -111,9 +111,9 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewset):
     @cache_response()
     def get_perimeters_read_right_accesses(self, request, *args, **kwargs):
         user_accesses = get_user_valid_manual_accesses(request.user)
-        all_read_patient_nominative_accesses = user_accesses.filter(Role.is_read_patient_role_nominative("role"))
-        all_read_patient_pseudo_accesses = user_accesses.filter(Role.is_read_patient_role("role"))
-        all_read_ipp_accesses = user_accesses.filter(Role.is_search_ipp_role("role"))
+        all_read_patient_nominative_accesses = user_accesses.filter(Role.q_allow_read_patient_data_nominative())
+        all_read_patient_pseudo_accesses = user_accesses.filter(Role.q_allow_read_patient_data())
+        all_read_ipp_accesses = user_accesses.filter(Role.q_allow_search_patients_by_ipp())
 
         if not all_read_patient_nominative_accesses and not all_read_patient_pseudo_accesses:
             return Response(data={"message": "No accesses with read patient right found"},
