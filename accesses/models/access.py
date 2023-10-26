@@ -58,17 +58,16 @@ class Access(BaseModel):
 
     @property
     def care_site(self):
-        return {
-            'care_site_id': self.perimeter.id,
-            'care_site_name': self.perimeter.name,
-            'care_site_short_name': self.perimeter.short_name,
-            'care_site_type_source_value': self.perimeter.type_source_value,
-            'care_site_source_value': self.perimeter.source_value,
-        } if self.perimeter else None
+        return {'care_site_id': self.perimeter.id,
+                'care_site_name': self.perimeter.name,
+                'care_site_short_name': self.perimeter.short_name,
+                'care_site_type_source_value': self.perimeter.type_source_value,
+                'care_site_source_value': self.perimeter.source_value,
+                } if self.perimeter else None
 
     @property
     def accesses_criteria_to_exclude(self) -> List[Dict]:
-        res = self.role.unreadable_rights
+        unreadable_rights = self.role.unreadable_rights
 
         for read_r in (self.role.inf_level_readable_rights + self.role.same_level_readable_rights):
             d = {read_r: True}
@@ -79,67 +78,6 @@ class Access(BaseModel):
             if read_r in self.role.same_level_readable_rights:
                 d['perimeter_not'] = [self.perimeter_id]
 
-            res.append(d)
+            unreadable_rights.append(d)
 
-        return res
-
-    @property
-    def requires_csv_accesses_managing_role_to_be_managed(self):
-        return any([self.role.right_export_csv_nominative,
-                    self.role.right_export_csv_pseudonymized])
-
-    @property
-    def requires_jupyter_accesses_managing_role_to_be_managed(self):
-        return any([self.role.right_export_jupyter_nominative,
-                    self.role.right_export_jupyter_pseudonymized])
-
-    @property
-    def requires_data_accesses_managing_role_to_be_managed(self):
-        return any([self.role.right_manage_data_accesses_same_level,
-                    self.role.right_read_data_accesses_same_level,
-                    self.role.right_manage_data_accesses_inferior_levels,
-                    self.role.right_read_data_accesses_inferior_levels,
-                    self.role.right_read_patient_nominative,
-                    self.role.right_read_patient_pseudonymized,
-                    self.role.right_search_patients_by_ipp
-                    ])
-
-    @property
-    def requires_admin_accesses_managing_role_to_be_managed(self):
-        return any([self.role.right_manage_admin_accesses_same_level,
-                    self.role.right_read_admin_accesses_same_level,
-                    self.role.right_manage_admin_accesses_inferior_levels,
-                    self.role.right_read_admin_accesses_inferior_levels,
-                    self.role.right_read_accesses_above_levels])
-
-    @property
-    def requires_main_admin_role_to_be_managed(self):
-        return any([self.role.right_manage_roles,
-                    self.role.right_read_logs,
-                    self.role.right_manage_users,
-                    self.role.right_manage_admin_accesses_same_level,
-                    self.role.right_read_admin_accesses_same_level,
-                    self.role.right_manage_admin_accesses_inferior_levels,
-                    self.role.right_read_admin_accesses_inferior_levels,
-                    self.role.right_read_accesses_above_levels,
-                    self.role.right_read_datalabs,
-                    self.role.right_manage_datalabs,
-                    self.role.right_manage_export_jupyter_accesses,
-                    self.role.right_manage_export_csv_accesses])
-
-
-"""
-gérer les Rôle, c'est d'avoir le Droit  "right_manage_roles" (ou "Full Admin") pour pouvoir:
-    les créer
-    les modifier
-    les supprimer
-    les attribuer dans un accès ???
-
-
-gérer les Accès, c'est d'avoir l'un des Droits  "right_"  pouvoir:
-    le créer: 
-"""
-
-
-
-
+        return unreadable_rights

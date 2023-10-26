@@ -5,7 +5,7 @@ from typing import List, Dict, Callable
 from django.db import models
 from django.db.models import Q
 
-from accesses.rights import RightGroup, main_admin_rights, all_rights, Right
+from accesses.rights import RightGroup, full_admin_rights, all_rights, Right
 from admin_cohort.models import BaseModel
 from admin_cohort.tools import join_qs
 
@@ -47,10 +47,6 @@ def build_help_text(text_root: str, to_same_level: bool, to_inferior_levels: boo
     if text != text_root:
         return text
     return None
-
-
-def format_prefix(prefix: str) -> str:
-    return prefix and f"{prefix}__" or ""
 
 
 class Role(BaseModel):
@@ -100,10 +96,9 @@ class Role(BaseModel):
     right_manage_datalabs = models.BooleanField(default=False, null=False)
     right_read_datalabs = models.BooleanField(default=False, null=False)
 
-    _readable_right_set = None
     _right_groups = None
-    _inf_level_readable_rights = None
     _same_level_readable_rights = None
+    _inf_level_readable_rights = None
 
     @staticmethod
     def q_allow_read_patient_data_nominative() -> Q:
@@ -111,13 +106,7 @@ class Role(BaseModel):
 
     @staticmethod
     def q_allow_read_patient_data_pseudo() -> Q:
-        return Q(role__right_read_patient_pseudonymized=True,
-                 role__right_read_patient_nominative=False)
-
-    @staticmethod
-    def q_allow_read_patient_data() -> Q:
-        return join_qs([Q(**{'role__right_read_patient_pseudonymized': True}),
-                        Q(**{'role__right_read_patient_nominative': True})])
+        return Q(role__right_read_patient_pseudonymized=True)
 
     @staticmethod
     def q_allow_search_patients_by_ipp() -> Q:
@@ -147,59 +136,95 @@ class Role(BaseModel):
 
     @staticmethod
     def q_allow_manage_accesses_on_any_level() -> Q:
-        return join_qs([Q(role__right_manage_export_jupyter_accesses=True),
-                        Q(role__right_manage_export_csv_accesses=True)])
+        return join_qs([Q(**{f'role__{right.name}': True})
+                        for right in all_rights if right.allow_edit_accesses_on_any_level])
 
     @staticmethod
     def q_allow_manage_accesses_on_inf_levels() -> Q:
-        return join_qs([Q(**{f'role__{r.name}': True}) for r in [right for right in all_rights
-                                                                 if right.allow_edit_accesses_on_inf_levels
-                                                                 or right.allow_read_accesses_on_inf_levels]])
+        return join_qs([Q(**{f'role__{right.name}': True}) for right in all_rights
+                        if right.allow_edit_accesses_on_inf_levels
+                        or right.allow_read_accesses_on_inf_levels])
 
     @staticmethod
     def q_allow_manage_accesses_on_same_level() -> Q:
-        return join_qs([Q(**{f'role__{r.name}': True}) for r in [right for right in all_rights
-                                                                 if right.allow_edit_accesses_on_same_level
-                                                                 or right.allow_read_accesses_on_same_level]])
-
-    @classmethod
-    def edit_on_lower_levels_query(cls, prefix: str = None, additional: Dict = None) -> Q:
-        additional = additional or {}
-        prefix = format_prefix(prefix)
-        return join_qs([Q(**{f'{prefix}{r.name}': True, **additional}) for r in [right for right in all_rights
-                                                                                 if right.allow_edit_accesses_on_inf_levels]])
-
-    @classmethod
-    def edit_on_same_level_query(cls, prefix: str = None, additional: Dict = None) -> Q:
-        additional = additional or {}
-        prefix = format_prefix(prefix)
-        return join_qs([Q(**{f'{prefix}{r.name}': True, **additional}) for r in [right for right in all_rights
-                                                                                 if right.allow_edit_accesses_on_same_level]])
+        return join_qs([Q(**{f'role__{right.name}': True}) for right in all_rights
+                        if right.allow_edit_accesses_on_same_level
+                        or right.allow_read_accesses_on_same_level])
 
     @staticmethod
     def q_manage_accesses_on_any_level() -> Q:
-        return join_qs([Q(**{f'role__{r.name}': True}) for r in [right for right in all_rights
-                                                                 if right.allow_read_accesses_on_any_level
-                                                                 or right.allow_edit_accesses_on_any_level]])
-
-    @classmethod
-    def edit_on_any_level_query(cls, prefix: str = None) -> Q:
-        prefix = format_prefix(prefix)
-        return join_qs([Q(**{f'{prefix}{r.name}': True}) for r in [right for right in all_rights if right.allow_edit_accesses_on_any_level]])
+        return join_qs([Q(**{f'role__{right.name}': True}) for right in all_rights
+                        if right.allow_read_accesses_on_any_level
+                        or right.allow_edit_accesses_on_any_level])
 
     @property
-    def right_groups(self) -> List[RightGroup]:
-        def get_right_group(rg: RightGroup):
-            res = []
-            for r in map(lambda x: x.name, rg.rights):
-                if getattr(self, r, False):
-                    res.append(rg)
-                    break
-            return res + sum([get_right_group(c) for c in rg.children], [])
+    def can_manage_accesses(self):
+        return any((self.right_full_admin,
+                    self.right_manage_admin_accesses_same_level,
+                    self.right_manage_admin_accesses_inferior_levels,
+                    self.right_manage_data_accesses_same_level,
+                    self.right_manage_data_accesses_inferior_levels,
+                    self.right_manage_export_jupyter_accesses,
+                    self.right_manage_export_csv_accesses
+                    ))
 
-        if self._right_groups is None:
-            self._right_groups = get_right_group(main_admin_rights)
-        return self._right_groups
+    @property
+    def can_read_accesses(self):
+        return self.can_manage_accesses \
+            or any((self.right_read_admin_accesses_same_level,
+                    self.right_read_admin_accesses_inferior_levels,
+                    self.right_read_accesses_above_levels,
+                    self.right_read_data_accesses_same_level,
+                    self.right_read_data_accesses_inferior_levels
+                    ))
+
+# -+-+-+-+-+-+-+-+-+-+-+-+-     Requirements to be managed    -+-+-+-+-+-+-+-+-+-+-+-+-
+
+    @property
+    def requires_csv_accesses_managing_role_to_be_managed(self):    # requires having: right_manage_export_csv_accesses = True
+        return any((self.right_export_csv_nominative,
+                    self.right_export_csv_pseudonymized
+                    ))
+
+    @property
+    def requires_jupyter_accesses_managing_role_to_be_managed(self):    # requires having: right_manage_export_jupyter_accesses = True
+        return any((self.right_export_jupyter_nominative,
+                    self.right_export_jupyter_pseudonymized
+                    ))
+
+    @property
+    def requires_data_accesses_managing_role_to_be_managed(self):    # requires having: right_manage/read_data_accesses_xxx_level = True
+        return any((self.right_manage_data_accesses_same_level,
+                    self.right_read_data_accesses_same_level,
+                    self.right_manage_data_accesses_inferior_levels,
+                    self.right_read_data_accesses_inferior_levels,
+                    self.right_read_patient_nominative,
+                    self.right_read_patient_pseudonymized,
+                    self.right_search_patients_by_ipp,
+                    self.right_read_opposing_patients_data
+                    ))
+
+    @property
+    def requires_admin_accesses_managing_role_to_be_managed(self):
+        return any((self.right_manage_admin_accesses_same_level,
+                    self.right_read_admin_accesses_same_level,
+                    self.right_manage_admin_accesses_inferior_levels,
+                    self.right_read_admin_accesses_inferior_levels,
+                    # self.right_read_accesses_above_levels    # todo: process this right differently
+                    ))
+
+    @property
+    def requires_full_admin_role_to_be_managed(self):
+        return any((self.right_manage_roles,
+                    self.right_read_logs,
+                    self.right_manage_users,
+                    self.right_read_datalabs,
+                    self.right_manage_datalabs,
+                    self.right_manage_export_csv_accesses,
+                    self.right_manage_export_jupyter_accesses
+                    ))
+
+# -+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 
     def get_specific_readable_rights(self, getter: Callable[[RightGroup], List[Right]]) -> List[str]:
         res = []
@@ -213,6 +238,20 @@ class Role(BaseModel):
         return list(set(res))
 
     @property
+    def right_groups(self) -> List[RightGroup]:
+        def get_right_groups(rg: RightGroup):
+            res = []
+            for r in map(lambda x: x.name, rg.rights):
+                if getattr(self, r, False):
+                    res.append(rg)
+                    break
+            return res + sum([get_right_groups(c) for c in rg.children], [])
+
+        if self._right_groups is None:
+            self._right_groups = get_right_groups(rg=full_admin_rights)
+        return self._right_groups
+
+    @property
     def inf_level_readable_rights(self) -> List[str]:
         """
         Returns rights that, when bound to an access through a Role,
@@ -221,7 +260,7 @@ class Role(BaseModel):
         :return:
         """
         if self._inf_level_readable_rights is None:
-            self._inf_level_readable_rights = self.get_specific_readable_rights(lambda rg: rg.rights_read_on_inferior_levels)
+            self._inf_level_readable_rights = self.get_specific_readable_rights(getter=lambda rg: rg.rights_read_on_inferior_levels)
         return self._inf_level_readable_rights
 
     @property
@@ -233,98 +272,23 @@ class Role(BaseModel):
         :return:
         """
         if self._same_level_readable_rights is None:
-            self._same_level_readable_rights = self.get_specific_readable_rights(lambda rg: rg.rights_read_on_same_level)
+            self._same_level_readable_rights = self.get_specific_readable_rights(getter=lambda rg: rg.rights_read_on_same_level)
         return self._same_level_readable_rights
 
     @property
     def unreadable_rights(self) -> List[Dict]:
-        """
-        Returns rights that, when bound to an access through a Role,
-        this role allows a user to read
-        on the same perimeter of the access this role is bound to
-        :return:
-        """
         from accesses.models import intersect_queryset_criteria
-
-        criteria = list({r.name: True} for r in all_rights)
+        criteria = [{right.name: True} for right in all_rights]
         for rg in self.right_groups:
             rg_criteria = []
             if any(getattr(self, right.name) for right in rg.rights_allowing_reading_accesses):
-                for c in rg.children:
-                    if len(c.children_rights):
-                        not_true = dict((r.name, False) for r in c.rights)
-                        rg_criteria.extend({r.name: True, **not_true} for r in c.children_rights)
-                rg_criteria.extend({r.name: True} for r in rg.unreadable_rights)
+                for child in rg.children:
+                    if child.children_rights:
+                        not_true = dict((right.name, False) for right in child.rights)
+                        rg_criteria.extend({right.name: True, **not_true} for right in child.children_rights)
+                rg_criteria.extend({right.name: True} for right in rg.unreadable_rights)
                 criteria = intersect_queryset_criteria(criteria, rg_criteria)
-
         return criteria
-
-    @property
-    def can_manage_accesses(self):
-        return self.right_full_admin \
-               or self.right_manage_admin_accesses_same_level \
-               or self.right_manage_admin_accesses_inferior_levels \
-               or self.right_manage_data_accesses_same_level \
-               or self.right_manage_data_accesses_inferior_levels \
-               or self.right_manage_export_jupyter_accesses \
-               or self.right_manage_export_csv_accesses
-
-    @property
-    def can_read_accesses(self):
-        return self.right_full_admin \
-               or self.right_read_admin_accesses_same_level \
-               or self.right_read_admin_accesses_inferior_levels \
-               or self.right_read_accesses_above_levels \
-               or self.right_read_data_accesses_same_level \
-               or self.right_read_data_accesses_inferior_levels \
-               or self.right_manage_export_jupyter_accesses \
-               or self.right_manage_export_csv_accesses
-
-# -+-+-+-+-+-+-+-+-+-+-+-+-     Requirements to be managed    -+-+-+-+-+-+-+-+-+-+-+-+-
-
-    @property
-    def requires_csv_accesses_managing_role_to_be_managed(self):    # requires having: right_manage_export_csv_accesses = True
-        return any([self.right_export_csv_nominative,
-                    self.right_export_csv_pseudonymized
-                    ])
-
-    @property
-    def requires_jupyter_accesses_managing_role_to_be_managed(self):    # requires having: right_manage_export_jupyter_accesses = True
-        return any([self.right_export_jupyter_nominative,
-                    self.right_export_jupyter_pseudonymized
-                    ])
-
-    @property
-    def requires_data_accesses_managing_role_to_be_managed(self):    # requires having: right_manage/read_data_accesses_xxx_level = True
-        return any([self.right_manage_data_accesses_same_level,
-                    self.right_read_data_accesses_same_level,
-                    self.right_manage_data_accesses_inferior_levels,
-                    self.right_read_data_accesses_inferior_levels,
-                    self.right_read_patient_nominative,
-                    self.right_read_patient_pseudonymized,
-                    self.right_search_patients_by_ipp,
-                    self.right_read_opposing_patients_data
-                    ])
-
-    @property
-    def requires_admin_accesses_managing_role_to_be_managed(self):
-        return any([self.right_manage_admin_accesses_same_level,
-                    self.right_read_admin_accesses_same_level,
-                    self.right_manage_admin_accesses_inferior_levels,
-                    self.right_read_admin_accesses_inferior_levels,
-                    # self.right_read_accesses_above_levels    # todo: process this right differently
-                    ])
-
-    @property
-    def requires_full_admin_role_to_be_managed(self):
-        return any([self.right_manage_roles,
-                    self.right_read_logs,
-                    self.right_manage_users,
-                    self.right_read_datalabs,
-                    self.right_manage_datalabs,
-                    self.right_manage_export_csv_accesses,
-                    self.right_manage_export_jupyter_accesses
-                    ])
 
     def get_help_text_for_right_manage_admin_accesses(self):
         return build_help_text(text_root="Gérer les accès des administrateurs",

@@ -218,7 +218,8 @@ def get_all_read_patient_accesses(user) -> tuple:
     """
     user_accesses = get_user_valid_manual_accesses(user)
     all_read_patient_nominative_accesses = user_accesses.filter(Role.q_allow_read_patient_data_nominative())
-    all_read_patient_pseudo_accesses = user_accesses.filter(Role.q_allow_read_patient_data_pseudo())
+    all_read_patient_pseudo_accesses = user_accesses.filter(Role.q_allow_read_patient_data_pseudo() |
+                                                            Role.q_allow_read_patient_data_nominative())
     if not all_read_patient_nominative_accesses and not all_read_patient_pseudo_accesses:
         raise Http404("ERROR No accesses with read patient right Found")
     return all_read_patient_nominative_accesses, all_read_patient_pseudo_accesses

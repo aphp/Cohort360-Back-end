@@ -27,11 +27,15 @@ class Right:
 
 
 class RightGroup:
-    def __init__(self, name: str, rights: List[Right], description: str = "",
-                 parent: RightGroup = None, children: List[RightGroup] = None):
+    def __init__(self,
+                 name: str,
+                 description: str,
+                 rights: List[Right],
+                 parent: RightGroup = None,
+                 children: List[RightGroup] = None):
         self.name = name
-        self.rights = rights
         self.description = description
+        self.rights = rights
         self.parent = parent
         self.children = children or []
 
@@ -40,38 +44,38 @@ class RightGroup:
 
     @property
     def rights_names(self):
-        return [r.name for r in self.rights]
-
-    @property
-    def rights_read_on_inferior_levels(self) -> List[Right]:
-        return [r for r in self.rights if r.allow_read_accesses_on_inf_levels]
+        return [right.name for right in self.rights]
 
     @property
     def rights_read_on_same_level(self) -> List[Right]:
-        return [r for r in self.rights if r.allow_read_accesses_on_same_level]
+        return [right for right in self.rights if right.allow_read_accesses_on_same_level]
 
     @property
-    def rights_edit_on_inferior_levels(self) -> List[Right]:
-        return [r for r in self.rights if r.allow_edit_accesses_on_inf_levels]
+    def rights_read_on_inferior_levels(self) -> List[Right]:
+        return [right for right in self.rights if right.allow_read_accesses_on_inf_levels]
 
     @property
     def rights_edit_on_same_level(self) -> List[Right]:
-        return [r for r in self.rights if r.allow_edit_accesses_on_same_level]
+        return [right for right in self.rights if right.allow_edit_accesses_on_same_level]
+
+    @property
+    def rights_edit_on_inferior_levels(self) -> List[Right]:
+        return [right for right in self.rights if right.allow_edit_accesses_on_inf_levels]
 
     @property
     def rights_read_on_any_level(self) -> List[Right]:
-        return [r for r in self.rights if r.allow_read_accesses_on_any_level]
+        return [right for right in self.rights if right.allow_read_accesses_on_any_level]
 
     @property
     def rights_edit_on_any_level(self) -> List[Right]:
-        return [r for r in self.rights if r.allow_edit_accesses_on_any_level]
+        return [right for right in self.rights if right.allow_edit_accesses_on_any_level]
 
     @property
     def rights_allowing_reading_accesses(self) -> List[Right]:
-        return [r for r in self.rights
-                if r.allow_read_accesses_on_any_level
-                or r.allow_read_accesses_on_same_level
-                or r.allow_read_accesses_on_inf_levels]
+        return [right for right in self.rights
+                if right.allow_read_accesses_on_any_level
+                or right.allow_read_accesses_on_same_level
+                or right.allow_read_accesses_on_inf_levels]
 
     @property
     def children_rights(self) -> List[Right]:
@@ -79,13 +83,12 @@ class RightGroup:
 
     @property
     def unreadable_rights(self) -> List[Right]:
-        # when you can read accesses that allows themselves to read/manage
-        # accesses these accesses will also have right_read_users
+        # when you can read accesses that by their turn allow to read/manage
+        # accesses, these accesses will also have right_read_users
         # so you can read it in that case
-        can_read_any_admin_accesses = any(len(c.children)
-                                          for c in self.children)
-        return [r for r in all_rights
-                if r not in self.children_rights
+        can_read_any_admin_accesses = any(c.children for c in self.children)
+        return [right for right in all_rights
+                if right not in self.children_rights
                 + (self.rights if self.parent is None else [])
                 + ([right_read_users] if can_read_any_admin_accesses else [])]
 
@@ -93,6 +96,7 @@ class RightGroup:
 right_read_patient_nominative = Right("right_read_patient_nominative", impact_lower_levels=True)
 right_read_patient_pseudonymized = Right("right_read_patient_pseudonymized", impact_lower_levels=True)
 right_search_patients_by_ipp = Right("right_search_patients_by_ipp", impact_lower_levels=True)
+right_read_opposing_patients_data = Right("right_read_opposing_patients_data", impact_lower_levels=True)
 right_manage_data_accesses_same_level = Right("right_manage_data_accesses_same_level", allow_edit_accesses_on_same_level=True)
 right_read_data_accesses_same_level = Right("right_read_data_accesses_same_level", allow_read_accesses_on_same_level=True)
 right_manage_data_accesses_inferior_levels = Right("right_manage_data_accesses_inferior_levels", allow_edit_accesses_on_inf_levels=True)
@@ -112,16 +116,19 @@ right_export_csv_pseudonymized = Right("right_export_csv_pseudonymized")
 right_manage_export_csv_accesses = Right("right_manage_export_csv_accesses",
                                          allow_read_accesses_on_any_level=True,
                                          allow_edit_accesses_on_any_level=True)
-right_read_datalabs = Right("right_read_datalabs")
-right_manage_datalabs = Right("right_manage_datalabs")
+right_manage_roles = Right("right_manage_roles")
+right_read_roles = Right("right_read_roles")
 right_manage_users = Right("right_manage_users")
 right_read_users = Right("right_read_users")
-right_manage_roles = Right("right_manage_roles", allow_read_accesses_on_any_level=True, allow_edit_accesses_on_any_level=True)
 right_read_logs = Right("right_read_logs")
+right_manage_datalabs = Right("right_manage_datalabs")
+right_read_datalabs = Right("right_read_datalabs")
+right_full_admin = Right("right_full_admin")
 
 all_rights = [right_read_patient_nominative,
               right_read_patient_pseudonymized,
               right_search_patients_by_ipp,
+              right_read_opposing_patients_data,
               right_manage_data_accesses_same_level,
               right_read_data_accesses_same_level,
               right_manage_data_accesses_inferior_levels,
@@ -137,68 +144,92 @@ all_rights = [right_read_patient_nominative,
               right_export_csv_nominative,
               right_export_csv_pseudonymized,
               right_manage_export_csv_accesses,
-              right_read_datalabs,
-              right_manage_datalabs,
+              right_manage_roles,
+              right_read_roles,
               right_manage_users,
               right_read_users,
-              right_manage_roles,
-              right_read_logs]
+              right_read_logs,
+              right_manage_datalabs,
+              right_read_datalabs,
+              right_full_admin]
 
-data_rights = RightGroup(name="data_rights", rights=[right_read_patient_nominative,
-                                                     right_read_patient_pseudonymized,
-                                                     right_search_patients_by_ipp],
-                         description="Allows patient data reading")
+data_rights = RightGroup(name="data_rights",
+                         description="Allow to read patient data",
+                         rights=[right_read_patient_nominative,
+                                 right_read_patient_pseudonymized,
+                                 right_search_patients_by_ipp,
+                                 right_read_opposing_patients_data])
 
-data_admin_rights = RightGroup(name="data_admin_rights", rights=[right_manage_data_accesses_same_level,
-                                                                 right_read_data_accesses_same_level,
-                                                                 right_manage_data_accesses_inferior_levels,
-                                                                 right_read_data_accesses_inferior_levels],
-                               description="Manage accesses with data rights", children=[data_rights])
-data_rights.parent = data_admin_rights
+data_accesses_management_rights = RightGroup(name="data_accesses_management_rights",
+                                             description="Allow to manage accesses with rights related to reading patients data",
+                                             rights=[right_manage_data_accesses_same_level,
+                                                     right_read_data_accesses_same_level,
+                                                     right_manage_data_accesses_inferior_levels,
+                                                     right_read_data_accesses_inferior_levels],
+                                             children=[data_rights])
+data_rights.parent = data_accesses_management_rights
 
-admin_manager_rights = RightGroup(name="admin_manager_rights", rights=[right_manage_admin_accesses_same_level,
-                                                                       right_read_admin_accesses_same_level,
-                                                                       right_manage_admin_accesses_inferior_levels,
-                                                                       right_read_admin_accesses_inferior_levels],
-                                  description="Manage accesses with data admins", children=[data_admin_rights])
-data_admin_rights.parent = admin_manager_rights
+admin_accesses_management_rights = RightGroup(name="admin_accesses_management_rights",
+                                              description="Allow to manage accesses with rights related to data_accesses admins",
+                                              rights=[right_manage_admin_accesses_same_level,
+                                                      right_read_admin_accesses_same_level,
+                                                      right_manage_admin_accesses_inferior_levels,
+                                                      right_read_admin_accesses_inferior_levels],
+                                              children=[data_accesses_management_rights])
+data_accesses_management_rights.parent = admin_accesses_management_rights
 
-jup_export_rights = RightGroup(name="jup_export_rights", rights=[right_export_jupyter_nominative,
-                                                                 right_export_jupyter_pseudonymized],
-                               description="Allows to make exports of type hive")
+jupyter_export_rights = RightGroup(name="jupyter_export_rights",
+                                   description="Allow to make Jupyter exports",
+                                   rights=[right_export_jupyter_nominative,
+                                           right_export_jupyter_pseudonymized])
 
-jup_export_manage_rights = RightGroup(name="jup_export_manage_rights", rights=[right_manage_export_jupyter_accesses],
-                                      description="Manage accesses allowing to make exports",
-                                      children=[jup_export_rights])
-jup_export_rights.parent = jup_export_manage_rights
+jupyter_export_accesses_management_rights = RightGroup(name="jupyter_export_accesses_management_rights",
+                                                       description="Allow to manage accesses with rights related to making Jupyter exports",
+                                                       rights=[right_manage_export_jupyter_accesses],
+                                                       children=[jupyter_export_rights])
+jupyter_export_rights.parent = jupyter_export_accesses_management_rights
 
-csv_export_rights = RightGroup(name="csv_export_rights", rights=[right_export_csv_nominative,
-                                                                 right_export_csv_pseudonymized],
-                               description="Allows to make exports of type csv")
+csv_export_rights = RightGroup(name="csv_export_rights",
+                               description="Allows to make CSV exports",
+                               rights=[right_export_csv_nominative,
+                                       right_export_csv_pseudonymized])
 
-csv_export_manage_rights = RightGroup(name="csv_export_manage_rights", rights=[right_manage_export_csv_accesses],
-                                      description="Manage accesses allowing to make exports",
-                                      children=[csv_export_rights])
-csv_export_rights.parent = csv_export_manage_rights
+csv_export_accesses_management_rights = RightGroup(name="csv_export_accesses_management_rights",
+                                                   description="Allow to manage accesses with rights related to making CSV exports",
+                                                   rights=[right_manage_export_csv_accesses],
+                                                   children=[csv_export_rights])
+csv_export_rights.parent = csv_export_accesses_management_rights
 
-workspaces_rights = RightGroup(name="workspaces_rights", rights=[right_read_datalabs,
-                                                                 right_manage_datalabs],
-                               description="Allows to manage/read workspaces models")
+roles_rights = RightGroup(name="roles_rights",
+                          description="Allow to manage/read roles",
+                          rights=[right_manage_roles,
+                                  right_read_roles])
 
-user_rights = RightGroup(name="user_rights", rights=[right_manage_users,
-                                                     right_read_logs],
-                         description="Manage Users and see what they do")
+users_rights = RightGroup(name="users_rights",
+                          description="Allow to manage/read users",
+                          rights=[right_manage_users,
+                                  right_read_users])
 
-main_admin_rights = RightGroup(name="main_admin_rights", rights=[right_manage_roles],
-                               description="Define a role that can manage the most important accesses",
-                               children=[user_rights, workspaces_rights,
-                                         csv_export_manage_rights,
-                                         jup_export_manage_rights,
-                                         admin_manager_rights])
+logs_rights = RightGroup(name="logs_rights",
+                         description="Allow to read logs",
+                         rights=[right_read_logs])
 
-any_admin_manager_rights = RightGroup(name="main_admin_rights", rights=[right_read_users],
-                                      description="Define rights that any Manager that can give a Manager role "
-                                                  "to another user can give")
+datalabs_rights = RightGroup(name="datalabs_rights",
+                             description="Allow to manage/read datalabs",
+                             rights=[right_manage_datalabs,
+                                     right_read_datalabs])
 
-for c_ in main_admin_rights.children:
-    c_.parent = main_admin_rights
+full_admin_rights = RightGroup(name="full_admin_rights",
+                               description="Super user, full admin",
+                               rights=[right_full_admin],
+                               children=[roles_rights,
+                                         users_rights,
+                                         logs_rights,
+                                         datalabs_rights,
+                                         jupyter_export_accesses_management_rights,
+                                         csv_export_accesses_management_rights,
+                                         admin_accesses_management_rights])
+
+
+for c in full_admin_rights.children:
+    c.parent = full_admin_rights

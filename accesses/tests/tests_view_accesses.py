@@ -13,8 +13,8 @@ from rest_framework import status as http_status
 from rest_framework.test import force_authenticate
 
 from accesses.models import Access, Role, Profile, Perimeter
-from accesses.rights import main_admin_rights, admin_manager_rights, csv_export_manage_rights, jup_export_manage_rights, \
-    workspaces_rights, user_rights, data_admin_rights, data_rights, csv_export_rights, jup_export_rights, right_read_users, all_rights
+from accesses.rights import full_admin_rights, admin_accesses_management_rights, csv_export_accesses_management_rights, jupyter_export_accesses_management_rights, \
+    datalabs_rights, users_rights, data_accesses_management_rights, data_rights, csv_export_rights, jupyter_export_rights, right_read_users, all_rights
 from accesses.views import AccessViewSet
 from admin_cohort.settings import MANUAL_SOURCE
 from admin_cohort.tools.tests_tools import new_user_and_profile, CaseRetrieveFilter, \
@@ -439,13 +439,13 @@ class RightGroupForManage(RightGroup):
 
 
 RIGHT_GROUPS = RightGroup(
-    name="RoleEditor",
-    rights=main_admin_rights.rights_names,
+    name="FullAdmin",
+    rights=full_admin_rights.rights_names,
     is_manager_admin=True,
     has_parent=False,
     children=[RightGroup(
         name="AdminManager",
-        rights=admin_manager_rights.rights_names,
+        rights=admin_accesses_management_rights.rights_names,
         is_manager_admin=True,
         same_level_reader="right_read_admin_accesses_same_level",
         inf_level_reader="right_read_admin_accesses_inferior_levels",
@@ -453,7 +453,7 @@ RIGHT_GROUPS = RightGroup(
         inf_level_editor="right_manage_admin_accesses_inferior_levels",
         children=[RightGroup(
             name="DataReadersAdmin",
-            rights=data_admin_rights.rights_names,
+            rights=data_accesses_management_rights.rights_names,
             is_manager_admin=False,
             same_level_reader="right_read_data_accesses_same_level",
             inf_level_reader="right_read_data_accesses_inferior_levels",
@@ -467,7 +467,7 @@ RIGHT_GROUPS = RightGroup(
         )]
     ), RightGroup(
         name="CsvExportersAdmin",
-        rights=csv_export_manage_rights.rights_names,
+        rights=csv_export_accesses_management_rights.rights_names,
         is_manager_admin=False,
         children=[RightGroup(
             name="CsvExporters",
@@ -476,11 +476,11 @@ RIGHT_GROUPS = RightGroup(
         )],
     ), RightGroup(
         name="JupyterExportersAdmin",
-        rights=jup_export_manage_rights.rights_names,
+        rights=jupyter_export_accesses_management_rights.rights_names,
         is_manager_admin=False,
         children=[RightGroup(
             name="JupyterExporters",
-            rights=jup_export_rights.rights_names,
+            rights=jupyter_export_rights.rights_names,
             is_manager_admin=False,
         )],
     ), RightGroup(
@@ -503,11 +503,11 @@ RIGHT_GROUPS = RightGroup(
         )]
     ), RightGroup(
         name="WorkspacesManager",
-        rights=workspaces_rights.rights_names,
+        rights=datalabs_rights.rights_names,
         is_manager_admin=False,
     ), RightGroup(
         name="UsersAdmin",
-        rights=user_rights.rights_names,
+        rights=users_rights.rights_names,
         is_manager_admin=False,
     )]
 )
@@ -891,20 +891,20 @@ class AccessGetTests(AccessTests):
                 case_a_perims = []
 
                 if right_group_a.inf_level_reader:
-                    if right_group_a.inf_level_reader in case_a.user_rights:
+                    if right_group_a.inf_level_reader in case_a.users_rights:
                         if case_a.user_perimeter.id == self.hospital2.id:
                             case_a_perims.append(self.hospital3)
-                    if right_group_a.same_level_reader in case_a.user_rights:
+                    if right_group_a.same_level_reader in case_a.users_rights:
                         case_a_perims.append(case_a.user_perimeter)
                 else:
                     case_a_perims = [self.hospital2, self.hospital3]
 
                 case_b_perims = []
                 if right_group_b.inf_level_reader:
-                    if right_group_b.inf_level_reader in case_b.user_rights:
+                    if right_group_b.inf_level_reader in case_b.users_rights:
                         if case_b.user_perimeter.id == self.hospital2.id:
                             case_b_perims.append(self.hospital3)
-                    if right_group_b.same_level_reader in case_b.user_rights:
+                    if right_group_b.same_level_reader in case_b.users_rights:
                         case_b_perims.append(case_b.user_perimeter)
                 else:
                     case_b_perims = [self.hospital2, self.hospital3]

@@ -112,7 +112,8 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewset):
     def get_perimeters_read_right_accesses(self, request, *args, **kwargs):
         user_accesses = get_user_valid_manual_accesses(request.user)
         all_read_patient_nominative_accesses = user_accesses.filter(Role.q_allow_read_patient_data_nominative())
-        all_read_patient_pseudo_accesses = user_accesses.filter(Role.q_allow_read_patient_data())
+        all_read_patient_pseudo_accesses = user_accesses.filter(Role.q_allow_read_patient_data_pseudo() |
+                                                                Role.q_allow_read_patient_data_nominative())  # was Role.q_allow_read_patient_data()
         all_read_ipp_accesses = user_accesses.filter(Role.q_allow_search_patients_by_ipp())
 
         if not all_read_patient_nominative_accesses and not all_read_patient_pseudo_accesses:
