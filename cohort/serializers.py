@@ -239,3 +239,8 @@ class FhirFilterSerializer(BaseSerializer):
     class Meta:
         model = FhirFilter
         fields = '__all__'
+
+    def create(self, validated_data):
+        if not validated_data.get('owner'):
+            validated_data["owner"] = self.context.get('request').user
+        return super(FhirFilterSerializer, self).create(validated_data)
