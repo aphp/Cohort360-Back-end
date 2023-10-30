@@ -27,32 +27,32 @@ class ExportRequestTableSerializer(serializers.ModelSerializer):
 
 def check_read_rights_on_perimeters(rights: List[DataRight], is_nomi: bool):
     if is_nomi:
-        wrong_perims = [r.care_site_id for r in rights if not r.right_read_patient_nominative]
+        wrong_perimeters = [r.perimeter_id for r in rights if not r.right_read_patient_nominative]
     else:
-        wrong_perims = [r.care_site_id for r in rights if not r.right_read_patient_pseudonymized]
-    if wrong_perims:
+        wrong_perimeters = [r.perimeter_id for r in rights if not r.right_read_patient_pseudonymized]
+    if wrong_perimeters:
         raise ValidationError(f"L'utilisateur n'a pas le droit de lecture {is_nomi and 'nominative' or 'pseudonymisée'} "
-                              f"sur les périmètres: {wrong_perims}.")
+                              f"sur les périmètres suivants: {wrong_perimeters}.")
 
 
 def check_csv_export_rights_on_perimeters(rights: List[DataRight], is_nomi: bool):
     if is_nomi:
-        wrong_perims = [r.care_site_id for r in rights if not r.right_export_csv_nominative]
+        wrong_perimeters = [r.perimeter_id for r in rights if not r.right_export_csv_nominative]
     else:
-        wrong_perims = [r.care_site_id for r in rights if not r.right_export_csv_pseudonymized]
-    if wrong_perims:
+        wrong_perimeters = [r.perimeter_id for r in rights if not r.right_export_csv_pseudonymized]
+    if wrong_perimeters:
         raise ValidationError(f"L'utilisateur n'a pas le droit d'export CSV {is_nomi and 'nominatif' or 'pseudonymisé'} "
-                              f"sur les périmètres {wrong_perims}.")
+                              f"sur les périmètres suivants: {wrong_perimeters}.")
 
 
 def check_jupyter_export_rights_on_perimeters(rights: List[DataRight], is_nomi: bool):
     if is_nomi:
-        wrong_perims = [r.care_site_id for r in rights if not r.right_export_jupyter_nominative]
+        wrong_perimeters = [r.perimeter_id for r in rights if not r.right_export_jupyter_nominative]
     else:
-        wrong_perims = [r.care_site_id for r in rights if not r.right_export_jupyter_pseudonymized]
-    if wrong_perims:
+        wrong_perimeters = [r.perimeter_id for r in rights if not r.right_export_jupyter_pseudonymized]
+    if wrong_perimeters:
         raise ValidationError(f"L'utilisateur n'a pas le droit d'export Jupyter {is_nomi and 'nominatif' or 'pseudonymisé'} "
-                              f"sur les périmètres {wrong_perims}.")
+                              f"sur les périmètres suivants: {wrong_perimeters}.")
 
 
 def check_rights_on_perimeters_for_exports(rights: List[DataRight], export_type: str, is_nomi: bool):

@@ -4,7 +4,8 @@ import datetime
 from typing import List, Dict
 
 from django.db import models
-from django.db.models import CASCADE, SET_NULL
+from django.db.models import CASCADE, SET_NULL, Q
+from django.utils import timezone
 from django.utils.datetime_safe import date, datetime as dt
 
 from accesses.models.perimeter import Perimeter
@@ -65,19 +66,25 @@ class Access(BaseModel):
                 'care_site_source_value': self.perimeter.source_value,
                 } if self.perimeter else None
 
-    @property
-    def accesses_criteria_to_exclude(self) -> List[Dict]:
+    def get_criteria_to_exclude(self) -> List[Dict]:     # todo: understand this
         unreadable_rights = self.role.unreadable_rights
 
-        for read_r in (self.role.inf_level_readable_rights + self.role.same_level_readable_rights):
-            d = {read_r: True}
+        for right in (self.role.rights_allowing_to_read_accesses_on_same_level +
+                      self.role.rights_allowing_to_read_accesses_on_inferior_levels):
+            d = {right: True}
 
-            if read_r in self.role.inf_level_readable_rights:
-                d['perimeter_not_child'] = [self.perimeter_id]
-
-            if read_r in self.role.same_level_readable_rights:
+            if right in self.role.rights_allowing_to_read_accesses_on_same_level:
                 d['perimeter_not'] = [self.perimeter_id]
+
+            if right in self.role.rights_allowing_to_read_accesses_on_inferior_levels:
+                d['perimeter_not_child'] = [self.perimeter_id]
 
             unreadable_rights.append(d)
 
         return unreadable_rights
+
+    @staticmethod
+    def q_is_valid() -> Q:
+        now = timezone.now()
+        return ((Q(start_datetime=None) | Q(start_datetime__lte=now)) &
+                (Q(end_datetime=None) | Q(end_datetime__gte=now)))

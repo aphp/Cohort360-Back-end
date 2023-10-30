@@ -275,7 +275,7 @@ class RightGroup:
     def __init__(self, name: str, rights: List[str], is_manager_admin: bool,
                  same_level_reader: str = "", inf_level_reader: str = "",
                  same_level_editor: str = "", inf_level_editor: str = "",
-                 children: List = None, has_parent: bool = True):
+                 child_groups: List = None, has_parent: bool = True):
         self.name = name
         self.rights = rights or []
         self.is_manager_admin = is_manager_admin
@@ -283,7 +283,7 @@ class RightGroup:
         self.inf_level_reader = inf_level_reader
         self.same_level_editor = same_level_editor
         self.inf_level_editor = inf_level_editor
-        self.children = children
+        self.child_groups = children
         self.has_parent = has_parent
 
     def __str__(self):

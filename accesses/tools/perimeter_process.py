@@ -231,7 +231,7 @@ def get_read_opposing_patient_accesses(user) -> bool:
         it will be effective for every perimeters
     """
     user_accesses = get_user_valid_manual_accesses(user)
-    opposing_patient_accesses = user_accesses.filter(Role.q_allow_read_opposing_patients_data())
+    opposing_patient_accesses = user_accesses.filter(Role.q_allow_read_research_opposed_patient_data())
     return opposing_patient_accesses.exists()
 
 

@@ -114,7 +114,7 @@ class PerimeterTests(ViewSetTests):
                 except Exception:
                     self.fail()
 
-                check_list(matching.children.exclude(pk__in=to_exclude_ids),
+                check_list(matching.child_groups.exclude(pk__in=to_exclude_ids),
                            getattr(obj, 'children', []), level + 1, obj.id)
 
         check_list(case.to_find, res)

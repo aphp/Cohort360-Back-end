@@ -10,7 +10,6 @@ from django.db.models.query import RawQuerySet
 from django.utils import timezone
 
 from accesses.models import Perimeter, Access
-from accesses.models.tools import q_is_valid_access
 from admin_cohort import settings
 from admin_cohort.tools.cache import invalidate_cache
 
@@ -342,7 +341,7 @@ def delete_perimeters(perimeters: QuerySet, care_sites: RawQuerySet):
 
 def close_accesses(perimeters_to_delete: QuerySet):
     perimeters_to_delete_ids = perimeters_to_delete.values_list("id", flat=True)
-    accesses_to_delete = Access.objects.filter(q_is_valid_access()
+    accesses_to_delete = Access.objects.filter(Access.q_is_valid()
                                                & (Q(perimeter_id__in=perimeters_to_delete_ids) | Q(perimeter_id__isnull=True)))
     accesses_to_delete.update(end_datetime=timezone.now())
     Access.objects.bulk_update(accesses_to_delete, ["end_datetime"])
@@ -353,8 +352,8 @@ def get_perimeters_to_delete(all_perimeters: QuerySet, all_valid_care_sites: Raw
     deleted_care_sites = CareSite.objects.raw("SELECT DISTINCT care_site_id, delete_datetime "
                                               "FROM omop.care_site "
                                               "WHERE delete_datetime IS NOT NULL")
-    deleted_care_sites_ids = (cs.care_site_id for cs in deleted_care_sites)
-    valid_care_sites_ids = (cs.care_site_id for cs in all_valid_care_sites)
+    deleted_care_sites_ids = (cs.perimeter_id for cs in deleted_care_sites)
+    valid_care_sites_ids = (cs.perimeter_id for cs in all_valid_care_sites)
 
     perimeters_to_delete_1 = all_perimeters.exclude(id__in=valid_care_sites_ids)
     perimeters_to_delete_2 = all_perimeters.filter(Q(id__in=deleted_care_sites_ids))
@@ -392,7 +391,7 @@ def perimeters_data_model_objects_update():
 
     all_valid_care_sites = CareSite.objects.raw(psql_query_care_site_relationship(top_care_site_id=aphp_id))
     try:
-        top_care_site = [cs for cs in all_valid_care_sites if cs.care_site_id == aphp_id][0]
+        top_care_site = [cs for cs in all_valid_care_sites if cs.perimeter_id == aphp_id][0]
     except IndexError:
         _logger_err.error("Perimeters daily update: missing top care site APHP")
         return

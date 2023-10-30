@@ -19,8 +19,7 @@ from admin_cohort.settings import PERIMETERS_TYPES, ACCESS_EXPIRY_FIRST_ALERT_IN
 from admin_cohort.tools import join_qs
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.views import BaseViewset, CustomLoggingMixin
-from ..models import Access, get_user_valid_manual_accesses, intersect_queryset_criteria, build_data_rights, Perimeter
-from ..models.tools import q_is_valid_access, q_role_impacts_lower_levels
+from ..models import Access, get_user_valid_manual_accesses, intersect_queryset_criteria, build_data_rights, Perimeter, Role
 from ..permissions import AccessesPermission
 from ..serializers import AccessSerializer, DataRightSerializer, ExpiringAccessesSerializer
 
@@ -29,7 +28,7 @@ class AccessFilter(filters.FilterSet):
 
     def perimeter_filter(self, queryset, field, value):
         perimeter = Perimeter.objects.get(pk=value)
-        valid_accesses = queryset.filter(q_is_valid_access())
+        valid_accesses = queryset.filter(Access.q_is_valid())
         accesses_on_perimeter = valid_accesses.filter(perimeter_id=value)
 
         user_accesses = get_user_valid_manual_accesses(user=self.request.user)
@@ -38,7 +37,7 @@ class AccessFilter(filters.FilterSet):
         if user_is_allowed_to_read_accesses_from_above_levels:
             accesses_on_parent_perimeters = valid_accesses.filter(Q(perimeter_id__in=perimeter.above_levels)
                                                                   &
-                                                                  q_role_impacts_lower_levels())
+                                                                  Role.q_impacts_lower_levels())
             return accesses_on_perimeter.union(accesses_on_parent_perimeters)
         return accesses_on_perimeter
 
@@ -96,22 +95,25 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
             accesses = get_user_valid_manual_accesses(user).select_related("role")
         else:
             accesses = []
-        to_exclude = [a.accesses_criteria_to_exclude for a in accesses]
+        """
+        assuming a user X has sent a GET request (/accesses/accesses/<user_id>/) to list all the accesses attributed to another user Y:
+            after having retrieved the queryset of accesses the user X is permitted to read
+        """
+        to_exclude = [access.get_criteria_to_exclude() for access in accesses]
         if to_exclude:
             to_exclude = reduce(intersect_queryset_criteria, to_exclude)
-            qs = []
-            for cs in to_exclude:
-                exc_q = Q(**dict((f'role__{r}', v)
-                                 for (r, v) in cs.items()
-                                 if 'perimeter' not in r))
-                if 'perimeter_not' in cs:
-                    exc_q = exc_q & ~Q(perimeter_id__in=cs['perimeter_not'])
-                if 'perimeter_not_child' in cs:
-                    exc_q = exc_q & ~join_qs([Q(**{f"perimeter__{i * 'parent__'}id__in": (cs['perimeter_not_child'])})
-                                              for i in range(1, len(PERIMETERS_TYPES))])
-
-                qs.append(exc_q)
-            q = qs and q.exclude(join_qs(qs)) or q
+            exclusion_queries = []
+            for e in to_exclude:
+                exclusion_query = Q(**{f'role__{k}': v for (k, v) in e.items() if 'perimeter' not in k})
+                if e.get('perimeter_not') is not None:
+                    exclusion_query = exclusion_query \
+                                      & ~Q(perimeter_id__in=e['perimeter_not'])
+                if e.get('perimeter_not_child') is not None:
+                    exclusion_query = exclusion_query \
+                                      & ~join_qs([Q(**{f"perimeter__{i * 'parent__'}id__in": e['perimeter_not_child']})
+                                                  for i in range(1, len(PERIMETERS_TYPES))])
+                exclusion_queries.append(exclusion_query)
+            q = exclusion_queries and q.exclude(join_qs(exclusion_queries)) or q
         return q
 
     def filter_queryset(self, queryset):
@@ -280,12 +282,22 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
                                                   request.query_params.get('care-site-ids'))
         if perimeters_ids:
             urldecode_perimeters = urllib.parse.unquote(urllib.parse.unquote((str(perimeters_ids))))
-            required_perimeters_ids = [int(i) for i in urldecode_perimeters.split(",")]
+            perimeters_ids = [int(i) for i in urldecode_perimeters.split(",")]
         else:
-            required_perimeters_ids = []
+            perimeters_ids = []
 
         results = build_data_rights(user=request.user,
-                                    expected_perim_ids=required_perimeters_ids,
-                                    pop_children=False)
+                                    perimeters_ids=perimeters_ids)
         return Response(data=DataRightSerializer(results, many=True).data,
                         status=status.HTTP_200_OK)
+
+
+# /!\     start here
+#
+# start by documenting how the fallowing endpoints would behave:
+#     "/accesses/accesses/my-accesses"
+#     "/accesses/accesses/my-rights"
+#
+# what result should be sent back to the user
+
+

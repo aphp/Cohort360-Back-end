@@ -175,15 +175,15 @@ class RoleGetAssignableTests(RoleTests):
                         rg.rights
                         + (any_manager_rights if rg.is_manager_admin else [])
                         + [right]
-                    ])) for right in rg.all_children_rights()
+                    ])) for right in rg.all_child_groups_rights()
             ]
             rg.full_role_with_any_from_direct_child = [
                 r for r in rg.full_role_with_any_from_child
                 if any(getattr(r, right) for right
-                       in rg.all_children_rights(r=False))]
+                       in rg.all_child_groups_rights(r=False))]
 
             if parent:
-                rg.siblings_rights = parent.all_children_rights(
+                rg.siblings_rights = parent.all_child_groups_rights(
                     r=False, exempt=rg.name)
                 rg.full_role_with_any_from_siblings = [
                     Role.objects.create(
@@ -202,7 +202,7 @@ class RoleGetAssignableTests(RoleTests):
                     if right not in rg.rights
                 ]
 
-            for child in rg.children:
+            for child in rg.child_groups:
                 add_roles_to_right_groups_tree(child, rg)
 
         add_roles_to_right_groups_tree(self.right_groups_tree)
@@ -266,7 +266,7 @@ class RoleGetAssignableTests(RoleTests):
             [self.check_get_role_paged_list_case(case,
                                                  self.__class__.assignable_view)
              for case in cases]
-            for child in rg.children:
+            for child in rg.child_groups:
                 test_rights_group(child)
 
         test_rights_group(self.right_groups_tree)
