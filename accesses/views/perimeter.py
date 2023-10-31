@@ -111,12 +111,12 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewset):
     @cache_response()
     def get_perimeters_read_right_accesses(self, request, *args, **kwargs):
         user_accesses = get_user_valid_manual_accesses(request.user)
-        all_read_patient_nominative_accesses = user_accesses.filter(Role.q_allow_read_patient_data_nominative())
-        all_read_patient_pseudo_accesses = user_accesses.filter(Role.q_allow_read_patient_data_pseudo() |
-                                                                Role.q_allow_read_patient_data_nominative())  # was Role.q_allow_read_patient_data()
-        all_read_ipp_accesses = user_accesses.filter(Role.q_allow_search_patients_by_ipp())
+        read_patient_nominative_accesses = user_accesses.filter(Role.q_allow_read_patient_data_nominative())
+        read_patient_pseudo_accesses = user_accesses.filter(Role.q_allow_read_patient_data_pseudo() |
+                                                            Role.q_allow_read_patient_data_nominative())
+        search_by_ipp_accesses = user_accesses.filter(Role.q_allow_search_patients_by_ipp())
 
-        if not all_read_patient_nominative_accesses and not all_read_patient_pseudo_accesses:
+        if not read_patient_nominative_accesses and not read_patient_pseudo_accesses:
             return Response(data={"message": "No accesses with read patient right found"},
                             status=status.HTTP_200_OK)
 
@@ -126,12 +126,12 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewset):
             accessible_perimeters = reduce(lambda qs1, qs2: qs1 | qs2, all_perimeters)
             perimeters = self.filter_queryset(accessible_perimeters)
         else:
-            perimeters = get_top_perimeter_from_read_patient_accesses(all_read_patient_nominative_accesses,
-                                                                      all_read_patient_pseudo_accesses)
+            perimeters = get_top_perimeter_from_read_patient_accesses(read_patient_nominative_accesses,
+                                                                      read_patient_pseudo_accesses)
         filtered_accesses = filter_accesses_by_search_perimeters(perimeters,
-                                                                 all_read_patient_nominative_accesses,
-                                                                 all_read_patient_pseudo_accesses,
-                                                                 all_read_ipp_accesses)
+                                                                 read_patient_nominative_accesses,
+                                                                 read_patient_pseudo_accesses,
+                                                                 search_by_ipp_accesses)
         page = self.paginate_queryset(filtered_accesses)
         if page:
             serializer = ReadRightPerimeter(page, many=True)

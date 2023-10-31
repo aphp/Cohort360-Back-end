@@ -136,10 +136,6 @@ class ExportRequestSerializer(serializers.ModelSerializer):
         owner: User = validated_data.get('owner')
         check_email_address(owner.email)
         cohort: CohortResult = validated_data.get('cohort_fk')
-        creator_is_reviewer = True
-
-        if not creator_is_reviewer and cohort.owner.pk != owner.pk:
-            raise ValidationError("The cohort does not belong to the request owner!")
 
         if cohort.request_job_status != JobStatus.finished:
             raise ValidationError('The requested cohort has not finished successfully.')
@@ -150,7 +146,7 @@ class ExportRequestSerializer(serializers.ModelSerializer):
         validated_data['motivation'] = validated_data.get('motivation', "").replace("\n", " -- ")
 
         if output_format == ExportType.HIVE:
-            self.validate_hive_export(validated_data, creator_is_reviewer)
+            self.validate_hive_export(validated_data)
         else:
             self.validate_csv_export(validated_data)
 
@@ -165,7 +161,7 @@ class ExportRequestSerializer(serializers.ModelSerializer):
             er.request_job_fail_msg = f"INTERNAL ERROR: Could not launch Celery task: {e}"
         return er
 
-    def validate_hive_export(self, validated_data: dict, creator_is_reviewer: bool):
+    def validate_hive_export(self, validated_data: dict, creator_is_reviewer: bool = True):
         target_unix_account = validated_data.get('target_unix_account')
         if not target_unix_account:
             raise ValidationError("Pour une demande d'export HIVE, il faut fournir target_unix_account")

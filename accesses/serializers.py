@@ -417,11 +417,12 @@ class ExpiringAccessesSerializer(serializers.Serializer):
 
 class DataRightSerializer(serializers.Serializer):
     perimeter_id = serializers.CharField(read_only=True, allow_null=True)
-    provider_id = serializers.CharField(read_only=True, allow_null=True)
+    user_id = serializers.CharField(read_only=True, allow_null=True)
     access_ids = serializers.ListSerializer(child=serializers.IntegerField(read_only=True, allow_null=True), allow_empty=True)
     right_read_patient_nominative = serializers.BooleanField(read_only=True, allow_null=True)
     right_read_patient_pseudonymized = serializers.BooleanField(read_only=True, allow_null=True)
     right_search_patients_by_ipp = serializers.BooleanField(read_only=True, allow_null=True)
+    right_read_research_opposed_patient_data = serializers.BooleanField(read_only=True, allow_null=True)
     right_export_csv_nominative = serializers.BooleanField(read_only=True, allow_null=True)
     right_export_csv_pseudonymized = serializers.BooleanField(read_only=True, allow_null=True)
     right_export_jupyter_nominative = serializers.BooleanField(read_only=True, allow_null=True)

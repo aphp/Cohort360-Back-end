@@ -268,16 +268,16 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
                              pattern=x[3] if len(x) == 4 else None),
                                                            [["care-site-ids", "(to deprecate -> perimeters_ids). care-sites list "
                                                                               "to limit the result on. Sep: ','", openapi.TYPE_STRING],
-                                                            ["perimeters_ids", "Perimeters list to limit the result. Sep: ','", openapi.TYPE_STRING],
-                                                            ["pop-children", "2deprecate(pop_children) If True, keeps "
-                                                                             "only the biggest parents for each right", openapi.TYPE_BOOLEAN],
-                                                            ["pop_children", "If True, keeps only the biggest parents for each right",
-                                                             openapi.TYPE_BOOLEAN]])],
+                                                            ["perimeters_ids", "Perimeters list to limit the result. Sep: ','", openapi.TYPE_STRING]
+                                                            ])],
                          responses={200: openapi.Response('Rights found', DataRightSerializer),
                                     400: openapi.Response('perimeters_ids and pop_children are both null')})
     @action(url_path="my-rights", detail=False, methods=['get'], permission_classes=[IsAuthenticated], filter_backends=[], pagination_class=None)
     @cache_response()
-    def my_rights(self, request, *args, **kwargs):
+    def get_my_data_rights(self, request, *args, **kwargs):
+        """
+        get
+        """
         perimeters_ids = request.query_params.get('perimeters_ids',
                                                   request.query_params.get('care-site-ids'))
         if perimeters_ids:
