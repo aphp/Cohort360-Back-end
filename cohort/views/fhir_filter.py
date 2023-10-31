@@ -1,6 +1,7 @@
 from django_filters import rest_framework as filters
 from rest_framework import viewsets
 
+from admin_cohort.permissions import IsAuthenticated
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from cohort.models import FhirFilter
@@ -20,9 +21,10 @@ class FhirFilterViewSet(viewsets.ModelViewSet):
     serializer_class = FhirFilterSerializer
     pagination_class = NegativeLimitOffsetPagination
     filterset_class = FhirFilterFilter
-    lookup_field = "pk"  # Change this line to use "pk" as the lookup field
-    swagger_tags = ["Cohort - fhir_filter"]
+    lookup_field = "uuid"
     http_method_names = ["get", "post", "patch"]
+    permission_classes = [IsAuthenticated]
+    swagger_tags = ["Cohort - fhir_filter"]
 
     @cache_response()
     def list(self, request, *args, **kwargs):

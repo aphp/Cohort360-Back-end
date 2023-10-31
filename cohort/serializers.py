@@ -236,6 +236,8 @@ class CohortRightsSerializer(serializers.Serializer):
 
 
 class FhirFilterSerializer(BaseSerializer):
+    owner = serializers.CharField(read_only=True, allow_null=True)
+
     class Meta:
         model = FhirFilter
         fields = '__all__'
