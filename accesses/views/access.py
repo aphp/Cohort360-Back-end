@@ -36,8 +36,7 @@ class AccessFilter(filters.FilterSet):
                                                                           .exists()
         if user_is_allowed_to_read_accesses_from_above_levels:
             accesses_on_parent_perimeters = valid_accesses.filter(Q(perimeter_id__in=perimeter.above_levels)
-                                                                  &
-                                                                  Role.q_impacts_lower_levels())
+                                                                  & Role.q_impact_inferior_levels())
             return accesses_on_perimeter.union(accesses_on_parent_perimeters)
         return accesses_on_perimeter
 
@@ -77,11 +76,11 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
     http_method_names = ['post', 'patch', 'delete']
     logging_methods = ['POST', 'PATCH', 'DELETE']
     swagger_tags = ['Accesses - accesses']
-    search_fields = ["profile__lastname",
-                     "profile__firstname",
-                     "perimeter__name",
+    search_fields = ["profile__firstname",
+                     "profile__lastname",
                      "profile__email",
-                     "profile__user__provider_username"]
+                     "profile__user_id",
+                     "perimeter__name"]
 
     def get_serializer_class(self):
         if self.request.method == "GET" and "expiring" in self.request.query_params:
@@ -238,7 +237,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
                          responses={200: openapi.Response('All valid accesses or ones to expire soon', AccessSerializer)})
     @action(url_path="my-accesses", methods=['get'], detail=False, permission_classes=[IsAuthenticated])
     @cache_response()
-    def my_accesses(self, request, *args, **kwargs):
+    def get_my_accesses(self, request, *args, **kwargs):
         user = request.user
         accesses = get_user_valid_manual_accesses(user=user)
         if request.query_params.get("expiring"):

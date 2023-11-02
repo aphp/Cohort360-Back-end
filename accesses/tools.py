@@ -4,13 +4,11 @@ from typing import List, Dict
 
 from django.db.models import Q, F
 from django.db.models.query import QuerySet, Prefetch
-from django.utils import timezone
 
 from accesses.models import Profile
 from accesses.models.access import Access
 from accesses.models.perimeter import Perimeter
 from accesses.models.role import Role
-from accesses.rights import all_rights
 from admin_cohort.models import User
 from admin_cohort.settings import MANUAL_SOURCE, PERIMETERS_TYPES
 from admin_cohort.tools import join_qs
@@ -129,7 +127,7 @@ def get_all_user_managing_accesses_on_perimeter(user: User, perimeter: Perimeter
 
     return get_user_valid_manual_accesses(user).filter((Q(perimeter=perimeter) & Role.q_allow_manage_accesses_on_same_level())
                                                        | (perimeter.all_parents_query("perimeter") & Role.q_allow_manage_accesses_on_inf_levels())
-                                                       | Role.q_manage_accesses_on_any_level())\
+                                                       | Role.q_allow_manage_accesses_on_any_level())\
                                                .select_related("role")
 
 

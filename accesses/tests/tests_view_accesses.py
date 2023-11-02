@@ -13,8 +13,9 @@ from rest_framework import status as http_status
 from rest_framework.test import force_authenticate
 
 from accesses.models import Access, Role, Profile, Perimeter
-from accesses.rights import full_admin_rights, admin_accesses_management_rights, csv_export_accesses_management_rights, jupyter_export_accesses_management_rights, \
-    datalabs_rights, users_rights, data_accesses_management_rights, data_rights, csv_export_rights, jupyter_export_rights, right_read_users, all_rights
+from accesses.rights import full_admin_rights, admin_accesses_management_rights, csv_export_accesses_management_rights, \
+                            jupyter_export_accesses_management_rights, datalabs_rights, users_rights, data_accesses_management_rights, \
+                            data_rights, csv_export_rights, jupyter_export_rights, right_read_users, all_rights
 from accesses.views import AccessViewSet
 from admin_cohort.settings import MANUAL_SOURCE
 from admin_cohort.tools.tests_tools import new_user_and_profile, CaseRetrieveFilter, \
@@ -283,7 +284,7 @@ class RightGroup:
         self.inf_level_reader = inf_level_reader
         self.same_level_editor = same_level_editor
         self.inf_level_editor = inf_level_editor
-        self.child_groups = children
+        self.child_groups = child_groups
         self.has_parent = has_parent
 
     def __str__(self):
@@ -483,24 +484,6 @@ RIGHT_GROUPS = RightGroup(
             rights=jupyter_export_rights.rights_names,
             is_manager_admin=False,
         )],
-    ), RightGroup(
-        name="CsvExportReviewersAdmin",
-        rights=csv_review_manage_rights.rights_names,
-        is_manager_admin=False,
-        children=[RightGroup(
-            name="CsvExportReviewers",
-            rights=csv_review_rights.rights_names,
-            is_manager_admin=False,
-        )]
-    ), RightGroup(
-        name="JupyterExportReviewersAdmin",
-        rights=jup_review_manage_rights.rights_names,
-        is_manager_admin=False,
-        children=[RightGroup(
-            name="JupyterExportReviewers",
-            rights=jup_review_rights.rights_names,
-            is_manager_admin=False,
-        )]
     ), RightGroup(
         name="WorkspacesManager",
         rights=datalabs_rights.rights_names,

@@ -6,7 +6,7 @@ from django.db.models import Max, Q
 from django.utils import timezone
 from django.utils.datetime_safe import datetime
 from rest_framework import serializers
-from rest_framework.exceptions import ValidationError, PermissionDenied
+from rest_framework.exceptions import ValidationError
 
 from admin_cohort.auth.utils import check_id_aph
 from admin_cohort.models import User

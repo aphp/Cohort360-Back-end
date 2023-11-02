@@ -3,22 +3,21 @@ from typing import List
 
 
 class Right:
-    def __init__(self, name: str,
+    def __init__(self,
+                 name: str,
                  allow_read_accesses_on_same_level: bool = False,
                  allow_read_accesses_on_inf_levels: bool = False,
-                 allow_read_accesses_on_any_level: bool = False,
                  allow_edit_accesses_on_same_level: bool = False,
                  allow_edit_accesses_on_inf_levels: bool = False,
                  allow_edit_accesses_on_any_level: bool = False,
-                 impact_lower_levels: bool = False):
+                 impact_inferior_levels: bool = False):
         self.name = name
         self.allow_read_accesses_on_same_level = allow_read_accesses_on_same_level
         self.allow_read_accesses_on_inf_levels = allow_read_accesses_on_inf_levels
-        self.allow_read_accesses_on_any_level = allow_read_accesses_on_any_level
         self.allow_edit_accesses_on_same_level = allow_edit_accesses_on_same_level
         self.allow_edit_accesses_on_inf_levels = allow_edit_accesses_on_inf_levels
         self.allow_edit_accesses_on_any_level = allow_edit_accesses_on_any_level
-        self.impact_lower_levels = (impact_lower_levels or allow_edit_accesses_on_inf_levels or allow_read_accesses_on_inf_levels)
+        self.impact_inferior_levels = (impact_inferior_levels or allow_edit_accesses_on_inf_levels or allow_read_accesses_on_inf_levels)
 
     def __repr__(self):
         return self.name
@@ -61,19 +60,15 @@ class RightGroup:
         return [right for right in self.rights if right.allow_edit_accesses_on_inf_levels]
 
     @property
-    def rights_read_on_any_level(self) -> List[Right]:
-        return [right for right in self.rights if right.allow_read_accesses_on_any_level]
-
-    @property
-    def rights_edit_on_any_level(self) -> List[Right]:
-        return [right for right in self.rights if right.allow_edit_accesses_on_any_level]
-
-    @property
     def rights_allowing_reading_accesses(self) -> List[Right]:
-        return [right for right in self.rights
-                if right.allow_read_accesses_on_same_level
-                or right.allow_read_accesses_on_inf_levels
-                or right.allow_read_accesses_on_any_level]
+        rights = [right for right in self.rights
+                  if right.allow_read_accesses_on_same_level
+                  or right.allow_read_accesses_on_inf_levels]
+        if right_manage_export_csv_accesses in self.rights:
+            rights.append(right_manage_export_csv_accesses)
+        if right_manage_export_jupyter_accesses in self.rights:
+            rights.append(right_manage_export_jupyter_accesses)
+        return rights
 
     @property
     def child_groups_rights(self) -> List[Right]:
@@ -101,10 +96,21 @@ class RightGroup:
                                  + ([right_read_users] if can_read_any_admin_accesses else []))]
 
 
-right_read_patient_nominative = Right("right_read_patient_nominative", impact_lower_levels=True)
-right_read_patient_pseudonymized = Right("right_read_patient_pseudonymized", impact_lower_levels=True)
-right_search_patients_by_ipp = Right("right_search_patients_by_ipp", impact_lower_levels=True)
-right_read_research_opposed_patient_data = Right("right_read_research_opposed_patient_data", impact_lower_levels=True)
+# ----------------------------------------------    Perimeters hierarchy agnostic rights
+right_full_admin = Right("right_full_admin")
+right_read_logs = Right("right_read_logs")
+right_manage_roles = Right("right_manage_roles")
+right_read_roles = Right("right_read_roles")
+right_manage_users = Right("right_manage_users")
+right_read_users = Right("right_read_users")
+right_manage_datalabs = Right("right_manage_datalabs")
+right_read_datalabs = Right("right_read_datalabs")
+
+# ----------------------------------------------    Perimeters hierarchy related rights
+right_read_patient_nominative = Right("right_read_patient_nominative", impact_inferior_levels=True)
+right_read_patient_pseudonymized = Right("right_read_patient_pseudonymized", impact_inferior_levels=True)
+right_search_patients_by_ipp = Right("right_search_patients_by_ipp", impact_inferior_levels=True)
+right_read_research_opposed_patient_data = Right("right_read_research_opposed_patient_data", impact_inferior_levels=True)
 right_manage_data_accesses_same_level = Right("right_manage_data_accesses_same_level", allow_edit_accesses_on_same_level=True)
 right_read_data_accesses_same_level = Right("right_read_data_accesses_same_level", allow_read_accesses_on_same_level=True)
 right_manage_data_accesses_inferior_levels = Right("right_manage_data_accesses_inferior_levels", allow_edit_accesses_on_inf_levels=True)
@@ -113,27 +119,27 @@ right_manage_admin_accesses_same_level = Right("right_manage_admin_accesses_same
 right_read_admin_accesses_same_level = Right("right_read_admin_accesses_same_level", allow_read_accesses_on_same_level=True)
 right_manage_admin_accesses_inferior_levels = Right("right_manage_admin_accesses_inferior_levels", allow_edit_accesses_on_inf_levels=True)
 right_read_admin_accesses_inferior_levels = Right("right_read_admin_accesses_inferior_levels", allow_read_accesses_on_inf_levels=True)
-right_read_accesses_above_levels = Right("right_read_accesses_above_levels")
-right_export_jupyter_nominative = Right("right_export_jupyter_nominative")
-right_export_jupyter_pseudonymized = Right("right_export_jupyter_pseudonymized")
-right_manage_export_jupyter_accesses = Right("right_manage_export_jupyter_accesses",
-                                             allow_read_accesses_on_any_level=True,
-                                             allow_edit_accesses_on_any_level=True)
+right_read_accesses_above_levels = Right("right_read_accesses_above_levels")    # todo: process this right differently
+
+# ----------------------------------------------    Global rights, hierarchy agnostic rights
 right_export_csv_nominative = Right("right_export_csv_nominative")
 right_export_csv_pseudonymized = Right("right_export_csv_pseudonymized")
-right_manage_export_csv_accesses = Right("right_manage_export_csv_accesses",
-                                         allow_read_accesses_on_any_level=True,
-                                         allow_edit_accesses_on_any_level=True)
-right_manage_roles = Right("right_manage_roles")
-right_read_roles = Right("right_read_roles")
-right_manage_users = Right("right_manage_users")
-right_read_users = Right("right_read_users")
-right_read_logs = Right("right_read_logs")
-right_manage_datalabs = Right("right_manage_datalabs")
-right_read_datalabs = Right("right_read_datalabs")
-right_full_admin = Right("right_full_admin")
+right_export_jupyter_nominative = Right("right_export_jupyter_nominative")
+right_export_jupyter_pseudonymized = Right("right_export_jupyter_pseudonymized")
 
-all_rights = [right_read_patient_nominative,
+# ----------------------------------------------    Global rights, hierarchy agnostic rights with management capabilities
+right_manage_export_csv_accesses = Right("right_manage_export_csv_accesses", allow_edit_accesses_on_any_level=True)
+right_manage_export_jupyter_accesses = Right("right_manage_export_jupyter_accesses", allow_edit_accesses_on_any_level=True)
+
+all_rights = [right_full_admin,
+              right_read_logs,
+              right_manage_roles,
+              right_read_roles,
+              right_manage_users,
+              right_read_users,
+              right_manage_datalabs,
+              right_read_datalabs,
+              right_read_patient_nominative,
               right_read_patient_pseudonymized,
               right_search_patients_by_ipp,
               right_read_research_opposed_patient_data,
@@ -146,20 +152,12 @@ all_rights = [right_read_patient_nominative,
               right_manage_admin_accesses_inferior_levels,
               right_read_admin_accesses_inferior_levels,
               right_read_accesses_above_levels,
-              right_export_jupyter_nominative,
-              right_export_jupyter_pseudonymized,
-              right_manage_export_jupyter_accesses,
               right_export_csv_nominative,
               right_export_csv_pseudonymized,
+              right_export_jupyter_nominative,
+              right_export_jupyter_pseudonymized,
               right_manage_export_csv_accesses,
-              right_manage_roles,
-              right_read_roles,
-              right_manage_users,
-              right_read_users,
-              right_read_logs,
-              right_manage_datalabs,
-              right_read_datalabs,
-              right_full_admin]
+              right_manage_export_jupyter_accesses]
 
 data_rights = RightGroup(name="data_rights",
                          description="Allow to read patient data",

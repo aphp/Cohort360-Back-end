@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from typing import List, Dict, Callable
+from typing import List, Dict
 
 from django.db import models
 from django.db.models import Q
 
-from accesses.rights import RightGroup, full_admin_rights, all_rights, Right
+from accesses.rights import RightGroup, full_admin_rights, all_rights
 from admin_cohort.models import BaseModel
 from admin_cohort.tools import join_qs
 
@@ -97,8 +97,8 @@ class Role(BaseModel):
     right_read_datalabs = models.BooleanField(default=False, null=False)
 
     _right_groups = None
-    _same_level_readable_rights = None
-    _inf_level_readable_rights = None
+    _rights_allowing_to_read_accesses_on_same_level = None
+    _rights_allowing_to_read_accesses_on_inferior_levels = None
 
     @staticmethod
     def q_allow_read_patient_data_nominative() -> Q:
@@ -135,32 +135,24 @@ class Role(BaseModel):
                         Q(role__right_export_jupyter_pseudonymized=True)])
 
     @staticmethod
+    def q_allow_manage_accesses_on_same_level() -> Q:
+        return join_qs([Q(**{f'role__{right.name}': True})
+                        for right in all_rights if right.allow_edit_accesses_on_same_level])
+
+    @staticmethod
+    def q_allow_manage_accesses_on_inf_levels() -> Q:
+        return join_qs([Q(**{f'role__{right.name}': True})
+                        for right in all_rights if right.allow_edit_accesses_on_inf_levels])
+
+    @staticmethod
     def q_allow_manage_accesses_on_any_level() -> Q:
         return join_qs([Q(**{f'role__{right.name}': True})
                         for right in all_rights if right.allow_edit_accesses_on_any_level])
 
     @staticmethod
-    def q_allow_manage_accesses_on_inf_levels() -> Q:
-        return join_qs([Q(**{f'role__{right.name}': True}) for right in all_rights
-                        if right.allow_edit_accesses_on_inf_levels
-                        or right.allow_read_accesses_on_inf_levels])
-
-    @staticmethod
-    def q_allow_manage_accesses_on_same_level() -> Q:
-        return join_qs([Q(**{f'role__{right.name}': True}) for right in all_rights
-                        if right.allow_edit_accesses_on_same_level
-                        or right.allow_read_accesses_on_same_level])
-
-    @staticmethod
-    def q_manage_accesses_on_any_level() -> Q:
-        return join_qs([Q(**{f'role__{right.name}': True}) for right in all_rights
-                        if right.allow_read_accesses_on_any_level
-                        or right.allow_edit_accesses_on_any_level])
-
-    @staticmethod
-    def q_impacts_lower_levels() -> Q:
-        return join_qs([Q(**{f"role__{right.name}": True}) for right in all_rights
-                        if right.impact_lower_levels])
+    def q_impact_inferior_levels() -> Q:
+        return join_qs([Q(**{f"role__{right.name}": True})
+                        for right in all_rights if right.impact_inferior_levels])
 
     @property
     def can_manage_accesses(self):
@@ -170,8 +162,7 @@ class Role(BaseModel):
                     self.right_manage_data_accesses_same_level,
                     self.right_manage_data_accesses_inferior_levels,
                     self.right_manage_export_jupyter_accesses,
-                    self.right_manage_export_csv_accesses
-                    ))
+                    self.right_manage_export_csv_accesses))
 
     @property
     def can_read_accesses(self):
@@ -180,22 +171,19 @@ class Role(BaseModel):
                     self.right_read_admin_accesses_inferior_levels,
                     self.right_read_accesses_above_levels,
                     self.right_read_data_accesses_same_level,
-                    self.right_read_data_accesses_inferior_levels
-                    ))
+                    self.right_read_data_accesses_inferior_levels))
 
 # -+-+-+-+-+-+-+-+-+-+-+-+-     Requirements to be managed    -+-+-+-+-+-+-+-+-+-+-+-+-
 
     @property
     def requires_csv_accesses_managing_role_to_be_managed(self):    # requires having: right_manage_export_csv_accesses = True
         return any((self.right_export_csv_nominative,
-                    self.right_export_csv_pseudonymized
-                    ))
+                    self.right_export_csv_pseudonymized))
 
     @property
     def requires_jupyter_accesses_managing_role_to_be_managed(self):    # requires having: right_manage_export_jupyter_accesses = True
         return any((self.right_export_jupyter_nominative,
-                    self.right_export_jupyter_pseudonymized
-                    ))
+                    self.right_export_jupyter_pseudonymized))
 
     @property
     def requires_data_accesses_managing_role_to_be_managed(self):    # requires having: right_manage/read_data_accesses_xxx_level = True
@@ -206,8 +194,7 @@ class Role(BaseModel):
                     self.right_read_patient_nominative,
                     self.right_read_patient_pseudonymized,
                     self.right_search_patients_by_ipp,
-                    self.right_read_research_opposed_patient_data
-                    ))
+                    self.right_read_research_opposed_patient_data))
 
     @property
     def requires_admin_accesses_managing_role_to_be_managed(self):
@@ -226,27 +213,14 @@ class Role(BaseModel):
                     self.right_read_datalabs,
                     self.right_manage_datalabs,
                     self.right_manage_export_csv_accesses,
-                    self.right_manage_export_jupyter_accesses
-                    ))
+                    self.right_manage_export_jupyter_accesses))
 
 # -+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 
-    # def get_specific_readable_rights(self, rights_filter: Callable[[RightGroup], List[Right]]) -> List[str]:     # todo: understand this
-    #     res = []
-    #     for rg in self.right_groups:
-    #         for right in rights_filter(rg):
-    #             if getattr(self, right.name, False):
-    #                 readable_rights = sum([[r.name for r in c.rights] for c in rg.child_groups], [])
-    #                 if any(c.child_groups for c in rg.child_groups):
-    #                     readable_rights.append("right_read_users")  # if the RG has a subgroup and sub-subgroup
-    #                 res.extend(readable_rights)
-    #     return list(set(res))
-
     @property
-    def right_groups(self) -> List[RightGroup]:     # todo: understand this     OK
+    def right_groups(self) -> List[RightGroup]:
         """
         get the RightGroups to which belong the rights that are activated on the current Role.
-        among the predefined RightGroups, get those containing the rights that are turned ON in this Role.
         """
         def get_right_groups(rg: RightGroup):
             res = []
@@ -261,30 +235,20 @@ class Role(BaseModel):
         return self._right_groups
 
     @property
-    def rights_allowing_to_read_accesses_on_same_level(self) -> List[str]:     # todo: understand this      OK
-        """
-        return the list of rights that are ON in this Role which allow to read on the same level
-        todo: replaced the commented code snippet. this way we do not need right_group, read the rights directly from Role
-        """
-        if self._same_level_readable_rights is None:
-            # self._same_level_readable_rights = self.get_specific_readable_rights(rights_filter=lambda rg: rg.rights_read_on_same_level)
-            self._same_level_readable_rights = [right.name for right in all_rights
-                                                if getattr(self, right.name, False)
-                                                and right.allow_read_accesses_on_same_level]
-        return self._same_level_readable_rights
+    def rights_allowing_to_read_accesses_on_same_level(self) -> List[str]:
+        if self._rights_allowing_to_read_accesses_on_same_level is None:
+            self._rights_allowing_to_read_accesses_on_same_level = [right.name for right in all_rights
+                                                                    if getattr(self, right.name, False)
+                                                                    and right.allow_read_accesses_on_same_level]
+        return self._rights_allowing_to_read_accesses_on_same_level
 
     @property
-    def rights_allowing_to_read_accesses_on_inferior_levels(self) -> List[str]:     # todo: understand this      OK
-        """
-        return the list of rights that are ON in this Role which allow to read on inferior levels
-        todo: replaced the commented code snippet. this way we do not need right_group, read the rights directly from Role
-        """
-        if self._inf_level_readable_rights is None:
-            # self._inf_level_readable_rights = self.get_specific_readable_rights(rights_filter=lambda rg: rg.rights_read_on_inferior_levels)
-            self._inf_level_readable_rights = [right.name for right in all_rights
-                                               if getattr(self, right.name, False)
-                                               and right.allow_read_accesses_on_inf_levels]
-        return self._inf_level_readable_rights
+    def rights_allowing_to_read_accesses_on_inferior_levels(self) -> List[str]:
+        if self._rights_allowing_to_read_accesses_on_inferior_levels is None:
+            self._rights_allowing_to_read_accesses_on_inferior_levels = [right.name for right in all_rights
+                                                                         if getattr(self, right.name, False)
+                                                                         and right.allow_read_accesses_on_inf_levels]
+        return self._rights_allowing_to_read_accesses_on_inferior_levels
 
     @property
     def unreadable_rights(self) -> List[Dict]:     # todo: understand this
