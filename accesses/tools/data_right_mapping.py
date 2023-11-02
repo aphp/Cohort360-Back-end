@@ -6,7 +6,7 @@ from accesses.models import Perimeter
 class PerimeterReadRight:
     def __init__(self, perimeter: Perimeter, pseudo: bool = False, nomi: bool = False, ipp: bool = False):
         """
-        @return: a default DataRight as required by the serializer
+        @return: a default PerimeterReadRight as required by the serializer
         """
 
         self.perimeter: Perimeter = perimeter

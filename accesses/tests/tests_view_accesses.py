@@ -1053,7 +1053,7 @@ class AccessGetTests(AccessTests):
 
 
 class AccessDataRightsTests(ViewSetTestsWithBasicPerims):
-    list_view = AccessViewSet.as_view({'get': 'data_rights'})
+    list_view = AccessViewSet.as_view({'get': 'get_my_data_reading_rights'})
     objects_url = "/accesses/my-rights"
 
     def create_data_access(self, role: Role, perim: Perimeter) -> Access:

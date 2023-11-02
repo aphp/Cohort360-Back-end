@@ -19,7 +19,7 @@ from admin_cohort.settings import PERIMETERS_TYPES, ACCESS_EXPIRY_FIRST_ALERT_IN
 from admin_cohort.tools import join_qs
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.views import BaseViewset, CustomLoggingMixin
-from ..models import Access, get_user_valid_manual_accesses, intersect_queryset_criteria, build_data_rights, Perimeter, Role
+from ..models import Access, get_user_valid_manual_accesses, intersect_queryset_criteria, get_data_reading_rights, Perimeter, Role
 from ..permissions import AccessesPermission
 from ..serializers import AccessSerializer, DataRightSerializer, ExpiringAccessesSerializer
 
@@ -261,43 +261,21 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
             accesses = min_access_per_perimeter.values()
         return Response(data=self.get_serializer(accesses, many=True).data, status=status.HTTP_200_OK)
 
-    @swagger_auto_schema(operation_description="Returns particular type of objects, describing the data rights that a "
-                                               "user has on a care-sites. AT LEAST one parameter is necessary",
-                         manual_parameters=[i for i in map(lambda x: openapi.Parameter(
-                             name=x[0], in_=openapi.IN_QUERY, description=x[1], type=x[2],
-                             pattern=x[3] if len(x) == 4 else None),
-                                                           [["care-site-ids", "(to deprecate -> perimeters_ids). care-sites list "
-                                                                              "to limit the result on. Sep: ','", openapi.TYPE_STRING],
-                                                            ["perimeters_ids", "Perimeters list to limit the result. Sep: ','", openapi.TYPE_STRING]
-                                                            ])],
-                         responses={200: openapi.Response('Rights found', DataRightSerializer),
-                                    400: openapi.Response('perimeters_ids and pop_children are both null')})
-    @action(url_path="my-rights", detail=False, methods=['get'], permission_classes=[IsAuthenticated], filter_backends=[], pagination_class=None)
+    @swagger_auto_schema(operation_description="Returns the list of rights allowing to read patients data on given perimeters.",
+                         manual_parameters=[i for i in map(lambda x: openapi.Parameter(in_=openapi.IN_QUERY, name=x[0], description=x[1],
+                                                                                       type=x[2], pattern=x[3] if len(x) == 4 else None),
+                                                           [["perimeters_ids", "Perimeters IDs on which compute data rights, separated by ','",
+                                                             openapi.TYPE_STRING]])],
+                         responses={200: openapi.Response('Data Rights computed per perimeter', DataRightSerializer)})
+    @action(methods=['get'], url_path="my-rights", detail=False, permission_classes=[IsAuthenticated], pagination_class=None)
     @cache_response()
-    def get_my_data_rights(self, request, *args, **kwargs):
-        """
-        get
-        """
-        perimeters_ids = request.query_params.get('perimeters_ids',
-                                                  request.query_params.get('care-site-ids'))
+    def get_my_data_reading_rights(self, request, *args, **kwargs):
+        perimeters_ids = request.query_params.get('perimeters_ids')     # todo: remove param `care-site-ids` in the frontend side
         if perimeters_ids:
             urldecode_perimeters = urllib.parse.unquote(urllib.parse.unquote((str(perimeters_ids))))
             perimeters_ids = [int(i) for i in urldecode_perimeters.split(",")]
         else:
             perimeters_ids = []
-
-        results = build_data_rights(user=request.user,
-                                    perimeters_ids=perimeters_ids)
-        return Response(data=DataRightSerializer(results, many=True).data,
+        data_rights = get_data_reading_rights(user=request.user, target_perimeters_ids=perimeters_ids)
+        return Response(data=DataRightSerializer(data_rights, many=True).data,
                         status=status.HTTP_200_OK)
-
-
-# /!\     start here
-#
-# start by documenting how the fallowing endpoints would behave:
-#     "/accesses/accesses/my-accesses"
-#     "/accesses/accesses/my-rights"
-#
-# what result should be sent back to the user
-
-

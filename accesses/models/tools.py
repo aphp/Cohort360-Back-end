@@ -152,258 +152,137 @@ def get_user_data_accesses(user: User) -> QuerySet:
                                                .prefetch_related('role')
 
 
-def get_data_accesses_and_rights(user: User) -> List[Access]:     # todo: understand this       OK
-    """
-    :param user: user to get the datarights from
-    :return: user's valid accesses completed with perimeters with their parents
-    prefetched and role fields useful to build DataRight
-    """
+def get_data_accesses_annotated_with_rights(user: User) -> QuerySet:
     return get_user_data_accesses(user).prefetch_related("role", "profile") \
                                        .prefetch_related(Prefetch('perimeter',
                                                                   queryset=Perimeter.objects.all().
                                                                   select_related(*["parent" + i * "__parent"
                                                                                    for i in range(0, len(PERIMETERS_TYPES) - 2)]))) \
-                                       .annotate(pseudo=F('role__right_read_patient_pseudonymized'),
-                                                 search_ipp=F('role__right_search_patients_by_ipp'),
-                                                 nomi=F('role__right_read_patient_nominative'),
-                                                 exp_pseudo=F('role__right_export_csv_pseudonymized'),
-                                                 exp_nomi=F('role__right_export_csv_nominative'),
-                                                 jupy_pseudo=F('role__right_export_jupyter_pseudonymized'),
-                                                 jupy_nomi=F('role__right_export_jupyter_nominative'))
+                                       .annotate(right_read_patient_nominative=F('role__right_read_patient_nominative'),
+                                                 right_read_patient_pseudonymized=F('role__right_read_patient_pseudonymized'),
+                                                 right_search_patients_by_ipp=F('role__right_search_patients_by_ipp'),
+                                                 right_read_research_opposed_patient_data=F('role__right_read_research_opposed_patient_data'),
+                                                 right_export_csv_pseudonymized=F('role__right_export_csv_pseudonymized'),
+                                                 right_export_csv_nominative=F('role__right_export_csv_nominative'),
+                                                 right_export_jupyter_pseudonymized=F('role__right_export_jupyter_pseudonymized'),
+                                                 right_export_jupyter_nominative=F('role__right_export_jupyter_nominative'))
 
 
-def get_data_rights_per_perimeter(user: User,
-                                  data_accesses: List[Access],
-                                  perimeters: List[Perimeter] = None) -> Dict[int, DataRight]:     # todo: understand this     OK
-    """
-    Given data accesses, will merge accesses from same perimeter
-    into a DataRight, not considering those
-    with only global rights (exports, etc.)
-    Will add empty DataRights from perimeters
-    Will refer these DataRights to each perimeter_id using a dict
-    :param user: user for whom we are defining the DataRights
-    :param data_accesses: accesses we build the DataRights from
-    :param perimeters: Perimeter we need to consider in the result
-    :return: Dict binding perimeter_ids with the DataRights bound to them
-    """
+def get_data_rights_from_accesses(user: User, data_accesses: QuerySet) -> List[DataRight]:
+    accesses_with_reading_patient_data_rights = data_accesses.filter(join_qs([Q(role__right_read_patient_nominative=True),
+                                                                              Q(role__right_read_patient_pseudonymized=True),
+                                                                              Q(role__right_search_patients_by_ipp=True),
+                                                                              Q(role__right_read_research_opposed_patient_data=True)]))
+    return [DataRight(user_id=user.pk, perimeter=access.perimeter, reading_rights=access.__dict__)
+            for access in accesses_with_reading_patient_data_rights]
+
+
+def get_data_rights_for_target_perimeters(user: User, target_perimeters: QuerySet) -> List[DataRight]:
+    return [DataRight(user_id=user.pk, perimeter=perimeter, reading_rights=None)
+            for perimeter in target_perimeters]
+
+
+def group_data_rights_by_perimeter(data_rights: List[DataRight]) -> Dict[int, DataRight]:
     data_rights_per_perimeter = {}
-
-    def group_by_perimeter(dr: DataRight):
+    for dr in data_rights:
         perimeter_id = dr.perimeter.id
         if perimeter_id not in data_rights_per_perimeter:
             data_rights_per_perimeter[perimeter_id] = dr
         else:
-            data_rights_per_perimeter[perimeter_id].add_right(dr)
-
-    for access in data_accesses:
-        data_right = DataRight(user_id=user.pk,
-                               access_ids=[access.id],
-                               perimeter=access.perimeter,
-                               **access.__dict__)
-        if data_right.has_data_reading_right:
-            group_by_perimeter(dr=data_right)
-
-    for perimeter in perimeters:
-        group_by_perimeter(dr=DataRight(user_id=user.pk,
-                                        access_ids=[],
-                                        perimeter=perimeter))
+            data_rights_per_perimeter[perimeter_id].acquire_extra_data_reading_rights(dr=dr)
     return data_rights_per_perimeter
 
 
-def complete_data_rights_and_pop_children(data_rights_per_perimeter: Dict[int, DataRight],
-                                          perimeters_ids: List[int],
-                                          pop_children: bool) -> List[DataRight]:     # todo: understand this
-    """
-    Will complete DataRight given the others bound to its perimeter's parents
-
-    If perimeters_ids is not empty, at the end we keep only DataRight
-    bound to them
-
-    If pop_children is True, will also pop DataRights that are redundant given
-    their perimeter's parents, following this rule :
-    If a child DataRight does not have a right that a parent does not have,
-    then it is removed
-    With a schema : a row is a DataRight,
-    columns are rights nomi, pseudo, search_ipp
-    and from up to bottom is parent-to-children links,
-    Ex. 1:                      Ex. 2:
-    0  1  1      0  1  1        0  0  1      0  0  1
-       |     ->                    |
-    1  1  0      1  1  1        1  0  0      1  0  1
-       |                           |     ->
-    0  0  1                     0  0  1
-       |                           |
-    1  1  1                     1  1  1      1  1  1
-    :param data_rights_per_perimeter: rights to read and complete
-    :param perimeters_ids: perimeter to keep at the end
-    :param pop_children: true if we want to clean redundant DataRights
-    :return:
-    """
+def share_data_reading_rights_over_relative_hierarchy(data_rights_per_perimeter: Dict[int, DataRight]) -> List[DataRight]:
     processed_perimeters = []
-    perimeters_to_remove = []
-    for data_right in data_rights_per_perimeter.values():
-        # if we've already processed this perimeter, it means the DataRight
-        # is already completed with its parents' DataRights
-        if data_right.perimeter.id in processed_perimeters:
-            continue
-        processed_perimeters.append(data_right.perimeter.id)
 
-        # will contain each DataRight we meet following first data_right's parents
+    for perimeter_id, data_right in data_rights_per_perimeter.items():
+        if perimeter_id in processed_perimeters:
+            continue
+        processed_perimeters.append(perimeter_id)
+
         parental_chain = [data_right]
 
-        # we now go from parent to parent to complete each DataRight
-        # inheriting from them with more granted rights
-        parent_perimeter = data_right.perimeter.parent
+        parent_perimeter = Perimeter.objects.get(pk=perimeter_id).parent
         while parent_perimeter:
             parent_data_right = data_rights_per_perimeter.get(parent_perimeter.id)
             if not parent_data_right:
                 parent_perimeter = parent_perimeter.parent
                 continue
 
-            [data_right.add_right(parent_data_right) for data_right in parental_chain]
+            for dr in parental_chain:
+                dr.acquire_extra_data_reading_rights(dr=parent_data_right)
+
             parental_chain.append(parent_data_right)
 
-            # if we've already processed this perimeter, it means the DataRight
-            # is completed already, no need to go on with the loop
             if parent_perimeter.id in processed_perimeters:
                 break
             processed_perimeters.append(parent_perimeter.id)
             parent_perimeter = parent_perimeter.parent
-
-        # Now that all rights in parental_chain are completed with granted
-        # rights from parent DataRights,
-        # a DataRight not having more granted rights than their parent means
-        # they do not bring different rights to the user on their perimeter
-        biggest_rights = parental_chain[-1].count_granted_rights
-        for r in parental_chain[-2::-1]:
-            if r.count_granted_rights <= biggest_rights:
-                perimeters_to_remove.append(r.perimeter.id)
-
-    data_rights = list(data_rights_per_perimeter.values())
-    if perimeters_ids:
-        data_rights = [dr for dr in data_rights if dr.perimeter.id in perimeters_ids]
-    if pop_children:
-        data_rights = [dr for dr in data_rights if dr.perimeter.id not in perimeters_to_remove]
-    return data_rights
+    return list(data_rights_per_perimeter.values())
 
 
-def complete_data_right_with_global_rights(user: User,
-                                           data_rights: List[DataRight],
-                                           data_accesses: List[Access]):     # todo: understand this
-    """
-    Given the user's data_accesses, filter the DataRights
-    with global data rights (exports, etc.),
-    and add them to the others DataRight
-    :param user:
-    :param data_rights:
-    :param data_accesses:
-    :return:
-    """
-    global_rights = []
-    for access in data_accesses:
-        dr = DataRight(user_id=user.pk,
-                       access_ids=[access.id],
-                       perimeter=access.perimeter,
-                       **access.__dict__)
-        if dr.has_global_data_right:
-            global_rights.append(dr)
-
-    for dr in data_rights:
-        for gr in global_rights:
-            dr.add_global_right(gr)
+def share_global_rights_over_relative_hierarchy(user: User, data_rights: List[DataRight], data_accesses: QuerySet[Access]):
+    for access in data_accesses.filter(join_qs([Q(role__right_export_csv_nominative=True),
+                                                Q(role__right_export_csv_pseudonymized=True),
+                                                Q(role__right_export_jupyter_nominative=True),
+                                                Q(role__right_export_jupyter_pseudonymized=True)])):
+        global_dr = DataRight(user_id=user.pk,
+                              reading_rights=access.__dict__,
+                              perimeter=None)
+        for dr in data_rights:
+            dr.acquire_extra_global_rights(global_dr)
 
 
-def build_data_rights(user: User, perimeters_ids: List[int] = None) -> List[DataRight]:     # todo: understand this
-    """
-    Define what perimeter-bound and global data right the user is granted
-    If perimeters_ids is not empty, will only return the DataRights
-    on these perimeters
-    If pop_children, will pop redundant DataRights, that does not bring more
-    than the ones from their perimeter's parents
-    :param user:
-    :param perimeters_ids:
-    :return:
-    """
-    perimeters_ids = perimeters_ids or []
-    data_accesses = get_data_accesses_and_rights(user)
-    perimeters = Perimeter.objects.filter(id__in=perimeters_ids)\
-                                  .select_related(*[f"parent{i * '__parent'}" for i in range(0, len(PERIMETERS_TYPES) - 2)])
+def get_data_reading_rights(user: User, target_perimeters_ids: List[int]) -> List[DataRight]:
+    data_accesses = get_data_accesses_annotated_with_rights(user)
+    target_perimeters = Perimeter.objects.filter(id__in=target_perimeters_ids)\
+                                         .select_related(*[f"parent{i * '__parent'}" for i in range(0, len(PERIMETERS_TYPES) - 2)])
 
-    # we merge accesses into rights from same perimeter_id
-    data_rights_per_perimeter = get_data_rights_per_perimeter(user=user, data_accesses=data_accesses, perimeters=perimeters)
+    data_rights_from_accesses = get_data_rights_from_accesses(user=user,
+                                                              data_accesses=data_accesses)
+    data_rights_for_perimeters = []
+    if target_perimeters:
+        data_rights_for_perimeters = get_data_rights_for_target_perimeters(user=user,
+                                                                           target_perimeters=target_perimeters)
+    data_rights_per_perimeter = group_data_rights_by_perimeter(data_rights=data_rights_from_accesses + data_rights_for_perimeters)
 
-    rights = complete_data_rights_and_pop_children(data_rights_per_perimeter=data_rights_per_perimeter,
-                                                   perimeters_ids=perimeters_ids,
-                                                   pop_children=False)
+    data_rights = share_data_reading_rights_over_relative_hierarchy(data_rights_per_perimeter=data_rights_per_perimeter)
 
-    complete_data_right_with_global_rights(user, rights, data_accesses)
+    share_global_rights_over_relative_hierarchy(user=user,
+                                                data_rights=data_rights,
+                                                data_accesses=data_accesses)
+    if target_perimeters:
+        data_rights = filter(lambda dr: dr.perimeter in target_perimeters, data_rights)
 
-    return [r for r in rights if r.has_data_reading_right]
+    return [dr for dr in data_rights if any((dr.right_read_patient_nominative,
+                                             dr.right_read_patient_pseudonymized,
+                                             dr.right_search_patients_by_ipp,
+                                             dr.right_read_research_opposed_patient_data))]
 
 
-class DataRight:     # todo: ----------------------     rename this class
-    def __init__(self, user_id: str, access_ids: List[int], perimeter: Perimeter, **kwargs):
+class DataRight:
+    def __init__(self, user_id: str, perimeter: Perimeter = None, reading_rights: dict = None):
+        reading_rights = reading_rights or {}
         self.user_id = user_id
-        self.access_ids = access_ids or []
         self.perimeter = perimeter
-        self.right_read_patient_nominative = kwargs.get("nomi", False)
-        self.right_read_patient_pseudonymized = kwargs.get("pseudo", False)
-        self.right_search_patients_by_ipp = kwargs.get("search_ipp", False)
-        self.right_read_research_opposed_patient_data = kwargs.get("read_opposing", False)
-        self.right_export_csv_nominative = kwargs.get("exp_csv_nomi", False)
-        self.right_export_csv_pseudonymized = kwargs.get("exp_csv_pseudo", False)
-        self.right_export_jupyter_nominative = kwargs.get("exp_jupy_nomi", False)
-        self.right_export_jupyter_pseudonymized = kwargs.get("exp_jupy_pseudo", False)
+        self.right_read_patient_nominative = reading_rights.get("right_read_patient_nominative", False)
+        self.right_read_patient_pseudonymized = reading_rights.get("right_read_patient_pseudonymized", False)
+        self.right_search_patients_by_ipp = reading_rights.get("right_search_patients_by_ipp", False)
+        self.right_read_research_opposed_patient_data = reading_rights.get("right_read_research_opposed_patient_data", False)
+        self.right_export_csv_nominative = reading_rights.get("right_export_csv_nominative", False)
+        self.right_export_csv_pseudonymized = reading_rights.get("exp_csv_pseudo", False)
+        self.right_export_jupyter_nominative = reading_rights.get("right_export_csv_pseudonymized", False)
+        self.right_export_jupyter_pseudonymized = reading_rights.get("right_export_jupyter_pseudonymized", False)
 
-    @property
-    def granted_rights(self) -> List[str]:
-        return [r for r in ['right_read_patient_nominative',
-                            'right_read_patient_pseudonymized',
-                            'right_search_patients_by_ipp',
-                            'right_read_research_opposed_patient_data'
-                            ] if getattr(self, r, False)]
+    def acquire_extra_data_reading_rights(self, dr: DataRight):
+        self.right_read_patient_nominative = self.right_read_patient_nominative or dr.right_read_patient_nominative
+        self.right_read_patient_pseudonymized = self.right_read_patient_pseudonymized or dr.right_read_patient_pseudonymized
+        self.right_search_patients_by_ipp = self.right_search_patients_by_ipp or dr.right_search_patients_by_ipp
+        self.right_read_research_opposed_patient_data = self.right_read_research_opposed_patient_data or dr.right_read_research_opposed_patient_data
 
-    @property
-    def count_granted_rights(self) -> int:
-        return len(self.granted_rights)
-
-    def add_right(self, right: DataRight):
-        """
-        Adds a new DataRight access id to self access_ids
-        and grants new rights given by this new DataRight
-        :param right: other DataRight to complete with
-        :return:
-        """
-        self.access_ids = list(set(self.access_ids + right.access_ids))
-        self.right_read_patient_nominative = self.right_read_patient_nominative or right.right_read_patient_nominative
-        self.right_read_patient_pseudonymized = self.right_read_patient_pseudonymized or right.right_read_patient_pseudonymized
-        self.right_search_patients_by_ipp = self.right_search_patients_by_ipp or right.right_search_patients_by_ipp
-        self.right_read_research_opposed_patient_data = (self.right_read_research_opposed_patient_data
-                                                         or right.right_read_research_opposed_patient_data)
-
-    def add_global_right(self, right: DataRight):
-        """
-        Adds a new DataRight access id to self access_ids
-        and grants new rights given by this new DataRight
-        :param right: other DataRight to complete with
-        :return:
-        """
-        self.access_ids = list(set(self.access_ids + right.access_ids))
-        self.right_export_csv_nominative = self.right_export_csv_nominative or right.right_export_csv_nominative
-        self.right_export_csv_pseudonymized = self.right_export_csv_pseudonymized or right.right_export_csv_pseudonymized
-        self.right_export_jupyter_nominative = self.right_export_jupyter_nominative or right.right_export_jupyter_nominative
-        self.right_export_jupyter_pseudonymized = self.right_export_jupyter_pseudonymized or right.right_export_jupyter_pseudonymized
-
-    @property
-    def has_data_reading_right(self):
-        return self.right_read_patient_nominative \
-               or self.right_read_patient_pseudonymized \
-               or self.right_search_patients_by_ipp \
-               or self.right_read_research_opposed_patient_data
-
-    @property
-    def has_global_data_right(self):
-        return self.right_export_csv_nominative \
-               or self.right_export_csv_pseudonymized \
-               or self.right_export_jupyter_nominative \
-               or self.right_export_jupyter_pseudonymized
+    def acquire_extra_global_rights(self, dr: DataRight):
+        self.right_export_csv_nominative = self.right_export_csv_nominative or dr.right_export_csv_nominative
+        self.right_export_csv_pseudonymized = self.right_export_csv_pseudonymized or dr.right_export_csv_pseudonymized
+        self.right_export_jupyter_nominative = self.right_export_jupyter_nominative or dr.right_export_jupyter_nominative
+        self.right_export_jupyter_pseudonymized = self.right_export_jupyter_pseudonymized or dr.right_export_jupyter_pseudonymized

@@ -160,7 +160,7 @@ def get_dict_cohort_pop_source(cohorts_ids: list):
 class CohortRights:
     def __init__(self, cohort_id, rights_dict, **kwargs):
         """
-        @return: a default DataRight as required by the serializer
+        @return: a default CohortRights as required by the serializer
         """
         self.cohort_id = cohort_id
         self.rights = rights_dict
