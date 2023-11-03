@@ -30,23 +30,15 @@ ROLES_HELP_TEXT = dict(right_manage_roles="Gérer les rôles",
                                                                 "de leurs données pour la recherche")
 
 
-def build_help_text(text_root: str, to_same_level: bool, to_inferior_levels: bool, to_above_levels: bool):
+def build_help_text(text_root: str, on_same_level: bool, on_inferior_levels: bool):
     text = text_root
-    if to_same_level:
+    if on_same_level:
         text = f"{text} sur un périmètre exclusivement"
-        if to_inferior_levels:
+        if on_inferior_levels:
             text = f"{text.replace(' exclusivement', '')} et ses sous-périmètres"
-        if to_above_levels:
-            text = f"{text.replace(' exclusivement', '')} et ses périmètres parents"
-    elif to_inferior_levels:
+    elif on_inferior_levels:
         text = f"{text} sur les sous-périmètres exclusivement"
-        if to_above_levels:
-            text = f"{text.replace(' exclusivement', '')} et les périmètres parents"
-    elif to_above_levels:
-        text = f"{text} sur les périmètres parents exclusivement"
-    if text != text_root:
-        return text
-    return None
+    return text if text != text_root else ""
 
 
 class Role(BaseModel):
@@ -230,13 +222,13 @@ class Role(BaseModel):
                     break
             return res + sum([get_right_groups(c) for c in rg.child_groups], [])
 
-        if self._right_groups is None:
+        if self._right_groups is None:                          # todo: buggy /!\ as rights on Role may change but _right_groups remains the same
             self._right_groups = get_right_groups(rg=full_admin_rights)
         return self._right_groups
 
     @property
     def rights_allowing_to_read_accesses_on_same_level(self) -> List[str]:
-        if self._rights_allowing_to_read_accesses_on_same_level is None:
+        if self._rights_allowing_to_read_accesses_on_same_level is None:                    # todo: buggy /!\ as rights on Role may change
             self._rights_allowing_to_read_accesses_on_same_level = [right.name for right in all_rights
                                                                     if getattr(self, right.name, False)
                                                                     and right.allow_read_accesses_on_same_level]
@@ -244,7 +236,7 @@ class Role(BaseModel):
 
     @property
     def rights_allowing_to_read_accesses_on_inferior_levels(self) -> List[str]:
-        if self._rights_allowing_to_read_accesses_on_inferior_levels is None:
+        if self._rights_allowing_to_read_accesses_on_inferior_levels is None:               # todo: buggy /!\ as rights on Role may change
             self._rights_allowing_to_read_accesses_on_inferior_levels = [right.name for right in all_rights
                                                                          if getattr(self, right.name, False)
                                                                          and right.allow_read_accesses_on_inf_levels]
@@ -252,38 +244,39 @@ class Role(BaseModel):
 
     def get_help_text_for_right_manage_admin_accesses(self):
         return build_help_text(text_root="Gérer les accès des administrateurs",
-                               to_same_level=self.right_manage_admin_accesses_same_level,
-                               to_inferior_levels=self.right_manage_admin_accesses_inferior_levels,
-                               to_above_levels=False)
+                               on_same_level=self.right_manage_admin_accesses_same_level,
+                               on_inferior_levels=self.right_manage_admin_accesses_inferior_levels)
 
     def get_help_text_for_right_read_admin_accesses(self):
         return build_help_text(text_root="Consulter la liste des accès administrateurs",
-                               to_same_level=self.right_read_admin_accesses_same_level,
-                               to_inferior_levels=self.right_read_admin_accesses_inferior_levels,
-                               to_above_levels=self.right_read_accesses_above_levels)
+                               on_same_level=self.right_read_admin_accesses_same_level,
+                               on_inferior_levels=self.right_read_admin_accesses_inferior_levels)
 
     def get_help_text_for_right_manage_data_accesses(self):
         return build_help_text(text_root="Gérer les accès aux données patients",
-                               to_same_level=self.right_manage_data_accesses_same_level,
-                               to_inferior_levels=self.right_manage_data_accesses_inferior_levels,
-                               to_above_levels=False)
+                               on_same_level=self.right_manage_data_accesses_same_level,
+                               on_inferior_levels=self.right_manage_data_accesses_inferior_levels)
 
     def get_help_text_for_right_read_data_accesses(self):
         return build_help_text(text_root="Consulter la liste des accès aux données patients",
-                               to_same_level=self.right_read_data_accesses_same_level,
-                               to_inferior_levels=self.right_read_data_accesses_inferior_levels,
-                               to_above_levels=False)
+                               on_same_level=self.right_read_data_accesses_same_level,
+                               on_inferior_levels=self.right_read_data_accesses_inferior_levels)
+
+    def get_help_text_for_right_read_accesses_above_levels(self):
+        return self.right_read_accesses_above_levels \
+                and "Consulter la liste de tous les accès définis sur les périmètres parents" or ""
 
     @property
     def help_text(self):
-        level_agnostic_rights = [r.name for r in all_rights if not (r.name.endswith('same_level')
-                                                                    or r.name.endswith('inferior_levels')
-                                                                    or r.name.endswith('above_levels'))]
-        help_txt = [ROLES_HELP_TEXT.get(r) for r in level_agnostic_rights if self.__dict__.get(r)]
+        hierarchy_agnostic_rights = [r.name for r in all_rights if not (r.name.endswith('same_level')
+                                                                        or r.name.endswith('inferior_levels')
+                                                                        or r.name.endswith('above_levels'))]
+        help_txt = [ROLES_HELP_TEXT.get(r) for r in hierarchy_agnostic_rights if self.__dict__.get(r)]
 
-        level_dependent_texts = [self.get_help_text_for_right_manage_admin_accesses() or "",
-                                 self.get_help_text_for_right_read_admin_accesses() or "",
-                                 self.get_help_text_for_right_manage_data_accesses() or "",
-                                 self.get_help_text_for_right_read_data_accesses() or ""]
-        help_txt.extend([text for text in level_dependent_texts if text])
+        hierarchy_dependent_texts = [self.get_help_text_for_right_manage_admin_accesses(),
+                                     self.get_help_text_for_right_read_admin_accesses(),
+                                     self.get_help_text_for_right_manage_data_accesses(),
+                                     self.get_help_text_for_right_read_data_accesses(),
+                                     self.get_help_text_for_right_read_accesses_above_levels()]
+        help_txt.extend([text for text in hierarchy_dependent_texts if text])
         return help_txt

@@ -2,7 +2,19 @@
 
 from django.db import migrations, models
 
+from accesses.rights import all_rights
+
 query_fill_right_full_admin_by_right_manage_roles = "UPDATE accesses_role SET right_full_admin = right_manage_roles;"
+
+
+def revoke_other_rights_for_full_admin_roles(apps, schema_editor):
+    role_model = apps.get_model('accesses', 'Role')
+    db_alias = schema_editor.connection.alias
+
+    for role in role_model.objects.using(db_alias).filter(right_full_admin=True):
+        for right in filter(lambda r: r.name != "right_full_admin", all_rights):
+            setattr(role, right.name, False)
+            role.save()
 
 
 class Migration(migrations.Migration):
@@ -88,4 +100,5 @@ class Migration(migrations.Migration):
             new_name='right_read_research_opposed_patient_data',
         ),
         migrations.RunSQL(sql=query_fill_right_full_admin_by_right_manage_roles),
+        migrations.RunPython(code=revoke_other_rights_for_full_admin_roles)
     ]

@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveField(  # ---------------------------------------   REMOVED
+        migrations.RemoveField(
             model_name='role',
             name='right_edit_users',
         ),
