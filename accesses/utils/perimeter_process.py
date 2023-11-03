@@ -1,8 +1,9 @@
 from django.http import Http404
 from rest_framework.exceptions import ValidationError
 
-from accesses.models import Perimeter, Access, Role, get_user_valid_manual_accesses
-from accesses.tools.data_right_mapping import PerimeterReadRight
+from accesses.models import Perimeter, Access, Role
+from accesses.tools import get_user_valid_manual_accesses
+from accesses.utils.data_right_mapping import PerimeterReadRight
 from cohort.models import CohortResult
 from cohort.tools import get_list_cohort_id_care_site
 
@@ -21,7 +22,7 @@ def is_perimeter_in_top_hierarchy(above_list: [int], all_distinct_perimeters: [P
     return is_top
 
 
-def get_top_perimeter_same_level(accesses_same_levels: [Access], all_distinct_perimeters: [Perimeter]) -> [Perimeter]:
+def get_top_perimeter_same_level(same_level_accesses: [Access], all_distinct_perimeters: [Perimeter]) -> [Perimeter]:
     """
     for each perimeter in same level access we get the above perimeter list.
     if we find an id in this list one id already present in another access,
@@ -30,7 +31,7 @@ def get_top_perimeter_same_level(accesses_same_levels: [Access], all_distinct_pe
     We consider a right on a same level equal to right on the current level and all children
     """
     response_list = []
-    for access in accesses_same_levels:
+    for access in same_level_accesses:
         perimeter = access.perimeter
         if perimeter is None:
             continue
@@ -40,8 +41,8 @@ def get_top_perimeter_same_level(accesses_same_levels: [Access], all_distinct_pe
     return response_list
 
 
-def get_top_perimeter_inf_level(accesses_inf_levels: [Access], all_distinct_perimeters: [Perimeter],
-                                same_level_perimeters_response: [Perimeter]) -> [Perimeter]:
+def get_top_perimeter_inf_level(inf_level_accesses: [Access], all_distinct_perimeters: [Perimeter],
+                                top_perimeter_same_level: [Perimeter]) -> [Perimeter]:
     """
     for each perimeter in inferior level access we get the above perimeter list.
     if we find an id in this list one id already present in another access,
@@ -49,13 +50,13 @@ def get_top_perimeter_inf_level(accesses_inf_levels: [Access], all_distinct_peri
     if it is, we add all children perimeter id to the list
     """
     response_list = []
-    for access in accesses_inf_levels:
+    for access in inf_level_accesses:
         perimeter = access.perimeter
         if perimeter is None:
             continue
         above_list = perimeter.above_levels
         if is_perimeter_in_top_hierarchy(above_list, all_distinct_perimeters) and \
-                is_perimeter_in_top_hierarchy([perimeter.id], same_level_perimeters_response):
+                is_perimeter_in_top_hierarchy([perimeter.id], top_perimeter_same_level):
             if perimeter.inferior_levels_ids is None:
                 print("WARN: No lower levels perimeters found! ")
             children_list = perimeter.inferior_levels
@@ -73,8 +74,6 @@ def filter_perimeter_by_top_hierarchy_perimeter_list(perimeters_filtered_by_sear
     If there is no search params it return the previous top hierarchy compute response.
     """
     response_list = []
-    if not perimeters_filtered_by_search:
-        return top_hierarchy_perimeter_list
     for perimeter in perimeters_filtered_by_search:
         above_levels_ids = perimeter.above_levels
         for top_perimeter in top_hierarchy_perimeter_list:

@@ -6,13 +6,14 @@ from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from accesses.models import Role, Perimeter
+from accesses.permissions import RolesPermission
+from accesses.serializers import RoleSerializer, UsersInRoleSerializer
+from accesses.tools import do_user_accesses_allow_to_manage_role
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.permissions import IsAuthenticated, UsersPermission
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from admin_cohort.views import BaseViewset, CustomLoggingMixin
-from ..models import Role, Perimeter, do_user_accesses_allow_to_manage_role
-from ..permissions import RolesPermission
-from ..serializers import RoleSerializer, UsersInRoleSerializer
 
 
 class RoleFilter(filters.FilterSet):

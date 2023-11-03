@@ -2,6 +2,8 @@ from django.db.models.query import QuerySet
 from rest_framework import permissions
 from rest_framework.permissions import OR as drf_OR
 
+from accesses.models import Role
+from accesses.tools import get_user_valid_manual_accesses
 from admin_cohort.models import User
 from admin_cohort.settings import ETL_USERNAME
 
@@ -19,7 +21,6 @@ def get_bound_roles(user: User) -> QuerySet:
     @return:
     @rtype:
     """
-    from accesses.models import get_user_valid_manual_accesses, Role
 
     accesses = get_user_valid_manual_accesses(user)
     return Role.objects.filter(id__in=[a.role_id for a in accesses])

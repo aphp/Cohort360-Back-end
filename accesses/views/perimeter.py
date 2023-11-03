@@ -14,9 +14,10 @@ from admin_cohort.permissions import IsAuthenticatedReadOnly
 from admin_cohort.tools import join_qs
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from admin_cohort.views import BaseViewset
-from ..models import Role, Perimeter, get_user_valid_manual_accesses
-from ..serializers import PerimeterSerializer, PerimeterLiteSerializer, DataReadRightSerializer, ReadRightPerimeter
-from ..tools.perimeter_process import get_top_perimeter_same_level, get_top_perimeter_inf_level, \
+from accesses.models import Role, Perimeter
+from accesses.tools import get_user_valid_manual_accesses
+from accesses.serializers import PerimeterSerializer, PerimeterLiteSerializer, DataReadRightSerializer, ReadRightPerimeter
+from accesses.utils.perimeter_process import get_top_perimeter_same_level, get_top_perimeter_inf_level, \
     filter_perimeter_by_top_hierarchy_perimeter_list, filter_accesses_by_search_perimeters, get_read_patient_right, \
     get_top_perimeter_from_read_patient_accesses, is_pseudo_perimeter_in_top_perimeter, \
     has_at_least_one_read_nominative_right, \
@@ -68,7 +69,7 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewset):
 
     @swagger_auto_schema(method='get',
                          operation_summary="Get the top hierarchy perimeters on which the user has at least one role that allows to give accesses."
-                                           "-Same level right give access to current perimeter and lower levels."
+                                           "-Same level right give access to current perimeter and lower levels."   # todo: should be same level only
                                            "-Inferior level right give only access to children of current perimeter.",
                          responses={'200': openapi.Response("manageable perimeters found", PerimeterLiteSerializer())})
     @action(detail=False, methods=['get'], url_path="manageable")
@@ -80,20 +81,22 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewset):
         if request.query_params:
             perimeters_filtered_by_search = self.filter_queryset(self.get_queryset())
             if not perimeters_filtered_by_search:
-                return Response(data={"WARN": "No Perimeters Found"}, status=status.HTTP_204_NO_CONTENT)
+                return Response(data={"WARN": "No Perimeters Found"}, status=status.HTTP_200_OK)
 
-        if user_accesses.filter(Role.q_allow_manage_accesses_on_any_level()):
+        if user_accesses.filter(Role.q_allow_manage_accesses_on_any_level()).exists():   # i.e. having right to manage CSV/Jupyter Export accesses
             # if edit on any level, we don't care about perimeters' accesses; return the top perimeter hierarchy:
             top_hierarchy_perimeter = Perimeter.objects.filter(parent__isnull=True)
         else:
-            access_same_level = user_accesses.filter(Role.q_allow_manage_accesses_on_same_level())
-            access_inf_level = user_accesses.filter(Role.q_allow_manage_accesses_on_inf_levels())
+            same_level_accesses = user_accesses.filter(Role.q_allow_manage_accesses_on_same_level())
+            inf_level_accesses = user_accesses.filter(Role.q_allow_manage_accesses_on_inf_levels())
 
-            all_perimeters = {access.perimeter for access in access_same_level.union(access_inf_level)}
+            all_perimeters = {access.perimeter for access in same_level_accesses.union(inf_level_accesses)}
 
-            top_perimeter_same_level = list(set(get_top_perimeter_same_level(access_same_level, all_perimeters)))
-            top_perimeter_inf_level = get_top_perimeter_inf_level(access_inf_level, all_perimeters,
-                                                                  top_perimeter_same_level)
+            top_perimeter_same_level = list(set(get_top_perimeter_same_level(same_level_accesses=same_level_accesses,
+                                                                             all_distinct_perimeters=all_perimeters)))
+            top_perimeter_inf_level = get_top_perimeter_inf_level(inf_level_accesses=inf_level_accesses,
+                                                                  all_distinct_perimeters=all_perimeters,
+                                                                  top_perimeter_same_level=top_perimeter_same_level)
 
             # Apply Distinct to list
             top_hierarchy_perimeter = list(set(top_perimeter_inf_level + top_perimeter_same_level))

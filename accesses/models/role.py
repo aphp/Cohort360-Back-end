@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from typing import List, Dict
+from typing import List
 
 from django.db import models
 from django.db.models import Q
 
 from accesses.rights import RightGroup, full_admin_rights, all_rights
-from accesses.tools import intersect_queryset_criteria
 from admin_cohort.models import BaseModel
 from admin_cohort.tools import join_qs
 
@@ -28,7 +27,7 @@ ROLES_HELP_TEXT = dict(right_manage_roles="Gérer les rôles",
                        right_read_datalabs="Consulter les informations liées aux environnements de travail",
                        right_manage_datalabs="Gérer les environnements de travail",
                        right_read_research_opposed_patient_data="Détermine le droit de lecture de données des patients opposés à l'utilisation "
-                                                         "de leur données pour la recherche")
+                                                                "de leurs données pour la recherche")
 
 
 def build_help_text(text_root: str, to_same_level: bool, to_inferior_levels: bool, to_above_levels: bool):
@@ -70,7 +69,9 @@ class Role(BaseModel):
     right_manage_admin_accesses_inferior_levels = models.BooleanField(default=False, null=False)
     right_read_admin_accesses_inferior_levels = models.BooleanField(default=False, null=False)
 
-    right_read_accesses_above_levels = models.BooleanField(default=False, null=False)
+    # todo: process this right differently.
+    #       Add write/readonly option on it or maybe add new right:  `right_manage_accesses_above_levels` ?
+    right_read_accesses_above_levels = models.BooleanField(default=False, null=False)   #
 
     right_manage_data_accesses_same_level = models.BooleanField(default=False, null=False)
     right_read_data_accesses_same_level = models.BooleanField(default=False, null=False)
@@ -220,9 +221,7 @@ class Role(BaseModel):
 
     @property
     def right_groups(self) -> List[RightGroup]:
-        """
-        get the RightGroups to which belong the rights that are activated on the current Role.
-        """
+        """ get the RightGroups to which belong each activated right on the current Role."""
         def get_right_groups(rg: RightGroup):
             res = []
             for right in map(lambda r: r.name, rg.rights):
@@ -250,20 +249,6 @@ class Role(BaseModel):
                                                                          if getattr(self, right.name, False)
                                                                          and right.allow_read_accesses_on_inf_levels]
         return self._rights_allowing_to_read_accesses_on_inferior_levels
-
-    @property
-    def unreadable_rights(self) -> List[Dict]:     # todo: understand this
-        criteria = [{right.name: True} for right in all_rights]
-        for rg in self.right_groups:
-            rg_criteria = []
-            if any(getattr(self, right.name, False) for right in rg.rights_allowing_reading_accesses):
-                for child_group in rg.child_groups:
-                    if child_group.child_groups_rights:
-                        not_true = dict((right.name, False) for right in child_group.rights)
-                        rg_criteria.extend({right.name: True, **not_true} for right in child_group.child_groups_rights)
-                rg_criteria.extend({right.name: True} for right in rg.unreadable_rights)
-                criteria = intersect_queryset_criteria(criteria, rg_criteria)
-        return criteria
 
     def get_help_text_for_right_manage_admin_accesses(self):
         return build_help_text(text_root="Gérer les accès des administrateurs",

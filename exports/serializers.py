@@ -4,7 +4,8 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 import workspaces.conf_workspaces as conf_workspaces
-from accesses.models import DataRight, get_data_reading_rights, Perimeter
+from accesses.models import Perimeter
+from accesses.tools import DataRight, get_data_reading_rights
 from admin_cohort.types import JobStatus
 from admin_cohort.models import User
 from cohort.models import CohortResult

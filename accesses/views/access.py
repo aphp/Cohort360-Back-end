@@ -19,9 +19,10 @@ from admin_cohort.settings import PERIMETERS_TYPES, ACCESS_EXPIRY_FIRST_ALERT_IN
 from admin_cohort.tools import join_qs
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.views import BaseViewset, CustomLoggingMixin
-from ..models import Access, get_user_valid_manual_accesses, intersect_queryset_criteria, get_data_reading_rights, Perimeter, Role
-from ..permissions import AccessesPermission
-from ..serializers import AccessSerializer, DataRightSerializer, ExpiringAccessesSerializer
+from accesses.models import Access, Perimeter, Role
+from accesses.permissions import AccessesPermission
+from accesses.serializers import AccessSerializer, DataRightSerializer, ExpiringAccessesSerializer
+from accesses.tools import get_user_valid_manual_accesses, intersect_queryset_criteria, get_data_reading_rights, access_criteria_to_exclude
 
 
 class AccessFilter(filters.FilterSet):
@@ -107,7 +108,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
         also, if he has an access with ONLY right_read_data_accesses_inferior_levels on a perimeter P,
         then he cannot read accesses configured on perimeter P
         """
-        to_exclude = [access.get_criteria_to_exclude() for access in accesses]
+        to_exclude = [access_criteria_to_exclude(access) for access in accesses]
         if to_exclude:
             to_exclude = reduce(intersect_queryset_criteria, to_exclude)
             exclusion_queries = []
@@ -117,9 +118,9 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
                 if e.get('perimeter_not'):
                     exclusion_query = exclusion_query \
                                       & ~Q(perimeter_id__in=e['perimeter_not'])
-                if e.get('perimeter_children_not'):
+                if e.get('perimeter_not_child'):
                     exclusion_query = exclusion_query \
-                                      & ~join_qs([Q(**{f"perimeter__{i * 'parent__'}id__in": e['perimeter_children_not']})
+                                      & ~join_qs([Q(**{f"perimeter__{i * 'parent__'}id__in": e['perimeter_not_child']})
                                                   for i in range(1, len(PERIMETERS_TYPES))])
                 exclusion_queries.append(exclusion_query)
             q = exclusion_queries and q.exclude(join_qs(exclusion_queries)) or q

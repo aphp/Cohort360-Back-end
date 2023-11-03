@@ -1,6 +1,7 @@
 from rest_framework import permissions
 
-from accesses.models import Role, do_user_accesses_allow_to_manage_role, Perimeter
+from accesses.models import Role, Perimeter
+from accesses.tools import do_user_accesses_allow_to_manage_role
 from admin_cohort.models import User
 from admin_cohort.permissions import get_bound_roles
 
