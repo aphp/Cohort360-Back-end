@@ -22,20 +22,20 @@ def intersect_queryset_criteria(cs_a: List[Dict], cs_b: List[Dict]) -> List[Dict
     'True' factors (ex.: right_manage_roles=True)
     If an item is in both, we merge the two versions :
     - with keeping 'False' factors,
-    - with extending 'perimeter_not' and 'perimeter_not_child' lists
+    - with extending 'perimeter_not' and 'perimeter_children_not' lists
     :param cs_a:
     :param cs_b:
     :return:
     """
     #   [
-    #   {'right_manage_data_accesses_same_level': True, 'perimeter_not_child': [8312002244], 'perimeter_not': [8312002244]},
-    #   {'right_read_patient_pseudo_anonymised': True, 'perimeter_not_child': [8312002244], 'perimeter_not': [8312002244]},
-    #   {'right_search_patient_with_ipp': True, 'perimeter_not_child': [8312002244], 'perimeter_not': [8312002244]},
-    #   {'right_read_patient_nominative': True, 'perimeter_not_child': [8312002244], 'perimeter_not': [8312002244]},
-    #   {'right_read_data_accesses_inferior_levels': True, 'perimeter_not_child': [8312002244], 'perimeter_not': [8312002244]},
-    #   {'right_read_data_accesses_same_level': True, 'perimeter_not_child': [8312002244], 'perimeter_not': [8312002244]},
-    #   {'right_manage_data_accesses_inferior_levels': True, 'perimeter_not_child': [8312002244], 'perimeter_not': [8312002244]},
-    #   {'right_read_users': True, 'perimeter_not_child': [8312002244], 'perimeter_not': [8312002244]}
+    #   {'right_manage_data_accesses_same_level': True, 'perimeter_children_not': [8312002244], 'perimeter_not': [8312002244]},
+    #   {'right_read_patient_pseudo_anonymised': True, 'perimeter_children_not': [8312002244], 'perimeter_not': [8312002244]},
+    #   {'right_search_patient_with_ipp': True, 'perimeter_children_not': [8312002244], 'perimeter_not': [8312002244]},
+    #   {'right_read_patient_nominative': True, 'perimeter_children_not': [8312002244], 'perimeter_not': [8312002244]},
+    #   {'right_read_data_accesses_inferior_levels': True, 'perimeter_children_not': [8312002244], 'perimeter_not': [8312002244]},
+    #   {'right_read_data_accesses_same_level': True, 'perimeter_children_not': [8312002244], 'perimeter_not': [8312002244]},
+    #   {'right_manage_data_accesses_inferior_levels': True, 'perimeter_children_not': [8312002244], 'perimeter_not': [8312002244]},
+    #   {'right_read_users': True, 'perimeter_children_not': [8312002244], 'perimeter_not': [8312002244]}
     #   ],
     #
     #  [{'right_read_patient_nominative': True}, {'right_read_patient_pseudo_anonymised': True}, {'right_search_patient_with_ipp': True},
@@ -61,12 +61,12 @@ def intersect_queryset_criteria(cs_a: List[Dict], cs_b: List[Dict]) -> List[Dict
                     to_add = True
                     perimeter_not = c_b.get('perimeter_not', [])
                     perimeter_not.extend(c_a.get('perimeter_not', []))
-                    perimeter_not_child = c_b.get('perimeter_not_child', [])
-                    perimeter_not_child.extend(c_a.get('perimeter_not_child', []))
+                    perimeter_children_not = c_b.get('perimeter_children_not', [])
+                    perimeter_children_not.extend(c_a.get('perimeter_children_not', []))
                     if perimeter_not:
                         c_b['perimeter_not'] = perimeter_not
-                    if perimeter_not_child:
-                        c_b['perimeter_not_child'] = perimeter_not_child
+                    if perimeter_children_not:
+                        c_b['perimeter_children_not'] = perimeter_children_not
                     c_a.update(c_b)
             if to_add:
                 res.append(c_a)

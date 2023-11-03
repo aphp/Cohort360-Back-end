@@ -44,22 +44,6 @@ class RightGroup:
         return [right.name for right in self.rights]
 
     @property
-    def rights_read_on_same_level(self) -> List[Right]:
-        return [right for right in self.rights if right.allow_read_accesses_on_same_level]
-
-    @property
-    def rights_read_on_inferior_levels(self) -> List[Right]:
-        return [right for right in self.rights if right.allow_read_accesses_on_inf_levels]
-
-    @property
-    def rights_edit_on_same_level(self) -> List[Right]:
-        return [right for right in self.rights if right.allow_edit_accesses_on_same_level]
-
-    @property
-    def rights_edit_on_inferior_levels(self) -> List[Right]:
-        return [right for right in self.rights if right.allow_edit_accesses_on_inf_levels]
-
-    @property
     def rights_allowing_reading_accesses(self) -> List[Right]:
         rights = [right for right in self.rights
                   if right.allow_read_accesses_on_same_level
@@ -72,7 +56,8 @@ class RightGroup:
 
     @property
     def child_groups_rights(self) -> List[Right]:
-        return sum([child_group.rights + child_group.child_groups_rights for child_group in self.child_groups], [])
+        return sum([child_group.rights + child_group.child_groups_rights
+                    for child_group in self.child_groups], [])
 
     @property
     def unreadable_rights(self) -> List[Right]:     # todo: understand this

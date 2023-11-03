@@ -14,7 +14,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
-from admin_cohort.permissions import IsAuthenticated
+from admin_cohort.permissions import IsAuthenticated, user_is_full_admin
 from admin_cohort.settings import PERIMETERS_TYPES, ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS
 from admin_cohort.tools import join_qs
 from admin_cohort.tools.cache import cache_response
@@ -94,22 +94,32 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
             accesses = get_user_valid_manual_accesses(user).select_related("role")
         else:
             accesses = []
+        if user_is_full_admin(user):
+            return q
+
+        # todo: implement logic related to the recently added rights
+
         """
-        assuming a user X has sent a GET request (/accesses/accesses/<user_id>/) to list all the accesses attributed to another user Y:
-            after having retrieved the queryset of accesses the user X is permitted to read
+        the idea is, after having retrieved all the accesses queryset, some of them may get excluded
+        according to what accesses the user X making the request is attributed.
+        for example if the user X has an access with ONLY right_read_data_accesses_same_level on a perimeter P,
+        then he cannot read the accesses configured on inferior levels of perimeter P.
+        also, if he has an access with ONLY right_read_data_accesses_inferior_levels on a perimeter P,
+        then he cannot read accesses configured on perimeter P
         """
         to_exclude = [access.get_criteria_to_exclude() for access in accesses]
         if to_exclude:
             to_exclude = reduce(intersect_queryset_criteria, to_exclude)
             exclusion_queries = []
             for e in to_exclude:
-                exclusion_query = Q(**{f'role__{k}': v for (k, v) in e.items() if 'perimeter' not in k})
-                if e.get('perimeter_not') is not None:
+                rights_sub_dict = {key: val for (key, val) in e.items() if 'perimeter' not in key}
+                exclusion_query = Q(**{f'role__{right}': val for (right, val) in rights_sub_dict.items()})
+                if e.get('perimeter_not'):
                     exclusion_query = exclusion_query \
                                       & ~Q(perimeter_id__in=e['perimeter_not'])
-                if e.get('perimeter_not_child') is not None:
+                if e.get('perimeter_children_not'):
                     exclusion_query = exclusion_query \
-                                      & ~join_qs([Q(**{f"perimeter__{i * 'parent__'}id__in": e['perimeter_not_child']})
+                                      & ~join_qs([Q(**{f"perimeter__{i * 'parent__'}id__in": e['perimeter_children_not']})
                                                   for i in range(1, len(PERIMETERS_TYPES))])
                 exclusion_queries.append(exclusion_query)
             q = exclusion_queries and q.exclude(join_qs(exclusion_queries)) or q

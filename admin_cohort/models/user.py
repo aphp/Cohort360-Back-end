@@ -13,16 +13,16 @@ class User(AbstractBaseUser, BaseModel):
     provider_id = models.CharField(max_length=25, blank=True, null=True)
     password = None
 
-    @property
-    def displayed_name(self):
-        deleted_suffix = self.delete_datetime and " (Supprimé)" or ""
-        return f"{self.firstname} {self.lastname} ({self.provider_username}){deleted_suffix}"
-
     def __str__(self):
         return f"{self.firstname} {self.lastname} ({self.provider_username})"
 
     def __repr__(self):
         return f"User {self})"
+
+    @property
+    def displayed_name(self):
+        deleted_suffix = self.delete_datetime and " (Supprimé)" or ""
+        return f"{self.firstname} {self.lastname} ({self.provider_username}){deleted_suffix}"
 
     class Meta:
         db_table = 'user'

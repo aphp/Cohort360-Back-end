@@ -77,7 +77,7 @@ class Access(BaseModel):
                 d['perimeter_not'] = [self.perimeter_id]
 
             if right in self.role.rights_allowing_to_read_accesses_on_inferior_levels:
-                d['perimeter_not_child'] = [self.perimeter_id]
+                d['perimeter_children_not'] = [self.perimeter_id]
 
             unreadable_rights.append(d)
 

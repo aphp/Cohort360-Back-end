@@ -6,6 +6,7 @@ from django.db import models
 from django.db.models import Q
 
 from accesses.rights import RightGroup, full_admin_rights, all_rights
+from accesses.tools import intersect_queryset_criteria
 from admin_cohort.models import BaseModel
 from admin_cohort.tools import join_qs
 
@@ -167,11 +168,11 @@ class Role(BaseModel):
     @property
     def can_read_accesses(self):
         return self.can_manage_accesses \
-            or any((self.right_read_admin_accesses_same_level,
-                    self.right_read_admin_accesses_inferior_levels,
-                    self.right_read_accesses_above_levels,
-                    self.right_read_data_accesses_same_level,
-                    self.right_read_data_accesses_inferior_levels))
+               or any((self.right_read_admin_accesses_same_level,
+                       self.right_read_admin_accesses_inferior_levels,
+                       self.right_read_accesses_above_levels,
+                       self.right_read_data_accesses_same_level,
+                       self.right_read_data_accesses_inferior_levels))
 
 # -+-+-+-+-+-+-+-+-+-+-+-+-     Requirements to be managed    -+-+-+-+-+-+-+-+-+-+-+-+-
 
@@ -252,7 +253,6 @@ class Role(BaseModel):
 
     @property
     def unreadable_rights(self) -> List[Dict]:     # todo: understand this
-        from accesses.models import intersect_queryset_criteria
         criteria = [{right.name: True} for right in all_rights]
         for rg in self.right_groups:
             rg_criteria = []
