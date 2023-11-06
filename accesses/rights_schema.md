@@ -1,7 +1,7 @@
 ```mermaid
 classDiagram
-class RolesEditors {
-  right_manage_roles
+class FullAdmin {
+  right_full_admin
 }
 class AdminManager {
   right_manage_admin_accesses_same_level
@@ -17,66 +17,55 @@ class DataReadersAdmin {
 }
 class DataReader {
   right_read_patient_nominative
-  right_search_patient_with_ipp
   right_read_patient_pseudonymized
+  right_search_patients_by_ipp
+  right_read_research_opposed_patient_data
 }
 class CsvExportersAdmin {
-  right_manage_export_csv
+  right_manage_export_csv_accesses
 }
 class JupyterExportersAdmin {
-  right_manage_transfer_jupyter
+  right_manage_export_jupyter_accesses
 }
 class CsvExporters {
   right_export_csv_nominative
   right_export_csv_pseudonymized
 }
 class JupyterExporters {
-  right_transfer_jupyter_nominative
-  right_transfer_jupyter_pseudo_anonymised
+  right_export_jupyter_nominative
+  right_export_jupyter_pseudonymized
 }
-class CsvExportReviewersAdmin {
-  right_manage_review_export_csv
+class LogsReader {
+  right_read_logs
 }
-class JupyterExportReviewersAdmin {
-  right_manage_review_transfer_jupyter
+class RolesManager {
+  right_manage_roles
+  right_read_roles
 }
-class CsvExportReviewers {
-  right_review_export_csv
-}
-class JupyterExportReviewers {
-  right_review_transfer_jupyter
-}
-class WorkspacesManager {
-  right_read_datalabs
-  right_manage_datalabs
-}
-class UsersAdmin {
+class UsersManager {
   right_manage_users
   right_read_logs
 }
-RolesEditors --> AdminManager
-RolesEditors --> UsersAdmin
+class DatalabsManager {
+  right_manage_datalabs
+  right_read_datalabs
+}
+
+FullAdmin --> AdminManager
 AdminManager --> DataReadersAdmin
 DataReadersAdmin --> DataReader
-
-RolesEditors --> CsvExportersAdmin
-RolesEditors --> JupyterExportersAdmin
-CsvExportersAdmin --> CsvExporters
-JupyterExportersAdmin --> JupyterExporters
-
-RolesEditors --> CsvExportReviewersAdmin : Can manage accesses that include * - Can read accesses that at least include * (and optionally following *)
-RolesEditors --> JupyterExportReviewersAdmin
-CsvExportReviewersAdmin --> CsvExportReviewers
-JupyterExportReviewersAdmin --> JupyterExportReviewers
-
-RolesEditors --> WorkspacesManager
-
-class AnyManagerAdmin {
-  RolesEditors
-  AdminManager
-}
-AnyManagerAdmin --> UsersReaders
-UsersReaders : right_read_users
+FullAdmin --> CsvExportersAdmin
+FullAdmin --> JupyterExportersAdmin
+FullAdmin --> LogsReader
+FullAdmin --> RolesManager
+FullAdmin --> UsersManager
+FullAdmin --> DatalabsManager
+CsvExportersAdmin-->CsvExporters
+JupyterExportersAdmin-->JupyterExporters
+LogsReader
+RolesManager
+UsersManager
+DatalabsManager
 ```
 
 ```mermaid

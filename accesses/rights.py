@@ -47,7 +47,9 @@ class RightGroup:
     def rights_allowing_reading_accesses(self) -> List[Right]:
         rights = [right for right in self.rights
                   if right.allow_read_accesses_on_same_level
-                  or right.allow_read_accesses_on_inf_levels]
+                  or right.allow_read_accesses_on_inf_levels
+                  or right.allow_edit_accesses_on_same_level
+                  or right.allow_edit_accesses_on_inf_levels]
         if right_manage_export_csv_accesses in self.rights:
             rights.append(right_manage_export_csv_accesses)
         if right_manage_export_jupyter_accesses in self.rights:
@@ -55,30 +57,15 @@ class RightGroup:
         return rights
 
     @property
-    def child_groups_rights(self) -> List[Right]:
-        return sum([child_group.rights + child_group.child_groups_rights
+    def rights_from_child_groups(self) -> List[Right]:
+        return sum([child_group.rights + child_group.rights_from_child_groups
                     for child_group in self.child_groups], [])
 
     @property
     def unreadable_rights(self) -> List[Right]:     # todo: understand this
-        # when you can read accesses that by their turn allow to read/manage
-        # accesses, these accesses will also have right_read_users
-        # so you can read it in that case
-        """
-        the rights you can read are the ones coming from:
-            - any child/grand_child group of the current RightGroup    .child_groups_rights        OR
-            - right_read_user if the current RightGroup has at least one grand child group
-
-        So, the rights you can not read are either:
-            - attached to a RightGroup in another branch     OR
-            - the rights in the current RightGroup if it is the top RightGroup (has no parent)      OR
-            - right_read_user if the current RightGroup has no grand child group
-        """
-        can_read_any_admin_accesses = any(child_group.child_groups for child_group in self.child_groups)
         return [right for right in all_rights
-                if right not in (self.child_groups_rights
-                                 + (self.rights if self.parent is None else [])
-                                 + ([right_read_users] if can_read_any_admin_accesses else []))]
+                if right not in (self.rights_from_child_groups
+                                 + (self.rights if self.parent is None else []))]
 
 
 # ----------------------------------------------    Perimeters hierarchy agnostic rights

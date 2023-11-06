@@ -55,9 +55,9 @@ class Role(BaseModel):
     right_manage_users = models.BooleanField(default=False, null=False)
     right_read_users = models.BooleanField(default=False, null=False)
 
+    # Admin accesses reading/management
     right_manage_admin_accesses_same_level = models.BooleanField(default=False, null=False)
     right_read_admin_accesses_same_level = models.BooleanField(default=False, null=False)
-
     right_manage_admin_accesses_inferior_levels = models.BooleanField(default=False, null=False)
     right_read_admin_accesses_inferior_levels = models.BooleanField(default=False, null=False)
 
@@ -65,34 +65,31 @@ class Role(BaseModel):
     #       Add write/readonly option on it or maybe add new right:  `right_manage_accesses_above_levels` ?
     right_read_accesses_above_levels = models.BooleanField(default=False, null=False)   #
 
+    # Data accesses reading/management
     right_manage_data_accesses_same_level = models.BooleanField(default=False, null=False)
     right_read_data_accesses_same_level = models.BooleanField(default=False, null=False)
-
     right_manage_data_accesses_inferior_levels = models.BooleanField(default=False, null=False)
     right_read_data_accesses_inferior_levels = models.BooleanField(default=False, null=False)
 
+    # Read patient data
     right_read_patient_nominative = models.BooleanField(default=False, null=False)
     right_read_patient_pseudonymized = models.BooleanField(default=False, null=False)
     right_search_patients_by_ipp = models.BooleanField(default=False, null=False)
     right_read_research_opposed_patient_data = models.BooleanField(default=False, null=False)
 
-    # JUPYTER EXPORT
+    # Jupyter exports
     right_manage_export_jupyter_accesses = models.BooleanField(default=False, null=False)
     right_export_jupyter_nominative = models.BooleanField(default=False, null=False)
     right_export_jupyter_pseudonymized = models.BooleanField(default=False, null=False)
 
-    # CSV EXPORT
+    # CSV exports
     right_manage_export_csv_accesses = models.BooleanField(default=False, null=False)
     right_export_csv_nominative = models.BooleanField(default=False, null=False)
     right_export_csv_pseudonymized = models.BooleanField(default=False, null=False)
 
-    # datalabs
+    # Datalabs
     right_manage_datalabs = models.BooleanField(default=False, null=False)
     right_read_datalabs = models.BooleanField(default=False, null=False)
-
-    _right_groups = None
-    _rights_allowing_to_read_accesses_on_same_level = None
-    _rights_allowing_to_read_accesses_on_inferior_levels = None
 
     @staticmethod
     def q_allow_read_patient_data_nominative() -> Q:
@@ -210,37 +207,6 @@ class Role(BaseModel):
                     self.right_manage_export_jupyter_accesses))
 
 # -+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
-
-    @property
-    def right_groups(self) -> List[RightGroup]:
-        """ get the RightGroups to which belong each activated right on the current Role."""
-        def get_right_groups(rg: RightGroup):
-            res = []
-            for right in map(lambda r: r.name, rg.rights):
-                if getattr(self, right, False):
-                    res.append(rg)
-                    break
-            return res + sum([get_right_groups(c) for c in rg.child_groups], [])
-
-        if self._right_groups is None:                          # todo: buggy /!\ as rights on Role may change but _right_groups remains the same
-            self._right_groups = get_right_groups(rg=full_admin_rights)
-        return self._right_groups
-
-    @property
-    def rights_allowing_to_read_accesses_on_same_level(self) -> List[str]:
-        if self._rights_allowing_to_read_accesses_on_same_level is None:                    # todo: buggy /!\ as rights on Role may change
-            self._rights_allowing_to_read_accesses_on_same_level = [right.name for right in all_rights
-                                                                    if getattr(self, right.name, False)
-                                                                    and right.allow_read_accesses_on_same_level]
-        return self._rights_allowing_to_read_accesses_on_same_level
-
-    @property
-    def rights_allowing_to_read_accesses_on_inferior_levels(self) -> List[str]:
-        if self._rights_allowing_to_read_accesses_on_inferior_levels is None:               # todo: buggy /!\ as rights on Role may change
-            self._rights_allowing_to_read_accesses_on_inferior_levels = [right.name for right in all_rights
-                                                                         if getattr(self, right.name, False)
-                                                                         and right.allow_read_accesses_on_inf_levels]
-        return self._rights_allowing_to_read_accesses_on_inferior_levels
 
     def get_help_text_for_right_manage_admin_accesses(self):
         return build_help_text(text_root="Gérer les accès des administrateurs",

@@ -6,23 +6,35 @@ from django.db.models import Q, F
 from django.db.models.query import QuerySet, Prefetch
 
 from accesses.models import Profile, Access, Role, Perimeter
-from accesses.rights import all_rights
+from accesses.rights import all_rights, full_admin_rights, RightGroup
 from admin_cohort.models import User
 from admin_cohort.settings import MANUAL_SOURCE, PERIMETERS_TYPES
 from admin_cohort.tools import join_qs
 
 
+def get_right_groups(role: Role, root_rg: RightGroup):
+    """ get the RightGroups to which belong each activated right on the current Role."""
+    groups = []
+    for right in map(lambda r: r.name, root_rg.rights):
+        if getattr(role, right, False):
+            groups.append(root_rg)
+            break
+    return groups + sum([get_right_groups(role=role, root_rg=c) for c in root_rg.child_groups], [])
+
+
 def get_role_unreadable_rights(role: Role) -> List[Dict]:  # todo: understand this
     criteria = [{right.name: True} for right in all_rights]
-    for rg in role.right_groups:
+    role_right_groups = get_right_groups(role=role, root_rg=full_admin_rights)
+    for rg in role_right_groups:
         rg_criteria = []
         if any(getattr(role, right.name, False) for right in rg.rights_allowing_reading_accesses):
             for child_group in rg.child_groups:
-                if child_group.child_groups_rights:
+                if child_group.rights_from_child_groups:
                     not_true = dict((right.name, False) for right in child_group.rights)
-                    rg_criteria.extend({right.name: True, **not_true} for right in child_group.child_groups_rights)
+                    rg_criteria.extend({right.name: True, **not_true} for right in child_group.rights_from_child_groups)
             rg_criteria.extend({right.name: True} for right in rg.unreadable_rights)
-            criteria = intersect_queryset_criteria(criteria, rg_criteria)
+            criteria = intersect_queryset_criteria(cs_a=criteria,
+                                                   cs_b=rg_criteria)
     return criteria
 
 
@@ -30,12 +42,18 @@ def access_criteria_to_exclude(access: Access) -> List[Dict]:  # todo: understan
     role = access.role
     unreadable_rights = get_role_unreadable_rights(role=role)
 
-    for right in (role.rights_allowing_to_read_accesses_on_same_level +
-                  role.rights_allowing_to_read_accesses_on_inferior_levels):
+    rights_allowing_to_read_accesses_on_same_level = [right.name for right in all_rights
+                                                      if getattr(role, right.name, False) and (right.allow_read_accesses_on_same_level
+                                                                                               or right.allow_edit_accesses_on_same_level)]
+    rights_allowing_to_read_accesses_on_inferior_levels = [right.name for right in all_rights
+                                                           if getattr(role, right.name, False) and (right.allow_read_accesses_on_inf_levels
+                                                                                                    or right.allow_edit_accesses_on_inf_levels)]
+    for right in (rights_allowing_to_read_accesses_on_same_level +
+                  rights_allowing_to_read_accesses_on_inferior_levels):
         d = {right: True}
-        if right in role.rights_allowing_to_read_accesses_on_same_level:
+        if right in rights_allowing_to_read_accesses_on_same_level:
             d['perimeter_not'] = [access.perimeter_id]
-        if right in role.rights_allowing_to_read_accesses_on_inferior_levels:
+        if right in rights_allowing_to_read_accesses_on_inferior_levels:
             d['perimeter_not_child'] = [access.perimeter_id]
         unreadable_rights.append(d)
     return unreadable_rights
@@ -83,8 +101,9 @@ def intersect_queryset_criteria(cs_a: List[Dict], cs_b: List[Dict]) -> List[Dict
         else:
             to_add = False
             for c_b in cs_b:
-                non_perimeter_criteria = [k for (k, v) in c_a.items() if v and 'perimeter' not in k]
-                if all(c_b.get(r) for r in non_perimeter_criteria):
+                non_perimeter_criteria = [key for (key, val) in c_a.items() if val and 'perimeter' not in key]
+                non_perimeter_criteria = non_perimeter_criteria and non_perimeter_criteria[0]
+                if non_perimeter_criteria and c_b.get(non_perimeter_criteria):
                     to_add = True
                     perimeter_not = c_b.get('perimeter_not', [])
                     perimeter_not.extend(c_a.get('perimeter_not', []))
