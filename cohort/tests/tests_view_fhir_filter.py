@@ -64,8 +64,7 @@ class TestFhirFilterAPI(CohortAppTests):
             fhir_version='1.0.0',
             name='original_name',
             filter='{"some": "filter"}',
-            owner=User.objects.first()
-        )
+            owner=self.user1)
 
         # Edit the name field
         new_name = 'new_name'

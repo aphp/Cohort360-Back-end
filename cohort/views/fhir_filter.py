@@ -1,11 +1,11 @@
 from django_filters import rest_framework as filters
-from rest_framework import viewsets
 
 from admin_cohort.permissions import IsAuthenticated
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from cohort.models import FhirFilter
 from cohort.serializers import FhirFilterSerializer
+from cohort.views.shared import UserObjectsRestrictedViewSet
 
 
 class FhirFilterFilter(filters.FilterSet):
@@ -16,7 +16,7 @@ class FhirFilterFilter(filters.FilterSet):
         fields = ('fhir_resource', 'name', 'owner', 'created_at', 'modified_at')
 
 
-class FhirFilterViewSet(viewsets.ModelViewSet):
+class FhirFilterViewSet(UserObjectsRestrictedViewSet):
     queryset = FhirFilter.objects.all()
     serializer_class = FhirFilterSerializer
     pagination_class = NegativeLimitOffsetPagination
