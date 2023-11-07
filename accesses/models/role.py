@@ -177,34 +177,37 @@ class Role(BaseModel):
                     self.right_export_jupyter_pseudonymized))
 
     @property
-    def requires_data_accesses_managing_role_to_be_managed(self):    # requires having: right_manage/read_data_accesses_xxx_level = True
-        return any((self.right_manage_data_accesses_same_level,
-                    self.right_read_data_accesses_same_level,
-                    self.right_manage_data_accesses_inferior_levels,
-                    self.right_read_data_accesses_inferior_levels,
-                    self.right_read_patient_nominative,
+    def requires_data_accesses_managing_role_to_be_managed(self):    # requires having: right_manage/read_data_accesses_same/inf_level = True
+        return any((self.right_read_patient_nominative,
                     self.right_read_patient_pseudonymized,
                     self.right_search_patients_by_ipp,
                     self.right_read_research_opposed_patient_data))
 
     @property
-    def requires_admin_accesses_managing_role_to_be_managed(self):
-        return any((self.right_manage_admin_accesses_same_level,
+    def requires_admin_accesses_managing_role_to_be_managed(self):    # requires having: right_manage/read_admin_accesses_same/inf_level = True
+        return any((self.right_manage_data_accesses_same_level,
+                    self.right_read_data_accesses_same_level,
+                    self.right_manage_data_accesses_inferior_levels,
+                    self.right_read_data_accesses_inferior_levels))
+
+    @property
+    def requires_full_admin_role_to_be_managed(self):    # requires having: right_full_admin = True
+        return any((self.right_full_admin,
+                    self.right_read_logs,
+                    self.right_manage_roles,
+                    self.right_read_roles,
+                    self.right_manage_users,
+                    self.right_read_users,
+                    self.right_manage_datalabs,
+                    self.right_read_datalabs,
+                    self.right_manage_export_csv_accesses,
+                    self.right_manage_export_jupyter_accesses,
+                    self.right_manage_admin_accesses_same_level,
                     self.right_read_admin_accesses_same_level,
                     self.right_manage_admin_accesses_inferior_levels,
                     self.right_read_admin_accesses_inferior_levels,
                     # self.right_read_accesses_above_levels    # todo: process this right differently
                     ))
-
-    @property
-    def requires_full_admin_role_to_be_managed(self):
-        return any((self.right_manage_roles,
-                    self.right_read_logs,
-                    self.right_manage_users,
-                    self.right_read_datalabs,
-                    self.right_manage_datalabs,
-                    self.right_manage_export_csv_accesses,
-                    self.right_manage_export_jupyter_accesses))
 
 # -+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 

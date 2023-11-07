@@ -3,77 +3,77 @@ classDiagram
 class FullAdmin {
   right_full_admin
 }
-class AdminManager {
+class ManageDataReadingAdministration {
   right_manage_admin_accesses_same_level
   right_read_admin_accesses_same_level
   right_manage_admin_accesses_inferior_levels
   right_read_admin_accesses_inferior_levels
 }
-class DataReadersAdmin {
+class DataReadingAdministration {
   right_manage_data_accesses_same_level
   right_read_data_accesses_same_level
   right_manage_data_accesses_inferior_levels
   right_read_data_accesses_inferior_levels
 }
-class DataReader {
+class DataReading {
   right_read_patient_nominative
   right_read_patient_pseudonymized
   right_search_patients_by_ipp
   right_read_research_opposed_patient_data
 }
-class CsvExportersAdmin {
+class CSVExportsAdministration {
   right_manage_export_csv_accesses
 }
-class JupyterExportersAdmin {
+class JupyterExportsAdministration {
   right_manage_export_jupyter_accesses
 }
-class CsvExporters {
+class CSVExports {
   right_export_csv_nominative
   right_export_csv_pseudonymized
 }
-class JupyterExporters {
+class JupyterExports {
   right_export_jupyter_nominative
   right_export_jupyter_pseudonymized
 }
-class LogsReader {
+class Logs {
   right_read_logs
 }
-class RolesManager {
+class Roles {
   right_manage_roles
   right_read_roles
 }
-class UsersManager {
+class Users {
   right_manage_users
   right_read_logs
 }
-class DatalabsManager {
+class Datalabs {
   right_manage_datalabs
   right_read_datalabs
 }
 
-FullAdmin --> AdminManager
-AdminManager --> DataReadersAdmin
-DataReadersAdmin --> DataReader
-FullAdmin --> CsvExportersAdmin
-FullAdmin --> JupyterExportersAdmin
-FullAdmin --> LogsReader
-FullAdmin --> RolesManager
-FullAdmin --> UsersManager
-FullAdmin --> DatalabsManager
-CsvExportersAdmin-->CsvExporters
-JupyterExportersAdmin-->JupyterExporters
-LogsReader
-RolesManager
-UsersManager
-DatalabsManager
+FullAdmin --> ManageDataReadingAdministration
+ManageDataReadingAdministration --> DataReadingAdministration : Administration accesses/rights
+DataReadingAdministration --> DataReading : Data accesses/rights
+FullAdmin --> CSVExportsAdministration
+FullAdmin --> JupyterExportsAdministration
+FullAdmin --> Logs
+FullAdmin --> Roles
+FullAdmin --> Users
+FullAdmin --> Datalabs
+CSVExportsAdministration-->CSVExports
+JupyterExportsAdministration-->JupyterExports
+Logs
+Roles
+Users
+Datalabs
 ```
 
 ```mermaid
   graph TD
       A[RolesEditors]
-      B[AdminManager]
-      C(DataReadersAdmin)
-      D(DataReader)
+      B[ManageDataReadingAdministration]
+      C(DataReadingAdministration)
+      D(DataReading)
 
       I(ExportersAdmin)
       J(Exporters)
@@ -110,7 +110,7 @@ DatalabsManager
       
       Z2(UsersReaders)
       A2[RolesEditors]-->Z2
-      B2[AdminManager]-->Z2
+      B2[ManageDataReadingAdministration]-->Z2
 ```
 
 Comment lire ce schéma :
@@ -120,14 +120,14 @@ Comment lire ce schéma :
 Imaginons un *Role* qui possède:
 - *right_export_csv_nominative*  (**Exporters**)
 - *right_manage_datalabs* (**WorkspacesManager**)
-- *right_read_data_accesses_same_level* (**DataReadersAdmin**)
+- *right_read_data_accesses_same_level* (**DataReadingAdministration**)
 
 Et bien pour pouvoir attribuer ce *Role* a quelqu'un, ou modifier un *Access* qui possède ce *Role*, il faut que moi-même j'ai un Role avec :
 - *right_manage_export_csv* (**ExportersAdmin**)
 - *right_manage_roles* (**RolesEditors**)
-- *right_manage_admin_accesses_* (**AdminManager**)
+- *right_manage_admin_accesses_* (**ManageDataReadingAdministration**)
 
-Et en effet, *right_manage_roles* **ne suffit pas** pour créer un accès avec *right_read_data_accesses_same_level* (**DataReadersAdmin**)
+Et en effet, *right_manage_roles* **ne suffit pas** pour créer un accès avec *right_read_data_accesses_same_level* (**DataReadingAdministration**)
 
 #### Read
 
@@ -136,8 +136,8 @@ En revanche, côté lecture, lorsque je fais `GET /accesses/`, s'afficheront les
 - possède **éventuellement** des _right_ de niveau encore en-dessous
 - ne possède **aucun** _right_ de de mon type de _Role_ ou de _Role_ de niveau supérieur
 
-Par exemple, si je possède _right_read_admin_accesses_ (**AdminManager**):
-- apparaîtront les _Access_ avec un _Role_ contenant uniquement _right_manage_data_accesses_same_level_ (**DataReadersAdmin**) et _right_read_users_ (**UsersReaders**)
+Par exemple, si je possède _right_read_admin_accesses_ (**ManageDataReadingAdministration**):
+- apparaîtront les _Access_ avec un _Role_ contenant uniquement _right_manage_data_accesses_same_level_ (**DataReadingAdministration**) et _right_read_users_ (**UsersReaders**)
 - ils apparaîtront encore si je rajoute, à ce _Role_, _right_read_patient_nominative_ (**DataReaders**) 
 - n'apparaîtront plus si je rajoute, à ce _Role_, _right_read_admin_accesses_ (**DataReaders**), _right_export_csv_nominative_ (**Exporters**) ou même pire _right_manage_roles_ (**RolesEditors**)
 
