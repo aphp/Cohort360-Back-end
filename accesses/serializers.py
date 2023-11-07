@@ -302,7 +302,7 @@ class AccessSerializer(BaseSerializer):
     actual_start_datetime = serializers.DateTimeField(read_only=True, source="start_datetime")
     actual_end_datetime = serializers.DateTimeField(read_only=True, source="end_datetime")
     perimeter = PerimeterSerializer(allow_null=True, required=False)
-    perimeter_id = serializers.CharField(allow_null=True, required=False)
+    perimeter_id = serializers.CharField(queryset=Perimeter.objects.all(), source="perimeter")
     # todo : remove when ready with perimeter
     care_site = CareSiteSerializer(allow_null=True, required=False, source='perimeter')
     care_site_history_id = serializers.IntegerField(read_only=True, source='id')

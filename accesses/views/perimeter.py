@@ -67,6 +67,16 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewset):
                      "type_source_value",
                      "source_value"]
 
+    @swagger_auto_schema(manual_parameters=list(map(lambda x: openapi.Parameter(name=x[0], description=x[1], type=x[2],
+                                                                                pattern=x[3] if len(x) == 4 else None, in_=openapi.IN_QUERY),
+                                                    [["ordering", "'field' or '-field' in care_site_name, "
+                                                                  "care_site_type_source_value, care_site_source_value", openapi.TYPE_STRING],
+                                                     ["search", "Will search in multiple fields (care_site_name, "
+                                                                "care_site_type_source_value, care_site_source_value)", openapi.TYPE_STRING]])))
+    @cache_response()
+    def list(self, request, *args, **kwargs):
+        return super(PerimeterViewSet, self).list(request, *args, **kwargs)
+
     @swagger_auto_schema(method='get',
                          operation_summary="Get the top hierarchy perimeters on which the user has at least one role that allows to give accesses."
                                            "-Same level right give access to current perimeter and lower levels."   # todo: should be same level only
@@ -187,23 +197,6 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewset):
                             status=status.HTTP_200_OK)
         else:
             return Response(data="At least one search parameter is required", status=status.HTTP_400_BAD_REQUEST)
-
-    @swagger_auto_schema(manual_parameters=list(map(lambda x: openapi.Parameter(name=x[0],
-                                                                                in_=openapi.IN_QUERY,
-                                                                                description=x[1],
-                                                                                type=x[2],
-                                                                                pattern=x[3] if len(x) == 4 else None),
-                                                    [["ordering", "'field' or '-field' in care_site_name, "
-                                                                  "care_site_type_source_value, care_site_source_value",
-                                                      openapi.TYPE_STRING],
-                                                     ["search", "Will search in multiple fields (care_site_name, "
-                                                                "care_site_type_source_value, care_site_source_value)",
-                                                      openapi.TYPE_STRING],
-                                                     ["treefy", "If true, returns a tree-organised json, else a list",
-                                                      openapi.TYPE_BOOLEAN]])))
-    @cache_response()
-    def list(self, request, *args, **kwargs):
-        return super(PerimeterViewSet, self).list(request, *args, **kwargs)
 
 
 class NestedPerimeterViewSet(PerimeterViewSet):

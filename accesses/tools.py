@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import urllib
 from typing import List, Dict
 
 from django.db.models import Q, F
@@ -8,8 +9,21 @@ from django.db.models.query import QuerySet, Prefetch
 from accesses.models import Profile, Access, Role, Perimeter
 from accesses.rights import all_rights, full_admin_rights, RightGroup
 from admin_cohort.models import User
+from admin_cohort.permissions import user_is_full_admin
 from admin_cohort.settings import MANUAL_SOURCE, PERIMETERS_TYPES
 from admin_cohort.tools import join_qs
+
+
+def check_existing_role(data: dict) -> Role:
+    data.pop("name", None)
+    return Role.objects.filter(**data).first()
+
+
+def get_assignable_roles(user: User, perimeter_id: str) -> QuerySet:
+    perimeter = Perimeter.objects.get(id=perimeter_id)
+    assignable_roles_ids = [role.id for role in Role.objects.all()
+                            if do_user_accesses_allow_to_manage_role(user=user, role=role, perimeter=perimeter)]
+    return Role.objects.filter(id__in=assignable_roles_ids)
 
 
 def get_right_groups(role: Role, root_rg: RightGroup):
@@ -119,6 +133,18 @@ def intersect_queryset_criteria(cs_a: List[Dict], cs_b: List[Dict]) -> List[Dict
     return res
 
 
+def get_all_user_managing_accesses_on_perimeter(user: User, perimeter: Perimeter) -> QuerySet:
+    """ filter user's valid accesses to extract:
+          + those configured directly on the given perimeter AND allow to read/manage accesses on the same level
+          + those configured on any of the perimeter's parents AND allow to read/manage accesses on inferior levels
+          + those allowing to read/manage accesses on any level (Exports accesses)
+    """
+    return get_user_valid_manual_accesses(user).filter((Q(perimeter=perimeter) & Role.q_allow_manage_accesses_on_same_level())
+                                                       | (perimeter.q_all_parents() & Role.q_allow_manage_accesses_on_inf_levels())
+                                                       | Role.q_allow_manage_accesses_on_any_level())\
+                                               .select_related("role")
+
+
 def check_accesses_managing_roles(access: Access, perimeter: Perimeter, readonly: bool):
     role = access.role
 
@@ -137,44 +163,30 @@ def check_accesses_managing_roles(access: Access, perimeter: Perimeter, readonly
 
 
 def do_user_accesses_allow_to_manage_role(user: User, role: Role, perimeter: Perimeter, readonly: bool = False) -> bool:
-    has_full_admin_role = False
+    if user_is_full_admin(user):
+        return True
     has_admin_accesses_managing_role = False
     has_data_accesses_managing_role = False
     has_jupyter_accesses_managing_role = False
     has_csv_accesses_managing_role = False
+    user_managing_accesses = get_all_user_managing_accesses_on_perimeter(user, perimeter)
 
-    user_accesses = get_all_user_managing_accesses_on_perimeter(user, perimeter)
-
-    for access in user_accesses:
+    for access in user_managing_accesses:
         role = access.role
-        has_admin_accesses_managing_role_2, has_data_accesses_managing_role_2 = check_accesses_managing_roles(access=access,
-                                                                                                              perimeter=perimeter,
-                                                                                                              readonly=readonly)
-        has_full_admin_role = has_full_admin_role or role.right_full_admin
+        (has_admin_accesses_managing_role_2,
+         has_data_accesses_managing_role_2) = check_accesses_managing_roles(access=access,
+                                                                            perimeter=perimeter,
+                                                                            readonly=readonly)
         has_admin_accesses_managing_role = has_admin_accesses_managing_role or has_admin_accesses_managing_role_2
         has_data_accesses_managing_role = has_data_accesses_managing_role or has_data_accesses_managing_role_2
         has_jupyter_accesses_managing_role = has_jupyter_accesses_managing_role or role.right_manage_export_jupyter_accesses
         has_csv_accesses_managing_role = has_csv_accesses_managing_role or role.right_manage_export_csv_accesses
 
-    return (has_full_admin_role or not role.requires_full_admin_role_to_be_managed) \
+    return not role.requires_full_admin_role_to_be_managed \
         and (has_admin_accesses_managing_role or not role.requires_admin_accesses_managing_role_to_be_managed) \
         and (has_data_accesses_managing_role or not role.requires_data_accesses_managing_role_to_be_managed) \
         and (has_jupyter_accesses_managing_role or not role.requires_jupyter_accesses_managing_role_to_be_managed) \
         and (has_csv_accesses_managing_role or not role.requires_csv_accesses_managing_role_to_be_managed)
-
-
-def get_all_user_managing_accesses_on_perimeter(user: User, perimeter: Perimeter) -> QuerySet:
-    """
-    filter user's valid accesses to extract:
-        those configured directly on the given perimeter AND allow to read/manage accesses on the same level
-      + those configured on any of the perimeter's parents AND allow to read/manage accesses on inferior levels
-      + those allowing to read/manage accesses on any level
-    """
-
-    return get_user_valid_manual_accesses(user).filter((Q(perimeter=perimeter) & Role.q_allow_manage_accesses_on_same_level())
-                                                       | (perimeter.all_parents_query("perimeter") & Role.q_allow_manage_accesses_on_inf_levels())
-                                                       | Role.q_allow_manage_accesses_on_any_level())\
-                                               .select_related("role")
 
 
 def get_user_valid_manual_accesses(user: User) -> QuerySet:
@@ -278,11 +290,16 @@ def share_global_rights_over_relative_hierarchy(user: User, data_rights: List[Da
             dr.acquire_extra_global_rights(global_dr)
 
 
-def get_data_reading_rights(user: User, target_perimeters_ids: List[int]) -> List[DataRight]:
-    data_accesses = get_data_accesses_annotated_with_rights(user)
+def get_data_reading_rights(user: User, target_perimeters_ids: str) -> List[DataRight]:
+    if target_perimeters_ids:
+        urldecode_perimeters = urllib.parse.unquote(urllib.parse.unquote(target_perimeters_ids))
+        target_perimeters_ids = [int(i) for i in urldecode_perimeters.split(",")]
+    else:
+        target_perimeters_ids = []
     target_perimeters = Perimeter.objects.filter(id__in=target_perimeters_ids)\
                                          .select_related(*[f"parent{i * '__parent'}" for i in range(0, len(PERIMETERS_TYPES) - 2)])
 
+    data_accesses = get_data_accesses_annotated_with_rights(user)
     data_rights_from_accesses = get_data_rights_from_accesses(user=user,
                                                               data_accesses=data_accesses)
     data_rights_for_perimeters = []

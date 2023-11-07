@@ -44,16 +44,6 @@ class Perimeter(BaseModel):
         return self.type_source_value
 
     @property
-    def all_children_query(self) -> Q:
-        return join_qs([Q(
-            **{"__".join(i * ["parent"]): self}
-        ) for i in range(1, len(PERIMETERS_TYPES))])
-
-    @property
-    def all_children_queryset(self) -> QuerySet:
-        return Perimeter.objects.filter(self.all_children_query)
-
-    @property
     def above_levels(self):
         if not self.above_levels_ids:
             return list()
@@ -73,26 +63,14 @@ class Perimeter(BaseModel):
             _logger.error(f"Error getting inferior levels ids for perimeter {self}.\n {e}")
             raise e
 
-    def all_parents_query(self, prefix: str = None) -> Q:
-        prefix = f"{prefix}__" if prefix is not None else ""
-        return join_qs([
-            Q(**{f'{prefix}{"__".join(i * ["children"])}': self})
-            for i in range(1, len(PERIMETERS_TYPES))
-        ])
+    def q_all_parents(self) -> Q:
+        return join_qs([Q(**{f'perimeter__{"__".join(i * ["children"])}': self})
+                        for i in range(1, len(PERIMETERS_TYPES))])
+
+    def q_all_children(self) -> Q:
+        return join_qs([Q(**{"__".join(i * ["parent"]): self})
+                        for i in range(1, len(PERIMETERS_TYPES))])
 
     @property
-    def all_parents_queryset(self) -> QuerySet:
-        return Perimeter.objects.filter(self.all_parents_query()).distinct()
-
-    @classmethod
-    def children_prefetch(cls, filtered_queryset: QuerySet = None) -> Prefetch:
-        """
-        Returns a Prefetch taht can be given to a queryset.prefetch_related
-        method to prefetch children and set results to 'prefetched_children'
-        :param filtered_queryset: queryset on which filter the result
-        of the prefetch
-        :return:
-        """
-        filtered_queryset = filtered_queryset or cls.objects.all()
-        return Prefetch('children', queryset=filtered_queryset,
-                        to_attr='prefetched_children')
+    def all_children_queryset(self) -> QuerySet:
+        return Perimeter.objects.filter(self.q_all_children)

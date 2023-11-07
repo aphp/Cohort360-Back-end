@@ -1,4 +1,3 @@
-import urllib
 from datetime import date, timedelta
 from functools import reduce
 
@@ -172,25 +171,22 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
 
     @swagger_auto_schema(request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
-        properties={"provider_history_id": openapi.Schema(type=openapi.TYPE_INTEGER,
-                                                          description="(to deprecate -> profile_id) Correspond à Provider_history_id"),
-                    "profile_id": openapi.Schema(type=openapi.TYPE_INTEGER, description="Correspond à un profile_id"),
-                    "care_site_id": openapi.Schema(type=openapi.TYPE_INTEGER, description="2deprecate -> perimeter_id"),
+        properties={"profile_id": openapi.Schema(type=openapi.TYPE_INTEGER),
                     "perimeter_id": openapi.Schema(type=openapi.TYPE_INTEGER),
                     "role_id": openapi.Schema(type=openapi.TYPE_INTEGER),
                     "start_datetime": openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME,
                                                      description="Doit être dans le futur.\nSi vide ou null, sera défini à now().\nDoit contenir "
                                                                  "la timezone ou bien sera considéré comme UTC."),
                     "end_datetime": openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME,
-                                                   description="Doit être dans le futur. \nSi vide ou null, sera défini à start_datetime +1 "
-                                                               "an.\nDoit contenir la timezone ou bien sera considéré comme UTC.")},
+                                                   description="Doit être dans le futur. \nSi vide ou null, sera défini à start_datetime +2 "
+                                                               "ans.\nDoit contenir la timezone ou bien sera considéré comme UTC.")},
         required=['profile', 'perimeter', 'role']))
     def create(self, request, *args, **kwargs):
         data = request.data
-        if "care_site_id" not in data and 'perimeter_id' not in data:
+        if 'perimeter_id' not in data:                                                              # todo: [front] remove care_site_id
             return Response(data="perimeter_id is required", status=status.HTTP_400_BAD_REQUEST)
-        data['profile_id'] = data.get('profile_id', data.get('provider_history_id'))
-        data['perimeter_id'] = data.get('perimeter_id', data.get('care_site_id'))
+        data['profile_id'] = data.get('profile_id')                                                 # todo: [front] remove provider_history_id
+        data['perimeter_id'] = data.get('perimeter_id')
         return super(AccessViewSet, self).create(request, *args, **kwargs)
 
     @swagger_auto_schema(request_body=openapi.Schema(
@@ -280,12 +276,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
     @action(methods=['get'], url_path="my-rights", detail=False, permission_classes=[IsAuthenticated], pagination_class=None)
     @cache_response()
     def get_my_data_reading_rights(self, request, *args, **kwargs):
-        perimeters_ids = request.query_params.get('perimeters_ids')     # todo: remove param `care-site-ids` in the frontend side
-        if perimeters_ids:
-            urldecode_perimeters = urllib.parse.unquote(urllib.parse.unquote((str(perimeters_ids))))
-            perimeters_ids = [int(i) for i in urldecode_perimeters.split(",")]
-        else:
-            perimeters_ids = []
+        perimeters_ids = request.query_params.get('perimeters_ids')     # todo: [front] remove care-site-ids
         data_rights = get_data_reading_rights(user=request.user, target_perimeters_ids=perimeters_ids)
         return Response(data=DataRightSerializer(data_rights, many=True).data,
                         status=status.HTTP_200_OK)
