@@ -22,7 +22,7 @@ class FhirFilterViewSet(UserObjectsRestrictedViewSet):
     pagination_class = NegativeLimitOffsetPagination
     filterset_class = FhirFilterFilter
     lookup_field = "uuid"
-    http_method_names = ["get", "post", "patch"]
+    http_method_names = ["get", "post", "patch", "delete"]
     permission_classes = [IsAuthenticated]
     swagger_tags = ["Cohort - fhir_filter"]
 
