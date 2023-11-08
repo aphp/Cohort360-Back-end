@@ -51,18 +51,14 @@ class RoleViewSet(CustomLoggingMixin, BaseViewset):
         return super(RoleViewSet, self).create(request, *args, **kwargs)
 
     @swagger_auto_schema(method='get',
-                         operation_summary="Get the list of users that have that role",
-                         manual_parameters=[openapi.Parameter(name="order", in_=openapi.IN_QUERY,
-                                                              description=f"Ordering of the results (prepend with '-' "
-                                                                          f"to reverse order), ordering"
-                                                                          f" fields are "
-                                                                          f"{','.join(USERS_ORDERING_FIELDS)}",
-                                                              type=openapi.TYPE_STRING),
-                                            openapi.Parameter(name="filter_by_name", in_=openapi.IN_QUERY,
-                                                              description="Filter by name", type=openapi.TYPE_STRING)],
-                         responses={
-                             200: openapi.Response('All valid accesses or ones to expire soon', UsersInRoleSerializer),
-                             204: openapi.Response('No content')})
+                         operation_summary="Get the list of users who have that role",
+                         manual_parameters=[openapi.Parameter(name="order", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING,
+                                                              description=f"Ordering of the results (prepend with '-' to reverse order)."
+                                                                          f"Ordering fields are {','.join(USERS_ORDERING_FIELDS)}"),
+                                            openapi.Parameter(name="filter_by_name", description="Filter by name",
+                                                              in_=openapi.IN_QUERY, type=openapi.TYPE_STRING)],
+                         responses={200: openapi.Response('Users having this role', UsersInRoleSerializer),
+                                    204: openapi.Response('No content')})
     @action(url_path="users", detail=True, methods=['get'], permission_classes=permission_classes+[UsersPermission])
     def users_within_role(self, request, *args, **kwargs):
         role = self.get_object()

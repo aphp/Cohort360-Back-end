@@ -267,8 +267,8 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
                                                                                        type=x[2], pattern=x[3] if len(x) == 4 else None),
                                                            [["perimeters_ids", "Perimeters IDs on which compute data rights, separated by ','",
                                                              openapi.TYPE_STRING]])],
-                         responses={200: openapi.Response('Data Rights computed per perimeter', DataRightSerializer)})
-    @action(methods=['get'], url_path="my-rights", detail=False, permission_classes=[IsAuthenticated], pagination_class=None)
+                         responses={200: openapi.Response('Data Reading Rights computed per perimeter', DataRightSerializer)})
+    @action(methods=['get'], url_path="my-data-rights", detail=False, permission_classes=[IsAuthenticated], pagination_class=None)
     @cache_response()
     def get_my_data_reading_rights(self, request, *args, **kwargs):
         perimeters_ids = request.query_params.get('perimeters_ids')     # todo: [front] remove care-site-ids
