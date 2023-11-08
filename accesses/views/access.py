@@ -208,21 +208,16 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
     def update(self, request, *args, **kwargs):
         return super(AccessViewSet, self).update(request, *args, **kwargs)
 
-    @swagger_auto_schema(method="PATCH",
-                         request_body=openapi.Schema(type=openapi.TYPE_STRING, properties={}),
-                         operation_summary="Will set end_datetime to now, to close the access.")
+    @swagger_auto_schema(method="PATCH", operation_summary="Will set end_datetime to now, to close the access.")
     @action(url_path="close", detail=True, methods=['patch'])
     def close(self, request, *args, **kwargs):
         access = self.get_object()
         now = timezone.now()
         if access.end_datetime and access.end_datetime < now:
             return Response(data="L'accès est déjà clôturé.", status=status.HTTP_403_FORBIDDEN)
-
         if access.start_datetime and access.start_datetime > now:
-            return Response(data="L'accès n'a pas encore commencé, il ne peut pas être déjà fermé."
-                                 "Il peut cependant être supprimé, avec la méthode DELETE.",
+            return Response(data="L'accès ne peut pas être clôturé car n'a pas encore commencé. Il peut cependant être supprimé.",
                             status=status.HTTP_403_FORBIDDEN)
-
         request.data.update({'end_datetime': now})
         return self.partial_update(request, *args, **kwargs)
 
