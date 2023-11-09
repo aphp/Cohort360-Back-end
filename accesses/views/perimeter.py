@@ -15,14 +15,11 @@ from admin_cohort.tools import join_qs
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from admin_cohort.views import BaseViewset
 from accesses.models import Role, Perimeter
-from accesses.tools import get_user_valid_manual_accesses
+from accesses.tools import get_user_valid_manual_accesses, get_manageable_perimeters
 from accesses.serializers import PerimeterSerializer, PerimeterLiteSerializer, DataReadRightSerializer, ReadRightPerimeter
-from accesses.utils.perimeter_process import get_top_perimeter_same_level, get_top_perimeter_inf_level, \
-    filter_perimeter_by_top_hierarchy_perimeter_list, filter_accesses_by_search_perimeters, get_read_patient_right, \
-    get_top_perimeter_from_read_patient_accesses, is_pseudo_perimeter_in_top_perimeter, \
-    has_at_least_one_read_nominative_right, \
-    get_read_nominative_boolean_from_specific_logic_function, get_all_read_patient_accesses, \
-    get_read_opposing_patient_accesses
+from accesses.utils.perimeter_process import filter_accesses_by_search_perimeters, get_read_patient_right, \
+    get_top_perimeter_from_read_patient_accesses, is_pseudo_perimeter_in_top_perimeter, has_at_least_one_read_nominative_right, \
+    get_read_nominative_boolean_from_specific_logic_function, get_all_read_patient_accesses, get_read_opposing_patient_accesses
 
 
 class PerimeterFilter(filters.FilterSet):
@@ -83,35 +80,9 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewset):
     @action(detail=False, methods=['get'], url_path="manageable")
     @cache_response()
     def get_manageable_perimeters(self, request, *args, **kwargs):
-        user_accesses = get_user_valid_manual_accesses(request.user)
-
-        perimeters_filtered_by_search = []
-        if request.query_params:
-            perimeters_filtered_by_search = self.filter_queryset(self.get_queryset())
-            if not perimeters_filtered_by_search:
-                return Response(data={"WARN": "No Perimeters Found"}, status=status.HTTP_200_OK)
-
-        if user_accesses.filter(Role.q_allow_manage_accesses_on_any_level()).exists():   # i.e. having right to manage CSV/Jupyter Export accesses
-            # if edit on any level, we don't care about perimeters' accesses; return the top perimeter hierarchy:
-            top_hierarchy_perimeter = Perimeter.objects.filter(parent__isnull=True)
-        else:
-            same_level_accesses = user_accesses.filter(Role.q_allow_manage_accesses_on_same_level())
-            inf_level_accesses = user_accesses.filter(Role.q_allow_manage_accesses_on_inf_levels())
-
-            all_perimeters = {access.perimeter for access in same_level_accesses.union(inf_level_accesses)}
-
-            top_perimeter_same_level = list(set(get_top_perimeter_same_level(same_level_accesses=same_level_accesses,
-                                                                             all_distinct_perimeters=all_perimeters)))
-            top_perimeter_inf_level = get_top_perimeter_inf_level(inf_level_accesses=inf_level_accesses,
-                                                                  all_distinct_perimeters=all_perimeters,
-                                                                  top_perimeter_same_level=top_perimeter_same_level)
-
-            # Apply Distinct to list
-            top_hierarchy_perimeter = list(set(top_perimeter_inf_level + top_perimeter_same_level))
-
-        perimeters = filter_perimeter_by_top_hierarchy_perimeter_list(perimeters_filtered_by_search,
-                                                                      top_hierarchy_perimeter)
-        return Response(data=PerimeterLiteSerializer(perimeters, many=True).data,
+        manageable_perimeters = get_manageable_perimeters(user=request.user)
+        manageable_perimeters = self.filter_queryset(manageable_perimeters)
+        return Response(data=PerimeterLiteSerializer(manageable_perimeters, many=True).data,
                         status=status.HTTP_200_OK)
 
     @swagger_auto_schema(method='get',

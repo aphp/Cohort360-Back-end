@@ -1,85 +1,11 @@
 from django.http import Http404
 from rest_framework.exceptions import ValidationError
 
-from accesses.models import Perimeter, Access, Role
+from accesses.models import Perimeter, Role
 from accesses.tools import get_user_valid_manual_accesses
 from accesses.utils.data_right_mapping import PerimeterReadRight
 from cohort.models import CohortResult
 from cohort.tools import get_list_cohort_id_care_site
-
-
-def is_perimeter_in_top_hierarchy(above_list: [int], all_distinct_perimeters: [Perimeter]) -> bool:
-    """
-    Check for each parent if we found it il perimeters already given in accesses, so if the current perimeter
-    is a child of another given perimeter.
-    """
-    if not above_list:
-        return True
-    is_top = True
-    for perimeter in all_distinct_perimeters:
-        if perimeter.id in above_list:
-            is_top = False
-    return is_top
-
-
-def get_top_perimeter_same_level(same_level_accesses: [Access], all_distinct_perimeters: [Perimeter]) -> [Perimeter]:
-    """
-    for each perimeter in same level access we get the above perimeter list.
-    if we find an id in this list one id already present in another access,
-    it is meaning this perimeter is not a top of roles perimeter hierarchy of user.
-    if it is, we add current id to the list
-    We consider a right on a same level equal to right on the current level and all children
-    """
-    response_list = []
-    for access in same_level_accesses:
-        perimeter = access.perimeter
-        if perimeter is None:
-            continue
-        above_list = perimeter.above_levels
-        if is_perimeter_in_top_hierarchy(above_list, all_distinct_perimeters):
-            response_list.append(perimeter)
-    return response_list
-
-
-def get_top_perimeter_inf_level(inf_level_accesses: [Access], all_distinct_perimeters: [Perimeter],
-                                top_perimeter_same_level: [Perimeter]) -> [Perimeter]:
-    """
-    for each perimeter in inferior level access we get the above perimeter list.
-    if we find an id in this list one id already present in another access,
-    it is meaning this perimeter is not a top of roles perimeter hierarchy of user.
-    if it is, we add all children perimeter id to the list
-    """
-    response_list = []
-    for access in inf_level_accesses:
-        perimeter = access.perimeter
-        if perimeter is None:
-            continue
-        above_list = perimeter.above_levels
-        if is_perimeter_in_top_hierarchy(above_list, all_distinct_perimeters) and \
-                is_perimeter_in_top_hierarchy([perimeter.id], top_perimeter_same_level):
-            if perimeter.inferior_levels_ids is None:
-                print("WARN: No lower levels perimeters found! ")
-            children_list = perimeter.inferior_levels
-            if not children_list:
-                continue
-            children_perimeters = Perimeter.objects.filter(id__in=children_list)
-            for perimeter_child in children_perimeters:
-                response_list.append(perimeter_child)
-    return response_list
-
-
-def filter_perimeter_by_top_hierarchy_perimeter_list(perimeters_filtered_by_search, top_hierarchy_perimeter_list):
-    """
-    filter the perimeters fetched by search params with hierarchy perimeter response with user Roles and Accesses.
-    If there is no search params it return the previous top hierarchy compute response.
-    """
-    response_list = []
-    for perimeter in perimeters_filtered_by_search:
-        above_levels_ids = perimeter.above_levels
-        for top_perimeter in top_hierarchy_perimeter_list:
-            if top_perimeter.id == perimeter.id or top_perimeter.id in above_levels_ids:
-                response_list.append(perimeter)
-    return response_list
 
 
 def get_right_boolean_for_each_accesses_list(above_levels_ids, all_read_patient_nominative_accesses,

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import urllib
-from typing import List, Dict
+from typing import List, Dict, Set
 
 from django.db.models import Q, F
 from django.db.models.query import QuerySet, Prefetch
@@ -145,13 +145,18 @@ def get_all_user_managing_accesses_on_perimeter(user: User, perimeter: Perimeter
                                                .select_related("role")
 
 
-def check_accesses_managing_roles(access: Access, perimeter: Perimeter, readonly: bool):
+def is_perimeter_child_of_perimeter(child: Perimeter, parent: Perimeter):
+    return child.level > parent.level and parent.id in child.above_levels_ids
+
+
+def check_accesses_managing_roles_on_perimeter(access: Access, target_perimeter: Perimeter, readonly: bool):
     role = access.role
 
-    if access.perimeter == perimeter:
+    if access.perimeter == target_perimeter:
         has_admin_accesses_managing_role = readonly and role.right_read_admin_accesses_same_level or role.right_manage_admin_accesses_same_level
         has_data_accesses_managing_role = readonly and role.right_read_data_accesses_same_level or role.right_manage_data_accesses_same_level
-    elif access.perimeter.level > perimeter.level:
+    elif is_perimeter_child_of_perimeter(child=target_perimeter,
+                                         parent=access.perimeter):
         has_admin_accesses_managing_role = (readonly and role.right_read_admin_accesses_inferior_levels
                                             or role.right_manage_admin_accesses_inferior_levels)
         has_data_accesses_managing_role = (readonly and role.right_read_data_accesses_inferior_levels
@@ -174,9 +179,9 @@ def do_user_accesses_allow_to_manage_role(user: User, role: Role, perimeter: Per
     for access in user_managing_accesses:
         role = access.role
         (has_admin_accesses_managing_role_2,
-         has_data_accesses_managing_role_2) = check_accesses_managing_roles(access=access,
-                                                                            perimeter=perimeter,
-                                                                            readonly=readonly)
+         has_data_accesses_managing_role_2) = check_accesses_managing_roles_on_perimeter(access=access,
+                                                                                         target_perimeter=perimeter,
+                                                                                         readonly=readonly)
         has_admin_accesses_managing_role = has_admin_accesses_managing_role or has_admin_accesses_managing_role_2
         has_data_accesses_managing_role = has_data_accesses_managing_role or has_data_accesses_managing_role_2
         has_jupyter_accesses_managing_role = has_jupyter_accesses_managing_role or role.right_manage_export_jupyter_accesses
@@ -347,3 +352,78 @@ class DataRight:
         self.right_export_csv_pseudonymized = self.right_export_csv_pseudonymized or dr.right_export_csv_pseudonymized
         self.right_export_jupyter_nominative = self.right_export_jupyter_nominative or dr.right_export_jupyter_nominative
         self.right_export_jupyter_pseudonymized = self.right_export_jupyter_pseudonymized or dr.right_export_jupyter_pseudonymized
+
+
+def get_top_perimeters_ids_same_level(same_level_perimeters_ids: Set[int], all_perimeters_ids: Set[int]) -> Set[int]:
+    """
+    * If any of the parent perimeters of P is already linked to an access (same level OR inferior levels),
+      then, perimeter P is not the highest perimeter in its relative hierarchy (branch), i.e. one of its parents is.
+    * We assume that a right of type "manage same level" allows to manage accesses on "same level" and "inferior levels".
+      Given the hierarchy in the docstring bellow:
+         For example, having access on P2 allows to manage accesses on inferior levels as well, in particular on P8.
+         The given access on P8 is then considered redundant.
+    regarding the hierarchy below, the top perimeters with accesses of type "manage same level" are: P1 and P2
+    """
+    top_perimeters_ids = set()
+    for p in Perimeter.objects.filter(id__in=same_level_perimeters_ids):
+        if any(parent_id in all_perimeters_ids for parent_id in p.above_levels):
+            continue
+        top_perimeters_ids.add(p.id)
+    return top_perimeters_ids
+
+
+def get_top_perimeter_ids_inf_levels(inf_levels_perimeters_ids: Set[int],
+                                     all_perimeters_ids: Set[int],
+                                     top_same_level_perimeters_ids: Set[int]) -> Set[int]:
+    """
+    Get the highest perimeters on which are defined accesses allowing to manage other accesses on inf levels ONLY.
+    --> The manageable perimeters will be their direct children (because accesses here allow to manage on inf levels ONLY).
+    regarding the hierarchy below, the top perimeters with accesses of type "manage inf levels" are the children of P0: P3, P4 and P5
+    """
+    top_perimeters_ids = set()
+    for p in Perimeter.objects.filter(id__in=inf_levels_perimeters_ids):
+        if not (p in top_same_level_perimeters_ids                                          # access defined on P with right same_level and inf_levels
+                or any(parent_id in all_perimeters_ids for parent_id in p.above_levels)):   # at least one access is defined on one of its parents
+            children_ids = p.inferior_levels
+            if not children_ids:
+                continue
+            top_perimeters_ids.add(children_ids)
+    return top_perimeters_ids
+
+
+def get_manageable_perimeters(user: User) -> QuerySet:
+    """
+    todo: Either rename rights of kind "right_manage_xxx_accesses_same_level"  to  "right_manage_xxx_accesses_same_and_inf_levels"
+          or alter the logic to fit what the rights describe: same_level_exclusively   or  inf_levels_exclusively   or  both
+    The user has 6 accesses allowing him to manage other accesses either on same level or on inferior levels.
+    Accesses are defined on perimeters: P0, P1, P2, P5, P8 and P10
+                                           APHP
+                 ___________________________|____________________________
+                |                           |                           |
+                P0 (Inf)                    P1 (Same + Inf)             P2 (Same)
+       _________|__________           ______|_______           _________|__________
+      |         |         |          |             |          |         |         |
+      P3        P4       P5 (Same)   P6            P7       P8 (Same)   P9       P10 (Inf)
+                                                                             _____|______
+                                                                            |           |
+                                                                            P11         P12
+    """
+    user_accesses = get_user_valid_manual_accesses(user=user)
+    # todo: remove "allow_edit_accesses_on_any_level" property for export-accesses-management rights
+    #   if a user has right_manage_xxx_export_accesses, it should be global
+    # if user_accesses.filter(Role.q_allow_manage_accesses_on_any_level()).exists():
+    #     return Perimeter.objects.filter(parent__isnull=True)
+    # else:
+    same_level_accesses = user_accesses.filter(Role.q_allow_manage_accesses_on_same_level())
+    inf_levels_accesses = user_accesses.filter(Role.q_allow_manage_accesses_on_inf_levels())
+
+    same_level_perimeters_ids = {access.perimeter.id for access in same_level_accesses}
+    inf_levels_perimeters_ids = {access.perimeter.id for access in inf_levels_accesses}
+    all_perimeters_ids = same_level_perimeters_ids.union(inf_levels_perimeters_ids)
+
+    top_same_level_perimeters_ids = get_top_perimeters_ids_same_level(same_level_perimeters_ids=same_level_perimeters_ids,
+                                                                      all_perimeters_ids=all_perimeters_ids)
+    top_inf_levels_perimeters_ids = get_top_perimeter_ids_inf_levels(inf_levels_perimeters_ids=inf_levels_perimeters_ids,
+                                                                     all_perimeters_ids=all_perimeters_ids,
+                                                                     top_same_level_perimeters_ids=top_same_level_perimeters_ids)
+    return Perimeter.objects.filter(id__in=top_same_level_perimeters_ids.union(top_inf_levels_perimeters_ids))
