@@ -91,6 +91,20 @@ class Role(BaseModel):
     right_manage_datalabs = models.BooleanField(default=False, null=False)
     right_read_datalabs = models.BooleanField(default=False, null=False)
 
+    def has_any_global_management_right(self):
+        return any((self.right_full_admin,
+                    self.right_manage_roles,
+                    self.right_manage_users,
+                    self.right_manage_datalabs,
+                    self.right_manage_export_csv_accesses,
+                    self.right_manage_export_jupyter_accesses))
+
+    def has_any_level_dependent_management_right(self):
+        return any((self.right_manage_data_accesses_same_level,
+                    self.right_manage_data_accesses_inferior_levels,
+                    self.right_manage_admin_accesses_same_level,
+                    self.right_manage_admin_accesses_inferior_levels))
+
     @staticmethod
     def q_allow_read_patient_data_nominative() -> Q:
         return Q(role__right_read_patient_nominative=True)
@@ -136,9 +150,9 @@ class Role(BaseModel):
                         for right in all_rights if right.allow_edit_accesses_on_inf_levels])
 
     @staticmethod
-    def q_allow_manage_accesses_on_any_level() -> Q:
-        return join_qs([Q(**{f'role__{right.name}': True})
-                        for right in all_rights if right.allow_edit_accesses_on_any_level])
+    def q_allow_manage_export_accesses() -> Q:
+        return join_qs([Q(role__right_manage_export_csv_accesses=True),
+                        Q(role__right_manage_export_jupyter_accesses=True)])
 
     @staticmethod
     def q_impact_inferior_levels() -> Q:

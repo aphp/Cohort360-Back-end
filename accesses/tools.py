@@ -137,11 +137,11 @@ def get_all_user_managing_accesses_on_perimeter(user: User, perimeter: Perimeter
     """ filter user's valid accesses to extract:
           + those configured directly on the given perimeter AND allow to read/manage accesses on the same level
           + those configured on any of the perimeter's parents AND allow to read/manage accesses on inferior levels
-          + those allowing to read/manage accesses on any level (Exports accesses)
+          + those allowing to read/manage Exports accesses (global rights, allow to manage on any level)
     """
     return get_user_valid_manual_accesses(user).filter((Q(perimeter=perimeter) & Role.q_allow_manage_accesses_on_same_level())
                                                        | (perimeter.q_all_parents() & Role.q_allow_manage_accesses_on_inf_levels())
-                                                       | Role.q_allow_manage_accesses_on_any_level())\
+                                                       | Role.q_allow_manage_export_accesses())\
                                                .select_related("role")
 
 
@@ -409,21 +409,20 @@ def get_manageable_perimeters(user: User) -> QuerySet:
                                                                             P11         P12
     """
     user_accesses = get_user_valid_manual_accesses(user=user)
-    # todo: remove "allow_edit_accesses_on_any_level" property for export-accesses-management rights
-    #   if a user has right_manage_xxx_export_accesses, it should be global
-    # if user_accesses.filter(Role.q_allow_manage_accesses_on_any_level()).exists():
-    #     return Perimeter.objects.filter(parent__isnull=True)
-    # else:
-    same_level_accesses = user_accesses.filter(Role.q_allow_manage_accesses_on_same_level())
-    inf_levels_accesses = user_accesses.filter(Role.q_allow_manage_accesses_on_inf_levels())
+    if all(access.role.has_any_global_management_right()
+           and not access.role.has_any_level_dependent_management_right() for access in user_accesses):
+        return Perimeter.objects.filter(parent__isnull=True)
+    else:
+        same_level_accesses = user_accesses.filter(Role.q_allow_manage_accesses_on_same_level())
+        inf_levels_accesses = user_accesses.filter(Role.q_allow_manage_accesses_on_inf_levels())
 
-    same_level_perimeters_ids = {access.perimeter.id for access in same_level_accesses}
-    inf_levels_perimeters_ids = {access.perimeter.id for access in inf_levels_accesses}
-    all_perimeters_ids = same_level_perimeters_ids.union(inf_levels_perimeters_ids)
+        same_level_perimeters_ids = {access.perimeter.id for access in same_level_accesses}
+        inf_levels_perimeters_ids = {access.perimeter.id for access in inf_levels_accesses}
+        all_perimeters_ids = same_level_perimeters_ids.union(inf_levels_perimeters_ids)
 
-    top_same_level_perimeters_ids = get_top_perimeters_ids_same_level(same_level_perimeters_ids=same_level_perimeters_ids,
-                                                                      all_perimeters_ids=all_perimeters_ids)
-    top_inf_levels_perimeters_ids = get_top_perimeter_ids_inf_levels(inf_levels_perimeters_ids=inf_levels_perimeters_ids,
-                                                                     all_perimeters_ids=all_perimeters_ids,
-                                                                     top_same_level_perimeters_ids=top_same_level_perimeters_ids)
-    return Perimeter.objects.filter(id__in=top_same_level_perimeters_ids.union(top_inf_levels_perimeters_ids))
+        top_same_level_perimeters_ids = get_top_perimeters_ids_same_level(same_level_perimeters_ids=same_level_perimeters_ids,
+                                                                          all_perimeters_ids=all_perimeters_ids)
+        top_inf_levels_perimeters_ids = get_top_perimeter_ids_inf_levels(inf_levels_perimeters_ids=inf_levels_perimeters_ids,
+                                                                         all_perimeters_ids=all_perimeters_ids,
+                                                                         top_same_level_perimeters_ids=top_same_level_perimeters_ids)
+        return Perimeter.objects.filter(id__in=top_same_level_perimeters_ids.union(top_inf_levels_perimeters_ids))

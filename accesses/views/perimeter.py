@@ -126,13 +126,11 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewset):
     @action(detail=False, methods=['get'], url_path="is-read-patient-pseudo")
     @cache_response()
     def get_read_patient_pseudo_right(self, request, *args, **kwargs):
-        all_read_patient_nominative_accesses, all_read_patient_pseudo_accesses = get_all_read_patient_accesses(
-            request.user)
+        all_read_patient_nominative_accesses, all_read_patient_pseudo_accesses = get_all_read_patient_accesses(request.user)
         is_opposing_patient_read = get_read_opposing_patient_accesses(request.user)
         if request.query_params:
             is_read_patient_nominative = get_read_nominative_boolean_from_specific_logic_function(request,
-                                                                                                  self.filter_queryset(
-                                                                                                      self.get_queryset()),
+                                                                                                  self.filter_queryset(self.get_queryset()),
                                                                                                   all_read_patient_nominative_accesses,
                                                                                                   all_read_patient_pseudo_accesses,
                                                                                                   get_read_patient_right)
@@ -147,17 +145,15 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewset):
 
     @swagger_auto_schema(method='get',
                          operation_summary="whether or not the user has a `read patient data in nominative mode` right on one or several perimeters",
-                         responses={'200': openapi.Response("give rights in caresite perimeters found")})
+                         responses={'200': openapi.Response("give rights in perimeters found")})
     @action(detail=False, methods=['get'], url_path="is-one-read-patient-right")
     @cache_response()
     def get_read_one_nominative_patient_right_access(self, request, *args, **kwargs):
-        all_read_patient_nominative_accesses, all_read_patient_pseudo_accesses = get_all_read_patient_accesses(
-            request.user)
+        all_read_patient_nominative_accesses, all_read_patient_pseudo_accesses = get_all_read_patient_accesses(request.user)
         is_opposing_patient_read = get_read_opposing_patient_accesses(request.user)
         if request.query_params:
             is_read_patient_nominative = get_read_nominative_boolean_from_specific_logic_function(request,
-                                                                                                  self.filter_queryset(
-                                                                                                      self.get_queryset()),
+                                                                                                  self.filter_queryset(self.get_queryset()),
                                                                                                   all_read_patient_nominative_accesses,
                                                                                                   all_read_patient_pseudo_accesses,
                                                                                                   has_at_least_one_read_nominative_right)

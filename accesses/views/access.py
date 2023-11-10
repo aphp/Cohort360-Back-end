@@ -88,14 +88,14 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
         return self.serializer_class
 
     def get_queryset(self) -> QuerySet:
-        q = super(AccessViewSet, self).get_queryset()
+        queryset = super(AccessViewSet, self).get_queryset()
         user = self.request.user
         if not user.is_anonymous:
             accesses = get_user_valid_manual_accesses(user).select_related("role")
         else:
             accesses = []
         if user_is_full_admin(user):
-            return q
+            return queryset
 
         # todo: implement logic related to the recently added rights
 
@@ -107,6 +107,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
         also, if he has an access with ONLY right_read_data_accesses_inferior_levels on a perimeter P,
         then he cannot read accesses configured on perimeter P
         """
+        # todo: instead of using an exclude approach, proceed by filtering what accesses the user is allowed to retrieve
         to_exclude = [access_criteria_to_exclude(access) for access in accesses]
         if to_exclude:
             to_exclude = reduce(intersect_queryset_criteria, to_exclude)
@@ -122,19 +123,13 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
                                       & ~join_qs([Q(**{f"perimeter__{i * 'parent__'}id__in": e['perimeter_not_child']})
                                                   for i in range(1, len(PERIMETERS_TYPES))])
                 exclusion_queries.append(exclusion_query)
-            q = exclusion_queries and q.exclude(join_qs(exclusion_queries)) or q
-        return q
-
-    def filter_queryset(self, queryset):
+            queryset = exclusion_queries and queryset.exclude(join_qs(exclusion_queries)) or queryset
         now = timezone.now()
-        queryset = queryset.annotate(sql_is_valid=Case(When(start_datetime__lte=now,
-                                                            end_datetime__gte=now,
-                                                            then=Value(True)),
-                                                       default=Value(False),
-                                                       output_field=BooleanField()))
-        return super(AccessViewSet, self).filter_queryset(queryset)
+        queryset = queryset.annotate(sql_is_valid=Case(When(start_datetime__lte=now, end_datetime__gte=now, then=Value(True)),
+                                                       default=Value(False), output_field=BooleanField()))
+        return queryset
 
-    def get_object(self):
+    def get_object(self):                   # todo: why override it ?
         if self.request.method == "GET":
             try:
                 obj = super(AccessViewSet, self).get_object()
