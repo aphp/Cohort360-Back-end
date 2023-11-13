@@ -438,8 +438,9 @@ class DataReadRightSerializer(serializers.Serializer):
 
 
 class ReadRightPerimeter(serializers.Serializer):
-    perimeter = PerimeterLiteSerializer(allow_null=True, required=False)
+    perimeter = PerimeterLiteSerializer(read_only=True, allow_null=True)
     read_role = serializers.CharField(read_only=True, allow_null=True)
     right_read_patient_nominative = serializers.BooleanField(read_only=True, allow_null=True)
     right_read_patient_pseudonymized = serializers.BooleanField(read_only=True, allow_null=True)
     right_search_patients_by_ipp = serializers.BooleanField(read_only=True, allow_null=True)
+    # todo: add this:  right_read_opposed_patients_data = serializers.BooleanField(read_only=True, allow_null=True)

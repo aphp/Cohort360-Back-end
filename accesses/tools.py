@@ -391,7 +391,7 @@ def get_top_perimeter_ids_inf_levels(inf_levels_perimeters_ids: Set[int],
     return top_perimeters_ids
 
 
-def get_manageable_perimeters(user: User) -> QuerySet:
+def get_top_manageable_perimeters(user: User) -> QuerySet:
     """
     todo: Either rename rights of kind "right_manage_xxx_accesses_same_level"  to  "right_manage_xxx_accesses_same_and_inf_levels"
           or alter the logic to fit what the rights describe: same_level_exclusively   or  inf_levels_exclusively   or  both
@@ -409,8 +409,8 @@ def get_manageable_perimeters(user: User) -> QuerySet:
                                                                             P11         P12
     """
     user_accesses = get_user_valid_manual_accesses(user=user)
-    if all(access.role.has_any_global_management_right()
-           and not access.role.has_any_level_dependent_management_right() for access in user_accesses):
+    if user_is_full_admin(user=user) or all(access.role.has_any_global_management_right()
+                                            and not access.role.has_any_level_dependent_management_right() for access in user_accesses):
         return Perimeter.objects.filter(parent__isnull=True)
     else:
         same_level_accesses = user_accesses.filter(Role.q_allow_manage_accesses_on_same_level())

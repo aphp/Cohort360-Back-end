@@ -1,81 +1,111 @@
+from typing import List
+
+from django.db.models import QuerySet
 from django.http import Http404
 from rest_framework.exceptions import ValidationError
 
 from accesses.models import Perimeter, Role
 from accesses.tools import get_user_valid_manual_accesses
-from accesses.utils.data_right_mapping import PerimeterReadRight
+from admin_cohort.models import User
 from cohort.models import CohortResult
 from cohort.tools import get_list_cohort_id_care_site
 
 
-def get_right_boolean_for_each_accesses_list(above_levels_ids, all_read_patient_nominative_accesses,
-                                             all_read_patient_pseudo_accesses, all_read_ipp_accesses):
-    """
-    @param above_levels_ids: list of parents perimeters ids
-    @param all_read_patient_nominative_accesses:  QuerySet of accesses with nominative read patient right at True
-    @param all_read_patient_pseudo_accesses: QuerySet of accesses with nominative read patient right at True or Pseudo
-    @param all_read_ipp_accesses: QuerySet of accesses with read IPP right at True
-    @return: pseudo, nomi and ipp boolean right for the current perimeter
-    """
-    nomi, pseudo, ipp = False, False, False
-    if all_read_patient_nominative_accesses.filter(perimeter_id__in=above_levels_ids):
-        nomi, pseudo = True, True
-    elif all_read_patient_pseudo_accesses.filter(perimeter_id__in=above_levels_ids):
-        pseudo = True
-    if all_read_ipp_accesses.filter(perimeter_id__in=above_levels_ids):
-        ipp = True
-    return pseudo, nomi, ipp
+class PerimeterReadRight:
+    def __init__(self,
+                 perimeter: Perimeter,
+                 read_nomi: bool = False,
+                 read_pseudo: bool = False,
+                 search_by_ipp: bool = False,
+                 read_opposed_patients_data: bool = False):
+        self.perimeter = perimeter
+        self.right_read_patient_nominative = read_nomi
+        self.right_read_patient_pseudonymized = read_pseudo
+        self.right_search_patients_by_ipp = search_by_ipp
+        self.right_read_opposed_patients_data = read_opposed_patients_data
+        if read_nomi:
+            self.read_role = "READ_PATIENT_NOMINATIVE"
+        elif read_pseudo:
+            self.read_role = "READ_PATIENT_PSEUDO_ANONYMIZE"
+        else:
+            self.read_role = "NO READ PATIENT RIGHT"
 
 
-def filter_accesses_by_search_perimeters(perimeters_filtered_by_search, all_read_patient_nominative_accesses,
-                                         all_read_patient_pseudo_accesses, all_read_ipp_accesses) -> list:
-    """
-    filter Accesses  with perimeters fetch by search params with hierarchy perimeter response and user roles.
-    with following rule : Read nominative > Read pseudo
-    return dict of perimeter id and tuple of access and perimeter.
-    """
+def get_perimeters_read_rights(target_perimeters: QuerySet,
+                               top_read_nomi_perimeters_ids: List[int],
+                               top_read_pseudo_perimeters_ids: List[int],
+                               search_by_ipp_perimeters_ids: List[int]) -> List[PerimeterReadRight]:
     perimeter_read_right_list = []
-    for perimeter in perimeters_filtered_by_search:
-        above_levels_ids = perimeter.above_levels
-        above_levels_ids.append(perimeter.id)
-        pseudo, nomi, ipp = get_right_boolean_for_each_accesses_list(above_levels_ids,
-                                                                     all_read_patient_nominative_accesses,
-                                                                     all_read_patient_pseudo_accesses,
-                                                                     all_read_ipp_accesses)
-        data_read = PerimeterReadRight(pseudo=pseudo, nomi=nomi, ipp=ipp, perimeter=perimeter)
-        perimeter_read_right_list.append(data_read)
+
+    if not (top_read_nomi_perimeters_ids or top_read_pseudo_perimeters_ids):
+        return perimeter_read_right_list
+
+    for perimeter in target_perimeters:
+        perimeter_and_parents_ids = [perimeter.id] + perimeter.above_levels
+        read_nomi, read_pseudo, search_by_ipp = False, False, False
+        if any(perimeter_id in top_read_nomi_perimeters_ids for perimeter_id in perimeter_and_parents_ids):
+            read_nomi, read_pseudo = True, True
+        elif any(perimeter_id in top_read_pseudo_perimeters_ids for perimeter_id in perimeter_and_parents_ids):
+            read_pseudo = True
+        # todo: remove this if `right_search_patients_by_ipp` is to be global right
+        if any(perimeter_id in search_by_ipp_perimeters_ids for perimeter_id in perimeter_and_parents_ids):
+            search_by_ipp = True
+        # todo: add read_opposed_patient related logic
+        # if any(perimeter_id in read_opposed_perimeters_ids for perimeter_id in perimeter_and_parents_ids):
+        #     read_opposed_patients_data = True
+        perimeter_read_right_list.append(PerimeterReadRight(perimeter=perimeter,
+                                                            read_nomi=read_nomi,
+                                                            read_pseudo=read_pseudo,
+                                                            search_by_ipp=search_by_ipp))
     return perimeter_read_right_list
 
 
-def get_top_perimeter_from_read_patient_accesses(accesses_nomi, accesses_pseudo):
-    """
-    Get only top hierarchy perimeters with read patient right logical:
-    for each perimeters with nominative read right we do not keep perimeter if there is one in the above nomi list
-    for each perimeters with pseudo read right we do not keep perimeter if there is one in the above list nomi or pseudo
-    or if there nominative at same level.
-    @param accesses_nomi:  QuerySet of accesses with nominative read patient right at True
-    @param accesses_pseudo: QuerySet of accesses with nominative read patient right at True or Pseudo
-    @return: Top perimeters for read patient right
-    """
-    all_nomi = [access.perimeter.id for access in accesses_nomi]
-    all_pseudo = [access.perimeter.id for access in accesses_pseudo]
-    for access in accesses_nomi:
-        perimeter = access.perimeter
-        above_levels_ids = perimeter.above_levels
-        for above_perimeter in above_levels_ids:
-            if above_perimeter in all_nomi and perimeter.id in all_nomi:
-                all_nomi.remove(perimeter.id)
-                break
-    for access in accesses_pseudo:
-        perimeter = access.perimeter
-        above_levels_ids = perimeter.above_levels
-        for above_perimeter in above_levels_ids:
-            if (above_perimeter in all_pseudo or above_perimeter in all_nomi or perimeter.id in all_nomi) \
-                    and perimeter.id in all_pseudo:
-                all_pseudo.remove(perimeter.id)
-                break
+def get_top_perimeters_with_right_read_nomi(read_nomi_perimeters_ids: List[int]) -> List[int]:
+    """ for each perimeter with nominative read right, remove it if any of its parents has nomi access """
+    for perimeter in Perimeter.objects.filter(id__in=read_nomi_perimeters_ids):
+        if any(parent_id in read_nomi_perimeters_ids for parent_id in perimeter.above_levels):
+            try:
+                read_nomi_perimeters_ids.remove(perimeter.id)
+            except ValueError:
+                continue
+    return read_nomi_perimeters_ids
 
-    return Perimeter.objects.filter(id__in=set(all_nomi + all_pseudo))
+
+def get_top_perimeters_with_right_read_pseudo(top_read_nomi_perimeters_ids: List[int],
+                                              read_pseudo_perimeters_ids: List[int]) -> List[int]:
+    """ for each perimeter with pseudo read right, remove it if it has nomi access too or if any of its parents has nomi or pseudo access """
+    for perimeter in Perimeter.objects.filter(id__in=read_pseudo_perimeters_ids):
+        if any((parent_id in read_pseudo_perimeters_ids
+                or parent_id in top_read_nomi_perimeters_ids
+                or perimeter.id in top_read_nomi_perimeters_ids) for parent_id in perimeter.above_levels):
+            try:
+                read_pseudo_perimeters_ids.remove(perimeter.id)
+            except ValueError:
+                continue
+    return read_pseudo_perimeters_ids
+
+
+def get_data_reading_rights_on_perimeters(user: User, target_perimeters: QuerySet):
+    user_accesses = get_user_valid_manual_accesses(user=user)
+    read_patient_nominative_accesses = user_accesses.filter(Role.q_allow_read_patient_data_nominative())
+    read_patient_pseudo_accesses = user_accesses.filter(Role.q_allow_read_patient_data_pseudo() |
+                                                        Role.q_allow_read_patient_data_nominative())
+    search_by_ipp_accesses = user_accesses.filter(Role.q_allow_search_patients_by_ipp())
+    # todo: add   read_opposed_patient_accesses = user_accesses.filter(Role.q_allow_read_research_opposed_patient_data())
+
+    read_nomi_perimeters_ids = [access.perimeter_id for access in read_patient_nominative_accesses]
+    read_pseudo_perimeters_ids = [access.perimeter_id for access in read_patient_pseudo_accesses]
+    search_by_ipp_perimeters_ids = [access.perimeter_id for access in search_by_ipp_accesses]
+
+    top_read_nomi_perimeters_ids = get_top_perimeters_with_right_read_nomi(read_nomi_perimeters_ids=read_nomi_perimeters_ids)
+    top_read_pseudo_perimeters_ids = get_top_perimeters_with_right_read_pseudo(top_read_nomi_perimeters_ids=top_read_nomi_perimeters_ids,
+                                                                               read_pseudo_perimeters_ids=read_pseudo_perimeters_ids)
+
+    perimeters_read_rights = get_perimeters_read_rights(target_perimeters=target_perimeters,
+                                                        top_read_nomi_perimeters_ids=top_read_nomi_perimeters_ids,
+                                                        top_read_pseudo_perimeters_ids=top_read_pseudo_perimeters_ids,
+                                                        search_by_ipp_perimeters_ids=search_by_ipp_perimeters_ids)
+    return perimeters_read_rights
 
 
 def get_read_patient_right(perimeters_filtered_by_search, all_read_patient_nominative_accesses,

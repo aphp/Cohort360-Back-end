@@ -67,10 +67,7 @@ class Perimeter(BaseModel):
         return join_qs([Q(**{f'perimeter__{"__".join(i * ["children"])}': self})
                         for i in range(1, len(PERIMETERS_TYPES))])
 
-    def q_all_children(self) -> Q:
-        return join_qs([Q(**{"__".join(i * ["parent"]): self})
-                        for i in range(1, len(PERIMETERS_TYPES))])
-
     @property
-    def all_children_queryset(self) -> QuerySet:
-        return Perimeter.objects.filter(self.q_all_children)
+    def all_children(self) -> QuerySet:
+        return Perimeter.objects.filter(join_qs([Q(**{"__".join(i * ["parent"]): self})
+                                                 for i in range(1, len(PERIMETERS_TYPES))]))

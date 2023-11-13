@@ -10,16 +10,17 @@ from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from admin_cohort.tools.cache import cache_response
-from admin_cohort.permissions import IsAuthenticatedReadOnly
+from admin_cohort.permissions import IsAuthenticatedReadOnly, user_is_full_admin
 from admin_cohort.tools import join_qs
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from admin_cohort.views import BaseViewset
 from accesses.models import Role, Perimeter
-from accesses.tools import get_user_valid_manual_accesses, get_manageable_perimeters
+from accesses.tools import get_user_valid_manual_accesses, get_top_manageable_perimeters
 from accesses.serializers import PerimeterSerializer, PerimeterLiteSerializer, DataReadRightSerializer, ReadRightPerimeter
-from accesses.utils.perimeter_process import filter_accesses_by_search_perimeters, get_read_patient_right, \
-    get_top_perimeter_from_read_patient_accesses, is_pseudo_perimeter_in_top_perimeter, has_at_least_one_read_nominative_right, \
-    get_read_nominative_boolean_from_specific_logic_function, get_all_read_patient_accesses, get_read_opposing_patient_accesses
+from accesses.utils.perimeter_process import get_perimeters_read_rights, get_read_patient_right, \
+    is_pseudo_perimeter_in_top_perimeter, has_at_least_one_read_nominative_right, \
+    get_read_nominative_boolean_from_specific_logic_function, get_all_read_patient_accesses, get_read_opposing_patient_accesses, \
+    get_top_perimeters_with_right_read_nomi, get_top_perimeters_with_right_read_pseudo, get_data_reading_rights_on_perimeters
 
 
 class PerimeterFilter(filters.FilterSet):
@@ -74,47 +75,30 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewset):
 
     @swagger_auto_schema(method='get',
                          operation_summary="Get the top hierarchy perimeters on which the user has at least one role that allows to give accesses."
-                                           "-Same level right give access to current perimeter and lower levels."   # todo: should be same level only
-                                           "-Inferior level right give only access to children of current perimeter.",
+                                           "-Same level rights give access to a perimeter and its lower levels."   # todo: should be same level only
+                                           "-Inferior level rights give only access to children of a perimeter.",
                          responses={'200': openapi.Response("manageable perimeters found", PerimeterLiteSerializer())})
     @action(detail=False, methods=['get'], url_path="manageable")
     @cache_response()
     def get_manageable_perimeters(self, request, *args, **kwargs):
-        manageable_perimeters = get_manageable_perimeters(user=request.user)
-        manageable_perimeters = self.filter_queryset(manageable_perimeters)
+        manageable_perimeters = get_top_manageable_perimeters(user=request.user)
+        if request.query_params:
+            manageable_perimeters_children = reduce(lambda qs1, qs2: qs1.union(qs2),
+                                                    [p.all_children for p in manageable_perimeters])
+            all_manageable_perimeters = manageable_perimeters.union(manageable_perimeters_children)
+            manageable_perimeters = self.filter_queryset(queryset=all_manageable_perimeters)
         return Response(data=PerimeterLiteSerializer(manageable_perimeters, many=True).data,
                         status=status.HTTP_200_OK)
 
     @swagger_auto_schema(method='get',
-                         operation_summary="Return perimeters and associated read patient rights for current user."
-                                           "If perimeters are not filtered, return user's top hierarchy perimeters",
-                         responses={'200': openapi.Response("Rights per perimeter", DataReadRightSerializer())})
+                         operation_summary="Return perimeters and associated read patient's data rights for current user.",
+                         responses={'200': openapi.Response("Rights per perimeter", ReadRightPerimeter())})
     @action(detail=False, methods=['get'], url_path="read-patient")
     @cache_response()
-    def get_perimeters_read_right_accesses(self, request, *args, **kwargs):
-        user_accesses = get_user_valid_manual_accesses(request.user)
-        read_patient_nominative_accesses = user_accesses.filter(Role.q_allow_read_patient_data_nominative())
-        read_patient_pseudo_accesses = user_accesses.filter(Role.q_allow_read_patient_data_pseudo() |
-                                                            Role.q_allow_read_patient_data_nominative())
-        search_by_ipp_accesses = user_accesses.filter(Role.q_allow_search_patients_by_ipp())
-
-        if not read_patient_nominative_accesses and not read_patient_pseudo_accesses:
-            return Response(data={"message": "No accesses with read patient right found"},
-                            status=status.HTTP_200_OK)
-
-        if request.query_params:
-            main_perimeters = Perimeter.objects.filter(id__in={a.perimeter_id for a in user_accesses})
-            all_perimeters = [main_perimeters] + [p.all_children_queryset for p in main_perimeters]
-            accessible_perimeters = reduce(lambda qs1, qs2: qs1 | qs2, all_perimeters)
-            perimeters = self.filter_queryset(accessible_perimeters)
-        else:
-            perimeters = get_top_perimeter_from_read_patient_accesses(read_patient_nominative_accesses,
-                                                                      read_patient_pseudo_accesses)
-        filtered_accesses = filter_accesses_by_search_perimeters(perimeters,
-                                                                 read_patient_nominative_accesses,
-                                                                 read_patient_pseudo_accesses,
-                                                                 search_by_ipp_accesses)
-        page = self.paginate_queryset(filtered_accesses)
+    def get_data_reading_rights_on_perimeters(self, request, *args, **kwargs):
+        data_reading_rights = get_data_reading_rights_on_perimeters(user=request.user,
+                                                                    target_perimeters=self.filter_queryset(self.queryset))
+        page = self.paginate_queryset(data_reading_rights)
         if page:
             serializer = ReadRightPerimeter(page, many=True)
             return self.get_paginated_response(serializer.data)

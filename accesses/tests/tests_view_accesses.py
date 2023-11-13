@@ -164,7 +164,7 @@ class AccessListCase(ListCase, AccessCase):
     @property
     def accessible_perimeters_ids(self):
         if "inferior" in self.name:
-            list(self.user_perimeter.all_children_queryset)
+            list(self.user_perimeter.all_children)
         elif "same" in self.name:
             return [self.user_perimeter]
         else:

@@ -178,10 +178,9 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
         required=['profile', 'perimeter', 'role']))
     def create(self, request, *args, **kwargs):
         data = request.data
-        if 'perimeter_id' not in data:                                                              # todo: [front] remove care_site_id
-            return Response(data="perimeter_id is required", status=status.HTTP_400_BAD_REQUEST)
-        data['profile_id'] = data.get('profile_id')                                                 # todo: [front] remove provider_history_id
-        data['perimeter_id'] = data.get('perimeter_id')
+        if 'perimeter_id' not in data:
+            return Response(data="perimeter_id is required", status=status.HTTP_400_BAD_REQUEST)    # todo: remove this: controlled by serializer
+        # todo: [front] remove `provider_history_id`  and  `care_site_id`
         return super(AccessViewSet, self).create(request, *args, **kwargs)
 
     @swagger_auto_schema(request_body=openapi.Schema(
