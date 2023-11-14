@@ -9,14 +9,16 @@ from django.db.models.query import QuerySet, Prefetch
 from accesses.models import Profile, Access, Role, Perimeter
 from accesses.rights import all_rights, full_admin_rights, RightGroup
 from admin_cohort.models import User
-from admin_cohort.permissions import user_is_full_admin
 from admin_cohort.settings import MANUAL_SOURCE, PERIMETERS_TYPES
 from admin_cohort.tools import join_qs
 
 
-def check_existing_role(data: dict) -> Role:
-    data.pop("name", None)
-    return Role.objects.filter(**data).first()
+def get_bound_roles(user: User) -> List[Role]:
+    return [access.role for access in get_user_valid_manual_accesses(user)]
+
+
+def user_is_full_admin(user: User) -> bool:
+    return any(filter(lambda role: role.right_full_admin, get_bound_roles(user)))
 
 
 def get_assignable_roles(user: User, perimeter_id: str) -> QuerySet:

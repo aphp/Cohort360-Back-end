@@ -302,7 +302,7 @@ class AccessSerializer(BaseSerializer):
     actual_start_datetime = serializers.DateTimeField(read_only=True, source="start_datetime")
     actual_end_datetime = serializers.DateTimeField(read_only=True, source="end_datetime")
     perimeter = PerimeterSerializer(allow_null=True, required=False)
-    perimeter_id = serializers.CharField(queryset=Perimeter.objects.all(), source="perimeter")
+    perimeter_id = serializers.PrimaryKeyRelatedField(queryset=Perimeter.objects.all(), source="perimeter")
     # todo : remove when ready with perimeter
     care_site = CareSiteSerializer(allow_null=True, required=False, source='perimeter')
     care_site_history_id = serializers.IntegerField(read_only=True, source='id')
@@ -428,19 +428,10 @@ class DataRightSerializer(serializers.Serializer):
     right_export_jupyter_pseudonymized = serializers.BooleanField(read_only=True, allow_null=True)
 
 
-class DataReadRightSerializer(serializers.Serializer):
-    user_id = serializers.CharField(read_only=True, allow_null=True)
-    provider_id = serializers.CharField(read_only=True, allow_null=True)
-    perimeter = PerimeterLiteSerializer(allow_null=True, required=False)
-    right_read_patient_nominative = serializers.BooleanField(read_only=True, allow_null=True)
-    right_read_patient_pseudonymized = serializers.BooleanField(read_only=True, allow_null=True)
-    read_role = serializers.CharField(read_only=True, allow_null=True)
-
-
 class ReadRightPerimeter(serializers.Serializer):
     perimeter = PerimeterLiteSerializer(read_only=True, allow_null=True)
     read_role = serializers.CharField(read_only=True, allow_null=True)
     right_read_patient_nominative = serializers.BooleanField(read_only=True, allow_null=True)
     right_read_patient_pseudonymized = serializers.BooleanField(read_only=True, allow_null=True)
     right_search_patients_by_ipp = serializers.BooleanField(read_only=True, allow_null=True)
-    # todo: add this:  right_read_opposed_patients_data = serializers.BooleanField(read_only=True, allow_null=True)
+    right_read_opposed_patients_data = serializers.BooleanField(read_only=True, allow_null=True)

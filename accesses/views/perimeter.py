@@ -11,26 +11,24 @@ from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from admin_cohort.tools.cache import cache_response
-from admin_cohort.permissions import IsAuthenticatedReadOnly, user_is_full_admin
+from admin_cohort.permissions import IsAuthenticatedReadOnly
 from admin_cohort.tools import join_qs
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from admin_cohort.views import BaseViewset
 from accesses.models import Role, Perimeter
 from accesses.tools import get_user_valid_manual_accesses, get_top_manageable_perimeters
-from accesses.serializers import PerimeterSerializer, PerimeterLiteSerializer, DataReadRightSerializer, ReadRightPerimeter
-from accesses.utils.perimeter_process import get_perimeters_read_rights, get_read_patient_right, \
-    user_has_at_least_one_pure_pseudo_access, has_at_least_one_read_nominative_access, \
-    get_read_nominative_boolean_from_specific_logic_function, get_all_read_patient_accesses, get_read_opposing_patient_accesses, \
-    get_top_perimeters_with_right_read_nomi, get_top_perimeters_with_right_read_pseudo, get_data_reading_rights_on_perimeters, \
-    get_read_nomi_boolean_from_specific_logic_function, get_target_perimeters
+from accesses.serializers import PerimeterSerializer, PerimeterLiteSerializer, ReadRightPerimeter
+from accesses.utils.perimeter_process import has_at_least_one_read_nominative_access, get_data_reading_rights_on_perimeters, \
+    get_target_perimeters, check_user_can_read_opposed_patient_data, check_user_can_read_patient_data_in_pseudo, \
+    check_user_can_read_patient_data_in_nomi
 
 
 class PerimeterFilter(filters.FilterSet):
 
     def multi_value_filter(self, queryset, field, field_value: str):
         if field_value:
-            strip_field_values = [value.strip() for value in field_value.split(",")]
-            return queryset.filter(join_qs([Q(**{field: value}) for value in strip_field_values]))
+            values = [value.strip() for value in field_value.split(",")]
+            return queryset.filter(join_qs([Q(**{field: value}) for value in values]))
         return queryset
 
     name = filters.CharFilter(lookup_expr='icontains')
@@ -93,9 +91,10 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewset):
 
     @swagger_auto_schema(operation_summary="Return perimeters and associated read patient's data rights for current user.",
                          method='GET', responses={'200': openapi.Response("Rights per perimeter", ReadRightPerimeter())})
-    @action(detail=False, methods=['get'], url_path="patient-data-reading-rights")          # todo: [front] update route "/perimeters/read-patient/"
+    @action(detail=False, methods=['get'], url_path="patient-data-reading-rights")
     @cache_response()
     def get_data_reading_rights_on_perimeters(self, request, *args, **kwargs):
+        # todo: [front] update route "/perimeters/read-patient/"
         data_reading_rights = get_data_reading_rights_on_perimeters(user=request.user,
                                                                     target_perimeters=self.filter_queryset(self.queryset))
         page = self.paginate_queryset(data_reading_rights)
@@ -104,72 +103,49 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewset):
             return self.get_paginated_response(serializer.data)
         return Response(data={}, status=status.HTTP_200_OK)
 
-    @swagger_auto_schema(operation_summary="Whether or not the user has a `read patient data in pseudo mode` right on target perimeters",
-                         method='GET', responses={'200': openapi.Response("Return 2 booleans describing user's rights")})
-    @action(detail=False, methods=['get'], url_path="allow-read-patient-pseudo")   # todo: [FHIR] update route "/perimeters/is-read-patient-pseudo/"
-    @cache_response()
-    def get_read_patient_data_pseudo_right(self, request, *args, **kwargs):
-        user_accesses = get_user_valid_manual_accesses(user=request.user)
-        read_patient_data_nomi_accesses = user_accesses.filter(Role.q_allow_read_patient_data_nominative())
-        read_patient_data_pseudo_accesses = user_accesses.filter(Role.q_allow_read_patient_data_pseudo() |
-                                                                 Role.q_allow_read_patient_data_nominative())
-
-        nomi_perimeters_ids = [access.perimeter_id for access in read_patient_data_nomi_accesses]
-        pseudo_perimeters_ids = [access.perimeter_id for access in read_patient_data_pseudo_accesses]
-
-        if request.query_params:
-            if request.query_params.get("cohort_id"):
-                target_perimeters = get_target_perimeters(cohort_ids=request.query_params.get("cohort_id"),
-                                                          owner=request.user)
-            else:
-                target_perimeters = self.filter_queryset(self.get_queryset())
-
-            if not target_perimeters:
-                raise Http404("ERROR No Perimeters Found")
-
-            allow_read_patient_data_pseudo = get_read_patient_right(target_perimeters=target_perimeters,
-                                                                    nomi_perimeters_ids=nomi_perimeters_ids,
-                                                                    pseudo_perimeters_ids=pseudo_perimeters_ids)
-        else:
-            allow_read_patient_data_pseudo = user_has_at_least_one_pure_pseudo_access(nomi_perimeters_ids=nomi_perimeters_ids,
-                                                                                      pseudo_perimeters_ids=pseudo_perimeters_ids)
-
-        allow_read_opposing_patient_data = user_accesses.filter(Role.q_allow_read_research_opposed_patient_data())\
-                                                        .exists()
-
-        return Response(data={"allow_read_patient_data_pseudo": allow_read_patient_data_pseudo,                   # todo: [FHIR] update response keys
-                              "allow_read_opposing_patient_data": allow_read_opposing_patient_data},
-                        status=status.HTTP_200_OK)
-
     @swagger_auto_schema(operation_summary="Return if the user has a `read patient data in nominative mode` right on at least one perimeter",
-                         method='GET', responses={'200': openapi.Response("give rights in perimeters found")})
-    @action(detail=False, methods=['get'], url_path="allow-read-patient-nomi")   # todo: [FHIR] update route "/perimeters/is-one-read-patient-right/"
+                         method='GET', responses={'200': openapi.Response("Return 2 booleans describing user's rights")})
+    @action(detail=False, methods=['get'], url_path="allow-read-patient-nomi")
     @cache_response()
     def get_read_patient_data_nomi_right(self, request, *args, **kwargs):
-        user_accesses = get_user_valid_manual_accesses(user=request.user)
-        read_patient_data_nomi_accesses = user_accesses.filter(Role.q_allow_read_patient_data_nominative())
-
+        # todo: [FHIR] update route "/perimeters/is-one-read-patient-right/"
+        # todo: [FHIR] update response keys
         if not request.query_params:
             return Response(data="At least one search parameter is required",   # todo: ask Nico why ?
                             status=status.HTTP_400_BAD_REQUEST)
-
+        target_perimeters = self.queryset
         if request.query_params.get("cohort_id"):
             target_perimeters = get_target_perimeters(cohort_ids=request.query_params.get("cohort_id"),
                                                       owner=request.user)
-        else:
-            target_perimeters = self.filter_queryset(self.get_queryset())
-
+        target_perimeters = self.filter_queryset(target_perimeters)
         if not target_perimeters:
-            raise Http404("ERROR No Perimeters Found")
+            raise Http404("Error: None of the target perimeters was found")
 
-        nomi_perimeters_ids = [access.perimeter_id for access in read_patient_data_nomi_accesses]
-        allow_read_patient_data_nomi = has_at_least_one_read_nominative_access(target_perimeters=target_perimeters,
-                                                                               nomi_perimeters_ids=nomi_perimeters_ids)
+        allow_read_patient_data_nomi = check_user_can_read_patient_data_in_nomi(user=request.user, target_perimeters=target_perimeters)
+        allow_read_opposed_patient_data = check_user_can_read_opposed_patient_data(user=request.user)
+        return Response(data={"allow_read_patient_data_nomi": allow_read_patient_data_nomi,
+                              "allow_read_opposing_patient_data": allow_read_opposed_patient_data},
+                        status=status.HTTP_200_OK)
 
-        allow_read_opposing_patient_data = user_accesses.filter(Role.q_allow_read_research_opposed_patient_data()) \
-                                                        .exists()
-        return Response(data={"allow_read_patient_data_nomi": allow_read_patient_data_nomi,                       # todo: [FHIR] update response keys
-                              "allow_read_opposing_patient_data": allow_read_opposing_patient_data},
+    @swagger_auto_schema(operation_summary="Whether or not the user has a `read patient data in pseudo mode` right on target perimeters",
+                         method='GET', responses={'200': openapi.Response("Return 2 booleans describing user's rights")})
+    @action(detail=False, methods=['get'], url_path="allow-read-patient-pseudo")
+    @cache_response()
+    def get_read_patient_data_pseudo_right(self, request, *args, **kwargs):
+        # todo: [FHIR] update route "/perimeters/is-read-patient-pseudo/"
+        # todo: [FHIR] update response keys
+        target_perimeters = self.queryset
+        if request.query_params.get("cohort_id"):
+            target_perimeters = get_target_perimeters(cohort_ids=request.query_params.get("cohort_id"),
+                                                      owner=request.user)
+        target_perimeters = self.filter_queryset(target_perimeters)
+        if not target_perimeters:
+            return Response(data="Error: None of the target perimeters was found", status=status.HTTP_404_NOT_FOUND)
+
+        allow_read_patient_data_pseudo = check_user_can_read_patient_data_in_pseudo(user=request.user, target_perimeters=target_perimeters)
+        allow_read_opposed_patient_data = check_user_can_read_opposed_patient_data(user=request.user)
+        return Response(data={"allow_read_patient_data_pseudo": allow_read_patient_data_pseudo,
+                              "allow_read_opposing_patient_data": allow_read_opposed_patient_data},
                         status=status.HTTP_200_OK)
 
 

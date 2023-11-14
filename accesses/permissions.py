@@ -1,9 +1,10 @@
+from __future__ import annotations
+
 from rest_framework import permissions
 
 from accesses.models import Role, Perimeter
-from accesses.tools import do_user_accesses_allow_to_manage_role
+from accesses.tools import do_user_accesses_allow_to_manage_role, get_bound_roles
 from admin_cohort.models import User
-from admin_cohort.permissions import get_bound_roles
 
 
 def can_user_manage_roles(user: User) -> bool:
@@ -73,3 +74,8 @@ class ProfilesPermission(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         if request.method in ("GET", "PATCH"):
             return self.has_permission(request, view)
+
+
+def check_existing_role(data: dict) -> Role:
+    data.pop("name", None)
+    return Role.objects.filter(**data).first()

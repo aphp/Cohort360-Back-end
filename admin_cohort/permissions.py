@@ -1,33 +1,13 @@
-from django.db.models.query import QuerySet
 from rest_framework import permissions
 from rest_framework.permissions import OR as drf_OR
 
-from accesses.models import Role
-from accesses.tools import get_user_valid_manual_accesses
+from accesses.tools import get_bound_roles, user_is_full_admin
 from admin_cohort.models import User
 from admin_cohort.settings import ETL_USERNAME
 
 
 def user_is_authenticated(user):
     return user and hasattr(user, User.USERNAME_FIELD)
-
-
-def get_bound_roles(user: User) -> QuerySet:
-    """
-    Check all valid accesses from a provider and retrieves all the roles
-    indirectly bound to them
-    @param user:
-    @type user: User
-    @return:
-    @rtype:
-    """
-
-    accesses = get_user_valid_manual_accesses(user)
-    return Role.objects.filter(id__in=[a.role_id for a in accesses])
-
-
-def user_is_full_admin(user: User) -> bool:
-    return any(filter(lambda role: role.right_full_admin, get_bound_roles(user)))
 
 
 def can_user_read_users(user: User) -> bool:

@@ -2,7 +2,8 @@ from rest_framework import permissions
 from rest_framework.exceptions import PermissionDenied
 
 from admin_cohort.models import User
-from admin_cohort.permissions import user_is_authenticated, get_bound_roles
+from admin_cohort.permissions import user_is_authenticated
+from accesses.tools import get_bound_roles
 from exports.types import ExportType
 
 

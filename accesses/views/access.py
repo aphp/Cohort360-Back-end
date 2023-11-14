@@ -13,7 +13,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
-from admin_cohort.permissions import IsAuthenticated, user_is_full_admin
+from admin_cohort.permissions import IsAuthenticated
 from admin_cohort.settings import PERIMETERS_TYPES, ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS
 from admin_cohort.tools import join_qs
 from admin_cohort.tools.cache import cache_response
@@ -21,7 +21,8 @@ from admin_cohort.views import BaseViewset, CustomLoggingMixin
 from accesses.models import Access, Perimeter, Role
 from accesses.permissions import AccessesPermission
 from accesses.serializers import AccessSerializer, DataRightSerializer, ExpiringAccessesSerializer
-from accesses.tools import get_user_valid_manual_accesses, intersect_queryset_criteria, get_data_reading_rights, access_criteria_to_exclude
+from accesses.tools import get_user_valid_manual_accesses, intersect_queryset_criteria, get_data_reading_rights, access_criteria_to_exclude, \
+    user_is_full_admin
 
 
 class AccessFilter(filters.FilterSet):

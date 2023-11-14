@@ -81,15 +81,12 @@ right_export_jupyter_pseudonymized = Right("right_export_jupyter_pseudonymized")
 right_manage_export_csv_accesses = Right("right_manage_export_csv_accesses")
 right_manage_export_jupyter_accesses = Right("right_manage_export_jupyter_accesses")
 
-right_read_research_opposed_patient_data = Right("right_read_research_opposed_patient_data")    # todo: adapt logic as this right is global
+right_search_patients_by_ipp = Right("right_search_patients_by_ipp")
+right_read_research_opposed_patient_data = Right("right_read_research_opposed_patient_data")
 
 # ----------------------------------------------    Perimeters hierarchy dependent rights
 right_read_patient_nominative = Right("right_read_patient_nominative", impact_inferior_levels=True)
 right_read_patient_pseudonymized = Right("right_read_patient_pseudonymized", impact_inferior_levels=True)
-
-# todo: make `right_search_patients_by_ipp` global ? is it really hierarchy dependent ?
-#   Process it like this: if user has any right_read_patient_xxx, then allow to search by IPP
-right_search_patients_by_ipp = Right("right_search_patients_by_ipp", impact_inferior_levels=True)
 
 right_manage_data_accesses_same_level = Right("right_manage_data_accesses_same_level", allow_edit_accesses_on_same_level=True)
 right_read_data_accesses_same_level = Right("right_read_data_accesses_same_level", allow_read_accesses_on_same_level=True)
