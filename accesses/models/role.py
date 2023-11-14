@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-from typing import List
-
 from django.db import models
 from django.db.models import Q
 
-from accesses.rights import RightGroup, full_admin_rights, all_rights
+from accesses.rights import all_rights
 from admin_cohort.models import BaseModel
 from admin_cohort.tools import join_qs
 

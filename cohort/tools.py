@@ -11,7 +11,6 @@ from rest_framework.request import Request
 from accesses.conf_perimeters import OmopModelManager
 from accesses.models import Perimeter, Access, Role
 from admin_cohort.settings import SJS_USERNAME, ETL_USERNAME
-from cohort.models import CohortResult
 
 ROLE = "role"
 READ_PATIENT_NOMI = "read_patient_nomi"

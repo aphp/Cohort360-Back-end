@@ -15,12 +15,11 @@ from admin_cohort.permissions import IsAuthenticatedReadOnly
 from admin_cohort.tools import join_qs
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from admin_cohort.views import BaseViewset
-from accesses.models import Role, Perimeter
-from accesses.tools import get_user_valid_manual_accesses, get_top_manageable_perimeters
+from accesses.models import Perimeter
+from accesses.tools import get_top_manageable_perimeters, get_data_reading_rights_on_perimeters, \
+    get_target_perimeters, check_user_can_read_patient_data_in_nomi, \
+    check_user_can_read_patient_data_in_pseudo, check_user_can_read_opposed_patient_data
 from accesses.serializers import PerimeterSerializer, PerimeterLiteSerializer, ReadRightPerimeter
-from accesses.utils.perimeter_process import has_at_least_one_read_nominative_access, get_data_reading_rights_on_perimeters, \
-    get_target_perimeters, check_user_can_read_opposed_patient_data, check_user_can_read_patient_data_in_pseudo, \
-    check_user_can_read_patient_data_in_nomi
 
 
 class PerimeterFilter(filters.FilterSet):

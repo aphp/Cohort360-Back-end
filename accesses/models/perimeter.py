@@ -4,7 +4,7 @@ import logging
 
 from django.db import models
 from django.db.models import Q
-from django.db.models.query import QuerySet, Prefetch
+from django.db.models.query import QuerySet
 
 from admin_cohort.models import BaseModel
 from admin_cohort.settings import PERIMETERS_TYPES

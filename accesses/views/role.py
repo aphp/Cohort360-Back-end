@@ -6,10 +6,10 @@ from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from accesses.models import Role, Perimeter
+from accesses.models import Role
 from accesses.permissions import RolesPermission, check_existing_role
 from accesses.serializers import RoleSerializer, UsersInRoleSerializer
-from accesses.tools import do_user_accesses_allow_to_manage_role, get_assignable_roles
+from accesses.tools import get_assignable_roles
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.permissions import IsAuthenticated, UsersPermission
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
