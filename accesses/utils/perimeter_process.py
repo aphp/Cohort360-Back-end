@@ -108,8 +108,15 @@ def get_data_reading_rights_on_perimeters(user: User, target_perimeters: QuerySe
     return perimeters_read_rights
 
 
-def get_read_patient_right(perimeters_filtered_by_search, all_read_patient_nominative_accesses,
-                           all_read_patient_pseudo_accesses):
+def get_target_perimeters(cohort_ids: str, owner: User):
+    virtual_cohort_ids = get_list_cohort_id_care_site(cohorts_ids=[int(cohort_id) for cohort_id in cohort_ids.split(",")],
+                                                      all_user_cohorts=owner.user_cohorts.all())
+    return Perimeter.objects.filter(cohort_id__in=virtual_cohort_ids)
+
+
+def get_read_patient_right(target_perimeters,
+                           read_patient_nominative_accesses,
+                           read_patient_pseudo_accesses):
     """
     for each search perimeter check of there is at least one access with read right:
     3 response :
@@ -118,113 +125,31 @@ def get_read_patient_right(perimeters_filtered_by_search, all_read_patient_nomin
     - else: return is_pseudo at True
     """
     is_pseudo = False
-    if not perimeters_filtered_by_search:
+    if not target_perimeters:
         raise ValidationError("No perimeters in parameter for rights verification")
-    for perimeter in perimeters_filtered_by_search:
-        above_levels_ids = perimeter.above_levels
-        above_levels_ids.append(perimeter.id)
-        if all_read_patient_nominative_accesses.filter(perimeter_id__in=above_levels_ids):
+
+    for perimeter in target_perimeters:
+        perimeter_and_parents_ids = [perimeter.id] + perimeter.above_levels
+        if read_patient_nominative_accesses.filter(perimeter_id__in=perimeter_and_parents_ids).exists():
             continue
-        elif all_read_patient_pseudo_accesses.filter(perimeter_id__in=above_levels_ids):
+        elif read_patient_pseudo_accesses.filter(perimeter_id__in=perimeter_and_parents_ids).exists():
             is_pseudo = True
         else:
             raise ValidationError(f"No read patient role on perimeter {perimeter.id} - {perimeter.name}")
     return not is_pseudo
 
 
-def get_perimeters_filtered_by_search(cohort_ids, owner_id, default_perimeters):
-    """
-        Get for any cohort id type (Care_site, Provider) Perimeters from the cohort source population.
-    """
-    if cohort_ids:
-        all_user_cohorts = CohortResult.objects.filter(owner=owner_id)
-        list_perimeter_cohort_ids = get_list_cohort_id_care_site(
-            [int(cohort_id) for cohort_id in cohort_ids.split(",")], all_user_cohorts)
-        return Perimeter.objects.filter(cohort_id__in=list_perimeter_cohort_ids)
-    else:
-        return default_perimeters
-
-
-def get_read_nominative_boolean_from_specific_logic_function(request, filter_queryset,
-                                                             all_read_patient_nominative_accesses,
-                                                             all_read_patient_pseudo_accesses,
-                                                             right_perimeter_compute_function) -> bool:
-    """
-        It takes in input users acesses with read patient right, the initial request  and the specific function to
-        apply to find global read patient right on perimeters or cohorts.
-        The right_perimeter_compute_function can be used to find right for all cohorts in "is-read-patient-pseudo" or
-        at least on one perimeter in "is-one-read-patient-right"
-    """
-
-    perimeters_filtered_by_search = get_perimeters_filtered_by_search(request.query_params.get("cohort_id"),
-                                                                      request.user, filter_queryset)
-    if not perimeters_filtered_by_search:
-        raise Http404("ERROR No Perimeters Found")
-    return right_perimeter_compute_function(perimeters_filtered_by_search,
-                                            all_read_patient_nominative_accesses,
-                                            all_read_patient_pseudo_accesses)
-
-
-def get_all_read_patient_accesses(user) -> tuple:
-    """
-        Return a tuple of accesses QuerySet, one with read patient nominative role right at True and the other with
-        read patient pseudo only at True
-        If both are empty there is an issue with user right, it will raise an error
-    """
-    user_accesses = get_user_valid_manual_accesses(user)
-    all_read_patient_nominative_accesses = user_accesses.filter(Role.q_allow_read_patient_data_nominative())
-    all_read_patient_pseudo_accesses = user_accesses.filter(Role.q_allow_read_patient_data_pseudo() |
-                                                            Role.q_allow_read_patient_data_nominative())
-    if not all_read_patient_nominative_accesses and not all_read_patient_pseudo_accesses:
-        raise Http404("ERROR No accesses with read patient right Found")
-    return all_read_patient_nominative_accesses, all_read_patient_pseudo_accesses
-
-
-def get_read_opposing_patient_accesses(user) -> bool:
-    """
-        Return a boolean of accesses opposing patient. It is a global role, so if we found it at least on one care_site
-        it will be effective for every perimeters
-    """
-    user_accesses = get_user_valid_manual_accesses(user)
-    opposing_patient_accesses = user_accesses.filter(Role.q_allow_read_research_opposed_patient_data())
-    return opposing_patient_accesses.exists()
-
-
-def has_at_least_one_read_nominative_right(perimeters_filtered_by_search, all_read_patient_nominative_accesses,
-                                           all_read_patient_pseudo_accesses):
-    """_
-    Loop in perimeters, if we found at least one read patient right at Nominative it will return True.
-    If there is at least on pseudo and no nominative it will return False.
-    Else if there are no rights
-    """
-    is_pseudo = False
-    if not perimeters_filtered_by_search:
-        raise ValidationError(
-            "ERROR"
-            "|perimeter_process.py get_read_patient_right()"
-            "|No perimeters in parameter for rights verification")
-    for perimeter in perimeters_filtered_by_search:
-        above_levels_ids = perimeter.above_levels
-        above_levels_ids.append(perimeter.id)
-        if all_read_patient_nominative_accesses.filter(perimeter_id__in=above_levels_ids):
+def has_at_least_one_read_nominative_access(target_perimeters: QuerySet, nomi_perimeters_ids: List[int]):
+    for perimeter in target_perimeters:
+        perimeter_and_parents_ids = [perimeter.id] + perimeter.above_levels
+        if any(p_id in nomi_perimeters_ids for p_id in perimeter_and_parents_ids):
             return True
-        elif all_read_patient_pseudo_accesses.filter(perimeter_id__in=above_levels_ids):
-            is_pseudo = True
-
-    if not is_pseudo:
-        raise ValidationError(f"ERROR - No read right found on perimeters:  {perimeters_filtered_by_search}")
     return False
 
 
-def is_pseudo_perimeter_in_top_perimeter(all_read_patient_nominative_accesses, all_read_patient_pseudo_accesses):
-    """
-    if there is at least one pseudo access with perimeter in top hierarchy return pseudo, if no accesses rise error
-    else return Nomi
-    """
-    nominative_perimeters = [access.perimeter_id for access in all_read_patient_nominative_accesses]
-    for access in all_read_patient_pseudo_accesses:
-        above_levels_ids = access.perimeter.above_levels
-        above_levels_ids.append(access.perimeter_id)
-        if not [pseudo_perimeter for pseudo_perimeter in above_levels_ids if pseudo_perimeter in nominative_perimeters]:
+def user_has_at_least_one_pure_pseudo_access(nomi_perimeters_ids: List[int], pseudo_perimeters_ids: List[int]) -> bool:
+    for perimeter in Perimeter.objects.filter(id__in=pseudo_perimeters_ids):
+        perimeter_and_parents_ids = [perimeter.id] + perimeter.above_levels
+        if all(p_id not in nomi_perimeters_ids for p_id in perimeter_and_parents_ids):
             return True
     return False

@@ -1,5 +1,6 @@
 import json
 import logging
+from typing import List
 
 from coverage.annotate import os
 from django.db import models
@@ -107,7 +108,7 @@ def get_all_cohorts_rights(user_accesses: [Access], cohort_pop_source: dict):
     return response_list
 
 
-def psql_query_get_pop_source_from_cohort(cohorts_ids: list):
+def psql_query_get_pop_source_from_cohort(cohorts_ids: list):   # todo: pass params to .raw() instead of hard code them in string
     """
     @param cohorts_ids: cohort id source
     @return: mapping of cohort source in fact_id_1 and cohort id of care site (Perimeters) in fact_id_2
@@ -127,15 +128,15 @@ def psql_query_get_pop_source_from_cohort(cohorts_ids: list):
     """
 
 
-def get_list_cohort_id_care_site(cohorts_ids: list, all_user_cohorts: [CohortResult]):
+def get_list_cohort_id_care_site(cohorts_ids: List[int], all_user_cohorts: QuerySet):
     """
-    Give the list of cohort_id and the list of Perimete.cohort_id population source for cohort users and remove
+    Give the list of cohort_id and the list of Perimeter.cohort_id population source for cohort users and remove
     cohort user ids
     """
     fact_relationships = FactRelationShip.objects.raw(psql_query_get_pop_source_from_cohort(cohorts_ids))
     cohort_pop_source = cohorts_ids.copy()
     for fact in fact_relationships:
-        if len(all_user_cohorts.filter(fhir_group_id=fact.fact_id_1)) == 0:
+        if not all_user_cohorts.filter(fhir_group_id=fact.fact_id_1).exists():
             raise Http404(f"Issue in cohort's belonging user: {fact.fact_id_1} is not user cohort")
         if fact.fact_id_1 in cohort_pop_source:
             cohort_pop_source.remove(fact.fact_id_1)
