@@ -93,7 +93,7 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewset):
 
     @swagger_auto_schema(operation_summary="Return perimeters and associated read patient's data rights for current user.",
                          method='GET', responses={'200': openapi.Response("Rights per perimeter", ReadRightPerimeter())})
-    @action(detail=False, methods=['get'], url_path="read-patient")
+    @action(detail=False, methods=['get'], url_path="patient-data-reading-rights")          # todo: [front] update route "/perimeters/read-patient/"
     @cache_response()
     def get_data_reading_rights_on_perimeters(self, request, *args, **kwargs):
         data_reading_rights = get_data_reading_rights_on_perimeters(user=request.user,
@@ -123,13 +123,13 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewset):
                                                           owner=request.user)
             else:
                 target_perimeters = self.filter_queryset(self.get_queryset())
+
             if not target_perimeters:
                 raise Http404("ERROR No Perimeters Found")
-            is_read_patient_data_nomi = get_read_patient_right(target_perimeters=target_perimeters,
-                                                               read_patient_nominative_accesses=read_patient_data_nomi_accesses,
-                                                               read_patient_pseudo_accesses=read_patient_data_pseudo_accesses)
 
-            allow_read_patient_data_pseudo = not is_read_patient_data_nomi
+            allow_read_patient_data_pseudo = get_read_patient_right(target_perimeters=target_perimeters,
+                                                                    nomi_perimeters_ids=nomi_perimeters_ids,
+                                                                    pseudo_perimeters_ids=pseudo_perimeters_ids)
         else:
             allow_read_patient_data_pseudo = user_has_at_least_one_pure_pseudo_access(nomi_perimeters_ids=nomi_perimeters_ids,
                                                                                       pseudo_perimeters_ids=pseudo_perimeters_ids)

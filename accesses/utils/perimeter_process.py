@@ -1,13 +1,11 @@
 from typing import List
 
 from django.db.models import QuerySet
-from django.http import Http404
 from rest_framework.exceptions import ValidationError
 
 from accesses.models import Perimeter, Role
 from accesses.tools import get_user_valid_manual_accesses
 from admin_cohort.models import User
-from cohort.models import CohortResult
 from cohort.tools import get_list_cohort_id_care_site
 
 
@@ -114,9 +112,9 @@ def get_target_perimeters(cohort_ids: str, owner: User):
     return Perimeter.objects.filter(cohort_id__in=virtual_cohort_ids)
 
 
-def get_read_patient_right(target_perimeters,
-                           read_patient_nominative_accesses,
-                           read_patient_pseudo_accesses):
+def get_read_patient_right(target_perimeters: QuerySet,
+                           nomi_perimeters_ids: List[int],
+                           pseudo_perimeters_ids: List[int]) -> bool:
     """
     for each search perimeter check of there is at least one access with read right:
     3 response :
@@ -125,21 +123,19 @@ def get_read_patient_right(target_perimeters,
     - else: return is_pseudo at True
     """
     is_pseudo = False
-    if not target_perimeters:
-        raise ValidationError("No perimeters in parameter for rights verification")
-
     for perimeter in target_perimeters:
         perimeter_and_parents_ids = [perimeter.id] + perimeter.above_levels
-        if read_patient_nominative_accesses.filter(perimeter_id__in=perimeter_and_parents_ids).exists():
+        if any(p_id in nomi_perimeters_ids for p_id in perimeter_and_parents_ids):
             continue
-        elif read_patient_pseudo_accesses.filter(perimeter_id__in=perimeter_and_parents_ids).exists():
+        elif any(p_id in pseudo_perimeters_ids for p_id in perimeter_and_parents_ids):
             is_pseudo = True
-        else:
-            raise ValidationError(f"No read patient role on perimeter {perimeter.id} - {perimeter.name}")
-    return not is_pseudo
+        if any(p_id in pseudo_perimeters_ids and p_id not in nomi_perimeters_ids for p_id in perimeter_and_parents_ids):
+            is_pseudo = True
+    return is_pseudo
 
 
-def has_at_least_one_read_nominative_access(target_perimeters: QuerySet, nomi_perimeters_ids: List[int]):
+def has_at_least_one_read_nominative_access(target_perimeters: QuerySet,
+                                            nomi_perimeters_ids: List[int]) -> bool:
     for perimeter in target_perimeters:
         perimeter_and_parents_ids = [perimeter.id] + perimeter.above_levels
         if any(p_id in nomi_perimeters_ids for p_id in perimeter_and_parents_ids):
@@ -147,7 +143,8 @@ def has_at_least_one_read_nominative_access(target_perimeters: QuerySet, nomi_pe
     return False
 
 
-def user_has_at_least_one_pure_pseudo_access(nomi_perimeters_ids: List[int], pseudo_perimeters_ids: List[int]) -> bool:
+def user_has_at_least_one_pure_pseudo_access(nomi_perimeters_ids: List[int],
+                                             pseudo_perimeters_ids: List[int]) -> bool:
     for perimeter in Perimeter.objects.filter(id__in=pseudo_perimeters_ids):
         perimeter_and_parents_ids = [perimeter.id] + perimeter.above_levels
         if all(p_id not in nomi_perimeters_ids for p_id in perimeter_and_parents_ids):
