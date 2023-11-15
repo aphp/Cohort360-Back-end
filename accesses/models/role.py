@@ -176,34 +176,39 @@ class Role(BaseModel):
                        self.right_read_data_accesses_same_level,
                        self.right_read_data_accesses_inferior_levels))
 
-# -+-+-+-+-+-+-+-+-+-+-+-+-     Requirements to be managed    -+-+-+-+-+-+-+-+-+-+-+-+-
+# -+-+-+-+-+-+-+-+-+-+-+-+-     Roles requirements to be managed    -+-+-+-+-+-+-+-+-+-+-+-+-
 
     @property
-    def requires_csv_accesses_managing_role_to_be_managed(self):    # requires having: right_manage_export_csv_accesses = True
+    def requires_csv_accesses_managing_role_to_be_managed(self):
+        # requires having: right_manage_export_csv_accesses = True
         return any((self.right_export_csv_nominative,
                     self.right_export_csv_pseudonymized))
 
     @property
-    def requires_jupyter_accesses_managing_role_to_be_managed(self):    # requires having: right_manage_export_jupyter_accesses = True
+    def requires_jupyter_accesses_managing_role_to_be_managed(self):
+        # requires having: right_manage_export_jupyter_accesses = True
         return any((self.right_export_jupyter_nominative,
                     self.right_export_jupyter_pseudonymized))
 
     @property
-    def requires_data_accesses_managing_role_to_be_managed(self):    # requires having: right_manage/read_data_accesses_same/inf_level = True
+    def requires_data_accesses_managing_role_to_be_managed(self):
+        # requires having: right_manage/read_data_accesses_same/inf_level = True
         return any((self.right_read_patient_nominative,
                     self.right_read_patient_pseudonymized,
                     self.right_search_patients_by_ipp,
                     self.right_read_research_opposed_patient_data))
 
     @property
-    def requires_admin_accesses_managing_role_to_be_managed(self):    # requires having: right_manage/read_admin_accesses_same/inf_level = True
+    def requires_admin_accesses_managing_role_to_be_managed(self):
+        # requires having: right_manage/read_admin_accesses_same/inf_level = True
         return any((self.right_manage_data_accesses_same_level,
                     self.right_read_data_accesses_same_level,
                     self.right_manage_data_accesses_inferior_levels,
                     self.right_read_data_accesses_inferior_levels))
 
     @property
-    def requires_full_admin_role_to_be_managed(self):    # requires having: right_full_admin = True
+    def requires_full_admin_role_to_be_managed(self):
+        # requires having: right_full_admin = True
         return any((self.right_full_admin,
                     self.right_read_logs,
                     self.right_manage_roles,

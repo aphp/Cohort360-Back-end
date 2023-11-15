@@ -51,10 +51,8 @@ class AccessesPermission(permissions.BasePermission):
         if request.method in ["POST", "PATCH", "DELETE"]:
             if can_user_manage_accesses(request.user):
                 if request.method == "POST":
-                    role_id = request.data.get("role_id")
-                    perimeter_id = request.data.get("care_site_id")
-                    role = Role.objects.get(pk=role_id)
-                    perimeter = Perimeter.objects.get(pk=perimeter_id)
+                    role = Role.objects.get(pk=request.data.get("role_id"))
+                    perimeter = Perimeter.objects.get(pk=request.data.get("perimeter_id"))
                     return can_user_manage_access(request.user, role, perimeter)    # check whether can user assign role when creating new access
                 return True
         return request.method in permissions.SAFE_METHODS and can_user_read_accesses(request.user)

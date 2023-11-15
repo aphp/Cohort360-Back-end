@@ -15,7 +15,9 @@ class Right:
         self.allow_read_accesses_on_inf_levels = allow_read_accesses_on_inf_levels
         self.allow_edit_accesses_on_same_level = allow_edit_accesses_on_same_level
         self.allow_edit_accesses_on_inf_levels = allow_edit_accesses_on_inf_levels
-        self.impact_inferior_levels = (impact_inferior_levels or allow_edit_accesses_on_inf_levels or allow_read_accesses_on_inf_levels)
+        self.impact_inferior_levels = (impact_inferior_levels
+                                       or allow_edit_accesses_on_inf_levels
+                                       or allow_read_accesses_on_inf_levels)
 
     def __repr__(self):
         return self.name

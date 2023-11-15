@@ -56,9 +56,7 @@ def fix_csh_dates(validated_data, for_update: bool = False):
 
     # if creating a csh, then start_date will be now() if empty or null
     if not for_update:
-        validated_data["start_datetime"] = start_datetime \
-            if start_datetime is not None and not start_is_empty \
-            else timezone.now()
+        validated_data["start_datetime"] = start_datetime if start_datetime else timezone.now()
     # if updating a csh, then start_date will be now() if null
     elif not start_is_empty:
         validated_data["start_datetime"] = start_datetime \
@@ -348,45 +346,14 @@ class AccessSerializer(BaseSerializer):
                             "care_site_history_id"]
 
     def create(self, validated_data):
-        creator: User = self.context.get('request').user
-        # todo : remove/fix when ready with perimeter
-        if 'perimeter' not in validated_data:
-            perimeter_id = validated_data.get("perimeter_id", validated_data.pop("care_site_id", None))
-            if not perimeter_id:
-                raise ValidationError("Requires perimeter")
-            try:
-                perimeter = Perimeter.objects.get(id=perimeter_id)
-            except Perimeter.DoesNotExist:
-                raise ValidationError(f"No perimeter found matching the provided ID: {perimeter_id}")
-        else:
-            perimeter: Perimeter = validated_data.get('perimeter')
-
-        role: Role = validated_data.get('role')
-        if not role:
-            raise ValidationError("Role field is missing")
-
-        # if not can_user_manage_access(creator, role, perimeter):
-        #     raise PermissionDenied("You are not allowed to manage accesses")
-
-        validated_data["created_by"] = creator
-        validated_data["updated_by"] = creator
-
-        profile: Profile = validated_data.get("profile")
-        provider_history_id = validated_data.get("provider_history_id")
-        if not (profile or Profile.objects.filter(id=provider_history_id, source=MANUAL_SOURCE).first()):
-            raise ValidationError(f"No profile found matching the provided `provider_history_id`: {provider_history_id}")
-
-        role_id = validated_data.get("role_id")
-        if not (role or Role.objects.filter(id=role_id).first()):
-            raise ValidationError(f"No role found matching the provided ID: {role_id}")
+        creator = self.context.get('request').user
+        validated_data.update({"created_by": creator,
+                               "updated_by": creator})
 
         validated_data = fix_csh_dates(validated_data)
         check_date_rules(new_start_datetime=validated_data.get("start_datetime"),
                          new_end_datetime=validated_data.get("end_datetime"))
 
-        # todo : remove/fix when ready with perimeter
-        validated_data["perimeter_id"] = perimeter_id
-        validated_data["perimeter"] = perimeter
         return super(AccessSerializer, self).create(validated_data)
 
     def update(self, instance, validated_data):

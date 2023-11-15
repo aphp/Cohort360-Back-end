@@ -44,7 +44,7 @@ def get_dict_right_accesses(user_accesses: [Access]) -> dict:
     """
     return {READ_PATIENT_NOMI: user_accesses.filter(Role.q_allow_read_patient_data_nominative()),
             READ_PATIENT_PSEUDO: user_accesses.filter(Role.q_allow_read_patient_data_pseudo() |
-                                                      Role.q_allow_read_patient_data_nominative()),  # was: Role.q_allow_read_patient_data()
+                                                      Role.q_allow_read_patient_data_nominative()),
             EXPORT_CSV_NOMI: user_accesses.filter(Role.q_allow_export_csv_nominative()),
             EXPORT_CSV_PSEUDO: user_accesses.filter(Role.q_allow_export_csv_pseudo()),
             EXPORT_JUPYTER_NOMI: user_accesses.filter(Role.q_allow_export_jupyter_nominative()),

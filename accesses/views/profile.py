@@ -17,7 +17,7 @@ from admin_cohort.permissions import IsAuthenticated, can_user_read_users
 from admin_cohort.serializers import UserSerializer
 from admin_cohort.settings import MANUAL_SOURCE
 from admin_cohort.types import ServerError, MissingDataError
-from admin_cohort.views import BaseViewset, CustomLoggingMixin
+from admin_cohort.views import BaseViewSet, CustomLoggingMixin
 from ..models import Profile
 from ..permissions import ProfilesPermission
 from ..serializers import ProfileSerializer, ReducedProfileSerializer, \
@@ -50,7 +50,7 @@ class ProfileFilter(filters.FilterSet):
                   "id", "is_active")
 
 
-class ProfileViewSet(CustomLoggingMixin, BaseViewset):
+class ProfileViewSet(CustomLoggingMixin, BaseViewSet):
     queryset = Profile.objects.filter(delete_datetime__isnull=True).all()
     lookup_field = "id"
     logging_methods = ['POST', 'PATCH', 'DELETE']

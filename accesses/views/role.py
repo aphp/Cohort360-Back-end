@@ -13,7 +13,7 @@ from accesses.tools import get_assignable_roles
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.permissions import IsAuthenticated, UsersPermission
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
-from admin_cohort.views import BaseViewset, CustomLoggingMixin
+from admin_cohort.views import BaseViewSet, CustomLoggingMixin
 
 
 class RoleFilter(filters.FilterSet):
@@ -28,7 +28,7 @@ class RoleFilter(filters.FilterSet):
 USERS_ORDERING_FIELDS = ["lastname", "firstname", "perimeter", "start_datetime", "end_datetime"]
 
 
-class RoleViewSet(CustomLoggingMixin, BaseViewset):
+class RoleViewSet(CustomLoggingMixin, BaseViewSet):
     serializer_class = RoleSerializer
     queryset = Role.objects.filter(delete_datetime__isnull=True).all()
     lookup_field = "id"
@@ -105,7 +105,7 @@ class RoleViewSet(CustomLoggingMixin, BaseViewset):
     @action(url_path="assignable", detail=False, methods=['get'])
     @cache_response()
     def assignable(self, request, *args, **kwargs):
-        perimeter_id = request.GET.get("perimeter_id")    # todo: [front] remove care_site_id
+        perimeter_id = request.GET.get("perimeter_id")
         if not perimeter_id:
             return Response(data="Missing parameter: `perimeter_id`", status=status.HTTP_400_BAD_REQUEST)
         assignable_roles = get_assignable_roles(user=request.user, perimeter_id=perimeter_id)

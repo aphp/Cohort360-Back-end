@@ -1,4 +1,5 @@
 from __future__ import annotations
+from datetime import date, timedelta
 
 import urllib
 from typing import List, Dict, Set
@@ -9,7 +10,7 @@ from django.db.models.query import QuerySet, Prefetch
 from accesses.models import Profile, Access, Role, Perimeter
 from accesses.rights import all_rights, full_admin_rights, RightGroup
 from admin_cohort.models import User
-from admin_cohort.settings import MANUAL_SOURCE, PERIMETERS_TYPES
+from admin_cohort.settings import MANUAL_SOURCE, PERIMETERS_TYPES, ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS
 from admin_cohort.tools import join_qs
 from cohort.tools import get_list_cohort_id_care_site
 
@@ -538,7 +539,7 @@ def has_at_least_one_read_nominative_access(target_perimeters: QuerySet, nomi_pe
     return False
 
 
-def check_user_can_read_patient_data_in_nomi(user: User, target_perimeters: QuerySet) -> bool:
+def can_user_read_patient_data_in_nomi(user: User, target_perimeters: QuerySet) -> bool:
     user_accesses = get_user_valid_manual_accesses(user=user)
     read_patient_data_nomi_accesses = user_accesses.filter(Role.q_allow_read_patient_data_nominative())
     nomi_perimeters_ids = [access.perimeter_id for access in read_patient_data_nomi_accesses]
@@ -564,7 +565,7 @@ def user_has_at_least_one_pseudo_access(nomi_perimeters_ids: List[int], pseudo_p
     return False
 
 
-def check_user_can_read_patient_data_in_pseudo(user: User, target_perimeters: QuerySet) -> bool:
+def can_user_read_patient_data_in_pseudo(user: User, target_perimeters: QuerySet) -> bool:
     user_accesses = get_user_valid_manual_accesses(user=user)
     read_patient_data_nomi_accesses = user_accesses.filter(Role.q_allow_read_patient_data_nominative())
     read_patient_data_pseudo_accesses = user_accesses.filter(Role.q_allow_read_patient_data_pseudo() |
@@ -583,7 +584,24 @@ def check_user_can_read_patient_data_in_pseudo(user: User, target_perimeters: Qu
     return allow_read_patient_data_pseudo
 
 
-def check_user_can_read_opposed_patient_data(user: User) -> bool:
+def can_user_read_opposed_patient_data(user: User) -> bool:
     user_accesses = get_user_valid_manual_accesses(user=user)
     return user_accesses.filter(Role.q_allow_read_research_opposed_patient_data()) \
                         .exists()
+
+
+def get_accesses_to_expire(user: User, accesses: QuerySet):
+    today = date.today()
+    expiry_date = today + timedelta(days=ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS)
+    to_expire_soon = Q(end_datetime__date__gte=today) & Q(end_datetime__date__lte=expiry_date)
+    accesses_to_expire = accesses.filter(Q(profile__user=user) & to_expire_soon)
+    if not accesses_to_expire:
+        return None
+    min_access_per_perimeter = {}
+    for a in accesses_to_expire:
+        if a.perimeter.id not in min_access_per_perimeter or \
+                a.end_datetime < min_access_per_perimeter[a.perimeter.id].end_datetime:
+            min_access_per_perimeter[a.perimeter.id] = a
+        else:
+            continue
+    return min_access_per_perimeter.values()

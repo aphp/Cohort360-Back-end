@@ -1,4 +1,3 @@
-from datetime import date, timedelta
 from functools import reduce
 
 from django.db.models import Q, BooleanField, When, Case, Value, QuerySet
@@ -17,12 +16,12 @@ from admin_cohort.permissions import IsAuthenticated
 from admin_cohort.settings import PERIMETERS_TYPES, ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS
 from admin_cohort.tools import join_qs
 from admin_cohort.tools.cache import cache_response
-from admin_cohort.views import BaseViewset, CustomLoggingMixin
+from admin_cohort.views import BaseViewSet, CustomLoggingMixin
 from accesses.models import Access, Perimeter, Role
 from accesses.permissions import AccessesPermission
 from accesses.serializers import AccessSerializer, DataRightSerializer, ExpiringAccessesSerializer
 from accesses.tools import get_user_valid_manual_accesses, intersect_queryset_criteria, get_data_reading_rights, access_criteria_to_exclude, \
-    user_is_full_admin
+    user_is_full_admin, get_accesses_to_expire
 
 
 class AccessFilter(filters.FilterSet):
@@ -68,13 +67,13 @@ class AccessFilter(filters.FilterSet):
         fields = "__all__"
 
 
-class AccessViewSet(CustomLoggingMixin, BaseViewset):
+class AccessViewSet(CustomLoggingMixin, BaseViewSet):
     serializer_class = AccessSerializer
     queryset = Access.objects.all()
     lookup_field = "id"
     filterset_class = AccessFilter
     permission_classes = [IsAuthenticated, AccessesPermission]
-    http_method_names = ['post', 'patch', 'delete']
+    http_method_names = ['get', 'post', 'patch', 'delete']
     logging_methods = ['POST', 'PATCH', 'DELETE']
     swagger_tags = ['Accesses - accesses']
     search_fields = ["profile__firstname",
@@ -178,10 +177,6 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
                                                                "ans.\nDoit contenir la timezone ou bien sera considéré comme UTC.")},
         required=['profile', 'perimeter', 'role']))
     def create(self, request, *args, **kwargs):
-        data = request.data
-        if 'perimeter_id' not in data:
-            return Response(data="perimeter_id is required", status=status.HTTP_400_BAD_REQUEST)    # todo: remove this: controlled by serializer
-        # todo: [front] remove `provider_history_id`  and  `care_site_id`
         return super(AccessViewSet, self).create(request, *args, **kwargs)
 
     @swagger_auto_schema(request_body=openapi.Schema(
@@ -220,17 +215,14 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
         access = self.get_object()
         if access.start_datetime:
             if access.start_datetime < timezone.now():
-                return Response(data="L'accès est déjà/a déjà été activé, il ne peut plus être supprimé.",
+                return Response(data="L'accès est déjà activé, il ne peut plus être supprimé.",
                                 status=status.HTTP_403_FORBIDDEN)
         self.perform_destroy(access)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @swagger_auto_schema(method='get',
-                         operation_summary="Get the authenticated user's valid accesses.",
-                         manual_parameters=[openapi.Parameter(name="expiring",
-                                                              in_=openapi.IN_QUERY,
-                                                              description="Filter accesses to expire soon",
-                                                              type=openapi.TYPE_BOOLEAN)],
+    @swagger_auto_schema(operation_summary="Get the authenticated user's valid accesses.",
+                         manual_parameters=[openapi.Parameter(name="expiring", description="Filter accesses to expire soon",
+                                                              in_=openapi.IN_QUERY, type=openapi.TYPE_BOOLEAN)],
                          responses={200: openapi.Response('All valid accesses or ones to expire soon', AccessSerializer)})
     @action(url_path="my-accesses", methods=['get'], detail=False, permission_classes=[IsAuthenticated])
     @cache_response()
@@ -238,24 +230,12 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
         user = request.user
         accesses = get_user_valid_manual_accesses(user=user)
         if request.query_params.get("expiring"):
-            today = date.today()
-            expiry_date = today + timedelta(days=ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS)
-            to_expire_soon = Q(end_datetime__date__gte=today) & Q(end_datetime__date__lte=expiry_date)
-            accesses_to_expire = accesses.filter(Q(profile__user=user) & to_expire_soon)
-
-            if not accesses_to_expire:
+            accesses = get_accesses_to_expire(user=user, accesses=accesses)
+            if not accesses:
                 return Response(data={"message": f"No accesses to expire in the next {ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS} days"},
                                 status=status.HTTP_200_OK)
-
-            min_access_per_perimeter = {}
-            for a in accesses_to_expire:
-                if a.perimeter.id not in min_access_per_perimeter or \
-                   a.end_datetime < min_access_per_perimeter[a.perimeter.id].end_datetime:
-                    min_access_per_perimeter[a.perimeter.id] = a
-                else:
-                    continue
-            accesses = min_access_per_perimeter.values()
-        return Response(data=self.get_serializer(accesses, many=True).data, status=status.HTTP_200_OK)
+        return Response(data=self.get_serializer(accesses, many=True).data,
+                        status=status.HTTP_200_OK)
 
     @swagger_auto_schema(operation_description="Returns the list of rights allowing to read patients data on given perimeters.",
                          manual_parameters=[i for i in map(lambda x: openapi.Parameter(in_=openapi.IN_QUERY, name=x[0], description=x[1],
@@ -266,7 +246,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewset):
     @action(methods=['get'], url_path="my-data-rights", detail=False, permission_classes=[IsAuthenticated], pagination_class=None)
     @cache_response()
     def get_my_data_reading_rights(self, request, *args, **kwargs):
-        perimeters_ids = request.query_params.get('perimeters_ids')     # todo: [front] remove care-site-ids
+        perimeters_ids = request.query_params.get('perimeters_ids')
         data_rights = get_data_reading_rights(user=request.user, target_perimeters_ids=perimeters_ids)
         return Response(data=DataRightSerializer(data_rights, many=True).data,
                         status=status.HTTP_200_OK)
