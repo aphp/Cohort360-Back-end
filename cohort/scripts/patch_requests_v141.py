@@ -3,69 +3,19 @@ import re
 
 from django.db import connections
 
-from cohort.scripts.patch_requests_v130 import NEW_VERSION as PREV_VERSION
+from cohort.scripts.patch_requests_v140 import NEW_VERSION as PREV_VERSION
 from cohort.scripts.query_request_updater import RESOURCE_DEFAULT, MATCH_ALL_VALUES, QueryRequestUpdater
 
 LOGGER = logging.getLogger("info")
 
-NEW_VERSION = "v1.4.0"
+NEW_VERSION = "v1.4.1"
 
 FILTER_MAPPING = {
-    "Encounter": {
-        "_has:Patient:encounter:active": "subject.active",
-        "service-provider": "encounter-care-site",
-        "destination-type": "admission-destination-type",
-        "destination": "discharge-disposition"
-    },
-    "DocumentReference": {
-        "patient-active": "subject.active",
-        "encounter-service-provider": "encounter.encounter-care-site"
-    },
-    "MedicationAdministration": {
-        "hierarchy-ATC": "medication",
-        "medication-simple": "medication",
-        "patient-active": "subject.active",
-        "route": "dosage-route",
-        "encounter-service-provider": "context.encounter-care-site"
-    },
-    "MedicationRequest": {
-        "hierarchy-ATC": "medication",
-        "medication-simple": "medication",
-        "patient-active": "subject.active",
-        "route": "dosage-instruction-route",
-        "type": "category",
-        "encounter-service-provider": "encounter.encounter-care-site"
-    },
-    "Claim": {
-        "code": "diagnosis",
-        "codeList": "diagnosis",
-        "patient-active": "patient.active",
-        "encounter-service-provider": "encounter.encounter-care-site"
-    },
-    "Procedure": {
-        "codeList": "code",
-        "patient-active": "subject.active",
-        "encounter-service-provider": "encounter.encounter-care-site"
-    },
-    "Condition": {
-        "codeList": "code",
-        "patient-active": "subject.active",
-        "type": "orbis-status",
-        "encounter-service-provider": "encounter.encounter-care-site"
-    },
-    "Observation": {
-        "part-of": "code",
-        "value-quantity-value": "value-quantity",
-        "row_status": "status",
-        "encounter-service-provider": "encounter.encounter-care-site",
-        "patient-active": "subject.active",
-    },
     RESOURCE_DEFAULT: {
     }
 }
 
 FILTER_NAME_TO_SKIP = {
-    "DocumentReference": ["empty"]
 }
 
 UCD_ORBIS_CODESYSTEM = "https://terminology.eds.aphp.fr/aphp-orbis-medicament-code-ucd"
@@ -77,6 +27,8 @@ code_mapping_cache = {
 
 
 def find_related_atc(code: str):
+    if code.startswith(ATC_ORBIS_CODESYSTEM) or code.startswith(UCD_ORBIS_CODESYSTEM) or code.startswith(ATC_CODEYSTEM):
+        return code
     if code in code_mapping_cache:
         return code_mapping_cache[code]
     LOGGER.info(f"Searching for code {code}")
@@ -116,33 +68,25 @@ def find_related_atc_codes(codes: str):
 
 
 FILTER_VALUE_MAPPING = {
-    "Observation": {
-        "row_status": {
-            "Validé": "Val"
-        }
-    },
     "MedicationRequest": {
-        "hierarchy-ATC": {
+        "medication": {
             MATCH_ALL_VALUES: find_related_atc_codes
         }
     },
     "MedicationAdministration": {
-        "hierarchy-ATC": {
+        "medication": {
             MATCH_ALL_VALUES: find_related_atc_codes
         }
     }
 }
 
 STATIC_REQUIRED_FILTERS = {
-    "DocumentReference": [
-        "contenttype=http://terminology.hl7.org/CodeSystem/v3-mediatypes|text/plain"
-    ]
 }
 
 RESOURCE_NAME_MAPPING = {
 }
 
-updater_v140 = QueryRequestUpdater(
+updater_v141 = QueryRequestUpdater(
     version_name=NEW_VERSION,
     previous_version_name=PREV_VERSION,
     filter_mapping=FILTER_MAPPING,
