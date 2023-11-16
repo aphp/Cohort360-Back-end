@@ -56,7 +56,9 @@ def fix_csh_dates(validated_data, for_update: bool = False):
 
     # if creating a csh, then start_date will be now() if empty or null
     if not for_update:
-        validated_data["start_datetime"] = start_datetime if start_datetime else timezone.now()
+        validated_data["start_datetime"] = start_datetime \
+            if start_datetime is not None and not start_is_empty \
+            else timezone.now()
     # if updating a csh, then start_date will be now() if null
     elif not start_is_empty:
         validated_data["start_datetime"] = start_datetime \
@@ -353,7 +355,6 @@ class AccessSerializer(BaseSerializer):
         validated_data = fix_csh_dates(validated_data)
         check_date_rules(new_start_datetime=validated_data.get("start_datetime"),
                          new_end_datetime=validated_data.get("end_datetime"))
-
         return super(AccessSerializer, self).create(validated_data)
 
     def update(self, instance, validated_data):
