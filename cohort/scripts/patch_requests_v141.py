@@ -1,9 +1,7 @@
 import logging
-import re
 
-from django.db import connections
-
-from cohort.scripts.patch_requests_v140 import NEW_VERSION as PREV_VERSION
+from cohort.scripts.patch_requests_v140 import NEW_VERSION as PREV_VERSION, find_related_atc as find_related_atc_v140, ATC_ORBIS_CODESYSTEM, \
+    UCD_ORBIS_CODESYSTEM, ATC_CODEYSTEM
 from cohort.scripts.query_request_updater import RESOURCE_DEFAULT, MATCH_ALL_VALUES, QueryRequestUpdater
 
 LOGGER = logging.getLogger("info")
@@ -18,10 +16,6 @@ FILTER_MAPPING = {
 FILTER_NAME_TO_SKIP = {
 }
 
-UCD_ORBIS_CODESYSTEM = "https://terminology.eds.aphp.fr/aphp-orbis-medicament-code-ucd"
-ATC_ORBIS_CODESYSTEM = "https://terminology.eds.aphp.fr/aphp-orbis-medicament-atc-article"
-ATC_CODEYSTEM = "https://terminology.eds.aphp.fr/atc"
-
 code_mapping_cache = {
 }
 
@@ -29,37 +23,7 @@ code_mapping_cache = {
 def find_related_atc(code: str):
     if code.startswith(ATC_ORBIS_CODESYSTEM) or code.startswith(UCD_ORBIS_CODESYSTEM) or code.startswith(ATC_CODEYSTEM):
         return code
-    if code in code_mapping_cache:
-        return code_mapping_cache[code]
-    LOGGER.info(f"Searching for code {code}")
-    cursor = connections["omop"].cursor()
-    q = '''
-        WITH orbis AS (
-            SELECT source_concept_id as orbis_atc_id,source_concept_code as orbis_atc_code 
-            FROM omop.concept_fhir 
-            WHERE source_vocabulary_reference = %s AND delete_datetime IS NULL
-            ),
-            atc AS (
-            SELECT source_concept_id as atc_id,source_concept_code as atc_code 
-            FROM omop.concept_fhir 
-            WHERE source_vocabulary_reference = %s AND delete_datetime IS NULL
-            )
-        SELECT atc_code FROM omop.concept_relationship r
-        INNER JOIN orbis o
-        ON o.orbis_atc_id = r.concept_id_1
-        INNER JOIN atc a
-        ON a.atc_id = r.concept_id_2
-        WHERE relationship_id = 'Maps to' AND r.delete_datetime IS NULL AND o.orbis_atc_code = %s;
-        '''.format()
-    cursor.execute(q, (ATC_ORBIS_CODESYSTEM, ATC_CODEYSTEM, code))
-    res = cursor.fetchone()
-    if not res:
-        LOGGER.info(f"Failed to find related atc code {code}")
-        if re.match("\\d+", code):
-            return UCD_ORBIS_CODESYSTEM + "|" + code
-        return ATC_ORBIS_CODESYSTEM + "|" + code
-    code_mapping_cache[code] = ATC_CODEYSTEM + "|" + res[0]
-    return code_mapping_cache[code]
+    return find_related_atc_v140(code)
 
 
 def find_related_atc_codes(codes: str):
