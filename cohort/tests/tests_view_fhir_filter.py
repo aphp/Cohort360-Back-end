@@ -20,9 +20,6 @@ class TestFhirFilterAPI(CohortAppTests):
     patch_view = FhirFilterViewSet.as_view({'patch': 'partial_update'})
     recent_list_view = FhirFilterViewSet.as_view({'get': 'recent_filters'})
 
-    def test_always_true(self):
-        assert True
-
     def test_url_reverse(self):
         url = reverse("cohort:fhir-filters-list")
         assert url == "/cohort/fhir-filters/"
@@ -49,7 +46,6 @@ class TestFhirFilterAPI(CohortAppTests):
             'fhir_version': '1.0.0',
             'name': 'test_filter',
             'filter': '{"some": "filter"}',
-            'owner': user.pk
         }
         request = self.factory.post(url, data=data, format='json')
         force_authenticate(request, user)
@@ -63,23 +59,22 @@ class TestFhirFilterAPI(CohortAppTests):
 
     def test_edit_name(self):
         # Create a new FhirFilter instance
-        filter = FhirFilter.objects.create(
+        fhir_filter = FhirFilter.objects.create(
             fhir_resource='Patient',
             fhir_version='1.0.0',
             name='original_name',
             filter='{"some": "filter"}',
-            owner=User.objects.first()
-        )
+            owner=self.user1)
 
         # Edit the name field
         new_name = 'new_name'
-        url = reverse("cohort:fhir-filters-detail", args=[filter.pk])
+        url = reverse("cohort:fhir-filters-detail", args=[fhir_filter.uuid])
         request = self.factory.patch(url, data={'name': new_name}, format='json')
         force_authenticate(request, self.user1)
-        response: Response = self.__class__.patch_view(request, pk=filter.pk)
+        response: Response = self.__class__.patch_view(request, uuid=fhir_filter.uuid)
         assert response.status_code == status.HTTP_200_OK
-        filter.refresh_from_db()
-        assert filter.name == new_name
+        fhir_filter.refresh_from_db()
+        assert fhir_filter.name == new_name
 
     def test_edit_name_only_modifies_name(self):
         user = User.objects.first()
@@ -88,10 +83,10 @@ class TestFhirFilterAPI(CohortAppTests):
             'filter': '{"some": "filter"}', 'owner': user
         }
         filter = FhirFilter.objects.create(**kwargs)
-        url = reverse("cohort:fhir-filters-detail", args=[filter.pk])
+        url = reverse("cohort:fhir-filters-detail", args=[filter.uuid])
         request = self.factory.patch(url, data={'name': 'new_name'}, format='json')
         force_authenticate(request, user)
-        self.__class__.patch_view(request, pk=filter.pk)
+        self.__class__.patch_view(request, uuid=filter.uuid)
         filter.refresh_from_db()
         assert filter.name == 'new_name'
         assert filter.fhir_resource == kwargs['fhir_resource']
@@ -156,8 +151,7 @@ class TestFhirFilterAPI(CohortAppTests):
                 'fhir_resource': f'res {i}',
                 'fhir_version': '1.0.0',
                 'name': 'test_filter',
-                'filter': '{"some": "filter"}',
-                'owner': user.pk
+                'filter': '{"some": "filter"}'
             }
             request = self.factory.post(url, data=data, format='json')
             force_authenticate(request, user)
@@ -237,20 +231,6 @@ class TestFhirFilterAPI(CohortAppTests):
                 fhir_resource="Resource 1", name="name of filter", owner=User.objects.first(),
                 filter='{"some": "filter"}', fhir_version=None
             )
-
-    def test_null_with_api(self):
-        url = reverse("cohort:fhir-filters-list")
-        data = {
-            'fhir_resource': 'Patient',
-            'fhir_version': '1.0.0',
-            'name': 'test_filter',
-            'filter': '{"some": "filter"}',
-            'owner': None
-        }
-        request = self.factory.post(url, data=data, format='json')
-        force_authenticate(request, self.user1)
-        response: Response = self.__class__.post_view(request)
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     # def test_order_by_recent_date(self):
     #     # Create FhirFilter instances with different created_at values
