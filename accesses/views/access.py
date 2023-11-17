@@ -21,7 +21,7 @@ from accesses.models import Access, Perimeter, Role
 from accesses.permissions import AccessesPermission
 from accesses.serializers import AccessSerializer, DataRightSerializer, ExpiringAccessesSerializer
 from accesses.tools import get_user_valid_manual_accesses, intersect_queryset_criteria, get_data_reading_rights, access_criteria_to_exclude, \
-    user_is_full_admin, get_accesses_to_expire
+    user_is_full_admin, get_accesses_to_expire, filter_target_user_accesses
 
 
 class AccessFilter(filters.FilterSet):
@@ -90,15 +90,9 @@ class AccessViewSet(CustomLoggingMixin, BaseViewSet):
     def get_queryset(self) -> QuerySet:
         queryset = super(AccessViewSet, self).get_queryset()
         user = self.request.user
-        if not user.is_anonymous:
-            accesses = get_user_valid_manual_accesses(user).select_related("role")
-        else:
-            accesses = []
+        user_accesses = get_user_valid_manual_accesses(user).select_related("role")
         if user_is_full_admin(user):
             return queryset
-
-        # todo: implement logic related to the recently added rights
-
         """
         the idea is, after having retrieved all the accesses queryset, some of them may get excluded
         according to what accesses the user X making the request is attributed.
@@ -108,7 +102,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewSet):
         then he cannot read accesses configured on perimeter P
         """
         # todo: instead of using an exclude approach, proceed by filtering what accesses the user is allowed to retrieve
-        to_exclude = [access_criteria_to_exclude(access) for access in accesses]
+        to_exclude = [access_criteria_to_exclude(access) for access in user_accesses]
         if to_exclude:
             to_exclude = reduce(intersect_queryset_criteria, to_exclude)
             exclusion_queries = []
@@ -162,7 +156,16 @@ class AccessViewSet(CustomLoggingMixin, BaseViewSet):
                                                       openapi.TYPE_STRING]])))
     @cache_response()
     def list(self, request, *args, **kwargs):
-        return super(AccessViewSet, self).list(request, *args, **kwargs)
+        """
+        list user accesses:           GET /accesses/accesses/?provider_source_value=xxx
+        list accesses per perimeter:  GET /accesses/accesses/?perimeter=xxx     --> handled by the filter class, move it here ?
+        """
+        accesses = self.filter_queryset(self.queryset)
+        if request.query_params.get("provider_source_value"):   # todo: [front] change to user_id
+            accesses = filter_target_user_accesses(user=request.user, target_user_accesses=accesses)
+
+        Response(data=self.get_serializer(accesses, many=True).data,
+                 status=status.HTTP_200_OK)
 
     @swagger_auto_schema(request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
@@ -175,7 +178,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewSet):
                     "end_datetime": openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME,
                                                    description="Doit être dans le futur. \nSi vide ou null, sera défini à start_datetime +2 "
                                                                "ans.\nDoit contenir la timezone ou bien sera considéré comme UTC.")},
-        required=['profile', 'perimeter', 'role']))
+        required=['profile_id', 'perimeter_id', 'role_id']))
     def create(self, request, *args, **kwargs):
         return super(AccessViewSet, self).create(request, *args, **kwargs)
 

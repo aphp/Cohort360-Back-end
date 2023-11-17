@@ -250,7 +250,7 @@ class Role(BaseModel):
 
     def get_help_text_for_right_read_accesses_above_levels(self):
         return self.right_read_accesses_above_levels \
-                and "Consulter la liste de tous les accès définis sur les périmètres parents" or ""
+                and "Consulter la liste des accès définis sur les périmètres parents d'un périmètre P" or ""
 
     @property
     def help_text(self):

@@ -314,6 +314,7 @@ class AccessSerializer(BaseSerializer):
     provider_history = ReducedProfileSerializer(read_only=True, source='profile')
     created_by = serializers.SlugRelatedField(read_only=True, slug_field="displayed_name")
     updated_by = serializers.SlugRelatedField(read_only=True, slug_field="displayed_name")
+    editable = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = Access

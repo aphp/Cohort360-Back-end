@@ -2,7 +2,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 import urllib
-from typing import List, Dict, Set
+from typing import List, Dict, Set, Tuple
 
 from django.db.models import Q, F
 from django.db.models.query import QuerySet, Prefetch
@@ -605,3 +605,40 @@ def get_accesses_to_expire(user: User, accesses: QuerySet):
         else:
             continue
     return min_access_per_perimeter.values()
+
+
+def filter_target_user_accesses(user: User, target_user_accesses: QuerySet) -> QuerySet:
+    """
+    rights allowing to read accesses:
+        right_manage_export_csv_accesses
+        right_manage_export_jupyter_accesses
+        right_manage_data_accesses_same_level
+        right_read_data_accesses_same_level
+        right_manage_data_accesses_inferior_levels
+        right_read_data_accesses_inferior_levels
+        right_manage_admin_accesses_same_level,
+        right_read_admin_accesses_same_level,
+        right_manage_admin_accesses_inferior_levels,
+        right_read_admin_accesses_inferior_levels,
+        right_read_accesses_above_levels                only for /accesses/accesses/?perimeter=xxx
+
+    - if none of user's accesses allow to read other accesses, return empty queryset.
+    - check for each of the connected user accesses, if the access allows him to
+        manage/read each one of the target_user_accesses
+    return a QuerySet of accesses annotated with "manageable" to True or False to indicate to Front whether to allow actions on access or not
+    """
+    manageable_accesses_ids = []
+    readonly_accesses_ids = []
+    user_accesses = get_user_valid_manual_accesses(user)
+
+    for access in user_accesses:
+        for target_access in target_user_accesses:
+            if do_user_accesses_allow_to_manage_role(user=user, role=target_access.role, perimeter=access.perimeter):
+                manageable_accesses_ids.append(target_access.id)
+            if do_user_accesses_allow_to_manage_role(user=user, role=target_access.role, perimeter=access.perimeter, readonly=True):
+                readonly_accesses_ids.append(target_access.id)
+    manageable_accesses = Access.objects.filter(id__in=manageable_accesses_ids)\
+                                        .annotate(editable=True)
+    readonly_accesses = Access.objects.filter(id__in=readonly_accesses_ids) \
+                                      .annotate(editable=False)
+    return manageable_accesses.union(readonly_accesses)

@@ -86,6 +86,14 @@ right_manage_export_jupyter_accesses = Right("right_manage_export_jupyter_access
 right_search_patients_by_ipp = Right("right_search_patients_by_ipp")
 right_read_research_opposed_patient_data = Right("right_read_research_opposed_patient_data")
 
+right_read_accesses_above_levels = Right("right_read_accesses_above_levels")
+# todo: process this right differently  -  is a global right
+#   On one hand, with all rights allowing to manage/read accesses on same or inferior levels,
+#   we mean by 'same' or 'inferior levels' a comparison of level regarding the perimeter the user has access on.
+#   on the other hand, with the right of reading accesses from above levels, we intend to give the user
+#   a global right to read accesses coming from above levels of any perimeter P, not specifically the one
+#   the user has access on.
+
 # ----------------------------------------------    Perimeters hierarchy dependent rights
 right_read_patient_nominative = Right("right_read_patient_nominative", impact_inferior_levels=True)
 right_read_patient_pseudonymized = Right("right_read_patient_pseudonymized", impact_inferior_levels=True)
@@ -98,7 +106,6 @@ right_manage_admin_accesses_same_level = Right("right_manage_admin_accesses_same
 right_read_admin_accesses_same_level = Right("right_read_admin_accesses_same_level", allow_read_accesses_on_same_level=True)
 right_manage_admin_accesses_inferior_levels = Right("right_manage_admin_accesses_inferior_levels", allow_edit_accesses_on_inf_levels=True)
 right_read_admin_accesses_inferior_levels = Right("right_read_admin_accesses_inferior_levels", allow_read_accesses_on_inf_levels=True)
-right_read_accesses_above_levels = Right("right_read_accesses_above_levels")    # todo: process this right differently
 
 
 all_rights = [right_full_admin,
