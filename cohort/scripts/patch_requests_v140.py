@@ -78,7 +78,7 @@ code_mapping_cache = {
 
 def find_related_atc(code: str):
     if code in code_mapping_cache:
-        return code
+        return code_mapping_cache[code]
     LOGGER.info(f"Searching for code {code}")
     cursor = connections["omop"].cursor()
     q = '''
@@ -98,7 +98,7 @@ def find_related_atc(code: str):
         INNER JOIN atc a
         ON a.atc_id = r.concept_id_2
         WHERE relationship_id = 'Maps to' AND r.delete_datetime IS NULL AND o.orbis_atc_code = %s;
-        '''.format()
+        '''
     cursor.execute(q, (ATC_ORBIS_CODESYSTEM, ATC_CODEYSTEM, code))
     res = cursor.fetchone()
     if not res:
