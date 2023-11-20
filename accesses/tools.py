@@ -2,6 +2,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 import urllib
+from functools import reduce
 from typing import List, Dict, Set, Tuple
 
 from django.db.models import Q, F
@@ -73,7 +74,7 @@ def user_is_full_admin(user: User) -> bool:
 def get_assignable_roles(user: User, perimeter_id: str) -> QuerySet:
     perimeter = Perimeter.objects.get(id=perimeter_id)
     assignable_roles_ids = [role.id for role in Role.objects.all()
-                            if do_user_accesses_allow_to_manage_role(user=user, role=role, perimeter=perimeter)]
+                            if is_user_allowed_to_manage_role(user=user, role=role, perimeter=perimeter)]
     return Role.objects.filter(id__in=assignable_roles_ids)
 
 
@@ -218,7 +219,7 @@ def check_accesses_managing_roles_on_perimeter(access: Access, target_perimeter:
     return has_admin_accesses_managing_role, has_data_accesses_managing_role
 
 
-def do_user_accesses_allow_to_manage_role(user: User, role: Role, perimeter: Perimeter, readonly: bool = False) -> bool:
+def is_user_allowed_to_manage_role(user: User, role: Role, perimeter: Perimeter, readonly: bool = False) -> bool:
     if user_is_full_admin(user):
         return True
     has_admin_accesses_managing_role = False
@@ -609,23 +610,10 @@ def get_accesses_to_expire(user: User, accesses: QuerySet):
 
 def filter_target_user_accesses(user: User, target_user_accesses: QuerySet) -> QuerySet:
     """
-    rights allowing to read accesses:
-        right_manage_export_csv_accesses
-        right_manage_export_jupyter_accesses
-        right_manage_data_accesses_same_level
-        right_read_data_accesses_same_level
-        right_manage_data_accesses_inferior_levels
-        right_read_data_accesses_inferior_levels
-        right_manage_admin_accesses_same_level,
-        right_read_admin_accesses_same_level,
-        right_manage_admin_accesses_inferior_levels,
-        right_read_admin_accesses_inferior_levels,
-        right_read_accesses_above_levels                only for /accesses/accesses/?perimeter=xxx
-
     - if none of user's accesses allow to read other accesses, return empty queryset.
-    - check for each of the connected user accesses, if the access allows him to
+    - check for each of the current user accesses, if the access allows him to
         manage/read each one of the target_user_accesses
-    return a QuerySet of accesses annotated with "manageable" to True or False to indicate to Front whether to allow actions on access or not
+    return a QuerySet of accesses annotated with "editable" to True or False to indicate to Front whether to allow actions on access or not
     """
     manageable_accesses_ids = []
     readonly_accesses_ids = []
@@ -633,12 +621,46 @@ def filter_target_user_accesses(user: User, target_user_accesses: QuerySet) -> Q
 
     for access in user_accesses:
         for target_access in target_user_accesses:
-            if do_user_accesses_allow_to_manage_role(user=user, role=target_access.role, perimeter=access.perimeter):
+            if is_user_allowed_to_manage_role(user=user, role=target_access.role, perimeter=access.perimeter):
                 manageable_accesses_ids.append(target_access.id)
-            if do_user_accesses_allow_to_manage_role(user=user, role=target_access.role, perimeter=access.perimeter, readonly=True):
+            if is_user_allowed_to_manage_role(user=user, role=target_access.role, perimeter=access.perimeter, readonly=True):
                 readonly_accesses_ids.append(target_access.id)
     manageable_accesses = Access.objects.filter(id__in=manageable_accesses_ids)\
                                         .annotate(editable=True)
     readonly_accesses = Access.objects.filter(id__in=readonly_accesses_ids) \
                                       .annotate(editable=False)
     return manageable_accesses.union(readonly_accesses)
+
+
+def get_accesses_on_perimeter(user: User, accesses: QuerySet, perimeter_id: int) -> QuerySet:
+    perimeter = Perimeter.objects.get(pk=perimeter_id)
+    valid_accesses = accesses.filter(Access.q_is_valid())
+    accesses_on_perimeter = valid_accesses.filter(perimeter_id=perimeter_id)
+    user_accesses = get_user_valid_manual_accesses(user=user)
+    user_can_read_accesses_from_above_levels = user_accesses.filter(role__right_read_accesses_above_levels=True)\
+                                                            .exists()
+    if user_can_read_accesses_from_above_levels:
+        accesses_on_parent_perimeters = valid_accesses.filter(Q(perimeter_id__in=perimeter.above_levels)
+                                                              & Role.q_impact_inferior_levels())
+        return accesses_on_perimeter.union(accesses_on_parent_perimeters)
+    return accesses_on_perimeter
+
+
+def useless_exclusion_logic(user: User, queryset: QuerySet):
+    user_accesses = get_user_valid_manual_accesses(user).select_related("role")
+    to_exclude = [access_criteria_to_exclude(access) for access in user_accesses]
+    if to_exclude:
+        to_exclude = reduce(intersect_queryset_criteria, to_exclude)
+        exclusion_queries = []
+        for e in to_exclude:
+            rights_sub_dict = {key: val for (key, val) in e.items() if 'perimeter' not in key}
+            exclusion_query = Q(**{f'role__{right}': val for (right, val) in rights_sub_dict.items()})
+            if e.get('perimeter_not'):
+                exclusion_query = exclusion_query \
+                                  & ~Q(perimeter_id__in=e['perimeter_not'])
+            if e.get('perimeter_not_child'):
+                exclusion_query = exclusion_query \
+                                  & ~join_qs([Q(**{f"perimeter__{i * 'parent__'}id__in": e['perimeter_not_child']})
+                                              for i in range(1, len(PERIMETERS_TYPES))])
+            exclusion_queries.append(exclusion_query)
+        queryset = exclusion_queries and queryset.exclude(join_qs(exclusion_queries)) or queryset

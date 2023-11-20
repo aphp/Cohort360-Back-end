@@ -21,41 +21,10 @@ from accesses.models import Access, Perimeter, Role
 from accesses.permissions import AccessesPermission
 from accesses.serializers import AccessSerializer, DataRightSerializer, ExpiringAccessesSerializer
 from accesses.tools import get_user_valid_manual_accesses, intersect_queryset_criteria, get_data_reading_rights, access_criteria_to_exclude, \
-    user_is_full_admin, get_accesses_to_expire, filter_target_user_accesses
+    user_is_full_admin, get_accesses_to_expire, filter_target_user_accesses, get_accesses_on_perimeter, useless_exclusion_logic
 
 
 class AccessFilter(filters.FilterSet):
-
-    def perimeter_filter(self, queryset, field, value):
-        perimeter = Perimeter.objects.get(pk=value)
-        valid_accesses = queryset.filter(Access.q_is_valid())
-        accesses_on_perimeter = valid_accesses.filter(perimeter_id=value)
-
-        user_accesses = get_user_valid_manual_accesses(user=self.request.user)
-        user_is_allowed_to_read_accesses_from_above_levels = user_accesses.filter(role__right_read_accesses_above_levels=True)\
-                                                                          .exists()
-        if user_is_allowed_to_read_accesses_from_above_levels:
-            accesses_on_parent_perimeters = valid_accesses.filter(Q(perimeter_id__in=perimeter.above_levels)
-                                                                  & Role.q_impact_inferior_levels())
-            return accesses_on_perimeter.union(accesses_on_parent_perimeters)
-        return accesses_on_perimeter
-
-    provider_email = filters.CharFilter(lookup_expr="icontains", field_name="profile__email")
-    provider_lastname = filters.CharFilter(lookup_expr="icontains", field_name="profile__lastname")
-    provider_firstname = filters.CharFilter(lookup_expr="icontains", field_name="profile__firstname")
-    provider_source_value = filters.CharFilter(lookup_expr="icontains", field_name="profile__user_id")
-    provider_id = filters.CharFilter(field_name="profile__provider_id")
-    provider_history_id = filters.CharFilter(field_name="profile_id")
-
-    profile_email = filters.CharFilter(lookup_expr="icontains", field_name="profile__email")
-    profile_lastname = filters.CharFilter(lookup_expr="icontains", field_name="profile__lastname")
-    profile_firstname = filters.CharFilter(lookup_expr="icontains", field_name="profile__firstname")
-    profile_user_id = filters.CharFilter(lookup_expr="icontains", field_name="profile__user__pk")
-    profile_id = filters.CharFilter(field_name="profile_id")
-
-    perimeter_name = filters.CharFilter(field_name="perimeter__name", lookup_expr="icontains")
-    care_site_id = filters.CharFilter(field_name="perimeter_id")
-    perimeter = filters.CharFilter(method="perimeter_filter")
 
     ordering = OrderingFilter(fields=('start_datetime',
                                       'end_datetime',
@@ -89,35 +58,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewSet):
 
     def get_queryset(self) -> QuerySet:
         queryset = super(AccessViewSet, self).get_queryset()
-        user = self.request.user
-        user_accesses = get_user_valid_manual_accesses(user).select_related("role")
-        if user_is_full_admin(user):
-            return queryset
-        """
-        the idea is, after having retrieved all the accesses queryset, some of them may get excluded
-        according to what accesses the user X making the request is attributed.
-        for example if the user X has an access with ONLY right_read_data_accesses_same_level on a perimeter P,
-        then he cannot read the accesses configured on inferior levels of perimeter P.
-        also, if he has an access with ONLY right_read_data_accesses_inferior_levels on a perimeter P,
-        then he cannot read accesses configured on perimeter P
-        """
-        # todo: instead of using an exclude approach, proceed by filtering what accesses the user is allowed to retrieve
-        to_exclude = [access_criteria_to_exclude(access) for access in user_accesses]
-        if to_exclude:
-            to_exclude = reduce(intersect_queryset_criteria, to_exclude)
-            exclusion_queries = []
-            for e in to_exclude:
-                rights_sub_dict = {key: val for (key, val) in e.items() if 'perimeter' not in key}
-                exclusion_query = Q(**{f'role__{right}': val for (right, val) in rights_sub_dict.items()})
-                if e.get('perimeter_not'):
-                    exclusion_query = exclusion_query \
-                                      & ~Q(perimeter_id__in=e['perimeter_not'])
-                if e.get('perimeter_not_child'):
-                    exclusion_query = exclusion_query \
-                                      & ~join_qs([Q(**{f"perimeter__{i * 'parent__'}id__in": e['perimeter_not_child']})
-                                                  for i in range(1, len(PERIMETERS_TYPES))])
-                exclusion_queries.append(exclusion_query)
-            queryset = exclusion_queries and queryset.exclude(join_qs(exclusion_queries)) or queryset
+        # queryset = useless_exclusion_logic(user=self.request.user, queryset=queryset)
         now = timezone.now()
         queryset = queryset.annotate(sql_is_valid=Case(When(start_datetime__lte=now, end_datetime__gte=now, then=Value(True)),
                                                        default=Value(False), output_field=BooleanField()))
@@ -133,39 +74,27 @@ class AccessViewSet(CustomLoggingMixin, BaseViewSet):
             obj = super(AccessViewSet, self).get_object()
         return obj
 
-    @swagger_auto_schema(manual_parameters=list(map(lambda x: openapi.Parameter(name=x[0], in_=openapi.IN_QUERY,
-                                                                                description=x[1], type=x[2],
-                                                                                pattern=x[3] if len(x) == 4 else None),
-                                                    [["perimeter_id", "Filter type", openapi.TYPE_STRING],
-                                                     ["target_perimeter_id", "Filter type. Used to also get accesses on"
-                                                                             " parents of this perimeter",
-                                                      openapi.TYPE_STRING],
-                                                     ["profile_email", "Search type", openapi.TYPE_STRING],
-                                                     ["profile_name", "Search type", openapi.TYPE_STRING],
-                                                     ["profile_lastname", "Search type", openapi.TYPE_STRING],
-                                                     ["profile_firstname", "Search type", openapi.TYPE_STRING],
-                                                     ["profile_user_id", "Search type", openapi.TYPE_STRING,
-                                                      r'\d{1,7}'],
-                                                     ["profile_id", "Filter type", openapi.TYPE_STRING],
-                                                     ["search", "Will search in multiple fields (perimeter_name, "
-                                                                "provider_name, lastname, firstname, "
-                                                                "provider_source_value, email)", openapi.TYPE_STRING],
-                                                     ["ordering", "To sort the result. Can be care_site_name, "
-                                                                  "role_name, start_datetime, end_datetime, is_valid. "
-                                                                  "Use -field for descending order",
-                                                      openapi.TYPE_STRING]])))
+    @swagger_auto_schema(manual_parameters=list(map(lambda x: openapi.Parameter(in_=openapi.IN_QUERY, name=x[0], description=x[1], type=x[2]),
+                                                    [["user_id", "Search type", openapi.TYPE_STRING],
+                                                     ["perimeter_id", "Filter type", openapi.TYPE_STRING],
+                                                     ["search", f"Will search in multiple fields: {','.join(search_fields)}", openapi.TYPE_STRING],
+                                                     ["ordering", "Order by role_name, start_datetime, end_datetime, is_valid. Prepend '-' for "
+                                                                  "descending order", openapi.TYPE_STRING]])))
     @cache_response()
     def list(self, request, *args, **kwargs):
-        """
-        list user accesses:           GET /accesses/accesses/?provider_source_value=xxx
-        list accesses per perimeter:  GET /accesses/accesses/?perimeter=xxx     --> handled by the filter class, move it here ?
-        """
+        # todo: [front] change provider_source_value to user_id
+        #                      perimeter to perimeter_id
         accesses = self.filter_queryset(self.queryset)
-        if request.query_params.get("provider_source_value"):   # todo: [front] change to user_id
-            accesses = filter_target_user_accesses(user=request.user, target_user_accesses=accesses)
+        if request.query_params.get("user_id"):
+            accesses = filter_target_user_accesses(user=request.user,
+                                                   target_user_accesses=accesses)
 
-        Response(data=self.get_serializer(accesses, many=True).data,
-                 status=status.HTTP_200_OK)
+        if request.query_params.get("perimeter_id"):
+            accesses = get_accesses_on_perimeter(user=request.user,
+                                                 accesses=accesses,
+                                                 perimeter_id=request.query_params.get("perimeter_id"))
+        return Response(data=self.get_serializer(accesses, many=True).data,
+                        status=status.HTTP_200_OK)
 
     @swagger_auto_schema(request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
