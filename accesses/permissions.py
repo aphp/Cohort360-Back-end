@@ -72,8 +72,3 @@ class ProfilesPermission(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         if request.method in ("GET", "PATCH"):
             return self.has_permission(request, view)
-
-
-def check_existing_role(data: dict) -> Role:
-    data.pop("name", None)
-    return Role.objects.filter(**data).first()

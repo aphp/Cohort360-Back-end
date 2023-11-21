@@ -25,7 +25,7 @@ from accesses.tools import get_user_valid_manual_accesses, intersect_queryset_cr
 
 
 class AccessFilter(filters.FilterSet):
-
+    profile_id = filters.CharFilter(field_name="profile_id")
     ordering = OrderingFilter(fields=('start_datetime',
                                       'end_datetime',
                                       ('role__name', 'role_name'),
@@ -84,8 +84,8 @@ class AccessViewSet(CustomLoggingMixin, BaseViewSet):
     def list(self, request, *args, **kwargs):
         # todo: [front] change provider_source_value to user_id
         #                      perimeter to perimeter_id
-        accesses = self.filter_queryset(self.queryset)
-        if request.query_params.get("user_id"):
+        accesses = self.filter_queryset(self.get_queryset())
+        if request.query_params.get("profile_id"):
             accesses = filter_target_user_accesses(user=request.user,
                                                    target_user_accesses=accesses)
 
@@ -93,8 +93,12 @@ class AccessViewSet(CustomLoggingMixin, BaseViewSet):
             accesses = get_accesses_on_perimeter(user=request.user,
                                                  accesses=accesses,
                                                  perimeter_id=request.query_params.get("perimeter_id"))
-        return Response(data=self.get_serializer(accesses, many=True).data,
-                        status=status.HTTP_200_OK)
+        page = self.paginate_queryset(accesses)
+        if page:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(accesses, many=True)
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,

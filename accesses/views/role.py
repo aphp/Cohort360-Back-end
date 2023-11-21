@@ -7,9 +7,9 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from accesses.models import Role
-from accesses.permissions import RolesPermission, check_existing_role
+from accesses.permissions import RolesPermission
 from accesses.serializers import RoleSerializer, UsersInRoleSerializer
-from accesses.tools import get_assignable_roles
+from accesses.tools import get_assignable_roles, check_existing_role
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.permissions import IsAuthenticated, UsersPermission
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
@@ -32,7 +32,7 @@ class RoleViewSet(CustomLoggingMixin, BaseViewSet):
     serializer_class = RoleSerializer
     queryset = Role.objects.filter(delete_datetime__isnull=True).all()
     lookup_field = "id"
-    http_method_names = ['post', 'patch', 'delete']
+    http_method_names = ['get', 'post', 'patch', 'delete']
     logging_methods = ['POST', 'PATCH', 'DELETE']
     swagger_tags = ['Accesses - roles']
     filterset_class = RoleFilter

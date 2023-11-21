@@ -223,8 +223,7 @@ class Role(BaseModel):
                     self.right_read_admin_accesses_same_level,
                     self.right_manage_admin_accesses_inferior_levels,
                     self.right_read_admin_accesses_inferior_levels,
-                    # self.right_read_accesses_above_levels    # todo: process this right differently
-                    ))
+                    self.right_read_accesses_above_levels))
 
 # -+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 

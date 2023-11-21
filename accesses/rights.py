@@ -88,11 +88,14 @@ right_read_research_opposed_patient_data = Right("right_read_research_opposed_pa
 
 right_read_accesses_above_levels = Right("right_read_accesses_above_levels")
 # todo: process this right differently  -  is a global right
-#   On one hand, with all rights allowing to manage/read accesses on same or inferior levels,
+#   On one hand, for all rights allowing to manage/read accesses on same or inferior levels,
 #   we mean by 'same' or 'inferior levels' a comparison of level regarding the perimeter the user has access on.
-#   on the other hand, with the right of reading accesses from above levels, we intend to give the user
+#   on the other hand, with right_read_accesses_above_levels, we intend to give the user
 #   a global right to read accesses coming from above levels of any perimeter P, not specifically the one
 #   the user has access on.
+#
+# todo:     /!\ replace this right by a simple query param to list accesses from above levels since the feature
+#               is not used only by admins.  Moderators want to see accesses to all inferior levels instead
 
 # ----------------------------------------------    Perimeters hierarchy dependent rights
 right_read_patient_nominative = Right("right_read_patient_nominative", impact_inferior_levels=True)

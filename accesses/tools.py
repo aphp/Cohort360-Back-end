@@ -5,7 +5,7 @@ import urllib
 from functools import reduce
 from typing import List, Dict, Set, Tuple
 
-from django.db.models import Q, F
+from django.db.models import Q, F, Case, When, BooleanField, Value
 from django.db.models.query import QuerySet, Prefetch
 
 from accesses.models import Profile, Access, Role, Perimeter
@@ -198,7 +198,7 @@ def get_all_user_managing_accesses_on_perimeter(user: User, perimeter: Perimeter
 
 
 def is_perimeter_child_of_perimeter(child: Perimeter, parent: Perimeter):
-    return child.level > parent.level and parent.id in child.above_levels_ids
+    return child.level > parent.level and parent.id in child.above_levels
 
 
 def check_accesses_managing_roles_on_perimeter(access: Access, target_perimeter: Perimeter, readonly: bool):
@@ -229,15 +229,15 @@ def is_user_allowed_to_manage_role(user: User, role: Role, perimeter: Perimeter,
     user_managing_accesses = get_all_user_managing_accesses_on_perimeter(user, perimeter)
 
     for access in user_managing_accesses:
-        role = access.role
+        access_role = access.role
         (has_admin_accesses_managing_role_2,
          has_data_accesses_managing_role_2) = check_accesses_managing_roles_on_perimeter(access=access,
                                                                                          target_perimeter=perimeter,
                                                                                          readonly=readonly)
         has_admin_accesses_managing_role = has_admin_accesses_managing_role or has_admin_accesses_managing_role_2
         has_data_accesses_managing_role = has_data_accesses_managing_role or has_data_accesses_managing_role_2
-        has_jupyter_accesses_managing_role = has_jupyter_accesses_managing_role or role.right_manage_export_jupyter_accesses
-        has_csv_accesses_managing_role = has_csv_accesses_managing_role or role.right_manage_export_csv_accesses
+        has_jupyter_accesses_managing_role = has_jupyter_accesses_managing_role or access_role.right_manage_export_jupyter_accesses
+        has_csv_accesses_managing_role = has_csv_accesses_managing_role or access_role.right_manage_export_csv_accesses
 
     return not role.requires_full_admin_role_to_be_managed \
         and (has_admin_accesses_managing_role or not role.requires_admin_accesses_managing_role_to_be_managed) \
@@ -248,7 +248,7 @@ def is_user_allowed_to_manage_role(user: User, role: Role, perimeter: Perimeter,
 
 def get_user_valid_manual_accesses(user: User) -> QuerySet:
     return Access.objects.filter(Access.q_is_valid()
-                                 & Profile.q_is_valid()
+                                 & Profile.q_is_valid(prefix="profile")
                                  & Q(profile__source=MANUAL_SOURCE)
                                  & Q(profile__user=user))
 
@@ -405,15 +405,16 @@ def get_top_perimeter_ids_inf_levels(inf_levels_perimeters_ids: Set[int],
     --> The manageable perimeters will be their direct children (because accesses here allow to manage on inf levels ONLY).
     regarding the hierarchy below, the top perimeters with accesses of type "manage inf levels" are the children of P0: P3, P4 and P5
     """
-    top_perimeters_ids = set()
+    top_perimeters_ids = []
     for p in Perimeter.objects.filter(id__in=inf_levels_perimeters_ids):
-        if not (p in top_same_level_perimeters_ids                                          # access defined on P with right same_level and inf_levels
-                or any(parent_id in all_perimeters_ids for parent_id in p.above_levels)):   # at least one access is defined on one of its parents
+        # if not (p in top_same_level_perimeters_ids                                          # access defined on P with right same_level and inf_levels
+        #         or any(parent_id in all_perimeters_ids for parent_id in p.above_levels)):   # at least one access is defined on one of its parents
+        if p.id not in top_same_level_perimeters_ids and all(parent_id not in all_perimeters_ids for parent_id in p.above_levels):
             children_ids = p.inferior_levels
             if not children_ids:
                 continue
-            top_perimeters_ids.add(children_ids)
-    return top_perimeters_ids
+            top_perimeters_ids.extend(children_ids)
+    return set(top_perimeters_ids)
 
 
 def get_top_manageable_perimeters(user: User) -> QuerySet:
@@ -626,9 +627,9 @@ def filter_target_user_accesses(user: User, target_user_accesses: QuerySet) -> Q
             if is_user_allowed_to_manage_role(user=user, role=target_access.role, perimeter=access.perimeter, readonly=True):
                 readonly_accesses_ids.append(target_access.id)
     manageable_accesses = Access.objects.filter(id__in=manageable_accesses_ids)\
-                                        .annotate(editable=True)
+                                        .annotate(editable=Value(True))
     readonly_accesses = Access.objects.filter(id__in=readonly_accesses_ids) \
-                                      .annotate(editable=False)
+                                      .annotate(editable=Value(True))
     return manageable_accesses.union(readonly_accesses)
 
 
@@ -664,3 +665,9 @@ def useless_exclusion_logic(user: User, queryset: QuerySet):
                                               for i in range(1, len(PERIMETERS_TYPES))])
             exclusion_queries.append(exclusion_query)
         queryset = exclusion_queries and queryset.exclude(join_qs(exclusion_queries)) or queryset
+
+
+def check_existing_role(data: dict) -> Role:
+    d = data.copy()
+    d.pop("name", None)
+    return Role.objects.filter(**d).first()

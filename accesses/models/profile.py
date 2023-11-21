@@ -54,22 +54,22 @@ class Profile(BaseModel):
         return self.source
 
     @staticmethod
-    def q_is_valid() -> Q:
+    def q_is_valid(prefix: str = '') -> Q:
         """
         Returns a query Q on Profile fields (can go with a prefix)
         Filtering on validity :
         - (valid_start or manual_valid_start if exist) is before now or null
         - (valid_end or manual_valid_end if exist) is after now or null
         - (active or manual_active if exist) is True
-        :return:
         """
         now = timezone.now()
-        fields = {"valid_start": "profile__valid_start_datetime",
-                  "valid_end": "profile__valid_end_datetime",
-                  "active": "profile__is_active",
-                  "manual_valid_start": "profile__manual_valid_start_datetime",
-                  "manual_valid_end": "profile__manual_valid_end_datetime",
-                  "manual_active": "profile__manual_is_active"
+        prefix = f"{prefix}__" if prefix else ""
+        fields = {"valid_start": f"{prefix}valid_start_datetime",
+                  "manual_valid_start": f"{prefix}manual_valid_start_datetime",
+                  "valid_end": f"{prefix}valid_end_datetime",
+                  "manual_valid_end": f"{prefix}manual_valid_end_datetime",
+                  "active": f"{prefix}is_active",
+                  "manual_active": f"{prefix}manual_is_active"
                   }
         q_actual_start_is_none = Q(**{fields['valid_start']: None,
                                       fields['manual_valid_start']: None})

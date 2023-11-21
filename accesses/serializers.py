@@ -335,7 +335,8 @@ class AccessSerializer(BaseSerializer):
                   "perimeter_id",
                   "care_site_history_id",
                   "created_by",
-                  "updated_by"]
+                  "updated_by",
+                  "editable"]
         write_only_fields = ["start_datetime", "end_datetime"]
         read_only_fields = ["_id",
                             "is_valid",
