@@ -19,7 +19,7 @@ from admin_cohort.models import User
 from admin_cohort.tools import join_qs
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from admin_cohort.types import JobStatus
-from admin_cohort.views import CustomLoggingMixin
+from admin_cohort.tools.request_log_mixin import RequestLogMixin
 from cohort.models import CohortResult
 from exports import conf_exports
 from exports.emails import check_email_address, push_email_notification
@@ -63,7 +63,7 @@ class ExportRequestFilter(filters.FilterSet):
                   'creator_fk', 'target_unix_account', 'insert_datetime', 'owner')
 
 
-class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
+class ExportRequestViewSet(RequestLogMixin, viewsets.ModelViewSet):
     queryset = ExportRequest.objects.all()
     serializer_class = ExportRequestSerializer
     lookup_field = "id"
@@ -78,8 +78,7 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
                      "target_name", "target_unix_account__name")
 
     def should_log(self, request, response):
-        act = getattr(getattr(request, "parser_context", {}).get("view", {}), "action", "")
-        return request.method in self.logging_methods or act == "download"
+        return super().should_log(request, response) or self.action == "download"
 
     def get_serializer_context(self):
         return {'request': self.request}

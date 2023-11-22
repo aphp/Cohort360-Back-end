@@ -10,7 +10,8 @@ from rest_framework.response import Response
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.permissions import IsAuthenticated
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
-from admin_cohort.views import BaseViewset, CustomLoggingMixin
+from admin_cohort.views import BaseViewSet
+from admin_cohort.tools.request_log_mixin import RequestLogMixin
 from ..models import Role, get_assignable_roles_on_perimeter, Perimeter
 from ..permissions import RolePermissions
 from ..serializers import RoleSerializer, UsersInRoleSerializer
@@ -28,11 +29,11 @@ class RoleFilter(filters.FilterSet):
 USERS_ORDERING_FIELDS = ["lastname", "firstname", "perimeter", "start_datetime", "end_datetime"]
 
 
-class RoleViewSet(CustomLoggingMixin, BaseViewset):
+class RoleViewSet(RequestLogMixin, BaseViewSet):
     serializer_class = RoleSerializer
     queryset = Role.objects.filter(delete_datetime__isnull=True).all()
     lookup_field = "id"
-    logging_methods = ['POST', 'PUT', 'PATCH', 'DELETE']
+    logging_methods = ['POST', 'PATCH', 'DELETE']
     swagger_tags = ['Accesses - roles']
     filterset_class = RoleFilter
     permission_classes = (IsAuthenticated, RolePermissions)
