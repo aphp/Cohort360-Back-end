@@ -104,6 +104,4 @@ class ReleaseNoteSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ReleaseNote
-        exclude = ("insert_datetime",
-                   "update_datetime",
-                   "delete_datetime")
+        exclude = ("delete_datetime",)

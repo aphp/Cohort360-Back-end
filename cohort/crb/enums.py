@@ -27,6 +27,7 @@ class ResourceType(StrEnum):
     MEDICATION_REQUEST = "MedicationRequest"
     MEDICATION_ADMINISTRATION = "MedicationAdministration"
     DOCUMENT_REFERENCE = "DocumentReference"
+    IMAGING_STUDY = "ImagingStudy"
     PATIENT_APHP = "patientAphp"
     CLAIM_APHP = "claimAphp"
     COMPOSITION_APHP = "compositionAphp"
@@ -37,7 +38,8 @@ class ResourceType(StrEnum):
     MEDICATION_ADMINISTRATION_APHP = "medicationAdministrationAphp"
     DOCUMENT_REFERENCE_APHP = "documentReferenceAphp"
     CONDITION_APHP = "conditionAphp"
-    IPP_LIST = "ippList"
+    IMAGING_STUDY_APHP = "imagingStudyAphp"
+    IPP_LIST = "IPPList"
     PARAMETERS = "parameters"
 
     @classmethod

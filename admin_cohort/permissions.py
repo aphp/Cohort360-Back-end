@@ -82,10 +82,11 @@ class UsersPermission(permissions.BasePermission):
     def has_permission(self, request, view):
         if not user_is_authenticated(request.user):
             return False
-        return request.method in permissions.SAFE_METHODS and can_user_read_users(request.user)
+        return request.method in permissions.SAFE_METHODS \
+            and (view.detail or can_user_read_users(request.user))
 
     def has_object_permission(self, request, view, obj):
-        return self.has_permission(request=request, view=view)
+        return request.user.pk == obj.pk or can_user_read_users(request.user)
 
 
 class CachePermission(permissions.BasePermission):
