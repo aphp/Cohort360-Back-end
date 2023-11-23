@@ -3,7 +3,7 @@ from unittest import mock
 from django.utils import timezone
 
 from admin_cohort.types import JobStatus
-from cohort.crb_responses import CRBCountResponse, CRBCohortResponse
+from cohort.services.crb_responses import CRBCountResponse, CRBCohortResponse
 from cohort.models import DatedMeasure, CohortResult, Request, RequestQuerySnapshot
 from cohort.models.dated_measure import GLOBAL_DM_MODE
 from cohort.tasks import get_count_task, create_cohort_task, cancel_previously_running_dm_jobs

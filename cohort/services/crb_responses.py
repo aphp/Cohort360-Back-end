@@ -25,9 +25,3 @@ class CRBCohortResponse(CRBResponse):
     def __init__(self, group_id: str = "", **kwargs):
         super(CRBCohortResponse, self).__init__(**kwargs)
         self.group_id = group_id
-
-
-class CRBValidateResponse:
-    def __init__(self, success: bool = False, err_msg: str = ""):
-        self.success = success
-        self.err_msg = err_msg

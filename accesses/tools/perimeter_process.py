@@ -1,10 +1,10 @@
 from django.http import Http404
 from rest_framework.exceptions import ValidationError
 
+from accesses.conf_perimeters import FactRelationShip
 from accesses.models import Perimeter, Access, Role, get_user_valid_manual_accesses
 from accesses.tools.data_right_mapping import PerimeterReadRight
 from cohort.models import CohortResult
-from cohort.tools import get_list_cohort_id_care_site
 
 
 def is_perimeter_in_top_hierarchy(above_list: [int], all_distinct_perimeters: [Perimeter]) -> bool:
@@ -175,6 +175,22 @@ def get_read_patient_right(perimeters_filtered_by_search, all_read_patient_nomin
         else:
             raise ValidationError(f"No read patient role on perimeter {perimeter.id} - {perimeter.name}")
     return not is_pseudo
+
+
+def get_list_cohort_id_care_site(cohorts_ids: list, all_user_cohorts: [CohortResult]):
+    """
+    Give the list of cohort_id and the list of Perimete.cohort_id population source for cohort users and remove
+    cohort user ids
+    """
+    fact_relationships = FactRelationShip.objects.raw(FactRelationShip.psql_query_get_cohort_population_source(cohorts_ids))
+    cohort_pop_source = cohorts_ids.copy()
+    for fact in fact_relationships:
+        if len(all_user_cohorts.filter(fhir_group_id=fact.fact_id_1)) == 0:
+            raise Http404(f"Issue in cohort's belonging user: {fact.fact_id_1} is not user cohort")
+        if fact.fact_id_1 in cohort_pop_source:
+            cohort_pop_source.remove(fact.fact_id_1)
+        cohort_pop_source.append(fact.fact_id_2)
+    return cohort_pop_source
 
 
 def get_perimeters_filtered_by_search(cohort_ids, owner_id, default_perimeters):
