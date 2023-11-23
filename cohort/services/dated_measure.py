@@ -2,7 +2,7 @@ import logging
 
 from django.utils import timezone
 
-from admin_cohort.types import JobStatus
+from admin_cohort.types import JobStatus, ServerError
 from cohort.models import DatedMeasure
 from cohort.models.dated_measure import GLOBAL_DM_MODE
 from cohort.services.conf_cohort_job_api import fhir_to_job_status, get_authorization_header
@@ -32,7 +32,7 @@ class DatedMeasureService:
                                  dm_uuid)
         except Exception as e:
             dm.delete()
-            raise Exception("INTERNAL ERROR: Could not launch count request") from e
+            raise ServerError("INTERNAL ERROR: Could not launch count request") from e
 
     @staticmethod
     def process_patch_data(dm: DatedMeasure, data: dict) -> None:

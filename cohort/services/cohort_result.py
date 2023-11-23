@@ -3,7 +3,7 @@ from smtplib import SMTPException
 
 from django.utils import timezone
 
-from admin_cohort.types import JobStatus
+from admin_cohort.types import JobStatus, ServerError
 from cohort.services.emails import send_email_notif_about_large_cohort
 from cohort.models import CohortResult, DatedMeasure, RequestQuerySnapshot
 from cohort.models.dated_measure import GLOBAL_DM_MODE
@@ -60,7 +60,7 @@ class CohortResultService:
                                      cohort_uuid)
         except Exception as e:
             cohort.delete()
-            raise Exception("INTERNAL ERROR: Could not launch cohort creation") from e
+            raise ServerError("INTERNAL ERROR: Could not launch cohort creation") from e
 
     @staticmethod
     def process_patch_data(cohort: CohortResult, data: dict) -> tuple[bool, bool]:
