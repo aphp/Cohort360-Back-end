@@ -2,13 +2,14 @@ import dataclasses
 import json
 
 from admin_cohort.tools.tests_tools import BaseTests
-from cohort.patches.query_request_updater import QueryRequestUpdater
+from cohort.scripts.query_request_updater import QueryRequestUpdater
 
 
 class TestQueryRequestUpdater(BaseTests):
 
     def test_update_old_query_snapshots(self):
         new_version = "turbo2000"
+        previous_version_name = "1"
         filter_mapping = {
             "SomeResourceA": {
                 "SomeFilterA": "SomeFilterB"
@@ -52,6 +53,7 @@ class TestQueryRequestUpdater(BaseTests):
 
         updater = QueryRequestUpdater(
             version_name=new_version,
+            previous_version_name=previous_version_name,
             filter_mapping=filter_mapping,
             filter_names_to_skip=filter_names_to_skip,
             filter_values_mapping=filter_values_mapping,

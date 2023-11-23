@@ -130,6 +130,12 @@ class CohortRightsSerializer(serializers.Serializer):
 
 
 class FhirFilterSerializer(BaseSerializer):
+    owner = serializers.CharField(read_only=True, allow_null=True)
+
     class Meta:
         model = FhirFilter
         fields = '__all__'
+
+    def create(self, validated_data):
+        validated_data["owner"] = self.context.get('request').user
+        return super(FhirFilterSerializer, self).create(validated_data)

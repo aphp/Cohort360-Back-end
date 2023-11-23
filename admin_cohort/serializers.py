@@ -2,7 +2,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework_tracking.models import APIRequestLog
 
-from admin_cohort.models import MaintenancePhase, User
+from admin_cohort.models import MaintenancePhase, User, ReleaseNote
 
 
 class UserDetailsSerializer(serializers.Serializer):
@@ -13,16 +13,13 @@ class UserDetailsSerializer(serializers.Serializer):
     provider_id = serializers.CharField()
 
 
-class APIRequestLogSerializer(serializers.ModelSerializer):
+class RequestLogSerializer(serializers.ModelSerializer):
     related_names = serializers.DictField(read_only=True)
     user_details = UserDetailsSerializer(allow_null=True)
 
     class Meta:
         model = APIRequestLog
-        fields = [f.name for f in APIRequestLog._meta.fields] + [
-            "related_names",
-            "user_details",
-        ]
+        fields = "__all__"
 
 
 class BaseSerializer(serializers.ModelSerializer):
@@ -101,3 +98,10 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = "__all__"
+
+
+class ReleaseNoteSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = ReleaseNote
+        exclude = ("delete_datetime",)

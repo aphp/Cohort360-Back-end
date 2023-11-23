@@ -1,4 +1,4 @@
-from cohort.patches.query_request_updater import QueryRequestUpdater, RESOURCE_DEFAULT
+from cohort.scripts.query_request_updater import QueryRequestUpdater, RESOURCE_DEFAULT
 
 NEW_VERSION = "v1.3.0"
 
@@ -99,6 +99,7 @@ RESOURCE_NAME_MAPPING = {
 
 updater_v130 = QueryRequestUpdater(
     version_name=NEW_VERSION,
+    previous_version_name=None,
     filter_mapping=FILTER_MAPPING,
     filter_names_to_skip=FILTER_NAME_TO_SKIP,
     filter_values_mapping=FILTER_VALUE_MAPPING,

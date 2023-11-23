@@ -448,10 +448,10 @@ class ExportsListTests(ExportsTests):
 
 
 class DownloadCase(RequestCase):
-    def __init__(self, data_to_download: dict, mock_hdfs_resp: any = None,
+    def __init__(self, export: ExportRequest, mock_hdfs_resp: any = None,
                  mock_file_size_resp: any = None, mock_hdfs_called: bool = True,
                  mock_file_size_called: bool = True, **kwargs):
-        self.data_to_download = data_to_download or dict()
+        self.export = export
         self.mock_hdfs_resp = mock_hdfs_resp
         self.mock_file_size_resp = mock_file_size_resp
         self.mock_hdfs_called = mock_hdfs_called
@@ -478,13 +478,13 @@ class ExportsRetrieveTests(ExportsWithSimpleSetUp):
             mock_hdfs_resp=[""], mock_file_size_resp=1,
             mock_hdfs_called=True, mock_file_size_called=True,
             user=self.user1,
-            data_to_download=self.base_data,
+            export=self.model_objects.create(**self.base_data),
             success=True,
             status=status.HTTP_200_OK,
         )
         self.base_err_download_case = self.base_download_case.clone(
             success=False,
-            status=status.HTTP_403_FORBIDDEN,
+            status=status.HTTP_400_BAD_REQUEST,
             mock_file_size_called=False,
             mock_hdfs_called=False,
         )
@@ -524,18 +524,17 @@ class ExportsRetrieveTests(ExportsWithSimpleSetUp):
 
     @mock.patch('exports.conf_exports.stream_gen')
     @mock.patch('exports.conf_exports.get_file_size')
-    def check_download(self, case: DownloadCase, mock_get_file_size: MagicMock,
-                       mock_hdfs_stream_gen: MagicMock):
+    def check_download(self, case: DownloadCase, mock_get_file_size: MagicMock, mock_hdfs_stream_gen: MagicMock):
         mock_hdfs_stream_gen.return_value = case.mock_hdfs_resp
         mock_get_file_size.return_value = case.mock_file_size_resp
 
-        obj = self.model_objects.create(**case.data_to_download)
+        export = case.export
 
         request = self.factory.get(self.objects_url)
 
         if case.user:
             force_authenticate(request, case.user)
-        response = self.__class__.download_view(request, id=obj.pk)
+        response = self.__class__.download_view(request, id=export.pk)
         try:
             response.render()
             msg = (f"{case.title}: "
@@ -552,14 +551,14 @@ class ExportsRetrieveTests(ExportsWithSimpleSetUp):
             self.assertEquals(
                 response.get('Content-Disposition'),
                 f"attachment; filename=export_"
-                f"{obj.cohort_id}.zip"
+                f"{export.cohort_id}.zip"
             )
             self.assertEquals(response.get('Content-length'), '1')
         else:
             self.assertNotEqual(
                 response.get('Content-Disposition'),
                 f"attachment; filename=export_"
-                f"{obj.cohort_id}.zip"
+                f"{export.cohort_id}.zip"
             )
             self.assertNotEqual(response.get('Content-length'), '1')
 
@@ -572,29 +571,37 @@ class ExportsRetrieveTests(ExportsWithSimpleSetUp):
         # As a user, I can download the result of an ExportRequest I created
         self.check_download(self.base_download_case)
 
+    def test_error_download_old_request(self):
+        # As a user, I cannot download the result of
+        # an ExportRequest that is too old and its outcome has been removed from HDFS
+        old_export = self.model_objects.create(**self.base_data)
+        old_export.insert_datetime = timezone.now() - timedelta(days=30)
+        old_export.save()
+        self.check_download(self.base_err_download_case.clone(export=old_export,
+                                                              status=status.HTTP_204_NO_CONTENT))
+
     def test_error_download_request_not_finished(self):
         # As a user, I cannot download the result of
         # an ExportRequest that is not finished
-        [self.check_download(self.base_err_download_case.clone(
-            data_to_download={**self.base_data,
-                              'request_job_status': s},
-        )) for s in JobStatus.list(exclude=[JobStatus.finished])]
+        export = self.base_err_download_case.export
+        export.request_job_status = JobStatus.pending
+        export.save()
+        self.check_download(self.base_err_download_case)
 
     def test_error_download_request_not_csv(self):
         # As a user, I cannot download the result of an ExportRequest that is
         # not of type CSV and with job status finished
-        self.check_download(self.base_err_download_case.clone(
-            data_to_download={**self.base_data,
-                              'output_format': ExportType.HIVE},
-            status=status.HTTP_403_FORBIDDEN,
-        ))
+        export = self.base_err_download_case.export
+        export.output_format = ExportType.HIVE
+        export.save()
+        self.check_download(self.base_err_download_case.clone(status=status.HTTP_400_BAD_REQUEST))
 
     def test_error_download_request_result_not_owned(self):
         # As a user, I can download the result of another user's ExportRequest
-        self.check_download(self.base_err_download_case.clone(
-            data_to_download={**self.base_data, 'owner': self.user2},
-            status=status.HTTP_404_NOT_FOUND,
-        ))
+        export = self.base_err_download_case.export
+        export.owner = self.user2
+        export.save()
+        self.check_download(self.base_err_download_case.clone(status=status.HTTP_404_NOT_FOUND))
 
 # JOBS ##################################################################
 

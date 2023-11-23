@@ -1,0 +1,125 @@
+{
+  "version": "v1.3.0",
+  "_type": "request",
+  "sourcePopulation": {
+    "caresiteCohortList": [
+      "33713"
+    ]
+  },
+  "request": {
+    "_id": 0,
+    "_type": "andGroup",
+    "isInclusive": true,
+    "criteria": [
+      {
+        "_type": "basicResource",
+        "_id": 1,
+        "isInclusive": true,
+        "resourceType": "DocumentReference",
+        "filterFhir": "docstatus=final&type:not=doc-impor&empty=false&patient-active=true&_text=ok",
+        "occurrence": {
+          "n": 1,
+          "operator": ">="
+        }
+      },
+      {
+        "_type": "basicResource",
+        "_id": 2,
+        "isInclusive": true,
+        "resourceType": "Condition",
+        "filterFhir": "patient-active=true&codeList=A00-B99",
+        "occurrence": {
+          "n": 1,
+          "operator": ">="
+        }
+      },
+      {
+        "_type": "basicResource",
+        "_id": 3,
+        "isInclusive": true,
+        "resourceType": "Condition",
+        "filterFhir": "patient-active=true&codeList=G00-G99",
+        "occurrence": {
+          "n": 1,
+          "operator": ">="
+        }
+      },
+      {
+        "_type": "basicResource",
+        "_id": 4,
+        "isInclusive": true,
+        "resourceType": "Observation",
+        "filterFhir": "patient-active=true&row_status=Validé",
+        "occurrence": {
+          "n": 1,
+          "operator": ">="
+        }
+      },
+      {
+        "_type": "andGroup",
+        "_id": -1,
+        "isInclusive": true,
+        "criteria": [
+          {
+            "_type": "basicResource",
+            "_id": 5,
+            "isInclusive": true,
+            "resourceType": "Condition",
+            "filterFhir": "patient-active=true&codeList=G00-G99",
+            "occurrence": {
+              "n": 1,
+              "operator": ">="
+            }
+          },
+          {
+            "_type": "basicResource",
+            "_id": 6,
+            "isInclusive": true,
+            "resourceType": "Patient",
+            "filterFhir": "active=true&gender=f&age-day=ge0&age-day=le130"
+          }
+        ]
+      },
+      {
+        "_type": "orGroup",
+        "_id": -2,
+        "isInclusive": true,
+        "criteria": [
+          {
+            "_type": "basicResource",
+            "_id": 7,
+            "isInclusive": true,
+            "resourceType": "Observation",
+            "filterFhir": "patient-active=true&row_status=Validé&part-of=525508",
+            "occurrence": {
+              "n": 1,
+              "operator": ">="
+            }
+          },
+          {
+            "_type": "basicResource",
+            "_id": 8,
+            "isInclusive": true,
+            "resourceType": "MedicationRequest",
+            "filterFhir": "patient-active=true",
+            "occurrence": {
+              "n": 1,
+              "operator": ">="
+            }
+          }
+        ]
+      }
+    ],
+    "temporalConstraints": [
+      {
+        "idList": [
+          1,
+          2,
+          3
+        ],
+        "constraintType": "sameEncounter",
+        "id": 1
+      }
+    ]
+  }
+}
