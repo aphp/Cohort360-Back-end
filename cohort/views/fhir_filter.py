@@ -26,7 +26,3 @@ class FhirFilterViewSet(UserObjectsRestrictedViewSet):
     permission_classes = [IsAuthenticated]
     swagger_tags = ["Cohort - fhir_filter"]
     logging_methods = ['POST', 'PATCH', 'DELETE']
-
-    @cache_response()
-    def list(self, request, *args, **kwargs):
-        return super(FhirFilterViewSet, self).list(request, *args, **kwargs)

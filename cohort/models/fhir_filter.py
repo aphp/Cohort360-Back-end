@@ -13,4 +13,4 @@ class FhirFilter(CohortBaseModel):
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='fhir_filters')
 
     class Meta:
-        unique_together = ('fhir_resource', 'name', 'owner_id')
+        unique_together = ('fhir_resource', 'name', 'owner', 'deleted')
