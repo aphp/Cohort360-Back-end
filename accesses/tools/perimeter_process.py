@@ -199,8 +199,7 @@ def get_perimeters_filtered_by_search(cohort_ids, owner_id, default_perimeters):
     """
     if cohort_ids:
         all_user_cohorts = CohortResult.objects.filter(owner=owner_id)
-        list_perimeter_cohort_ids = get_list_cohort_id_care_site(
-            [int(cohort_id) for cohort_id in cohort_ids.split(",")], all_user_cohorts)
+        list_perimeter_cohort_ids = get_list_cohort_id_care_site(cohort_ids.split(","), all_user_cohorts)
         return Perimeter.objects.filter(cohort_id__in=list_perimeter_cohort_ids)
     else:
         return default_perimeters
