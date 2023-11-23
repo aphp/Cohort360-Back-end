@@ -23,10 +23,10 @@ class DatedMeasureService:
     @staticmethod
     def process_dated_measure(dm_uuid: str, request):
         dm = DatedMeasure.objects.get(pk=dm_uuid)
-        auth_headers = get_authorization_header(request)
-        cancel_previously_running_dm_jobs.delay(auth_headers, dm_uuid)
+        cancel_previously_running_dm_jobs.delay(dm_uuid)
 
         try:
+            auth_headers = get_authorization_header(request)
             get_count_task.delay(auth_headers,
                                  dm.request_query_snapshot.serialized_query,
                                  dm_uuid)
