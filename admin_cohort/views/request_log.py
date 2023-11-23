@@ -36,7 +36,7 @@ class RequestLogFilter(filters.FilterSet):
         fields = [f.name for f in APIRequestLog._meta.fields] + ['path_contains']
 
 
-def log_related_names(log_data: dict):
+def log_related_names(log_data: str):
     try:
         d = json.loads(log_data)
     except Exception:
@@ -45,12 +45,10 @@ def log_related_names(log_data: dict):
     if not isinstance(d, dict):
         return None
 
-    def retrieve_object_names(o: dict) -> List[Tuple[str, str]]:
-        return [
-                   (k, v) for (k, v) in o.items()
-                   if k.endswith('name') and isinstance(v, str)
-               ] + sum([retrieve_object_names(v)
-                        for v in o.values() if isinstance(v, dict)], [])
+    def retrieve_object_names(record: dict) -> List[Tuple[str, str]]:
+        return [(k, v) for (k, v) in record.items() if k.endswith('name') and isinstance(v, str)] \
+                + sum([retrieve_object_names(v)
+                       for v in record.values() if isinstance(v, dict)], [])
 
     return dict(retrieve_object_names(d))
 
@@ -61,8 +59,7 @@ class RequestLogViewSet(viewsets.ModelViewSet):
     http_method_names = ["get"]
     filterset_class = RequestLogFilter
     search_fields = "__all__"
-
-    permission_classes = [LogsPermission, ]
+    permission_classes = [LogsPermission]
 
     @swagger_auto_schema(manual_parameters=list(map(
         lambda x: openapi.Parameter(name=x[0], in_=openapi.IN_QUERY, description=x[1], type=x[2], format=x[3] if len(x) == 4 else None),
@@ -91,18 +88,18 @@ class RequestLogViewSet(viewsets.ModelViewSet):
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
         if page is not None:
-            completed_data: List[APIRequestLog] = list(page)
+            logs: List[APIRequestLog] = list(page)
         else:
-            completed_data: List[APIRequestLog] = list(queryset)
+            logs: List[APIRequestLog] = list(queryset)
 
-        full_users = User.objects.filter(provider_username__in=list(set([e.username_persistent for e in completed_data])))
-        dct_users = dict([(p.provider_username, p) for p in full_users])
+        users = User.objects.filter(pk__in=set([log.username_persistent for log in logs]))
+        dct_users = dict((u.pk, u) for u in users)
 
-        for o in completed_data:
-            o.related_names = log_related_names(o.response)
-            o.user_details = dct_users.get(o.username_persistent, None)
+        for log in logs:
+            log.related_names = log_related_names(log.response)
+            log.user_details = dct_users.get(log.username_persistent)
 
-        serializer = self.serializer_class(completed_data, many=True)
+        serializer = self.serializer_class(logs, many=True)
         if page is not None:
             return self.get_paginated_response(serializer.data)
         return Response(serializer.data)
