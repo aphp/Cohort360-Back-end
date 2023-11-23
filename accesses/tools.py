@@ -632,25 +632,21 @@ def get_accesses_to_expire(user: User, accesses: QuerySet):
 
 def filter_accesses_for_user(user: User, accesses: QuerySet) -> QuerySet:
     """ filter the accesses, the user making the request, is allowed to see.
-        return a QuerySet of accesses annotated with "editable" set to True or False to indicate
+        return a filtered QuerySet of accesses annotated with "editable" set to True or False to indicate
         to Front whether to allow the `edit`/`close` actions on access or not
     """
-    editable_accesses_ids = []
-    readonly_accesses_ids = []
-
     for access in accesses:
         if can_user_manage_role_on_perimeter(user=user, target_role=access.role, target_perimeter=access.perimeter):
-            editable_accesses_ids.append(access.id)
+            access.editable = True
         elif can_user_read_role_on_perimeter(user=user, target_role=access.role, target_perimeter=access.perimeter):
-            readonly_accesses_ids.append(access.id)
-
-    editable_accesses = Access.objects.filter(id__in=editable_accesses_ids).annotate(editable=Value(True))
-    readonly_accesses = Access.objects.filter(id__in=readonly_accesses_ids).annotate(editable=Value(False))
-    return editable_accesses.union(readonly_accesses)
+            access.editable = False
+        else:
+            accesses = accesses.exclude(id=access.id)
+    return accesses
 
 
 def get_accesses_on_perimeter(user: User, accesses: QuerySet, perimeter_id: int) -> QuerySet:
-    valid_accesses = accesses.filter(Access.q_is_valid())
+    valid_accesses = accesses.filter(sql_is_valid=True)
     accesses_on_perimeter = valid_accesses.filter(perimeter_id=perimeter_id)
     # perimeter = Perimeter.objects.get(pk=perimeter_id)
     # user_accesses = get_user_valid_manual_accesses(user=user)

@@ -80,7 +80,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewSet):
                                                      ["search", f"Will search in multiple fields: {','.join(search_fields)}", openapi.TYPE_STRING],
                                                      ["ordering", "Order by role_name, start_datetime, end_datetime, is_valid. Prepend '-' for "
                                                                   "descending order", openapi.TYPE_STRING]])))
-    @cache_response()
+    # @cache_response()
     def list(self, request, *args, **kwargs):
         accesses = self.filter_queryset(self.get_queryset())
         if request.query_params.get("profile_id"):
