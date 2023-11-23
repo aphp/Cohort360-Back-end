@@ -3,7 +3,7 @@ from __future__ import annotations
 from rest_framework import permissions
 
 from accesses.models import Role, Perimeter
-from accesses.tools import is_user_allowed_to_manage_role, get_bound_roles
+from accesses.tools import can_user_manage_role_on_perimeter, get_bound_roles, can_user_read_role_on_perimeter
 from admin_cohort.models import User
 
 
@@ -16,11 +16,11 @@ def can_user_read_roles(user: User) -> bool:
 
 
 def can_user_manage_access(user: User, role: Role, perimeter: Perimeter) -> bool:
-    return is_user_allowed_to_manage_role(user, role, perimeter)
+    return can_user_manage_role_on_perimeter(user, role, perimeter)
 
 
 def can_user_read_access(user: User, role: Role, perimeter: Perimeter) -> bool:
-    return is_user_allowed_to_manage_role(user, role, perimeter, readonly=True)
+    return can_user_read_role_on_perimeter(user, role, perimeter)
 
 
 def can_user_manage_accesses(user: User) -> bool:

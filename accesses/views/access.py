@@ -21,7 +21,7 @@ from accesses.models import Access, Perimeter, Role
 from accesses.permissions import AccessesPermission
 from accesses.serializers import AccessSerializer, DataRightSerializer, ExpiringAccessesSerializer
 from accesses.tools import get_user_valid_manual_accesses, intersect_queryset_criteria, get_data_reading_rights, access_criteria_to_exclude, \
-    user_is_full_admin, get_accesses_to_expire, filter_target_user_accesses, get_accesses_on_perimeter, useless_exclusion_logic
+    user_is_full_admin, get_accesses_to_expire, filter_accesses_for_user, get_accesses_on_perimeter, useless_exclusion_logic
 
 
 class AccessFilter(filters.FilterSet):
@@ -82,13 +82,10 @@ class AccessViewSet(CustomLoggingMixin, BaseViewSet):
                                                                   "descending order", openapi.TYPE_STRING]])))
     @cache_response()
     def list(self, request, *args, **kwargs):
-        # todo: [front] change provider_source_value to user_id
-        #                      perimeter to perimeter_id
         accesses = self.filter_queryset(self.get_queryset())
         if request.query_params.get("profile_id"):
-            accesses = filter_target_user_accesses(user=request.user,
-                                                   target_user_accesses=accesses)
-
+            accesses = filter_accesses_for_user(user=request.user,
+                                                accesses=accesses)
         if request.query_params.get("perimeter_id"):
             accesses = get_accesses_on_perimeter(user=request.user,
                                                  accesses=accesses,

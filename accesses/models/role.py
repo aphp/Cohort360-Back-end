@@ -7,25 +7,26 @@ from accesses.rights import all_rights
 from admin_cohort.models import BaseModel
 from admin_cohort.tools import join_qs
 
-ROLES_HELP_TEXT = dict(right_manage_roles="Gérer les rôles",
+ROLES_HELP_TEXT = dict(right_full_admin="Super user",
+                       right_manage_roles="Gérer les rôles",
+                       right_read_roles="Consulter la liste des rôles",
                        right_read_logs="Lire l'historique des requêtes des utilisateurs",
-                       right_manage_users="Gérer la liste des profils/utilisateurs manuels et activer/désactiver les autres.",
+                       right_manage_users="Gérer la liste des utilisateurs/profils",
                        right_read_users="Consulter la liste des utilisateurs/profils",
                        right_read_patient_nominative="Lire les données patient sous forme nominatives sur son périmètre et ses sous-périmètres",
                        right_read_patient_pseudonymized="Lire les données patient sous forme pseudonymisée sur son périmètre et "
                                                         "ses sous-périmètres",
                        right_search_patients_by_ipp="Utiliser une liste d'IPP comme critère d'une requête Cohort.",
+                       right_read_research_opposed_patient_data="Détermine le droit de lecture de données des patients opposés à l'utilisation "
+                                                                "de leurs données pour la recherche",
                        right_manage_export_jupyter_accesses="Gérer les accès permettant d'exporter les cohortes vers des environnements Jupyter",
                        right_export_jupyter_nominative="Exporter ses cohortes de patients sous forme nominative vers un environnement Jupyter.",
-                       right_export_jupyter_pseudonymized="Exporter ses cohortes de patients sous forme pseudonymisée vers un "
-                                                          "environnement Jupyter.",
+                       right_export_jupyter_pseudonymized="Exporter ses cohortes de patients sous forme pseudonymisée vers un environnement Jupyter.",
                        right_manage_export_csv_accesses="Gérer les accès permettant de réaliser des exports de données en format CSV",
                        right_export_csv_nominative="Demander à exporter ses cohortes de patients sous forme nominative en format CSV.",
                        right_export_csv_pseudonymized="Demander à exporter ses cohortes de patients sous forme pseudonymisée en format CSV.",
-                       right_read_datalabs="Consulter les informations liées aux environnements de travail",
                        right_manage_datalabs="Gérer les environnements de travail",
-                       right_read_research_opposed_patient_data="Détermine le droit de lecture de données des patients opposés à l'utilisation "
-                                                                "de leurs données pour la recherche")
+                       right_read_datalabs="Consulter la liste des environnements de travail")
 
 
 def build_help_text(text_root: str, on_same_level: bool, on_inferior_levels: bool):
@@ -146,6 +147,16 @@ class Role(BaseModel):
     def q_allow_manage_accesses_on_inf_levels() -> Q:
         return join_qs([Q(**{f'role__{right.name}': True})
                         for right in all_rights if right.allow_edit_accesses_on_inf_levels])
+
+    @staticmethod
+    def q_allow_read_accesses_on_same_level() -> Q:
+        return join_qs([Q(**{f'role__{right.name}': True}) for right in all_rights
+                        if right.allow_read_accesses_on_same_level or right.allow_edit_accesses_on_same_level])
+
+    @staticmethod
+    def q_allow_read_accesses_on_inf_levels() -> Q:
+        return join_qs([Q(**{f'role__{right.name}': True}) for right in all_rights
+                        if right.allow_read_accesses_on_inf_levels or right.allow_edit_accesses_on_inf_levels])
 
     @staticmethod
     def q_allow_manage_export_accesses() -> Q:

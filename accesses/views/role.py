@@ -44,7 +44,7 @@ class RoleViewSet(CustomLoggingMixin, BaseViewSet):
         return super(RoleViewSet, self).list(request, *args, **kwargs)
 
     def create(self, request, *args, **kwargs):
-        role = check_existing_role(data=request.data)
+        role = check_existing_role(data=request.data.copy())
         if role:
             return Response(data=f"Un rôle avec les mêmes droits est déjà configuré: <{role.name}>",
                             status=status.HTTP_400_BAD_REQUEST)
