@@ -87,7 +87,7 @@ class TestFhirFilterAPI(CohortAppTests):
         url = reverse("cohort:fhir-filters-detail", args=[fhir_filter.pk])
         request = self.factory.patch(url, data={'name': 'new_name'}, format='json')
         force_authenticate(request, user)
-        self.__class__.patch_view(request, uuid=filter.uuid)
+        self.__class__.patch_view(request, uuid=fhir_filter.uuid)
         fhir_filter.refresh_from_db()
         assert fhir_filter.name == 'new_name'
         assert fhir_filter.fhir_resource == kwargs['fhir_resource']
