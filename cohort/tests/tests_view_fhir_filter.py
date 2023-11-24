@@ -118,11 +118,11 @@ class TestFhirFilterAPI(CohortAppTests):
                 }
         f = FhirFilter.objects.create(**data)
         f.delete()
-        assert f.deleted is not None, "Error: Filter was not deleted"
+        assert f.deleted is not None, "Error: FhirFilter was not deleted"
         try:
             FhirFilter.objects.create(**data)
         except IntegrityError:
-            pytest.fail("Unexpected error: creation should work as the 1st Filter is deleted")
+            pytest.fail("Unexpected error: creation should work as the 1st FhirFilter is deleted")
 
     def test_hundred_of_filters_no_api(self):
         user = User.objects.first()
