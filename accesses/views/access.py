@@ -1,7 +1,6 @@
 import json
-from functools import reduce
 
-from django.db.models import Q, BooleanField, When, Case, Value, QuerySet
+from django.db.models import BooleanField, When, Case, Value, QuerySet
 from django.http import Http404
 from django.utils import timezone
 from django_filters import OrderingFilter
@@ -13,16 +12,14 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
+from accesses.services.access import accesses_service
 from admin_cohort.permissions import IsAuthenticated
-from admin_cohort.settings import PERIMETERS_TYPES, ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS
-from admin_cohort.tools import join_qs
+from admin_cohort.settings import ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.views import BaseViewSet, CustomLoggingMixin
-from accesses.models import Access, Perimeter, Role
+from accesses.models import Access
 from accesses.permissions import AccessesPermission
 from accesses.serializers import AccessSerializer, DataRightSerializer, ExpiringAccessesSerializer
-from accesses.tools import get_user_valid_manual_accesses, intersect_queryset_criteria, get_data_reading_rights, access_criteria_to_exclude, \
-    user_is_full_admin, get_accesses_to_expire, filter_accesses_for_user, get_accesses_on_perimeter, useless_exclusion_logic
 
 
 class AccessFilter(filters.FilterSet):
@@ -59,7 +56,6 @@ class AccessViewSet(CustomLoggingMixin, BaseViewSet):
 
     def get_queryset(self) -> QuerySet:
         queryset = super(AccessViewSet, self).get_queryset()
-        # queryset = useless_exclusion_logic(user=self.request.user, queryset=queryset)
         now = timezone.now()
         queryset = queryset.annotate(sql_is_valid=Case(When(start_datetime__lte=now, end_datetime__gte=now, then=Value(True)),
                                                        default=Value(False), output_field=BooleanField()))
@@ -86,13 +82,13 @@ class AccessViewSet(CustomLoggingMixin, BaseViewSet):
     def list(self, request, *args, **kwargs):
         accesses = self.filter_queryset(self.get_queryset())
         if request.query_params.get("profile_id"):
-            accesses = filter_accesses_for_user(user=request.user,
-                                                accesses=accesses)
+            accesses = accesses_service.filter_accesses_for_user(user=request.user,
+                                                                 accesses=accesses)
         if request.query_params.get("perimeter_id"):
-            accesses = get_accesses_on_perimeter(user=request.user,
-                                                 accesses=accesses,
-                                                 perimeter_id=request.query_params.get("perimeter_id"),
-                                                 include_parents=json.loads(request.query_params.get("include_parents", "false")))
+            accesses = accesses_service.get_accesses_on_perimeter(user=request.user,
+                                                                  accesses=accesses,
+                                                                  perimeter_id=request.query_params.get("perimeter_id"),
+                                                                  include_parents=json.loads(request.query_params.get("include_parents", "false")))
         page = self.paginate_queryset(accesses)
         if page:
             serializer = self.get_serializer(page, many=True)
@@ -164,9 +160,9 @@ class AccessViewSet(CustomLoggingMixin, BaseViewSet):
     @cache_response()
     def get_my_accesses(self, request, *args, **kwargs):
         user = request.user
-        accesses = get_user_valid_manual_accesses(user=user)
+        accesses = accesses_service.get_user_valid_manual_accesses(user=user)
         if request.query_params.get("expiring"):
-            accesses = get_accesses_to_expire(user=user, accesses=accesses)
+            accesses = accesses_service.get_accesses_to_expire(user=user, accesses=accesses)
             if not accesses:
                 return Response(data={"message": f"No accesses to expire in the next {ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS} days"},
                                 status=status.HTTP_200_OK)
@@ -183,6 +179,6 @@ class AccessViewSet(CustomLoggingMixin, BaseViewSet):
     @cache_response()
     def get_my_data_reading_rights(self, request, *args, **kwargs):
         perimeters_ids = request.query_params.get('perimeters_ids')
-        data_rights = get_data_reading_rights(user=request.user, target_perimeters_ids=perimeters_ids)
+        data_rights = accesses_service.get_data_reading_rights(user=request.user, target_perimeters_ids=perimeters_ids)
         return Response(data=DataRightSerializer(data_rights, many=True).data,
                         status=status.HTTP_200_OK)

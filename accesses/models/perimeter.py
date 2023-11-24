@@ -63,6 +63,9 @@ class Perimeter(BaseModel):
             _logger.error(f"Error getting inferior levels ids for perimeter {self}.\n {e}")
             raise e
 
+    def is_child_of(self, perimeter: Perimeter) -> bool:
+        return self.level > perimeter.level and perimeter.id in self.above_levels
+
     def q_all_parents(self) -> Q:
         return join_qs([Q(**{f'perimeter__{"__".join(i * ["children"])}': self})
                         for i in range(1, len(PERIMETERS_TYPES))])

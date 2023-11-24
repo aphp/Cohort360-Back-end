@@ -2,7 +2,7 @@
 
 from django.db import migrations, models
 
-from accesses.rights import all_rights
+from accesses.services.shared import all_rights
 
 query_fill_right_full_admin_by_right_manage_roles = "UPDATE accesses_role SET right_full_admin = right_manage_roles;"
 

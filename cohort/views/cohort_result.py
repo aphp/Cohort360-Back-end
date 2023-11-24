@@ -13,7 +13,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
-from accesses.tools import get_user_valid_manual_accesses
+from accesses.services.access import accesses_service
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools import join_qs
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
@@ -144,7 +144,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                          responses={'201': openapi.Response("Cohorts rights found", CohortRightsSerializer())})
     @action(detail=False, methods=['get'], url_path="cohort-rights")
     def get_cohort_right_accesses(self, request, *args, **kwargs):
-        user_accesses = get_user_valid_manual_accesses(request.user)
+        user_accesses = accesses_service.get_user_valid_manual_accesses(request.user)
 
         if not user_accesses:
             raise Http404("ERROR: No Accesses found")

@@ -3,7 +3,7 @@ from __future__ import annotations
 from django.db import models
 from django.db.models import Q
 
-from accesses.rights import all_rights
+from accesses.services.shared import all_rights
 from admin_cohort.models import BaseModel
 from admin_cohort.tools import join_qs
 

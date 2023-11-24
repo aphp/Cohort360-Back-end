@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from accesses.models import Role
 from accesses.permissions import RolesPermission
 from accesses.serializers import RoleSerializer, UsersInRoleSerializer
-from accesses.tools import get_assignable_roles, check_existing_role
+from accesses.services.roles import roles_service
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.permissions import IsAuthenticated, UsersPermission
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
@@ -44,7 +44,7 @@ class RoleViewSet(CustomLoggingMixin, BaseViewSet):
         return super(RoleViewSet, self).list(request, *args, **kwargs)
 
     def create(self, request, *args, **kwargs):
-        role = check_existing_role(data=request.data.copy())
+        role = roles_service.check_existing_role(data=request.data.copy())
         if role:
             return Response(data=f"Un rôle avec les mêmes droits est déjà configuré: <{role.name}>",
                             status=status.HTTP_400_BAD_REQUEST)
@@ -108,7 +108,8 @@ class RoleViewSet(CustomLoggingMixin, BaseViewSet):
         perimeter_id = request.GET.get("perimeter_id")
         if not perimeter_id:
             return Response(data="Missing parameter: `perimeter_id`", status=status.HTTP_400_BAD_REQUEST)
-        assignable_roles = get_assignable_roles(user=request.user, perimeter_id=perimeter_id)
+        assignable_roles = roles_service.get_assignable_roles(user=request.user,
+                                                              perimeter_id=perimeter_id)
         page = self.paginate_queryset(assignable_roles)
         if page:
             serializer = self.get_serializer(page, many=True)

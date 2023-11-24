@@ -5,7 +5,8 @@ from rest_framework.exceptions import ValidationError
 
 import workspaces.conf_workspaces as conf_workspaces
 from accesses.models import Perimeter
-from accesses.tools import DataRight, get_data_reading_rights
+from accesses.services.access import accesses_service
+from accesses.services.shared import DataRight
 from admin_cohort.types import JobStatus
 from admin_cohort.models import User
 from cohort.models import CohortResult
@@ -129,7 +130,7 @@ class ExportRequestSerializer(serializers.ModelSerializer):
         owner = validated_data.get('owner')
         cohort = validated_data.get('cohort_fk')
         perimeters = Perimeter.objects.filter(cohort_id__in=cohort.request_query_snapshot.perimeters_ids)
-        data_rights = get_data_reading_rights(user=owner, target_perimeters_ids=perimeters)
+        data_rights = accesses_service.get_data_reading_rights(user=owner, target_perimeters_ids=perimeters)
         check_rights_on_perimeters_for_exports(rights=data_rights,
                                                export_type=validated_data.get('output_format'),
                                                is_nominative=validated_data.get('nominative'))

@@ -1,10 +1,20 @@
 from __future__ import annotations
 
+from typing import List
+
 from rest_framework import permissions
 
 from accesses.models import Role, Perimeter
-from accesses.tools import can_user_manage_role_on_perimeter, get_bound_roles, can_user_read_role_on_perimeter
+from accesses.services.access import accesses_service
 from admin_cohort.models import User
+
+
+def get_bound_roles(user: User) -> List[Role]:
+    return [access.role for access in accesses_service.get_user_valid_manual_accesses(user)]
+
+
+def user_is_full_admin(user: User) -> bool:
+    return any(filter(lambda role: role.right_full_admin, get_bound_roles(user)))
 
 
 def can_user_manage_roles(user: User) -> bool:
@@ -16,11 +26,11 @@ def can_user_read_roles(user: User) -> bool:
 
 
 def can_user_manage_access(user: User, role: Role, perimeter: Perimeter) -> bool:
-    return can_user_manage_role_on_perimeter(user, role, perimeter)
+    return accesses_service.can_user_manage_access(user, role, perimeter)
 
 
 def can_user_read_access(user: User, role: Role, perimeter: Perimeter) -> bool:
-    return can_user_read_role_on_perimeter(user, role, perimeter)
+    return accesses_service.can_user_read_access(user, role, perimeter)
 
 
 def can_user_manage_accesses(user: User) -> bool:
@@ -31,12 +41,46 @@ def can_user_read_accesses(user: User) -> bool:
     return any(filter(lambda role: role.can_read_accesses, get_bound_roles(user)))
 
 
+def can_user_read_users(user: User) -> bool:
+    return any(filter(lambda role: role.right_read_users, get_bound_roles(user)))
+
+
+def can_user_read_logs(user: User) -> bool:
+    return any(filter(lambda role: role.right_read_logs, get_bound_roles(user)))
+
+
 def can_user_manage_profiles(user: User) -> bool:
     return any(filter(lambda role: role.right_manage_users, get_bound_roles(user)))
 
 
 def can_user_read_profiles(user: User) -> bool:
     return any(filter(lambda role: role.right_read_users, get_bound_roles(user)))
+
+
+def can_user_make_export_jupyter_nomi(user: User):
+    return any(filter(lambda role: role.right_export_jupyter_nominative, get_bound_roles(user)))
+
+
+def can_user_make_export_jupyter_pseudo(user: User):
+    return any(filter(lambda role: role.right_export_jupyter_pseudonymized, get_bound_roles(user)))
+
+
+def can_user_make_csv_export(user: User) -> bool:
+    return any(filter(lambda role: role.right_export_csv_nominative or role.right_export_csv_pseudonymized,
+                      get_bound_roles(user)))
+
+
+def can_user_make_jupyter_export(user: User) -> bool:
+    return any(filter(lambda role: role.right_export_jupyter_nominative or role.right_export_jupyter_pseudonymized,
+                      get_bound_roles(user)))
+
+
+def can_user_read_datalabs(user: User) -> bool:
+    return any(filter(lambda role: role.right_read_datalabs, get_bound_roles(user)))
+
+
+def can_user_manage_datalabs(user: User) -> bool:
+    return any(filter(lambda role: role.right_manage_datalabs, get_bound_roles(user)))
 
 
 class RolesPermission(permissions.BasePermission):

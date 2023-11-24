@@ -1,6 +1,6 @@
 from rest_framework import viewsets
 
-from exports.permissions import can_user_read_datalabs
+from accesses.permissions import can_user_read_datalabs
 from admin_cohort.permissions import user_is_authenticated
 from workspaces.models.project import Project
 from workspaces.serializers import ProjectSerializer, PublicProjectSerializer

@@ -1,7 +1,6 @@
 from functools import reduce
 
 from django.db.models import Q
-from django.http import Http404
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
@@ -10,15 +9,13 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
+from accesses.services.perimeters import perimeters_service
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.permissions import IsAuthenticatedReadOnly
 from admin_cohort.tools import join_qs
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from admin_cohort.views import BaseViewSet
 from accesses.models import Perimeter
-from accesses.tools import get_top_manageable_perimeters, get_data_reading_rights_on_perimeters, \
-    get_target_perimeters, can_user_read_patient_data_in_nomi, \
-    can_user_read_patient_data_in_pseudo, can_user_read_opposed_patient_data
 from accesses.serializers import PerimeterSerializer, PerimeterLiteSerializer, ReadRightPerimeter
 
 NOMI = 'nomi'
@@ -83,7 +80,7 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
     @action(detail=False, methods=['get'], url_path="manageable")
     @cache_response()
     def get_manageable_perimeters(self, request, *args, **kwargs):
-        manageable_perimeters = get_top_manageable_perimeters(user=request.user)
+        manageable_perimeters = perimeters_service.get_top_manageable_perimeters(user=request.user)
         if request.query_params:
             manageable_perimeters_children = reduce(lambda qs1, qs2: qs1.union(qs2),
                                                     [p.all_children for p in manageable_perimeters])
@@ -96,9 +93,9 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
                          responses={'200': openapi.Response("Rights per perimeter", ReadRightPerimeter())})
     @action(detail=False, methods=['get'], url_path="patient-data/rights")
     @cache_response()
-    def get_data_reading_rights_on_perimeters(self, request, *args, **kwargs):
-        data_reading_rights = get_data_reading_rights_on_perimeters(user=request.user,
-                                                                    target_perimeters=self.filter_queryset(self.queryset))
+    def get_data_read_rights_on_perimeters(self, request, *args, **kwargs):
+        data_reading_rights = perimeters_service.get_data_reading_rights_on_perimeters(user=request.user,
+                                                                                       target_perimeters=self.filter_queryset(self.queryset))
         page = self.paginate_queryset(data_reading_rights)
         if page:
             serializer = ReadRightPerimeter(page, many=True)
@@ -120,17 +117,19 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
 
         target_perimeters = self.queryset
         if request.query_params.get("cohort_id"):
-            target_perimeters = get_target_perimeters(cohort_ids=request.query_params.get("cohort_id"),
-                                                      owner=request.user)
+            target_perimeters = perimeters_service.get_target_perimeters(cohort_ids=request.query_params.get("cohort_id"),
+                                                                         owner=request.user)
         target_perimeters = self.filter_queryset(target_perimeters)
         if not target_perimeters:
             return Response(data="None of the target perimeters was found", status=status.HTTP_404_NOT_FOUND)
 
         if read_mode == NOMI:
-            data = {"allow_read_patient_data_nomi": can_user_read_patient_data_in_nomi(user=request.user, target_perimeters=target_perimeters)}
+            data = {"allow_read_patient_data_nomi": perimeters_service.can_user_read_patient_data_in_nomi(user=request.user,
+                                                                                                          target_perimeters=target_perimeters)}
         else:
-            data = {"allow_read_patient_data_pseudo": can_user_read_patient_data_in_pseudo(user=request.user, target_perimeters=target_perimeters)}
-        data["allow_read_opposing_patient_data"] = can_user_read_opposed_patient_data(user=request.user)
+            data = {"allow_read_patient_data_pseudo": perimeters_service.can_user_read_patient_data_in_pseudo(user=request.user,
+                                                                                                              target_perimeters=target_perimeters)}
+        data["allow_read_opposing_patient_data"] = perimeters_service.can_user_read_opposed_patient_data(user=request.user)
         return Response(data=data, status=status.HTTP_200_OK)
 
 

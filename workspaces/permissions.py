@@ -1,6 +1,6 @@
 from rest_framework import permissions
 
-from exports.permissions import can_user_read_datalabs
+from accesses.permissions import can_user_read_datalabs
 from admin_cohort.permissions import user_is_authenticated
 
 

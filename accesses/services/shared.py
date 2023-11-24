@@ -1,5 +1,54 @@
-from __future__ import annotations
 from typing import List
+
+from accesses.models import Perimeter
+
+
+class DataRight:
+
+    def __init__(self, user_id: str, perimeter: "Perimeter" = None, reading_rights: dict = None):
+        reading_rights = reading_rights or {}
+        self.user_id = user_id
+        self.perimeter = perimeter
+        self.right_read_patient_nominative = reading_rights.get("right_read_patient_nominative", False)
+        self.right_read_patient_pseudonymized = reading_rights.get("right_read_patient_pseudonymized", False)
+        self.right_search_patients_by_ipp = reading_rights.get("right_search_patients_by_ipp", False)
+        self.right_read_research_opposed_patient_data = reading_rights.get("right_read_research_opposed_patient_data", False)
+        self.right_export_csv_nominative = reading_rights.get("right_export_csv_nominative", False)
+        self.right_export_csv_pseudonymized = reading_rights.get("right_export_csv_pseudonymized", False)
+        self.right_export_jupyter_nominative = reading_rights.get("right_export_jupyter_nominative", False)
+        self.right_export_jupyter_pseudonymized = reading_rights.get("right_export_jupyter_pseudonymized", False)
+
+    def acquire_extra_data_reading_rights(self, dr: "DataRight"):
+        self.right_read_patient_nominative = self.right_read_patient_nominative or dr.right_read_patient_nominative
+        self.right_read_patient_pseudonymized = self.right_read_patient_pseudonymized or dr.right_read_patient_pseudonymized
+        self.right_search_patients_by_ipp = self.right_search_patients_by_ipp or dr.right_search_patients_by_ipp
+        self.right_read_research_opposed_patient_data = self.right_read_research_opposed_patient_data or dr.right_read_research_opposed_patient_data
+
+    def acquire_extra_global_rights(self, dr: "DataRight"):
+        self.right_export_csv_nominative = self.right_export_csv_nominative or dr.right_export_csv_nominative
+        self.right_export_csv_pseudonymized = self.right_export_csv_pseudonymized or dr.right_export_csv_pseudonymized
+        self.right_export_jupyter_nominative = self.right_export_jupyter_nominative or dr.right_export_jupyter_nominative
+        self.right_export_jupyter_pseudonymized = self.right_export_jupyter_pseudonymized or dr.right_export_jupyter_pseudonymized
+
+
+class PerimeterReadRight:
+    def __init__(self,
+                 perimeter: "Perimeter",
+                 read_nomi: bool = False,
+                 read_pseudo: bool = False,
+                 allow_search_by_ipp: bool = False,
+                 allow_read_opposed_patient: bool = False):
+        self.perimeter = perimeter
+        self.right_read_patient_nominative = read_nomi
+        self.right_read_patient_pseudonymized = read_pseudo
+        self.right_search_patients_by_ipp = allow_search_by_ipp
+        self.right_read_opposed_patients_data = allow_read_opposed_patient
+        if read_nomi:
+            self.read_role = "READ_PATIENT_NOMINATIVE"
+        elif read_pseudo:
+            self.read_role = "READ_PATIENT_PSEUDO_ANONYMIZE"
+        else:
+            self.read_role = "NO READ PATIENT RIGHT"
 
 
 class Right:
@@ -28,8 +77,8 @@ class RightGroup:
                  name: str,
                  description: str,
                  rights: List[Right],
-                 parent: RightGroup = None,
-                 child_groups: List[RightGroup] = None):
+                 parent: "RightGroup" = None,
+                 child_groups: List["RightGroup"] = None):
         self.name = name
         self.description = description
         self.rights = rights
@@ -53,17 +102,6 @@ class RightGroup:
                   or right == right_manage_export_csv_accesses
                   or right == right_manage_export_jupyter_accesses]
         return rights
-
-    @property
-    def rights_from_child_groups(self) -> List[Right]:
-        return sum([child_group.rights + child_group.rights_from_child_groups
-                    for child_group in self.child_groups], [])
-
-    @property
-    def unreadable_rights(self) -> List[Right]:     # todo: understand this
-        return [right for right in all_rights
-                if right not in (self.rights_from_child_groups
-                                 + (self.rights if self.parent is None else []))]
 
 
 # ----------------------------------------------    Perimeters hierarchy agnostic rights/global rights

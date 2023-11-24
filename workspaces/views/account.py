@@ -3,7 +3,7 @@ from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import viewsets
 
-from exports.permissions import can_user_read_datalabs
+from accesses.permissions import can_user_read_datalabs
 from admin_cohort.models import User
 from workspaces.conf_workspaces import get_account_groups_from_id_aph
 from workspaces.models import Account

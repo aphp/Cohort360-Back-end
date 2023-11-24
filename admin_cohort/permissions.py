@@ -1,21 +1,13 @@
 from rest_framework import permissions
 from rest_framework.permissions import OR as drf_OR
 
-from accesses.tools import get_bound_roles, user_is_full_admin
+from accesses.permissions import user_is_full_admin, can_user_read_users, can_user_read_logs
 from admin_cohort.models import User
 from admin_cohort.settings import ETL_USERNAME
 
 
 def user_is_authenticated(user):
     return user and hasattr(user, User.USERNAME_FIELD)
-
-
-def can_user_read_users(user: User) -> bool:
-    return any(filter(lambda role: role.right_read_users, get_bound_roles(user)))
-
-
-def can_user_read_logs(user: User) -> bool:
-    return any(filter(lambda role: role.right_read_logs, get_bound_roles(user)))
 
 
 class MaintenancesPermission(permissions.BasePermission):

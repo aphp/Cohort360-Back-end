@@ -1,26 +1,10 @@
 from rest_framework import permissions
 from rest_framework.exceptions import PermissionDenied
 
-from admin_cohort.models import User
+from accesses.permissions import can_user_make_export_jupyter_nomi, can_user_make_export_jupyter_pseudo, can_user_make_csv_export, \
+    can_user_make_jupyter_export, can_user_read_datalabs, can_user_manage_datalabs
 from admin_cohort.permissions import user_is_authenticated
-from accesses.tools import get_bound_roles
 from exports.types import ExportType
-
-
-def can_user_make_export_jupyter_nomi(user: User):
-    return any(filter(lambda role: role.right_export_jupyter_nominative, get_bound_roles(user)))
-
-
-def can_user_make_export_jupyter_pseudo(user: User):
-    return any(filter(lambda role: role.right_export_jupyter_pseudonymized, get_bound_roles(user)))
-
-
-def can_user_make_csv_export(user: User) -> bool:
-    return any(filter(lambda role: role.right_export_csv_nominative or role.right_export_csv_pseudonymized, get_bound_roles(user)))
-
-
-def can_user_make_jupyter_export(user: User) -> bool:
-    return any(filter(lambda role: role.right_export_jupyter_nominative or role.right_export_jupyter_pseudonymized, get_bound_roles(user)))
 
 
 class ExportRequestsPermission(permissions.BasePermission):
@@ -77,12 +61,3 @@ class JupyterExportPermission(permissions.BasePermission):
 
     def has_object_permission(self, request, view, obj):
         return self.has_permission(request, view)
-
-
-# WORKSPACES
-def can_user_read_datalabs(user: User) -> bool:
-    return any(filter(lambda role: role.right_read_datalabs, get_bound_roles(user)))
-
-
-def can_user_manage_datalabs(user: User) -> bool:
-    return any(filter(lambda role: role.right_manage_datalabs, get_bound_roles(user)))
