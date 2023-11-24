@@ -1,7 +1,6 @@
 from django_filters import rest_framework as filters
 
 from admin_cohort.permissions import IsAuthenticated
-from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from cohort.models import FhirFilter
 from cohort.serializers import FhirFilterSerializer

@@ -1,4 +1,3 @@
-import datetime
 from random import randint
 
 import pytest
