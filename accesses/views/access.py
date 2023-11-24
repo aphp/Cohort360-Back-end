@@ -1,3 +1,4 @@
+import json
 from functools import reduce
 
 from django.db.models import Q, BooleanField, When, Case, Value, QuerySet
@@ -77,6 +78,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewSet):
     @swagger_auto_schema(manual_parameters=list(map(lambda x: openapi.Parameter(in_=openapi.IN_QUERY, name=x[0], description=x[1], type=x[2]),
                                                     [["user_id", "Search type", openapi.TYPE_STRING],
                                                      ["perimeter_id", "Filter type", openapi.TYPE_STRING],
+                                                     ["include_parents", "Filter type", openapi.TYPE_BOOLEAN],
                                                      ["search", f"Will search in multiple fields: {','.join(search_fields)}", openapi.TYPE_STRING],
                                                      ["ordering", "Order by role_name, start_datetime, end_datetime, is_valid. Prepend '-' for "
                                                                   "descending order", openapi.TYPE_STRING]])))
@@ -89,7 +91,8 @@ class AccessViewSet(CustomLoggingMixin, BaseViewSet):
         if request.query_params.get("perimeter_id"):
             accesses = get_accesses_on_perimeter(user=request.user,
                                                  accesses=accesses,
-                                                 perimeter_id=request.query_params.get("perimeter_id"))
+                                                 perimeter_id=request.query_params.get("perimeter_id"),
+                                                 include_parents=json.loads(request.query_params.get("include_parents", "false")))
         page = self.paginate_queryset(accesses)
         if page:
             serializer = self.get_serializer(page, many=True)

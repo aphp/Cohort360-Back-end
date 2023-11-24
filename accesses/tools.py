@@ -645,17 +645,18 @@ def filter_accesses_for_user(user: User, accesses: QuerySet) -> QuerySet:
     return accesses
 
 
-def get_accesses_on_perimeter(user: User, accesses: QuerySet, perimeter_id: int) -> QuerySet:
+def get_accesses_on_perimeter(user: User, accesses: QuerySet, perimeter_id: int, include_parents: bool = False) -> QuerySet:
     valid_accesses = accesses.filter(sql_is_valid=True)
     accesses_on_perimeter = valid_accesses.filter(perimeter_id=perimeter_id)
-    # perimeter = Perimeter.objects.get(pk=perimeter_id)
-    # user_accesses = get_user_valid_manual_accesses(user=user)
-    # user_can_read_accesses_from_above_levels = user_accesses.filter(role__right_read_accesses_above_levels=True)\
-    #                                                         .exists()
-    # if user_can_read_accesses_from_above_levels:
-    #     accesses_on_parent_perimeters = valid_accesses.filter(Q(perimeter_id__in=perimeter.above_levels)
-    #                                                           & Role.q_impact_inferior_levels())
-    #     accesses_on_perimeter = accesses_on_perimeter.union(accesses_on_parent_perimeters)
+    if include_parents:
+        perimeter = Perimeter.objects.get(pk=perimeter_id)
+        user_accesses = get_user_valid_manual_accesses(user=user)
+        user_can_read_accesses_from_above_levels = user_accesses.filter(role__right_read_accesses_above_levels=True)\
+                                                                .exists()
+        if user_can_read_accesses_from_above_levels:
+            accesses_on_parent_perimeters = valid_accesses.filter(Q(perimeter_id__in=perimeter.above_levels)
+                                                                  & Role.q_impact_inferior_levels())
+            accesses_on_perimeter = accesses_on_perimeter.union(accesses_on_parent_perimeters)
     return filter_accesses_for_user(user=user, accesses=accesses_on_perimeter)
 
 
