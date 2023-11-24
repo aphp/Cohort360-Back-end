@@ -1,3 +1,4 @@
+import datetime
 from random import randint
 
 import pytest
@@ -95,43 +96,33 @@ class TestFhirFilterAPI(CohortAppTests):
         assert fhir_filter.filter == kwargs['filter']
         assert fhir_filter.owner == kwargs['owner']
 
-    def test_uniqueness_same_object(self):
+    def test_uniqueness_for_non_deleted_filters(self):
         user = User.objects.first()
-        kwargs = {
-            'fhir_resource': 'Patient', 'fhir_version': '1.0.0', 'name': 'original_name',
-            'filter': '{"some": "filter"}', 'owner': user
-        }
-        FhirFilter.objects.create(**kwargs)
+        data = {'fhir_resource': 'Patient',
+                'name': 'name',
+                'owner': user,
+                'fhir_version': '1.0.0',
+                'filter': '{"some": "filter"}',
+                }
+        FhirFilter.objects.create(**data)
         with pytest.raises(IntegrityError):
-            FhirFilter.objects.create(**kwargs)
+            FhirFilter.objects.create(**data)
 
-    def test_uniqueness_only_on_unique_together(self):
-        users = User.objects.all()[:2]  # The test DB has 2 users (todo: to improve to be more reliable)
-        FhirFilter.objects.create(
-            fhir_resource="Resource 1", name="name 1", owner=users[0],
-            filter='{"some": "filter"}', fhir_version='1.0.0'
-        )
-        # Same object but different resource showing name & owner may not be unique without resource
-        FhirFilter.objects.create(
-            fhir_resource="Resource 2", name="name 1", owner=users[0],
-            filter='{"some": "filter"}', fhir_version='1.0.0'
-        )
-        # Same object but different name showing resource & owner may not be unique without name
-        FhirFilter.objects.create(
-            fhir_resource="Resource 1", name="name 1", owner=users[1],
-            filter='{"some": "filter"}', fhir_version='1.0.0'
-        )
-        # Same object but different owner showing resource & name may not be unique without owner
-        FhirFilter.objects.create(
-            fhir_resource="Resource 1", name="name 2", owner=users[0],
-            filter='{"some": "filter"}', fhir_version='1.0.0'
-        )
-        # Finally, a new object with all unique fields together the same as the first and other fields different
-        with pytest.raises(IntegrityError):
-            FhirFilter.objects.create(
-                fhir_resource="Resource 1", name="name 1", owner=users[0],
-                filter='{"another": "new filter"}', fhir_version='1.1.0'
-            )
+    def test_uniqueness_for_deleted_filters(self):
+        user = User.objects.first()
+        data = {'fhir_resource': 'Patient',
+                'name': 'name',
+                'owner': user,
+                'fhir_version': '1.1.0',
+                'filter': '{"some": "filter"}',
+                }
+        f = FhirFilter.objects.create(**data)
+        f.delete()
+        assert f.deleted is not None, "Error: Filter was not deleted"
+        try:
+            FhirFilter.objects.create(**data)
+        except IntegrityError:
+            pytest.fail("Unexpected error: creation should work as the 1st Filter is deleted")
 
     def test_hundred_of_filters_no_api(self):
         user = User.objects.first()
