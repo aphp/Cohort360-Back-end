@@ -11,18 +11,17 @@ from admin_cohort.settings import ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS, PERIMETERS_
 from admin_cohort.tools import join_qs
 
 
-class AccessesService:  # todo: make some methods object bound
+class AccessesService:
 
     @staticmethod
-    def can_user_manage_access(user: User, role: Role, perimeter: Perimeter) -> bool:
-        return AccessesService.can_user_manage_role_on_perimeter(user, role, perimeter)
+    def get_user_valid_manual_accesses(user: User) -> QuerySet:
+        return Access.objects.filter(Access.q_is_valid()
+                                     & Profile.q_is_valid(prefix="profile")
+                                     & Q(profile__source=MANUAL_SOURCE)
+                                     & Q(profile__user=user))
 
     @staticmethod
-    def can_user_read_access(user: User, role: Role, perimeter: Perimeter) -> bool:
-        return AccessesService.can_user_read_role_on_perimeter(user, role, perimeter)
-
-    @staticmethod
-    def get_accesses_to_expire(user: User, accesses: QuerySet):
+    def get_expiring_accesses(user: User, accesses: QuerySet):
         today = date.today()
         expiry_date = today + timedelta(days=ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS)
         to_expire_soon = Q(end_datetime__date__gte=today) & Q(end_datetime__date__lte=expiry_date)
@@ -38,35 +37,33 @@ class AccessesService:  # todo: make some methods object bound
                 continue
         return min_access_per_perimeter.values()
 
-    @staticmethod
-    def filter_accesses_for_user(user: User, accesses: QuerySet) -> QuerySet:
+    def filter_accesses_for_user(self, user: User, accesses: QuerySet) -> QuerySet:
         """ filter the accesses, the user making the request, is allowed to see.
             return a filtered QuerySet of accesses annotated with "editable" set to True or False to indicate
             to Front whether to allow the `edit`/`close` actions on access or not
         """
         for access in accesses:
-            if AccessesService.can_user_manage_role_on_perimeter(user=user, target_role=access.role, target_perimeter=access.perimeter):
+            if self.can_user_manage_role_on_perimeter(user=user, target_role=access.role, target_perimeter=access.perimeter):
                 access.editable = True
-            elif AccessesService.can_user_read_role_on_perimeter(user=user, target_role=access.role, target_perimeter=access.perimeter):
+            elif self.can_user_read_role_on_perimeter(user=user, target_role=access.role, target_perimeter=access.perimeter):
                 access.editable = False
             else:
                 accesses = accesses.exclude(id=access.id)
         return accesses
 
-    @staticmethod
-    def get_accesses_on_perimeter(user: User, accesses: QuerySet, perimeter_id: int, include_parents: bool = False) -> QuerySet:
+    def get_accesses_on_perimeter(self, user: User, accesses: QuerySet, perimeter_id: int, include_parents: bool = False) -> QuerySet:
         valid_accesses = accesses.filter(sql_is_valid=True)
         accesses_on_perimeter = valid_accesses.filter(perimeter_id=perimeter_id)
         if include_parents:
             perimeter = Perimeter.objects.get(pk=perimeter_id)
-            user_accesses = AccessesService.get_user_valid_manual_accesses(user=user)
+            user_accesses = self.get_user_valid_manual_accesses(user=user)
             user_can_read_accesses_from_above_levels = user_accesses.filter(role__right_read_accesses_above_levels=True) \
-                .exists()
+                                                                    .exists()
             if user_can_read_accesses_from_above_levels:
                 accesses_on_parent_perimeters = valid_accesses.filter(Q(perimeter_id__in=perimeter.above_levels)
                                                                       & Role.q_impact_inferior_levels())
                 accesses_on_perimeter = accesses_on_perimeter.union(accesses_on_parent_perimeters)
-        return AccessesService.filter_accesses_for_user(user=user, accesses=accesses_on_perimeter)
+        return self.filter_accesses_for_user(user=user, accesses=accesses_on_perimeter)
 
     @staticmethod
     def has_at_least_one_read_nominative_access(target_perimeters: QuerySet, nomi_perimeters_ids: List[int]) -> bool:
@@ -76,13 +73,12 @@ class AccessesService:  # todo: make some methods object bound
                 return True
         return False
 
-    @staticmethod
-    def can_user_read_patient_data_in_nomi(user: User, target_perimeters: QuerySet) -> bool:
-        user_accesses = AccessesService.get_user_valid_manual_accesses(user=user)
+    def can_user_read_patient_data_in_nomi(self, user: User, target_perimeters: QuerySet) -> bool:
+        user_accesses = self.get_user_valid_manual_accesses(user=user)
         read_patient_data_nomi_accesses = user_accesses.filter(Role.q_allow_read_patient_data_nominative())
         nomi_perimeters_ids = [access.perimeter_id for access in read_patient_data_nomi_accesses]
-        allow_read_patient_data_nomi = AccessesService.has_at_least_one_read_nominative_access(target_perimeters=target_perimeters,
-                                                                                               nomi_perimeters_ids=nomi_perimeters_ids)
+        allow_read_patient_data_nomi = self.has_at_least_one_read_nominative_access(target_perimeters=target_perimeters,
+                                                                                    nomi_perimeters_ids=nomi_perimeters_ids)
         return allow_read_patient_data_nomi
 
     @staticmethod
@@ -102,9 +98,8 @@ class AccessesService:  # todo: make some methods object bound
                 return True
         return False
 
-    @staticmethod
-    def can_user_read_patient_data_in_pseudo(user: User, target_perimeters: QuerySet) -> bool:
-        user_accesses = AccessesService.get_user_valid_manual_accesses(user=user)
+    def can_user_read_patient_data_in_pseudo(self, user: User, target_perimeters: QuerySet) -> bool:
+        user_accesses = self.get_user_valid_manual_accesses(user=user)
         read_patient_data_nomi_accesses = user_accesses.filter(Role.q_allow_read_patient_data_nominative())
         read_patient_data_pseudo_accesses = user_accesses.filter(Role.q_allow_read_patient_data_pseudo() |
                                                                  Role.q_allow_read_patient_data_nominative())
@@ -113,35 +108,31 @@ class AccessesService:  # todo: make some methods object bound
         pseudo_perimeters_ids = [access.perimeter_id for access in read_patient_data_pseudo_accesses]
 
         if target_perimeters:
-            allow_read_patient_data_pseudo = AccessesService.user_has_at_least_one_pseudo_access_on_target_perimeters(
+            allow_read_patient_data_pseudo = self.user_has_at_least_one_pseudo_access_on_target_perimeters(
                 target_perimeters=target_perimeters,
                 nomi_perimeters_ids=nomi_perimeters_ids,
                 pseudo_perimeters_ids=pseudo_perimeters_ids)
         else:
-            allow_read_patient_data_pseudo = AccessesService.user_has_at_least_one_pseudo_access(nomi_perimeters_ids=nomi_perimeters_ids,
-                                                                                                 pseudo_perimeters_ids=pseudo_perimeters_ids)
+            allow_read_patient_data_pseudo = self.user_has_at_least_one_pseudo_access(nomi_perimeters_ids=nomi_perimeters_ids,
+                                                                                      pseudo_perimeters_ids=pseudo_perimeters_ids)
         return allow_read_patient_data_pseudo
 
-    @staticmethod
-    def can_user_read_opposed_patient_data(user: User) -> bool:
-        user_accesses = AccessesService.get_user_valid_manual_accesses(user=user)
+    def can_user_read_opposed_patient_data(self, user: User) -> bool:
+        user_accesses = self.get_user_valid_manual_accesses(user=user)
         return user_accesses.filter(Role.q_allow_read_research_opposed_patient_data()).exists()
 
-    @staticmethod
-    def get_user_data_accesses(user: User) -> QuerySet:
-        return AccessesService.get_user_valid_manual_accesses(user).filter(join_qs([Q(role__right_read_patient_nominative=True),
-                                                                                    Q(role__right_read_patient_pseudonymized=True),
-                                                                                    Q(role__right_search_patients_by_ipp=True),
-                                                                                    Q(role__right_read_research_opposed_patient_data=True),
-                                                                                    Q(role__right_export_csv_nominative=True),
-                                                                                    Q(role__right_export_csv_pseudonymized=True),
-                                                                                    Q(role__right_export_jupyter_pseudonymized=True),
-                                                                                    Q(role__right_export_jupyter_nominative=True)])) \
-            .prefetch_related('role')
+    def get_user_data_accesses(self, user: User) -> QuerySet:
+        return self.get_user_valid_manual_accesses(user).filter(join_qs([Q(role__right_read_patient_nominative=True),
+                                                                         Q(role__right_read_patient_pseudonymized=True),
+                                                                         Q(role__right_search_patients_by_ipp=True),
+                                                                         Q(role__right_read_research_opposed_patient_data=True),
+                                                                         Q(role__right_export_csv_nominative=True),
+                                                                         Q(role__right_export_csv_pseudonymized=True),
+                                                                         Q(role__right_export_jupyter_pseudonymized=True),
+                                                                         Q(role__right_export_jupyter_nominative=True)]))
 
-    @staticmethod
-    def get_data_accesses_with_rights(user: User) -> QuerySet:
-        return AccessesService.get_user_data_accesses(user).prefetch_related("role", "profile") \
+    def get_data_accesses_with_rights(self, user: User) -> QuerySet:
+        return self.get_user_data_accesses(user).prefetch_related("role", "profile") \
                                             .prefetch_related(Prefetch('perimeter',
                                                                        queryset=Perimeter.objects.all().
                                                                        select_related(*["parent" + i * "__parent"
@@ -215,28 +206,30 @@ class AccessesService:  # todo: make some methods object bound
             for dr in data_rights:
                 dr.acquire_extra_global_rights(global_dr)
 
-    @staticmethod
-    def get_data_reading_rights(user: User, target_perimeters_ids: str) -> List[DataRight]:
-        if target_perimeters_ids:
-            urldecode_perimeters = urllib.parse.unquote(urllib.parse.unquote(target_perimeters_ids))
-            target_perimeters_ids = [int(i) for i in urldecode_perimeters.split(",")]
-        else:
-            target_perimeters_ids = []
+    def get_data_reading_rights(self, user: User, target_perimeters_ids: str) -> List[DataRight]:
+        # todo: copy portail_dev DB
+        #       check for new migrations
+        #       apply migrations
+        #       tune existing accesses if needed
+        #       test Cohort360 Front after made changes
+        #
+        # todo: make some methods object bound
+        # todo: write tests
+        target_perimeters_ids and target_perimeters_ids.split(",") or []
         target_perimeters = Perimeter.objects.filter(id__in=target_perimeters_ids) \
-            .select_related(*[f"parent{i * '__parent'}" for i in range(0, len(PERIMETERS_TYPES) - 2)])
+                                             .select_related(*[f"parent{i * '__parent'}" for i in range(0, len(PERIMETERS_TYPES) - 2)])
 
-        data_accesses = AccessesService.get_data_accesses_with_rights(user)
-        data_rights_from_accesses = AccessesService.get_data_rights_from_accesses(user=user,
-                                                                                  data_accesses=data_accesses)
+        data_accesses = self.get_data_accesses_with_rights(user)
+        data_rights_from_accesses = self.get_data_rights_from_accesses(user=user, data_accesses=data_accesses)
         data_rights_for_perimeters = []
         if target_perimeters:
-            data_rights_for_perimeters = AccessesService.get_data_rights_for_target_perimeters(user=user,
-                                                                                               target_perimeters=target_perimeters)
-        data_rights_per_perimeter = AccessesService.group_data_rights_by_perimeter(data_rights=data_rights_from_accesses + data_rights_for_perimeters)
+            data_rights_for_perimeters = self.get_data_rights_for_target_perimeters(user=user,
+                                                                                    target_perimeters=target_perimeters)
+        data_rights_per_perimeter = self.group_data_rights_by_perimeter(data_rights=data_rights_from_accesses + data_rights_for_perimeters)
 
-        data_rights = AccessesService.share_data_reading_rights_over_relative_hierarchy(data_rights_per_perimeter=data_rights_per_perimeter)
+        data_rights = self.share_data_reading_rights_over_relative_hierarchy(data_rights_per_perimeter=data_rights_per_perimeter)
 
-        AccessesService.share_global_rights_over_relative_hierarchy(user=user,
+        self.share_global_rights_over_relative_hierarchy(user=user,
                                                                     data_rights=data_rights,
                                                                     data_accesses=data_accesses)
         if target_perimeters:
@@ -247,45 +240,33 @@ class AccessesService:  # todo: make some methods object bound
                                                  dr.right_search_patients_by_ipp,
                                                  dr.right_read_research_opposed_patient_data))]
 
-    @staticmethod
-    def get_user_valid_manual_accesses(user: User) -> QuerySet:
-        return Access.objects.filter(Access.q_is_valid()
-                                     & Profile.q_is_valid(prefix="profile")
-                                     & Q(profile__source=MANUAL_SOURCE)
-                                     & Q(profile__user=user))
-
-    @staticmethod
-    def get_user_managing_accesses_on_perimeter(user: User, perimeter: Perimeter) -> QuerySet:
+    def get_user_managing_accesses_on_perimeter(self, user: User, perimeter: Perimeter) -> QuerySet:
         """ filter user's valid accesses to extract:
               + those configured directly on the given perimeter AND allow to manage accesses on the same level
               + those configured on any of the perimeter's parents AND allow to manage accesses on inferior levels
               + those allowing to read/manage Exports accesses (global rights, allow to manage on any level)
         """
-        return AccessesService.get_user_valid_manual_accesses(user) \
-                            .filter((Q(perimeter=perimeter) & Role.q_allow_manage_accesses_on_same_level())
-                                    | (perimeter.q_all_parents() & Role.q_allow_manage_accesses_on_inf_levels())
-                                    | Role.q_allow_manage_export_accesses()) \
-                            .select_related("role")
+        return self.get_user_valid_manual_accesses(user).filter((Q(perimeter=perimeter) & Role.q_allow_manage_accesses_on_same_level())
+                                                                | (perimeter.q_all_parents() & Role.q_allow_manage_accesses_on_inf_levels())
+                                                                | Role.q_allow_manage_export_accesses()) \
+                                                        .select_related("role")
 
-    @staticmethod
-    def get_user_reading_accesses_on_perimeter(user: User, perimeter: Perimeter) -> QuerySet:
+    def get_user_reading_accesses_on_perimeter(self, user: User, perimeter: Perimeter) -> QuerySet:
         """ filter user's valid accesses to extract:
               + those configured directly on the given perimeter AND allow to read/manage accesses on the same level
               + those configured on any of the perimeter's parents AND allow to read/manage accesses on inferior levels
               + those allowing to read/manage Exports accesses (global rights, allow to manage on any level)
         """
-        return AccessesService.get_user_valid_manual_accesses(user) \
-                            .filter((Q(perimeter=perimeter) & Role.q_allow_read_accesses_on_same_level())
-                                    | (perimeter.q_all_parents() & Role.q_allow_read_accesses_on_inf_levels())
-                                    | Role.q_allow_manage_export_accesses()) \
-                            .select_related("role")
+        return self.get_user_valid_manual_accesses(user).filter((Q(perimeter=perimeter) & Role.q_allow_read_accesses_on_same_level())
+                                                                | (perimeter.q_all_parents() & Role.q_allow_read_accesses_on_inf_levels())
+                                                                | Role.q_allow_manage_export_accesses()) \
+                                                        .select_related("role")
 
-    @staticmethod
-    def can_user_read_role_on_perimeter(user: User, target_role: Role, target_perimeter: Perimeter) -> bool:
-        return AccessesService.can_user_manage_role_on_perimeter(user=user,
-                                                               target_role=target_role,
-                                                               target_perimeter=target_perimeter,
-                                                               readonly=True)
+    def can_user_read_role_on_perimeter(self, user: User, target_role: Role, target_perimeter: Perimeter) -> bool:
+        return self.can_user_manage_role_on_perimeter(user=user,
+                                                      target_role=target_role,
+                                                      target_perimeter=target_perimeter,
+                                                      readonly=True)
 
     @staticmethod
     def check_accesses_managing_roles_on_perimeter(access: Access, target_perimeter: Perimeter, readonly: bool):
@@ -303,24 +284,23 @@ class AccessesService:  # todo: make some methods object bound
             has_data_accesses_managing_role = False
         return has_admin_accesses_managing_role, has_data_accesses_managing_role
 
-    @staticmethod
-    def can_user_manage_role_on_perimeter(user: User, target_role: Role, target_perimeter: Perimeter, readonly: bool = False) -> bool:
+    def can_user_manage_role_on_perimeter(self, user: User, target_role: Role, target_perimeter: Perimeter, readonly: bool = False) -> bool:
         can_manage_admin_accesses = False
         can_manage_data_accesses = False
         can_manage_jupyter_accesses = False
         can_manage_csv_accesses = False
 
         if not readonly:
-            user_accesses = AccessesService.get_user_managing_accesses_on_perimeter(user=user, perimeter=target_perimeter)
+            user_accesses = self.get_user_managing_accesses_on_perimeter(user=user, perimeter=target_perimeter)
         else:
-            user_accesses = AccessesService.get_user_reading_accesses_on_perimeter(user=user, perimeter=target_perimeter)
+            user_accesses = self.get_user_reading_accesses_on_perimeter(user=user, perimeter=target_perimeter)
 
         for access in user_accesses:
             role = access.role
             (can_manage_admin_accesses_2,
-             can_manage_data_accesses_2) = AccessesService.check_accesses_managing_roles_on_perimeter(access=access,
-                                                                                                    target_perimeter=target_perimeter,
-                                                                                                    readonly=readonly)
+             can_manage_data_accesses_2) = self.check_accesses_managing_roles_on_perimeter(access=access,
+                                                                                           target_perimeter=target_perimeter,
+                                                                                           readonly=readonly)
             can_manage_admin_accesses = can_manage_admin_accesses or can_manage_admin_accesses_2
             can_manage_data_accesses = can_manage_data_accesses or can_manage_data_accesses_2
             can_manage_jupyter_accesses = can_manage_jupyter_accesses or role.right_manage_export_jupyter_accesses
@@ -331,6 +311,12 @@ class AccessesService:  # todo: make some methods object bound
             and (can_manage_data_accesses or not target_role.requires_data_accesses_managing_role_to_be_managed) \
             and (can_manage_jupyter_accesses or not target_role.requires_jupyter_accesses_managing_role_to_be_managed) \
             and (can_manage_csv_accesses or not target_role.requires_csv_accesses_managing_role_to_be_managed)
+
+    def can_user_manage_access(self, user: User, role: Role, perimeter: Perimeter) -> bool:
+        return self.can_user_manage_role_on_perimeter(user, role, perimeter)
+
+    def can_user_read_access(self, user: User, role: Role, perimeter: Perimeter) -> bool:
+        return self.can_user_read_role_on_perimeter(user, role, perimeter)
 
 
 accesses_service = AccessesService()

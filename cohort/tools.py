@@ -19,7 +19,7 @@ EXPORT_CSV_NOMI = "export_csv_nomi"
 EXPORT_CSV_PSEUDO = "export_csv_pseudo"
 EXPORT_JUPYTER_NOMI = "export_jupyter_nomi"
 EXPORT_JUPYTER_PSEUDO = "export_jupyter_pseudo"
-SEARCH_IPP = "search_ipp"
+SEARCH_IPP = "search_ipp"                                                                              # todo: not used. Include it in cohort rights?
 
 KEY_COHORTS_ITEMS = "KEY_COHORTS_ITEMS"
 KEY_EMAIL_BODY = "KEY_EMAIL_BODY"

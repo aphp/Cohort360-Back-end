@@ -162,7 +162,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewSet):
         user = request.user
         accesses = accesses_service.get_user_valid_manual_accesses(user=user)
         if request.query_params.get("expiring"):
-            accesses = accesses_service.get_accesses_to_expire(user=user, accesses=accesses)
+            accesses = accesses_service.get_expiring_accesses(user=user, accesses=accesses)
             if not accesses:
                 return Response(data={"message": f"No accesses to expire in the next {ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS} days"},
                                 status=status.HTTP_200_OK)

@@ -9,6 +9,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
+from accesses.services.access import accesses_service
 from accesses.services.perimeters import perimeters_service
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.permissions import IsAuthenticatedReadOnly
@@ -108,9 +109,6 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
     @action(detail=False, methods=['get'], url_path="patient-data/read")
     @cache_response()
     def check_read_patient_data_rights(self, request, *args, **kwargs):
-        # todo: [FHIR] update route "/perimeters/is-one-read-patient-right/"
-        #                       and "/perimeters/is-read-patient-pseudo/" add /?mode=xxx
-        #     # todo: [FHIR] update response keys
         read_mode = request.query_params.get('mode')
         if read_mode not in (NOMI, PSEUDO):
             return Response(data="Patient data reading `mode` is missing or has invalid value", status=status.HTTP_400_BAD_REQUEST)
@@ -124,12 +122,12 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
             return Response(data="None of the target perimeters was found", status=status.HTTP_404_NOT_FOUND)
 
         if read_mode == NOMI:
-            data = {"allow_read_patient_data_nomi": perimeters_service.can_user_read_patient_data_in_nomi(user=request.user,
-                                                                                                          target_perimeters=target_perimeters)}
+            data = {"allow_read_patient_data_nomi": accesses_service.can_user_read_patient_data_in_nomi(user=request.user,
+                                                                                                        target_perimeters=target_perimeters)}
         else:
-            data = {"allow_read_patient_data_pseudo": perimeters_service.can_user_read_patient_data_in_pseudo(user=request.user,
-                                                                                                              target_perimeters=target_perimeters)}
-        data["allow_read_opposing_patient_data"] = perimeters_service.can_user_read_opposed_patient_data(user=request.user)
+            data = {"allow_read_patient_data_pseudo": accesses_service.can_user_read_patient_data_in_pseudo(user=request.user,
+                                                                                                            target_perimeters=target_perimeters)}
+        data["allow_read_opposing_patient_data"] = accesses_service.can_user_read_opposed_patient_data(user=request.user)
         return Response(data=data, status=status.HTTP_200_OK)
 
 
