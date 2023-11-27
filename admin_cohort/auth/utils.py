@@ -166,6 +166,7 @@ def get_userinfo_from_token(token: str, auth_method: str) -> Union[None, UserInf
                             email=decoded.get('email'))
         except Exception as e:
             _logger.info(f"Error decoding token: {e} - `{token}`")
+            raise e
     else:
         raise ValueError(f"Invalid authentication method : {auth_method}")
 
