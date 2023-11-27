@@ -289,7 +289,7 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
             required_perimeters_ids = []
 
         results = build_data_rights(user=request.user,
-                                    expected_perim_ids=required_perimeters_ids,
+                                    expected_perimeters_ids=required_perimeters_ids,
                                     pop_children=False)
         return Response(data=DataRightSerializer(results, many=True).data,
                         status=status.HTTP_200_OK)
