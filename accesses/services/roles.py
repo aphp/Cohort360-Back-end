@@ -1,3 +1,5 @@
+from typing import Tuple
+
 from django.db.models import QuerySet
 
 from accesses.models import Role, Perimeter
@@ -8,27 +10,23 @@ from admin_cohort.models import User
 class RolesService:
 
     @staticmethod
-    def check_existing_role(data: dict) -> Role:
+    def check_for_existing_role(data: dict) -> Role:
         data.pop("name", None)
         return Role.objects.filter(**data).first()
 
     @staticmethod
-    def check_role_validity(data: dict) -> str:
-        """
-        if given read data pseudo and export csv/jup nomi
-        check other combinations
-        """
+    def role_has_inconstant_rights(rights: dict) -> bool:
+        return rights.get("right_read_patient_pseudonymized") and \
+            (rights.get("right_export_csv_nominative") or rights.get("right_export_jupyter_nominative"))
+
+    def check_role_validity(self, data: dict) -> Tuple[bool, str]:
         error_msg = ""
-        data.pop("name", None)
-        role = Role.objects.filter(**data).first()
+        role = self.check_for_existing_role(data=data)
         if role:
             error_msg = f"Un rôle avec les mêmes droits est déjà configuré: <{role.name}>"
-
-        if data.get("right_read_patient_pseudonymized") and \
-            (data.get("right_export_csv_nominative")
-             or data.get("right_export_jupyter_nominative")):
+        if self.role_has_inconstant_rights(rights=data):
             error_msg = "Les droits activés sur le rôle ne sont pas cohérents"
-        return bool(error_msg) and error_msg
+        return bool(error_msg), error_msg
 
     @staticmethod
     def get_assignable_roles(user: User, perimeter_id: str) -> QuerySet:

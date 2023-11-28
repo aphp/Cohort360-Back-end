@@ -44,13 +44,9 @@ class RoleViewSet(CustomLoggingMixin, BaseViewSet):
         return super(RoleViewSet, self).list(request, *args, **kwargs)
 
     def create(self, request, *args, **kwargs):
-        # role = roles_service.check_existing_role(data=request.data.copy())
-        # if role:
-        #     return Response(data=f"Un rôle avec les mêmes droits est déjà configuré: <{role.name}>",
-        #                     status=status.HTTP_400_BAD_REQUEST)
-        validity = roles_service.check_role_validity(data=request.data.copy())
-        if not validity[0]:
-            return Response(data=validity[1], status=status.HTTP_400_BAD_REQUEST)
+        invalid_role, error_msg = roles_service.check_role_validity(data=request.data.copy())
+        if invalid_role:
+            return Response(data=error_msg, status=status.HTTP_400_BAD_REQUEST)
         return super(RoleViewSet, self).create(request, *args, **kwargs)
 
     @swagger_auto_schema(method='get',
