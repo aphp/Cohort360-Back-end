@@ -19,6 +19,7 @@ class TestFhirFilterAPI(CohortAppTests):
     post_view = FhirFilterViewSet.as_view({'post': 'create'})
     patch_view = FhirFilterViewSet.as_view({'patch': 'partial_update'})
     recent_list_view = FhirFilterViewSet.as_view({'get': 'recent_filters'})
+    multiple_delete_view = FhirFilterViewSet.as_view({'delete': 'delete_multiple'})
     lookup_field = "uuid"
 
     def test_url_reverse(self):
@@ -153,6 +154,25 @@ class TestFhirFilterAPI(CohortAppTests):
         force_authenticate(count_request, user)
         response: Response = self.__class__.list_view(count_request)
         assert FhirFilter.objects.count() == loops == response.data.get("count")
+
+    def test_delete_multiple_filters(self):
+        user = User.objects.first()
+        url = reverse("cohort:fhir-filters-delete-multiple")
+        for i in range(25):
+            FhirFilter.objects.create(**{'owner': user,
+                                         'fhir_resource': f'res {i}',
+                                         'fhir_version': '1.0.0',
+                                         'name': f'test_filter {i}',
+                                         'filter': '{"some": "filter"}'})
+        count_before_delete = FhirFilter.objects.count()
+        last_five_filters = FhirFilter.objects.all().order_by("-created_at")[:5]
+        data = {"uuids": [str(f.uuid) for f in last_five_filters]}
+        request = self.factory.delete(url, data=data, format="json")
+        force_authenticate(request, user)
+        response = self.__class__.multiple_delete_view(request)
+        count_after_delete = FhirFilter.objects.count()
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(count_before_delete-count_after_delete, 5)
 
     def test_name_minimal_length(self):
         user = User.objects.first()
