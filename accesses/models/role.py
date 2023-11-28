@@ -54,15 +54,13 @@ class Role(BaseModel):
     right_manage_users = models.BooleanField(default=False, null=False)
     right_read_users = models.BooleanField(default=False, null=False)
 
-    # Admin accesses reading/management
+    # Administration accesses reading/management
     right_manage_admin_accesses_same_level = models.BooleanField(default=False, null=False)
     right_read_admin_accesses_same_level = models.BooleanField(default=False, null=False)
     right_manage_admin_accesses_inferior_levels = models.BooleanField(default=False, null=False)
     right_read_admin_accesses_inferior_levels = models.BooleanField(default=False, null=False)
 
-    # todo: process this right differently.
-    #       Add write/readonly option on it or maybe add new right:  `right_manage_accesses_above_levels` ?
-    right_read_accesses_above_levels = models.BooleanField(default=False, null=False)   #
+    right_read_accesses_above_levels = models.BooleanField(default=False, null=False)
 
     # Data accesses reading/management
     right_manage_data_accesses_same_level = models.BooleanField(default=False, null=False)
