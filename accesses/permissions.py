@@ -10,7 +10,7 @@ from admin_cohort.models import User
 
 
 def get_bound_roles(user: User) -> List[Role]:
-    return [access.role for access in accesses_service.get_user_valid_manual_accesses(user)]
+    return [access.role for access in accesses_service.get_user_valid_accesses(user)]
 
 
 def user_is_full_admin(user: User) -> bool:

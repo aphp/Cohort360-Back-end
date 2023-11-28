@@ -144,7 +144,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                          responses={'201': openapi.Response("Cohorts rights found", CohortRightsSerializer())})
     @action(detail=False, methods=['get'], url_path="cohort-rights")
     def get_cohort_right_accesses(self, request, *args, **kwargs):
-        user_accesses = accesses_service.get_user_valid_manual_accesses(request.user)
+        user_accesses = accesses_service.get_user_valid_accesses(request.user)
 
         if not user_accesses:
             raise Http404("ERROR: No Accesses found")

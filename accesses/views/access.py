@@ -160,7 +160,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewSet):
     @cache_response()
     def get_my_accesses(self, request, *args, **kwargs):
         user = request.user
-        accesses = accesses_service.get_user_valid_manual_accesses(user=user)
+        accesses = accesses_service.get_user_valid_accesses(user=user)
         if request.query_params.get("expiring"):
             accesses = accesses_service.get_expiring_accesses(user=user, accesses=accesses)
             if not accesses:

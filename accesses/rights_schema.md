@@ -19,7 +19,7 @@ class DataReading {
   right_read_patient_nominative
   right_read_patient_pseudonymized
   right_search_patients_by_ipp
-  right_read_research_opposed_patient_data
+  right_search_opposed_patients
 }
 class CSVExportsAdministration {
   right_manage_export_csv_accesses
@@ -82,7 +82,7 @@ c'est tout Role ayant au moins un des droits suivants activé:
 - *right_read_patient_nominative*
 - *right_read_patient_pseudonymized*
 - *right_search_patients_by_ipp*
-- *right_read_research_opposed_patient_data*
+- *right_search_opposed_patients*
 
 #### Data Reading Administration Role:
 Il permet de gérer/consulter les accès attachés à des Data Reading Role.  

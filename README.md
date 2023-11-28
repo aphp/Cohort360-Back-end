@@ -164,7 +164,7 @@ PERIMETER_TYPES you provide in _admin_cohort/.env_ file):
                                 right_manage_transfer_jupyter, right_review_export_csv, right_review_transfer_jupyter, 
                                 right_transfer_jupyter_nominative, right_transfer_jupyter_pseudo_anonymised, 
                                 right_manage_datalabs, right_read_datalabs, 
-                                right_read_research_opposed_patient_data) 
+                                right_search_opposed_patients) 
                          VALUES(1,'FULL_ADMIN','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t',
                                 't','t','t','t','t','t','t','t','t','t','t','t');
     -- Attribute admin role to admin profile
@@ -186,7 +186,7 @@ PERIMETER_TYPES you provide in _admin_cohort/.env_ file):
                                 right_manage_transfer_jupyter, right_review_export_csv, right_review_transfer_jupyter, 
                                 right_transfer_jupyter_nominative, right_transfer_jupyter_pseudo_anonymised, 
                                 right_manage_datalabs, right_read_datalabs,
-                                right_read_research_opposed_patient_data) 
+                                right_search_opposed_patients) 
                         VALUES (2,'Nominative Patient Reader','f','f','f','f','f','f','f','f','f','f','f','f','t','f',
                                 'f','f','f','f','f','f','f','f','f','f','f','f','f','f','f', 'f');
     -- Pseudo-anonymised Data reading role
@@ -203,7 +203,7 @@ PERIMETER_TYPES you provide in _admin_cohort/.env_ file):
                                right_review_export_csv, right_review_transfer_jupyter, 
                                right_transfer_jupyter_nominative, right_transfer_jupyter_pseudo_anonymised, 
                                right_manage_datalabs, right_read_datalabs, 
-                               right_read_research_opposed_patient_data) 
+                               right_search_opposed_patients) 
                        VALUES (3,'Pseudo-anonymised Patient Reader','f','f','f','f','f','f','f','f','f','f','f','f','f',
                                'f','t','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f');
 

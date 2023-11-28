@@ -1,5 +1,3 @@
-from typing import List
-
 from accesses.models import Perimeter
 
 
@@ -12,7 +10,7 @@ class DataRight:
         self.right_read_patient_nominative = reading_rights.get("right_read_patient_nominative", False)
         self.right_read_patient_pseudonymized = reading_rights.get("right_read_patient_pseudonymized", False)
         self.right_search_patients_by_ipp = reading_rights.get("right_search_patients_by_ipp", False)
-        self.right_read_research_opposed_patient_data = reading_rights.get("right_read_research_opposed_patient_data", False)
+        self.right_search_opposed_patients = reading_rights.get("right_search_opposed_patients", False)
         self.right_export_csv_nominative = reading_rights.get("right_export_csv_nominative", False)
         self.right_export_csv_pseudonymized = reading_rights.get("right_export_csv_pseudonymized", False)
         self.right_export_jupyter_nominative = reading_rights.get("right_export_jupyter_nominative", False)
@@ -22,7 +20,7 @@ class DataRight:
         self.right_read_patient_nominative = self.right_read_patient_nominative or dr.right_read_patient_nominative
         self.right_read_patient_pseudonymized = self.right_read_patient_pseudonymized or dr.right_read_patient_pseudonymized
         self.right_search_patients_by_ipp = self.right_search_patients_by_ipp or dr.right_search_patients_by_ipp
-        self.right_read_research_opposed_patient_data = self.right_read_research_opposed_patient_data or dr.right_read_research_opposed_patient_data
+        self.right_search_opposed_patients = self.right_search_opposed_patients or dr.right_search_opposed_patients
 
     def acquire_extra_global_rights(self, dr: "DataRight"):
         self.right_export_csv_nominative = self.right_export_csv_nominative or dr.right_export_csv_nominative
@@ -90,7 +88,7 @@ right_manage_export_csv_accesses = Right("right_manage_export_csv_accesses")
 right_manage_export_jupyter_accesses = Right("right_manage_export_jupyter_accesses")
 
 right_search_patients_by_ipp = Right("right_search_patients_by_ipp")
-right_read_research_opposed_patient_data = Right("right_read_research_opposed_patient_data")
+right_search_opposed_patients = Right("right_search_opposed_patients")
 
 right_read_accesses_above_levels = Right("right_read_accesses_above_levels")
 # todo: process this right differently  -  is a global right
@@ -134,7 +132,7 @@ all_rights = [right_full_admin,
               right_read_patient_nominative,
               right_read_patient_pseudonymized,
               right_search_patients_by_ipp,
-              right_read_research_opposed_patient_data,
+              right_search_opposed_patients,
               right_manage_data_accesses_same_level,
               right_read_data_accesses_same_level,
               right_manage_data_accesses_inferior_levels,

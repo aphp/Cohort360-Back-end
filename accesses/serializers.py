@@ -391,7 +391,7 @@ class DataRightSerializer(serializers.Serializer):
     right_read_patient_nominative = serializers.BooleanField(read_only=True, allow_null=True)
     right_read_patient_pseudonymized = serializers.BooleanField(read_only=True, allow_null=True)
     right_search_patients_by_ipp = serializers.BooleanField(read_only=True, allow_null=True)
-    right_read_research_opposed_patient_data = serializers.BooleanField(read_only=True, allow_null=True)
+    right_search_opposed_patients = serializers.BooleanField(read_only=True, allow_null=True)
     right_export_csv_nominative = serializers.BooleanField(read_only=True, allow_null=True)
     right_export_csv_pseudonymized = serializers.BooleanField(read_only=True, allow_null=True)
     right_export_jupyter_nominative = serializers.BooleanField(read_only=True, allow_null=True)

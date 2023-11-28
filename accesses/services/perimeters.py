@@ -37,12 +37,10 @@ class PerimetersService:
         """
         Get the highest perimeters on which are defined accesses allowing to manage other accesses on inf levels ONLY.
         --> The manageable perimeters will be their direct children (because accesses here allow to manage on inf levels ONLY).
-        regarding the hierarchy below, the top perimeters with accesses of type "manage inf levels" are the children of P0: P3, P4 and P5
+        Regarding the hierarchy below, the top perimeters with accesses of type "manage inf levels" are the children of P0: P3, P4 and P5
         """
         top_perimeters_ids = []
         for p in Perimeter.objects.filter(id__in=inf_levels_perimeters_ids):
-            # access defined on P with right same_level and inf_levels AND
-            # at least one access is defined on one of its parents
             if p.id not in top_same_level_perimeters_ids and all(parent_id not in all_perimeters_ids for parent_id in p.above_levels):
                 children_ids = p.inferior_levels
                 if not children_ids:
@@ -52,8 +50,6 @@ class PerimetersService:
 
     def get_top_manageable_perimeters(self, user: User) -> QuerySet:
         """
-        todo: Either rename rights of kind "right_manage_xxx_accesses_same_level"  to  "right_manage_xxx_accesses_same_and_inf_levels"
-              or alter the logic to fit what the rights describe: same_level_exclusively   or  inf_levels_exclusively   or  both
         The user has 6 accesses allowing him to manage other accesses either on same level or on inferior levels.
         Accesses are defined on perimeters: P0, P1, P2, P5, P8 and P10
                                                APHP
@@ -67,7 +63,7 @@ class PerimetersService:
                                                                                 |           |
                                                                                 P11         P12
         """
-        user_accesses = accesses_service.get_user_valid_manual_accesses(user=user)
+        user_accesses = accesses_service.get_user_valid_accesses(user=user)
         if user_is_full_admin(user=user) or all(access.role.has_any_global_management_right()
                                                 and not access.role.has_any_level_dependent_management_right()
                                                 for access in user_accesses):
@@ -107,7 +103,9 @@ class PerimetersService:
     @staticmethod
     def get_top_perimeters_with_right_read_pseudo(top_read_nomi_perimeters_ids: List[int],
                                                   read_pseudo_perimeters_ids: List[int]) -> List[int]:
-        """ for each perimeter with pseudo read right, remove it if it has nomi access too or if any of its parents has nomi or pseudo access """
+        """ for each perimeter with pseudo read right, remove it if it has nomi access too
+            or if any of its parents has nomi or pseudo access
+        """
         for perimeter in Perimeter.objects.filter(id__in=read_pseudo_perimeters_ids):
             if any((parent_id in read_pseudo_perimeters_ids
                     or parent_id in top_read_nomi_perimeters_ids
@@ -144,7 +142,7 @@ class PerimetersService:
         return perimeter_read_right_list
 
     def get_data_reading_rights_on_perimeters(self, user: User, target_perimeters: QuerySet):
-        user_accesses = accesses_service.get_user_valid_manual_accesses(user=user)
+        user_accesses = accesses_service.get_user_valid_accesses(user=user)
         read_patient_nominative_accesses = user_accesses.filter(Role.q_allow_read_patient_data_nominative())
         read_patient_pseudo_accesses = user_accesses.filter(Role.q_allow_read_patient_data_pseudo() |
                                                             Role.q_allow_read_patient_data_nominative())

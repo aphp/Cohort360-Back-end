@@ -97,7 +97,7 @@ class Migration(migrations.Migration):
         migrations.RenameField(
             model_name='role',
             old_name='right_read_opposing_patient',
-            new_name='right_read_research_opposed_patient_data',
+            new_name='right_search_opposed_patients',
         ),
         migrations.RunSQL(sql=query_fill_right_full_admin_by_right_manage_roles),
         migrations.RunPython(code=enable_all_rights_for_full_admin_roles)

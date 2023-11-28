@@ -17,8 +17,8 @@ ROLES_HELP_TEXT = dict(right_full_admin="Super user",
                        right_read_patient_pseudonymized="Lire les données patient sous forme pseudonymisée sur son périmètre et "
                                                         "ses sous-périmètres",
                        right_search_patients_by_ipp="Utiliser une liste d'IPP comme critère d'une requête Cohort.",
-                       right_read_research_opposed_patient_data="Détermine le droit de lecture de données des patients opposés à l'utilisation "
-                                                                "de leurs données pour la recherche",
+                       right_search_opposed_patients="Détermine le droit de chercher les patients opposés à l'utilisation "
+                                                     "de leurs données pour la recherche",
                        right_manage_export_jupyter_accesses="Gérer les accès permettant d'exporter les cohortes vers des environnements Jupyter",
                        right_export_jupyter_nominative="Exporter ses cohortes de patients sous forme nominative vers un environnement Jupyter.",
                        right_export_jupyter_pseudonymized="Exporter ses cohortes de patients sous forme pseudonymisée vers un environnement Jupyter.",
@@ -72,7 +72,7 @@ class Role(BaseModel):
     right_read_patient_nominative = models.BooleanField(default=False, null=False)
     right_read_patient_pseudonymized = models.BooleanField(default=False, null=False)
     right_search_patients_by_ipp = models.BooleanField(default=False, null=False)
-    right_read_research_opposed_patient_data = models.BooleanField(default=False, null=False)
+    right_search_opposed_patients = models.BooleanField(default=False, null=False)
 
     # Jupyter exports
     right_manage_export_jupyter_accesses = models.BooleanField(default=False, null=False)
@@ -116,7 +116,7 @@ class Role(BaseModel):
 
     @staticmethod
     def q_allow_read_research_opposed_patient_data() -> Q:
-        return Q(role__right_read_research_opposed_patient_data=True)
+        return Q(role__right_search_opposed_patients=True)
 
     @staticmethod
     def q_allow_export_csv_nominative() -> Q:
@@ -205,7 +205,7 @@ class Role(BaseModel):
         return any((self.right_read_patient_nominative,
                     self.right_read_patient_pseudonymized,
                     self.right_search_patients_by_ipp,
-                    self.right_read_research_opposed_patient_data))
+                    self.right_search_opposed_patients))
 
     @property
     def requires_admin_accesses_managing_role_to_be_managed(self):
