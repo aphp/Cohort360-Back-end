@@ -207,14 +207,6 @@ class AccessesService:
                 dr.acquire_extra_global_rights(global_dr)
 
     def get_data_reading_rights(self, user: User, target_perimeters_ids: str) -> List[DataRight]:
-        # todo: copy portail_dev DB
-        #       check for new migrations
-        #       apply migrations
-        #       tune existing accesses if needed
-        #       test Cohort360 Front after made changes
-        #
-        # todo: make some methods object bound
-        # todo: write tests
         target_perimeters_ids and target_perimeters_ids.split(",") or []
         target_perimeters = Perimeter.objects.filter(id__in=target_perimeters_ids) \
                                              .select_related(*[f"parent{i * '__parent'}" for i in range(0, len(PERIMETERS_TYPES) - 2)])
@@ -230,8 +222,8 @@ class AccessesService:
         data_rights = self.share_data_reading_rights_over_relative_hierarchy(data_rights_per_perimeter=data_rights_per_perimeter)
 
         self.share_global_rights_over_relative_hierarchy(user=user,
-                                                                    data_rights=data_rights,
-                                                                    data_accesses=data_accesses)
+                                                         data_rights=data_rights,
+                                                         data_accesses=data_accesses)
         if target_perimeters:
             data_rights = filter(lambda dr: dr.perimeter in target_perimeters, data_rights)
 
