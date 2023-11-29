@@ -52,7 +52,7 @@ RESOURCE_NAME_MAPPING = {
 
 updater_v141 = QueryRequestUpdater(
     version_name=NEW_VERSION,
-    previous_version_name=PREV_VERSION,
+    previous_version_name=[PREV_VERSION],
     filter_mapping=FILTER_MAPPING,
     filter_names_to_skip=FILTER_NAME_TO_SKIP,
     filter_values_mapping=FILTER_VALUE_MAPPING,
