@@ -43,18 +43,18 @@ class RoleViewSet(CustomLoggingMixin, BaseViewSet):
     def list(self, request, *args, **kwargs):
         return super(RoleViewSet, self).list(request, *args, **kwargs)
 
-    @staticmethod
-    def check_role_validity(data: dict):
-        invalid_role, error_msg = roles_service.check_role_validity(data=data)
-        if invalid_role:
-            return Response(data=error_msg, status=status.HTTP_400_BAD_REQUEST)
-
     def create(self, request, *args, **kwargs):
-        self.check_role_validity(data=request.data.copy())
+        inconsistent = roles_service.role_has_inconsistent_rights(data=request.data.copy())
+        if inconsistent:
+            return Response(data="Les droits activés sur le rôle ne sont pas cohérents",
+                            status=status.HTTP_400_BAD_REQUEST)
         return super(RoleViewSet, self).create(request, *args, **kwargs)
 
     def partial_update(self, request, *args, **kwargs):
-        self.check_role_validity(data=request.data.copy())
+        inconsistent = roles_service.role_has_inconsistent_rights(data=request.data.copy())
+        if inconsistent:
+            return Response(data="Les droits activés sur le rôle ne sont pas cohérents",
+                            status=status.HTTP_400_BAD_REQUEST)
         return super(RoleViewSet, self).partial_update(request, *args, **kwargs)
 
     @swagger_auto_schema(method='get',

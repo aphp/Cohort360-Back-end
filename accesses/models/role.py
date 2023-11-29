@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from django.db import models
-from django.db.models import Q
+from django.db.models import Q, UniqueConstraint
 
 from accesses.services.shared import all_rights
 from admin_cohort.models import BaseModel
@@ -43,50 +43,47 @@ def build_help_text(text_root: str, on_same_level: bool, on_inferior_levels: boo
 class Role(BaseModel):
     id = models.AutoField(primary_key=True)
     name = models.TextField(blank=True, null=True)
-
     right_full_admin = models.BooleanField(default=False, null=False)
-
     right_read_logs = models.BooleanField(default=False, null=False)
-
     right_manage_roles = models.BooleanField(default=False, null=False)
     right_read_roles = models.BooleanField(default=False, null=False)
-
     right_manage_users = models.BooleanField(default=False, null=False)
     right_read_users = models.BooleanField(default=False, null=False)
-
+    # Datalabs
+    right_manage_datalabs = models.BooleanField(default=False, null=False)
+    right_read_datalabs = models.BooleanField(default=False, null=False)
+    # CSV exports
+    right_manage_export_csv_accesses = models.BooleanField(default=False, null=False)
+    right_export_csv_nominative = models.BooleanField(default=False, null=False)
+    right_export_csv_pseudonymized = models.BooleanField(default=False, null=False)
+    # Jupyter exports
+    right_manage_export_jupyter_accesses = models.BooleanField(default=False, null=False)
+    right_export_jupyter_nominative = models.BooleanField(default=False, null=False)
+    right_export_jupyter_pseudonymized = models.BooleanField(default=False, null=False)
     # Administration accesses reading/management
     right_manage_admin_accesses_same_level = models.BooleanField(default=False, null=False)
     right_read_admin_accesses_same_level = models.BooleanField(default=False, null=False)
     right_manage_admin_accesses_inferior_levels = models.BooleanField(default=False, null=False)
     right_read_admin_accesses_inferior_levels = models.BooleanField(default=False, null=False)
-
     right_read_accesses_above_levels = models.BooleanField(default=False, null=False)
-
     # Data accesses reading/management
     right_manage_data_accesses_same_level = models.BooleanField(default=False, null=False)
     right_read_data_accesses_same_level = models.BooleanField(default=False, null=False)
     right_manage_data_accesses_inferior_levels = models.BooleanField(default=False, null=False)
     right_read_data_accesses_inferior_levels = models.BooleanField(default=False, null=False)
-
     # Read patient data
     right_read_patient_nominative = models.BooleanField(default=False, null=False)
     right_read_patient_pseudonymized = models.BooleanField(default=False, null=False)
     right_search_patients_by_ipp = models.BooleanField(default=False, null=False)
     right_search_opposed_patients = models.BooleanField(default=False, null=False)
 
-    # Jupyter exports
-    right_manage_export_jupyter_accesses = models.BooleanField(default=False, null=False)
-    right_export_jupyter_nominative = models.BooleanField(default=False, null=False)
-    right_export_jupyter_pseudonymized = models.BooleanField(default=False, null=False)
-
-    # CSV exports
-    right_manage_export_csv_accesses = models.BooleanField(default=False, null=False)
-    right_export_csv_nominative = models.BooleanField(default=False, null=False)
-    right_export_csv_pseudonymized = models.BooleanField(default=False, null=False)
-
-    # Datalabs
-    right_manage_datalabs = models.BooleanField(default=False, null=False)
-    right_read_datalabs = models.BooleanField(default=False, null=False)
+    class Meta:
+        constraints = [UniqueConstraint(name="unique_name",
+                                        fields=["name"],
+                                        condition=Q(delete_datetime__isnull=True)),
+                       UniqueConstraint(name="unique_rights_combination",
+                                        fields=[right.name for right in all_rights],
+                                        condition=Q(delete_datetime__isnull=True))]
 
     def has_any_global_management_right(self):
         return any((self.right_full_admin,

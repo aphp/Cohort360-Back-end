@@ -5,7 +5,7 @@ from typing import List
 from rest_framework import status
 
 from accesses.models import Access, Role
-from accesses.tests.tests_view_accesses import RightGroupForManage, \
+from accesses.tests.old._tests_view_accesses import RightGroupForManage, \
     RIGHT_GROUPS, AccessListCase, any_manager_rights
 from accesses.views import RoleViewSet
 from admin_cohort.tools.tests_tools import random_str, new_user_and_profile, \

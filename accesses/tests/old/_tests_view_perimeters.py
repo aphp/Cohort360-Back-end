@@ -7,7 +7,7 @@ from rest_framework import status
 from rest_framework.test import force_authenticate
 
 from accesses.models import Perimeter, Access, Role
-from accesses.tests.tests_view_accesses import RightGroupForManage, \
+from accesses.tests.old._tests_view_accesses import RightGroupForManage, \
     RIGHT_GROUPS, AccessListCase
 from accesses.views import PerimeterViewSet, NestedPerimeterViewSet
 from admin_cohort.settings import PERIMETERS_TYPES
