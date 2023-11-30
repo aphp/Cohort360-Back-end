@@ -1,14 +1,18 @@
+from typing import Union
 import logging
 from smtplib import SMTPException
 
 from django.utils import timezone
+from django.core.exceptions import ValidationError
+from django.db import transaction
 
 from admin_cohort.types import JobStatus, ServerError
-from cohort.services.emails import send_email_notif_about_large_cohort
-from cohort.models import CohortResult, DatedMeasure, RequestQuerySnapshot
+from cohort.models import CohortResult, DatedMeasure, RequestQuerySnapshot, FhirFilter
 from cohort.models.dated_measure import GLOBAL_DM_MODE
 from cohort.services.conf_cohort_job_api import fhir_to_job_status, get_authorization_header
+from cohort.services.emails import send_email_notif_about_large_cohort
 from cohort.tasks import get_count_task, create_cohort_task
+from exports.services.export import export_service
 
 JOB_STATUS = "request_job_status"
 GROUP_ID = "group.id"
@@ -19,6 +23,41 @@ _logger_err = logging.getLogger('django.request')
 
 
 class CohortResultService:
+
+    @staticmethod
+    def build_query(cohort_source_id: str, cohort_uuid: str, fhir_filter: FhirFilter) -> str:
+        query = {"_type": "request",
+                 "resourceType": fhir_filter.fhir_resource,
+                 "cohortUuid": cohort_uuid,
+                 "request": {"_id": 1,
+                             "_type": "basicResource",
+                             "filterFhir": fhir_filter.filter,
+                             # "filterSolr": "fq=gender:f&fq=deceased:false&fq=active:true",    todo: rempli par le CRB
+                             "isInclusive": True,
+                             "resourceType": fhir_filter.fhir_resource
+                             },
+                 "sourcePopulation": {"caresiteCohortList": [cohort_source_id]}
+                 }
+        return str(query)
+
+    @staticmethod
+    def create_cohort_subset(http_request, owner_id: str, table_name: str,
+                             source_cohort: CohortResult, fhir_filter: Union[FhirFilter, None] = None) -> CohortResult:
+        cohort_subset = CohortResult.objects.create(name=f"{table_name}_{source_cohort.fhir_group_id}",
+                                                    owner_id=owner_id)
+        with transaction.atomic():
+            query = CohortResultService.build_query(cohort_source_id=source_cohort.fhir_group_id,
+                                                    cohort_uuid=cohort_subset.uuid,
+                                                    fhir_filter=fhir_filter)
+            try:
+                auth_headers = get_authorization_header(request=http_request)
+                create_cohort_task.delay(auth_headers,
+                                         query,
+                                         cohort_subset.uuid)
+            except Exception as e:
+                cohort_subset.delete()
+                raise ValidationError(f"Error creating the cohort subset for export: {e}")
+        return cohort_subset
 
     @staticmethod
     def count_active_jobs():
@@ -89,6 +128,8 @@ class CohortResultService:
     def send_email_notification(cohort: CohortResult, is_update_from_sjs: bool, is_update_from_etl: bool) -> None:
         if is_update_from_sjs:
             _logger.info(f"Cohort [{cohort.uuid}] successfully updated from SJS")
+            if cohort.export_table.exists():
+                export_service.check_all_cohort_subsets_created(export=cohort.export_table.export)
         if is_update_from_etl:
             try:
                 send_email_notif_about_large_cohort(cohort.name, cohort.fhir_group_id, cohort.owner)

@@ -1,4 +1,5 @@
 import logging
+import os
 import time
 from datetime import timedelta, datetime
 
@@ -12,12 +13,16 @@ from admin_cohort.settings import EXPORT_CSV_PATH
 from admin_cohort.tools.celery_periodic_task_helper import ensure_single_task
 from admin_cohort.types import JobStatus
 from exports import conf_exports
-from .emails import exported_csv_files_deleted, export_request_failed, export_request_succeeded, push_email_notification
-from .models import ExportRequest
+from .models import ExportRequest, Export
+from .emails import 
+from .emails import email_info_request_done, email_info_request_deleted, exported_csv_files_deleted, export_request_failed, export_request_succeeded, push_email_notification
 from .types import ExportType, HdfsServerUnreachableError, ApiJobResponse
 
 _logger_err = logging.getLogger('django.request')
 _celery_logger = logging.getLogger('celery.app')
+env = os.environ
+
+HIVE_DB_FOLDER = env.get('HIVE_DB_FOLDER')
 
 
 def log_export_request_task(er_id, msg):
@@ -156,3 +161,53 @@ def delete_export_requests_csv_files():
             export_request.save()
         except (RequestException, HdfsServerUnreachableError) as e:
             _logger_err.exception(f"ExportRequest {export_request.id}: {e}")
+
+
+@shared_task
+def launch_export_task(export_id: str):
+    export = Export.objects.get(pk=export_id)
+    now = timezone.now()
+    output_format = export.output_format
+    if output_format == ExportType.CSV:
+        export.target_name = f"{export.owner.pk}_{now.strftime('%Y%m%d_%H%M%S%f')}"
+        export.target_location = EXPORT_CSV_PATH
+    else:
+        export.target_name = f"{export.datalab.name}_{now.strftime('%Y%m%d_%H%M%S%f')}"
+        export.target_location = HIVE_DB_FOLDER
+    export.save()
+
+    if output_format == ExportType.HIVE:
+        try:
+            conf_exports.prepare_hive_db(export_request=export)
+        except RequestException as e:
+            mark_export_request_as_failed(export, e, f"Error while preparing for export {export_id}", now)
+            return
+
+    try:
+        job_id = conf_exports.post_export_v1(export=export)
+        export.request_job_status = JobStatus.pending
+        export.request_job_id = job_id
+        export.save()
+        log_export_request_task(export_id, f"Request sent, job {job_id} is now {JobStatus.pending}")
+    except RequestException as e:
+        mark_export_request_as_failed(export, e, f"Could not post export {export_id}", now)
+        return
+
+    try:
+        wait_for_export_job(export)
+    except HTTPError as e:
+        mark_export_request_as_failed(export, e, f"Failure during export job {export_id}", now)
+        return
+
+    log_export_request_task(export_id, "Export job finished, now concluding.")
+
+    if output_format == ExportType.HIVE:
+        try:
+            conf_exports.conclude_export_hive(export)
+        except RequestException as e:
+            mark_export_request_as_failed(export, e, f"Could not conclude export {export_id}", now)
+            return
+
+    export.request_job_duration = timezone.now() - now
+    export.save()
+    email_info_request_done(export)
