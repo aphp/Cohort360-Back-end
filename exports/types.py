@@ -1,3 +1,5 @@
+from hdfs import HdfsError
+
 from admin_cohort.types import StrEnum, JobStatus
 
 
@@ -30,5 +32,5 @@ class ApiJobResponse:
                                JobStatus.finished, JobStatus.unknown]
 
 
-class HdfsServerUnreachableError(Exception):
+class HdfsServerUnreachableError(HdfsError):
     pass

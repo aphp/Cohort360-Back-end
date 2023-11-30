@@ -2,7 +2,11 @@ from rest_framework import permissions
 
 from accesses.models import Role, get_all_user_managing_accesses_on_perimeter, can_roles_manage_access, Perimeter
 from admin_cohort.models import User
-from admin_cohort.permissions import get_bound_roles, can_user_edit_roles, can_user_read_users
+from admin_cohort.permissions import get_bound_roles, can_user_read_users
+
+
+def can_user_edit_roles(user: User) -> bool:
+    return any([r.right_edit_roles for r in get_bound_roles(user)])
 
 
 def can_user_manage_access(user: User, role: Role, perimeter: Perimeter) -> bool:
@@ -63,7 +67,6 @@ class AccessPermissions(permissions.BasePermission):
     def has_permission(self, request, view):
         if request.method in ["POST", "PUT", "PATCH", "DELETE"]:
             return can_user_manage_accesses(request.user)
-
         return request.method in permissions.SAFE_METHODS and can_user_read_accesses(request.user)
 
     def has_object_permission(self, request, view, obj):

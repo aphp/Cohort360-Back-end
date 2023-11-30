@@ -2,13 +2,13 @@ import logging
 
 from celery import shared_task, current_task
 
-import cohort.conf_cohort_job_api as cohort_job_api
+import cohort.services.conf_cohort_job_api as cohort_job_api
 from admin_cohort import celery_app
 from admin_cohort.types import JobStatus
 from admin_cohort.settings import COHORT_LIMIT
 from cohort.models import CohortResult, DatedMeasure
 from cohort.models.dated_measure import GLOBAL_DM_MODE
-from cohort.tools import log_count_task, log_create_task
+from cohort.services.misc import log_count_task, log_create_task
 
 _logger = logging.getLogger('django.request')
 
@@ -54,19 +54,19 @@ def get_count_task(auth_headers: dict, json_query: str, dm_uuid: str):
 
 
 @shared_task
-def cancel_previously_running_dm_jobs(auth_headers: dict, dm_uuid: str):
+def cancel_previously_running_dm_jobs(dm_uuid: str):
     dm = DatedMeasure.objects.get(pk=dm_uuid)
     rqs = dm.request_query_snapshot
     running_dms = rqs.dated_measures.exclude(uuid=dm.uuid)\
                                     .filter(request_job_status__in=(JobStatus.started, JobStatus.pending))\
-                                    .prefetch_related('cohort', 'restricted_cohort')
+                                    .prefetch_related('cohorts', 'global_cohorts')
     for dm in running_dms:
-        if dm.cohort.all() or dm.restricted_cohort.all():
+        if dm.cohorts.all() or dm.global_cohorts.all():
             continue
         job_status = dm.request_job_status
         try:
             if job_status == JobStatus.started:
-                new_status = cohort_job_api.cancel_job(dm.request_job_id, auth_headers)
+                new_status = cohort_job_api.cancel_job(dm.request_job_id)
                 dm.request_job_status = new_status
             else:
                 celery_app.control.revoke(dm.count_task_id)

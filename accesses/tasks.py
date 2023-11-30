@@ -33,10 +33,9 @@ def count_users_on_perimeters():
 
 def count_allowed_users():
     perimeters_ids = Access.objects.filter(q_is_valid_access())\
-                                   .distinct("profile__user_id") \
+                                   .distinct("perimeter_id", "profile__user_id")\
                                    .values_list("perimeter_id", flat=True)
     counter = Counter(perimeters_ids)
-
     for perimeter_id, count in counter.items():
         try:
             perimeter = Perimeter.objects.get(pk=perimeter_id)
@@ -66,7 +65,9 @@ def count_allowed_users_from_above_levels():
         parent_perimeters = Perimeter.objects.filter(id__in=perimeter.above_levels)
         count_accesses_impacting_inferior_levels = 0
         for p in parent_perimeters:
-            accesses_impacting_inferior_levels = p.accesses.all().filter(q_role_impacts_lower_levels(prefix="role"))
+            accesses_impacting_inferior_levels = p.accesses.filter(q_is_valid_access(),
+                                                                   q_role_impacts_lower_levels())\
+                                                                 .distinct("perimeter_id", "profile__user_id")
             count_accesses_impacting_inferior_levels += accesses_impacting_inferior_levels.count()
         perimeter.count_allowed_users_above_levels = count_accesses_impacting_inferior_levels
         perimeter.save()

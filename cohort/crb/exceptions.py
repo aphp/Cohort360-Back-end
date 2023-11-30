@@ -1,0 +1,2 @@
+class FhirException(Exception):
+    pass

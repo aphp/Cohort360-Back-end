@@ -2,17 +2,17 @@ from django.http import QueryDict
 from rest_framework import viewsets
 from rest_framework.relations import RelatedField
 
-from cohort.permissions import IsOwner
+from admin_cohort.tools.request_log_mixin import RequestLogMixin
+from cohort.permissions import IsOwnerPermission
 
 
-class BaseViewSet(viewsets.ModelViewSet):
-    permission_classes = (IsOwner,)
+class UserObjectsRestrictedViewSet(RequestLogMixin, viewsets.ModelViewSet):
+    permission_classes = (IsOwnerPermission,)
+    logging_methods = ['POST', 'PATCH', 'DELETE']
 
     def get_serializer_context(self):
         return {'request': self.request}
 
-
-class UserObjectsRestrictedViewSet(BaseViewSet):
     def get_queryset(self):
         return self.__class__.queryset.filter(owner=self.request.user)
 

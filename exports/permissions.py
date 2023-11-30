@@ -7,6 +7,14 @@ from admin_cohort.permissions import user_is_authenticated, get_bound_roles
 from exports.types import ExportType
 
 
+def can_export_csv_nomi(user: User):
+    return any([r.right_export_csv_nominative for r in get_bound_roles(user)])
+
+
+def can_export_csv_pseudo(user: User):
+    return any([r.right_export_csv_pseudo_anonymised for r in get_bound_roles(user)])
+
+
 def can_export_jupyter_nomi(user: User):
     return any([r.right_transfer_jupyter_nominative for r in get_bound_roles(user)])
 
@@ -57,11 +65,11 @@ class ExportRequestPermissions(permissions.BasePermission):
     def has_permission(self, request, view):
         if request.method == "POST":
             if request.data.get('nominative', False):
-                if not can_export_jupyter_nomi(request.user):
-                    raise PermissionDenied("L'utilisateur destinataire n'a pas le droit d'export nominatif")
+                if not (can_export_csv_nomi(request.user) or can_export_jupyter_nomi(request.user)):
+                    raise PermissionDenied("Vous n'avez pas le droit d'export nominatif")
             else:
-                if not can_export_jupyter_pseudo(request.user):
-                    raise PermissionDenied("L'utilisateur destinataire n'a pas le droit d'export pseudonymisé")
+                if not (can_export_csv_pseudo(request.user) or can_export_jupyter_pseudo(request.user)):
+                    raise PermissionDenied("Vous n'avez pas le droit d'export pseudonymisé")
 
         return user_is_authenticated(request.user)
 

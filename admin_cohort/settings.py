@@ -57,15 +57,20 @@ LOGGING = dict(version=1,
                loggers={
                     'info': {
                        'level': "INFO",
-                       'handlers': ['info_handler'],
+                       'handlers': ['info_handler'] + (DEBUG and ['console'] or []),
                        'propagate': False
                     },
                     'django.request': {
                        'level': "ERROR",
-                       'handlers': ['error_handler'] + (NOTIFY_ADMINS and ['mail_admins'] or []),
+                       'handlers': ['error_handler'] + (DEBUG and ['console'] or []) + (NOTIFY_ADMINS and ['mail_admins'] or []),
                        'propagate': False
-                    }},
+                    }
+               },
                handlers={
+                   'console': {
+                       'level': "INFO",
+                       'class': "logging.StreamHandler"
+                    },
                    'info_handler': {
                        'level': "INFO",
                        'class': "admin_cohort.tools.logging.CustomSocketHandler",
@@ -127,7 +132,8 @@ AUTHENTICATION_BACKENDS = ['admin_cohort.auth.auth_backends.JWTAuthBackend',
 ROOT_URLCONF = 'admin_cohort.urls'
 
 TEMPLATES = [{'BACKEND': 'django.template.backends.django.DjangoTemplates',
-              'DIRS': [BASE_DIR / 'admin_cohort/templates'],
+              'DIRS': [BASE_DIR / 'admin_cohort/templates'] +
+                      [BASE_DIR / f'{app}/templates' for app in INCLUDED_APPS],
               'APP_DIRS': True,
               'OPTIONS': {'context_processors': ['django.template.context_processors.debug',
                                                  'django.template.context_processors.request',
@@ -277,3 +283,6 @@ REST_FRAMEWORK_EXTENSIONS = {"DEFAULT_PARENT_LOOKUP_KWARG_NAME_PREFIX": "",
 ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS = int(env("ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS", default=30))
 ACCESS_EXPIRY_SECOND_ALERT_IN_DAYS = int(env("ACCESS_EXPIRY_SECOND_ALERT_IN_DAYS", default=2))
 MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS = int(env("ACCESS_MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS", default=730))
+
+# CRB
+CRB_TEST_FHIR_QUERIES = bool(env("CRB_TEST_FHIR_QUERIES", default=False))

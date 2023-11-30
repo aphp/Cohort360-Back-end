@@ -1,31 +1,33 @@
 import http
 import logging
+from datetime import timedelta
 
 from django.db.models import Q
-from django.http import HttpResponse, StreamingHttpResponse
+from django.http import StreamingHttpResponse
+from django.utils import timezone
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from hdfs import HdfsError
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
+from admin_cohort.settings import DAYS_TO_DELETE_CSV_FILES as DAYS_TO_KEEP_CSV_FILES
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.models import User
 from admin_cohort.tools import join_qs
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from admin_cohort.types import JobStatus
-from admin_cohort.views import CustomLoggingMixin
+from admin_cohort.tools.request_log_mixin import RequestLogMixin
 from cohort.models import CohortResult
 from exports import conf_exports
-from exports.emails import check_email_address
+from exports.emails import check_email_address, push_email_notification
 from exports.models import ExportRequest
 from exports.permissions import ExportRequestPermissions, ExportJupyterPermissions, can_review_transfer_jupyter, \
     can_review_export_csv
 from exports.serializers import ExportRequestSerializer, ExportRequestSerializerNoReviewer, ExportRequestListSerializer
-from exports.types import ExportType
+from exports.types import ExportType, HdfsServerUnreachableError
 
 _logger = logging.getLogger('django.request')
 
@@ -61,7 +63,7 @@ class ExportRequestFilter(filters.FilterSet):
                   'creator_fk', 'target_unix_account', 'insert_datetime', 'owner')
 
 
-class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
+class ExportRequestViewSet(RequestLogMixin, viewsets.ModelViewSet):
     queryset = ExportRequest.objects.all()
     serializer_class = ExportRequestSerializer
     lookup_field = "id"
@@ -76,8 +78,7 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
                      "target_name", "target_unix_account__name")
 
     def should_log(self, request, response):
-        act = getattr(getattr(request, "parser_context", {}).get("view", {}), "action", "")
-        return request.method in self.logging_methods or act == "download"
+        return super().should_log(request, response) or self.action == "download"
 
     def get_serializer_context(self):
         return {'request': self.request}
@@ -140,7 +141,7 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
                                     required=["tables"]))
     def create(self, request, *args, **kwargs):
         # Local imports for mocking these functions during tests
-        from exports.emails import email_info_request_confirmed
+        from exports.emails import export_request_received
 
         if 'cohort_fk' in request.data:
             request.data['cohort'] = request.data.get('cohort_fk')
@@ -173,41 +174,37 @@ class ExportRequestViewSet(CustomLoggingMixin, viewsets.ModelViewSet):
         response = super(ExportRequestViewSet, self).create(request, *args, **kwargs)
         if response.status_code == http.HTTPStatus.CREATED and response.data["request_job_status"] != JobStatus.failed:
             try:
-                email_info_request_confirmed(response.data.serializer.instance, creator.email)
+                export_request = response.data.serializer.instance
+                notification_data = dict(recipient_name=export_request.owner.displayed_name,
+                                         recipient_email=export_request.owner.email,
+                                         cohort_id=export_request.cohort_id,
+                                         cohort_name=export_request.cohort_name,
+                                         output_format=export_request.output_format,
+                                         selected_tables=export_request.tables.values_list("omop_table_name", flat=True))
+                push_email_notification(base_notification=export_request_received, **notification_data)
             except Exception as e:
                 response.data['warning'] = f"L'email de confirmation n'a pas pu être envoyé à cause de l'erreur: {e}"
         return response
 
     @action(detail=True, methods=['get'], permission_classes=(ExportRequestPermissions,), url_path="download")
     def download(self, request, *args, **kwargs):
-        req: ExportRequest = self.get_object()
-        if req.request_job_status != JobStatus.finished:
-            return HttpResponse("The export request you asked for is not done yet or has failed.",
-                                status=http.HTTPStatus.FORBIDDEN)
-        if req.output_format != ExportType.CSV:
-            return HttpResponse(f"Can only download results of {ExportType.CSV} type. Got {req.output_format} instead",
-                                status=http.HTTPStatus.FORBIDDEN)
-        user: User = self.request.user
-        if req.owner.pk != user.pk:
-            raise PermissionDenied("L'utilisateur n'est pas à l'origine de l'export")
-
-        # start_bytes = re.search(r'bytes=(\d+)-',
-        #                         request.META.get('HTTP_RANGE', ''), re.S)
-        # start_bytes = int(start_bytes.group(1)) if start_bytes else 0
+        export = self.get_object()
+        if export.request_job_status != JobStatus.finished:
+            return Response(data="The export is not done yet or has failed.", status=status.HTTP_400_BAD_REQUEST)
+        if export.output_format != ExportType.CSV:
+            return Response(data=f"Can only download results of type CSV. Got {export.output_format} instead",
+                            status=status.HTTP_400_BAD_REQUEST)
+        if export.insert_datetime + timedelta(days=DAYS_TO_KEEP_CSV_FILES) < timezone.now():
+            return Response(data=f"The exported files are no longer available on the server.\n"
+                                 f"The export outcome is saved for {DAYS_TO_KEEP_CSV_FILES} days and is deleted afterwards",
+                            status=status.HTTP_204_NO_CONTENT)
         try:
-            response = StreamingHttpResponse(conf_exports.stream_gen(req.target_full_path))
-            resp_size = conf_exports.get_file_size(req.target_full_path)
-
+            response = StreamingHttpResponse(streaming_content=conf_exports.stream_gen(export.target_full_path))
+            file_size = conf_exports.get_file_size(file_name=export.target_full_path)
             response['Content-Type'] = 'application/zip'
-            response['Content-Length'] = resp_size
-            response['Content-Disposition'] = f"attachment; filename=export_{req.cohort_id}.zip"
-            # response['Content-Range'] = 'bytes %d-%d/%d' % (
-            #     start_bytes, resp_size, resp_size
-            # )
+            response['Content-Length'] = file_size
+            response['Content-Disposition'] = f"attachment; filename=export_{export.cohort_id}.zip"
             return response
-        except HdfsError as e:
+        except (HdfsError, HdfsServerUnreachableError) as e:
             _logger.exception(e.message)
-            return HttpResponse(e.message, status=http.HTTPStatus.INTERNAL_SERVER_ERROR)
-        except conf_exports.HdfsServerUnreachableError:
-            return HttpResponse("HDFS servers are unreachable or in stand-by",
-                                status=http.HTTPStatus.INTERNAL_SERVER_ERROR)
+            return Response(data=e.message, status=http.HTTPStatus.INTERNAL_SERVER_ERROR)

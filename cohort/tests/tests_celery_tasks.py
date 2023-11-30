@@ -3,7 +3,7 @@ from unittest import mock
 from django.utils import timezone
 
 from admin_cohort.types import JobStatus
-from cohort.crb_responses import CRBCountResponse, CRBCohortResponse
+from cohort.services.crb_responses import CRBCountResponse, CRBCohortResponse
 from cohort.models import DatedMeasure, CohortResult, Request, RequestQuerySnapshot
 from cohort.models.dated_measure import GLOBAL_DM_MODE
 from cohort.tasks import get_count_task, create_cohort_task, cancel_previously_running_dm_jobs
@@ -123,8 +123,7 @@ class TasksTests(DatedMeasuresTests):
     def test_cancel_previously_running_dm_jobs_task(self, mock_cancel_job, mock_celery_revoke):
         mock_celery_revoke.return_value = None
         mock_cancel_job.return_value = JobStatus.cancelled
-        cancel_previously_running_dm_jobs(auth_headers={},
-                                          dm_uuid=self.new_dm1.uuid)
+        cancel_previously_running_dm_jobs(dm_uuid=self.new_dm1.uuid)
         cancelled_dms = DatedMeasure.objects.exclude(uuid=self.new_dm1.uuid)\
                                             .filter(request_query_snapshot=self.user1_req_running_dms_snap1)
 
@@ -134,8 +133,7 @@ class TasksTests(DatedMeasuresTests):
     @mock.patch('cohort.tasks.cohort_job_api.cancel_job')
     def test_error_on_cancel_previously_running_dm_jobs_task(self, mock_cancel_job):
         mock_cancel_job.side_effect = Exception("Error on calling to cancel running DMs")
-        cancel_previously_running_dm_jobs(auth_headers={},
-                                          dm_uuid=self.new_dm2.uuid)
+        cancel_previously_running_dm_jobs(dm_uuid=self.new_dm2.uuid)
         failed_dm = DatedMeasure.objects.exclude(uuid=self.new_dm2.uuid)\
                                         .filter(request_query_snapshot=self.user1_req_running_dms_snap2)\
                                         .first()

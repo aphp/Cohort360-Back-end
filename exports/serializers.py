@@ -140,7 +140,7 @@ class ExportRequestSerializer(serializers.ModelSerializer):
         owner: User = validated_data.get('owner')
         cohort: CohortResult = validated_data.get('cohort_fk')
         perimeters_cohort_ids = cohort.request_query_snapshot.perimeters_ids
-        perimeters = Perimeter.objects.filter(cohort_id__in=perimeters_cohort_ids)
+        perimeters = Perimeter.objects.filter(cohort_id__in=perimeters_cohort_ids).values_list("id", flat=True)
         rights = build_data_rights(owner, perimeters)
         check_rights_on_perimeters_for_exports(rights, validated_data.get('output_format'), validated_data.get('nominative'))
 

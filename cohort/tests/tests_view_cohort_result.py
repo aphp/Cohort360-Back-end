@@ -198,9 +198,9 @@ class CohortCreateCase(CreateCase):
 
 
 class CohortsCreateTests(CohortsTests):
-    @mock.patch('cohort.serializers.cohort_job_api.get_authorization_header')
-    @mock.patch('cohort.tasks.create_cohort_task.delay')
-    @mock.patch('cohort.tasks.get_count_task.delay')
+    @mock.patch('cohort.services.cohort_result.get_authorization_header')
+    @mock.patch('cohort.services.cohort_result.create_cohort_task.delay')
+    @mock.patch('cohort.services.cohort_result.get_count_task.delay')
     def check_create_case_with_mock(self, case: CohortCreateCase, mock_count_task: MagicMock, mock_create_task: MagicMock,
                                     mock_header: MagicMock, other_view: any, view_kwargs: dict):
         mock_header.return_value = None
@@ -451,7 +451,7 @@ class CohortsUpdateTests(CohortsTests):
         case = self.basic_err_case.clone(data_to_update={'request_job_status': invalid_status})
         self.check_patch_case(case)
 
-    @mock.patch('cohort.views.cohort_result.send_email_notif_about_large_cohort')
+    @mock.patch('cohort.services.cohort_result.send_email_notif_about_large_cohort')
     def test_update_cohort_status_by_etl_callback(self, mock_send_email_notif: MagicMock):
         case = self.basic_case.clone(data_to_update={'request_job_status': 'finished'})
         mock_send_email_notif.side_effect = SMTPException("SMTP server error")

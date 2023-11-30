@@ -1,5 +1,5 @@
+from jwt import InvalidTokenError
 from rest_framework.authentication import BaseAuthentication
-from rest_framework_simplejwt.exceptions import InvalidToken
 
 from admin_cohort.auth.utils import get_userinfo_from_token, get_auth_data
 from admin_cohort.models import User
@@ -19,6 +19,6 @@ class Authentication(BaseAuthentication):
         try:
             user_info = get_userinfo_from_token(token=access_token, auth_method=auth_method)
             user = User.objects.get(provider_username=user_info.username)
-        except (InvalidToken, ValueError, User.DoesNotExist):
+        except (InvalidTokenError, ValueError, User.DoesNotExist):
             return None
         return user, access_token

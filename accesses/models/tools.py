@@ -217,8 +217,8 @@ def q_is_valid_access() -> Q:
             & (Q(end_datetime=None) | Q(end_datetime__gte=now)))
 
 
-def q_role_impacts_lower_levels(prefix=None) -> Q:
-    prefix = prefix and f"{prefix}__" or ""
+def q_role_impacts_lower_levels() -> Q:
+    prefix = "role__"
     rights_impacting_lower_levels = [right for right in all_rights if right.impact_lower_levels]
     return join_qs([Q(**{f'{prefix}{r.name}': True}) for r in rights_impacting_lower_levels])
 
@@ -360,12 +360,12 @@ def merge_accesses_into_rights(user: User,
 
 
 def complete_data_rights_and_pop_children(rights: Dict[int, DataRight],
-                                          expected_perim_ids: List[int],
+                                          expected_perimeters: QuerySet,
                                           pop_children: bool) -> List[DataRight]:
     """
     Will complete DataRight given the others bound to its perimeter's parents
 
-    If expected_perim_ids is not empty, at the end we keep only DataRight
+    If expected_perimeters is not empty, at the end we keep only DataRight
     bound to them
 
     If pop_children is True, will also pop DataRights that are redundant given
@@ -384,7 +384,7 @@ def complete_data_rights_and_pop_children(rights: Dict[int, DataRight],
        |                       |
     1  1  1                 1  1  1      1  1  1
     :param rights: rights to read and complete
-    :param expected_perim_ids: perimeter to keep at the end
+    :param expected_perimeters: perimeter to keep at the end
     :param pop_children: true if we want to clean redundant DataRights
     :return:
     """
@@ -429,8 +429,8 @@ def complete_data_rights_and_pop_children(rights: Dict[int, DataRight],
                 to_remove.append(r.perimeter_id)
 
     res = list(rights.values())
-    if expected_perim_ids:
-        res = [r for r in res if r.perimeter_id in expected_perim_ids]
+    if expected_perimeters:
+        res = [r for r in res if r.perimeter in expected_perimeters]
     if pop_children:
         res = [r for r in res if r.perimeter_id not in to_remove]
     return res
@@ -459,27 +459,27 @@ def complete_data_right_with_global_rights(user: User,
             r.add_global_right(plr)
 
 
-def build_data_rights(user: User, expected_perim_ids: List[int] = None, pop_children: bool = False) -> List[DataRight]:
+def build_data_rights(user: User, expected_perimeters_ids: List[int] = None, pop_children: bool = False) -> List[DataRight]:
     """
     Define what perimeter-bound and global data right the user is granted
-    If expected_perim_ids is not empty, will only return the DataRights
+    If expected_perimeters_ids is not empty, will only return the DataRights
     on these perimeters
     If pop_children, will pop redundant DataRights, that does not bring more
     than the ones from their perimeter's parents
     :param user:
-    :param expected_perim_ids:
+    :param expected_perimeters_ids:
     :param pop_children:
     :return:
     """
-    expected_perim_ids = expected_perim_ids or []
+    expected_perimeters_ids = expected_perimeters_ids or []
     data_accesses = get_access_data_rights(user)
-    expected_perims = Perimeter.objects.filter(id__in=expected_perim_ids)\
-                                       .select_related(*[f"parent{i * '__parent'}" for i in range(0, len(PERIMETERS_TYPES) - 2)])
+    expected_perimeters = Perimeter.objects.filter(id__in=expected_perimeters_ids)\
+                                           .select_related(*[f"parent{i * '__parent'}" for i in range(0, len(PERIMETERS_TYPES) - 2)])
 
     # we merge accesses into rights from same perimeter_id
-    rights = merge_accesses_into_rights(user, data_accesses, expected_perims)
+    rights = merge_accesses_into_rights(user, data_accesses, expected_perimeters)
 
-    rights = complete_data_rights_and_pop_children(rights, expected_perim_ids, pop_children)
+    rights = complete_data_rights_and_pop_children(rights, expected_perimeters, pop_children)
 
     complete_data_right_with_global_rights(user, rights, data_accesses)
 

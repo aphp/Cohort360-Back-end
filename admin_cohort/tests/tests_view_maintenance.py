@@ -8,6 +8,7 @@ from rest_framework import status
 
 from accesses.models import Access, Role
 from admin_cohort.models import MaintenancePhase
+from admin_cohort.settings import ADMINS
 from admin_cohort.tools.tests_tools import random_str, new_user_and_profile, \
     CaseRetrieveFilter, ViewSetTestsWithBasicPerims, ListCase, \
     CreateCase, DeleteCase, PatchCase, RetrieveCase
@@ -38,42 +39,19 @@ class MaintenanceTests(ViewSetTestsWithBasicPerims):
     def setUp(self):
         super(MaintenanceTests, self).setUp()
 
-        # ROLES
-        self.role_full: Role = Role.objects.create(**dict([
-            (f, True) for f in self.all_rights
-        ]), name='FULL')
+        self.test_admin_email = ADMINS[0][1]
+        self.user_maintenance_manager, profile_maintenance_manager = new_user_and_profile(email=self.test_admin_email)
+        self.role_maintenance_manager = Role.objects.create(right_edit_roles=True)
+        Access.objects.create(perimeter_id=self.hospital3.id,
+                              profile=profile_maintenance_manager,
+                              role=self.role_maintenance_manager)
 
-        # Users
-        # full_admin
-        self.user_full_admin, prof_full_admin = \
-            new_user_and_profile(email="full@ad.min")
-        Access.objects.create(
-            perimeter_id=self.aphp.id,
-            profile=prof_full_admin,
-            role=self.role_full
-        )
-
-        # can_mng_mtncs
-        self.user_that_can_mng_mtncs, prof_that_can_mng_mtncs = \
-            new_user_and_profile(email="can@mng.roles")
-        self.role_mng_mtncs = Role.objects.create(right_edit_roles=True)
-        Access.objects.create(
-            perimeter_id=self.hospital3.id,
-            profile=prof_that_can_mng_mtncs,
-            role=self.role_mng_mtncs
-        )
-
-        # cannot_mng_mtncs
-        self.user_that_cannot_mng_mtncs, prof_that_cannot_mng_mtncs = \
-            new_user_and_profile(email="cannot@mng.roles")
-        self.role_all_but_edit_mtnces = Role.objects.create(
-            **dict([(r, True) for r in self.all_rights
-                    if r != 'right_edit_roles']))
-        Access.objects.create(
-            perimeter_id=self.aphp.id,
-            profile=prof_that_cannot_mng_mtncs,
-            role=self.role_all_but_edit_mtnces
-        )
+        self.user_not_maintenance_manager, profile_not_maintenance_manager = new_user_and_profile(email="cannot@mng.roles")
+        self.role_all_but_edit_maintenances = Role.objects.create(**dict([(r, True) for r in self.all_rights
+                                                                          if r != 'right_edit_roles']))
+        Access.objects.create(perimeter_id=self.aphp.id,
+                              profile=profile_not_maintenance_manager,
+                              role=self.role_all_but_edit_maintenances)
 
 
 class MaintenanceCaseRetrieveFilter(CaseRetrieveFilter):
@@ -267,7 +245,7 @@ class MaintenanceCreateTests(MaintenanceTests):
     def test_create_as_admin(self):
         # As a user with right_edit_roles, I can create a maintenance phase
         case = self.basic_create_case.clone(
-            user=self.user_that_can_mng_mtncs,
+            user=self.user_maintenance_manager,
             success=True,
             status=status.HTTP_201_CREATED,
         )
@@ -277,7 +255,7 @@ class MaintenanceCreateTests(MaintenanceTests):
         # As a user with everything but right_edit_roles,
         # I cannot create a maintenance phase
         case = self.basic_create_case.clone(
-            user=self.user_that_cannot_mng_mtncs,
+            user=self.user_not_maintenance_manager,
             success=False,
             status=status.HTTP_403_FORBIDDEN,
         )
@@ -287,7 +265,7 @@ class MaintenanceCreateTests(MaintenanceTests):
         # As a user with all the rights, I cannot create a maintenance phase
         # if start_datetime > end_datetime
         cases = [self.basic_create_case.clone(
-            user=self.user_full_admin,
+            user=self.user_maintenance_manager,
             success=False,
             status=status.HTTP_400_BAD_REQUEST,
             data=d,
@@ -328,7 +306,7 @@ class MaintenancePatchTests(MaintenanceTests):
     def test_patch_as_user_admin(self):
         # As a user with right_edit_roles, I can edit a maintenance phase
         cases = [self.basic_patch_case.clone(
-            user=self.user_that_can_mng_mtncs,
+            user=self.user_maintenance_manager,
             success=True,
             status=status.HTTP_200_OK,
             data_to_update=dict({k: v})
@@ -339,7 +317,7 @@ class MaintenancePatchTests(MaintenanceTests):
         # As a user with everything but right_edit_roles,
         # I cannot edit a maintenance phase
         case = self.basic_patch_case.clone(
-            user=self.user_that_cannot_mng_mtncs,
+            user=self.user_not_maintenance_manager,
             success=False,
             status=status.HTTP_403_FORBIDDEN,
         )
@@ -349,7 +327,7 @@ class MaintenancePatchTests(MaintenanceTests):
         # As a user with all the rights,
         # I cannot edit a maintenance phase with start_datetime > end_datetime
         cases = [self.basic_patch_case.clone(
-            user=self.user_full_admin,
+            user=self.user_maintenance_manager,
             success=False,
             status=status.HTTP_400_BAD_REQUEST,
             data_to_update=d,
@@ -391,7 +369,7 @@ class MaintenanceDeleteTests(MaintenanceTests):
     def test_delete_user_as_main_admin(self):
         # As a user with right_edit_roles, I can delete a maintenance phase
         case = self.basic_delete_case.clone(
-            user=self.user_that_can_mng_mtncs,
+            user=self.user_maintenance_manager,
             success=True,
             status=status.HTTP_204_NO_CONTENT,
         )
@@ -401,7 +379,7 @@ class MaintenanceDeleteTests(MaintenanceTests):
         # As a user with everything but right_edit_roles,
         # I cannot delete a maintenance phase
         case = self.basic_delete_case.clone(
-            user=self.user_that_cannot_mng_mtncs,
+            user=self.user_not_maintenance_manager,
             success=False,
             status=status.HTTP_403_FORBIDDEN,
         )

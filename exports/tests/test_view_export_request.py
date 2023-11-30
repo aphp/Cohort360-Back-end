@@ -19,7 +19,7 @@ from cohort.models import CohortResult, RequestQuerySnapshot, Request, DatedMeas
 from workspaces.models import Account
 from exports.conf_exports import create_hive_db, prepare_hive_db, wait_for_hive_db_creation_job, get_job_status
 from exports.models import ExportRequest, ExportRequestTable
-from exports.tasks import delete_export_requests_csv_files, wait_for_export_job, launch_request
+from exports.tasks import delete_export_requests_csv_files, wait_for_export_job, launch_request, mark_export_request_as_failed
 from exports.types import ExportType, ApiJobResponse
 from exports.views import ExportRequestViewSet
 
@@ -448,10 +448,10 @@ class ExportsListTests(ExportsTests):
 
 
 class DownloadCase(RequestCase):
-    def __init__(self, data_to_download: dict, mock_hdfs_resp: any = None,
+    def __init__(self, export: ExportRequest, mock_hdfs_resp: any = None,
                  mock_file_size_resp: any = None, mock_hdfs_called: bool = True,
                  mock_file_size_called: bool = True, **kwargs):
-        self.data_to_download = data_to_download or dict()
+        self.export = export
         self.mock_hdfs_resp = mock_hdfs_resp
         self.mock_file_size_resp = mock_file_size_resp
         self.mock_hdfs_called = mock_hdfs_called
@@ -478,13 +478,13 @@ class ExportsRetrieveTests(ExportsWithSimpleSetUp):
             mock_hdfs_resp=[""], mock_file_size_resp=1,
             mock_hdfs_called=True, mock_file_size_called=True,
             user=self.user1,
-            data_to_download=self.base_data,
+            export=self.model_objects.create(**self.base_data),
             success=True,
             status=status.HTTP_200_OK,
         )
         self.base_err_download_case = self.base_download_case.clone(
             success=False,
-            status=status.HTTP_403_FORBIDDEN,
+            status=status.HTTP_400_BAD_REQUEST,
             mock_file_size_called=False,
             mock_hdfs_called=False,
         )
@@ -524,18 +524,17 @@ class ExportsRetrieveTests(ExportsWithSimpleSetUp):
 
     @mock.patch('exports.conf_exports.stream_gen')
     @mock.patch('exports.conf_exports.get_file_size')
-    def check_download(self, case: DownloadCase, mock_get_file_size: MagicMock,
-                       mock_hdfs_stream_gen: MagicMock):
+    def check_download(self, case: DownloadCase, mock_get_file_size: MagicMock, mock_hdfs_stream_gen: MagicMock):
         mock_hdfs_stream_gen.return_value = case.mock_hdfs_resp
         mock_get_file_size.return_value = case.mock_file_size_resp
 
-        obj = self.model_objects.create(**case.data_to_download)
+        export = case.export
 
         request = self.factory.get(self.objects_url)
 
         if case.user:
             force_authenticate(request, case.user)
-        response = self.__class__.download_view(request, id=obj.pk)
+        response = self.__class__.download_view(request, id=export.pk)
         try:
             response.render()
             msg = (f"{case.title}: "
@@ -552,14 +551,14 @@ class ExportsRetrieveTests(ExportsWithSimpleSetUp):
             self.assertEquals(
                 response.get('Content-Disposition'),
                 f"attachment; filename=export_"
-                f"{obj.cohort_id}.zip"
+                f"{export.cohort_id}.zip"
             )
             self.assertEquals(response.get('Content-length'), '1')
         else:
             self.assertNotEqual(
                 response.get('Content-Disposition'),
                 f"attachment; filename=export_"
-                f"{obj.cohort_id}.zip"
+                f"{export.cohort_id}.zip"
             )
             self.assertNotEqual(response.get('Content-length'), '1')
 
@@ -572,45 +571,52 @@ class ExportsRetrieveTests(ExportsWithSimpleSetUp):
         # As a user, I can download the result of an ExportRequest I created
         self.check_download(self.base_download_case)
 
+    def test_error_download_old_request(self):
+        # As a user, I cannot download the result of
+        # an ExportRequest that is too old and its outcome has been removed from HDFS
+        old_export = self.model_objects.create(**self.base_data)
+        old_export.insert_datetime = timezone.now() - timedelta(days=30)
+        old_export.save()
+        self.check_download(self.base_err_download_case.clone(export=old_export,
+                                                              status=status.HTTP_204_NO_CONTENT))
+
     def test_error_download_request_not_finished(self):
         # As a user, I cannot download the result of
         # an ExportRequest that is not finished
-        [self.check_download(self.base_err_download_case.clone(
-            data_to_download={**self.base_data,
-                              'request_job_status': s},
-        )) for s in JobStatus.list(exclude=[JobStatus.finished])]
+        export = self.base_err_download_case.export
+        export.request_job_status = JobStatus.pending
+        export.save()
+        self.check_download(self.base_err_download_case)
 
     def test_error_download_request_not_csv(self):
         # As a user, I cannot download the result of an ExportRequest that is
         # not of type CSV and with job status finished
-        self.check_download(self.base_err_download_case.clone(
-            data_to_download={**self.base_data,
-                              'output_format': ExportType.HIVE},
-            status=status.HTTP_403_FORBIDDEN,
-        ))
+        export = self.base_err_download_case.export
+        export.output_format = ExportType.HIVE
+        export.save()
+        self.check_download(self.base_err_download_case.clone(status=status.HTTP_400_BAD_REQUEST))
 
     def test_error_download_request_result_not_owned(self):
         # As a user, I can download the result of another user's ExportRequest
-        self.check_download(self.base_err_download_case.clone(
-            data_to_download={**self.base_data, 'owner': self.user2},
-            status=status.HTTP_404_NOT_FOUND,
-        ))
+        export = self.base_err_download_case.export
+        export.owner = self.user2
+        export.save()
+        self.check_download(self.base_err_download_case.clone(status=status.HTTP_404_NOT_FOUND))
 
 # JOBS ##################################################################
 
 
 class ExportsJobsTests(ExportsWithSimpleSetUp):
 
-    @mock.patch('exports.emails.send_email')
+    @mock.patch('exports.tasks.push_email_notification')
     @mock.patch('exports.conf_exports.delete_file')
-    def test_task_delete_export_requests_csv_files(self, mock_delete_hdfs_file, mock_send_email):
+    def test_task_delete_export_requests_csv_files(self, mock_delete_hdfs_file, mock_push_email_notif):
         from admin_cohort.settings import DAYS_TO_DELETE_CSV_FILES
 
         mock_delete_hdfs_file.return_value = None
-        mock_send_email.return_value = None
+        mock_push_email_notif.return_value = None
 
-        self.user1_exp_req_succ.review_request_datetime = (
-                timezone.now() - timedelta(days=DAYS_TO_DELETE_CSV_FILES))
+        self.user1_exp_req_succ.insert_datetime = (timezone.now() - timedelta(days=DAYS_TO_DELETE_CSV_FILES))
         self.user1_exp_req_succ.is_user_notified = True
         self.user1_exp_req_succ.save()
 
@@ -621,17 +627,18 @@ class ExportsJobsTests(ExportsWithSimpleSetUp):
         self.assertCountEqual([er.pk for er in deleted_ers], [self.user1_exp_req_succ.pk])
         [self.assertAlmostEqual((er.cleaned_at - timezone.now()).total_seconds(), 0, delta=1) for er in deleted_ers]
 
-    @mock.patch('exports.emails.send_email')
+    @mock.patch('exports.tasks.push_email_notification')
     @mock.patch('exports.conf_exports.prepare_hive_db')
     @mock.patch('exports.conf_exports.post_export')
     @mock.patch('exports.conf_exports.conclude_export_hive')
     @mock.patch('exports.conf_exports.get_job_status')
-    def test_task_launch_request(self, mock_get_job_status, mock_prepare_hive_db, mock_post_export, mock_conclude_export_hive, mock_send_email):
+    def test_task_launch_request(self, mock_get_job_status, mock_prepare_hive_db, mock_post_export, mock_conclude_export_hive,
+                                 mock_send_success_email):
         mock_get_job_status.return_value = ApiJobResponse(status=JobStatus.finished)
         mock_prepare_hive_db.return_value = None
         mock_post_export.return_value = None
         mock_conclude_export_hive.return_value = None
-        mock_send_email.return_value = None
+        mock_send_success_email.return_value = None
 
         launch_request(er_id=self.user1_exp_req_succ.id)
 
@@ -639,7 +646,7 @@ class ExportsJobsTests(ExportsWithSimpleSetUp):
         mock_prepare_hive_db.assert_not_called()
         mock_post_export.assert_called()
         mock_conclude_export_hive.assert_not_called()
-        mock_send_email.assert_called()
+        mock_send_success_email.assert_called()
 
 
 # POST ##################################################################
@@ -669,16 +676,14 @@ class ExportJupyterCreateCase(ExportCreateCase):
 
 class ExportsCreateTests(ExportsTests):
     @mock.patch('exports.tasks.launch_request.delay')
-    @mock.patch('exports.emails.send_email')
+    @mock.patch('exports.views.export_request.push_email_notification')
     @mock.patch('exports.emails.EMAIL_REGEX_CHECK', REGEX_TEST_EMAIL)
-    def check_create_case(self, case: ExportCreateCase, mock_send_email: MagicMock, mock_task: MagicMock):
+    def check_create_case(self, case: ExportCreateCase, mock_push_email_notif: MagicMock, mock_task: MagicMock):
         mock_task.return_value = None
-        mock_send_email.return_value = None
-
+        mock_push_email_notif.return_value = None
         super(ExportsCreateTests, self).check_create_case(case)
-
-        mock_send_email.assert_called() if case.success else mock_send_email.assert_not_called()
         mock_task.assert_called() if case.success else mock_task.assert_not_called()
+        mock_push_email_notif.assert_called() if case.success else mock_push_email_notif.assert_not_called()
 
 
 class ExportsCsvCreateTests(ExportsCreateTests):
@@ -1109,6 +1114,18 @@ class ExportsJupyterCreateTests(ExportsCreateTests):
         mock_get_job_status.return_value = ApiJobResponse(status=JobStatus.finished)
         wait_for_export_job(er=self.export_request)
         self.assertEqual(self.export_request.request_job_status, JobStatus.finished.value)
+
+    @mock.patch("exports.tasks.push_email_notification")
+    def test_mark_export_request_as_failed(self, mock_push_email_notification):
+        mock_push_email_notification.return_value = None
+        mark_export_request_as_failed(er=self.export_request,
+                                      e=Exception("Error while processing export"),
+                                      msg="Error message",
+                                      start=timezone.now())
+        mock_push_email_notification.assert_called()
+        self.assertEqual(self.export_request.request_job_status, JobStatus.failed.value)
+        self.assertIsNotNone(self.export_request.request_job_duration)
+        self.assertTrue(self.export_request.is_user_notified)
 
 
 class ExportsNotAllowedTests(ExportsWithSimpleSetUp):
