@@ -14,8 +14,7 @@ from admin_cohort.tools.celery_periodic_task_helper import ensure_single_task
 from admin_cohort.types import JobStatus
 from exports import conf_exports
 from .models import ExportRequest, Export
-from .emails import 
-from .emails import email_info_request_done, email_info_request_deleted, exported_csv_files_deleted, export_request_failed, export_request_succeeded, push_email_notification
+from .emails import exported_csv_files_deleted, export_request_failed, export_request_succeeded, push_email_notification
 from .types import ExportType, HdfsServerUnreachableError, ApiJobResponse
 
 _logger_err = logging.getLogger('django.request')
@@ -123,7 +122,6 @@ def launch_request(er_id: int):
         except RequestException as e:
             mark_export_request_as_failed(export_request, e, f"Could not conclude export {er_id}", now)
             return
-
     export_request.request_job_duration = timezone.now() - now
     export_request.save()
     notification_data = dict(recipient_name=export_request.owner.displayed_name,
@@ -135,32 +133,6 @@ def launch_request(er_id: int):
                              database_name=export_request.target_name,
                              selected_tables=export_request.tables.values_list("omop_table_name", flat=True))
     push_email_notification(base_notification=export_request_succeeded, **notification_data)
-
-
-@celery_app.task()
-@ensure_single_task("delete_export_requests_csv_files")
-def delete_export_requests_csv_files():
-    d = timezone.now() - timedelta(days=settings.DAYS_TO_DELETE_CSV_FILES)
-    export_requests = ExportRequest.objects.filter(request_job_status=JobStatus.finished,
-                                                   output_format=ExportType.CSV,
-                                                   is_user_notified=True,
-                                                   insert_datetime__lte=d,
-                                                   cleaned_at__isnull=True)
-    for export_request in export_requests:
-        owner = export_request.owner
-        if not owner:
-            _logger_err.error(f"ExportRequest {export_request.id} has no owner")
-            continue
-        try:
-            conf_exports.delete_file(export_request.target_full_path)
-            notification_data = dict(recipient_name=export_request.owner.displayed_name,
-                                     recipient_email=export_request.owner.email,
-                                     cohort_id=export_request.cohort_id)
-            push_email_notification(base_notification=exported_csv_files_deleted, **notification_data)
-            export_request.cleaned_at = timezone.now()
-            export_request.save()
-        except (RequestException, HdfsServerUnreachableError) as e:
-            _logger_err.exception(f"ExportRequest {export_request.id}: {e}")
 
 
 @shared_task
@@ -207,7 +179,40 @@ def launch_export_task(export_id: str):
         except RequestException as e:
             mark_export_request_as_failed(export, e, f"Could not conclude export {export_id}", now)
             return
-
     export.request_job_duration = timezone.now() - now
     export.save()
-    email_info_request_done(export)
+    notification_data = dict(recipient_name=export.owner.displayed_name,
+                             recipient_email=export.owner.email,
+                             export_request_id=export.id,
+                             cohort_id=export.cohort_id,
+                             cohort_name=export.cohort_name,
+                             output_format=export.output_format,
+                             database_name=export.target_name,
+                             selected_tables=export.export_tables.values_list("name", flat=True))
+    push_email_notification(base_notification=export_request_succeeded, **notification_data)
+
+
+@celery_app.task()
+@ensure_single_task("delete_export_requests_csv_files")
+def delete_export_requests_csv_files():
+    d = timezone.now() - timedelta(days=settings.DAYS_TO_DELETE_CSV_FILES)
+    export_requests = ExportRequest.objects.filter(request_job_status=JobStatus.finished,
+                                                   output_format=ExportType.CSV,
+                                                   is_user_notified=True,
+                                                   insert_datetime__lte=d,
+                                                   cleaned_at__isnull=True)
+    for export_request in export_requests:
+        owner = export_request.owner
+        if not owner:
+            _logger_err.error(f"ExportRequest {export_request.id} has no owner")
+            continue
+        try:
+            conf_exports.delete_file(export_request.target_full_path)
+            notification_data = dict(recipient_name=export_request.owner.displayed_name,
+                                     recipient_email=export_request.owner.email,
+                                     cohort_id=export_request.cohort_id)
+            push_email_notification(base_notification=exported_csv_files_deleted, **notification_data)
+            export_request.cleaned_at = timezone.now()
+            export_request.save()
+        except (RequestException, HdfsServerUnreachableError) as e:
+            _logger_err.exception(f"ExportRequest {export_request.id}: {e}")

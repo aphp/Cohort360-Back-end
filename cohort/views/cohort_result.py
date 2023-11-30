@@ -19,6 +19,7 @@ from cohort.serializers import CohortResultSerializer, CohortResultSerializerFul
 from cohort.services.cohort_rights import cohort_rights_service
 from cohort.services.misc import is_sjs_or_etl_user
 from cohort.views.shared import UserObjectsRestrictedViewSet
+from exports.services.export import export_service
 
 
 class CohortFilter(filters.FilterSet):
@@ -168,6 +169,8 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
         response = super(CohortResultViewSet, self).partial_update(request, *args, **kwargs)
         if status.is_success(response.status_code):
+            if is_update_from_sjs and cohort.export_table.exists():
+                export_service.check_all_cohort_subsets_created(export=cohort.export_table.export)
             cohort_service.send_email_notification(cohort=cohort,
                                                    is_update_from_sjs=is_update_from_sjs,
                                                    is_update_from_etl=is_update_from_etl)

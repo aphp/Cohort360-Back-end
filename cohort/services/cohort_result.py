@@ -12,7 +12,6 @@ from cohort.models.dated_measure import GLOBAL_DM_MODE
 from cohort.services.conf_cohort_job_api import fhir_to_job_status, get_authorization_header
 from cohort.services.emails import send_email_notif_about_large_cohort
 from cohort.tasks import get_count_task, create_cohort_task
-from exports.services.export import export_service
 
 JOB_STATUS = "request_job_status"
 GROUP_ID = "group.id"
@@ -128,8 +127,6 @@ class CohortResultService:
     def send_email_notification(cohort: CohortResult, is_update_from_sjs: bool, is_update_from_etl: bool) -> None:
         if is_update_from_sjs:
             _logger.info(f"Cohort [{cohort.uuid}] successfully updated from SJS")
-            if cohort.export_table.exists():
-                export_service.check_all_cohort_subsets_created(export=cohort.export_table.export)
         if is_update_from_etl:
             try:
                 send_email_notif_about_large_cohort(cohort.name, cohort.fhir_group_id, cohort.owner)

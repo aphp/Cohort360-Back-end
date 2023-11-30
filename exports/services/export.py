@@ -14,26 +14,26 @@ class ExportService:
 
     @staticmethod
     def validate_tables_data(tables_data: List[dict]):
-        source_cohorts_count = 0
+        found_source_cohorts = False
         for table in tables_data:
             if table.get("name") == PERSON_TABLE and not table.get("cohort_result_source"):
                 raise ValueError("The `person` table can not be exported without a source cohort")
             if table.get("cohort_result_source"):
-                source_cohorts_count += 1
-        if not source_cohorts_count:
+                found_source_cohorts = True
+        if not found_source_cohorts:
             raise ValueError("No source cohort was provided. Must at least provide a source cohort for the `person` table")
         return True
 
     @staticmethod
     def create_tables(http_request, tables_data: List[dict], export: Export) -> None:
-        count_cohort_subsets_to_create = 0
+        create_cohort_subsets = False
         for td in tables_data:
             cohort_subset = None
             if td.get("cohort_result_source"):
                 if not td.get("fhir_filter"):
                     cohort_subset = td.get("cohort_result_source")
                 else:
-                    count_cohort_subsets_to_create += 1
+                    create_cohort_subsets = True
                     cohort_subset = cohort_service.create_cohort_subset(owner_id=export.owner_id,
                                                                         table_name=td.get("name"),
                                                                         fhir_filter=td.get("fhir_filter"),
@@ -44,8 +44,7 @@ class ExportService:
                                        fhir_filter=td.get("fhir_filter"),
                                        cohort_result_source=td.get("cohort_result_source"),
                                        cohort_result_subset=cohort_subset)
-
-        if not count_cohort_subsets_to_create:
+        if not create_cohort_subsets:
             ExportService.launch_export(export=export)
 
     @staticmethod
