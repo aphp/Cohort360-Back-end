@@ -61,7 +61,17 @@ class TestQueryFormatter(CohortAppTests):
     @mock.patch("cohort.crb.query_formatter.query_fhir")
     def test_format_to_fhir_simple_query(self, query_fhir):
         query_fhir.return_value = self.mocked_query_fhir_result
-        res = self.query_formatter.format_to_fhir(self.cohort_query_simple)
+        res = self.query_formatter.format_to_fhir(self.cohort_query_simple, False)
+        self.assertEquals(1, len(res.criteria))
+        res_criteria = res.criteria[0]
+        self.assertEquals(ResourceType.PATIENT, res_criteria.resource_type)
+        self.assertEquals(self.fq_value_string, res_criteria.filter_solr, )
+        self.assertEquals("docstatus=final&type:not=doc-impor&empty=false&patient-active=true&_text=ok",
+                          res_criteria.filter_fhir)
+    @mock.patch("cohort.crb.query_formatter.query_fhir")
+    def test_format_to_fhir_simple_query_pseudo(self, query_fhir):
+        query_fhir.return_value = self.mocked_query_fhir_result
+        res = self.query_formatter.format_to_fhir(self.cohort_query_simple, True)
         self.assertEquals(1, len(res.criteria))
         res_criteria = res.criteria[0]
         self.assertEquals(ResourceType.PATIENT, res_criteria.resource_type)
@@ -72,7 +82,7 @@ class TestQueryFormatter(CohortAppTests):
     @mock.patch("cohort.crb.query_formatter.query_fhir")
     def test_format_to_fhir_complex_query(self, query_fhir):
         query_fhir.return_value = self.mocked_query_fhir_result
-        res = self.query_formatter.format_to_fhir(self.cohort_query_complex)
+        res = self.query_formatter.format_to_fhir(self.cohort_query_complex, False)
         self.assertEquals(6, len(res.criteria))
         res_criteria = res.criteria[1]
         self.assertEquals(ResourceType.PATIENT, res_criteria.resource_type)
