@@ -92,8 +92,7 @@ class RequestQuerySnapshotSerializer(BaseSerializer):
         read_only_fields = ["care_sites_ids",
                             "dated_measures",
                             "cohort_results",
-                            "shared_by",
-                            "version"]
+                            "shared_by"]
 
 
 class RequestSerializer(BaseSerializer):
