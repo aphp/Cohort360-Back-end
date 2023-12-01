@@ -19,6 +19,10 @@ class AccessesService:
                                      & Q(profile__source=MANUAL_SOURCE)
                                      & Q(profile__user=user))
 
+    def user_is_full_admin(self, user: User) -> bool:
+        return any(filter(lambda role: role.right_full_admin,
+                          [access.role for access in self.get_user_valid_accesses(user)]))
+
     def user_has_data_reading_accesses(self, user: User) -> bool:
         return self.get_user_valid_accesses(user=user).filter(Role.q_allow_read_patient_data_nominative()
                                                               | Role.q_allow_read_patient_data_pseudo())\
@@ -281,6 +285,10 @@ class AccessesService:
         return has_admin_accesses_managing_role, has_data_accesses_managing_role
 
     def can_user_manage_role_on_perimeter(self, user: User, target_role: Role, target_perimeter: Perimeter, readonly: bool = False) -> bool:
+        if target_role.name == "DATA ACCESSES MANAGER":
+            x = 1
+        if self.user_is_full_admin(user):
+            return True
         can_manage_admin_accesses = False
         can_manage_data_accesses = False
         can_manage_jupyter_accesses = False

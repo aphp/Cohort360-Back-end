@@ -13,10 +13,6 @@ def get_bound_roles(user: User) -> List[Role]:
     return [access.role for access in accesses_service.get_user_valid_accesses(user)]
 
 
-def user_is_full_admin(user: User) -> bool:
-    return any(filter(lambda role: role.right_full_admin, get_bound_roles(user)))
-
-
 def can_user_manage_roles(user: User) -> bool:
     return any(filter(lambda role: role.right_manage_roles, get_bound_roles(user)))
 

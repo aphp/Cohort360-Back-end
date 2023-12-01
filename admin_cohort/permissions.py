@@ -1,7 +1,8 @@
 from rest_framework import permissions
 from rest_framework.permissions import OR as drf_OR
 
-from accesses.permissions import user_is_full_admin, can_user_read_users, can_user_read_logs
+from accesses.permissions import can_user_read_users, can_user_read_logs
+from accesses.services.access import accesses_service
 from admin_cohort.models import User
 from admin_cohort.settings import ETL_USERNAME
 
@@ -15,7 +16,7 @@ class MaintenancesPermission(permissions.BasePermission):
         if request.method in permissions.SAFE_METHODS:
             return True
         user = request.user
-        return user_is_authenticated(user) and (user_is_full_admin(user) or
+        return user_is_authenticated(user) and (accesses_service.user_is_full_admin(user) or
                                                 user.provider_username == ETL_USERNAME)
 
 
@@ -61,7 +62,7 @@ class CachePermission(permissions.BasePermission):
     def has_permission(self, request, view):
         return user_is_authenticated(user=request.user) \
             and request.method in ["GET", "DELETE"] \
-            and user_is_full_admin(user=request.user)
+            and accesses_service.user_is_full_admin(user=request.user)
 
 
 def either(*perms):

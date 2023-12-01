@@ -493,7 +493,7 @@ class ViewSetTests(BaseTests):
         res = PagedResponse(response)
 
         self.assertEqual(res.count, len(case.to_find),
-                         case.description + f"Found: {'-'.join([f'{r.id} ({ r.name})' for r in res.results])}")
+                         case.description + f'''Found: {" - ".join([f"{r.get('id')}({r.get('name')})" for r in res.results])}''')
 
         obj_to_find_ids = [str(obj.pk) for obj in case.to_find]
         current_obj_found_ids = [obj.get(self.model._meta.pk.name)

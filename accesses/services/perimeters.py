@@ -3,7 +3,6 @@ from typing import Set, List
 from django.db.models import QuerySet
 
 from accesses.models import Perimeter, Role
-from accesses.permissions import user_is_full_admin
 from accesses.services.access import accesses_service
 from accesses.services.shared import PerimeterReadRight
 from admin_cohort.models import User
@@ -64,9 +63,9 @@ class PerimetersService:
                                                                                 P11         P12
         """
         user_accesses = accesses_service.get_user_valid_accesses(user=user)
-        if user_is_full_admin(user=user) or all(access.role.has_any_global_management_right()
-                                                and not access.role.has_any_level_dependent_management_right()
-                                                for access in user_accesses):
+        if accesses_service.user_is_full_admin(user=user) or all(access.role.has_any_global_management_right()
+                                                                 and not access.role.has_any_level_dependent_management_right()
+                                                                 for access in user_accesses):
             return Perimeter.objects.filter(parent__isnull=True)
         else:
             same_level_accesses = user_accesses.filter(Role.q_allow_manage_accesses_on_same_level())

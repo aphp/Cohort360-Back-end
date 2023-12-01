@@ -13,6 +13,8 @@ role_full_admin_data = {**{right.name: True for right in all_rights}, "name": "F
 
 role_admin_accesses_manager_data = {**ALL_FALSY_RIGHTS,
                                     "name": "ADMIN ACCESSES MANAGER",
+                                    "right_manage_roles": True,
+                                    "right_read_roles": True,
                                     "right_manage_admin_accesses_same_level": True,
                                     "right_read_admin_accesses_same_level": True,
                                     "right_manage_admin_accesses_inferior_levels": True,
@@ -20,6 +22,8 @@ role_admin_accesses_manager_data = {**ALL_FALSY_RIGHTS,
 
 role_data_accesses_manager_data = {**ALL_FALSY_RIGHTS,
                                    "name": "DATA ACCESSES MANAGER",
+                                   # "right_manage_roles": True,                todo: review roles requirements to be managed   /!\
+                                   # "right_read_roles": True,
                                    "right_manage_data_accesses_same_level": True,
                                    "right_read_data_accesses_same_level": True,
                                    "right_manage_data_accesses_inferior_levels": True,
@@ -27,8 +31,15 @@ role_data_accesses_manager_data = {**ALL_FALSY_RIGHTS,
 
 role_nomi_reader_nomi_csv_exporter_data = {**ALL_FALSY_RIGHTS,
                                            "name": "DATA NOMI READER + CSV EXPORTER",
+                                           "right_manage_roles": True,
+                                           "right_read_roles": True,
                                            "right_read_patient_nominative": True,
                                            "right_export_csv_nominative": True}
+
+role_roles_manager_data = {**ALL_FALSY_RIGHTS,
+                           "name": "ROLES MANAGER",
+                           "right_manage_roles": True,
+                           "right_read_roles": True}
 
 
 class RoleRetrieveFilter(CaseRetrieveFilter):
@@ -52,20 +63,29 @@ class RoleViewTests(AccessesAppTestsBase):
 
     def setUp(self):
         super().setUp()
-        self.user_roles_manager, self.profile = new_user_and_profile(firstname="User",
-                                                                     lastname="CAN MANAGE ROLES",
-                                                                     email="user.who_can_manage_roles@aphp.fr")
-        self.roles_manager_rights = ALL_FALSY_RIGHTS
-        self.roles_manager_rights.update({'right_manage_roles': True, 'right_read_roles': True})
-        self.roles_manager_role = Role.objects.create(**self.roles_manager_rights)
-        self.roles_manager_access = Access.objects.create(profile=self.profile,
-                                                          role=self.roles_manager_role,
-                                                          perimeter=self.aphp)
         # roles for testing the `assignable` view
         self.role_full_admin = Role.objects.create(**role_full_admin_data)
         self.role_admin_accesses_manager = Role.objects.create(**role_admin_accesses_manager_data)
         self.role_data_accesses_manager = Role.objects.create(**role_data_accesses_manager_data)
         self.role_nomi_reader_nomi_csv_exporter = Role.objects.create(**role_nomi_reader_nomi_csv_exporter_data)
+        self.role_roles_manager = Role.objects.create(**role_roles_manager_data)
+
+        self.user_roles_manager, self.profile = new_user_and_profile(firstname="User",
+                                                                     lastname="CAN MANAGE ROLES",
+                                                                     email="user.who_can_manage_roles@aphp.fr")
+        self.roles_manager_access = Access.objects.create(profile=self.profile,
+                                                          role=self.role_roles_manager,
+                                                          perimeter=self.aphp)
+        self.user_full_admin_on_aphp, self.profile_full_admin_on_aphp = new_user_and_profile(firstname="Full",
+                                                                                             lastname="ADMIN",
+                                                                                             email="user.full_admin@aphp.fr")
+        Access.objects.create(profile=self.profile_full_admin_on_aphp, role=self.role_full_admin, perimeter=self.aphp)
+
+        self.all_roles = [self.role_full_admin,
+                          self.role_admin_accesses_manager,
+                          self.role_data_accesses_manager,
+                          self.role_nomi_reader_nomi_csv_exporter,
+                          self.role_roles_manager]
 
     def test_role_unique_name(self):
         data = {**ALL_FALSY_RIGHTS,
@@ -197,29 +217,50 @@ class RoleViewTests(AccessesAppTestsBase):
               |            |                                                    |            |
              P1          P12                                                  P13          P14
         """
-        user_full_admin_on_aphp, profile_full_admin_on_aphp = new_user_and_profile(firstname="Full",
-                                                                                   lastname="ADMIN",
-                                                                                   email="user.full_admin@aphp.fr")
-        access_full_admin_on_aphp = Access.objects.create(profile=profile_full_admin_on_aphp,
-                                                          role=self.role_full_admin,
-                                                          perimeter=self.aphp)
-        all_roles = [self.role_full_admin,
-                     self.role_admin_accesses_manager,
-                     self.role_data_accesses_manager,
-                     self.role_nomi_reader_nomi_csv_exporter]
-
         case = ListCase(params={"perimeter_id": self.aphp.id},
-                        to_find=all_roles,     # all roles
-                        user=user_full_admin_on_aphp,
+                        to_find=self.all_roles,
+                        user=self.user_full_admin_on_aphp,
                         status=status.HTTP_200_OK,
                         success=True)
         self.check_get_paged_list_case(case, other_view=RoleViewTests.assignable_view)
 
-    def test_get_assignable_roles_on_perimeter_APHP_as_full_admin_on_P13(self):
-        ...
+    def test_get_assignable_roles_on_any_child_perimeter_of_APHP_as_full_admin_on_APHP(self):
+        # according to the hierarchy above, target perimeters for ex: P5, P7 and P13
+        # expected behavior: return all roles
+        cases = [ListCase(title="get assignable role on perimeter P5",
+                          params={"perimeter_id": self.p5.id},
+                          to_find=self.all_roles,
+                          user=self.user_full_admin_on_aphp,
+                          status=status.HTTP_200_OK,
+                          success=True),
+                 ListCase(title="get assignable role on perimeter P7",
+                          params={"perimeter_id": self.p7.id},
+                          to_find=self.all_roles,
+                          user=self.user_full_admin_on_aphp,
+                          status=status.HTTP_200_OK,
+                          success=True),
+                 ListCase(title="get assignable role on perimeter P13",
+                          params={"perimeter_id": self.p13.id},
+                          to_find=self.all_roles,
+                          user=self.user_full_admin_on_aphp,
+                          status=status.HTTP_200_OK,
+                          success=True)]
+        for case in cases:
+            self.check_get_paged_list_case(case, other_view=RoleViewTests.assignable_view)
 
     def test_get_assignable_roles_on_perimeter_P0_as_admin_accesses_manager_on_APHP(self):
-        ...
+        # according to the hierarchy above
+        # expected behavior: return `role_data_accesses_manager` only
+        user_admin_accesses_manager_on_aphp, profile = new_user_and_profile(firstname="AdministrationAccesses",
+                                                                            lastname="MANAGER",
+                                                                            email="user.admin_acc_manager@aphp.fr")
+        Access.objects.create(profile=profile, role=self.role_admin_accesses_manager, perimeter=self.aphp)
+        case = ListCase(params={"perimeter_id": self.p0.id},
+                        to_find=[self.role_data_accesses_manager],
+                        user=user_admin_accesses_manager_on_aphp,
+                        status=status.HTTP_200_OK,
+                        success=True)
+        self.check_get_paged_list_case(case, other_view=RoleViewTests.assignable_view)
 
     def test_get_assignable_roles_on_perimeter_P0_as_admin_accesses_manager_on_P0(self):
         ...
