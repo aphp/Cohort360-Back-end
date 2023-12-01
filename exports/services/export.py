@@ -24,8 +24,7 @@ class ExportService:
             raise ValueError("No source cohort was provided. Must at least provide a source cohort for the `person` table")
         return True
 
-    @staticmethod
-    def create_tables(http_request, tables_data: List[dict], export: Export) -> None:
+    def create_tables(self, http_request, tables_data: List[dict], export: Export) -> None:
         create_cohort_subsets = False
         for td in tables_data:
             cohort_subset = None
@@ -45,16 +44,15 @@ class ExportService:
                                        cohort_result_source=td.get("cohort_result_source"),
                                        cohort_result_subset=cohort_subset)
         if not create_cohort_subsets:
-            ExportService.launch_export(export=export)
+            self.launch_export(export=export)
 
-    @staticmethod
-    def check_all_cohort_subsets_created(export: Export):
+    def check_all_cohort_subsets_created(self, export: Export):
         for table in export.export_tables.filter(cohort_result_subset__isnull=False):
             if table.cohort_result_subset.request_job_status != JobStatus.finished:
                 _logger.info(f"Export [{export.uuid}]: waiting for some cohort subsets to finish before launching export")
                 return
         _logger.info(f"Export [{export.uuid}]: all cohort subsets were successfully created. Launching export.")
-        ExportService.launch_export(export=export)
+        self.launch_export(export=export)
 
     @staticmethod
     def launch_export(export: Export):

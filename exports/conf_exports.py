@@ -221,7 +221,7 @@ def post_export(export_request: ExportRequest) -> str:
 
 def post_export_v1(export: Export) -> str:
     log_export_request_task(export.uuid, f"Asking to export for '{export.target_name}'")
-    tables = ",".join([f"{table.name}:{table.cohort_result_subset}:{table.respect_table_relationships}"
+    tables = ",".join([f"{table.name}:{table.cohort_result_subset.fhir_group_id}:{table.respect_table_relationships}"
                        for table in export.export_tables.all()])
     params = {"tables": tables,
               "environment": OMOP_ENVIRONMENT,

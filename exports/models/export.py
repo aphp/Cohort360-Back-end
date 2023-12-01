@@ -6,7 +6,7 @@ from exports.models import ExportsBaseModel, Datalab
 from exports.types import ExportStatus, ExportType
 
 STATUSES = [(status.name, status.value) for status in ExportStatus]
-OUTPUT_FORMATS = [(out_format.name, out_format.value) for out_format in ExportType]
+OUTPUT_FORMATS = [(out_format.value, out_format.value) for out_format in ExportType]
 
 
 class Export(ExportsBaseModel):

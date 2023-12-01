@@ -18,7 +18,7 @@ class ExportViewSetTest(ExportsTestBase):
 
     def setUp(self):
         super().setUp()
-        self.datalab = Datalab.objects.create(infrastructure_provider=self.infra_provider_aphp)
+        self.datalab = Datalab.objects.create(name="main_datalab", infrastructure_provider=self.infra_provider_aphp)
         self.cohort_result = CohortResult.objects.create(name="Cohort For Export Purposes",
                                                          owner=self.csv_exporter_user)
         self.fhir_filter = FhirFilter.objects.create(name="Some FHIR Filter",
@@ -26,7 +26,7 @@ class ExportViewSetTest(ExportsTestBase):
                                                      fhir_resource="some_resource",
                                                      filter="some_filter")
         self.csv_export_basic_data = {"name": "Special Export",
-                                      "output_format": ExportType.CSV.name,
+                                      "output_format": ExportType.CSV,
                                       "owner": self.csv_exporter_user.pk,
                                       "status": ExportStatus.PENDING.name,
                                       "target_name": "12345_09092023_151500",
@@ -35,7 +35,7 @@ class ExportViewSetTest(ExportsTestBase):
                                                          "fhir_filter": self.fhir_filter.uuid}]
                                       }
         self.exports = [Export.objects.create(**dict(name=f"Export_{i}",
-                                                     output_format=ExportType.CSV.name,
+                                                     output_format=ExportType.CSV,
                                                      owner=self.csv_exporter_user,
                                                      status=ExportStatus.PENDING.name,
                                                      target_name="12345_09092023_151500"

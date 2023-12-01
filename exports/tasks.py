@@ -30,7 +30,7 @@ def log_export_request_task(er_id, msg):
 
 def mark_export_request_as_failed(er: ExportRequest, e: Exception, msg: str, start: datetime):
     err_msg = f"{msg}: {e}"
-    _logger_err.error(f"[ExportTask] [ExportRequest: {er.id}] {err_msg}")
+    _logger_err.error(f"[ExportTask] [ExportRequest: {er.pk}] {err_msg}")
     er.request_job_fail_msg = err_msg
     if er.request_job_status in [JobStatus.pending, JobStatus.validated, JobStatus.new]:
         er.request_job_status = JobStatus.failed
@@ -43,7 +43,7 @@ def mark_export_request_as_failed(er: ExportRequest, e: Exception, msg: str, sta
                                  error_message=er.request_job_fail_msg)
         push_email_notification(base_notification=export_request_failed, **notification_data)
     except OSError:
-        _logger_err.error(f"[ExportTask] [ExportRequest: {er.id}] Error sending export failure email notification")
+        _logger_err.error(f"[ExportTask] [ExportRequest: {er.pk}] Error sending export failure email notification")
     else:
         er.is_user_notified = True
     er.save()
@@ -56,15 +56,15 @@ def wait_for_export_job(er: ExportRequest):
 
     while errors_count < 5 and not status_resp.has_ended:
         time.sleep(5)
-        log_export_request_task(er.id, f"Asking for status of job {er.request_job_id}.")
+        log_export_request_task(er.pk, f"Asking for status of job {er.request_job_id}.")
         try:
             status_resp: ApiJobResponse = conf_exports.get_job_status(service="bigdata", job_id=er.request_job_id)
-            log_export_request_task(er.id, f"Status received: {status_resp.status} - Err: {status_resp.err or ''}")
+            log_export_request_task(er.pk, f"Status received: {status_resp.status} - Err: {status_resp.err or ''}")
             if er.request_job_status != status_resp.status:
                 er.request_job_status = status_resp.status
                 er.save()
         except RequestException as e:
-            log_export_request_task(er.id, f"Status not received: {e}")
+            log_export_request_task(er.pk, f"Status not received: {e}")
             errors_count += 1
             error_msg = str(e)
 
@@ -183,10 +183,10 @@ def launch_export_task(export_id: str):
     export.save()
     notification_data = dict(recipient_name=export.owner.displayed_name,
                              recipient_email=export.owner.email,
-                             export_request_id=export.id,
-                             cohort_id=export.cohort_id,
-                             cohort_name=export.cohort_name,
-                             output_format=export.output_format,
+                             export_request_id=export_id,
+                             cohort_id=output_format == ExportType.CSV and export.cohort_id or None,
+                             cohort_name=None,
+                             output_format=output_format,
                              database_name=export.target_name,
                              selected_tables=export.export_tables.values_list("name", flat=True))
     push_email_notification(base_notification=export_request_succeeded, **notification_data)
