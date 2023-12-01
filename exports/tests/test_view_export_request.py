@@ -2,7 +2,7 @@ import random
 from datetime import timedelta
 from typing import List
 from unittest import mock
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock
 
 import requests
 from django.utils import timezone
