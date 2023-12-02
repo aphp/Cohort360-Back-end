@@ -249,6 +249,7 @@ class AccessesService:
         return self.get_user_valid_accesses(user).filter((Q(perimeter=perimeter) & Role.q_allow_manage_accesses_on_same_level())
                                                          | (perimeter.q_all_parents() & Role.q_allow_manage_accesses_on_inf_levels())
                                                          | Role.q_allow_manage_export_accesses()) \
+                                                 .distinct()\
                                                  .select_related("role")
 
     def get_user_reading_accesses_on_perimeter(self, user: User, perimeter: Perimeter) -> QuerySet:
@@ -260,6 +261,7 @@ class AccessesService:
         return self.get_user_valid_accesses(user).filter((Q(perimeter=perimeter) & Role.q_allow_read_accesses_on_same_level())
                                                          | (perimeter.q_all_parents() & Role.q_allow_read_accesses_on_inf_levels())
                                                          | Role.q_allow_manage_export_accesses()) \
+                                                 .distinct() \
                                                  .select_related("role")
 
     def can_user_read_role_on_perimeter(self, user: User, target_role: Role, target_perimeter: Perimeter) -> bool:

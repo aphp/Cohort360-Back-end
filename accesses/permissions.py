@@ -21,14 +21,6 @@ def can_user_read_roles(user: User) -> bool:
     return any(filter(lambda role: role.right_read_roles, get_bound_roles(user)))
 
 
-def can_user_manage_access(user: User, role: Role, perimeter: Perimeter) -> bool:
-    return accesses_service.can_user_manage_access(user, role, perimeter)
-
-
-def can_user_read_access(user: User, role: Role, perimeter: Perimeter) -> bool:
-    return accesses_service.can_user_read_access(user, role, perimeter)
-
-
 def can_user_manage_accesses(user: User) -> bool:
     return any(filter(lambda role: role.can_manage_accesses, get_bound_roles(user)))
 
@@ -93,14 +85,14 @@ class AccessesPermission(permissions.BasePermission):
                 if request.method == "POST":
                     role = Role.objects.get(pk=request.data.get("role_id"))
                     perimeter = Perimeter.objects.get(pk=request.data.get("perimeter_id"))
-                    return can_user_manage_access(request.user, role, perimeter)    # check whether can user assign role when creating new access
+                    return accesses_service.can_user_manage_access(request.user, role, perimeter)
                 return True
         return request.method in permissions.SAFE_METHODS and can_user_read_accesses(request.user)
 
     def has_object_permission(self, request, view, obj):
         if request.method in ["PATCH", "DELETE"]:
-            return can_user_manage_access(request.user, obj.role, obj.perimeter)
-        return request.method == "GET" and can_user_read_access(request.user, obj.role, obj.perimeter)
+            return accesses_service.can_user_manage_access(request.user, obj.role, obj.perimeter)
+        return request.method == "GET" and accesses_service.can_user_read_access(request.user, obj.role, obj.perimeter)
 
 
 class ProfilesPermission(permissions.BasePermission):
