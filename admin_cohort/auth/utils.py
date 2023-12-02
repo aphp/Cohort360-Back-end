@@ -145,6 +145,8 @@ def get_userinfo_from_token(token: str, auth_method: str) -> Union[None, UserInf
     if token == env("SJS_TOKEN"):
         _logger.info("SJS token connexion")
         return UserInfo.sjs()
+    if token == env("ROLLOUT_MAINTENANCE_TOKEN"):
+        return UserInfo.rollout()
 
     if auth_method == JWT_AUTH_MODE:
         try:

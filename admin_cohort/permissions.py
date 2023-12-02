@@ -3,7 +3,7 @@ from rest_framework import permissions
 from rest_framework.permissions import OR as drf_OR
 
 from admin_cohort.models import User
-from admin_cohort.settings import ETL_USERNAME, ADMINS
+from admin_cohort.settings import ETL_USERNAME, ADMINS, ROLLOUT_USERNAME
 
 
 def user_is_authenticated(user):
@@ -46,8 +46,8 @@ class MaintenancePermission(permissions.BasePermission):
         if request.method in permissions.SAFE_METHODS:
             return True
         user = request.user
-        return user_is_authenticated(user) and (user_is_admin(user) or
-                                                user.provider_username == ETL_USERNAME)
+        return user_is_authenticated(user) and \
+            (user_is_admin(user) or user.provider_username in (ROLLOUT_USERNAME, ETL_USERNAME))
 
 
 class LogsPermission(permissions.BasePermission):
