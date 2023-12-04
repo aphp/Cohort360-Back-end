@@ -13,8 +13,6 @@ role_full_admin_data = {**{right.name: True for right in all_rights}, "name": "F
 
 role_admin_accesses_manager_data = {**ALL_FALSY_RIGHTS,
                                     "name": "ADMIN ACCESSES MANAGER",
-                                    "right_manage_roles": True,
-                                    "right_read_roles": True,
                                     "right_manage_admin_accesses_same_level": True,
                                     "right_read_admin_accesses_same_level": True,
                                     "right_manage_admin_accesses_inferior_levels": True,
@@ -22,8 +20,6 @@ role_admin_accesses_manager_data = {**ALL_FALSY_RIGHTS,
 
 role_data_accesses_manager_data = {**ALL_FALSY_RIGHTS,
                                    "name": "DATA ACCESSES MANAGER",
-                                   # "right_manage_roles": True,                todo: review roles requirements to be managed   /!\
-                                   # "right_read_roles": True,
                                    "right_manage_data_accesses_same_level": True,
                                    "right_read_data_accesses_same_level": True,
                                    "right_manage_data_accesses_inferior_levels": True,
@@ -31,20 +27,12 @@ role_data_accesses_manager_data = {**ALL_FALSY_RIGHTS,
 
 role_nomi_reader_nomi_csv_exporter_data = {**ALL_FALSY_RIGHTS,
                                            "name": "DATA NOMI READER + CSV EXPORTER",
-                                           "right_manage_roles": True,
-                                           "right_read_roles": True,
                                            "right_read_patient_nominative": True,
                                            "right_export_csv_nominative": True}
 
 role_roles_manager_data = {**ALL_FALSY_RIGHTS,
-                           "name": "ROLES MANAGER",
-                           "right_manage_roles": True,
-                           "right_read_roles": True}
+                           "name": "ROLES MANAGER"}
 
-# todo: suggestion: remove right_manage/read_roles
-#       only full_admin can manage roles on Portail
-#       make roles available for all users to see on Portail
-6+
 
 class RoleRetrieveFilter(CaseRetrieveFilter):
 

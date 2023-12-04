@@ -1,15 +1,15 @@
 from __future__ import annotations
 
+from typing import List
+
 from django.db import models
 from django.db.models import Q, UniqueConstraint
 
-from accesses.services.shared import all_rights
+from accesses.services.shared import all_rights, right_groups_service
 from admin_cohort.models import BaseModel
 from admin_cohort.tools import join_qs
 
 ROLES_HELP_TEXT = dict(right_full_admin="Super user",
-                       right_manage_roles="Gérer les rôles",
-                       right_read_roles="Consulter la liste des rôles",
                        right_read_logs="Lire l'historique des requêtes des utilisateurs",
                        right_manage_users="Gérer la liste des utilisateurs/profils",
                        right_read_users="Consulter la liste des utilisateurs/profils",
@@ -45,8 +45,6 @@ class Role(BaseModel):
     name = models.TextField(blank=True, null=True)
     right_full_admin = models.BooleanField(default=False, null=False)
     right_read_logs = models.BooleanField(default=False, null=False)
-    right_manage_roles = models.BooleanField(default=False, null=False)
-    right_read_roles = models.BooleanField(default=False, null=False)
     right_manage_users = models.BooleanField(default=False, null=False)
     right_read_users = models.BooleanField(default=False, null=False)
     # Datalabs
@@ -85,9 +83,15 @@ class Role(BaseModel):
                                         fields=[right.name for right in all_rights],
                                         condition=Q(delete_datetime__isnull=True))]
 
+    def __eq__(self, other_role) -> bool:
+        return all(getattr(self, right.name, False) == getattr(other_role, right.name, False)
+                   for right in all_rights)
+
+    def __gt__(self, other_role) -> bool:
+        return right_groups_service.does_role1_prime_over_role2(role1=self, role2=other_role)
+
     def has_any_global_management_right(self):
         return any((self.right_full_admin,
-                    self.right_manage_roles,
                     self.right_manage_users,
                     self.right_manage_datalabs,
                     self.right_manage_export_csv_accesses,
@@ -163,77 +167,7 @@ class Role(BaseModel):
         return join_qs([Q(**{f"role__{right.name}": True})
                         for right in all_rights if right.impact_inferior_levels])
 
-    @property
-    def can_manage_accesses(self):
-        return any((self.right_full_admin,
-                    self.right_manage_admin_accesses_same_level,
-                    self.right_manage_admin_accesses_inferior_levels,
-                    self.right_manage_data_accesses_same_level,
-                    self.right_manage_data_accesses_inferior_levels,
-                    self.right_manage_export_jupyter_accesses,
-                    self.right_manage_export_csv_accesses))
-
-    @property
-    def can_read_accesses(self):
-        return self.can_manage_accesses \
-               or any((self.right_read_admin_accesses_same_level,
-                       self.right_read_admin_accesses_inferior_levels,
-                       self.right_read_accesses_above_levels,
-                       self.right_read_data_accesses_same_level,
-                       self.right_read_data_accesses_inferior_levels))
-
-# -+-+-+-+-+-+-+-+-+-+-+-+-     Roles requirements to be managed    -+-+-+-+-+-+-+-+-+-+-+-+-
-
-    @property
-    def requires_csv_accesses_managing_role_to_be_managed(self):
-        # requires having: right_manage_export_csv_accesses = True
-        return any((self.right_export_csv_nominative,
-                    self.right_export_csv_pseudonymized))
-
-    @property
-    def requires_jupyter_accesses_managing_role_to_be_managed(self):
-        # requires having: right_manage_export_jupyter_accesses = True
-        return any((self.right_export_jupyter_nominative,
-                    self.right_export_jupyter_pseudonymized))
-
-    @property
-    def requires_data_accesses_managing_role_to_be_managed(self):
-        # requires having: right_manage/read_data_accesses_same/inf_level = True
-        return any((self.right_read_patient_nominative,
-                    self.right_read_patient_pseudonymized,
-                    self.right_search_patients_by_ipp,
-                    self.right_search_opposed_patients))
-
-    @property
-    def requires_admin_accesses_managing_role_to_be_managed(self):
-        # requires having: right_manage/read_admin_accesses_same/inf_level = True
-        return any((self.right_manage_data_accesses_same_level,
-                    self.right_read_data_accesses_same_level,
-                    self.right_manage_data_accesses_inferior_levels,
-                    self.right_read_data_accesses_inferior_levels))
-
-    @property
-    def requires_full_admin_role_to_be_managed(self):
-        # requires having: right_full_admin = True
-        return any((self.right_full_admin,
-                    self.right_read_logs,
-                    self.right_manage_roles,
-                    self.right_read_roles,
-                    self.right_manage_users,
-                    self.right_read_users,
-                    self.right_manage_datalabs,
-                    self.right_read_datalabs,
-                    self.right_manage_export_csv_accesses,
-                    self.right_manage_export_jupyter_accesses,
-                    self.right_manage_admin_accesses_same_level,
-                    self.right_read_admin_accesses_same_level,
-                    self.right_manage_admin_accesses_inferior_levels,
-                    self.right_read_admin_accesses_inferior_levels,
-                    self.right_read_accesses_above_levels))
-
-# -+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
-
-    def get_help_text_for_right_manage_admin_accesses(self):
+    def get_help_text_for_right_manage_admin_accesses(self):                                            # todo: move to     roles_service       /!\
         return build_help_text(text_root="Gérer les accès des administrateurs",
                                on_same_level=self.right_manage_admin_accesses_same_level,
                                on_inferior_levels=self.right_manage_admin_accesses_inferior_levels)

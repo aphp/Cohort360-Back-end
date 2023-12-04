@@ -27,7 +27,7 @@ B1 --> B2
 ```mermaid
 classDiagram
 class RolesEditors {
-  right_manage_roles
+  right_full_admin
 }
 class AdminManager {
   right_manage_admin_accesses_same_level
@@ -150,7 +150,7 @@ Les accès concernant des droits de type Action Validation ou Action Données : 
 - right_read_admin_accesses_same_level/inferior_levels.
 
 Les accès concernant au moins un droit de type _Rôles_, _Logs_, _Actions Admin_, _User Admin_ (sans read_users) ou _AdminManager_ avec, ou non, _ADMIN_ et/ou _Données_ mais aucun autre : 
-- lus par right_manage_roles
+- lus par right_full_admin
 
 
 #### Spécifications pour les éditions
@@ -286,10 +286,10 @@ Imaginons un *Role* qui possède:
 
 Et bien pour pouvoir attribuer ce *Role* a quelqu'un, ou modifier un *Access* qui possède ce *Role*, il faut que moi-même j'ai un Role avec :
 - *right_manage_export_csv* (**ExportersAdmin**)
-- *right_manage_roles* (**RolesEditors**)
+- *right_full_admin* (**RolesEditors**)
 - *right_manage_admin_accesses_* (**AdminManager**)
 
-Et en effet, *right_manage_roles* **ne suffit pas** pour créer un accès avec *right_read_data_accesses_same_level* (**DataReadersAdmin**)
+Et en effet, *right_full_admin* **ne suffit pas** pour créer un accès avec *right_read_data_accesses_same_level* (**DataReadersAdmin**)
 
 #### Read
 

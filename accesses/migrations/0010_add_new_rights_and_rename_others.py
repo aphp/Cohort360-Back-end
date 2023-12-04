@@ -4,7 +4,7 @@ from django.db import migrations, models
 
 from accesses.services.shared import all_rights
 
-query_fill_right_full_admin_by_right_manage_roles = "UPDATE accesses_role SET right_full_admin = right_manage_roles;"
+query_fill_right_full_admin_by_right_manage_roles = "UPDATE accesses_role SET right_full_admin = right_edit_roles;"
 
 
 def enable_all_rights_for_full_admin_roles(apps, schema_editor):
@@ -29,20 +29,10 @@ class Migration(migrations.Migration):
             name='right_full_admin',
             field=models.BooleanField(default=False),
         ),
-        migrations.AddField(
-            model_name='role',
-            name='right_read_roles',
-            field=models.BooleanField(default=False),
-        ),
         migrations.RenameField(     # ---------------------------------------   RENAMED
             model_name='role',
             old_name='right_add_users',
             new_name='right_manage_users',
-        ),
-        migrations.RenameField(
-            model_name='role',
-            old_name='right_edit_roles',
-            new_name='right_manage_roles',
         ),
         migrations.RenameField(
             model_name='role',

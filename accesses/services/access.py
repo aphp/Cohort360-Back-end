@@ -1,5 +1,5 @@
 from datetime import date, timedelta
-from typing import List, Dict
+from typing import List, Dict, Union
 
 from django.db.models import QuerySet, Q, Prefetch, F
 
@@ -51,9 +51,9 @@ class AccessesService:
             to Front whether to allow the `edit`/`close` actions on access or not
         """
         for access in accesses:
-            if self.can_user_manage_role_on_perimeter(user=user, target_role=access.role, target_perimeter=access.perimeter):
+            if self.can_user_manage_access(user=user, target_access=access):
                 access.editable = True
-            elif self.can_user_read_role_on_perimeter(user=user, target_role=access.role, target_perimeter=access.perimeter):
+            elif self.can_user_read_access(user=user, target_access=access):
                 access.editable = False
             else:
                 accesses = accesses.exclude(id=access.id)
@@ -264,65 +264,157 @@ class AccessesService:
                                                  .distinct() \
                                                  .select_related("role")
 
-    def can_user_read_role_on_perimeter(self, user: User, target_role: Role, target_perimeter: Perimeter) -> bool:
-        return self.can_user_manage_role_on_perimeter(user=user,
-                                                      target_role=target_role,
-                                                      target_perimeter=target_perimeter,
-                                                      readonly=True)
-
     @staticmethod
-    def check_accesses_managing_roles_on_perimeter(access: Access, target_perimeter: Perimeter, readonly: bool):
-        role = access.role
-        if access.perimeter == target_perimeter:
-            has_admin_accesses_managing_role = readonly and role.right_read_admin_accesses_same_level or role.right_manage_admin_accesses_same_level
-            has_data_accesses_managing_role = readonly and role.right_read_data_accesses_same_level or role.right_manage_data_accesses_same_level
-        elif target_perimeter.is_child_of(perimeter=access.perimeter):
-            has_admin_accesses_managing_role = (readonly and role.right_read_admin_accesses_inferior_levels
-                                                or role.right_manage_admin_accesses_inferior_levels)
-            has_data_accesses_managing_role = (readonly and role.right_read_data_accesses_inferior_levels
-                                               or role.right_manage_data_accesses_inferior_levels)
+    def check_user_rights_on_perimeter(user_access: Access, target_perimeter: Perimeter, manage: False):
+        role = user_access.role
+        if target_perimeter == user_access.perimeter:
+            right_on_admin_accesses = manage and role.right_manage_admin_accesses_same_level or role.right_read_admin_accesses_same_level
+            right_on_data_accesses = manage and role.right_manage_data_accesses_same_level or role.right_read_data_accesses_same_level
+        elif target_perimeter.is_child_of(perimeter=user_access.perimeter):
+            right_on_admin_accesses = manage and role.right_manage_admin_accesses_inferior_levels or role.right_read_admin_accesses_inferior_levels
+            right_on_data_accesses = manage and role.right_manage_data_accesses_inferior_levels or role.right_read_data_accesses_inferior_levels
         else:
-            has_admin_accesses_managing_role = False
-            has_data_accesses_managing_role = False
-        return has_admin_accesses_managing_role, has_data_accesses_managing_role
+            return False, False
+        return right_on_admin_accesses, right_on_data_accesses
 
-    def can_user_manage_role_on_perimeter(self, user: User, target_role: Role, target_perimeter: Perimeter, readonly: bool = False) -> bool:
-        if target_role.name == "DATA ACCESSES MANAGER":
-            x = 1
+    def can_user_read_access(self, user: User, target_access: Access) -> bool:
+        if self.user_is_full_admin(user):
+            return True
+        can_read_admin_accesses = False
+        can_read_data_accesses = False
+        can_read_export_jupyter_accesses = False
+        can_read_export_csv_accesses = False
+
+        target_perimeter = target_access.perimeter
+        target_role = target_access.role
+
+        user_accesses = self.get_user_reading_accesses_on_perimeter(user=user, perimeter=target_perimeter)
+
+        for access in user_accesses:
+            can_read_admin_accesses_2, can_read_data_accesses_2 = self.check_user_rights_on_perimeter(user_access=access,
+                                                                                                      target_perimeter=target_perimeter,
+                                                                                                      manage=False)
+            can_read_admin_accesses = can_read_admin_accesses or can_read_admin_accesses_2
+            can_read_data_accesses = can_read_data_accesses or can_read_data_accesses_2
+            can_read_export_jupyter_accesses = can_read_export_jupyter_accesses or access.role.right_manage_export_jupyter_accesses
+            can_read_export_csv_accesses = can_read_export_csv_accesses or access.role.right_manage_export_csv_accesses
+
+        return not self.does_access_require_full_admin_role_to_be_read(role=target_role) \
+            and (can_read_admin_accesses or
+                 not self.does_access_require_admin_accesses_reading_role_to_be_read(role=target_role)) \
+            and (can_read_data_accesses or
+                 not self.does_access_require_data_accesses_reading_role_to_be_read(role=target_role)) \
+            and (can_read_export_jupyter_accesses or
+                 not self.does_access_require_jupyter_accesses_reading_role_to_be_read(role=target_role)) \
+            and (can_read_export_csv_accesses or
+                 not self.does_access_require_csv_accesses_reading_role_to_be_read(role=target_role))
+
+    def can_user_manage_access(self, user: User, target_access: Union[Access, dict]) -> bool:
         if self.user_is_full_admin(user):
             return True
         can_manage_admin_accesses = False
         can_manage_data_accesses = False
-        can_manage_jupyter_accesses = False
-        can_manage_csv_accesses = False
+        can_manage_export_jupyter_accesses = False
+        can_manage_export_csv_accesses = False
 
-        if not readonly:
-            user_accesses = self.get_user_managing_accesses_on_perimeter(user=user, perimeter=target_perimeter)
-        else:
-            user_accesses = self.get_user_reading_accesses_on_perimeter(user=user, perimeter=target_perimeter)
+        target_perimeter = isinstance(target_access, Access) and target_access.perimeter or target_access.get('perimeter')
+        target_role = isinstance(target_access, Access) and target_access.role or target_access.get('role')
+
+        user_accesses = self.get_user_managing_accesses_on_perimeter(user=user, perimeter=target_perimeter)
 
         for access in user_accesses:
-            role = access.role
-            (can_manage_admin_accesses_2,
-             can_manage_data_accesses_2) = self.check_accesses_managing_roles_on_perimeter(access=access,
-                                                                                           target_perimeter=target_perimeter,
-                                                                                           readonly=readonly)
+            can_manage_admin_accesses_2, can_manage_data_accesses_2 = self.check_user_rights_on_perimeter(user_access=access,
+                                                                                                          target_perimeter=target_perimeter,
+                                                                                                          manage=True)
             can_manage_admin_accesses = can_manage_admin_accesses or can_manage_admin_accesses_2
             can_manage_data_accesses = can_manage_data_accesses or can_manage_data_accesses_2
-            can_manage_jupyter_accesses = can_manage_jupyter_accesses or role.right_manage_export_jupyter_accesses
-            can_manage_csv_accesses = can_manage_csv_accesses or role.right_manage_export_csv_accesses
+            can_manage_export_jupyter_accesses = can_manage_export_jupyter_accesses or access.role.right_manage_export_jupyter_accesses
+            can_manage_export_csv_accesses = can_manage_export_csv_accesses or access.role.right_manage_export_csv_accesses
 
-        return not target_role.requires_full_admin_role_to_be_managed \
-            and (can_manage_admin_accesses or not target_role.requires_admin_accesses_managing_role_to_be_managed) \
-            and (can_manage_data_accesses or not target_role.requires_data_accesses_managing_role_to_be_managed) \
-            and (can_manage_jupyter_accesses or not target_role.requires_jupyter_accesses_managing_role_to_be_managed) \
-            and (can_manage_csv_accesses or not target_role.requires_csv_accesses_managing_role_to_be_managed)
+        return not self.does_access_require_full_admin_role_to_be_managed(role=target_role) \
+            and (can_manage_admin_accesses or
+                 not self.does_access_require_admin_accesses_managing_role_to_be_managed(role=target_role)) \
+            and (can_manage_data_accesses or
+                 not self.does_access_require_data_accesses_managing_role_to_be_managed(role=target_role)) \
+            and (can_manage_export_jupyter_accesses or
+                 not self.does_access_require_jupyter_accesses_managing_role_to_be_managed(role=target_role)) \
+            and (can_manage_export_csv_accesses or
+                 not self.does_access_require_csv_accesses_managing_role_to_be_managed(role=target_role))
 
-    def can_user_manage_access(self, user: User, role: Role, perimeter: Perimeter) -> bool:
-        return self.can_user_manage_role_on_perimeter(user, role, perimeter)
+    def can_user_create_access(self, user: User, access_data: dict) -> bool:
+        return self.can_user_manage_access(user=user, target_access=access_data)
 
-    def can_user_read_access(self, user: User, role: Role, perimeter: Perimeter) -> bool:
-        return self.can_user_read_role_on_perimeter(user, role, perimeter)
+    def does_access_require_csv_accesses_reading_role_to_be_read(self, role: Role):
+        return self.does_access_require_csv_accesses_managing_role_to_be_managed(role=role)
+
+    def does_access_require_jupyter_accesses_reading_role_to_be_read(self, role: Role):
+        return self.does_access_require_jupyter_accesses_managing_role_to_be_managed(role=role)
+
+    def does_access_require_data_accesses_reading_role_to_be_read(self, role: Role):
+        return self.does_access_require_data_accesses_managing_role_to_be_managed(role=role)
+
+    def does_access_require_admin_accesses_reading_role_to_be_read(self, role: Role):
+        return self.does_access_require_admin_accesses_managing_role_to_be_managed(role=role)
+
+    @staticmethod
+    def does_access_require_full_admin_role_to_be_read(role: Role):
+        return any((role.right_full_admin,
+                    role.right_read_logs,
+                    role.right_manage_users,
+                    role.right_read_users,
+                    role.right_manage_datalabs,
+                    role.right_read_datalabs,
+                    role.right_manage_export_csv_accesses,
+                    role.right_manage_export_jupyter_accesses,
+                    role.right_manage_admin_accesses_same_level,
+                    role.right_read_admin_accesses_same_level,
+                    role.right_manage_admin_accesses_inferior_levels,
+                    role.right_read_admin_accesses_inferior_levels,
+                    role.right_read_accesses_above_levels))
+
+    @staticmethod
+    def does_access_require_csv_accesses_managing_role_to_be_managed(role: Role):
+        # requires having: right_manage_export_csv_accesses = True
+        return any((role.right_export_csv_nominative,
+                    role.right_export_csv_pseudonymized))
+
+    @staticmethod
+    def does_access_require_jupyter_accesses_managing_role_to_be_managed(role: Role):
+        # requires having: right_manage_export_jupyter_accesses = True
+        return any((role.right_export_jupyter_nominative,
+                    role.right_export_jupyter_pseudonymized))
+
+    @staticmethod
+    def does_access_require_data_accesses_managing_role_to_be_managed(role: Role):
+        # requires having: right_manage/read_data_accesses_same/inf_level = True
+        return any((role.right_read_patient_nominative,
+                    role.right_read_patient_pseudonymized,
+                    role.right_search_patients_by_ipp,
+                    role.right_search_opposed_patients))
+
+    @staticmethod
+    def does_access_require_admin_accesses_managing_role_to_be_managed(role: Role):
+        # requires having: right_manage/read_admin_accesses_same/inf_level = True
+        return any((role.right_manage_data_accesses_same_level,
+                    role.right_read_data_accesses_same_level,
+                    role.right_manage_data_accesses_inferior_levels,
+                    role.right_read_data_accesses_inferior_levels))
+
+    @staticmethod
+    def does_access_require_full_admin_role_to_be_managed(role: Role):
+        # requires having: right_full_admin = True
+
+        return any((role.right_full_admin,
+                    role.right_read_logs,
+                    role.right_manage_users,
+                    role.right_manage_datalabs,
+                    role.right_manage_export_csv_accesses,
+                    role.right_manage_export_jupyter_accesses,
+                    role.right_manage_admin_accesses_same_level,
+                    role.right_read_admin_accesses_same_level,
+                    role.right_manage_admin_accesses_inferior_levels,
+                    role.right_read_admin_accesses_inferior_levels,
+                    role.right_read_accesses_above_levels))
 
 
 accesses_service = AccessesService()

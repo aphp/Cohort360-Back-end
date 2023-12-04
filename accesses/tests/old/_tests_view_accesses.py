@@ -624,7 +624,7 @@ class AccessTests(ViewSetTestsWithBasicPerims):
             user_access: Access = Access.objects.create(
                 role=r, profile=case.user_profile,
                 perimeter=case.user_perimeter)
-            if r.right_manage_roles:
+            if r.right_full_admin:
                 case.to_find.append(user_access)
 
             self.check_get_paged_list_case(case)

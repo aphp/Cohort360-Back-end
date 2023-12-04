@@ -38,10 +38,6 @@ class JupyterExports {
 class Logs {
   right_read_logs
 }
-class Roles {
-  right_manage_roles
-  right_read_roles
-}
 class Users {
   right_manage_users
   right_read_logs
@@ -117,12 +113,6 @@ Il permet de consulter les logs sur le Portail.
 c'est tout Role ayant le droit suivant activé:  
 - *right_read_logs*
 
-#### Roles Role:
-Il permet de gérer/consulter la liste des Rôles/habilitations.   
-c'est tout Role ayant au moins un des droits suivants activé:  
-- *right_manage_roles*
-- *right_read_roles*
-
 #### User Role:
 Il permet de gérer/consulter la liste des utilisateurs.  
 c'est tout Role ayant au moins un des droits suivants activé:  
@@ -192,10 +182,10 @@ Imaginons un *Role* qui possède:
 
 Et bien pour pouvoir attribuer ce *Role* a quelqu'un, ou modifier un *Access* qui possède ce *Role*, il faut que moi-même j'ai un Role avec :
 - *right_manage_export_csv* (**ExportersAdmin**)
-- *right_manage_roles* (**RolesEditors**)
+- *right_full_admin* (**RolesEditors**)
 - *right_manage_admin_accesses_* (**ManageDataReadingAdministration**)
 
-Et en effet, *right_manage_roles* **ne suffit pas** pour créer un accès avec *right_read_data_accesses_same_level* (**DataReadingAdministration**)
+Et en effet, *right_full_admin* **ne suffit pas** pour créer un accès avec *right_read_data_accesses_same_level* (**DataReadingAdministration**)
 
 #### Read
 

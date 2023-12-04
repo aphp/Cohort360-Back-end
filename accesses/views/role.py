@@ -111,7 +111,7 @@ class RoleViewSet(CustomLoggingMixin, BaseViewSet):
                                                               description="Required", type=openapi.TYPE_INTEGER)])
     @action(url_path="assignable", detail=False, methods=['get'])
     @cache_response()
-    def assignable(self, request, *args, **kwargs):
+    def get_assignable_roles(self, request, *args, **kwargs):
         perimeter_id = request.GET.get("perimeter_id")
         if not perimeter_id:
             return Response(data="Missing parameter: `perimeter_id`", status=status.HTTP_400_BAD_REQUEST)

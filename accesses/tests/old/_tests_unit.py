@@ -95,7 +95,7 @@
 #         )
 #
 #         self.empty_rights = dict(
-#             right_manage_roles=False,
+#             right_full_admin=False,
 #
 #             right_manage_users=False,
 #             right_read_users=False,
@@ -190,7 +190,7 @@
 #         self.edit_role_admin_role = Role.objects.create(**{
 #             **self.empty_rights,
 #             'name': 'edit_role_admin_role',
-#             'right_manage_roles': True,
+#             'right_full_admin': True,
 #         })
 #         make_accesses(self.edit_role_admin_role)
 #
@@ -232,7 +232,7 @@
 #             **self.empty_rights,
 #             'name': 'full_admin_manager_role',
 #             'right_read_users': True,
-#             'right_manage_roles': True,
+#             'right_full_admin': True,
 #             'right_manage_users': True,
 #             'right_manage_admin_accesses_same_level': True,
 #             'right_read_admin_accesses_same_level': True,
@@ -258,7 +258,7 @@
 #         self.non_admin_manager_roles = [
 #             Role.objects.create(**{
 #                 **self.empty_rights,
-#                 'right_manage_roles': True,
+#                 'right_full_admin': True,
 #                 'right_manage_users': True,
 #                 'right_manage_admin_accesses_same_level': True,
 #                 'right_read_admin_accesses_same_level': True,
@@ -702,12 +702,12 @@
 #                     self.main_admin_role,
 #                     self.edit_role_admin_role,
 #                     self.full_admin_manager_role,
-#                     *[r for r in non_roles if r.right_manage_roles]
+#                     *[r for r in non_roles if r.right_full_admin]
 #                 ], same_level=[
 #                     self.main_admin_role,
 #                     self.edit_role_admin_role,
 #                     self.full_admin_manager_role,
-#                     *[r for r in non_roles if r.right_manage_roles]
+#                     *[r for r in non_roles if r.right_full_admin]
 #                 ]),
 #             ),
 #             dict(
@@ -778,7 +778,7 @@
 #                     *[r for r in non_roles
 #                       if r.right_manage_admin_accesses_inferior_levels
 #                       or r.right_manage_data_accesses_inferior_levels
-#                       or r.right_manage_roles]
+#                       or r.right_full_admin]
 #                 ], same_level=[
 #                     self.admin_role, self.main_admin_role,
 #                     self.edit_role_admin_role,
@@ -788,7 +788,7 @@
 #                     self.full_admin_manager_role,
 #                     *[r for r in non_roles
 #                       if r.right_manage_admin_accesses_same_level
-#                       or r.right_manage_roles
+#                       or r.right_full_admin
 #                       or r.right_manage_data_accesses_same_level]
 #                 ]),
 #             ),

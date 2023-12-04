@@ -45,7 +45,7 @@ class Migration(migrations.Migration):
         migrations.AddConstraint(
             model_name='role',
             constraint=models.UniqueConstraint(condition=models.Q(('delete_datetime__isnull', True)), fields=(
-            'right_full_admin', 'right_read_logs', 'right_manage_roles', 'right_read_roles', 'right_manage_users', 'right_read_users',
+            'right_full_admin', 'right_read_logs', 'right_manage_users', 'right_read_users',
             'right_manage_datalabs', 'right_read_datalabs', 'right_export_csv_nominative', 'right_export_csv_pseudonymized',
             'right_export_jupyter_nominative', 'right_export_jupyter_pseudonymized', 'right_manage_export_csv_accesses',
             'right_manage_export_jupyter_accesses', 'right_read_patient_nominative', 'right_read_patient_pseudonymized',

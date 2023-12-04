@@ -41,14 +41,14 @@ class MaintenanceTests(ViewSetTestsWithBasicPerims):
 
         self.test_admin_email = ADMINS[0][1]
         self.user_maintenance_manager, profile_maintenance_manager = new_user_and_profile(email=self.test_admin_email)
-        self.role_maintenance_manager = Role.objects.create(right_manage_roles=True)
+        self.role_maintenance_manager = Role.objects.create(right_full_admin=True)
         Access.objects.create(perimeter_id=self.hospital3.id,
                               profile=profile_maintenance_manager,
                               role=self.role_maintenance_manager)
 
         self.user_not_maintenance_manager, profile_not_maintenance_manager = new_user_and_profile(email="cannot@mng.roles")
         self.role_all_but_edit_maintenances = Role.objects.create(**dict([(r, True) for r in self.all_rights
-                                                                          if r != 'right_manage_roles']))
+                                                                          if r != 'right_full_admin']))
         Access.objects.create(perimeter_id=self.aphp.id,
                               profile=profile_not_maintenance_manager,
                               role=self.role_all_but_edit_maintenances)
@@ -243,7 +243,7 @@ class MaintenanceCreateTests(MaintenanceTests):
         )
 
     def test_create_as_admin(self):
-        # As a user with right_manage_roles, I can create a maintenance phase
+        # As a user with right_full_admin, I can create a maintenance phase
         case = self.basic_create_case.clone(
             user=self.user_maintenance_manager,
             success=True,
@@ -252,7 +252,7 @@ class MaintenanceCreateTests(MaintenanceTests):
         self.check_create_case(case)
 
     def test_error_create_as_simple_user(self):
-        # As a user with everything but right_manage_roles,
+        # As a user with everything but right_full_admin,
         # I cannot create a maintenance phase
         case = self.basic_create_case.clone(
             user=self.user_not_maintenance_manager,
@@ -304,7 +304,7 @@ class MaintenancePatchTests(MaintenanceTests):
         )
 
     def test_patch_as_user_admin(self):
-        # As a user with right_manage_roles, I can edit a maintenance phase
+        # As a user with right_full_admin, I can edit a maintenance phase
         cases = [self.basic_patch_case.clone(
             user=self.user_maintenance_manager,
             success=True,
@@ -314,7 +314,7 @@ class MaintenancePatchTests(MaintenanceTests):
         [self.check_patch_case(case) for case in cases]
 
     def test_error_patch_as_simple_user(self):
-        # As a user with everything but right_manage_roles,
+        # As a user with everything but right_full_admin,
         # I cannot edit a maintenance phase
         case = self.basic_patch_case.clone(
             user=self.user_not_maintenance_manager,
@@ -367,7 +367,7 @@ class MaintenanceDeleteTests(MaintenanceTests):
         )
 
     def test_delete_user_as_main_admin(self):
-        # As a user with right_manage_roles, I can delete a maintenance phase
+        # As a user with right_full_admin, I can delete a maintenance phase
         case = self.basic_delete_case.clone(
             user=self.user_maintenance_manager,
             success=True,
@@ -376,7 +376,7 @@ class MaintenanceDeleteTests(MaintenanceTests):
         self.check_delete_case(case)
 
     def test_error_delete_user_as_simple_user(self):
-        # As a user with everything but right_manage_roles,
+        # As a user with everything but right_full_admin,
         # I cannot delete a maintenance phase
         case = self.basic_delete_case.clone(
             user=self.user_not_maintenance_manager,
