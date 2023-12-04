@@ -44,7 +44,7 @@ role_roles_manager_data = {**ALL_FALSY_RIGHTS,
 # todo: suggestion: remove right_manage/read_roles
 #       only full_admin can manage roles on Portail
 #       make roles available for all users to see on Portail
-
+6+
 
 class RoleRetrieveFilter(CaseRetrieveFilter):
 
