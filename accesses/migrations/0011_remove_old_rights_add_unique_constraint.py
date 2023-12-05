@@ -12,6 +12,10 @@ class Migration(migrations.Migration):
     operations = [
         migrations.RemoveField(
             model_name='role',
+            name='right_edit_roles',
+        ),
+        migrations.RemoveField(
+            model_name='role',
             name='right_edit_users',
         ),
         migrations.RemoveField(

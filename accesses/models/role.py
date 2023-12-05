@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-from typing import List
-
 from django.db import models
 from django.db.models import Q, UniqueConstraint
 
-from accesses.services.shared import all_rights, right_groups_service
+from accesses.services.shared import all_rights
 from admin_cohort.models import BaseModel
 from admin_cohort.tools import join_qs
 
@@ -82,13 +80,6 @@ class Role(BaseModel):
                        UniqueConstraint(name="unique_rights_combination",
                                         fields=[right.name for right in all_rights],
                                         condition=Q(delete_datetime__isnull=True))]
-
-    def __eq__(self, other_role) -> bool:
-        return all(getattr(self, right.name, False) == getattr(other_role, right.name, False)
-                   for right in all_rights)
-
-    def __gt__(self, other_role) -> bool:
-        return right_groups_service.does_role1_prime_over_role2(role1=self, role2=other_role)
 
     def has_any_global_management_right(self):
         return any((self.right_full_admin,
