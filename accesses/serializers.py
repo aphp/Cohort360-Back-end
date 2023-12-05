@@ -14,6 +14,7 @@ from admin_cohort.serializers import BaseSerializer, ReducedUserSerializer, User
 from admin_cohort.settings import MANUAL_SOURCE, MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS
 from .conf_perimeters import Provider
 from .models import Role, Access, Profile, Perimeter
+from .services.roles import roles_service
 
 _logger = logging.getLogger('django.request')
 
@@ -141,13 +142,15 @@ def get_provider_id(user_id: str) -> int:
 
 
 class RoleSerializer(BaseSerializer):
-    role_id = serializers.IntegerField(source='id', read_only=True)
-    help_text = serializers.ListSerializer(child=serializers.CharField(), read_only=True)
+    help_text = serializers.SerializerMethodField()
 
     class Meta:
         model = Role
         fields = "__all__"
         read_only_fields = ['id']
+
+    def get_help_text(self, role):
+        return roles_service.get_help_text(role=role)
 
 
 class UsersInRoleSerializer(serializers.Serializer):

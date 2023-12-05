@@ -19,11 +19,11 @@ def can_user_manage_roles(user: User) -> bool:
 
 
 def can_user_manage_accesses(user: User) -> bool:
-    return any(filter(lambda role: roles_service.can_manage_accesses(role), get_bound_roles(user)))
+    return any(filter(lambda role: roles_service.role_allows_to_manage_accesses(role), get_bound_roles(user)))
 
 
 def can_user_read_accesses(user: User) -> bool:
-    return any(filter(lambda role: roles_service.can_read_accesses(role), get_bound_roles(user)))
+    return any(filter(lambda role: roles_service.role_allows_to_read_accesses(role), get_bound_roles(user)))
 
 
 def can_user_read_users(user: User) -> bool:

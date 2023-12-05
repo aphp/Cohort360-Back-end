@@ -52,7 +52,7 @@ class RoleViewTests(AccessesAppTestsBase):
     create_view = RoleViewSet.as_view({'post': 'create'})
     delete_view = RoleViewSet.as_view({'delete': 'destroy'})
     update_view = RoleViewSet.as_view({'patch': 'partial_update'})
-    assignable_view = RoleViewSet.as_view(actions={'get': 'get_assignable_roles'})
+    assignable_view = RoleViewSet.as_view(actions={'get': 'get_assignable_roles_ids'})
     model = Role
     model_objects = Role.objects
     model_fields = Role._meta.fields
