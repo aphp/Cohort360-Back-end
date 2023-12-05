@@ -34,9 +34,9 @@ class RolesService:
     @staticmethod
     def get_assignable_roles(user: User, perimeter_id: str) -> QuerySet:
         """
-        - remove right_read_roles --> change Portail all users can see roles list
-        - remove right_manage_roles, only full_admin can manage them --> change Portail
-        -
+        todo: - remove right_read_roles --> change Portail all users can see roles list
+        todo: - remove right_manage_roles, only full_admin can manage them --> change Portail
+        as an admin_accesses_manager (+ manage users), i should be able to assign the data_accesses_manager (+ manage users) role
         """
         perimeter = Perimeter.objects.get(id=perimeter_id)
         assignable_roles_ids = [role.id for role in Role.objects.all()

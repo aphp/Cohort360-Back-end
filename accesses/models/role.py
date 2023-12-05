@@ -97,11 +97,26 @@ class Role(BaseModel):
                     self.right_manage_export_csv_accesses,
                     self.right_manage_export_jupyter_accesses))
 
+    def has_any_global_right(self):
+        return any((self.has_any_global_management_right(),
+                    self.right_read_logs,
+                    self.right_read_users,
+                    self.right_read_datalabs,
+                    self.right_search_patients_by_ipp,
+                    self.right_search_opposed_patients,
+                    self.right_read_accesses_above_levels))
+
     def has_any_level_dependent_management_right(self):
         return any((self.right_manage_data_accesses_same_level,
                     self.right_manage_data_accesses_inferior_levels,
                     self.right_manage_admin_accesses_same_level,
                     self.right_manage_admin_accesses_inferior_levels))
+
+    def has_any_level_dependent_reading_right(self):
+        return any((self.right_read_data_accesses_same_level,
+                    self.right_read_data_accesses_inferior_levels,
+                    self.right_read_admin_accesses_same_level,
+                    self.right_read_admin_accesses_inferior_levels))
 
     @staticmethod
     def q_allow_read_patient_data_nominative() -> Q:

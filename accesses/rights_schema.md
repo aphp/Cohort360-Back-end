@@ -35,12 +35,17 @@ class JupyterExports {
   right_export_jupyter_nominative
   right_export_jupyter_pseudonymized
 }
+class Misc {
+  right_search_patients_by_ipp
+  right_search_opposed_patients
+  right_read_accesses_above_levels
+}
 class Logs {
   right_read_logs
 }
 class Users {
   right_manage_users
-  right_read_logs
+  right_read_users
 }
 class Datalabs {
   right_manage_datalabs
@@ -52,16 +57,12 @@ ManageDataReadingAdministration --> DataReadingAdministration : Administration a
 DataReadingAdministration --> DataReading : Data accesses/rights
 FullAdmin --> CSVExportsAdministration
 FullAdmin --> JupyterExportsAdministration
+FullAdmin --> Misc
 FullAdmin --> Logs
-FullAdmin --> Roles
 FullAdmin --> Users
 FullAdmin --> Datalabs
 CSVExportsAdministration-->CSVExports
 JupyterExportsAdministration-->JupyterExports
-Logs
-Roles
-Users
-Datalabs
 ```
 ## 
 ## ℹ️ Tout droit de gestion d'accès permet implicitement la lecture (+création/édition)

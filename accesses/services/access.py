@@ -322,6 +322,10 @@ class AccessesService:
 
         user_accesses = self.get_user_managing_accesses_on_perimeter(user=user, perimeter=target_perimeter)
 
+        # for access in user_accesses:
+        #     if access.role > target_role:     # todo: include `manage` or `readonly` in the comparison criteria
+        #         return True
+        # return False
         for access in user_accesses:
             can_manage_admin_accesses_2, can_manage_data_accesses_2 = self.check_user_rights_on_perimeter(user_access=access,
                                                                                                           target_perimeter=target_perimeter,
@@ -403,18 +407,9 @@ class AccessesService:
     @staticmethod
     def does_access_require_full_admin_role_to_be_managed(role: Role):
         # requires having: right_full_admin = True
-
-        return any((role.right_full_admin,
-                    role.right_read_logs,
-                    role.right_manage_users,
-                    role.right_manage_datalabs,
-                    role.right_manage_export_csv_accesses,
-                    role.right_manage_export_jupyter_accesses,
-                    role.right_manage_admin_accesses_same_level,
-                    role.right_read_admin_accesses_same_level,
-                    role.right_manage_admin_accesses_inferior_levels,
-                    role.right_read_admin_accesses_inferior_levels,
-                    role.right_read_accesses_above_levels))
+        has_any_level_dependent_right = any((role.has_any_level_dependent_management_right(),
+                                             role.has_any_level_dependent_reading_right()))
+        return role.has_any_global_right() and not has_any_level_dependent_right
 
 
 accesses_service = AccessesService()

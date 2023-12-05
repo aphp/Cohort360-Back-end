@@ -78,10 +78,12 @@ class RightGroup:
                  name: str,
                  description: str,
                  rights: List[Right],
+                 hierarchical: bool = False,
                  parent: RightGroup = None,
                  child_groups: List[RightGroup] = None):
         self.name = name
         self.description = description
+        self.hierarchical = hierarchical
         self.rights = rights
         self.parent = parent
         self.child_groups = child_groups or []
@@ -94,7 +96,9 @@ class RightGroupService:
 
     def does_role1_prime_over_role2(self, role1, role2) -> bool:
         """
-        for role1 to prime over rol2, the True rights on role2 must be True for role1 or higher rights of the same kind are True
+        for role1 to prime over rol2, the True rights on role2 must be True for role1 or higher rights of the same kind are True.
+        todo: exclude non-hierarchical right groups (having global rights)
+             compare only based on hierarchical right groups
         """
         right_groups1 = self.get_right_groups(role1)
         right_groups2 = self.get_right_groups(role2)
@@ -126,7 +130,7 @@ class RightGroupService:
 right_groups_service = RightGroupService()
 
 
-# ----------------------------------------------    Perimeters hierarchy agnostic rights/global rights
+# ----------------------------------------------    Global Rights / Perimeters Hierarchy Independent
 right_full_admin = Right("right_full_admin")
 right_read_logs = Right("right_read_logs")
 right_manage_users = Right("right_manage_users")
@@ -146,7 +150,7 @@ right_search_opposed_patients = Right("right_search_opposed_patients")
 
 right_read_accesses_above_levels = Right("right_read_accesses_above_levels")
 
-# ----------------------------------------------    Perimeters hierarchy dependent rights
+# ----------------------------------------------    Relative Rights / Perimeters Hierarchy Dependent
 right_read_patient_nominative = Right("right_read_patient_nominative", impact_inferior_levels=True)
 right_read_patient_pseudonymized = Right("right_read_patient_pseudonymized", impact_inferior_levels=True)
 
@@ -154,6 +158,7 @@ right_manage_data_accesses_same_level = Right("right_manage_data_accesses_same_l
 right_read_data_accesses_same_level = Right("right_read_data_accesses_same_level", allow_read_accesses_on_same_level=True)
 right_manage_data_accesses_inferior_levels = Right("right_manage_data_accesses_inferior_levels", allow_edit_accesses_on_inf_levels=True)
 right_read_data_accesses_inferior_levels = Right("right_read_data_accesses_inferior_levels", allow_read_accesses_on_inf_levels=True)
+
 right_manage_admin_accesses_same_level = Right("right_manage_admin_accesses_same_level", allow_edit_accesses_on_same_level=True)
 right_read_admin_accesses_same_level = Right("right_read_admin_accesses_same_level", allow_read_accesses_on_same_level=True)
 right_manage_admin_accesses_inferior_levels = Right("right_manage_admin_accesses_inferior_levels", allow_edit_accesses_on_inf_levels=True)
@@ -189,12 +194,14 @@ all_rights = [right_full_admin,
 
 data_rights = RightGroup(name="data_rights",
                          description="Allow to read patient data",
+                         hierarchical=True,
                          rights=[right_read_patient_nominative,
                                  right_read_patient_pseudonymized,
                                  right_search_patients_by_ipp,
                                  right_search_opposed_patients])
 data_accesses_management_rights = RightGroup(name="data_accesses_management_rights",
                                              description="Allow to manage accesses with rights related to reading patients data",
+                                             hierarchical=True,
                                              rights=[right_manage_data_accesses_same_level,
                                                      right_read_data_accesses_same_level,
                                                      right_manage_data_accesses_inferior_levels,
@@ -203,6 +210,7 @@ data_accesses_management_rights = RightGroup(name="data_accesses_management_righ
 data_rights.parent = data_accesses_management_rights
 admin_accesses_management_rights = RightGroup(name="admin_accesses_management_rights",
                                               description="Allow to manage accesses with rights related to data_accesses admins",
+                                              hierarchical=True,
                                               rights=[right_manage_admin_accesses_same_level,
                                                       right_read_admin_accesses_same_level,
                                                       right_manage_admin_accesses_inferior_levels,
@@ -239,10 +247,9 @@ datalabs_rights = RightGroup(name="datalabs_rights",
                              rights=[right_manage_datalabs,
                                      right_read_datalabs])
 full_admin_rights = RightGroup(name="full_admin_rights",
-                               description="Super user, full admin",
+                               description="Super user",
                                rights=[right_full_admin],
-                               child_groups=[roles_rights,
-                                             users_rights,
+                               child_groups=[users_rights,
                                              logs_rights,
                                              datalabs_rights,
                                              jupyter_export_accesses_management_rights,
