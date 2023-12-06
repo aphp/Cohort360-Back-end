@@ -77,7 +77,7 @@ class PerimeterTests(ViewSetTests):
             firstname="Squall", lastname="Leonheart", email='s.l@aphp.fr'
         )
 
-    def check_treefy(self, case: TreefyListCase, other_view: any = None):
+    def check_treefy(self, case: TreefyListCase, other_view: Any = None):
         request = self.factory.get(
             path=case.url or self.objects_url,
             data=[] if case.url else case.params)
@@ -305,7 +305,7 @@ class PerimeterGetManageableTests(PerimeterTests, SimplePerimSetup):
             to_exlude=[]
         )
 
-    def check_treefy(self, case: PerimeterListCase, other_view: any = None):
+    def check_treefy(self, case: PerimeterListCase, other_view: Any = None):
         r = Role.objects.create(**dict([(r, True)
                                         for r in case.user_rights]))
         if len(case.user_perimeters) > 0:

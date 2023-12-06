@@ -2,7 +2,8 @@ from typing import List
 
 from django.db.models import Model, Manager, Field
 
-from accesses.models import Perimeter
+from accesses.models import Perimeter, Role
+from accesses.services.shared import all_rights
 from admin_cohort.tools.tests_tools import ViewSetTests
 
 """
@@ -53,6 +54,34 @@ PERIMETERS_DATA = [
      'parent_id': 12, 'level': 4, 'above_levels_ids': '12,4,1'}
     ]
 
+ALL_FALSY_RIGHTS = {right.name: False for right in all_rights}
+
+role_full_admin_data = {**{right.name: True for right in all_rights}, "name": "FULL ADMIN"}
+
+role_admin_accesses_manager_data = {**ALL_FALSY_RIGHTS,
+                                    "name": "ADMIN ACCESSES MANAGER",
+                                    "right_manage_users": True,
+                                    "right_read_users": True,
+                                    "right_manage_admin_accesses_same_level": True,
+                                    "right_read_admin_accesses_same_level": True,
+                                    "right_manage_admin_accesses_inferior_levels": True,
+                                    "right_read_admin_accesses_inferior_levels": True
+                                    }
+role_data_accesses_manager_data = {**ALL_FALSY_RIGHTS,
+                                   "name": "DATA ACCESSES MANAGER",
+                                   "right_manage_users": True,
+                                   "right_read_users": True,
+                                   "right_manage_data_accesses_same_level": True,
+                                   "right_read_data_accesses_same_level": True,
+                                   "right_manage_data_accesses_inferior_levels": True,
+                                   "right_read_data_accesses_inferior_levels": True
+                                   }
+role_nomi_reader_nomi_csv_exporter_data = {**ALL_FALSY_RIGHTS,
+                                           "name": "DATA NOMI READER + CSV EXPORTER",
+                                           "right_read_patient_nominative": True,
+                                           "right_export_csv_nominative": True
+                                           }
+
 
 def create_perimeters_hierarchy():
     for data in PERIMETERS_DATA:
@@ -90,5 +119,7 @@ class AccessesAppTestsBase(ViewSetTests):
         self.p13 = Perimeter.objects.get(id=15)
         self.p14 = Perimeter.objects.get(id=16)
 
-
-
+        self.role_full_admin = Role.objects.create(**role_full_admin_data)
+        self.role_admin_accesses_manager = Role.objects.create(**role_admin_accesses_manager_data)
+        self.role_data_accesses_manager = Role.objects.create(**role_data_accesses_manager_data)
+        self.role_nomi_reader_nomi_csv_exporter = Role.objects.create(**role_nomi_reader_nomi_csv_exporter_data)

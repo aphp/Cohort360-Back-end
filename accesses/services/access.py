@@ -333,9 +333,6 @@ class AccessesService:
             and (can_manage_export_csv_accesses or not self.access_requires_csv_accesses_managing_role_to_be_managed(role=access_role)) \
             and (can_manage_export_jupyter_accesses or not self.access_requires_jupyter_accesses_managing_role_to_be_managed(role=access_role))
 
-    def can_user_create_access(self, user: User, access_data: dict) -> bool:
-        return self.can_user_manage_access(user=user, target_access=access_data)
-
     def access_requires_full_admin_role_to_be_read(self, role: Role):
         return self.access_requires_full_admin_role_to_be_managed(role=role)
 

@@ -2,7 +2,7 @@ import random
 from datetime import timedelta
 from os import environ
 from pathlib import Path
-from typing import List
+from typing import List, Any
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
@@ -253,7 +253,7 @@ class RqsCreateTests(RqsTests):
                     rqs.previous_snapshot.next_snapshots.exclude(pk=rqs.pk)
                 ))
 
-    def check_create_case(self, case: RqsCreateCase, other_view: any = None,
+    def check_create_case(self, case: RqsCreateCase, other_view: Any = None,
                           **view_kwargs):
         return self.check_create_case_with_mock(
             case, other_view=other_view or None, view_kwargs=view_kwargs)

@@ -1,6 +1,6 @@
 import random
 from datetime import timedelta
-from typing import List
+from typing import List, Any
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -448,8 +448,8 @@ class ExportsListTests(ExportsTests):
 
 
 class DownloadCase(RequestCase):
-    def __init__(self, export: ExportRequest, mock_hdfs_resp: any = None,
-                 mock_file_size_resp: any = None, mock_hdfs_called: bool = True,
+    def __init__(self, export: ExportRequest, mock_hdfs_resp: Any = None,
+                 mock_file_size_resp: Any = None, mock_hdfs_called: bool = True,
                  mock_file_size_called: bool = True, **kwargs):
         self.export = export
         self.mock_hdfs_resp = mock_hdfs_resp

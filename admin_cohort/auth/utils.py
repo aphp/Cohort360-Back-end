@@ -20,11 +20,6 @@ APP_NAME = env("JWT_APP_NAME")
 
 JWT_SERVER_HEADERS = {AUTH_SERVER_APP_HEADER: APP_NAME}
 
-ID_CHECKER_URL = env("ID_CHECKER_URL")
-ID_CHECKER_TOKEN_HEADER = env("ID_CHECKER_TOKEN_HEADER")
-ID_CHECKER_TOKEN = env("ID_CHECKER_TOKEN")
-id_checker_server_headers = {ID_CHECKER_TOKEN_HEADER: ID_CHECKER_TOKEN}
-
 JWT_SERVER_URL = env("JWT_SERVER_URL")
 JWT_SERVER_TOKEN_URL = f"{JWT_SERVER_URL}/jwt/"
 JWT_SERVER_REFRESH_URL = f"{JWT_SERVER_URL}/jwt/refresh/"
@@ -204,22 +199,3 @@ def get_raw_token(header: bytes) -> Union[str, None]:
                                    code='bad_authorization_header')
     res = parts[1]
     return res if not isinstance(res, bytes) else res.decode('utf-8')
-
-
-def check_id_aph(id_aph: str) -> Optional[PersonIdentity]:
-    resp = requests.post(url=ID_CHECKER_URL,
-                         data={'username': id_aph},
-                         headers=id_checker_server_headers)
-    if status.is_server_error(resp.status_code):
-        raise ServerError(f"Error {resp.status_code} from ID-CHECKER server ({ID_CHECKER_URL}): {resp.text}")
-    if resp.status_code != status.HTTP_200_OK:
-        raise ServerError(f"Internal error: {resp.text}")
-
-    res: dict = resp.json().get('data', {}).get('attributes', {})
-    for expected in ['givenName', 'sn', 'cn', 'mail']:
-        if expected not in res:
-            raise MissingDataError(f"ID-CHECKER server response is missing {expected} ({resp.content})")
-    return PersonIdentity(firstname=res.get('givenName'),
-                          lastname=res.get('sn'),
-                          user_id=res.get('cn'),
-                          email=res.get('mail'))

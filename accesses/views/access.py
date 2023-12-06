@@ -26,7 +26,10 @@ class AccessFilter(filters.FilterSet):
     profile_id = filters.CharFilter(field_name="profile_id")
     ordering = OrderingFilter(fields=('start_datetime',
                                       'end_datetime',
+                                      'created_by',
+                                      'updated_by',
                                       ('role__name', 'role_name'),
+                                      ('perimeter__name', 'perimeter_name'),
                                       ('sql_is_valid', 'is_valid')))
 
     class Meta:
@@ -60,16 +63,6 @@ class AccessViewSet(CustomLoggingMixin, BaseViewSet):
         queryset = queryset.annotate(sql_is_valid=Case(When(start_datetime__lte=now, end_datetime__gte=now, then=Value(True)),
                                                        default=Value(False), output_field=BooleanField()))
         return queryset
-
-    def get_object(self):                   # todo: why override it ?
-        if self.request.method == "GET":
-            try:
-                obj = super(AccessViewSet, self).get_object()
-            except (Http404, PermissionDenied):
-                raise Http404
-        else:
-            obj = super(AccessViewSet, self).get_object()
-        return obj
 
     @swagger_auto_schema(manual_parameters=list(map(lambda x: openapi.Parameter(in_=openapi.IN_QUERY, name=x[0], description=x[1], type=x[2]),
                                                     [["user_id", "Search type", openapi.TYPE_STRING],

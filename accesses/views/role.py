@@ -39,7 +39,7 @@ class RoleViewSet(CustomLoggingMixin, BaseViewSet):
     permission_classes = [IsAuthenticated, RolesPermission]
     pagination_class = NegativeLimitOffsetPagination
 
-    # @cache_response()
+    @cache_response()
     def list(self, request, *args, **kwargs):
         return super(RoleViewSet, self).list(request, *args, **kwargs)
 
@@ -117,9 +117,9 @@ class RoleViewSet(CustomLoggingMixin, BaseViewSet):
             return Response(data="Missing parameter: `perimeter_id`", status=status.HTTP_400_BAD_REQUEST)
         assignable_roles_ids = roles_service.get_assignable_roles_ids(user=request.user,
                                                                       perimeter_id=perimeter_id,
-                                                                      queryset=self.queryset)
-        page = self.paginate_queryset(Role.objects.filter(id__in=assignable_roles_ids))
+                                                                      queryset=self.get_queryset())
+        page = self.paginate_queryset(self.get_queryset().filter(id__in=assignable_roles_ids))
         if page:
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(data={}, status=status.HTTP_204_NO_CONTENT)

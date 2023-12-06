@@ -1,7 +1,7 @@
 import random
 from datetime import timedelta
 from smtplib import SMTPException
-from typing import List
+from typing import List, Any
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -222,7 +222,7 @@ class CohortsCreateTests(CohortsTests):
         mock_create_task.assert_called() if case.mock_create_task_called else mock_create_task.assert_not_called()
         mock_header.assert_called() if case.mock_create_task_called else mock_header.assert_not_called()
 
-    def check_create_case(self, case: CohortCreateCase, other_view: any = None, **view_kwargs):
+    def check_create_case(self, case: CohortCreateCase, other_view: Any = None, **view_kwargs):
         return self.check_create_case_with_mock(case, other_view=other_view or None, view_kwargs=view_kwargs)
 
     def setUp(self):

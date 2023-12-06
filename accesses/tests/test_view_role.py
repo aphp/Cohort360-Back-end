@@ -2,40 +2,9 @@ from django.db import IntegrityError
 from rest_framework import status
 
 from accesses.models import Role, Access
-from accesses.services.shared import all_rights
-from accesses.tests.base import AccessesAppTestsBase
+from accesses.tests.base import AccessesAppTestsBase, ALL_FALSY_RIGHTS
 from accesses.views import RoleViewSet
 from admin_cohort.tools.tests_tools import new_user_and_profile, CreateCase, CaseRetrieveFilter, PatchCase, ListCase
-
-ALL_FALSY_RIGHTS = {right.name: False for right in all_rights}
-
-role_full_admin_data = {**{right.name: True for right in all_rights}, "name": "FULL ADMIN"}
-
-role_admin_accesses_manager_data = {**ALL_FALSY_RIGHTS,
-                                    "name": "ADMIN ACCESSES MANAGER",
-                                    "right_manage_users": True,
-                                    "right_read_users": True,
-                                    "right_manage_admin_accesses_same_level": True,
-                                    "right_read_admin_accesses_same_level": True,
-                                    "right_manage_admin_accesses_inferior_levels": True,
-                                    "right_read_admin_accesses_inferior_levels": True}
-
-role_data_accesses_manager_data = {**ALL_FALSY_RIGHTS,
-                                   "name": "DATA ACCESSES MANAGER",
-                                   "right_manage_users": True,
-                                   "right_read_users": True,
-                                   "right_manage_data_accesses_same_level": True,
-                                   "right_read_data_accesses_same_level": True,
-                                   "right_manage_data_accesses_inferior_levels": True,
-                                   "right_read_data_accesses_inferior_levels": True}
-
-role_nomi_reader_nomi_csv_exporter_data = {**ALL_FALSY_RIGHTS,
-                                           "name": "DATA NOMI READER + CSV EXPORTER",
-                                           "right_read_patient_nominative": True,
-                                           "right_export_csv_nominative": True}
-
-role_roles_manager_data = {**ALL_FALSY_RIGHTS,
-                           "name": "ROLES MANAGER"}
 
 
 class RoleRetrieveFilter(CaseRetrieveFilter):
@@ -52,24 +21,20 @@ class RoleViewTests(AccessesAppTestsBase):
     create_view = RoleViewSet.as_view({'post': 'create'})
     delete_view = RoleViewSet.as_view({'delete': 'destroy'})
     update_view = RoleViewSet.as_view({'patch': 'partial_update'})
-    assignable_view = RoleViewSet.as_view(actions={'get': 'get_assignable_roles_ids'})
+    assignable_view = RoleViewSet.as_view(actions={'get': 'get_assignable_roles'})
     model = Role
     model_objects = Role.objects
     model_fields = Role._meta.fields
 
     def setUp(self):
         super().setUp()
+        self.user_full_admin_on_aphp, profile_full_admin_on_aphp = new_user_and_profile(email="user_full_admin@aphp.fr")
+        Access.objects.create(profile=profile_full_admin_on_aphp, role=self.role_full_admin, perimeter=self.aphp)
+
+        self.user_non_full_admin, profile = new_user_and_profile(email="user_non_full_admin@aphp.fr")
+        Access.objects.create(profile=profile, role=self.role_admin_accesses_manager, perimeter=self.aphp)
+
         # roles for testing the `assignable` view
-        self.role_full_admin = Role.objects.create(**role_full_admin_data)
-        self.role_admin_accesses_manager = Role.objects.create(**role_admin_accesses_manager_data)
-        self.role_data_accesses_manager = Role.objects.create(**role_data_accesses_manager_data)
-        self.role_nomi_reader_nomi_csv_exporter = Role.objects.create(**role_nomi_reader_nomi_csv_exporter_data)
-
-        self.user_full_admin_on_aphp, self.profile_full_admin_on_aphp = new_user_and_profile(firstname="Full",
-                                                                                             lastname="ADMIN",
-                                                                                             email="user.full_admin@aphp.fr")
-        Access.objects.create(profile=self.profile_full_admin_on_aphp, role=self.role_full_admin, perimeter=self.aphp)
-
         self.all_roles = [self.role_full_admin,
                           self.role_admin_accesses_manager,
                           self.role_data_accesses_manager,
@@ -126,30 +91,62 @@ class RoleViewTests(AccessesAppTestsBase):
             self.fail("Must be able to create a role with same rights combination as a deleted role")
 
     def test_successfully_creating_role(self):
+        role_name = "DATA READER NOMI"
         data = {**ALL_FALSY_RIGHTS,
-                "name": "DATA READER NOMI",
+                "name": role_name,
                 "right_read_patient_nominative": True
                 }
         case = CreateCase(data=data,
-                          retrieve_filter=RoleRetrieveFilter(name="DATA READER NOMI"),
+                          retrieve_filter=RoleRetrieveFilter(name=role_name),
                           user=self.user_full_admin_on_aphp,
                           status=status.HTTP_201_CREATED,
                           success=True)
         self.check_create_case(case)
 
-    def test_error_creating_role_with_inconsistent_rights(self):
-        role_name = "DATA READER PSEUDO & EXPORT NOMI"
+    def test_error_creating_role_as_non_full_admin(self):
+        role_name = "DATA READER NOMI + SEARCH BY IPP"
         data = {**ALL_FALSY_RIGHTS,
                 "name": role_name,
-                "right_read_patient_pseudonymized": True,
-                "right_export_csv_nominative": True
+                "right_read_patient_nominative": True,
+                "right_search_patients_by_ipp": True
                 }
         case = CreateCase(data=data,
                           retrieve_filter=RoleRetrieveFilter(name=role_name),
-                          user=self.user_full_admin_on_aphp,
-                          status=status.HTTP_400_BAD_REQUEST,
+                          user=self.user_non_full_admin,
+                          status=status.HTTP_403_FORBIDDEN,
                           success=False)
         self.check_create_case(case)
+
+    def test_error_creating_role_with_inconsistent_rights(self):
+        cases_data = [{**ALL_FALSY_RIGHTS,
+                       "name": "DATA READER PSEUDO & EXPORT NOMI",
+                       "right_read_patient_pseudonymized": True,
+                       "right_export_csv_nominative": True
+                       },
+                      {**ALL_FALSY_RIGHTS,
+                       "name": "FULL ADMIN WITH SOME FALSY RIGHTS",
+                       "right_full_admin": True,
+                       "right_manage_users": True,
+                       "right_read_logs": True
+                       },
+                      {**ALL_FALSY_RIGHTS,
+                       "name": "ADMINISTRATION ACCESSES MANAGER WITHOUT USERS MANAGEMENT",
+                       "right_manage_admin_accesses_same_level": True,
+                       "right_read_admin_accesses_same_level": True,
+                       "right_manage_admin_accesses_inferior_levels": True,
+                       "right_read_admin_accesses_inferior_levels": True
+                       },
+                      {**ALL_FALSY_RIGHTS,
+                       "name": "EXPORT ACCESSES MANAGER WITHOUT USERS MANAGEMENT",
+                       "right_manage_export_csv_accesses": True,
+                       "right_manage_export_jupyter_accesses": True
+                       }]
+        for d in cases_data:
+            self.check_create_case(CreateCase(data=d,
+                                              retrieve_filter=RoleRetrieveFilter(name=d["name"]),
+                                              user=self.user_full_admin_on_aphp,
+                                              status=status.HTTP_400_BAD_REQUEST,
+                                              success=False))
 
     def test_successfully_patch_role(self):
         initial_data = {**ALL_FALSY_RIGHTS,
@@ -165,6 +162,14 @@ class RoleViewTests(AccessesAppTestsBase):
                          user=self.user_full_admin_on_aphp,
                          status=status.HTTP_200_OK,
                          success=True)
+        self.check_patch_case(case)
+
+    def test_error_patching_role_as_non_full_admin(self):
+        case = PatchCase(initial_data={},
+                         data_to_update={},
+                         user=self.user_non_full_admin,
+                         status=status.HTTP_403_FORBIDDEN,
+                         success=False)
         self.check_patch_case(case)
 
     def test_patch_role_with_inconsistent_rights(self):
@@ -194,16 +199,16 @@ class RoleViewTests(AccessesAppTestsBase):
     def test_get_assignable_roles_on_perimeter_APHP_as_full_admin_on_APHP(self):
         """
         expected behavior: return all roles
-                                                    APHP
-                         ____________________________|____________________________
-                        |                           |                           |
-                       P0                          P1                          P2
-             __________|__________          _______|_______          __________|__________
-            |         |         |          |             |          |         |         |
-           P3        P4       P5          P6            P7       P8          P9       P10
-               ______|_______                                                    ______|_______
-              |            |                                                    |            |
-             P1          P12                                                  P13          P14
+                                                            APHP
+                                 ____________________________|____________________________
+                                |                           |                            |
+                               P0                          P1                           P2
+                     __________|__________          _______|_______           __________|__________
+                    |         |          |         |              |          |          |         |
+                   P3        P4       P5          P6             P7         P8         P9        P10
+                       ______|_______                                                       ______|_______
+                      |             |                                                      |             |
+                     P1           P12                                                     P13           P14
         """
         case = ListCase(params={"perimeter_id": self.aphp.id},
                         to_find=self.all_roles,
@@ -237,11 +242,8 @@ class RoleViewTests(AccessesAppTestsBase):
             self.check_get_paged_list_case(case, other_view=RoleViewTests.assignable_view)
 
     def test_get_assignable_roles_on_perimeter_P0_as_admin_accesses_manager_on_APHP(self):
-        # according to the hierarchy above
         # expected behavior: return `role_data_accesses_manager` only
-        user_admin_accesses_manager_on_aphp, profile = new_user_and_profile(firstname="AdministrationAccesses",
-                                                                            lastname="MANAGER",
-                                                                            email="user.admin_acc_manager@aphp.fr")
+        user_admin_accesses_manager_on_aphp, profile = new_user_and_profile(email="admin_acc_manager.APHP@aphp.fr")
         Access.objects.create(profile=profile, role=self.role_admin_accesses_manager, perimeter=self.aphp)
         case = ListCase(params={"perimeter_id": self.p0.id},
                         to_find=[self.role_data_accesses_manager],
@@ -251,18 +253,23 @@ class RoleViewTests(AccessesAppTestsBase):
         self.check_get_paged_list_case(case, other_view=RoleViewTests.assignable_view)
 
     def test_get_assignable_roles_on_perimeter_P0_as_admin_accesses_manager_on_P0(self):
-        # according to the hierarchy above
         # expected behavior: return `role_data_accesses_manager` only
-        user_admin_accesses_manager_on_aphp, profile = new_user_and_profile(firstname="AdministrationAccesses",
-                                                                            lastname="MANAGER",
-                                                                            email="user.admin_acc_manager@aphp.fr")
+        user_admin_accesses_manager_on_p0, profile = new_user_and_profile(email="admin_acc_manager.P0@aphp.fr")
         Access.objects.create(profile=profile, role=self.role_admin_accesses_manager, perimeter=self.p0)
         case = ListCase(params={"perimeter_id": self.p0.id},
                         to_find=[self.role_data_accesses_manager],
-                        user=user_admin_accesses_manager_on_aphp,
+                        user=user_admin_accesses_manager_on_p0,
                         status=status.HTTP_200_OK,
                         success=True)
         self.check_get_paged_list_case(case, other_view=RoleViewTests.assignable_view)
 
     def test_get_assignable_roles_on_perimeter_P0_as_admin_accesses_manager_on_P4(self):
-        ...
+        # expected behavior: return no roles, HTTP 204
+        user_admin_accesses_manager_on_p4, profile = new_user_and_profile(email="admin_acc_manager.P4@aphp.fr")
+        Access.objects.create(profile=profile, role=self.role_admin_accesses_manager, perimeter=self.p4)
+        case = ListCase(params={"perimeter_id": self.p0.id},
+                        to_find=[],
+                        user=user_admin_accesses_manager_on_p4,
+                        status=status.HTTP_204_NO_CONTENT,
+                        success=False)
+        self.check_get_paged_list_case(case, other_view=RoleViewTests.assignable_view)

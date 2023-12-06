@@ -8,12 +8,12 @@ from django.utils.datetime_safe import datetime
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from admin_cohort.auth.utils import check_id_aph
 from admin_cohort.models import User
 from admin_cohort.serializers import BaseSerializer, ReducedUserSerializer, UserSerializer
 from admin_cohort.settings import MANUAL_SOURCE, MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS
 from .conf_perimeters import Provider
 from .models import Role, Access, Profile, Perimeter
+from .services.profiles import profiles_service
 from .services.roles import roles_service
 
 _logger = logging.getLogger('django.request')
@@ -76,50 +76,6 @@ def fix_csh_dates(validated_data, for_update: bool = False):
         validated_data["end_datetime"] = end_datetime \
             if end_datetime is not None and not end_is_empty \
             else validated_data["start_datetime"] + timedelta(days=MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS)
-
-    return validated_data
-
-
-def check_profile_entries(validated_data):
-    source = validated_data.pop("source", validated_data.pop("cdm_source", MANUAL_SOURCE))
-    firstname = validated_data.get("firstname")
-    lastname = validated_data.get("lastname")
-    email = validated_data.get("email")
-
-    assert all([v and isinstance(v, str) for v in (firstname, lastname, email)]), "Basic info fields must be strings"
-
-    name_regex_pattern = re.compile(r"^[A-Za-zÀ-ÖØ-öø-ÿ\-' ]*$")
-    email_regex_pattern = re.compile(r"^[A-Za-z0-9\-. @_]*$")
-
-    if source != MANUAL_SOURCE:
-        raise ValidationError(f"Unexpected value for `source`. Takes only: {MANUAL_SOURCE}")
-
-    if firstname and lastname and not name_regex_pattern.match(f"{firstname + lastname}"):
-        raise ValidationError("Le nom/prénom fourni est invalide. Doit comporter "
-                              "uniquement des lettres et des caractères ' et - ")
-    if email and not email_regex_pattern.match(email):
-        raise ValidationError(f"L'adresse email fournie ({email}) est invalide. Doit comporter "
-                              f"uniquement des lettres, chiffres et caractères @_-.")
-
-
-def fix_profile_entries(validated_data, for_create: bool = False):
-    is_active = validated_data.get("is_active")
-    valid_start_datetime = validated_data.get("valid_start_datetime")
-    valid_end_datetime = validated_data.get("valid_end_datetime")
-
-    if for_create:
-        now = timezone.now()
-        validated_data["manual_is_active"] = True
-        validated_data["valid_start_datetime"] = now
-        validated_data["manual_valid_start_datetime"] = now
-        return validated_data
-
-    if is_active is not None:
-        validated_data["manual_is_active"] = is_active
-    if valid_start_datetime:
-        validated_data["manual_valid_start_datetime"] = valid_start_datetime
-    if valid_end_datetime:
-        validated_data["manual_valid_end_datetime"] = valid_end_datetime
 
     return validated_data
 
@@ -191,7 +147,6 @@ class ProfileSerializer(BaseSerializer):
     actual_valid_start_datetime = serializers.DateTimeField(read_only=True)
     actual_valid_end_datetime = serializers.DateTimeField(read_only=True)
     provider_history_id = serializers.IntegerField(required=False, source='id')
-    cdm_source = serializers.CharField(read_only=True, allow_null=True, source='source')
     provider_source_value = serializers.CharField(source='user_id', required=False)
     user_id = serializers.CharField(required=False)
 
@@ -200,6 +155,7 @@ class ProfileSerializer(BaseSerializer):
         fields = '__all__'
         read_only_fields = ["id",
                             "provider",
+                            "source",
                             "is_valid",
                             "actual_is_active",
                             "actual_valid_start_datetime",
@@ -212,38 +168,6 @@ class ProfileSerializer(BaseSerializer):
                         'manual_valid_end_datetime': {'write_only': True},
                         'manual_is_active': {'write_only': True}
                         }
-
-    def create(self, validated_data):
-        user_id = validated_data.get("user_id")
-        assert user_id, "Must provide 'user_id' to create a new profile"
-
-        check_profile_entries(validated_data)
-        validated_data = fix_profile_entries(validated_data, for_create=True)
-
-        check_id_aph(user_id)
-        try:
-            user = User.objects.get(provider_username=user_id)
-        except User.DoesNotExist:
-            user_data = {"firstname": validated_data.get('firstname'),
-                         "lastname": validated_data.get('lastname'),
-                         "email": validated_data.get('email'),
-                         "provider_username": user_id,
-                         "provider_id": user_id
-                         }
-            user = User.objects.create(**user_data)
-        validated_data.update({'user': user,
-                               'provider_name': f"{validated_data.get('firstname')} {validated_data.get('lastname')}",
-                               'provider_id': user_id
-                               })
-        return super(ProfileSerializer, self).create(validated_data)
-
-    def update(self, instance, validated_data):
-        # can only update manual_is_active, manual_valid_start_datetime
-        # and manual_valid_end_datetime if ph not manual
-        if instance.source == MANUAL_SOURCE:
-            check_profile_entries(validated_data)
-        validated_data = fix_profile_entries(validated_data)
-        return super(ProfileSerializer, self).update(instance, validated_data)
 
 
 class ProfileCheckSerializer(serializers.Serializer):
@@ -330,6 +254,7 @@ class AccessSerializer(BaseSerializer):
                   "role",
                   "actual_start_datetime",
                   "actual_end_datetime",
+                  "start_datetime",
                   "end_datetime",
                   "care_site_id",
                   "provider_history_id",

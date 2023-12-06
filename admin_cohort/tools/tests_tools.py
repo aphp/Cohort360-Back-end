@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import random
 import string
-from typing import Tuple, List
+from typing import Tuple, List, Any
 
 from django.conf import settings
 from django.db.models import Manager, Field, Model
@@ -217,7 +217,7 @@ class NestedListCase(ListCase):
 
 
 class RetrieveCase(RequestCase):
-    def __init__(self, to_find: any = None, url: str = "", params: dict = None,
+    def __init__(self, to_find: Any = None, url: str = "", params: dict = None,
                  view_params: dict = None, **kwargs):
         super(RetrieveCase, self).__init__(**kwargs)
         self.to_find = to_find
@@ -380,7 +380,7 @@ class ViewSetTests(BaseTests):
     model_objects: Manager
     model_fields: List[Field]
 
-    def check_create_case(self, case: CreateCase, other_view: any = None, **view_kwargs):
+    def check_create_case(self, case: CreateCase, other_view: Any = None, **view_kwargs):
         request = self.factory.post(path=self.objects_url, data=case.json_data, format='json')
         request.jwt_access_key = "dummy_jwt_access_key"
         if case.user:
@@ -434,17 +434,14 @@ class ViewSetTests(BaseTests):
                 self.assertIsNone(obj.delete_datetime)
             obj.delete()
 
-    def check_patch_case(self, case: PatchCase):
+    def check_patch_case(self, case: PatchCase, other_view: Any = None):
         obj_id = self.model_objects.create(**case.initial_data).pk
         obj = self.model_objects.get(pk=obj_id)
 
-        request = self.factory.patch(
-            self.objects_url, case.data_to_update, format='json'
-        )
+        request = self.factory.patch(self.objects_url, case.data_to_update, format='json')
         force_authenticate(request, case.user)
-        response = self.__class__.update_view(
-            request, **{self.model._meta.pk.name: obj_id}
-        )
+        response = other_view and other_view(request, **{self.model._meta.pk.name: obj_id}) or \
+            self.__class__.update_view(request, **{self.model._meta.pk.name: obj_id})
         response.render()
 
         self.assertEqual(
@@ -476,7 +473,7 @@ class ViewSetTests(BaseTests):
                 getattr(new_obj, f), getattr(obj, f), case.description
             ) for f in [fd.name for fd in self.model_fields]]
 
-    def check_get_paged_list_case(self, case: ListCase, other_view: any = None, **view_kwargs):
+    def check_get_paged_list_case(self, case: ListCase, other_view: Any = None, **view_kwargs):
         request = self.factory.get(path=case.url or self.objects_url,
                                    data=[] if case.url else case.params)
         force_authenticate(request, case.user)
