@@ -48,14 +48,14 @@ def check_date_rules(new_start_datetime: datetime = None, new_end_datetime: date
         raise ValidationError(f"La date de fin {new_end_datetime} ne peut pas précéder la date de début {new_start_datetime}")
 
 
-def fix_csh_dates(validated_data, for_update: bool = False):
+def fix_access_dates(validated_data, for_update: bool = False):
     start_datetime = validated_data.pop("start_datetime", 0)
     end_datetime = validated_data.pop("end_datetime", 0)
 
     start_is_empty = start_datetime == 0
     end_is_empty = end_datetime == 0
 
-    # if creating a csh, then start_date will be now() if empty or null
+    # if creating an access, then start_datetime will be now() if empty or null
     if not for_update:
         validated_data["start_datetime"] = start_datetime \
             if start_datetime is not None and not start_is_empty \
@@ -282,7 +282,7 @@ class AccessSerializer(BaseSerializer):
         validated_data.update({"created_by": creator,
                                "updated_by": creator})
 
-        validated_data = fix_csh_dates(validated_data)
+        validated_data = fix_access_dates(validated_data)
         check_date_rules(new_start_datetime=validated_data.get("start_datetime"),
                          new_end_datetime=validated_data.get("end_datetime"))
         return super(AccessSerializer, self).create(validated_data)
@@ -296,7 +296,7 @@ class AccessSerializer(BaseSerializer):
         validated_data.pop("provider_history_id", None)
         validated_data["updated_by"] = self.context.get('request').user
 
-        validated_data = fix_csh_dates(validated_data, for_update=True)
+        validated_data = fix_access_dates(validated_data, for_update=True)
         check_date_rules(new_start_datetime=validated_data.get("start_datetime"),
                          new_end_datetime=validated_data.get("end_datetime"),
                          old_start_datetime=instance.start_datetime,

@@ -235,7 +235,6 @@ For any of the groups of rights A that has the upper hand on on groups Bs (cf. r
 - [x] As a user with read_users right, I can get profiles given query parameters :
   - [x] provider_id
   - [x] source
-  - [x] cdm_source
   - [x] user
   - [x] provider_source_value
   - [x] provider_name

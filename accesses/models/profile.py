@@ -49,10 +49,6 @@ class Profile(BaseModel):
     def actual_valid_end_datetime(self) -> datetime:
         return self.manual_valid_end_datetime or self.valid_end_datetime
 
-    @property
-    def cdm_source(self) -> str:
-        return self.source
-
     @staticmethod
     def q_is_valid(prefix: str = '') -> Q:
         """

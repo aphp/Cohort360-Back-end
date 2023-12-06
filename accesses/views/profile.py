@@ -30,13 +30,11 @@ class ProfileFilter(filters.FilterSet):
     firstname = filters.CharFilter(lookup_expr="icontains")
     email = filters.CharFilter(lookup_expr="icontains")
     provider_history_id = filters.NumberFilter(field_name='id')
-    cdm_source = filters.CharFilter(field_name='source')
 
     class Meta:
         model = Profile
         fields = ("provider_id",
                   "source",
-                  "cdm_source",
                   "user",
                   "user_id",
                   "provider_name",
@@ -78,8 +76,6 @@ class ProfileViewSet(CustomLoggingMixin, BaseViewSet):
                                                       openapi.TYPE_INTEGER],
                                                      ["id", "Filter type", openapi.TYPE_INTEGER],
                                                      ["provider_id", "Filter type", openapi.TYPE_STRING],
-                                                     ["cdm_source", "(to deprecate -> source) Filter type "
-                                                                    "('MANUAL', 'ORBIS', etc.)", openapi.TYPE_STRING],
                                                      ["source", "Filter type ('MANUAL', 'ORBIS', etc.)",
                                                       openapi.TYPE_STRING],
                                                      ["is_active", "Filter type", openapi.TYPE_BOOLEAN],

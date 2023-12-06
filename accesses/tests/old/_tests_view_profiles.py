@@ -258,11 +258,11 @@ class ProfileGetListTests(ProfileTests):
             ),
             ListCase(
                 **basic_case_dict,
-                title=f"cdm_source={self.id_pattern}",
+                title=f"source={self.id_pattern}",
                 to_find=[
                     prof for prof in self.list_profs
                     if str(self.id_pattern) == prof.source],
-                params=dict(cdm_source=self.id_pattern)
+                params=dict(source=self.id_pattern)
             ),
             ListCase(
                 **basic_case_dict,
