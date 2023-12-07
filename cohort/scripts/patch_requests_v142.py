@@ -47,7 +47,7 @@ def find_related_atih(code: str):
         ON o.orbis_id = r.concept_id_1
         INNER JOIN atih a
         ON a.atih_id = r.concept_id_2
-        WHERE relationship_id = 'Maps to' AND r.delete_datetime IS NULL AND o.orbis_atc_code = %s;
+        WHERE relationship_id = 'Maps to' AND r.delete_datetime IS NULL AND o.orbis_code = %s;
         '''
     cursor.execute(q, (ORBIS_CODESYSTEM, ATIH_CODEYSTEM, code))
     res = cursor.fetchone()
