@@ -125,7 +125,7 @@ class RolesService:
         perimeter = Perimeter.objects.get(id=perimeter_id)
         assignable_roles_ids = [role.id for role in queryset
                                 if accesses_service.can_user_manage_access(user=user,
-                                                                           access_data=dict(role=role, perimeter=perimeter))]
+                                                                           target_access=dict(role=role, perimeter=perimeter))]
         return assignable_roles_ids
 
 

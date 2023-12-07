@@ -102,6 +102,10 @@ class AccessViewSet(CustomLoggingMixin, BaseViewSet):
                                                                "ans.\nDoit contenir la timezone ou bien sera considéré comme UTC.")},
         required=['profile_id', 'perimeter_id', 'role_id']))
     def create(self, request, *args, **kwargs):
+        try:
+            accesses_service.process_create_data(data=request.data)
+        except ValueError as e:
+            return Response(data=str(e), status=status.HTTP_400_BAD_REQUEST)
         return super(AccessViewSet, self).create(request, *args, **kwargs)
 
     @swagger_auto_schema(request_body=openapi.Schema(
@@ -117,19 +121,22 @@ class AccessViewSet(CustomLoggingMixin, BaseViewSet):
                                                                "mise à null.\nDoit contenir la timezone ou bien sera "
                                                                "considéré comme UTC.")}))
     def partial_update(self, request, *args, **kwargs):
-        access = self.get_object()
-        now = timezone.now()
-        if access.end_datetime and access.end_datetime < now:
-            return Response(data="L'accès est déjà clôturé.", status=status.HTTP_403_FORBIDDEN)
-        if access.start_datetime and access.start_datetime > now:
-            return Response(data="L'accès ne peut pas être clôturé car n'a pas encore commencé. Il peut cependant être supprimé.",
-                            status=status.HTTP_403_FORBIDDEN)
-        request.data.update({'end_datetime': now})
+        try:
+            accesses_service.process_patch_data(access=self.get_object(), data=request.data)
+        except ValueError as e:
+            return Response(data=str(e), status=status.HTTP_400_BAD_REQUEST)
         return super(AccessViewSet, self).partial_update(request, *args, **kwargs)
 
-    @swagger_auto_schema(auto_schema=None)
-    def update(self, request, *args, **kwargs):
-        return super(AccessViewSet, self).update(request, *args, **kwargs)
+    @swagger_auto_schema(method="PATCH", operation_summary="Will set end_datetime to now, to close the access.")
+    @action(url_path="close", detail=True, methods=['patch'])
+    def close(self, request, *args, **kwargs):
+        now = timezone.now()
+        try:
+            accesses_service.check_access_closing_date(access=self.get_object(), end_datetime_now=now)
+        except ValueError as e:
+            return Response(data=str(e), status=status.HTTP_400_BAD_REQUEST)
+        request.data.update({'end_datetime': now})
+        return self.partial_update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
         access = self.get_object()

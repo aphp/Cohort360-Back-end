@@ -19,67 +19,6 @@ from .services.roles import roles_service
 _logger = logging.getLogger('django.request')
 
 
-def check_date_rules(new_start_datetime: datetime = None, new_end_datetime: datetime = None,
-                     old_start_datetime: datetime = None, old_end_datetime: datetime = None):
-    try:
-        old_start_datetime = old_start_datetime and timezone.get_current_timezone().localize(old_start_datetime)
-        old_end_datetime = old_end_datetime and timezone.get_current_timezone().localize(old_end_datetime)
-    except ValueError:
-        pass
-    now = timezone.now()
-
-    if old_start_datetime and new_start_datetime \
-       and old_start_datetime != new_start_datetime \
-       and old_start_datetime < now:
-        raise ValidationError(f"La date de début {old_start_datetime} ne peut pas être modifiée si elle est passée")
-
-    if old_end_datetime and new_end_datetime \
-       and old_end_datetime != new_end_datetime \
-       and old_end_datetime < now:
-        raise ValidationError(f"La date de fin {old_end_datetime} ne peut pas être modifiée si elle est passée")
-
-    if new_start_datetime and new_start_datetime + timedelta(seconds=10) < now:
-        raise ValidationError(f"La date de début {new_start_datetime} ne peut pas être dans le passé")
-
-    if new_end_datetime and new_end_datetime + timedelta(seconds=10) < now:
-        raise ValidationError(f"La date de fin {new_end_datetime} ne peut pas être dans le passé")
-
-    if new_start_datetime and new_end_datetime and new_end_datetime < new_start_datetime:
-        raise ValidationError(f"La date de fin {new_end_datetime} ne peut pas précéder la date de début {new_start_datetime}")
-
-
-def fix_access_dates(validated_data, for_update: bool = False):
-    start_datetime = validated_data.pop("start_datetime", 0)
-    end_datetime = validated_data.pop("end_datetime", 0)
-
-    start_is_empty = start_datetime == 0
-    end_is_empty = end_datetime == 0
-
-    # if creating an access, then start_datetime will be now() if empty or null
-    if not for_update:
-        validated_data["start_datetime"] = start_datetime \
-            if start_datetime is not None and not start_is_empty \
-            else timezone.now()
-    # if updating a csh, then start_date will be now() if null
-    elif not start_is_empty:
-        validated_data["start_datetime"] = start_datetime \
-            if start_datetime is not None \
-            else timezone.now()
-
-    # we deny it if is for updating, and end_datetime has been set to null
-    if not end_is_empty and end_datetime is None and for_update:
-        raise ValidationError("You cannot set end_datetime "
-                              "at null when updating")
-
-    # if there is no value, and it is not for updating, we set end_datetime
-    if end_datetime != 0 or not for_update:
-        validated_data["end_datetime"] = end_datetime \
-            if end_datetime is not None and not end_is_empty \
-            else validated_data["start_datetime"] + timedelta(days=MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS)
-
-    return validated_data
-
-
 def get_provider_id(user_id: str) -> int:
     """
     get provider_id from OMOP DB for users issued from ORBIS.
@@ -281,26 +220,17 @@ class AccessSerializer(BaseSerializer):
         creator = self.context.get('request').user
         validated_data.update({"created_by": creator,
                                "updated_by": creator})
-
-        validated_data = fix_access_dates(validated_data)
-        check_date_rules(new_start_datetime=validated_data.get("start_datetime"),
-                         new_end_datetime=validated_data.get("end_datetime"))
         return super(AccessSerializer, self).create(validated_data)
 
     def update(self, instance, validated_data):
-        validated_data.pop("role_id", None)
-        validated_data.pop("role", None)
-        validated_data.pop("perimeter_id", None)
-        validated_data.pop("care_site_id", None)    # todo: remove when ready with perimeter
-        validated_data.pop("profile", None)
-        validated_data.pop("provider_history_id", None)
-        validated_data["updated_by"] = self.context.get('request').user
+        # validated_data.pop("role_id", None)
+        # validated_data.pop("role", None)
+        # validated_data.pop("perimeter_id", None)
+        # validated_data.pop("care_site_id", None)    # todo: remove when ready with perimeter
+        # validated_data.pop("profile", None)
+        # validated_data.pop("provider_history_id", None)
 
-        validated_data = fix_access_dates(validated_data, for_update=True)
-        check_date_rules(new_start_datetime=validated_data.get("start_datetime"),
-                         new_end_datetime=validated_data.get("end_datetime"),
-                         old_start_datetime=instance.start_datetime,
-                         old_end_datetime=instance.end_datetime)
+        validated_data["updated_by"] = self.context.get('request').user
         if validated_data:
             return super(AccessSerializer, self).update(instance, validated_data)
         return instance

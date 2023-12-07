@@ -1,12 +1,13 @@
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from typing import List, Dict, Union
 
 from django.db.models import QuerySet, Q, Prefetch, F
+from django.utils import timezone
 
 from accesses.models import Perimeter, Role, Access, Profile
 from accesses.services.shared import DataRight
 from admin_cohort.models import User
-from admin_cohort.settings import ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS, PERIMETERS_TYPES, MANUAL_SOURCE
+from admin_cohort.settings import ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS, PERIMETERS_TYPES, MANUAL_SOURCE, MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS
 from admin_cohort.tools import join_qs
 
 
@@ -384,6 +385,70 @@ class AccessesService:
         # requires having: right_manage_export_jupyter_accesses = True
         return any((role.right_export_jupyter_nominative,
                     role.right_export_jupyter_pseudonymized))
+
+    @staticmethod
+    def check_access_closing_date(access: Access, end_datetime_now: datetime) -> None:
+        if access.end_datetime < end_datetime_now:
+            raise ValueError("L'accès est déjà clôturé")
+        if access.start_datetime > end_datetime_now:
+            raise ValueError("L'accès ne peut pas être clôturé car n'a pas encore commencé")
+
+    def process_create_data(self, data: dict) -> None:
+        start_datetime = data.get("start_datetime")
+        end_datetime = data.get("end_datetime")
+        if not start_datetime:
+            data["start_datetime"] = timezone.now()
+        if not end_datetime:
+            data["end_datetime"] = data["start_datetime"] + timedelta(days=MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS)
+        self.check_date_rules(new_start_datetime=data.get("start_datetime"),
+                              new_end_datetime=data.get("end_datetime"))
+
+    def process_patch_data(self, access: Access, data: dict) -> None:
+        """
+        1st case: extend end_datetime
+        2nd case: update start_datetime + end_datetime  for future access
+        """
+        start_datetime = data.get("start_datetime")
+        end_datetime = data.get("end_datetime")
+        now = timezone.now()
+
+        if access.start_datetime < now and not start_datetime:
+            data["start_datetime"] = timezone.now()
+        if not end_datetime:
+            raise ValueError("Missing `end_datetime` for updating access")
+        self.check_date_rules(new_start_datetime=data.get("start_datetime"),
+                              new_end_datetime=data.get("end_datetime"),
+                              old_start_datetime=access.start_datetime,
+                              old_end_datetime=access.end_datetime)
+
+    @staticmethod
+    def check_date_rules(new_start_datetime: datetime = None, new_end_datetime: datetime = None,
+                         old_start_datetime: datetime = None, old_end_datetime: datetime = None) -> None:
+        try:
+            old_start_datetime = old_start_datetime and timezone.get_current_timezone().localize(old_start_datetime)
+            old_end_datetime = old_end_datetime and timezone.get_current_timezone().localize(old_end_datetime)
+        except ValueError:
+            pass
+        now = timezone.now()
+
+        if old_start_datetime and new_start_datetime \
+                and old_start_datetime != new_start_datetime \
+                and old_start_datetime < now:
+            raise ValueError(f"La date de début ne peut pas être modifiée car elle est passée")
+
+        if old_end_datetime and new_end_datetime \
+                and old_end_datetime != new_end_datetime \
+                and old_end_datetime < now:
+            raise ValueError(f"La date de fin ne peut pas être modifiée car elle est passée")
+
+        if new_start_datetime and new_start_datetime + timedelta(seconds=10) < now:
+            raise ValueError("La date de début ne peut pas être dans le passé")
+
+        if new_end_datetime and new_end_datetime + timedelta(seconds=10) < now:
+            raise ValueError("La date de fin ne peut pas être dans le passé")
+
+        if new_start_datetime and new_end_datetime and new_end_datetime < new_start_datetime:
+            raise ValueError("La date de fin ne peut pas précéder la date de début")
 
 
 accesses_service = AccessesService()
