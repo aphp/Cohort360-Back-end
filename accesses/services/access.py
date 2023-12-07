@@ -3,6 +3,7 @@ from typing import List, Dict, Union
 
 from django.db.models import QuerySet, Q, Prefetch, F
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 
 from accesses.models import Perimeter, Role, Access, Profile
 from accesses.services.shared import DataRight
@@ -396,34 +397,37 @@ class AccessesService:
     def process_create_data(self, data: dict) -> None:
         start_datetime = data.get("start_datetime")
         end_datetime = data.get("end_datetime")
-        if not start_datetime:
-            data["start_datetime"] = timezone.now()
-        if not end_datetime:
-            data["end_datetime"] = data["start_datetime"] + timedelta(days=MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS)
-        self.check_date_rules(new_start_datetime=data.get("start_datetime"),
-                              new_end_datetime=data.get("end_datetime"))
+
+        data["start_datetime"] = start_datetime and parse_datetime(start_datetime) or timezone.now()
+        data["end_datetime"] = (end_datetime and parse_datetime(end_datetime) or
+                                data["start_datetime"] + timedelta(days=MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS))
+        self.check_access_dates(new_start_datetime=data["start_datetime"],
+                                new_end_datetime=data["end_datetime"])
 
     def process_patch_data(self, access: Access, data: dict) -> None:
-        """
-        1st case: extend end_datetime
-        2nd case: update start_datetime + end_datetime  for future access
-        """
+        if not data:
+            raise ValueError("No data was provided to update access")
+
+        updatable_fields = ("start_datetime", "end_datetime")
+        if [k for k in data if k not in updatable_fields]:
+            raise ValueError("Only `start_datetime` and `end_datetime` can be updated")
+
         start_datetime = data.get("start_datetime")
         end_datetime = data.get("end_datetime")
-        now = timezone.now()
 
-        if access.start_datetime < now and not start_datetime:
-            data["start_datetime"] = timezone.now()
-        if not end_datetime:
-            raise ValueError("Missing `end_datetime` for updating access")
-        self.check_date_rules(new_start_datetime=data.get("start_datetime"),
-                              new_end_datetime=data.get("end_datetime"),
-                              old_start_datetime=access.start_datetime,
-                              old_end_datetime=access.end_datetime)
+        if all(f in data for f in updatable_fields) and not (start_datetime and end_datetime):
+            raise ValueError("Missing dates to updating access")
+
+        start_datetime = start_datetime and parse_datetime(start_datetime) or None
+        end_datetime = end_datetime and parse_datetime(end_datetime) or None
+        self.check_access_dates(new_start_datetime=start_datetime,
+                                new_end_datetime=end_datetime,
+                                old_start_datetime=access.start_datetime,
+                                old_end_datetime=access.end_datetime)
 
     @staticmethod
-    def check_date_rules(new_start_datetime: datetime = None, new_end_datetime: datetime = None,
-                         old_start_datetime: datetime = None, old_end_datetime: datetime = None) -> None:
+    def check_access_dates(new_start_datetime: datetime = None, new_end_datetime: datetime = None,
+                           old_start_datetime: datetime = None, old_end_datetime: datetime = None) -> None:
         try:
             old_start_datetime = old_start_datetime and timezone.get_current_timezone().localize(old_start_datetime)
             old_end_datetime = old_end_datetime and timezone.get_current_timezone().localize(old_end_datetime)
@@ -434,12 +438,12 @@ class AccessesService:
         if old_start_datetime and new_start_datetime \
                 and old_start_datetime != new_start_datetime \
                 and old_start_datetime < now:
-            raise ValueError(f"La date de début ne peut pas être modifiée car elle est passée")
+            raise ValueError("La date de début ne peut pas être modifiée car elle est passée")
 
         if old_end_datetime and new_end_datetime \
                 and old_end_datetime != new_end_datetime \
                 and old_end_datetime < now:
-            raise ValueError(f"La date de fin ne peut pas être modifiée car elle est passée")
+            raise ValueError("La date de fin ne peut pas être modifiée car elle est passée")
 
         if new_start_datetime and new_start_datetime + timedelta(seconds=10) < now:
             raise ValueError("La date de début ne peut pas être dans le passé")

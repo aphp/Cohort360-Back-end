@@ -1,7 +1,6 @@
 import json
 
 from django.db.models import BooleanField, When, Case, Value, QuerySet
-from django.http import Http404
 from django.utils import timezone
 from django_filters import OrderingFilter
 from django_filters import rest_framework as filters
@@ -9,7 +8,6 @@ from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
 from accesses.services.access import accesses_service
@@ -136,7 +134,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewSet):
         except ValueError as e:
             return Response(data=str(e), status=status.HTTP_400_BAD_REQUEST)
         request.data.update({'end_datetime': now})
-        return self.partial_update(request, *args, **kwargs)
+        return super(AccessViewSet, self).partial_update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
         access = self.get_object()

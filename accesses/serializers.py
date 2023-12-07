@@ -1,19 +1,13 @@
 import logging
-import re
-from datetime import timedelta
 
 from django.db.models import Max, Q
 from django.utils import timezone
-from django.utils.datetime_safe import datetime
 from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
 
 from admin_cohort.models import User
 from admin_cohort.serializers import BaseSerializer, ReducedUserSerializer, UserSerializer
-from admin_cohort.settings import MANUAL_SOURCE, MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS
 from .conf_perimeters import Provider
 from .models import Role, Access, Profile, Perimeter
-from .services.profiles import profiles_service
 from .services.roles import roles_service
 
 _logger = logging.getLogger('django.request')
@@ -223,17 +217,8 @@ class AccessSerializer(BaseSerializer):
         return super(AccessSerializer, self).create(validated_data)
 
     def update(self, instance, validated_data):
-        # validated_data.pop("role_id", None)
-        # validated_data.pop("role", None)
-        # validated_data.pop("perimeter_id", None)
-        # validated_data.pop("care_site_id", None)    # todo: remove when ready with perimeter
-        # validated_data.pop("profile", None)
-        # validated_data.pop("provider_history_id", None)
-
         validated_data["updated_by"] = self.context.get('request').user
-        if validated_data:
-            return super(AccessSerializer, self).update(instance, validated_data)
-        return instance
+        return super(AccessSerializer, self).update(instance, validated_data)
 
 
 class ExpiringAccessesSerializer(serializers.Serializer):

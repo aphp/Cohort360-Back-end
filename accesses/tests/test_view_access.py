@@ -1,10 +1,10 @@
-from datetime import timedelta, datetime
+from datetime import timedelta
 
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework import status
 
-from accesses.models import Access, Role, Profile
+from accesses.models import Access, Role
 from accesses.tests.base import AccessesAppTestsBase, ALL_FALSY_RIGHTS
 from accesses.views import AccessViewSet
 from admin_cohort.tools.tests_tools import CaseRetrieveFilter, CreateCase, new_user_and_profile, PatchCase

@@ -4,7 +4,7 @@ from typing import List
 
 from rest_framework import permissions
 
-from accesses.models import Role, Perimeter
+from accesses.models import Role
 from accesses.services.access import accesses_service
 from accesses.services.roles import roles_service
 from admin_cohort.models import User

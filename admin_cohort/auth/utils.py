@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Optional, Union
+from typing import Union
 
 import environ
 import jwt
@@ -11,7 +11,7 @@ from rest_framework_simplejwt.exceptions import AuthenticationFailed
 
 from admin_cohort.models import User
 from admin_cohort.settings import JWT_AUTH_MODE, OIDC_AUTH_MODE, JWT_ACCESS_COOKIE
-from admin_cohort.types import PersonIdentity, ServerError, JwtTokens, LoginError, UserInfo, MissingDataError
+from admin_cohort.types import ServerError, JwtTokens, LoginError, UserInfo
 
 env = environ.Env()
 
