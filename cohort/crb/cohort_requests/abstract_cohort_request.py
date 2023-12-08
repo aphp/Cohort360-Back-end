@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
+from accesses.models import Perimeter
 from accesses.tools.perimeter_process import get_all_read_patient_accesses, \
     get_read_nominative_boolean_from_specific_logic_function, get_read_patient_right
 from admin_cohort.auth.utils import get_userinfo_from_token, get_user_from_token
@@ -20,7 +21,8 @@ def is_cohort_request_pseudo_read(auth_headers: dict, source_population: list) -
     user = get_user_from_token(auth_headers['Authorization'].replace('Bearer ', ''),
                                auth_headers['authorizationMethod'])
     all_read_patient_nominative_accesses, all_read_patient_pseudo_accesses = get_all_read_patient_accesses(user)
-    return not get_read_nominative_boolean_from_specific_logic_function(source_population,
+    perimeters = Perimeter.objects.filter(cohort_id__in=source_population)
+    return not get_read_nominative_boolean_from_specific_logic_function(perimeters,
                                                                         all_read_patient_nominative_accesses,
                                                                         all_read_patient_pseudo_accesses,
                                                                         get_read_patient_right)
