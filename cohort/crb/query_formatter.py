@@ -14,7 +14,9 @@ from cohort.crb.schemas import FhirParameters
 if TYPE_CHECKING:
     from cohort.crb.schemas import CohortQuery, Criteria, SourcePopulation
 
-FHIR_URL = os.environ.get("FHIR_URL")
+env = os.environ
+FHIR_URL = env.get("FHIR_URL")
+META_SECURITY_PSEUDED = env.get("META_SECURITY_PSEUDED")
 
 _logger = logging.getLogger("info")
 
@@ -36,20 +38,25 @@ def query_fhir(resource: str, params: dict[str, list[str]], auth_headers: dict) 
     return FhirParameters(**result)
 
 
+def add_security_params_to_filter_fhir(sub_criteria: Criteria, source_population: SourcePopulation, is_pseudo: bool):
+    filter_fhir_enriched = sub_criteria.add_criteria(source_population)
+    return META_SECURITY_PSEUDED + "&" + filter_fhir_enriched if is_pseudo else filter_fhir_enriched
+
+
 class QueryFormatter:
     IDENTIFIER_VALUE = "identifier.value"
 
     def __init__(self, auth_headers: dict):
         self.auth_headers = auth_headers
 
-    def format_to_fhir(self, cohort_query: CohortQuery) -> Criteria | None:
+    def format_to_fhir(self, cohort_query: CohortQuery, is_pseudo: bool) -> Criteria | None:
         def build_solr_criteria(criteria: Criteria, source_population: SourcePopulation) -> Criteria | None:
             if criteria is None:
                 return None
 
             for sub_criteria in criteria.criteria:
                 if sub_criteria.criteria_type == CriteriaType.BASIC_RESOURCE:
-                    filter_fhir_enriched = sub_criteria.add_criteria(source_population)
+                    filter_fhir_enriched = add_security_params_to_filter_fhir(sub_criteria, source_population, is_pseudo)
 
                     _logger.info(f"filterFhirEnriched {filter_fhir_enriched}")
 

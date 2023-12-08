@@ -21,7 +21,7 @@ from ..tools.perimeter_process import get_top_perimeter_same_level, get_top_peri
     get_top_perimeter_from_read_patient_accesses, is_pseudo_perimeter_in_top_perimeter, \
     has_at_least_one_read_nominative_right, \
     get_read_nominative_boolean_from_specific_logic_function, get_all_read_patient_accesses, \
-    get_read_opposing_patient_accesses
+    get_read_opposing_patient_accesses, get_perimeters_filtered_by_search
 
 
 class PerimeterFilter(filters.FilterSet):
@@ -147,12 +147,14 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
             request.user)
         is_opposing_patient_read = get_read_opposing_patient_accesses(request.user)
         if request.query_params:
-            is_read_patient_nominative = get_read_nominative_boolean_from_specific_logic_function(request,
-                                                                                                  self.filter_queryset(
-                                                                                                      self.get_queryset()),
-                                                                                                  all_read_patient_nominative_accesses,
-                                                                                                  all_read_patient_pseudo_accesses,
-                                                                                                  get_read_patient_right)
+            perimeters_filtered_by_search = get_perimeters_filtered_by_search(request.query_params.get("cohort_id"),
+                                                                              request.user,
+                                                                              self.filter_queryset(self.get_queryset()))
+            is_read_patient_nominative = get_read_nominative_boolean_from_specific_logic_function(
+                perimeters_filtered_by_search,
+                all_read_patient_nominative_accesses,
+                all_read_patient_pseudo_accesses,
+                get_read_patient_right)
             is_read_patient_pseudo = not is_read_patient_nominative
         else:
             is_read_patient_pseudo = is_pseudo_perimeter_in_top_perimeter(all_read_patient_nominative_accesses,
@@ -172,12 +174,14 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
             request.user)
         is_opposing_patient_read = get_read_opposing_patient_accesses(request.user)
         if request.query_params:
-            is_read_patient_nominative = get_read_nominative_boolean_from_specific_logic_function(request,
-                                                                                                  self.filter_queryset(
-                                                                                                      self.get_queryset()),
-                                                                                                  all_read_patient_nominative_accesses,
-                                                                                                  all_read_patient_pseudo_accesses,
-                                                                                                  has_at_least_one_read_nominative_right)
+            perimeters_filtered_by_search = get_perimeters_filtered_by_search(request.query_params.get("cohort_id"),
+                                                                              request.user,
+                                                                              self.filter_queryset(self.get_queryset()))
+            is_read_patient_nominative = get_read_nominative_boolean_from_specific_logic_function(
+                perimeters_filtered_by_search,
+                all_read_patient_nominative_accesses,
+                all_read_patient_pseudo_accesses,
+                has_at_least_one_read_nominative_right)
             return Response(data={"is_one_read_nominative_patient_right": is_read_patient_nominative,
                                   "is_opposing_patient_read": is_opposing_patient_read},
                             status=status.HTTP_200_OK)

@@ -205,7 +205,7 @@ def get_perimeters_filtered_by_search(cohort_ids, owner_id, default_perimeters):
         return default_perimeters
 
 
-def get_read_nominative_boolean_from_specific_logic_function(request, filter_queryset,
+def get_read_nominative_boolean_from_specific_logic_function(perimeters_filtered_by_search, filter_queryset,
                                                              all_read_patient_nominative_accesses,
                                                              all_read_patient_pseudo_accesses,
                                                              right_perimeter_compute_function) -> bool:
@@ -215,9 +215,6 @@ def get_read_nominative_boolean_from_specific_logic_function(request, filter_que
         The right_perimeter_compute_function can be used to find right for all cohorts in "is-read-patient-pseudo" or
         at least on one perimeter in "is-one-read-patient-right"
     """
-
-    perimeters_filtered_by_search = get_perimeters_filtered_by_search(request.query_params.get("cohort_id"),
-                                                                      request.user, filter_queryset)
     if not perimeters_filtered_by_search:
         raise Http404("ERROR No Perimeters Found")
     return right_perimeter_compute_function(perimeters_filtered_by_search,

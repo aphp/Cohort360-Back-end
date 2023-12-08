@@ -138,6 +138,26 @@ def get_token_issuer(token: str) -> str:
     return issuer
 
 
+def get_user_from_token(token: str, auth_method: str) -> Union[None, User]:
+    if auth_method == JWT_AUTH_MODE:
+        try:
+            decoded = jwt.decode(token, key=JWT_SIGNING_KEY, algorithms=JWT_ALGORITHMS, leeway=15)
+            return User.objects.get(pk=decoded["username"])
+
+        except User.DoesNotExist as e:
+            raise ServerError(f"Error verifying token. User not found - {e}")
+    elif auth_method == OIDC_AUTH_MODE:
+        try:
+            issuer = get_token_issuer(token=token)
+            decoded = decode_oidc_token(token=token, issuer=issuer)
+            return User.objects.get(pk=decoded["preferred_username"])
+        except Exception as e:
+            _logger.info(f"Error decoding token: {e} - `{token}`")
+            raise e
+    else:
+        raise ValueError(f"Invalid authentication method : {auth_method}")
+
+
 def get_userinfo_from_token(token: str, auth_method: str) -> Union[None, UserInfo]:
     if token == env("ETL_TOKEN"):
         _logger.info("ETL token connexion")
