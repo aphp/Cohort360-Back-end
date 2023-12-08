@@ -491,7 +491,7 @@ class ViewSetTests(BaseTests):
                          case.description + f'''Found IDs: {" - ".join(str(r.get('id', r.get('uuid'))) for r in response.data)}''')
 
         if view_kwargs.get("yield_response_data"):
-            return response.data
+            return json.loads(response.content)
 
         if view_kwargs.get("is_paged_list_case"):
             return response

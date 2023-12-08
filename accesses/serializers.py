@@ -230,7 +230,7 @@ class ExpiringAccessesSerializer(serializers.Serializer):
 
 class DataRightSerializer(serializers.Serializer):
     user_id = serializers.CharField(read_only=True, allow_null=True)
-    perimeter_id = serializers.CharField(read_only=True, allow_null=True)
+    perimeter_id = serializers.IntegerField(read_only=True, allow_null=True)
     right_read_patient_nominative = serializers.BooleanField(read_only=True, allow_null=True)
     right_read_patient_pseudonymized = serializers.BooleanField(read_only=True, allow_null=True)
     right_search_patients_by_ipp = serializers.BooleanField(read_only=True, allow_null=True)

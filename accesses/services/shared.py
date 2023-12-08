@@ -5,10 +5,10 @@ from accesses.models import Perimeter
 
 class DataRight:
 
-    def __init__(self, user_id: str, perimeter: Perimeter = None, reading_rights: dict = None):
+    def __init__(self, user_id: str, perimeter_id: int = None, reading_rights: dict = None):
         reading_rights = reading_rights or {}
         self.user_id = user_id
-        self.perimeter = perimeter
+        self.perimeter_id = perimeter_id
         self.right_read_patient_nominative = reading_rights.get("right_read_patient_nominative", False)
         self.right_read_patient_pseudonymized = reading_rights.get("right_read_patient_pseudonymized", False)
         self.right_search_patients_by_ipp = reading_rights.get("right_search_patients_by_ipp", False)
@@ -21,10 +21,10 @@ class DataRight:
     def acquire_extra_data_reading_rights(self, dr: DataRight):
         self.right_read_patient_nominative = self.right_read_patient_nominative or dr.right_read_patient_nominative
         self.right_read_patient_pseudonymized = self.right_read_patient_pseudonymized or dr.right_read_patient_pseudonymized
-        self.right_search_patients_by_ipp = self.right_search_patients_by_ipp or dr.right_search_patients_by_ipp
-        self.right_search_opposed_patients = self.right_search_opposed_patients or dr.right_search_opposed_patients
 
     def acquire_extra_global_rights(self, dr: DataRight):
+        self.right_search_patients_by_ipp = self.right_search_patients_by_ipp or dr.right_search_patients_by_ipp
+        self.right_search_opposed_patients = self.right_search_opposed_patients or dr.right_search_opposed_patients
         self.right_export_csv_nominative = self.right_export_csv_nominative or dr.right_export_csv_nominative
         self.right_export_csv_pseudonymized = self.right_export_csv_pseudonymized or dr.right_export_csv_pseudonymized
         self.right_export_jupyter_nominative = self.right_export_jupyter_nominative or dr.right_export_jupyter_nominative

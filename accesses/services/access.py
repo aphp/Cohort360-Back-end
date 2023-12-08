@@ -159,22 +159,20 @@ class AccessesService:
     @staticmethod
     def get_data_rights_from_accesses(user: User, data_accesses: QuerySet) -> List[DataRight]:
         accesses_with_reading_patient_data_rights = data_accesses.filter(join_qs([Q(role__right_read_patient_nominative=True),
-                                                                                  Q(role__right_read_patient_pseudonymized=True),
-                                                                                  Q(role__right_search_patients_by_ipp=True),
-                                                                                  Q(role__right_search_opposed_patients=True)]))
-        return [DataRight(user_id=user.pk, perimeter=access.perimeter, reading_rights=access.__dict__)
+                                                                                  Q(role__right_read_patient_pseudonymized=True)]))
+        return [DataRight(user_id=user.pk, perimeter_id=access.perimeter.id, reading_rights=access.__dict__)
                 for access in accesses_with_reading_patient_data_rights]
 
     @staticmethod
-    def get_data_rights_for_target_perimeters(user: User, target_perimeters: QuerySet) -> List[DataRight]:
-        return [DataRight(user_id=user.pk, perimeter=perimeter, reading_rights=None)
-                for perimeter in target_perimeters]
+    def get_data_rights_for_target_perimeters(user: User, target_perimeters_ids: List[int]) -> List[DataRight]:
+        return [DataRight(user_id=user.pk, perimeter_id=perimeter_id, reading_rights=None)
+                for perimeter_id in target_perimeters_ids]
 
     @staticmethod
     def group_data_rights_by_perimeter(data_rights: List[DataRight]) -> Dict[int, DataRight]:
         data_rights_per_perimeter = {}
         for dr in data_rights:
-            perimeter_id = dr.perimeter.id
+            perimeter_id = dr.perimeter_id
             if perimeter_id not in data_rights_per_perimeter:
                 data_rights_per_perimeter[perimeter_id] = dr
             else:
@@ -206,18 +204,20 @@ class AccessesService:
 
     @staticmethod
     def share_global_rights_over_relative_hierarchy(user: User, data_rights: List[DataRight], data_accesses: QuerySet[Access]):
-        for access in data_accesses.filter(join_qs([Q(role__right_export_csv_nominative=True),
+        for access in data_accesses.filter(join_qs([Q(role__right_search_patients_by_ipp=True),
+                                                    Q(role__right_search_opposed_patients=True),
+                                                    Q(role__right_export_csv_nominative=True),
                                                     Q(role__right_export_csv_pseudonymized=True),
                                                     Q(role__right_export_jupyter_nominative=True),
                                                     Q(role__right_export_jupyter_pseudonymized=True)])):
             global_dr = DataRight(user_id=user.pk,
                                   reading_rights=access.__dict__,
-                                  perimeter=None)
+                                  perimeter_id=None)
             for dr in data_rights:
                 dr.acquire_extra_global_rights(global_dr)
 
     def get_data_reading_rights(self, user: User, target_perimeters_ids: str) -> List[DataRight]:
-        target_perimeters_ids = target_perimeters_ids and target_perimeters_ids.split(",") or []
+        target_perimeters_ids = target_perimeters_ids and [int(p_id) for p_id in target_perimeters_ids.split(",")] or []
         target_perimeters = Perimeter.objects.filter(id__in=target_perimeters_ids) \
                                              .select_related(*[f"parent{i * '__parent'}" for i in range(0, len(PERIMETERS_TYPES) - 2)])
 
@@ -226,7 +226,7 @@ class AccessesService:
         data_rights_for_perimeters = []
         if target_perimeters:
             data_rights_for_perimeters = self.get_data_rights_for_target_perimeters(user=user,
-                                                                                    target_perimeters=target_perimeters)
+                                                                                    target_perimeters_ids=target_perimeters_ids)
         data_rights_per_perimeter = self.group_data_rights_by_perimeter(data_rights=data_rights_from_accesses + data_rights_for_perimeters)
 
         data_rights = self.share_data_reading_rights_over_relative_hierarchy(data_rights_per_perimeter=data_rights_per_perimeter)
@@ -235,12 +235,10 @@ class AccessesService:
                                                          data_rights=data_rights,
                                                          data_accesses=data_accesses)
         if target_perimeters:
-            data_rights = filter(lambda dr: dr.perimeter in target_perimeters, data_rights)
+            data_rights = filter(lambda dr: dr.perimeter_id in target_perimeters_ids, data_rights)
 
         return [dr for dr in data_rights if any((dr.right_read_patient_nominative,
-                                                 dr.right_read_patient_pseudonymized,
-                                                 dr.right_search_patients_by_ipp,
-                                                 dr.right_search_opposed_patients))]
+                                                 dr.right_read_patient_pseudonymized))]
 
     def get_user_managing_accesses_on_perimeter(self, user: User, perimeter: Perimeter) -> QuerySet:
         """ filter user's valid accesses to extract:

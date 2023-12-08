@@ -6,9 +6,11 @@ from django.utils import timezone
 from rest_framework import status
 
 from accesses.models import Access, Role
+from accesses.serializers import DataRightSerializer
+from accesses.services.shared import DataRight
 from accesses.tests.base import AccessesAppTestsBase, ALL_FALSY_RIGHTS
 from accesses.views import AccessViewSet
-from admin_cohort.settings import MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS
+from admin_cohort.settings import MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS, ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS
 from admin_cohort.tools.tests_tools import CaseRetrieveFilter, CreateCase, new_user_and_profile, PatchCase, ListCase
 
 
@@ -67,13 +69,14 @@ class AccessViewTests(AccessesAppTestsBase):
         if close_case.success:
             self.assertFalse(access.is_valid)
 
-    def create_new_access_for_user_y(self, role, perimeter):
-        self.profile_y.accesses.all().update(end_datetime=timezone.now())
+    def create_new_access_for_user_y(self, role, perimeter, start_datetime=None, end_datetime=None, close_existing: bool = True):
+        if close_existing:
+            self.profile_y.accesses.all().update(end_datetime=timezone.now())
         Access.objects.create(profile=self.profile_y,
                               role=role,
                               perimeter=perimeter,
-                              start_datetime=timezone.now(),
-                              end_datetime=timezone.now() + timedelta(weeks=1))
+                              start_datetime=start_datetime or timezone.now(),
+                              end_datetime=end_datetime or timezone.now() + timedelta(weeks=10))
 
     def create_accesses_on_all_perimeters(self):
         _, regular_profile = new_user_and_profile(email="regular_user@aphp.fr")
@@ -384,16 +387,86 @@ class AccessViewTests(AccessesAppTestsBase):
 
     def test_successfully_get_my_valid_accesses_only(self):
         self.create_new_access_for_user_y(role=self.role_data_reader_nomi_pseudo, perimeter=self.p8)
-        ended_access_for_user_y = Access.objects.create(profile=self.profile_y,
-                                                        role=self.role_data_reader_nomi_csv_exporter_nomi,
-                                                        perimeter=self.p9,
-                                                        start_datetime=timezone.now() - timedelta(days=2),
-                                                        end_datetime=timezone.now() - timedelta(days=1))
+        invalid_access_for_user_y = Access.objects.create(profile=self.profile_y,
+                                                          role=self.role_data_reader_nomi_csv_exporter_nomi,
+                                                          perimeter=self.p9,
+                                                          start_datetime=timezone.now() - timedelta(days=2),
+                                                          end_datetime=timezone.now() - timedelta(days=1))
         case = ListCase(params={},
-                        to_find=self.profile_y.accesses.exclude(id=ended_access_for_user_y.id),
+                        to_find=self.profile_y.accesses.exclude(id=invalid_access_for_user_y.id),
                         user=self.user_y,
                         status=status.HTTP_200_OK,
                         success=True)
         self.check_list_case(case, other_view=AccessViewTests.get_my_accesses_view)
 
+    def test_get_expiring_accesses(self):
+        self.create_new_access_for_user_y(role=self.role_data_reader_nomi_pseudo, perimeter=self.p8)
+        expiring_access_for_user_y = Access.objects.create(profile=self.profile_y,
+                                                           role=self.role_data_reader_nomi_csv_exporter_nomi,
+                                                           perimeter=self.p9,
+                                                           start_datetime=timezone.now(),
+                                                           end_datetime=timezone.now() + timedelta(days=ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS - 1))
+        case_1 = ListCase(params={"expiring": "true"},
+                          to_find=[expiring_access_for_user_y],
+                          user=self.user_y,
+                          status=status.HTTP_200_OK,
+                          success=True)
+        case_2 = case_1.clone(params={"expiring": "false"},
+                              to_find=self.profile_y.accesses.all())
+        for case in (case_1, case_2):
+            self.check_list_case(case, other_view=AccessViewTests.get_my_accesses_view)
 
+    def test_get_my_data_reading_rights(self):
+        """                                                 APHP
+                                 ____________________________|____________________________
+                                 |                           |                           |
+                                -P0-                        -P1-                         P2
+                       __________|__________          _______|_______          __________|__________
+                       |         |         |          |             |          |         |         |
+                       P3        P4       P5          P6           -P7-      -P8-       P9        P10
+                           ______|_______                                                    ______|_______
+                           |            |                                                    |            |
+                           P11        -P12-                                                 P13          P14
+        """
+        base_case = ListCase(params={},
+                             to_find=[],
+                             user=self.user_y,
+                             status=status.HTTP_200_OK,
+                             success=True)
+
+        perimeters = [self.p0, self.p1, self.p7, self.p8, self.p12]
+        roles = [self.role_data_reader_nomi_pseudo,
+                 self.role_admin_accesses_reader,
+                 self.role_csv_jupyter_exporter_pseudo,
+                 self.role_data_reader_nomi_csv_exporter_nomi,
+                 self.role_search_by_ipp_and_search_opposed]
+
+        for role, perimeter in zip(roles, perimeters):
+            self.create_new_access_for_user_y(role=role, perimeter=perimeter, close_existing=False)
+
+        target_perimeters_p0 = [self.p0.id]
+        to_find_on_p0 = [dict(user_id=self.user_y.pk,
+                              perimeter_id=self.p0.id,
+                              right_read_patient_nominative=True,
+                              right_read_patient_pseudonymized=True,
+                              right_search_patients_by_ipp=True,
+                              right_search_opposed_patients=True,
+                              right_export_csv_nominative=True,
+                              right_export_csv_pseudonymized=True,
+                              right_export_jupyter_nominative=False,
+                              right_export_jupyter_pseudonymized=True)]
+
+        target_perimeters_ids = [target_perimeters_p0]
+        to_find_list = [to_find_on_p0]
+
+        for target_perimeter_id, to_find in zip(target_perimeters_ids, to_find_list):
+            case = base_case.clone(params={"perimeters_ids": ",".join(map(str, target_perimeter_id))},
+                                   to_find=to_find)
+            resp_data = self.check_list_case(case,
+                                             other_view=AccessViewTests.get_my_data_reading_rights_view,
+                                             yield_response_data=True)
+            resp_data = resp_data[0]
+            to_find = to_find[0]
+
+            for k, v in resp_data.items():
+                self.assertEqual(to_find.get(k), v)
