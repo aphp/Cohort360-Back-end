@@ -41,6 +41,9 @@ _logger_err = logging.getLogger("django.request")
 
 env = os.environ
 
+DOMAIN_CONCEPT_ID = env.get("DOMAIN_CONCEPT_COHORT")  # 1147323
+RELATIONSHIP_CONCEPT_ID = env.get("FACT_RELATIONSHIP_CONCEPT_COHORT")  # 44818821
+
 
 class OmopModelManager(models.Manager):
     def get_queryset(self):
@@ -57,6 +60,29 @@ class Concept(models.Model):
     class Meta:
         managed = False
         db_table = 'concept'
+
+
+class FactRelationShip(models.Model):
+    row_id = models.BigIntegerField(primary_key=True)
+    fact_id_1 = models.BigIntegerField()
+    fact_id_2 = models.BigIntegerField()
+    objects = OmopModelManager()
+
+    class Meta:
+        managed = False
+        db_table = 'fact_relationship'
+
+    @staticmethod
+    def psql_query_get_cohort_population_source(cohorts_ids: List[str]) -> str:
+        return f"""
+        SELECT row_id, fact_id_1, fact_id_2
+        FROM omop.fact_relationship
+        WHERE delete_datetime IS NULL
+        AND domain_concept_id_1 = {DOMAIN_CONCEPT_ID}
+        AND domain_concept_id_2 = {DOMAIN_CONCEPT_ID}
+        AND relationship_concept_id = {RELATIONSHIP_CONCEPT_ID}
+        AND fact_id_1 IN ({",".join(cohorts_ids)})
+        """
 
 
 class Provider(models.Model):

@@ -12,7 +12,7 @@ from rest_framework import status
 
 from admin_cohort.tools import prettify_dict
 from admin_cohort.types import JobStatus, MissingDataError
-from exports.models import ExportRequest
+from exports.models import ExportRequest, Export
 from exports.types import ApiJobResponse, HdfsServerUnreachableError, ExportType
 
 _logger = logging.getLogger('info')
@@ -107,10 +107,6 @@ def log_export_request_task(id, msg):
     _logger.info(f"[ExportTask] [ExportRequest: {id}] {msg}")
 
 
-def build_location(db_name: str) -> str:
-    return f"{HIVE_DB_FOLDER}/{db_name}.db"
-
-
 def check_resp(resp: Response, url: str) -> Dict:
     if not status.is_success(resp.status_code):
         raise HTTPError(f"Connection error ({url}) : status code {resp.text}")
@@ -153,9 +149,8 @@ def get_job_status(service: str, job_id: str) -> ApiJobResponse:
 
 
 def change_hive_db_ownership(export_request: ExportRequest, db_user: str):
-    location = build_location(export_request.target_name)
     log_export_request_task(export_request.id, f"Granting rights on DB '{export_request.target_name}' to user '{db_user}'")
-    data = {"location": location,
+    data = {"location": export_request.target_full_path,
             "uid": db_user,
             "gid": "hdfs",
             "recursive": True}
@@ -184,10 +179,9 @@ def wait_for_hive_db_creation_job(job_id):
 
 
 def create_hive_db(export_request: ExportRequest):
-    location = build_location(export_request.target_name)
-    log_export_request_task(export_request.id, f"Creating DB with name '{export_request.target_name}', location: {location}")
+    log_export_request_task(export_request.id, f"Creating DB '{export_request.target_name}', location: {export_request.target_full_path}")
     data = {"name": export_request.target_name,
-            "location": location,
+            "location": export_request.target_full_path,
             "if_not_exists": False}
     try:
         response = requests.post(url=HADOOP_NEW_DB_URL, params=data, headers={'auth-token': INFRA_HADOOP_TOKEN})
@@ -221,6 +215,26 @@ def post_export(export_request: ExportRequest) -> str:
     else:
         url = EXPORT_CSV_URL
         params.update({"file_path": export_request.target_full_path})
+    resp = requests.post(url=url, params=params, headers={'auth-token': INFRA_EXPORT_TOKEN})
+    return PostJobResponse(response=resp, url=url).task_id
+
+
+def post_export_v1(export: Export) -> str:
+    log_export_request_task(export.uuid, f"Asking to export for '{export.target_name}'")
+    tables = ",".join([f"{table.name}:{table.cohort_result_subset.fhir_group_id}:{table.respect_table_relationships}"
+                       for table in export.export_tables.all()])
+    params = {"tables": tables,
+              "environment": OMOP_ENVIRONMENT,
+              "no_date_shift": not export.nominative and export.shift_dates,
+              "overwrite": False,
+              "user_for_pseudo": not export.nominative and export.datalab.name or None,
+              }
+    if export.output_format == ExportType.HIVE:
+        url = EXPORT_HIVE_URL
+        params.update({"database_name": export.target_name})
+    else:
+        url = EXPORT_CSV_URL
+        params.update({"file_path": export.target_full_path})
     resp = requests.post(url=url, params=params, headers={'auth-token': INFRA_EXPORT_TOKEN})
     return PostJobResponse(response=resp, url=url).task_id
 

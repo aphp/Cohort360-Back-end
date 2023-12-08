@@ -1,15 +1,9 @@
-from django.db import transaction
 from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
 
-import cohort.conf_cohort_job_api as cohort_job_api
 from admin_cohort.models import User
 from admin_cohort.serializers import BaseSerializer, OpenUserSerializer
-from admin_cohort.types import JobStatus, MissingDataError
+from admin_cohort.types import MissingDataError
 from cohort.models import CohortResult, DatedMeasure, Folder, Request, RequestQuerySnapshot, FhirFilter
-from cohort.models.dated_measure import GLOBAL_DM_MODE
-from cohort.tasks import get_count_task, cancel_previously_running_dm_jobs
-from cohort.tools import retrieve_perimeters
 
 
 class PrimaryKeyRelatedFieldWithOwner(serializers.PrimaryKeyRelatedField):
@@ -50,33 +44,6 @@ class DatedMeasureSerializer(BaseSerializer):
                             "mode",
                             "request"]
 
-    @transaction.atomic
-    def create(self, validated_data):
-        query_snapshot = validated_data.get("request_query_snapshot")
-        measure = validated_data.get("measure")
-        fhir_datetime = validated_data.get("fhir_datetime")
-
-        if not query_snapshot:
-            raise ValidationError("Invalid 'request_query_snapshot_id'")
-
-        if (measure and not fhir_datetime) or (fhir_datetime and not measure):
-            raise ValidationError("If you provide measure or fhir_datetime, you have to provide the other")
-
-        dm = super(DatedMeasureSerializer, self).create(validated_data=validated_data)
-
-        auth_headers = cohort_job_api.get_authorization_header(self.context.get("request"))
-        cancel_previously_running_dm_jobs.delay(dm.uuid)
-
-        if not measure:
-            try:
-                transaction.on_commit(lambda: get_count_task.delay(auth_headers,
-                                                                   query_snapshot.serialized_query,
-                                                                   dm.uuid))
-            except Exception as e:
-                dm.delete()
-                raise ValidationError(f"INTERNAL ERROR: Could not launch count request: {e}")
-        return dm
-
 
 class CohortResultSerializer(BaseSerializer):
     owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
@@ -85,7 +52,6 @@ class CohortResultSerializer(BaseSerializer):
     request_query_snapshot = PrimaryKeyRelatedFieldWithOwner(queryset=RequestQuerySnapshot.objects.all())
     dated_measure = PrimaryKeyRelatedFieldWithOwner(queryset=DatedMeasure.objects.all())
     dated_measure_global = PrimaryKeyRelatedFieldWithOwner(queryset=DatedMeasure.objects.all(), required=False)
-    global_estimate = serializers.BooleanField(write_only=True, allow_null=True, default=True)
     fhir_group_id = serializers.CharField(allow_blank=True, allow_null=True, required=False)
     exportable = serializers.BooleanField(read_only=True)
 
@@ -95,49 +61,6 @@ class CohortResultSerializer(BaseSerializer):
         read_only_fields = ["create_task_id",
                             "request_job_id",
                             "type"]
-
-    def update(self, instance, validated_data):
-        for f in ['owner', 'request_query_snapshot', 'dated_measure', 'type']:
-            if f in validated_data:
-                raise ValidationError(f'{f} field cannot be updated manually')
-        return super(CohortResultSerializer, self).update(instance, validated_data)
-
-    @transaction.atomic
-    def create(self, validated_data):
-        global_estimate = validated_data.pop("global_estimate", None) and \
-                          validated_data.get('dated_measure_global') is None
-        rqs = validated_data.get("request_query_snapshot")
-        dm_global: DatedMeasure = None
-        if global_estimate:
-            dm_global = DatedMeasure.objects.create(owner=rqs.owner,
-                                                    request_query_snapshot=rqs,
-                                                    mode=GLOBAL_DM_MODE)
-            validated_data["dated_measure_global"] = dm_global
-
-        cohort_result: CohortResult = super(CohortResultSerializer, self).create(validated_data=validated_data)
-
-        if global_estimate:
-            try:
-                auth_headers = cohort_job_api.get_authorization_header(self.context.get("request"))
-                transaction.on_commit(lambda: get_count_task.delay(auth_headers,
-                                                                   str(rqs.serialized_query),
-                                                                   dm_global.uuid))
-
-            except Exception as e:
-                dm_global.request_job_fail_msg = f"ERROR: Could not launch FHIR cohort count: {e}"
-                dm_global.request_job_status = JobStatus.failed
-                dm_global.save()
-        try:
-            from cohort.tasks import create_cohort_task
-            auth_headers = cohort_job_api.get_authorization_header(self.context.get("request"))
-            transaction.on_commit(lambda: create_cohort_task.delay(auth_headers,
-                                                                   rqs.serialized_query,
-                                                                   cohort_result.uuid))
-        except Exception as e:
-            cohort_result.delete()
-            raise ValidationError(f"Error on pushing new message to the queue: {e}")
-
-        return cohort_result
 
 
 class CohortResultSerializerFullDatedMeasure(CohortResultSerializer):
@@ -166,40 +89,10 @@ class RequestQuerySnapshotSerializer(BaseSerializer):
     class Meta:
         model = RequestQuerySnapshot
         fields = "__all__"
-        optional_fields = ["previous_snapshot", "request"]
-        read_only_fields = ["is_active_branch", "care_sites_ids",
-                            "dated_measures", "cohort_results", 'shared_by', "version"]
-
-    def create(self, validated_data):
-        previous_snapshot = validated_data.get("previous_snapshot")
-        request = validated_data.get("request")
-        if previous_snapshot:
-            if request and request.uuid != previous_snapshot.request.uuid:
-                raise ValidationError("The provided request is different from the previous_snapshot's request")
-            validated_data["request"] = previous_snapshot.request
-        elif request:
-            if len(request.query_snapshots.all()) != 0:
-                raise ValidationError("Must provide a previous_snapshot if the request is not empty of snapshots")
-        else:
-            raise ValidationError("No previous_snapshot or request were provided")
-
-        serialized_query = validated_data.get("serialized_query")
-        validated_data["perimeters_ids"] = retrieve_perimeters(serialized_query)
-        validated_data["version"] = len(validated_data["request"].query_snapshots.all()) + 1
-
-        new_rqs = super(RequestQuerySnapshotSerializer, self).create(validated_data=validated_data)
-
-        if new_rqs.previous_snapshot is not None:
-            for rqs in new_rqs.previous_snapshot.next_snapshots.all():
-                rqs.is_active_branch = False
-                rqs.save()
-        return new_rqs
-
-    def update(self, instance, validated_data):
-        for f in ['request', 'request_id']:
-            if f in validated_data:
-                raise ValidationError(f'{f} field cannot be updated manually')
-        return super(RequestQuerySnapshotSerializer, self).update(instance, validated_data)
+        read_only_fields = ["care_sites_ids",
+                            "dated_measures",
+                            "cohort_results",
+                            "shared_by"]
 
 
 class RequestSerializer(BaseSerializer):
@@ -236,6 +129,12 @@ class CohortRightsSerializer(serializers.Serializer):
 
 
 class FhirFilterSerializer(BaseSerializer):
+    owner = serializers.CharField(read_only=True, allow_null=True)
+
     class Meta:
         model = FhirFilter
         fields = '__all__'
+
+    def create(self, validated_data):
+        validated_data["owner"] = self.context.get('request').user
+        return super(FhirFilterSerializer, self).create(validated_data)

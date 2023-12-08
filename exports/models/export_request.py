@@ -41,7 +41,9 @@ class ExportRequest(JobModelWithReview, BaseModel, models.Model):
     @property
     def target_full_path(self) -> str:
         if self.target_location and self.target_name:
-            return f"{self.target_location}/{self.target_name}.zip"
+            extensions = {ExportType.CSV.value: ".zip",
+                          ExportType.HIVE.value: ".db"}
+            return f"{self.target_location}/{self.target_name}{extensions.get(self.output_format)}"
         return ""
 
     @property
