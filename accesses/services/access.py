@@ -63,18 +63,17 @@ class AccessesService:
         return editable_accesses.union(readonly_accesses)
 
     def get_accesses_on_perimeter(self, user: User, accesses: QuerySet, perimeter_id: int, include_parents: bool = False) -> QuerySet:
-        valid_accesses = accesses.filter(sql_is_valid=True)
-        accesses_on_perimeter = valid_accesses.filter(perimeter_id=perimeter_id)
+        q = Q(perimeter_id=perimeter_id)
         if include_parents:
             perimeter = Perimeter.objects.get(pk=perimeter_id)
             user_accesses = self.get_user_valid_accesses(user=user)
             user_can_read_accesses_from_above_levels = user_accesses.filter(role__right_read_accesses_above_levels=True) \
                                                                     .exists()
             if user_can_read_accesses_from_above_levels:
-                accesses_on_parent_perimeters = valid_accesses.filter(Q(perimeter_id__in=perimeter.above_levels)
-                                                                      & Role.q_impact_inferior_levels())
-                accesses_on_perimeter = accesses_on_perimeter.union(accesses_on_parent_perimeters)
-        return self.filter_accesses_for_user(user=user, accesses=accesses_on_perimeter)
+                q = q | (Q(perimeter_id__in=perimeter.above_levels)
+                         & Role.q_impact_inferior_levels())
+        return accesses.filter(Q(sql_is_valid=True) & q)
+        # return self.filter_accesses_for_user(user=user, accesses=accesses_on_perimeter)                               # todo: check with the team
 
     @staticmethod
     def has_at_least_one_read_nominative_access(target_perimeters: QuerySet, nomi_perimeters_ids: List[int]) -> bool:

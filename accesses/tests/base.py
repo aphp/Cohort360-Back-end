@@ -92,8 +92,10 @@ role_data_reader_nomi_csv_exporter_nomi_data = {**ALL_FALSY_RIGHTS,
 
 
 def create_perimeters_hierarchy():
+    all_perimeters = []
     for data in PERIMETERS_DATA:
-        Perimeter.objects.create(**data)
+        all_perimeters.append(Perimeter.objects.create(**data))
+    return all_perimeters
 
 
 class AccessesAppTestsBase(ViewSetTests):
@@ -109,7 +111,7 @@ class AccessesAppTestsBase(ViewSetTests):
 
     def setUp(self):
         super().setUp()
-        create_perimeters_hierarchy()
+        self.all_perimeters = create_perimeters_hierarchy()
         self.aphp = Perimeter.objects.get(id=1)
         self.p0 = Perimeter.objects.get(id=2)
         self.p1 = Perimeter.objects.get(id=3)

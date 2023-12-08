@@ -50,6 +50,11 @@ class AccessViewSet(CustomLoggingMixin, BaseViewSet):
                      "profile__user_id",
                      "perimeter__name"]
 
+    def get_permissions(self):
+        if self.action in ("get_my_accesses", "get_my_data_reading_rights"):
+            return [IsAuthenticated()]
+        return super().get_permissions()
+
     def get_serializer_class(self):
         if self.request.method == "GET" and "expiring" in self.request.query_params:
             return ExpiringAccessesSerializer
@@ -148,7 +153,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewSet):
                          manual_parameters=[openapi.Parameter(name="expiring", description="Filter accesses to expire soon",
                                                               in_=openapi.IN_QUERY, type=openapi.TYPE_BOOLEAN)],
                          responses={200: openapi.Response('All valid accesses or ones to expire soon', AccessSerializer)})
-    @action(url_path="my-accesses", methods=['get'], detail=False, permission_classes=[IsAuthenticated])
+    @action(url_path="my-accesses", methods=['get'], detail=False)
     @cache_response()
     def get_my_accesses(self, request, *args, **kwargs):
         user = request.user
@@ -167,7 +172,7 @@ class AccessViewSet(CustomLoggingMixin, BaseViewSet):
                                                            [["perimeters_ids", "Perimeters IDs on which compute data rights, separated by ','",
                                                              openapi.TYPE_STRING]])],
                          responses={200: openapi.Response('Data Reading Rights computed per perimeter', DataRightSerializer)})
-    @action(methods=['get'], url_path="my-data-rights", detail=False, permission_classes=[IsAuthenticated], pagination_class=None)
+    @action(methods=['get'], url_path="my-data-rights", detail=False)
     @cache_response()
     def get_my_data_reading_rights(self, request, *args, **kwargs):
         perimeters_ids = request.query_params.get('perimeters_ids')
