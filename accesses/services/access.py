@@ -1,7 +1,7 @@
 from datetime import date, timedelta, datetime
 from typing import List, Dict, Union
 
-from django.db.models import QuerySet, Q, Prefetch, F
+from django.db.models import QuerySet, Q, Prefetch, F, Value
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
@@ -52,14 +52,16 @@ class AccessesService:
             return a filtered QuerySet of accesses annotated with "editable" set to True or False to indicate
             to Front whether to allow the `edit`/`close` actions on access or not
         """
+        editable = []
+        readonly = []
         for access in accesses:
             if self.can_user_manage_access(user=user, target_access=access):
-                access.editable = True
+                editable.append(access.id)
             elif self.can_user_read_access(user=user, target_access=access):
-                access.editable = False
-            else:
-                accesses = accesses.exclude(id=access.id)
-        return accesses
+                readonly.append(access.id)
+        editable_accesses = accesses.filter(id__in=editable).annotate(editable=Value(True))
+        readonly_accesses = accesses.filter(id__in=readonly).annotate(editable=Value(False))
+        return editable_accesses.union(readonly_accesses)
 
     def get_accesses_on_perimeter(self, user: User, accesses: QuerySet, perimeter_id: int, include_parents: bool = False) -> QuerySet:
         valid_accesses = accesses.filter(sql_is_valid=True)

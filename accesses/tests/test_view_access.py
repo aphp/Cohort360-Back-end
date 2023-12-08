@@ -45,7 +45,7 @@ class AccessViewTests(AccessesAppTestsBase):
         Access.objects.create(profile=profile1, role=self.role_data_accesses_manager, perimeter=self.aphp)
 
         self.user_non_accesses_manager, profile2 = new_user_and_profile(email="user_non_accesses_manager@aphp.fr")
-        Access.objects.create(profile=profile2, role=self.role_nomi_reader_nomi_csv_exporter, perimeter=self.aphp)
+        Access.objects.create(profile=profile2, role=self.role_data_reader_nomi_csv_exporter_nomi, perimeter=self.aphp)
 
         _, profile3 = new_user_and_profile(email="user_01@aphp.fr")
         basic_role = Role.objects.create(**{**ALL_FALSY_RIGHTS,
@@ -266,7 +266,7 @@ class AccessViewTests(AccessesAppTestsBase):
         - we create different accesses for User Y and test which of
           the User X's accesses he's allowed to read/manage
         """
-        user_x, profile_x = create_accesses_for_user_x(roles=[self.role_nomi_reader_nomi_csv_exporter,
+        user_x, profile_x = create_accesses_for_user_x(roles=[self.role_data_reader_nomi_pseudo,
                                                               self.role_admin_accesses_manager,
                                                               self.role_data_accesses_manager],
                                                        perimeters=[self.p1, self.p4, self.p10])
@@ -275,9 +275,8 @@ class AccessViewTests(AccessesAppTestsBase):
 
         def test_as_user_y_is_full_admin_on_aphp():
             Access.objects.create(profile=profile_y, role=self.role_full_admin, perimeter=self.aphp)
-            to_find = list(Access.objects.filter(profile=profile_x))
             case = ListCase(params={"profile_id": profile_x.id},
-                            to_find=to_find,
+                            to_find=list(profile_x.accesses.all()),
                             user=user_y,
                             status=status.HTTP_200_OK,
                             success=True)
@@ -287,12 +286,11 @@ class AccessViewTests(AccessesAppTestsBase):
 
         def test_as_user_y_is_admin_accesses_manager_on_aphp():
             # close full_admin access for user_y before creating new access
-            profile_y.accesses.filter(role=self.role_full_admin).update(end_datetime=timezone.now())
-
+            profile_y.accesses.all().update(end_datetime=timezone.now())
             Access.objects.create(profile=profile_y, role=self.role_admin_accesses_manager, perimeter=self.aphp)
-            to_find = list(Access.objects.filter(profile=profile_x, perimeter=self.p10))
+
             case = ListCase(params={"profile_id": profile_x.id},
-                            to_find=to_find,
+                            to_find=list(profile_x.accesses.filter(perimeter=self.p10)),
                             user=user_y,
                             status=status.HTTP_200_OK,
                             success=True)
@@ -301,10 +299,21 @@ class AccessViewTests(AccessesAppTestsBase):
                 self.assertTrue(access.get("editable"))
 
         def test_as_user_y_is_data_accesses_manager_on_aphp():
-            ...
+            # close previous accesses for user_y before creating new one
+            profile_y.accesses.all().update(end_datetime=timezone.now())
+            Access.objects.create(profile=profile_y, role=self.role_data_accesses_manager, perimeter=self.aphp)
+
+            case = ListCase(params={"profile_id": profile_x.id},
+                            to_find=list(profile_x.accesses.filter(perimeter=self.p1)),
+                            user=user_y,
+                            status=status.HTTP_200_OK,
+                            success=True)
+            resp_results = self.check_get_paged_list_case(case, yield_response_results=True)
+            for access in resp_results:
+                self.assertTrue(access.get("editable"))
 
         test_as_user_y_is_full_admin_on_aphp()
-        # test_as_user_y_is_admin_accesses_manager_on_aphp()
+        test_as_user_y_is_admin_accesses_manager_on_aphp()
         test_as_user_y_is_data_accesses_manager_on_aphp()
 
     def test_list_accesses_on_perimeter_Px_for_user_y(self):

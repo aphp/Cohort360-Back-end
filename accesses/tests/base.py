@@ -76,11 +76,16 @@ role_data_accesses_manager_data = {**ALL_FALSY_RIGHTS,
                                    "right_manage_data_accesses_inferior_levels": True,
                                    "right_read_data_accesses_inferior_levels": True
                                    }
-role_nomi_reader_nomi_csv_exporter_data = {**ALL_FALSY_RIGHTS,
-                                           "name": "DATA NOMI READER + CSV EXPORTER",
-                                           "right_read_patient_nominative": True,
-                                           "right_export_csv_nominative": True
-                                           }
+role_data_reader_nomi_pseudo_data = {**ALL_FALSY_RIGHTS,
+                                     "name": "DATA NOMI/PSEUDO READER",
+                                     "right_read_patient_nominative": True,
+                                     "right_read_patient_pseudonymized": True,
+                                     }
+role_data_reader_nomi_csv_exporter_nomi_data = {**ALL_FALSY_RIGHTS,
+                                                "name": "DATA NOMI READER + CSV EXPORTER",
+                                                "right_read_patient_nominative": True,
+                                                "right_export_csv_nominative": True
+                                                }
 
 
 def create_perimeters_hierarchy():
@@ -122,4 +127,5 @@ class AccessesAppTestsBase(ViewSetTests):
         self.role_full_admin = Role.objects.create(**role_full_admin_data)
         self.role_admin_accesses_manager = Role.objects.create(**role_admin_accesses_manager_data)
         self.role_data_accesses_manager = Role.objects.create(**role_data_accesses_manager_data)
-        self.role_nomi_reader_nomi_csv_exporter = Role.objects.create(**role_nomi_reader_nomi_csv_exporter_data)
+        self.role_data_reader_nomi_pseudo = Role.objects.create(**role_data_reader_nomi_pseudo_data)
+        self.role_data_reader_nomi_csv_exporter_nomi = Role.objects.create(**role_data_reader_nomi_csv_exporter_nomi_data)

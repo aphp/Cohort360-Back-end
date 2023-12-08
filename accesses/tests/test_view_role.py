@@ -38,7 +38,7 @@ class RoleViewTests(AccessesAppTestsBase):
         self.all_roles = [self.role_full_admin,
                           self.role_admin_accesses_manager,
                           self.role_data_accesses_manager,
-                          self.role_nomi_reader_nomi_csv_exporter]
+                          self.role_data_reader_nomi_csv_exporter_nomi]
 
     def test_role_unique_name(self):
         data = {**ALL_FALSY_RIGHTS,
