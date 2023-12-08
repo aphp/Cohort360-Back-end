@@ -490,25 +490,22 @@ class ViewSetTests(BaseTests):
         res = PagedResponse(response)
 
         self.assertEqual(res.count, len(case.to_find),
-                         case.description + f'''Found: {" - ".join([f"{r.get('id')}({r.get('name')})" for r in res.results])}''')
+                         case.description + f'''Found IDs: {" - ".join(str(r.get('id', r.get('uuid'))) for r in res.results)}''')
 
         obj_to_find_ids = [str(obj.pk) for obj in case.to_find]
-        current_obj_found_ids = [obj.get(self.model._meta.pk.name)
-                                 for obj in res.results]
+        current_obj_found_ids = [obj.get(self.model._meta.pk.name) for obj in res.results]
         obj_found_ids = current_obj_found_ids + case.previously_found_ids
 
         if case.page_size is not None:
             if res.next:
-                self.assertEqual(
-                    len(current_obj_found_ids), case.page_size
-                )
-                next_case = case.clone(
-                    url=res.next, previously_found_ids=obj_found_ids)
-                self.check_get_paged_list_case(next_case, other_view,
-                                               **view_kwargs)
+                self.assertEqual(len(current_obj_found_ids), case.page_size)
+                next_case = case.clone(url=res.next, previously_found_ids=obj_found_ids)
+                self.check_get_paged_list_case(next_case, other_view, **view_kwargs)
         else:
             self.assertCountEqual(map(str, obj_found_ids),
                                   map(str, obj_to_find_ids))
+        if view_kwargs.get("yield_response_results"):
+            return res.results
 
     def check_retrieve_case(self, case: RetrieveCase):
         request = self.factory.get(

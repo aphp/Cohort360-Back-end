@@ -105,20 +105,26 @@ class RolesService:
 
         is_full_admin_with_falsy_rights = data.get("right_full_admin") and any(not data.get(r.name) for r in all_rights)
 
-        allow_manage_or_read_accesses_but_not_users = any((data.get("right_manage_data_accesses_same_level"),
-                                                           data.get("right_read_data_accesses_same_level"),
-                                                           data.get("right_manage_data_accesses_inferior_levels"),
-                                                           data.get("right_read_data_accesses_inferior_levels"),
-                                                           data.get("right_manage_admin_accesses_same_level"),
-                                                           data.get("right_read_admin_accesses_same_level"),
-                                                           data.get("right_manage_admin_accesses_inferior_levels"),
-                                                           data.get("right_read_admin_accesses_inferior_levels"),
-                                                           data.get("right_manage_export_csv_accesses"),
-                                                           data.get("right_manage_export_jupyter_accesses"),
-                                                           data.get("right_read_accesses_above_levels")))
+        allow_manage_accesses = any((data.get("right_manage_data_accesses_same_level"),
+                                     data.get("right_manage_data_accesses_inferior_levels"),
+                                     data.get("right_manage_admin_accesses_same_level"),
+                                     data.get("right_manage_admin_accesses_inferior_levels"),
+                                     data.get("right_manage_export_csv_accesses"),
+                                     data.get("right_manage_export_jupyter_accesses")))
+
+        allow_read_accesses = any((data.get("right_read_data_accesses_same_level"),
+                                   data.get("right_read_data_accesses_inferior_levels"),
+                                   data.get("right_read_admin_accesses_same_level"),
+                                   data.get("right_read_admin_accesses_inferior_levels"),
+                                   data.get("right_read_accesses_above_levels")))
+
+        can_not_manage_users = not data.get("right_manage_users")
+        can_not_read_users = not data.get("right_read_users")
+
         return is_full_admin_with_falsy_rights \
             or allow_read_data_pseudo_and_export_nomi \
-            or allow_manage_or_read_accesses_but_not_users
+            or (allow_manage_accesses and can_not_manage_users) \
+            or (allow_read_accesses and can_not_read_users)
 
     @staticmethod
     def get_assignable_roles_ids(user: User, perimeter_id: str, queryset: QuerySet) -> List[int]:

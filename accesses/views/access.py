@@ -138,10 +138,9 @@ class AccessViewSet(CustomLoggingMixin, BaseViewSet):
 
     def destroy(self, request, *args, **kwargs):
         access = self.get_object()
-        if access.start_datetime:
-            if access.start_datetime < timezone.now():
-                return Response(data="L'accès est déjà activé, il ne peut plus être supprimé.",
-                                status=status.HTTP_403_FORBIDDEN)
+        if access.start_datetime and access.start_datetime < timezone.now():
+            return Response(data="L'accès est déjà activé, il ne peut plus être supprimé.",
+                            status=status.HTTP_400_BAD_REQUEST)
         self.perform_destroy(access)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
