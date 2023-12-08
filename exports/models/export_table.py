@@ -10,7 +10,8 @@ class ExportTable(ExportsBaseModel):
     export = models.ForeignKey(to=Export, related_name="export_tables", on_delete=CASCADE)
     respect_table_relationships = models.BooleanField(null=False, default=True)
     fhir_filter = models.ForeignKey(to=FhirFilter, related_name="export_tables", null=True, on_delete=CASCADE)
-    cohort_result_subset = models.ForeignKey(to=CohortResult, related_name="export_tables", null=True, on_delete=CASCADE)
+    cohort_result_subset = models.ForeignKey(to=CohortResult, related_name="export_table", null=True, on_delete=CASCADE)
+    cohort_result_source = models.ForeignKey(to=CohortResult, related_name="export_tables", null=True, on_delete=CASCADE)
 
     class Meta:
         db_table = 'export_table'

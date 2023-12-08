@@ -3,7 +3,7 @@ from drf_yasg.inspectors import SwaggerAutoSchema
 from rest_framework import viewsets
 
 
-class BaseViewset(viewsets.ModelViewSet):
+class BaseViewSet(viewsets.ModelViewSet):
     def get_serializer_context(self):
         return {'request': self.request}
 

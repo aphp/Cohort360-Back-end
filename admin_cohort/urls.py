@@ -7,8 +7,7 @@ from rest_framework.routers import SimpleRouter
 from rest_framework_extensions.routers import NestedRouterMixin
 
 from . import __version__, __title__, settings
-from admin_cohort.views import OIDCTokensView, UserViewSet, LoggingViewset, MaintenancePhaseViewSet, CacheViewSet, ReleaseNotesViewSet
-
+from admin_cohort.views import OIDCTokensView, UserViewSet, RequestLogViewSet, MaintenancePhaseViewSet, CacheViewSet, ReleaseNotesViewSet
 
 schema_view = get_schema_view(info=openapi.Info(title=__title__,
                                                 default_version=f'v{__version__}',
@@ -25,8 +24,8 @@ class NestedDefaultRouter(NestedRouterMixin, routers.DefaultRouter):
 router = SimpleRouter()
 router.register(r'maintenances', MaintenancePhaseViewSet, basename="maintenances")
 router.register(r'users', UserViewSet, basename="users")
-router.register(r'logs', LoggingViewset, basename="logs")
-router.register(r'release-notes', ReleaseNotesViewSet, basename="release_notes.py")
+router.register(r'logs', RequestLogViewSet, basename="logs")
+router.register(r'release-notes', ReleaseNotesViewSet, basename="release_notes")
 
 urlpatterns = [re_path(r'^', include(router.urls)),
                re_path(r'^auth/oidc/login', OIDCTokensView.as_view({'post': 'post'}), name='oidc-login'),
