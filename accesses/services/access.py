@@ -52,8 +52,7 @@ class AccessesService:
             return a filtered QuerySet of accesses annotated with "editable" set to True or False to indicate
             to Front whether to allow the `edit`/`close` actions on access or not
         """
-        editable = []
-        readonly = []
+        editable, readonly = [], []
         for access in accesses:
             if self.can_user_manage_access(user=user, target_access=access):
                 editable.append(access.id)

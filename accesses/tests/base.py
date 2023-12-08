@@ -58,14 +58,17 @@ ALL_FALSY_RIGHTS = {right.name: False for right in all_rights}
 
 role_full_admin_data = {**{right.name: True for right in all_rights}, "name": "FULL ADMIN"}
 
-role_admin_accesses_manager_data = {**ALL_FALSY_RIGHTS,
+role_admin_accesses_reader_data = {**ALL_FALSY_RIGHTS,
+                                   "name": "ADMIN ACCESSES READER",
+                                   "right_read_users": True,
+                                   "right_read_admin_accesses_same_level": True,
+                                   "right_read_admin_accesses_inferior_levels": True
+                                   }
+role_admin_accesses_manager_data = {**role_admin_accesses_reader_data,
                                     "name": "ADMIN ACCESSES MANAGER",
                                     "right_manage_users": True,
-                                    "right_read_users": True,
                                     "right_manage_admin_accesses_same_level": True,
-                                    "right_read_admin_accesses_same_level": True,
                                     "right_manage_admin_accesses_inferior_levels": True,
-                                    "right_read_admin_accesses_inferior_levels": True
                                     }
 role_data_accesses_manager_data = {**ALL_FALSY_RIGHTS,
                                    "name": "DATA ACCESSES MANAGER",
@@ -126,6 +129,7 @@ class AccessesAppTestsBase(ViewSetTests):
 
         self.role_full_admin = Role.objects.create(**role_full_admin_data)
         self.role_admin_accesses_manager = Role.objects.create(**role_admin_accesses_manager_data)
+        self.role_admin_accesses_reader = Role.objects.create(**role_admin_accesses_reader_data)
         self.role_data_accesses_manager = Role.objects.create(**role_data_accesses_manager_data)
         self.role_data_reader_nomi_pseudo = Role.objects.create(**role_data_reader_nomi_pseudo_data)
         self.role_data_reader_nomi_csv_exporter_nomi = Role.objects.create(**role_data_reader_nomi_csv_exporter_nomi_data)

@@ -258,13 +258,11 @@ class AccessViewTests(AccessesAppTestsBase):
                    |            |                                                    |            |
                    P11         P12                                                  P13          P14
 
-        with respect to this hierarchy,
-        - User X has 3 valid accesses:
+        - With respect to this hierarchy, User X has 3 valid accesses:
               P1:  data reader nomi
               P4:  admin accesses manager (on same level + inf levels)
               P10: data accesses manager (on same level + inf levels)
-        - we create different accesses for User Y and test which of
-          the User X's accesses he's allowed to read/manage
+        - Create different accesses for User Y and test which of the User X's accesses he's allowed to read/manage
         """
         user_x, profile_x = create_accesses_for_user_x(roles=[self.role_data_reader_nomi_pseudo,
                                                               self.role_admin_accesses_manager,
@@ -273,48 +271,53 @@ class AccessViewTests(AccessesAppTestsBase):
 
         user_y, profile_y = new_user_and_profile(email="user_y@aphp.fr")
 
+        base_case = ListCase(params={"profile_id": profile_x.id},
+                             to_find=[],
+                             user=user_y,
+                             status=status.HTTP_200_OK,
+                             success=True)
+
+        def create_new_access_for_user_y(role, perimeter):
+            profile_y.accesses.all().update(end_datetime=timezone.now())
+            Access.objects.create(profile=profile_y, role=role, perimeter=perimeter)
+
         def test_as_user_y_is_full_admin_on_aphp():
-            Access.objects.create(profile=profile_y, role=self.role_full_admin, perimeter=self.aphp)
-            case = ListCase(params={"profile_id": profile_x.id},
-                            to_find=list(profile_x.accesses.all()),
-                            user=user_y,
-                            status=status.HTTP_200_OK,
-                            success=True)
-            resp_results = self.check_get_paged_list_case(case, yield_response_results=True)
+            create_new_access_for_user_y(role=self.role_full_admin, perimeter=self.aphp)
+            to_find = list(profile_x.accesses.all())
+            resp_results = self.check_get_paged_list_case(base_case.clone(to_find=to_find),
+                                                          yield_response_results=True)
             for access in resp_results:
                 self.assertTrue(access.get("editable"))
 
         def test_as_user_y_is_admin_accesses_manager_on_aphp():
-            # close full_admin access for user_y before creating new access
-            profile_y.accesses.all().update(end_datetime=timezone.now())
-            Access.objects.create(profile=profile_y, role=self.role_admin_accesses_manager, perimeter=self.aphp)
-
-            case = ListCase(params={"profile_id": profile_x.id},
-                            to_find=list(profile_x.accesses.filter(perimeter=self.p10)),
-                            user=user_y,
-                            status=status.HTTP_200_OK,
-                            success=True)
-            resp_results = self.check_get_paged_list_case(case, yield_response_results=True)
+            create_new_access_for_user_y(role=self.role_admin_accesses_manager, perimeter=self.aphp)
+            to_find = list(profile_x.accesses.filter(perimeter=self.p10))
+            resp_results = self.check_get_paged_list_case(base_case.clone(to_find=to_find),
+                                                          yield_response_results=True)
             for access in resp_results:
                 self.assertTrue(access.get("editable"))
 
-        def test_as_user_y_is_data_accesses_manager_on_aphp():
-            # close previous accesses for user_y before creating new one
-            profile_y.accesses.all().update(end_datetime=timezone.now())
-            Access.objects.create(profile=profile_y, role=self.role_data_accesses_manager, perimeter=self.aphp)
+        def test_as_user_y_is_admin_accesses_reader_on_aphp():
+            create_new_access_for_user_y(role=self.role_admin_accesses_reader, perimeter=self.aphp)
+            to_find = list(profile_x.accesses.filter(perimeter=self.p10))
+            resp_results = self.check_get_paged_list_case(base_case.clone(to_find=to_find),
+                                                          yield_response_results=True)
+            for access in resp_results:
+                self.assertFalse(access.get("editable"))
 
-            case = ListCase(params={"profile_id": profile_x.id},
-                            to_find=list(profile_x.accesses.filter(perimeter=self.p1)),
-                            user=user_y,
-                            status=status.HTTP_200_OK,
-                            success=True)
-            resp_results = self.check_get_paged_list_case(case, yield_response_results=True)
+        def test_as_user_y_is_data_accesses_manager_on_aphp():
+            create_new_access_for_user_y(role=self.role_data_accesses_manager, perimeter=self.aphp)
+            to_find = list(profile_x.accesses.filter(perimeter=self.p1))
+            resp_results = self.check_get_paged_list_case(base_case.clone(to_find=to_find),
+                                                          yield_response_results=True)
             for access in resp_results:
                 self.assertTrue(access.get("editable"))
 
         test_as_user_y_is_full_admin_on_aphp()
         test_as_user_y_is_admin_accesses_manager_on_aphp()
+        test_as_user_y_is_admin_accesses_reader_on_aphp()
         test_as_user_y_is_data_accesses_manager_on_aphp()
 
-    def test_list_accesses_on_perimeter_Px_for_user_y(self):
-        ...
+    def test_list_accesses_on_perimeter_P_for_user_y(self):
+
+        test_as_user_y_is_full_admin_on_aphp()
