@@ -2,6 +2,10 @@ import json
 from pathlib import Path
 from unittest import mock
 
+from django.http import Http404
+
+from admin_cohort.models import User
+from cohort.crb.cohort_requests.abstract_cohort_request import is_cohort_request_pseudo_read
 from cohort.crb.enums import ResourceType
 from cohort.crb.exceptions import FhirException
 from cohort.crb.query_formatter import QueryFormatter
@@ -88,3 +92,15 @@ class TestQueryFormatter(CohortAppTests):
         self.assertEquals(ResourceType.PATIENT, res_criteria.resource_type)
         self.assertEquals(self.fq_value_string, res_criteria.filter_solr, )
         self.assertEquals("patient-active=true&codeList=A00-B99", res_criteria.filter_fhir)
+
+    @mock.patch("cohort.crb.cohort_requests.abstract_cohort_request.get_user_from_token")
+    def test_cohort_request_pseudo_read(self, mock_get_user_from_token):
+        mock_get_user_from_token.return_value = User.objects.create(firstname='Test',
+                                                                    lastname='USER',
+                                                                    email='test.user@aphp.fr',
+                                                                    provider_username='1111111')
+        auth_headers = {"Authorization": "Bearer XXX",
+                        "authorizationMethod": "OIDC"}
+        with self.assertRaises(Http404):
+            is_cohort_request_pseudo_read(auth_headers=auth_headers, source_population=[])
+        mock_get_user_from_token.assert_called()
