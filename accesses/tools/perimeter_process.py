@@ -190,7 +190,7 @@ def get_perimeters_filtered_by_search(cohort_ids, owner_id, default_perimeters):
         return default_perimeters
 
 
-def get_read_nominative_boolean_from_specific_logic_function(perimeters_filtered_by_search, filter_queryset,
+def get_read_nominative_boolean_from_specific_logic_function(perimeters_filtered_by_search,
                                                              all_read_patient_nominative_accesses,
                                                              all_read_patient_pseudo_accesses,
                                                              right_perimeter_compute_function) -> bool:
