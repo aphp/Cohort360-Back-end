@@ -12,7 +12,7 @@ from cohort.tools import get_list_cohort_id_care_site
 class PerimetersService:
 
     @staticmethod
-    def get_top_perimeters_ids_same_level(same_level_perimeters_ids: Set[int], all_perimeters_ids: Set[int]) -> Set[int]:
+    def get_top_perimeters_ids_same_level(same_level_perimeters_ids: List[int], all_perimeters_ids: List[int]) -> Set[int]:
         """
         * If any of the parent perimeters of P is already linked to an access (same level OR inferior levels),
           then, perimeter P is not the highest perimeter in its relative hierarchy (branch), i.e. one of its parents is.
@@ -30,8 +30,8 @@ class PerimetersService:
         return top_perimeters_ids
 
     @staticmethod
-    def get_top_perimeter_ids_inf_levels(inf_levels_perimeters_ids: Set[int],
-                                         all_perimeters_ids: Set[int],
+    def get_top_perimeter_ids_inf_levels(inf_levels_perimeters_ids: List[int],
+                                         all_perimeters_ids: List[int],
                                          top_same_level_perimeters_ids: Set[int]) -> Set[int]:
         """
         Get the highest perimeters on which are defined accesses allowing to manage other accesses on inf levels ONLY.
@@ -58,9 +58,9 @@ class PerimetersService:
            _________|__________           ______|_______           _________|__________
           |         |         |          |             |          |         |         |
           P3        P4       P5 (Same)   P6            P7       P8 (Same)   P9       P10 (Inf)
-                                                                                 _____|______
-                                                                                |           |
-                                                                                P11         P12
+              ______|_______                                                    ______|_______
+             |             |                                                   |             |
+            P11           P12                                                 P13           P14
         """
         user_accesses = accesses_service.get_user_valid_accesses(user=user)
         if accesses_service.user_is_full_admin(user=user) or all(access.role.has_any_global_management_right()
@@ -71,9 +71,9 @@ class PerimetersService:
             same_level_accesses = user_accesses.filter(Role.q_allow_manage_accesses_on_same_level())
             inf_levels_accesses = user_accesses.filter(Role.q_allow_manage_accesses_on_inf_levels())
 
-            same_level_perimeters_ids = {access.perimeter.id for access in same_level_accesses}
-            inf_levels_perimeters_ids = {access.perimeter.id for access in inf_levels_accesses}
-            all_perimeters_ids = same_level_perimeters_ids.union(inf_levels_perimeters_ids)
+            same_level_perimeters_ids = [access.perimeter.id for access in same_level_accesses]
+            inf_levels_perimeters_ids = [access.perimeter.id for access in inf_levels_accesses]
+            all_perimeters_ids = same_level_perimeters_ids + inf_levels_perimeters_ids
 
             top_same_level_perimeters_ids = self.get_top_perimeters_ids_same_level(same_level_perimeters_ids=same_level_perimeters_ids,
                                                                                    all_perimeters_ids=all_perimeters_ids)

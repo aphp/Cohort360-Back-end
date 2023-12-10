@@ -481,14 +481,14 @@ class ViewSetTests(BaseTests):
             self.assertNotIn('results', response.data, f"Case {case.title}")
             return
 
+        if view_kwargs.get("is_paged_list_case"):
+            return response
+
         self.assertEqual(len(response.data), len(case.to_find),
-                         case.description + f"Found IDs: {response.data}")
+                         case.description + "Found: " + "\n".join(map(str, response.data)))
 
         if view_kwargs.get("yield_response_data"):
             return json.loads(response.content)
-
-        if view_kwargs.get("is_paged_list_case"):
-            return response
 
     def check_get_paged_list_case(self, case: ListCase, other_view: Any = None, **view_kwargs):
         view_kwargs = {**view_kwargs, "is_paged_list_case": True}

@@ -38,7 +38,6 @@ class AccessViewTests(AccessesAppTestsBase):
 
     def setUp(self):
         super().setUp()
-        self.user_y, self.profile_y = new_user_and_profile(email="user_y@aphp.fr")
         self.user_data_accesses_manager_on_aphp, profile1 = new_user_and_profile(email="user_data_accesses_manager@aphp.fr")
         self.user_non_accesses_manager, profile2 = new_user_and_profile(email="user_non_accesses_manager@aphp.fr")
         Access.objects.create(profile=profile1,
@@ -68,15 +67,6 @@ class AccessViewTests(AccessesAppTestsBase):
         access = Access.objects.get(Q(**close_case.initial_data))
         if close_case.success:
             self.assertFalse(access.is_valid)
-
-    def create_new_access_for_user_y(self, role, perimeter, start_datetime=None, end_datetime=None, close_existing: bool = True):
-        if close_existing:
-            self.profile_y.accesses.all().update(end_datetime=timezone.now())
-        Access.objects.create(profile=self.profile_y,
-                              role=role,
-                              perimeter=perimeter,
-                              start_datetime=start_datetime or timezone.now(),
-                              end_datetime=end_datetime or timezone.now() + timedelta(weeks=10))
 
     def create_accesses_on_all_perimeters(self):
         _, regular_profile = new_user_and_profile(email="regular_user@aphp.fr")
@@ -270,7 +260,7 @@ class AccessViewTests(AccessesAppTestsBase):
                                         success=False))
 
     def test_delete_accesses(self):
-        self.create_new_access_for_user_y(role=self.role_data_accesses_manager, perimeter=self.aphp)
+        self.create_new_access_for_user(profile=self.profile_y, role=self.role_data_accesses_manager, perimeter=self.aphp)
         case_started_access = DeleteCase(data_to_delete=dict(perimeter=self.p5,
                                                              role=self.role_data_reader_nomi_pseudo,
                                                              profile=self.profile_y,
@@ -328,7 +318,7 @@ class AccessViewTests(AccessesAppTestsBase):
                              success=True)
 
         def test_as_user_y_is_full_admin_on_aphp():
-            self.create_new_access_for_user_y(role=self.role_full_admin, perimeter=self.aphp)
+            self.create_new_access_for_user(profile=self.profile_y, role=self.role_full_admin, perimeter=self.aphp)
             to_find = profile_x.accesses.all()
             resp_results = self.check_get_paged_list_case(base_case.clone(to_find=to_find),
                                                           yield_response_results=True)
@@ -336,7 +326,7 @@ class AccessViewTests(AccessesAppTestsBase):
                 self.assertTrue(access.get("editable"))
 
         def test_as_user_y_is_admin_accesses_manager_on_aphp():
-            self.create_new_access_for_user_y(role=self.role_admin_accesses_manager, perimeter=self.aphp)
+            self.create_new_access_for_user(profile=self.profile_y, role=self.role_admin_accesses_manager, perimeter=self.aphp)
             to_find = profile_x.accesses.filter(perimeter=self.p10)
             resp_results = self.check_get_paged_list_case(base_case.clone(to_find=to_find),
                                                           yield_response_results=True)
@@ -344,7 +334,7 @@ class AccessViewTests(AccessesAppTestsBase):
                 self.assertTrue(access.get("editable"))
 
         def test_as_user_y_is_admin_accesses_reader_on_aphp():
-            self.create_new_access_for_user_y(role=self.role_admin_accesses_reader, perimeter=self.aphp)
+            self.create_new_access_for_user(profile=self.profile_y, role=self.role_admin_accesses_reader, perimeter=self.aphp)
             to_find = profile_x.accesses.filter(perimeter=self.p10)
             resp_results = self.check_get_paged_list_case(base_case.clone(to_find=to_find),
                                                           yield_response_results=True)
@@ -352,7 +342,7 @@ class AccessViewTests(AccessesAppTestsBase):
                 self.assertFalse(access.get("editable"))
 
         def test_as_user_y_is_data_accesses_manager_on_aphp():
-            self.create_new_access_for_user_y(role=self.role_data_accesses_manager, perimeter=self.aphp)
+            self.create_new_access_for_user(profile=self.profile_y, role=self.role_data_accesses_manager, perimeter=self.aphp)
             to_find = profile_x.accesses.filter(perimeter=self.p1)
             resp_results = self.check_get_paged_list_case(base_case.clone(to_find=to_find),
                                                           yield_response_results=True)
@@ -375,7 +365,7 @@ class AccessViewTests(AccessesAppTestsBase):
                              success=True)
 
         def test_list_accesses_on_p2_as_user_y_is_full_admin_on_aphp():
-            self.create_new_access_for_user_y(role=self.role_full_admin, perimeter=self.aphp)
+            self.create_new_access_for_user(profile=self.profile_y, role=self.role_full_admin, perimeter=self.aphp)
             target_perimeter_id = self.p2.id
 
             params_1 = {"perimeter_id": target_perimeter_id, "include_parents": "false"}
@@ -398,7 +388,7 @@ class AccessViewTests(AccessesAppTestsBase):
         test_list_accesses_on_p_as_user_y_is_xxx_on_p()
 
     def test_successfully_get_my_accesses(self):
-        self.create_new_access_for_user_y(role=self.role_data_accesses_manager, perimeter=self.p7)
+        self.create_new_access_for_user(profile=self.profile_y, role=self.role_data_accesses_manager, perimeter=self.p7)
         case = ListCase(params={},
                         to_find=self.profile_y.accesses.all(),
                         user=self.user_y,
@@ -407,7 +397,7 @@ class AccessViewTests(AccessesAppTestsBase):
         self.check_list_case(case, other_view=AccessViewTests.get_my_accesses_view)
 
     def test_successfully_get_my_valid_accesses_only(self):
-        self.create_new_access_for_user_y(role=self.role_data_reader_nomi_pseudo, perimeter=self.p8)
+        self.create_new_access_for_user(profile=self.profile_y, role=self.role_data_reader_nomi_pseudo, perimeter=self.p8)
         invalid_access_for_user_y = Access.objects.create(profile=self.profile_y,
                                                           role=self.role_data_reader_nomi_csv_exporter_nomi,
                                                           perimeter=self.p9,
@@ -421,7 +411,7 @@ class AccessViewTests(AccessesAppTestsBase):
         self.check_list_case(case, other_view=AccessViewTests.get_my_accesses_view)
 
     def test_get_expiring_accesses(self):
-        self.create_new_access_for_user_y(role=self.role_data_reader_nomi_pseudo, perimeter=self.p8)
+        self.create_new_access_for_user(profile=self.profile_y, role=self.role_data_reader_nomi_pseudo, perimeter=self.p8)
         expiring_access_for_user_y = Access.objects.create(profile=self.profile_y,
                                                            role=self.role_data_reader_nomi_csv_exporter_nomi,
                                                            perimeter=self.p9,
@@ -463,7 +453,7 @@ class AccessViewTests(AccessesAppTestsBase):
                  self.role_search_by_ipp_and_search_opposed]
 
         for role, perimeter in zip(roles, perimeters):
-            self.create_new_access_for_user_y(role=role, perimeter=perimeter, close_existing=False)
+            self.create_new_access_for_user(profile=self.profile_y, role=role, perimeter=perimeter, close_existing=False)
 
         target_perimeters_p0 = [self.p0.id]
         to_find_on_p0 = [dict(user_id=self.user_y.pk,
