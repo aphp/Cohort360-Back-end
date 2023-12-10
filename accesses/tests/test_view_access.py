@@ -11,7 +11,7 @@ from accesses.services.shared import DataRight
 from accesses.tests.base import AccessesAppTestsBase, ALL_FALSY_RIGHTS
 from accesses.views import AccessViewSet
 from admin_cohort.settings import MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS, ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS
-from admin_cohort.tools.tests_tools import CaseRetrieveFilter, CreateCase, new_user_and_profile, PatchCase, ListCase
+from admin_cohort.tools.tests_tools import CaseRetrieveFilter, CreateCase, new_user_and_profile, PatchCase, ListCase, DeleteCase
 
 
 class AccessesRetrieveFilter(CaseRetrieveFilter):
@@ -269,6 +269,27 @@ class AccessViewTests(AccessesAppTestsBase):
                                         status=status.HTTP_403_FORBIDDEN,
                                         success=False))
 
+    def test_delete_accesses(self):
+        self.create_new_access_for_user_y(role=self.role_data_accesses_manager, perimeter=self.aphp)
+        case_started_access = DeleteCase(data_to_delete=dict(perimeter=self.p5,
+                                                             role=self.role_data_reader_nomi_pseudo,
+                                                             profile=self.profile_y,
+                                                             start_datetime=timezone.now() - timedelta(days=1),
+                                                             end_datetime=timezone.now() + timedelta(days=10)),
+                                         user=self.user_y,
+                                         status=status.HTTP_400_BAD_REQUEST,
+                                         success=False)
+        case_future_access = DeleteCase(data_to_delete=dict(perimeter=self.p5,
+                                                            role=self.role_data_reader_nomi_pseudo,
+                                                            profile=self.profile_y,
+                                                            start_datetime=timezone.now() + timedelta(days=1),
+                                                            end_datetime=timezone.now() + timedelta(days=10)),
+                                        user=self.user_y,
+                                        status=status.HTTP_204_NO_CONTENT,
+                                        success=True)
+        self.check_delete_case(case_started_access)
+        self.check_delete_case(case_future_access)
+
     def test_list_accesses_of_user_x_as_user_y(self):
         """                                         APHP
                          ____________________________|____________________________
@@ -437,7 +458,7 @@ class AccessViewTests(AccessesAppTestsBase):
         perimeters = [self.p0, self.p1, self.p7, self.p8, self.p12]
         roles = [self.role_data_reader_nomi_pseudo,
                  self.role_admin_accesses_reader,
-                 self.role_csv_jupyter_exporter_pseudo,
+                 self.role_jupyter_exporter_pseudo,
                  self.role_data_reader_nomi_csv_exporter_nomi,
                  self.role_search_by_ipp_and_search_opposed]
 
@@ -452,21 +473,36 @@ class AccessViewTests(AccessesAppTestsBase):
                               right_search_patients_by_ipp=True,
                               right_search_opposed_patients=True,
                               right_export_csv_nominative=True,
-                              right_export_csv_pseudonymized=True,
+                              right_export_csv_pseudonymized=False,
                               right_export_jupyter_nominative=False,
                               right_export_jupyter_pseudonymized=True)]
 
-        target_perimeters_ids = [target_perimeters_p0]
-        to_find_list = [to_find_on_p0]
+        target_perimeters_p2 = [self.p2.id]
+        to_find_on_p2 = []
 
-        for target_perimeter_id, to_find in zip(target_perimeters_ids, to_find_list):
-            case = base_case.clone(params={"perimeters_ids": ",".join(map(str, target_perimeter_id))},
+        target_perimeters_p4_p10 = [self.p4.id, self.p10.id]
+        to_find_on_p4_p10 = [dict(user_id=self.user_y.pk,
+                                  perimeter_id=self.p4.id,
+                                  right_read_patient_nominative=True,
+                                  right_read_patient_pseudonymized=True,
+                                  right_search_patients_by_ipp=True,
+                                  right_search_opposed_patients=True,
+                                  right_export_csv_nominative=True,
+                                  right_export_csv_pseudonymized=False,
+                                  right_export_jupyter_nominative=False,
+                                  right_export_jupyter_pseudonymized=True)]
+
+        target_perimeters_ids = [target_perimeters_p0, target_perimeters_p2, target_perimeters_p4_p10]
+        to_find_list = [to_find_on_p0, to_find_on_p2, to_find_on_p4_p10]
+
+        for perimeters_ids, to_find in zip(target_perimeters_ids, to_find_list):
+            case = base_case.clone(params={"perimeters_ids": ",".join(map(str, perimeters_ids))},
                                    to_find=to_find)
-            resp_data = self.check_list_case(case,
+            resp_data = self.check_list_case(case=case,
                                              other_view=AccessViewTests.get_my_data_reading_rights_view,
                                              yield_response_data=True)
-            resp_data = resp_data[0]
-            to_find = to_find[0]
-
-            for k, v in resp_data.items():
-                self.assertEqual(to_find.get(k), v)
+            for resp_item in resp_data:
+                for item in to_find:
+                    if item.get("perimeter_id") == resp_item.get("perimeter_id"):
+                        for k, v in resp_item.items():
+                            self.assertEqual(item.get(k), v)

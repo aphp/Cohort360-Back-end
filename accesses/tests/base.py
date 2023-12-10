@@ -89,11 +89,10 @@ role_data_reader_nomi_csv_exporter_nomi_data = {**ALL_FALSY_RIGHTS,
                                                 "right_read_patient_nominative": True,
                                                 "right_export_csv_nominative": True
                                                 }
-role_csv_jupyter_exporter_pseudo_data = {**ALL_FALSY_RIGHTS,
-                                         "name": "CSV + JUPYTER EXPORTER PSEUDO",
-                                         "right_export_csv_pseudonymized": True,
-                                         "right_export_jupyter_pseudonymized": True
-                                         }
+role_jupyter_exporter_pseudo_data = {**ALL_FALSY_RIGHTS,
+                                     "name": "JUPYTER EXPORTER PSEUDO",
+                                     "right_export_jupyter_pseudonymized": True
+                                     }
 role_search_by_ipp_and_search_opposed_data = {**ALL_FALSY_RIGHTS,
                                               "name": "SEARCH BY IPP + OPPOSED PATIENTS",
                                               "right_search_patients_by_ipp": True,
@@ -145,5 +144,5 @@ class AccessesAppTestsBase(ViewSetTests):
         self.role_data_accesses_manager = Role.objects.create(**role_data_accesses_manager_data)
         self.role_data_reader_nomi_pseudo = Role.objects.create(**role_data_reader_nomi_pseudo_data)
         self.role_data_reader_nomi_csv_exporter_nomi = Role.objects.create(**role_data_reader_nomi_csv_exporter_nomi_data)
-        self.role_csv_jupyter_exporter_pseudo = Role.objects.create(**role_csv_jupyter_exporter_pseudo_data)
+        self.role_jupyter_exporter_pseudo = Role.objects.create(**role_jupyter_exporter_pseudo_data)
         self.role_search_by_ipp_and_search_opposed = Role.objects.create(**role_search_by_ipp_and_search_opposed_data)

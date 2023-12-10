@@ -409,17 +409,11 @@ class ViewSetTests(BaseTests):
 
         request = self.factory.delete(self.objects_url)
         force_authenticate(request, case.user)
-        response = self.__class__.delete_view(
-            request, **{self.model._meta.pk.name: obj_id}
-        )
+        response = self.__class__.delete_view(request, **{self.model._meta.pk.name: obj_id})
         response.render()
 
-        self.assertEqual(
-            response.status_code, case.status,
-            msg=(f"{case.description}"
-                 + (f" -> {prettify_json(response.content)}"
-                    if response.content else "")),
-        )
+        self.assertEqual(response.status_code, case.status,
+                         msg=(f"{case.description}" + (f" -> {prettify_json(response.content)}" if response.content else "")))
 
         if isinstance(self.model, (BaseModel, CohortBaseModel)):
             obj = self.model_objects.filter(even_deleted=True, pk=obj_id).first()
@@ -488,7 +482,7 @@ class ViewSetTests(BaseTests):
             return
 
         self.assertEqual(len(response.data), len(case.to_find),
-                         case.description + f'''Found IDs: {" - ".join(str(r.get('id', r.get('uuid'))) for r in response.data)}''')
+                         case.description + f"Found IDs: {response.data}")
 
         if view_kwargs.get("yield_response_data"):
             return json.loads(response.content)
