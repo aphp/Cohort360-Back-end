@@ -34,12 +34,6 @@ class RoleViewTests(AccessesAppTestsBase):
         self.user_non_full_admin, profile = new_user_and_profile(email="user_non_full_admin@aphp.fr")
         Access.objects.create(profile=profile, role=self.role_admin_accesses_manager, perimeter=self.aphp)
 
-        # roles for testing the `assignable` view
-        self.all_roles = [self.role_full_admin,
-                          self.role_admin_accesses_manager,
-                          self.role_data_accesses_manager,
-                          self.role_data_reader_nomi_csv_exporter_nomi]
-
     def test_role_unique_name(self):
         data = {**ALL_FALSY_RIGHTS,
                 "name": "CSV EXPORTER NOMI",
@@ -212,7 +206,7 @@ class RoleViewTests(AccessesAppTestsBase):
                      P1           P12                                                     P13           P14
         """
         case = ListCase(params={"perimeter_id": self.aphp.id},
-                        to_find=self.all_roles,
+                        to_find=Role.objects.all(),
                         user=self.user_full_admin_on_aphp,
                         status=status.HTTP_200_OK,
                         success=True)
@@ -221,21 +215,22 @@ class RoleViewTests(AccessesAppTestsBase):
     def test_get_assignable_roles_on_any_child_perimeter_of_APHP_as_full_admin_on_APHP(self):
         # according to the hierarchy above, target perimeters for ex: P5, P7 and P13
         # expected behavior: return all roles
+        all_roles = Role.objects.all()
         cases = [ListCase(title="get assignable role on perimeter P5",
                           params={"perimeter_id": self.p5.id},
-                          to_find=self.all_roles,
+                          to_find=all_roles,
                           user=self.user_full_admin_on_aphp,
                           status=status.HTTP_200_OK,
                           success=True),
                  ListCase(title="get assignable role on perimeter P7",
                           params={"perimeter_id": self.p7.id},
-                          to_find=self.all_roles,
+                          to_find=all_roles,
                           user=self.user_full_admin_on_aphp,
                           status=status.HTTP_200_OK,
                           success=True),
                  ListCase(title="get assignable role on perimeter P13",
                           params={"perimeter_id": self.p13.id},
-                          to_find=self.all_roles,
+                          to_find=all_roles,
                           user=self.user_full_admin_on_aphp,
                           status=status.HTTP_200_OK,
                           success=True)]
@@ -243,11 +238,13 @@ class RoleViewTests(AccessesAppTestsBase):
             self.check_list_case(case, other_view=RoleViewTests.assignable_view)
 
     def test_get_assignable_roles_on_perimeter_P0_as_admin_accesses_manager_on_APHP(self):
-        # expected behavior: return `role_data_accesses_manager` only
+        # expected behavior: return `role_data_accesses_manager` and `role_data_accesses_manager_inf_levels`
         user_admin_accesses_manager_on_aphp, profile = new_user_and_profile(email="admin_acc_manager.APHP@aphp.fr")
         Access.objects.create(profile=profile, role=self.role_admin_accesses_manager, perimeter=self.aphp)
+        to_find = [self.role_data_accesses_manager,
+                   self.role_data_accesses_manager_inf_levels]
         case = ListCase(params={"perimeter_id": self.p0.id},
-                        to_find=[self.role_data_accesses_manager],
+                        to_find=to_find,
                         user=user_admin_accesses_manager_on_aphp,
                         status=status.HTTP_200_OK,
                         success=True)
@@ -257,20 +254,22 @@ class RoleViewTests(AccessesAppTestsBase):
         # expected behavior: return `role_data_accesses_manager` only
         user_admin_accesses_manager_on_p0, profile = new_user_and_profile(email="admin_acc_manager.P0@aphp.fr")
         Access.objects.create(profile=profile, role=self.role_admin_accesses_manager, perimeter=self.p0)
+        to_find = [self.role_data_accesses_manager,
+                   self.role_data_accesses_manager_inf_levels]
         case = ListCase(params={"perimeter_id": self.p0.id},
-                        to_find=[self.role_data_accesses_manager],
+                        to_find=to_find,
                         user=user_admin_accesses_manager_on_p0,
                         status=status.HTTP_200_OK,
                         success=True)
         self.check_list_case(case, other_view=RoleViewTests.assignable_view)
 
     def test_get_assignable_roles_on_perimeter_P0_as_admin_accesses_manager_on_P4(self):
-        # expected behavior: return no roles, HTTP 204
+        # expected behavior: return no roles, HTTP 200 OK
         user_admin_accesses_manager_on_p4, profile = new_user_and_profile(email="admin_acc_manager.P4@aphp.fr")
         Access.objects.create(profile=profile, role=self.role_admin_accesses_manager, perimeter=self.p4)
         case = ListCase(params={"perimeter_id": self.p0.id},
                         to_find=[],
                         user=user_admin_accesses_manager_on_p4,
-                        status=status.HTTP_204_NO_CONTENT,
+                        status=status.HTTP_200_OK,
                         success=False)
         self.check_list_case(case, other_view=RoleViewTests.assignable_view)

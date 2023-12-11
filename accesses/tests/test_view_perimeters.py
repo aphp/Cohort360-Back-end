@@ -6,7 +6,7 @@ from accesses.services.perimeters import perimeters_service
 from accesses.services.shared import PerimeterReadRight
 from accesses.tests.base import AccessesAppTestsBase
 from accesses.views import PerimeterViewSet
-from admin_cohort.tools.tests_tools import ListCase
+from admin_cohort.tools.tests_tools import ListCase, new_user_and_profile
 
 
 class PerimeterViewTests(AccessesAppTestsBase):
@@ -75,7 +75,7 @@ class PerimeterViewTests(AccessesAppTestsBase):
                         |             |                                                   |             |
                        P11           P12                                                 P13           P14
 
-            - With respect to this hierarchy, User T has 6 accesses defined on P0, P1, P8 and P10
+            - With respect to this hierarchy, User T has 4 accesses defined on P0, P1, P8 and P10
               allowing him to manage other accesses either on same level (S) or on inferior levels (I).
             """
             perimeters = [self.p0, self.p1, self.p8, self.p10]
@@ -117,8 +117,8 @@ class PerimeterViewTests(AccessesAppTestsBase):
                     |             |                                                   |             |
                    P11           P12                                                 P13           P14
 
-        - With respect to this hierarchy, User Z has 6 accesses defined on P0, P1, P2, P5, P8 and P10
-          allowing him to manage other accesses either on same level (S) or on inferior levels (I).
+        - With respect to this hierarchy, User Z has 5 accesses defined on P0, P1, P2, P4 and P10
+          allowing him to read patient data and/or search by IPP or search opposed patients.
         """
         perimeters = [self.p0, self.p1, self.p2, self.p4, self.p10]
         roles = [self.role_data_reader_pseudo,
@@ -172,4 +172,96 @@ class PerimeterViewTests(AccessesAppTestsBase):
         data_read_rights = perimeters_service.get_data_reading_rights_on_perimeters(user=self.user_y,
                                                                                     target_perimeters=target_perimeters)
         self.assertEqual(expected_data_read_rights, data_read_rights)
+
+    def test_check_read_patient_data_rights(self):
+        """                                                    APHP
+                                     ___________________________|____________________________
+                                    |                           |                           |
+                                   P0                          P1                          P2
+                          _________|__________           ______|_______           _________|__________
+                         |         |         |          |             |          |         |         |
+                         P3        P4        P5         P6            P7         P8        P9       P10
+                             ______|_______                                                    ______|_______
+                            |             |                                                   |             |
+                           P11           P12                                                 P13           P14
+
+        """
+        base_case = ListCase(params={},
+                             to_find=[],
+                             user=None,
+                             status=status.HTTP_200_OK,
+                             success=True)
+
+        def check_read_patient_data_rights_nomi():
+            perimeters = [self.aphp, self.p1, self.p4, self.p10]
+            roles = [self.role_data_reader_pseudo,
+                     self.role_search_by_ipp_and_search_opposed,
+                     self.role_data_reader_nomi_pseudo,
+                     self.role_data_reader_nomi]
+
+            self.profile_z.accesses.all().update(end_datetime=timezone.now())
+            for perimeter, role in zip(perimeters, roles):
+                self.create_new_access_for_user(profile=self.profile_z, role=role, perimeter=perimeter, close_existing=False)
+            return base_case.clone(user=self.user_z,
+                                   params={"mode": "max"},
+                                   to_find={"allow_read_patient_data_nomi": True,
+                                            "allow_lookup_opposed_patients": True})
+
+        def check_read_patient_data_rights_pseudo():
+            perimeters = [self.p1, self.p4]
+            roles = [self.role_data_reader_pseudo,
+                     self.role_search_by_ipp_and_search_opposed]
+
+            self.profile_t.accesses.all().update(end_datetime=timezone.now())
+            for perimeter, role in zip(perimeters, roles):
+                self.create_new_access_for_user(profile=self.profile_t, role=role, perimeter=perimeter, close_existing=False)
+            return base_case.clone(user=self.user_t,
+                                   params={"mode": "min"},
+                                   to_find={"allow_read_patient_data_nomi": False,
+                                            "allow_lookup_opposed_patients": True})
+
+        def check_read_patient_data_rights_with_user_having_no_data_rights():
+            perimeters = [self.aphp, self.p2]
+            roles = [self.role_data_accesses_manager,
+                     self.role_export_accesses_manager]
+
+            self.profile_y.accesses.all().update(end_datetime=timezone.now())
+            for perimeter, role in zip(perimeters, roles):
+                self.create_new_access_for_user(profile=self.profile_y, role=role, perimeter=perimeter, close_existing=False)
+            return base_case.clone(title="user without rights",
+                                   user=self.user_y,
+                                   params={"mode": "min"},
+                                   status=status.HTTP_404_NOT_FOUND,
+                                   success=False)
+
+        def check_read_patient_data_rights_without_read_mode():
+            self.user_w, self.profile_w = new_user_and_profile(email="user_w@aphp.fr")
+            self.create_new_access_for_user(profile=self.profile_w, role=self.role_data_reader_nomi, perimeter=self.aphp)
+            return base_case.clone(title="missing mode param",
+                                   user=self.user_w,
+                                   params={},
+                                   status=status.HTTP_400_BAD_REQUEST,
+                                   success=False)
+
+        def check_read_patient_data_rights_with_wrong_read_mode():
+            self.user_u, self.profile_u = new_user_and_profile(email="user_u@aphp.fr")
+            self.create_new_access_for_user(profile=self.profile_u, role=self.role_data_reader_nomi, perimeter=self.aphp)
+            return base_case.clone(title="wrong value for mode param",
+                                   user=self.user_u,
+                                   params={"mode": "wrong_value"},
+                                   status=status.HTTP_400_BAD_REQUEST,
+                                   success=False)
+
+        case_1 = check_read_patient_data_rights_nomi()
+        case_2 = check_read_patient_data_rights_pseudo()
+        case_3 = check_read_patient_data_rights_with_user_having_no_data_rights()
+        case_4 = check_read_patient_data_rights_without_read_mode()
+        case_5 = check_read_patient_data_rights_with_wrong_read_mode()
+
+        for case in (case_1, case_2, case_3, case_4, case_5):
+            response_data = self.check_list_case(case=case,
+                                                 other_view=PerimeterViewTests.check_read_patient_data_rights_view,
+                                                 yield_response_data=True)
+            if case.success:
+                self.assertEqual(response_data, case.to_find)
 

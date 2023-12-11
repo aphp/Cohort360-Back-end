@@ -369,11 +369,16 @@ class AccessesService:
     @staticmethod
     def access_requires_full_admin_role_to_be_managed(role: Role):
         # requires having: right_full_admin = True
-        has_admin_accesses_role = any((role.right_manage_admin_accesses_same_level,
-                                       role.right_manage_admin_accesses_inferior_levels,
-                                       role.right_read_admin_accesses_same_level,
-                                       role.right_read_admin_accesses_inferior_levels))
-        return role.has_any_global_right() and has_admin_accesses_role
+        has_admin_accesses_manager_role = any((role.right_manage_admin_accesses_same_level,
+                                               role.right_manage_admin_accesses_inferior_levels,
+                                               role.right_read_admin_accesses_same_level,
+                                               role.right_read_admin_accesses_inferior_levels))
+        has_data_accesses_manager_role = any((role.right_manage_data_accesses_same_level,
+                                              role.right_manage_data_accesses_inferior_levels,
+                                              role.right_read_data_accesses_same_level,
+                                              role.right_read_data_accesses_inferior_levels))
+        return role.has_any_global_right() and \
+            (has_admin_accesses_manager_role or not (has_admin_accesses_manager_role or has_data_accesses_manager_role))
 
     @staticmethod
     def access_requires_admin_accesses_managing_role_to_be_managed(role: Role):

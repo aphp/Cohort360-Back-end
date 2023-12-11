@@ -197,13 +197,13 @@ class ListCase(RequestCase):
 
     @property
     def description_dict(self) -> dict:
-        d = {
-            **super(ListCase, self).description_dict,
-            'previously_found_ids': [],
-            'to_find': ([str(obj) for obj in self.to_find[0:10]]
-                        + (["..."] if len(self.to_find) > 10 else [])),
-        }
-        return d
+        to_find = isinstance(self.to_find, list) and self.to_find \
+                  or isinstance(self.to_find, dict) and self.to_find.items() \
+                  or []
+        return {**super(ListCase, self).description_dict,
+                'previously_found_ids': [],
+                'to_find': [str(obj) for obj in to_find]
+                }
 
     def clone(self, **kwargs) -> ListCase:
         return self.__class__(**{**self.__dict__, **kwargs})

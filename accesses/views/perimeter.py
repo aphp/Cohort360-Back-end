@@ -130,8 +130,10 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
             allow_read_patient_data_nomi = accesses_service.can_user_read_patient_data_in_nomi(user=user,
                                                                                                target_perimeters=target_perimeters)
         else:
-            allow_read_patient_data_nomi = accesses_service.can_user_read_patient_data_in_pseudo(user=user,
-                                                                                                 target_perimeters=target_perimeters)
+            allow_read_patient_data_pseudo = accesses_service.can_user_read_patient_data_in_pseudo(user=user,
+                                                                                                   target_perimeters=target_perimeters)
+            allow_read_patient_data_nomi = not allow_read_patient_data_pseudo
+
         data = {"allow_read_patient_data_nomi": allow_read_patient_data_nomi,
                 "allow_lookup_opposed_patients": accesses_service.can_user_read_opposed_patient_data(user=user)}
         return Response(data=data, status=status.HTTP_200_OK)
