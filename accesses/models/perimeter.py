@@ -4,7 +4,6 @@ import logging
 
 from django.db import models
 from django.db.models import Q
-from django.db.models.query import QuerySet
 
 from admin_cohort.models import BaseModel
 from admin_cohort.settings import PERIMETERS_TYPES
@@ -21,7 +20,7 @@ class Perimeter(BaseModel):
     short_name = models.TextField(blank=True, null=True)
     type_source_value = models.TextField(blank=True, null=True)
     parent = models.ForeignKey("accesses.perimeter", on_delete=models.CASCADE, related_name="children", null=True)
-    above_levels_ids = models.TextField(blank=True, null=True)  # todo: make it ArrayField instead
+    above_levels_ids = models.TextField(blank=True, null=True)      # todo: make it ArrayField instead
     inferior_levels_ids = models.TextField(blank=True, null=True)   # todo: make it ArrayField instead
     cohort_id = models.TextField(blank=True, null=True)
     full_path = models.TextField(blank=True, null=True)
@@ -38,10 +37,6 @@ class Perimeter(BaseModel):
     def names(self):
         return dict(name=self.name, short=self.short_name,
                     source_value=self.source_value)
-
-    @property
-    def type(self):
-        return self.type_source_value
 
     @property
     def above_levels(self):
@@ -69,8 +64,3 @@ class Perimeter(BaseModel):
     def q_all_parents(self) -> Q:
         return join_qs([Q(**{f'perimeter__{"__".join(i * ["children"])}': self})
                         for i in range(1, len(PERIMETERS_TYPES))])
-
-    @property
-    def all_children(self) -> QuerySet:
-        return Perimeter.objects.filter(join_qs([Q(**{"__".join(i * ["parent"]): self})
-                                                 for i in range(1, len(PERIMETERS_TYPES))]))

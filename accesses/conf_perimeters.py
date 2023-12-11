@@ -342,7 +342,7 @@ def delete_perimeters(perimeters: QuerySet, care_sites: RawQuerySet):
 
 def close_accesses(perimeters_to_delete: QuerySet):
     perimeters_to_delete_ids = perimeters_to_delete.values_list("id", flat=True)
-    accesses_to_delete = Access.objects.filter(accesses_service.q_is_valid()
+    accesses_to_delete = Access.objects.filter(accesses_service.q_access_is_valid()
                                                & (Q(perimeter_id__in=perimeters_to_delete_ids) | Q(perimeter_id__isnull=True)))
     accesses_to_delete.update(end_datetime=timezone.now())
     Access.objects.bulk_update(accesses_to_delete, ["end_datetime"])

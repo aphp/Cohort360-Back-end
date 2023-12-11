@@ -5,8 +5,8 @@ from django.db.models import QuerySet, Q, Prefetch, F, Value
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
-from accesses.models import Perimeter, Role, Access, Profile
-from accesses.services.shared import DataRight
+from ..models import Perimeter, Role, Access, Profile
+from ..services.shared import DataRight
 from admin_cohort.models import User
 from admin_cohort.settings import ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS, PERIMETERS_TYPES, MANUAL_SOURCE, MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS
 from admin_cohort.tools import join_qs
@@ -15,13 +15,13 @@ from admin_cohort.tools import join_qs
 class AccessesService:
 
     @staticmethod
-    def q_is_valid() -> Q:
+    def q_access_is_valid() -> Q:
         now = timezone.now()
         return ((Q(start_datetime=None) | Q(start_datetime__lte=now)) &
                 (Q(end_datetime=None) | Q(end_datetime__gte=now)))
 
     def get_user_valid_accesses(self, user: User) -> QuerySet:
-        return Access.objects.filter(self.q_is_valid()
+        return Access.objects.filter(self.q_access_is_valid()
                                      & Profile.q_is_valid(prefix="profile")
                                      & Q(profile__source=MANUAL_SOURCE)
                                      & Q(profile__user=user))
@@ -270,7 +270,7 @@ class AccessesService:
         return self.get_user_valid_accesses(user).filter((Q(perimeter=perimeter) & Role.q_allow_manage_accesses_on_same_level())
                                                          | (perimeter.q_all_parents() & Role.q_allow_manage_accesses_on_inf_levels())
                                                          | Role.q_allow_manage_export_accesses()) \
-                                                 .distinct()\
+                                                 .distinct() \
                                                  .select_related("role")
 
     def get_user_reading_accesses_on_perimeter(self, user: User, perimeter: Perimeter) -> QuerySet:

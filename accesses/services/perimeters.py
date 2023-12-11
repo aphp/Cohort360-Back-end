@@ -1,15 +1,22 @@
 from typing import Set, List
 
-from django.db.models import QuerySet
+from django.db.models import QuerySet, Q
 
 from accesses.models import Perimeter, Role
 from accesses.services.accesses import accesses_service
 from accesses.services.shared import PerimeterReadRight
 from admin_cohort.models import User
+from admin_cohort.settings import PERIMETERS_TYPES
+from admin_cohort.tools import join_qs
 from cohort.tools import get_list_cohort_id_care_site
 
 
 class PerimetersService:
+
+    @staticmethod
+    def get_all_child_perimeters(perimeter: Perimeter) -> QuerySet:
+        return Perimeter.objects.filter(join_qs([Q(**{"__".join(i * ["parent"]): perimeter})
+                                                 for i in range(1, len(PERIMETERS_TYPES))]))
 
     @staticmethod
     def get_top_perimeters_ids_same_level(same_level_perimeters_ids: List[int], all_perimeters_ids: List[int]) -> Set[int]:
