@@ -27,12 +27,12 @@ logconfig_dict = dict(
             "stream": "ext://sys.stdout"
         },
         "access": {
-            "class": "admin_cohort.utils.logging.CustomSocketHandler",
+            "class": "admin_cohort.tools.logging.CustomSocketHandler",
             "host": "localhost",
             "port": DEFAULT_TCP_LOGGING_PORT,
         },
         "error": {
-            "class": "admin_cohort.utils.logging.CustomSocketHandler",
+            "class": "admin_cohort.tools.logging.CustomSocketHandler",
             "host": "localhost",
             "port": DEFAULT_TCP_LOGGING_PORT,
         }}
