@@ -15,8 +15,13 @@ from admin_cohort.tools import join_qs
 class AccessesService:
 
     @staticmethod
-    def get_user_valid_accesses(user: User) -> QuerySet:
-        return Access.objects.filter(Access.q_is_valid()
+    def q_is_valid() -> Q:
+        now = timezone.now()
+        return ((Q(start_datetime=None) | Q(start_datetime__lte=now)) &
+                (Q(end_datetime=None) | Q(end_datetime__gte=now)))
+
+    def get_user_valid_accesses(self, user: User) -> QuerySet:
+        return Access.objects.filter(self.q_is_valid()
                                      & Profile.q_is_valid(prefix="profile")
                                      & Q(profile__source=MANUAL_SOURCE)
                                      & Q(profile__user=user))

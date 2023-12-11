@@ -2,7 +2,7 @@ from rest_framework import permissions
 from rest_framework.permissions import OR as drf_OR
 
 from accesses.permissions import can_user_read_users, can_user_read_logs
-from accesses.services.access import accesses_service
+from accesses.services.accesses import accesses_service
 from admin_cohort.models import User
 from admin_cohort.settings import ETL_USERNAME
 

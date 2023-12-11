@@ -5,10 +5,8 @@ from django.db.models import Q
 from django.utils import timezone
 from rest_framework import status
 
-from accesses.models import Access, Role
-from accesses.serializers import DataRightSerializer
-from accesses.services.shared import DataRight
-from accesses.tests.base import AccessesAppTestsBase, ALL_FALSY_RIGHTS
+from accesses.models import Access
+from accesses.tests.base import AccessesAppTestsBase
 from accesses.views import AccessViewSet
 from admin_cohort.settings import MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS, ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS
 from admin_cohort.tools.tests_tools import CaseRetrieveFilter, CreateCase, new_user_and_profile, PatchCase, ListCase, DeleteCase

@@ -9,7 +9,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
-from accesses.services.access import accesses_service
+from accesses.services.accesses import accesses_service
 from accesses.services.perimeters import perimeters_service
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.permissions import IsAuthenticatedReadOnly

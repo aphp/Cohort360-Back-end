@@ -3,8 +3,7 @@ from __future__ import annotations
 import datetime
 
 from django.db import models
-from django.db.models import CASCADE, SET_NULL, Q
-from django.utils import timezone
+from django.db.models import CASCADE, SET_NULL
 from django.utils.datetime_safe import date, datetime as dt
 
 from accesses.models import Perimeter, Profile, Role
@@ -62,9 +61,3 @@ class Access(BaseModel):
                 'care_site_type_source_value': self.perimeter.type_source_value,
                 'care_site_source_value': self.perimeter.source_value,
                 } if self.perimeter else None
-
-    @staticmethod
-    def q_is_valid() -> Q:
-        now = timezone.now()
-        return ((Q(start_datetime=None) | Q(start_datetime__lte=now)) &
-                (Q(end_datetime=None) | Q(end_datetime__gte=now)))

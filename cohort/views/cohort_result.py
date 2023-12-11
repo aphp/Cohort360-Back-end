@@ -13,7 +13,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
-from accesses.services.access import accesses_service
+from accesses.services.accesses import accesses_service
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools import join_qs
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination

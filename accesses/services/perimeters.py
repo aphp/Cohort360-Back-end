@@ -3,7 +3,7 @@ from typing import Set, List
 from django.db.models import QuerySet
 
 from accesses.models import Perimeter, Role
-from accesses.services.access import accesses_service
+from accesses.services.accesses import accesses_service
 from accesses.services.shared import PerimeterReadRight
 from admin_cohort.models import User
 from cohort.tools import get_list_cohort_id_care_site

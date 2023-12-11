@@ -10,7 +10,7 @@ from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from accesses.services.access import accesses_service
+from accesses.services.accesses import accesses_service
 from admin_cohort.permissions import IsAuthenticated
 from admin_cohort.settings import ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS
 from admin_cohort.tools.cache import cache_response

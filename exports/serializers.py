@@ -5,7 +5,7 @@ from rest_framework.exceptions import ValidationError
 
 import workspaces.conf_workspaces as conf_workspaces
 from accesses.models import Perimeter
-from accesses.services.access import accesses_service
+from accesses.services.accesses import accesses_service
 from accesses.services.shared import DataRight
 from admin_cohort.types import JobStatus
 from admin_cohort.models import User
