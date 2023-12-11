@@ -5,4 +5,4 @@ __author__ = 'Assistance Publique - Hopitaux de Paris, Département I&D'
 
 from .celery import celery_app
 
-__all__ = ('celery_app',)
+__all__ = ['celery_app']
