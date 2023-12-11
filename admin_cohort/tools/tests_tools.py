@@ -494,6 +494,9 @@ class ViewSetTests(BaseTests):
         view_kwargs = {**view_kwargs, "is_paged_list_case": True}
         response = self.check_list_case(case=case, other_view=other_view, **view_kwargs)
 
+        if not case.success:
+            return
+
         res = PagedResponse(response)
 
         self.assertEqual(res.count, len(case.to_find),

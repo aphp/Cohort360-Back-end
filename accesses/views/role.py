@@ -118,8 +118,6 @@ class RoleViewSet(CustomLoggingMixin, BaseViewSet):
         assignable_roles_ids = roles_service.get_assignable_roles_ids(user=request.user,
                                                                       perimeter_id=perimeter_id,
                                                                       queryset=self.get_queryset())
-        page = self.paginate_queryset(self.get_queryset().filter(id__in=assignable_roles_ids))
-        if page:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-        return Response(data={}, status=status.HTTP_204_NO_CONTENT)
+        assignable_roles = self.get_queryset().filter(id__in=assignable_roles_ids)
+        return Response(data=RoleSerializer(assignable_roles, many=True).data,
+                        status=status.HTTP_200_OK)

@@ -52,11 +52,8 @@ class AccessViewTests(AccessesAppTestsBase):
                               end_datetime=timezone.now() + timedelta(weeks=1))
 
         _, profile3 = new_user_and_profile(email="user_01@aphp.fr")
-        basic_role = Role.objects.create(**{**ALL_FALSY_RIGHTS,
-                                            "name": "DATA NOMI READER",
-                                            "right_read_patient_nominative": True})
         self.basic_access_data = {"profile_id": profile3.id,
-                                  "role_id": basic_role.id,
+                                  "role_id": self.role_data_reader_nomi.id,
                                   "perimeter_id": self.aphp.id
                                   }
         self.basic_retrieve_filter = AccessesRetrieveFilter(**self.basic_access_data)

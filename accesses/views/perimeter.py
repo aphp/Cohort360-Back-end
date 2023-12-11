@@ -97,13 +97,11 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
     def get_data_read_rights_on_perimeters(self, request, *args, **kwargs):
         data_reading_rights = perimeters_service.get_data_reading_rights_on_perimeters(user=request.user,
                                                                                        target_perimeters=self.filter_queryset(self.queryset))
-        # todo: Confirm to remove pagination
-        # page = self.paginate_queryset(data_reading_rights)
-        # if page:
-        #     serializer = ReadRightPerimeter(page, many=True)
-        #     return self.get_paginated_response(serializer.data)
-        return Response(data=ReadRightPerimeter(data_reading_rights, many=True).data,
-                        status=status.HTTP_200_OK)
+        page = self.paginate_queryset(data_reading_rights)
+        if page:
+            serializer = ReadRightPerimeter(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        return Response(data={}, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(operation_summary="Return if the user has the right to read patient data in nomi or pseudo "
                                            "mode on at least one perimeter, and if allowed to read opposed patients data",

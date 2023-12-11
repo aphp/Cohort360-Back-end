@@ -2,6 +2,8 @@ from django.utils import timezone
 from rest_framework import status
 
 from accesses.models import Perimeter
+from accesses.services.perimeters import perimeters_service
+from accesses.services.shared import PerimeterReadRight
 from accesses.tests.base import AccessesAppTestsBase
 from accesses.views import PerimeterViewSet
 from admin_cohort.tools.tests_tools import ListCase
@@ -129,61 +131,45 @@ class PerimeterViewTests(AccessesAppTestsBase):
         for perimeter, role in zip(perimeters, roles):
             self.create_new_access_for_user(profile=self.profile_y, role=role, perimeter=perimeter, close_existing=False)
 
-        target_local_ids = [self.aphp.local_id,
-                            self.p0.local_id,
-                            self.p4.local_id,
-                            self.p8.local_id,
-                            self.p10.local_id
-                            ]
-        data_read_rights_aphp = dict(perimeter=self.aphp,
-                                     right_read_patient_nominative=False,
-                                     right_read_patient_pseudonymized=False,
-                                     right_search_patients_by_ipp=True,          # todo: this should be False since no read data right are given
-                                     right_read_opposed_patients_data=True,      # todo: same
-                                     read_role="NO READ PATIENT RIGHT")
+        target_perimeters = [self.aphp, self.p0, self.p4, self.p8, self.p10]
 
-        data_read_rights_p0 = dict(perimeter=self.p0,
-                                   right_read_patient_nominative=False,
-                                   right_read_patient_pseudonymized=True,
-                                   right_search_patients_by_ipp=True,
-                                   right_read_opposed_patients_data=True,
-                                   read_role="READ_PATIENT_PSEUDO_ANONYMIZE")
-        data_read_rights_p4 = dict(perimeter=self.p4,
-                                   right_read_patient_nominative=True,
-                                   right_read_patient_pseudonymized=True,
-                                   right_search_patients_by_ipp=True,
-                                   right_read_opposed_patients_data=True,
-                                   read_role="READ_PATIENT_NOMINATIVE")
-        data_read_rights_p8 = dict(perimeter=self.p8,
-                                   right_read_patient_nominative=True,
-                                   right_read_patient_pseudonymized=True,
-                                   right_search_patients_by_ipp=True,
-                                   right_read_opposed_patients_data=True,
-                                   read_role="READ_PATIENT_NOMINATIVE")
-        data_read_rights_p10 = dict(perimeter=self.p10,
-                                    right_read_patient_nominative=True,
-                                    right_read_patient_pseudonymized=True,
-                                    right_search_patients_by_ipp=True,
-                                    right_read_opposed_patients_data=True,
-                                    read_role="READ_PATIENT_NOMINATIVE")
+        data_read_rights_aphp = PerimeterReadRight(perimeter=self.aphp,
+                                                   right_read_patient_nominative=False,
+                                                   right_read_patient_pseudonymized=False,
+                                                   right_search_patients_by_ipp=True,       # todo: this should be False since no read data rights
+                                                   right_read_opposed_patients_data=True)   # todo: same
 
-        data_read_rights = [data_read_rights_aphp,
-                            data_read_rights_p0,
-                            data_read_rights_p4,
-                            data_read_rights_p8,
-                            data_read_rights_p10]
+        data_read_rights_p0 = PerimeterReadRight(perimeter=self.p0,
+                                                 right_read_patient_nominative=False,
+                                                 right_read_patient_pseudonymized=True,
+                                                 right_search_patients_by_ipp=True,
+                                                 right_read_opposed_patients_data=True)
 
-        case = ListCase(params={"local_id": ",".join(target_local_ids)},
-                        to_find=data_read_rights,
-                        user=self.user_y,
-                        status=status.HTTP_200_OK,
-                        success=True)
-        response_data = self.check_list_case(case=case,
-                                             other_view=PerimeterViewTests.get_data_read_rights_on_perimeters_view,
-                                             yield_response_data=True)
-        for e in response_data:
-            for i in case.to_find:
-                if e.get("perimeter").get("id") == i.get("perimeter").id:
-                    for k, v in e.items():
-                        if k != "perimeter":
-                            self.assertEqual(v, i.get(k))
+        data_read_rights_p4 = PerimeterReadRight(perimeter=self.p4,
+                                                 right_read_patient_nominative=True,
+                                                 right_read_patient_pseudonymized=True,
+                                                 right_search_patients_by_ipp=True,
+                                                 right_read_opposed_patients_data=True)
+
+        data_read_rights_p8 = PerimeterReadRight(perimeter=self.p8,
+                                                 right_read_patient_nominative=True,
+                                                 right_read_patient_pseudonymized=True,
+                                                 right_search_patients_by_ipp=True,
+                                                 right_read_opposed_patients_data=True)
+
+        data_read_rights_p10 = PerimeterReadRight(perimeter=self.p10,
+                                                  right_read_patient_nominative=True,
+                                                  right_read_patient_pseudonymized=True,
+                                                  right_search_patients_by_ipp=True,
+                                                  right_read_opposed_patients_data=True)
+
+        expected_data_read_rights = [data_read_rights_aphp,
+                                     data_read_rights_p0,
+                                     data_read_rights_p4,
+                                     data_read_rights_p8,
+                                     data_read_rights_p10]
+
+        data_read_rights = perimeters_service.get_data_reading_rights_on_perimeters(user=self.user_y,
+                                                                                    target_perimeters=target_perimeters)
+        self.assertEqual(expected_data_read_rights, data_read_rights)
+

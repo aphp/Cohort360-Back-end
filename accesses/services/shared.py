@@ -1,22 +1,23 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+from typing import Optional
+
 from accesses.models import Perimeter
 
 
+@dataclass
 class DataRight:
-
-    def __init__(self, user_id: str, perimeter_id: int = None, reading_rights: dict = None):
-        reading_rights = reading_rights or {}
-        self.user_id = user_id
-        self.perimeter_id = perimeter_id
-        self.right_read_patient_nominative = reading_rights.get("right_read_patient_nominative", False)
-        self.right_read_patient_pseudonymized = reading_rights.get("right_read_patient_pseudonymized", False)
-        self.right_search_patients_by_ipp = reading_rights.get("right_search_patients_by_ipp", False)
-        self.right_search_opposed_patients = reading_rights.get("right_search_opposed_patients", False)
-        self.right_export_csv_nominative = reading_rights.get("right_export_csv_nominative", False)
-        self.right_export_csv_pseudonymized = reading_rights.get("right_export_csv_pseudonymized", False)
-        self.right_export_jupyter_nominative = reading_rights.get("right_export_jupyter_nominative", False)
-        self.right_export_jupyter_pseudonymized = reading_rights.get("right_export_jupyter_pseudonymized", False)
+    user_id: str
+    perimeter_id: Optional[int] = None
+    right_read_patient_nominative: Optional[bool] = False
+    right_read_patient_pseudonymized: Optional[bool] = False
+    right_search_patients_by_ipp: Optional[bool] = False
+    right_search_opposed_patients: Optional[bool] = False
+    right_export_csv_nominative: Optional[bool] = False
+    right_export_csv_pseudonymized: Optional[bool] = False
+    right_export_jupyter_nominative: Optional[bool] = False
+    right_export_jupyter_pseudonymized: Optional[bool] = False
 
     def acquire_extra_data_reading_rights(self, dr: DataRight):
         self.right_read_patient_nominative = self.right_read_patient_nominative or dr.right_read_patient_nominative
@@ -31,45 +32,36 @@ class DataRight:
         self.right_export_jupyter_pseudonymized = self.right_export_jupyter_pseudonymized or dr.right_export_jupyter_pseudonymized
 
 
+@dataclass
 class PerimeterReadRight:
-    def __init__(self,
-                 perimeter: "Perimeter",
-                 read_nomi: bool = False,
-                 read_pseudo: bool = False,
-                 allow_search_by_ipp: bool = False,
-                 allow_read_opposed_patient: bool = False):
-        self.perimeter = perimeter
-        self.right_read_patient_nominative = read_nomi
-        self.right_read_patient_pseudonymized = read_pseudo
-        self.right_search_patients_by_ipp = allow_search_by_ipp
-        self.right_read_opposed_patients_data = allow_read_opposed_patient
-        if read_nomi:
+    perimeter: Perimeter
+    right_read_patient_nominative: bool
+    right_read_patient_pseudonymized: bool
+    right_search_patients_by_ipp: bool
+    right_read_opposed_patients_data: bool
+
+    def __post_init__(self):
+        if self.right_read_patient_nominative:
             self.read_role = "READ_PATIENT_NOMINATIVE"
-        elif read_pseudo:
+        elif self.right_read_patient_pseudonymized:
             self.read_role = "READ_PATIENT_PSEUDO_ANONYMIZE"
         else:
             self.read_role = "NO READ PATIENT RIGHT"
 
 
+@dataclass
 class Right:
-    def __init__(self,
-                 name: str,
-                 allow_read_accesses_on_same_level: bool = False,
-                 allow_read_accesses_on_inf_levels: bool = False,
-                 allow_edit_accesses_on_same_level: bool = False,
-                 allow_edit_accesses_on_inf_levels: bool = False,
-                 impact_inferior_levels: bool = False):
-        self.name = name
-        self.allow_read_accesses_on_same_level = allow_read_accesses_on_same_level
-        self.allow_read_accesses_on_inf_levels = allow_read_accesses_on_inf_levels
-        self.allow_edit_accesses_on_same_level = allow_edit_accesses_on_same_level
-        self.allow_edit_accesses_on_inf_levels = allow_edit_accesses_on_inf_levels
-        self.impact_inferior_levels = (impact_inferior_levels
-                                       or allow_edit_accesses_on_inf_levels
-                                       or allow_read_accesses_on_inf_levels)
+    name: str
+    allow_read_accesses_on_same_level: Optional[bool] = False
+    allow_read_accesses_on_inf_levels: Optional[bool] = False
+    allow_edit_accesses_on_same_level: Optional[bool] = False
+    allow_edit_accesses_on_inf_levels: Optional[bool] = False
+    impact_inferior_levels: Optional[bool] = False
 
-    def __repr__(self):
-        return self.name
+    def __post_init__(self):
+        self.impact_inferior_levels = (self.impact_inferior_levels
+                                       or self.allow_edit_accesses_on_inf_levels
+                                       or self.allow_read_accesses_on_inf_levels)
 
 
 # ----------------------------------------------    Global Rights / Perimeters Hierarchy Independent

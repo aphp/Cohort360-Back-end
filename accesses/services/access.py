@@ -160,12 +160,21 @@ class AccessesService:
     def get_data_rights_from_accesses(user: User, data_accesses: QuerySet) -> List[DataRight]:
         accesses_with_reading_patient_data_rights = data_accesses.filter(join_qs([Q(role__right_read_patient_nominative=True),
                                                                                   Q(role__right_read_patient_pseudonymized=True)]))
-        return [DataRight(user_id=user.pk, perimeter_id=access.perimeter.id, reading_rights=access.__dict__)
+        return [DataRight(user_id=user.pk,
+                          perimeter_id=access.perimeter.id,
+                          right_read_patient_nominative=access.right_read_patient_nominative,
+                          right_read_patient_pseudonymized=access.right_read_patient_pseudonymized,
+                          right_search_patients_by_ipp=access.right_search_patients_by_ipp,
+                          right_search_opposed_patients=access.right_search_opposed_patients,
+                          right_export_csv_nominative=access.right_export_csv_nominative,
+                          right_export_csv_pseudonymized=access.right_export_csv_pseudonymized,
+                          right_export_jupyter_nominative=access.right_export_jupyter_nominative,
+                          right_export_jupyter_pseudonymized=access.right_export_jupyter_pseudonymized)
                 for access in accesses_with_reading_patient_data_rights]
 
     @staticmethod
     def get_data_rights_for_target_perimeters(user: User, target_perimeters_ids: List[int]) -> List[DataRight]:
-        return [DataRight(user_id=user.pk, perimeter_id=perimeter_id, reading_rights=None)
+        return [DataRight(user_id=user.pk, perimeter_id=perimeter_id)
                 for perimeter_id in target_perimeters_ids]
 
     @staticmethod
@@ -211,8 +220,15 @@ class AccessesService:
                                                     Q(role__right_export_jupyter_nominative=True),
                                                     Q(role__right_export_jupyter_pseudonymized=True)])):
             global_dr = DataRight(user_id=user.pk,
-                                  reading_rights=access.__dict__,
-                                  perimeter_id=None)
+                                  perimeter_id=None,
+                                  right_read_patient_nominative=access.right_read_patient_nominative,
+                                  right_read_patient_pseudonymized=access.right_read_patient_pseudonymized,
+                                  right_search_patients_by_ipp=access.right_search_patients_by_ipp,
+                                  right_search_opposed_patients=access.right_search_opposed_patients,
+                                  right_export_csv_nominative=access.right_export_csv_nominative,
+                                  right_export_csv_pseudonymized=access.right_export_csv_pseudonymized,
+                                  right_export_jupyter_nominative=access.right_export_jupyter_nominative,
+                                  right_export_jupyter_pseudonymized=access.right_export_jupyter_pseudonymized)
             for dr in data_rights:
                 dr.acquire_extra_global_rights(global_dr)
 

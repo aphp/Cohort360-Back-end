@@ -134,13 +134,13 @@ class PerimetersService:
             elif any(perimeter_id in top_read_pseudo_perimeters_ids for perimeter_id in perimeter_and_parents_ids):
                 read_pseudo = True
             perimeter_read_right_list.append(PerimeterReadRight(perimeter=perimeter,
-                                                                read_nomi=read_nomi,
-                                                                read_pseudo=read_pseudo,
-                                                                allow_search_by_ipp=allow_search_by_ipp,
-                                                                allow_read_opposed_patient=allow_read_opposed_patient))
+                                                                right_read_patient_nominative=read_nomi,
+                                                                right_read_patient_pseudonymized=read_pseudo,
+                                                                right_search_patients_by_ipp=allow_search_by_ipp,
+                                                                right_read_opposed_patients_data=allow_read_opposed_patient))
         return perimeter_read_right_list
 
-    def get_data_reading_rights_on_perimeters(self, user: User, target_perimeters: QuerySet):
+    def get_data_reading_rights_on_perimeters(self, user: User, target_perimeters: QuerySet) -> List[PerimeterReadRight]:
         user_accesses = accesses_service.get_user_valid_accesses(user=user)
         read_patient_nominative_accesses = user_accesses.filter(Role.q_allow_read_patient_data_nominative())
         read_patient_pseudo_accesses = user_accesses.filter(Role.q_allow_read_patient_data_pseudo() |

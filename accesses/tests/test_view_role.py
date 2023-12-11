@@ -91,10 +91,11 @@ class RoleViewTests(AccessesAppTestsBase):
             self.fail("Must be able to create a role with same rights combination as a deleted role")
 
     def test_successfully_creating_role(self):
-        role_name = "DATA READER NOMI"
+        role_name = "DATA READER NOMI + LOGS READER"
         data = {**ALL_FALSY_RIGHTS,
                 "name": role_name,
-                "right_read_patient_nominative": True
+                "right_read_patient_nominative": True,
+                "right_read_logs": True
                 }
         case = CreateCase(data=data,
                           retrieve_filter=RoleRetrieveFilter(name=role_name),
@@ -194,7 +195,7 @@ class RoleViewTests(AccessesAppTestsBase):
                         user=self.user_full_admin_on_aphp,
                         status=status.HTTP_400_BAD_REQUEST,
                         success=False)
-        self.check_get_paged_list_case(case, other_view=RoleViewTests.assignable_view)
+        self.check_list_case(case, other_view=RoleViewTests.assignable_view)
 
     def test_get_assignable_roles_on_perimeter_APHP_as_full_admin_on_APHP(self):
         """
@@ -215,7 +216,7 @@ class RoleViewTests(AccessesAppTestsBase):
                         user=self.user_full_admin_on_aphp,
                         status=status.HTTP_200_OK,
                         success=True)
-        self.check_get_paged_list_case(case, other_view=RoleViewTests.assignable_view)
+        self.check_list_case(case, other_view=RoleViewTests.assignable_view)
 
     def test_get_assignable_roles_on_any_child_perimeter_of_APHP_as_full_admin_on_APHP(self):
         # according to the hierarchy above, target perimeters for ex: P5, P7 and P13
@@ -239,7 +240,7 @@ class RoleViewTests(AccessesAppTestsBase):
                           status=status.HTTP_200_OK,
                           success=True)]
         for case in cases:
-            self.check_get_paged_list_case(case, other_view=RoleViewTests.assignable_view)
+            self.check_list_case(case, other_view=RoleViewTests.assignable_view)
 
     def test_get_assignable_roles_on_perimeter_P0_as_admin_accesses_manager_on_APHP(self):
         # expected behavior: return `role_data_accesses_manager` only
@@ -250,7 +251,7 @@ class RoleViewTests(AccessesAppTestsBase):
                         user=user_admin_accesses_manager_on_aphp,
                         status=status.HTTP_200_OK,
                         success=True)
-        self.check_get_paged_list_case(case, other_view=RoleViewTests.assignable_view)
+        self.check_list_case(case, other_view=RoleViewTests.assignable_view)
 
     def test_get_assignable_roles_on_perimeter_P0_as_admin_accesses_manager_on_P0(self):
         # expected behavior: return `role_data_accesses_manager` only
@@ -261,7 +262,7 @@ class RoleViewTests(AccessesAppTestsBase):
                         user=user_admin_accesses_manager_on_p0,
                         status=status.HTTP_200_OK,
                         success=True)
-        self.check_get_paged_list_case(case, other_view=RoleViewTests.assignable_view)
+        self.check_list_case(case, other_view=RoleViewTests.assignable_view)
 
     def test_get_assignable_roles_on_perimeter_P0_as_admin_accesses_manager_on_P4(self):
         # expected behavior: return no roles, HTTP 204
@@ -272,4 +273,4 @@ class RoleViewTests(AccessesAppTestsBase):
                         user=user_admin_accesses_manager_on_p4,
                         status=status.HTTP_204_NO_CONTENT,
                         success=False)
-        self.check_get_paged_list_case(case, other_view=RoleViewTests.assignable_view)
+        self.check_list_case(case, other_view=RoleViewTests.assignable_view)
