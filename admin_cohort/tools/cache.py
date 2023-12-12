@@ -33,8 +33,7 @@ def construct_cache_key(view_instance=None, view_method=None, request=None, *arg
 def invalidate_cache(model_name: str, user: str = "*"):
     view_name = f"*{model_name}ViewSet"
     key = f"{user}.{view_name}.*"
-    count = cache.delete_pattern(key)
-    _logger.info(f"Cache invalidated: deleted {count} records matching '{key}'")
+    cache.delete_pattern(key)
 
 
 class CustomDummyCache(DummyCache):

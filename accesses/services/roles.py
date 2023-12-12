@@ -102,10 +102,10 @@ class RolesService:
         is_full_admin_with_falsy_rights = (data.get("right_full_admin")
                                            and any(not data.get(r.name) for r in all_rights))
 
-        allow_read_data_pseudo_and_export_nomi = not data.get("right_read_patient_nominative") \
-                                                 and data.get("right_read_patient_pseudonymized") \
-                                                 and (data.get("right_export_csv_nominative")
-                                                      or data.get("right_export_jupyter_nominative"))
+        allow_read_data_pseudo_and_export_nomi = (not data.get("right_read_patient_nominative")
+                                                  and data.get("right_read_patient_pseudonymized")
+                                                  and (data.get("right_export_csv_nominative")
+                                                       or data.get("right_export_jupyter_nominative")))
 
         allow_manage_accesses = any((data.get("right_manage_data_accesses_same_level"),
                                      data.get("right_manage_data_accesses_inferior_levels"),
