@@ -2,8 +2,6 @@ import json
 from pathlib import Path
 from unittest import mock
 
-from django.http import Http404
-
 from admin_cohort.models import User
 from cohort.crb.cohort_requests.abstract_cohort_request import is_cohort_request_pseudo_read
 from cohort.crb.enums import ResourceType
