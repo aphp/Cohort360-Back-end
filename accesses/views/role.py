@@ -1,3 +1,4 @@
+from django.db import IntegrityError
 from django_filters import OrderingFilter
 from django_filters import rest_framework as filters
 from drf_yasg import openapi
@@ -45,17 +46,17 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
         return super(RoleViewSet, self).list(request, *args, **kwargs)
 
     def create(self, request, *args, **kwargs):
-        inconsistent = roles_service.role_has_inconsistent_rights(data=request.data.copy())
-        if inconsistent:
-            return Response(data="Les droits activés sur le rôle ne sont pas cohérents",
-                            status=status.HTTP_400_BAD_REQUEST)
+        try:
+            roles_service.check_role_has_inconsistent_rights(data=request.data.copy())
+        except IntegrityError as e:
+            return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return super(RoleViewSet, self).create(request, *args, **kwargs)
 
     def partial_update(self, request, *args, **kwargs):
-        inconsistent = roles_service.role_has_inconsistent_rights(data=request.data.copy())
-        if inconsistent:
-            return Response(data="Les droits activés sur le rôle ne sont pas cohérents",
-                            status=status.HTTP_400_BAD_REQUEST)
+        try:
+            roles_service.check_role_has_inconsistent_rights(data=request.data.copy())
+        except IntegrityError as e:
+            return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return super(RoleViewSet, self).partial_update(request, *args, **kwargs)
 
     @swagger_auto_schema(method='get',
@@ -115,7 +116,7 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
     def get_assignable_roles(self, request, *args, **kwargs):
         perimeter_id = request.GET.get("perimeter_id")
         if not perimeter_id:
-            return Response(data="Missing parameter: `perimeter_id`", status=status.HTTP_400_BAD_REQUEST)
+            return Response(data={"error": "Missing parameter: `perimeter_id`"}, status=status.HTTP_400_BAD_REQUEST)
         assignable_roles_ids = roles_service.get_assignable_roles_ids(user=request.user,
                                                                       perimeter_id=perimeter_id,
                                                                       queryset=self.get_queryset())

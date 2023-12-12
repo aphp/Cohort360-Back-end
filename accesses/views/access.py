@@ -109,7 +109,7 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
         try:
             accesses_service.process_create_data(data=request.data)
         except ValueError as e:
-            return Response(data=str(e), status=status.HTTP_400_BAD_REQUEST)
+            return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return super(AccessViewSet, self).create(request, *args, **kwargs)
 
     @swagger_auto_schema(request_body=openapi.Schema(
@@ -128,7 +128,7 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
         try:
             accesses_service.process_patch_data(access=self.get_object(), data=request.data)
         except ValueError as e:
-            return Response(data=str(e), status=status.HTTP_400_BAD_REQUEST)
+            return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return super(AccessViewSet, self).partial_update(request, *args, **kwargs)
 
     @swagger_auto_schema(method="PATCH", operation_summary="Will set end_datetime to now, to close the access.")
@@ -138,14 +138,14 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
         try:
             accesses_service.check_access_closing_date(access=self.get_object(), end_datetime_now=now)
         except ValueError as e:
-            return Response(data=str(e), status=status.HTTP_400_BAD_REQUEST)
+            return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         request.data.update({'end_datetime': now})
         return super(AccessViewSet, self).partial_update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
         access = self.get_object()
         if access.start_datetime and access.start_datetime < timezone.now():
-            return Response(data="L'accès est déjà activé, il ne peut plus être supprimé.",
+            return Response(data={"error": "L'accès est déjà activé, il ne peut plus être supprimé."},
                             status=status.HTTP_400_BAD_REQUEST)
         self.perform_destroy(access)
         return Response(status=status.HTTP_204_NO_CONTENT)

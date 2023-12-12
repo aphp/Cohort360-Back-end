@@ -114,7 +114,7 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
         cohort_ids = request.query_params.get("cohort_ids")
         read_mode = request.query_params.get('mode')
         if read_mode not in (MAX, MIN):
-            return Response(data="Patient data reading `mode` is missing or has invalid value",
+            return Response(data={"error": "Patient data reading `mode` is missing or has invalid value"},
                             status=status.HTTP_400_BAD_REQUEST)
         target_perimeters = self.queryset
         if cohort_ids:
@@ -122,10 +122,10 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
         target_perimeters = self.filter_queryset(target_perimeters)
 
         if not target_perimeters:
-            return Response(data="None of the target perimeters was found", status=status.HTTP_404_NOT_FOUND)
+            return Response(data={"error": "None of the target perimeters was found"}, status=status.HTTP_404_NOT_FOUND)
 
         if not accesses_service.user_has_data_reading_accesses(user=user):
-            return Response(data="User has no data reading access", status=status.HTTP_404_NOT_FOUND)
+            return Response(data={"error": "User has no data reading access"}, status=status.HTTP_404_NOT_FOUND)
 
         if read_mode == MAX:
             allow_read_patient_data_nomi = accesses_service.can_user_read_patient_data_in_nomi(user=user,

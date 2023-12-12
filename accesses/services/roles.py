@@ -1,5 +1,6 @@
 from typing import List
 
+from django.db import IntegrityError
 from django.db.models import QuerySet
 
 from accesses.models import Perimeter
@@ -98,14 +99,18 @@ class RolesService:
                     role.right_read_accesses_above_levels))
 
     @staticmethod
-    def role_has_inconsistent_rights(data: dict) -> bool:
+    def check_role_has_inconsistent_rights(data: dict) -> None:
         is_full_admin_with_falsy_rights = (data.get("right_full_admin")
                                            and any(not data.get(r.name) for r in all_rights))
+        if is_full_admin_with_falsy_rights:
+            raise IntegrityError("Cannot create a Full Admin role with falsy rights")
 
         allow_read_data_pseudo_and_export_nomi = (not data.get("right_read_patient_nominative")
                                                   and data.get("right_read_patient_pseudonymized")
                                                   and (data.get("right_export_csv_nominative")
                                                        or data.get("right_export_jupyter_nominative")))
+        if allow_read_data_pseudo_and_export_nomi:
+            raise IntegrityError("Cannot create a role allowing to read patient data in pseudo and export nominative data")
 
         allow_manage_accesses = any((data.get("right_manage_data_accesses_same_level"),
                                      data.get("right_manage_data_accesses_inferior_levels"),
@@ -123,10 +128,10 @@ class RolesService:
         allow_manage_users = data.get("right_manage_users")
         allow_read_users = data.get("right_read_users")
 
-        return is_full_admin_with_falsy_rights \
-            or allow_read_data_pseudo_and_export_nomi \
-            or (allow_manage_accesses and not allow_manage_users) \
-            or (allow_read_accesses and not allow_read_users)
+        if allow_manage_accesses and not allow_manage_users:
+            raise IntegrityError("Cannot create a role allowing to manage accesses but not users")
+        if allow_read_accesses and not allow_read_users:
+            raise IntegrityError("Cannot create a role allowing to read accesses but not users")
 
     @staticmethod
     def get_assignable_roles_ids(user: User, perimeter_id: str, queryset: QuerySet) -> List[int]:
