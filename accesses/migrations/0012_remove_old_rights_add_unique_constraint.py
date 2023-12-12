@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accesses', '0010_add_new_rights_and_rename_others'),
+        ('accesses', '0011_add_new_rights_and_rename_others'),
     ]
 
     operations = [

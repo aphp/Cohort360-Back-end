@@ -10,6 +10,7 @@ from accesses.services.shared import DataRight
 from admin_cohort.types import JobStatus
 from admin_cohort.models import User
 from cohort.models import CohortResult
+from exports.services.export import export_service
 from workspaces.models import Account
 from exports.emails import check_email_address
 from exports.models import ExportRequest, ExportRequestTable, Datalab, InfrastructureProvider, ExportTable, ExportResultStat, Export
@@ -39,9 +40,9 @@ def check_read_rights_on_perimeters(rights: List[DataRight], is_nominative: bool
 
 def check_csv_export_rights_on_perimeters(rights: List[DataRight], is_nominative: bool):
     if is_nominative:
-        wrong_perimeters = [r.perimeter.id for r in rights if not r.right_export_csv_nominative]
+        wrong_perimeters = [r.perimeter_id for r in rights if not r.right_export_csv_nominative]
     else:
-        wrong_perimeters = [r.perimeter.id for r in rights if not r.right_export_csv_pseudonymized]
+        wrong_perimeters = [r.perimeter_id for r in rights if not r.right_export_csv_pseudonymized]
     if wrong_perimeters:
         raise ValidationError(f"L'utilisateur n'a pas le droit d'export CSV {is_nominative and 'nominatif' or 'pseudonymisé'} "
                               f"sur les périmètres suivants: {wrong_perimeters}.")
@@ -49,9 +50,9 @@ def check_csv_export_rights_on_perimeters(rights: List[DataRight], is_nominative
 
 def check_jupyter_export_rights_on_perimeters(rights: List[DataRight], is_nominative: bool):
     if is_nominative:
-        wrong_perimeters = [r.perimeter.id for r in rights if not r.right_export_jupyter_nominative]
+        wrong_perimeters = [r.perimeter_id for r in rights if not r.right_export_jupyter_nominative]
     else:
-        wrong_perimeters = [r.perimeter.id for r in rights if not r.right_export_jupyter_pseudonymized]
+        wrong_perimeters = [r.perimeter_id for r in rights if not r.right_export_jupyter_pseudonymized]
     if wrong_perimeters:
         raise ValidationError(f"L'utilisateur n'a pas le droit d'export Jupyter {is_nominative and 'nominatif' or 'pseudonymisé'} "
                               f"sur les périmètres suivants: {wrong_perimeters}.")
@@ -164,31 +165,29 @@ class ExportRequestSerializer(serializers.ModelSerializer):
             er.request_job_fail_msg = f"INTERNAL ERROR: Could not launch Celery task: {e}"
         return er
 
-    def validate_hive_export(self, validated_data: dict, creator_is_reviewer: bool = True):
+    def validate_hive_export(self, validated_data: dict):
         target_unix_account = validated_data.get('target_unix_account')
         if not target_unix_account:
             raise ValidationError("Pour une demande d'export HIVE, il faut fournir target_unix_account")
 
         owner = validated_data.get('owner')
-        if creator_is_reviewer:
-            validated_data['request_job_status'] = JobStatus.validated
-            validated_data['reviewer_fk'] = self.context.get('request').user
-        else:
-            if not conf_workspaces.is_user_bound_to_unix_account(owner, target_unix_account.aphp_ldap_group_dn):
-                raise ValidationError(f"Le compte Unix destinataire ({target_unix_account.pk}) "
-                                      f"n'est pas lié à l'utilisateur voulu ({owner.pk})")
-            self.validate_owner_rights(validated_data)
+        validated_data['request_job_status'] = JobStatus.validated
+        validated_data['reviewer_fk'] = self.context.get('request').user
+        if not conf_workspaces.is_user_bound_to_unix_account(owner, target_unix_account.aphp_ldap_group_dn):
+            raise ValidationError(f"Le compte Unix destinataire ({target_unix_account.pk}) "
+                                  f"n'est pas lié à l'utilisateur voulu ({owner.pk})")
+        self.validate_owner_rights(validated_data)
 
     def validate_csv_export(self, validated_data: dict):
         validated_data['request_job_status'] = JobStatus.validated
         creator: User = self.context.get('request').user
 
         if validated_data.get('owner').pk != creator.pk:
-            raise ValidationError(f"Dans le cas d'une demande d'export CSV, vous ne pouvez pas "
-                                  f"générer de demande d'export pour un autre provider_id que le vôtre."
-                                  f"Vous êtes connectés en tant que {creator.displayed_name}")
+            raise ValidationError("Vous ne pouvez pas effectuer un export CSV pour un autre utilisateur")
         if not validated_data.get('nominative'):
             raise ValidationError("Actuellement, la demande d'export CSV en pseudo-anonymisée n'est pas possible.")
+        if validated_data.get('cohort_fk').owner != creator:
+            raise ValidationError("Vous ne pouvez pas exporter une cohorte d'un autre utilisateur.")
         self.validate_owner_rights(validated_data)
 
 
@@ -252,7 +251,6 @@ class ExportTableSerializer(serializers.ModelSerializer):
         fields = "__all__"
         read_only_fields = ["uuid",
                             "export",
-                            "fhir_filter",
                             "cohort_result_subset",
                             "respect_table_relationships"]
 
@@ -264,14 +262,12 @@ class ExportSerializer(serializers.ModelSerializer):
         model = Export
         fields = "__all__"
 
-    @staticmethod
-    def create_tables(tables, export):
-        for table in tables:
-            ExportTable.objects.create(export=export, **table)
-
     def create(self, validated_data):
         export_tables = validated_data.pop("export_tables", [])
         export = super(ExportSerializer, self).create(validated_data)
-        self.create_tables(export_tables, export)
+        export_service.validate_tables_data(tables_data=export_tables)
+        export_service.create_tables(http_request=self.context.get("request"),
+                                     tables_data=export_tables,
+                                     export=export)
         return export
 

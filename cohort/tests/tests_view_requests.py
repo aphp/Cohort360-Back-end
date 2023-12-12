@@ -9,7 +9,7 @@ from admin_cohort.models import User
 from admin_cohort.tools.tests_tools import CaseRetrieveFilter, random_str, ListCase, RetrieveCase, CreateCase, DeleteCase, \
     PatchCase, RequestCase
 from cohort.models import Request, Folder
-from cohort.models.request import REQUEST_DATA_TYPE_CHOICES, PATIENT_REQUEST_TYPE
+from cohort.models.request import REQUEST_DATA_TYPES, PATIENT_DATA_TYPE
 from cohort.tests.cohort_app_tests import CohortAppTests
 from cohort.tests.tests_view_folders import FolderCaseRetrieveFilter
 from cohort.views import RequestViewSet, NestedRequestViewSet
@@ -84,7 +84,7 @@ class RequestsGetTests(RequestsTests):
                 owner=u,
                 favorite=random.random() > .5,
                 parent_folder=random.choice(u_folders),
-                data_type_of_query=random.choice(REQUEST_DATA_TYPE_CHOICES)[0],
+                data_type_of_query=random.choice(REQUEST_DATA_TYPES)[0],
                 shared_by=other_u if random.random() > .5 else None,
             ))
         Request.objects.bulk_create(self.requests)
@@ -139,10 +139,10 @@ class RequestsGetTests(RequestsTests):
                 to_find=[f for f in user1_requests if f.favorite],
             ),
             basic_case.clone(
-                params=dict(data_type_of_query=REQUEST_DATA_TYPE_CHOICES[0][0]),
+                params=dict(data_type_of_query=REQUEST_DATA_TYPES[0][0]),
                 to_find=[f for f in user1_requests
                          if (f.data_type_of_query ==
-                             REQUEST_DATA_TYPE_CHOICES[0][0])],
+                             REQUEST_DATA_TYPES[0][0])],
             ),
             basic_case.clone(
                 params=dict(shared_by=self.user2.pk),
@@ -163,13 +163,12 @@ class RequestsGetTests(RequestsTests):
         # bound to
         folder = self.user1.folders.first()
 
-        self.check_get_paged_list_case(ListCase(
-            status=status.HTTP_200_OK,
-            success=True,
-            user=self.user1,
-            to_find=list(folder.requests.all())
-        ), NestedRequestViewSet.as_view({'get': 'list'}),
-            parent_folder=folder.pk)
+        self.check_get_paged_list_case(ListCase(status=status.HTTP_200_OK,
+                                                success=True,
+                                                user=self.user1,
+                                                to_find=list(folder.requests.all())),
+                                       other_view=NestedRequestViewSet.as_view({'get': 'list'}),
+                                       parent_folder=folder.pk)
 
 
 class RequestsCreateTests(RequestsTests):
@@ -181,7 +180,7 @@ class RequestsCreateTests(RequestsTests):
             parent_folder=self.user1_folder1.pk,
             description="desc",
             favorite=True,
-            data_type_of_query=PATIENT_REQUEST_TYPE,
+            data_type_of_query=PATIENT_DATA_TYPE,
         )
         self.basic_case = CreateCase(
             success=True,
@@ -248,7 +247,7 @@ class RequestsDeleteTests(RequestsTests):
             parent_folder=self.user1_folder1,
             description="desc",
             favorite=True,
-            data_type_of_query=PATIENT_REQUEST_TYPE,
+            data_type_of_query=PATIENT_DATA_TYPE,
             owner=self.user1,
         )
         self.basic_case = DeleteCase(
@@ -279,7 +278,7 @@ class RequestsUpdateTests(RequestsTests):
             parent_folder=self.user1_folder1,
             description="desc",
             favorite=True,
-            data_type_of_query=PATIENT_REQUEST_TYPE,
+            data_type_of_query=PATIENT_DATA_TYPE,
             owner=self.user1,
         )
         self.basic_case = PatchCase(
@@ -298,7 +297,7 @@ class RequestsUpdateTests(RequestsTests):
                 parent_folder=self.user1_folder2.pk,
                 description="asc",
                 favorite=False,
-                data_type_of_query=REQUEST_DATA_TYPE_CHOICES[1][0],
+                data_type_of_query=REQUEST_DATA_TYPES[1][0],
                 # read_only
                 shared_by=self.user2.pk,
                 created_at=timezone.now() + timedelta(hours=1),

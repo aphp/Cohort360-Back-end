@@ -76,8 +76,10 @@ def export_request_received(**kwargs):
 
 
 def exported_csv_files_deleted(**kwargs):
-    context = {'recipient_name': kwargs.get('recipient_name')}
-    return dict(subject=f"[Cohorte {kwargs.get('cohort_id')}] Confirmation de suppression de fichiers",
+    context = {'recipient_name': kwargs.get('recipient_name'),
+               'cohort_id': kwargs.get('cohort_id')
+               }
+    return dict(subject=f"[Cohorte {kwargs.get('cohort_id')}] Confirmation de suppression de fichiers CSV exportés",
                 to=kwargs.get('recipient_email'),
                 html_template="html/confirmation_suppression_csv.html",
                 txt_template="txt/confirmation_suppression_csv.txt",

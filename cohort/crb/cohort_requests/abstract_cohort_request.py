@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
-from admin_cohort.auth.utils import get_userinfo_from_token
+from accesses.models import Perimeter
+from accesses.services.accesses import accesses_service
+from admin_cohort.auth.utils import get_userinfo_from_token, get_user_from_token
 from cohort.crb.enums import Mode
 from cohort.crb.exceptions import FhirException
 from cohort.crb.query_formatter import QueryFormatter
@@ -12,6 +14,13 @@ from cohort.crb.sjs_client import SjsClient, format_spark_job_request_for_sjs
 
 if TYPE_CHECKING:
     from cohort.crb.schemas import CohortQuery
+
+
+def is_cohort_request_pseudo_read(auth_headers: dict, source_population: List[int]) -> bool:
+    user = get_user_from_token(auth_headers['Authorization'].replace('Bearer ', ''),
+                               auth_headers['authorizationMethod'])
+    perimeters = Perimeter.objects.filter(cohort_id__in=source_population)
+    return not accesses_service.can_user_read_patient_data_in_pseudo(user=user, target_perimeters=perimeters)
 
 
 class AbstractCohortRequest(ABC):
@@ -33,7 +42,10 @@ class AbstractCohortRequest(ABC):
         if cohort_query is None:
             raise FhirException("No query received to format.")
 
-        sjs_request = QueryFormatter(self.auth_headers).format_to_fhir(cohort_query)
+        is_pseudo = is_cohort_request_pseudo_read(self.auth_headers,
+                                                  cohort_query.source_population.care_site_cohort_list)
+
+        sjs_request = QueryFormatter(self.auth_headers).format_to_fhir(cohort_query, is_pseudo)
         cohort_query.criteria = sjs_request
 
         spark_job_request = SparkJobObject(

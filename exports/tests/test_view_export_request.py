@@ -4,6 +4,7 @@ from typing import List, Any
 from unittest import mock
 from unittest.mock import MagicMock
 
+import requests
 from django.utils import timezone
 from requests import Response, HTTPError, RequestException
 from rest_framework import status
@@ -18,9 +19,9 @@ from admin_cohort.tools import prettify_json
 from cohort.models import CohortResult, RequestQuerySnapshot, Request, DatedMeasure, Folder
 from workspaces.models import Account
 from exports.conf_exports import create_hive_db, prepare_hive_db, wait_for_hive_db_creation_job, get_job_status
-from exports.models import ExportRequest, ExportRequestTable
-from exports.tasks import delete_export_requests_csv_files, wait_for_export_job, launch_request, mark_export_request_as_failed
-from exports.types import ExportType, ApiJobResponse
+from exports.models import ExportRequest, ExportRequestTable, Export, ExportTable, InfrastructureProvider, Datalab
+from exports.tasks import delete_export_requests_csv_files, wait_for_export_job, launch_request, mark_export_request_as_failed, launch_export_task
+from exports.types import ExportType, ApiJobResponse, ExportStatus
 from exports.views import ExportRequestViewSet
 
 EXPORTS_URL = "/exports"
@@ -143,50 +144,40 @@ class ExportsTests(ViewSetTestsWithBasicPerims):
         super(ExportsTests, self).setUp()
 
         # ROLES
-        (self.role_review_csv,
-         self.role_review_jupyter,
-         self.role_read_pseudo,
+        (self.role_read_pseudo,
          self.role_read_nomi,
          self.role_exp_csv_pseudo,
          self.role_exp_csv_nomi,
          self.role_exp_jup_pseudo,
          self.role_exp_jup_nomi) = [
-            Role.objects.create(**dict([
-                (f, f == right) for f in self.all_rights]), name=name)
-            for (name, right) in [
-                ("REVIEW_CSV", "right_review_export_csv"),
-                ("REVIEW_JUPYTER", "right_review_export_jupyter"),
-                ("READ_PSEUDO", "right_read_patient_pseudonymized"),
-                ("READ_NOMI", "right_read_patient_nominative"),
-                ("EXP_CSV_PSEUDO", "right_export_csv_pseudonymized"),
-                ("EXP_CSV_NOMI", "right_export_csv_nominative"),
-                ("EXP_JUP_PSEUDO", "right_export_jupyter_pseudonymized"),
-                ("EXP_JUP_NOMI", "right_export_jupyter_nominative"),
-            ]]
+            Role.objects.create(**dict([(f, f == right) for f in self.all_rights]), name=name)
+            for (name, right) in [("READ_PSEUDO", "right_read_patient_pseudonymized"),
+                                  ("READ_NOMI", "right_read_patient_nominative"),
+                                  ("EXP_CSV_PSEUDO", "right_export_csv_pseudonymized"),
+                                  ("EXP_CSV_NOMI", "right_export_csv_nominative"),
+                                  ("EXP_JUP_PSEUDO", "right_export_jupyter_pseudonymized"),
+                                  ("EXP_JUP_NOMI", "right_export_jupyter_nominative")]]
 
         # USERS
         self.user_with_no_right, ph_with_no_right = new_user_and_profile(
             email=f"with_no_right{END_TEST_EMAIL}")
-        self.user_jup_reviewer, self.ph_jup_reviewer = new_user_and_profile(
-            email=f"jup_reviewer{END_TEST_EMAIL}")
-        self.user_csv_reviewer, ph_csv_reviewer = new_user_and_profile(
-            email=f"csv_reviewer{END_TEST_EMAIL}")
 
         self.user1, self.prof_1 = new_user_and_profile(email=f"us1{END_TEST_EMAIL}")
         self.user2, self.prof_2 = new_user_and_profile(email=f"us2{END_TEST_EMAIL}")
         self.user3, self.prof_3 = new_user_and_profile(email=f"us3{END_TEST_EMAIL}")
 
         # ACCESSES
-        self.jup_review_access: Access = Access.objects.create(
-            perimeter=self.aphp, role=self.role_review_jupyter,
-            profile=self.ph_jup_reviewer)
-        self.jup_review_nomi_access: Access = Access.objects.create(
-            perimeter=self.aphp, role=self.role_exp_jup_nomi,
-            profile=self.ph_jup_reviewer)
+        self.user1_csv_nomi_acc: Access = Access.objects.create(
+            perimeter=self.aphp,
+            profile=self.prof_1,
+            role=self.role_exp_csv_nomi
+        )
 
-        self.csv_review_access: Access = Access.objects.create(
-            perimeter=self.aphp, role=self.role_review_csv,
-            profile=ph_csv_reviewer)
+        self.user1_csv_pseudo_acc: Access = Access.objects.create(
+            perimeter=self.aphp,
+            profile=self.prof_1,
+            role=self.role_exp_csv_pseudo
+        )
 
         self.user1_nomi_acc: Access = Access.objects.create(
             perimeter=self.aphp,
@@ -212,6 +203,16 @@ class ExportsTests(ViewSetTestsWithBasicPerims):
             perimeter=self.aphp,
             profile=self.prof_3,
             role=self.role_exp_jup_pseudo
+        )
+        self.user2_nomi_acc: Access = Access.objects.create(
+            perimeter=self.aphp,
+            profile=self.prof_2,
+            role=self.role_read_nomi
+        )
+        self.user2_exp_csv_nomi_acc: Access = Access.objects.create(
+            perimeter=self.aphp,
+            profile=self.prof_2,
+            role=self.role_exp_csv_nomi
         )
 
         # COHORTS
@@ -298,12 +299,24 @@ class ExportsWithSimpleSetUp(ExportsTests):
                 target_location="user2_exp_req_succ",
                 is_user_notified=True,
             )
-        #
-        # self.user2_exp_req_table: ExportRequestTable = \
-        #     ExportRequestTable.objects.create(
-        #         export_request=self.user2_exp_req,
-        #         omop_table_name="Hello",
-        #     )
+
+        # Exports new flow with new models - v1
+        self.infra_provider_aphp = InfrastructureProvider.objects.create(name="APHP")
+        self.datalab = Datalab.objects.create(name="main_datalab", infrastructure_provider=self.infra_provider_aphp)
+        self.user1_export = Export.objects.create(name="Test Export",
+                                                  output_format=ExportType.HIVE,
+                                                  owner=self.user1,
+                                                  status=ExportStatus.PENDING.name,
+                                                  target_name="12345_09092023_151500",
+                                                  datalab=self.datalab)
+        ExportTable.objects.create(export=self.user1_export,
+                                   name="person",
+                                   cohort_result_source=self.user1_cohort,
+                                   cohort_result_subset=self.user1_cohort)
+        ExportTable.objects.create(export=self.user1_export,
+                                   name="other_table",
+                                   cohort_result_source=self.user1_cohort,
+                                   cohort_result_subset=self.user1_cohort)
 
 
 # GET ##################################################################
@@ -368,26 +381,6 @@ class ExportsListTests(ExportsTests):
                 ) for i in range(0, 200)
             ])
 
-    def test_list_requests_as_jup_reviewer(self):
-        base_results = self.user1_reqs + self.user2_reqs
-
-        self.check_get_paged_list_case(ListCase(to_find=[e for e in base_results if e.output_format == ExportType.HIVE],
-                                                page_size=20,
-                                                user=self.user_jup_reviewer,
-                                                status=status.HTTP_200_OK,
-                                                success=True,
-                                                params={"output_format": ExportType.HIVE}))
-
-    def test_list_requests_as_csv_reviewer(self):
-        base_results = self.user1_reqs + self.user2_reqs
-
-        self.check_get_paged_list_case(ListCase(to_find=[e for e in base_results if e.output_format == ExportType.CSV],
-                                                page_size=20,
-                                                user=self.user_csv_reviewer,
-                                                status=status.HTTP_200_OK,
-                                                success=True,
-                                                params={"output_format": ExportType.CSV}))
-
     def test_list_requests_as_user1(self):
         base_results = self.user1_reqs
 
@@ -397,54 +390,6 @@ class ExportsListTests(ExportsTests):
                                                 status=status.HTTP_200_OK,
                                                 success=True,
                                                 params={"owner": self.user1.pk}))
-
-    def test_list_requests_as_full_reviewer_with_filters(self):
-        # As a user with right_read_admin_accesses_same_level on a
-        # care_site, I can get accesses on the same care_site and whom
-        # the role has admin rights, and only them
-
-        # we also give right to review csv exports to jupyter reviewer
-        Access.objects.create(
-            perimeter=self.aphp,
-            role=self.role_review_csv,
-            profile=self.ph_jup_reviewer,
-        )
-
-        base_results = self.user1_reqs + self.user2_reqs
-        param_cases = {
-            'output_format': {
-                'value': ExportType.CSV.value,
-                'to_find': [
-                    e for e in base_results
-                    if e.output_format == ExportType.CSV.value
-                ]
-            },
-            'request_job_status': {
-                'value': JobStatus.new.value,
-                'to_find': [
-                    e for e in base_results
-                    if e.request_job_status == JobStatus.new
-                ]
-            },
-        }
-
-        for (param, pc) in param_cases.items():
-            pcs = [pc] if not isinstance(pc, list) else pc
-            for pc_ in pcs:
-                param_cases = [
-                    {**pc_, 'value': v} for v in pc_['value']
-                ] if isinstance(pc_['value'], list) else [pc_]
-
-                [
-                    self.check_get_paged_list_case(ListCase(
-                        params=dict({param: p_case['value']}),
-                        to_find=p_case['to_find'],
-                        page_size=20,
-                        user=self.user_jup_reviewer,
-                        status=status.HTTP_200_OK,
-                        success=True
-                    )) for p_case in param_cases
-                ]
 
 
 class DownloadCase(RequestCase):
@@ -517,7 +462,7 @@ class ExportsRetrieveTests(ExportsWithSimpleSetUp):
         self.check_retrieve_case(RetrieveCase(
             to_find=self.user2_exp_req_succ,
             view_params=dict(id=self.user2_exp_req_succ.id),
-            status=status.HTTP_404_NOT_FOUND,
+            status=status.HTTP_403_FORBIDDEN,
             user=self.user1,
             success=False,
         ))
@@ -601,7 +546,7 @@ class ExportsRetrieveTests(ExportsWithSimpleSetUp):
         export = self.base_err_download_case.export
         export.owner = self.user2
         export.save()
-        self.check_download(self.base_err_download_case.clone(status=status.HTTP_404_NOT_FOUND))
+        self.check_download(self.base_err_download_case.clone(status=status.HTTP_403_FORBIDDEN))
 
 # JOBS ##################################################################
 
@@ -612,18 +557,13 @@ class ExportsJobsTests(ExportsWithSimpleSetUp):
     @mock.patch('exports.conf_exports.delete_file')
     def test_task_delete_export_requests_csv_files(self, mock_delete_hdfs_file, mock_push_email_notif):
         from admin_cohort.settings import DAYS_TO_DELETE_CSV_FILES
-
         mock_delete_hdfs_file.return_value = None
         mock_push_email_notif.return_value = None
-
         self.user1_exp_req_succ.insert_datetime = (timezone.now() - timedelta(days=DAYS_TO_DELETE_CSV_FILES))
         self.user1_exp_req_succ.is_user_notified = True
         self.user1_exp_req_succ.save()
-
         delete_export_requests_csv_files()
-
         deleted_ers = list(ExportRequest.objects.filter(cleaned_at__isnull=False))
-
         self.assertCountEqual([er.pk for er in deleted_ers], [self.user1_exp_req_succ.pk])
         [self.assertAlmostEqual((er.cleaned_at - timezone.now()).total_seconds(), 0, delta=1) for er in deleted_ers]
 
@@ -633,21 +573,96 @@ class ExportsJobsTests(ExportsWithSimpleSetUp):
     @mock.patch('exports.conf_exports.conclude_export_hive')
     @mock.patch('exports.conf_exports.get_job_status')
     def test_task_launch_request(self, mock_get_job_status, mock_prepare_hive_db, mock_post_export, mock_conclude_export_hive,
-                                 mock_send_success_email):
+                                 mock_push_email_notification):
         mock_get_job_status.return_value = ApiJobResponse(status=JobStatus.finished)
         mock_prepare_hive_db.return_value = None
         mock_post_export.return_value = None
         mock_conclude_export_hive.return_value = None
-        mock_send_success_email.return_value = None
-
+        mock_push_email_notification.return_value = None
         launch_request(er_id=self.user1_exp_req_succ.id)
-
         mock_get_job_status.assert_called()
         mock_prepare_hive_db.assert_not_called()
         mock_post_export.assert_called()
         mock_conclude_export_hive.assert_not_called()
-        mock_send_success_email.assert_called()
+        mock_push_email_notification.assert_called()
 
+    @mock.patch.object(requests, 'post')
+    @mock.patch('exports.tasks.push_email_notification')
+    @mock.patch('exports.conf_exports.prepare_hive_db')
+    @mock.patch('exports.conf_exports.conclude_export_hive')
+    @mock.patch('exports.conf_exports.get_job_status')
+    def test_task_launch_export_task_jupyter(self, mock_get_job_status, mock_prepare_hive_db, mock_conclude_export_hive,
+                                             mock_push_email_notification, mock_post):
+        mock_get_job_status.return_value = ApiJobResponse(status=JobStatus.finished)
+        mock_prepare_hive_db.return_value = None
+        mock_conclude_export_hive.return_value = None
+        mock_push_email_notification.return_value = None
+        mock_response = Response()
+        mock_response.status_code = status.HTTP_201_CREATED
+        mock_response._text = 'returned some task_id'
+        mock_response._content = b'{"task_id": "some-task-uuid"}'
+        mock_post.return_value = mock_response
+        launch_export_task(export_id=self.user1_export.uuid)
+        mock_get_job_status.assert_called()
+        mock_prepare_hive_db.assert_called()
+        mock_conclude_export_hive.assert_called()
+        mock_push_email_notification.assert_called()
+
+    @mock.patch('exports.tasks.mark_export_request_as_failed')
+    @mock.patch('exports.conf_exports.prepare_hive_db')
+    def test_task_launch_export_task_jupyter_failure_1(self, mock_prepare_hive_db, mock_mark_export_request_as_failed):
+        mock_prepare_hive_db.side_effect = RequestException()
+        mock_mark_export_request_as_failed.return_value = None
+        launch_export_task(export_id=self.user1_export.uuid)
+        mock_prepare_hive_db.assert_called()
+        mock_mark_export_request_as_failed.assert_called()
+
+    @mock.patch('exports.tasks.mark_export_request_as_failed')
+    @mock.patch('exports.conf_exports.post_export_v1')
+    @mock.patch('exports.conf_exports.prepare_hive_db')
+    def test_task_launch_export_task_jupyter_failure_2(self, mock_prepare_hive_db, mock_post_export_v1, mock_mark_export_request_as_failed):
+        mock_prepare_hive_db.side_effect = None
+        mock_post_export_v1.side_effect = RequestException()
+        mock_mark_export_request_as_failed.return_value = None
+        launch_export_task(export_id=self.user1_export.uuid)
+        mock_post_export_v1.assert_called()
+        mock_prepare_hive_db.assert_called()
+        mock_mark_export_request_as_failed.assert_called()
+
+    @mock.patch('exports.tasks.mark_export_request_as_failed')
+    @mock.patch('exports.tasks.wait_for_export_job')
+    @mock.patch('exports.conf_exports.post_export_v1')
+    @mock.patch('exports.conf_exports.prepare_hive_db')
+    def test_task_launch_export_task_jupyter_failure_3(self, mock_prepare_hive_db, mock_post_export_v1, mock_wait_for_export_job,
+                                                       mock_mark_export_request_as_failed):
+        mock_prepare_hive_db.side_effect = None
+        mock_post_export_v1.side_effect = None
+        mock_wait_for_export_job.side_effect = HTTPError()
+        mock_mark_export_request_as_failed.return_value = None
+        launch_export_task(export_id=self.user1_export.uuid)
+        mock_prepare_hive_db.assert_called()
+        mock_post_export_v1.assert_called()
+        mock_wait_for_export_job.assert_called()
+        mock_mark_export_request_as_failed.assert_called()
+
+    @mock.patch('exports.tasks.mark_export_request_as_failed')
+    @mock.patch('exports.conf_exports.conclude_export_hive')
+    @mock.patch('exports.tasks.wait_for_export_job')
+    @mock.patch('exports.conf_exports.post_export_v1')
+    @mock.patch('exports.conf_exports.prepare_hive_db')
+    def test_task_launch_export_task_jupyter_failure_4(self, mock_prepare_hive_db, mock_post_export_v1, mock_wait_for_export_job,
+                                                       mock_conclude_export_hive, mock_mark_export_request_as_failed):
+        mock_prepare_hive_db.side_effect = None
+        mock_post_export_v1.side_effect = None
+        mock_wait_for_export_job.side_effect = None
+        mock_conclude_export_hive.side_effect = RequestException()
+        mock_mark_export_request_as_failed.return_value = None
+        launch_export_task(export_id=self.user1_export.uuid)
+        mock_prepare_hive_db.assert_called()
+        mock_post_export_v1.assert_called()
+        mock_wait_for_export_job.assert_called()
+        mock_conclude_export_hive.assert_called()
+        mock_mark_export_request_as_failed.assert_called()
 
 # POST ##################################################################
 
@@ -689,12 +704,6 @@ class ExportsCreateTests(ExportsTests):
 class ExportsCsvCreateTests(ExportsCreateTests):
     def setUp(self):
         super(ExportsCsvCreateTests, self).setUp()
-
-        self.user1_csv_nomi_acc: Access = Access.objects.create(
-            perimeter=self.aphp,
-            profile=self.prof_1,
-            role=self.role_exp_csv_nomi
-        )
 
         basic_export_descr = "basic_export"
         self.basic_data = dict(
@@ -781,7 +790,7 @@ class ExportsCsvCreateTests(ExportsCreateTests):
         )
         self.check_create_case(case)
 
-    def test_error_create_cohort_not_owned(self):
+    def test_error_create_export_with_not_owned_cohort(self):
         # As a user, I cannot create an export request
         # if I do not own the targeted cohort
         case = self.err_basic_case.clone(
@@ -803,7 +812,7 @@ class ExportsCsvCreateTests(ExportsCreateTests):
         self.check_create_case(case)
 
     def test_error_create_csv_pseudo(self):
-        # I cannot create an export request with Pseudonym mode
+        # I cannot create a CSV export request with pseudo mode
         case = self.err_basic_case.clone(
             data={**self.basic_data, 'nominative': False},
             created=False,
@@ -816,17 +825,6 @@ class ExportsJupyterCreateTests(ExportsCreateTests):
     def setUp(self):
         super(ExportsJupyterCreateTests, self).setUp()
 
-        self.user2_nomi_acc: Access = Access.objects.create(
-            perimeter=self.aphp,
-            profile=self.prof_2,
-            role=self.role_read_nomi
-        )
-        self.user2_jup_nomi_acc: Access = Access.objects.create(
-            perimeter=self.aphp,
-            profile=self.prof_2,
-            role=self.role_exp_jup_nomi
-        )
-
         self.user1_unix_acc: Account = Account.objects.create(
             username='user1', spark_port_start=0)
 
@@ -838,7 +836,6 @@ class ExportsJupyterCreateTests(ExportsCreateTests):
             tables=[dict(omop_table_name="provider")],
             cohort_fk=self.user1_cohort.pk,
             motivation=basic_export_descr,
-            # actual validity will be returned by mock
             target_unix_account=self.user1_unix_acc.pk,
         )
         self.basic_case = ExportJupyterCreateCase(
@@ -925,49 +922,6 @@ class ExportsJupyterCreateTests(ExportsCreateTests):
 
         [self.check_create_case(case) for case in cases]
 
-    def test_create_jup_other_recipient_with_rev_access(self):
-        # As a user with right to review jupyter exports,
-        # I can create an export request with a cohort from another user
-        # to a Unix account owned by a third user
-        self.check_create_case(self.basic_case.clone(
-            data={**self.basic_data,
-                  'cohort_fk': self.user1_cohort.pk,
-                  'owner': self.user2.pk},
-            mock_user_bound_called=False,
-            user=self.user_jup_reviewer,
-        ))
-
-    def test_create_jup_no_owner_with_rev_access(self):
-        # As a user with right to review jupyter exports,
-        # I can create an export request with a cohort from another user
-        # without providing owner (will be me by default)
-        self.check_create_case(self.basic_case.clone(
-            data={**self.basic_data,
-                  'cohort_fk': self.user2_cohort.pk},
-            mock_user_bound_resp=False,
-            mock_user_bound_called=False,
-            user=self.user_jup_reviewer,
-            created=True,
-            status=status.HTTP_201_CREATED,
-        ))
-
-    def test_error_create_jup_not_owned_cohort_without_rev_access(self):
-        # As a user, I cannot create an export request for a cohort I don't own
-        self.check_create_case(self.err_basic_case.clone(
-            data={**self.basic_data, 'cohort_fk': self.user2_cohort.pk},
-            created=False,
-            status=status.HTTP_400_BAD_REQUEST,
-        ))
-
-    def test_error_create_jup_other_recipient_without_rev_access(self):
-        # As a user, I cannot create an export request for another owner
-        self.check_create_case(self.err_basic_case.clone(
-            data={**self.basic_data},
-            created=False,
-            user=self.user2,
-            status=status.HTTP_400_BAD_REQUEST,
-        ))
-
     def test_error_create_request_no_email(self):
         # As a user, I cannot create an export request if the owner has no
         # email address
@@ -1008,7 +962,6 @@ class ExportsJupyterCreateTests(ExportsCreateTests):
         # As a user, I cannot create a nominative export request
         # without the right to do it
 
-        # we close the access that should allow reviewer to review exports
         self.user1_exp_jup_nomi_acc.end_datetime = timezone.now() - timedelta(days=2)
         self.user1_exp_jup_nomi_acc.save()
 
@@ -1114,6 +1067,17 @@ class ExportsJupyterCreateTests(ExportsCreateTests):
         mock_get_job_status.return_value = ApiJobResponse(status=JobStatus.finished)
         wait_for_export_job(er=self.export_request)
         self.assertEqual(self.export_request.request_job_status, JobStatus.finished.value)
+
+    @mock.patch("exports.tasks.log_export_request_task")
+    @mock.patch("exports.tasks.conf_exports.get_job_status")
+    @mock.patch("exports.tasks.time.sleep")
+    def test_wait_for_export_job_error(self, mock_sleep, mock_get_job_status, mock_log_request_task):
+        mock_sleep.return_value = None
+        mock_get_job_status.side_effect = RequestException()
+        mock_log_request_task.return_value = None
+        with self.assertRaises(HTTPError):
+            wait_for_export_job(er=self.export_request)
+        mock_log_request_task.assert_called()
 
     @mock.patch("exports.tasks.push_email_notification")
     def test_mark_export_request_as_failed(self, mock_push_email_notification):

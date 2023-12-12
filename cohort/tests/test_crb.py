@@ -2,6 +2,10 @@ import json
 from pathlib import Path
 from unittest import mock
 
+from django.http import Http404
+
+from admin_cohort.models import User
+from cohort.crb.cohort_requests.abstract_cohort_request import is_cohort_request_pseudo_read
 from cohort.crb.enums import ResourceType
 from cohort.crb.exceptions import FhirException
 from cohort.crb.query_formatter import QueryFormatter
@@ -61,7 +65,17 @@ class TestQueryFormatter(CohortAppTests):
     @mock.patch("cohort.crb.query_formatter.query_fhir")
     def test_format_to_fhir_simple_query(self, query_fhir):
         query_fhir.return_value = self.mocked_query_fhir_result
-        res = self.query_formatter.format_to_fhir(self.cohort_query_simple)
+        res = self.query_formatter.format_to_fhir(self.cohort_query_simple, False)
+        self.assertEquals(1, len(res.criteria))
+        res_criteria = res.criteria[0]
+        self.assertEquals(ResourceType.PATIENT, res_criteria.resource_type)
+        self.assertEquals(self.fq_value_string, res_criteria.filter_solr, )
+        self.assertEquals("docstatus=final&type:not=doc-impor&empty=false&patient-active=true&_text=ok",
+                          res_criteria.filter_fhir)
+    @mock.patch("cohort.crb.query_formatter.query_fhir")
+    def test_format_to_fhir_simple_query_pseudo(self, query_fhir):
+        query_fhir.return_value = self.mocked_query_fhir_result
+        res = self.query_formatter.format_to_fhir(self.cohort_query_simple, True)
         self.assertEquals(1, len(res.criteria))
         res_criteria = res.criteria[0]
         self.assertEquals(ResourceType.PATIENT, res_criteria.resource_type)
@@ -72,9 +86,21 @@ class TestQueryFormatter(CohortAppTests):
     @mock.patch("cohort.crb.query_formatter.query_fhir")
     def test_format_to_fhir_complex_query(self, query_fhir):
         query_fhir.return_value = self.mocked_query_fhir_result
-        res = self.query_formatter.format_to_fhir(self.cohort_query_complex)
+        res = self.query_formatter.format_to_fhir(self.cohort_query_complex, False)
         self.assertEquals(6, len(res.criteria))
         res_criteria = res.criteria[1]
         self.assertEquals(ResourceType.PATIENT, res_criteria.resource_type)
         self.assertEquals(self.fq_value_string, res_criteria.filter_solr, )
         self.assertEquals("patient-active=true&codeList=A00-B99", res_criteria.filter_fhir)
+
+    @mock.patch("cohort.crb.cohort_requests.abstract_cohort_request.get_user_from_token")
+    def test_cohort_request_pseudo_read(self, mock_get_user_from_token):
+        mock_get_user_from_token.return_value = User.objects.create(firstname='Test',
+                                                                    lastname='USER',
+                                                                    email='test.user@aphp.fr',
+                                                                    provider_username='1111111')
+        auth_headers = {"Authorization": "Bearer XXX",
+                        "authorizationMethod": "OIDC"}
+        read_in_pseudo = is_cohort_request_pseudo_read(auth_headers=auth_headers, source_population=[])
+        self.assertTrue(read_in_pseudo)
+        mock_get_user_from_token.assert_called()

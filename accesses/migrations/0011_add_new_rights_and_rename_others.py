@@ -20,7 +20,7 @@ def enable_all_rights_for_full_admin_roles(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accesses', '0009_role_right_read_admin_accesses_above_levels'),
+        ('accesses', '0010_factrelationship'),
     ]
 
     operations = [

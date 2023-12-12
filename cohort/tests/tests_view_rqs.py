@@ -2,9 +2,8 @@ import random
 from datetime import timedelta
 from os import environ
 from pathlib import Path
-from typing import List, Any
-from unittest import mock
-from unittest.mock import MagicMock, patch
+from typing import List
+from unittest.mock import patch
 
 from django.core.mail import EmailMessage
 from django.utils import timezone
@@ -15,9 +14,7 @@ from admin_cohort.models import User
 from admin_cohort.settings import SHARED_FOLDER_NAME
 from admin_cohort.tools import prettify_json
 from admin_cohort.tools.tests_tools import CaseRetrieveFilter, CreateCase, random_str, ListCase, RetrieveCase, \
-    DeleteCase, \
-    PatchCase
-from cohort.crb_responses import CRBValidateResponse
+    DeleteCase, PatchCase
 from cohort.models import RequestQuerySnapshot, Request, Folder
 from cohort.tests.tests_view_requests import RequestsTests, ShareCase
 from cohort.views import RequestQuerySnapshotViewSet, NestedRqsViewSet
@@ -30,19 +27,16 @@ class RqsCaseRetrieveFilter(CaseRetrieveFilter):
 
 
 class RqsCreateCase(CreateCase):
-    def __init__(self, mock_fhir_resp: any, mock_fhir_called: bool, mock_retrieve_perimeters_value, **kwargs):
+    def __init__(self, **kwargs):
         super(RqsCreateCase, self).__init__(**kwargs)
-        self.mock_fhir_resp = mock_fhir_resp
-        self.mock_fhir_called = mock_fhir_called
-        self.mock_retrieve_perimeters_value = mock_retrieve_perimeters_value
 
 
 class RqsTests(RequestsTests):
     unupdatable_fields = ["owner", "request", "uuid", "previous_snapshot",
-                          "shared_by", "is_active_branch",
+                          "shared_by",
                           "created_at", "modified_at", "deleted"]
     unsettable_default_fields = dict()
-    unsettable_fields = ["owner", "uuid", "shared_by", "is_active_branch",
+    unsettable_fields = ["owner", "uuid", "shared_by",
                          "created_at", "modified_at", "deleted", ]
     manual_dupplicated_fields = []
 
@@ -108,7 +102,6 @@ class RqsGetTests(RqsTests):
                 serialized_query=random_json(),
                 shared_by=(next(u for u in self.users if u != r.owner)
                            if random.random() > .5 else None),
-                is_active_branch=random.random() > .5,
             ))
         RequestQuerySnapshot.objects.bulk_create(base_rqss)
 
@@ -121,7 +114,6 @@ class RqsGetTests(RqsTests):
                 serialized_query=random_json(),
                 shared_by=(next(u for u in self.users if u != prev.owner)
                            if random.random() > .5 else None),
-                is_active_branch=prev.is_active_branch and random.random() > .2,
             ))
         RequestQuerySnapshot.objects.bulk_create(new_rqss)
         self.rqss = base_rqss + new_rqss
@@ -170,10 +162,6 @@ class RqsGetTests(RqsTests):
         prev_rqs = req.query_snapshots.first()
         cases = [
             basic_case.clone(
-                params=dict(is_active_branch=True),
-                to_find=[rqs for rqs in user1_rqss if rqs.is_active_branch],
-            ),
-            basic_case.clone(
                 params=dict(shared_by=self.user2.pk),
                 to_find=[rqs for rqs in user1_rqss
                          if rqs.shared_by == self.user2],
@@ -205,12 +193,12 @@ class RqsGetTests(RqsTests):
         # bound to
         req = self.user1.folders.first().requests.first()
 
-        self.check_get_paged_list_case(ListCase(
-            status=status.HTTP_200_OK,
-            success=True,
-            user=self.user1,
-            to_find=list(req.query_snapshots.all())
-        ), NestedRqsViewSet.as_view({'get': 'list'}), request_id=req.pk)
+        self.check_get_paged_list_case(ListCase(status=status.HTTP_200_OK,
+                                                success=True,
+                                                user=self.user1,
+                                                to_find=list(req.query_snapshots.all())),
+                                       other_view=NestedRqsViewSet.as_view({'get': 'list'}),
+                                       request_id=req.pk)
 
     def test_rest_get_list_from_previous_rqs(self):
         # As a user, I can get the list of RQSs from the previous RQS they are
@@ -218,42 +206,22 @@ class RqsGetTests(RqsTests):
         prev_rqs = self.user1.folders.first().requests.first() \
             .query_snapshots.first()
 
-        self.check_get_paged_list_case(ListCase(
-            status=status.HTTP_200_OK,
-            success=True,
-            user=self.user1,
-            to_find=list(prev_rqs.next_snapshots.all())
-        ), NestedRqsViewSet.as_view({'get': 'list'}),
-            previous_snapshot=prev_rqs.pk)
+        self.check_get_paged_list_case(ListCase(status=status.HTTP_200_OK,
+                                                success=True,
+                                                user=self.user1,
+                                                to_find=list(prev_rqs.next_snapshots.all())),
+                                       other_view=NestedRqsViewSet.as_view({'get': 'list'}),
+                                       previous_snapshot=prev_rqs.pk)
 
 
 class RqsCreateTests(RqsTests):
-    @mock.patch('cohort.serializers.cohort_job_api.get_authorization_header')
-    @mock.patch('cohort.serializers.retrieve_perimeters')
-    def check_create_case_with_mock(
-            self, case: RqsCreateCase, mock_retrieve_perimeters: MagicMock,
-            mock_header: MagicMock, other_view: any, view_kwargs: dict):
-        mock_header.return_value = None
-        mock_retrieve_perimeters.return_value = case.mock_retrieve_perimeters_value
+
+    def check_create_case_with_mock(self, case: RqsCreateCase, other_view: any, view_kwargs: dict):
 
         super(RqsCreateTests, self).check_create_case(
             case, other_view, **(view_kwargs or {}))
 
-        mock_retrieve_perimeters.assert_called() if case.mock_fhir_called \
-            else mock_retrieve_perimeters.assert_not_called()
-
-        if case.success:
-            # we check that the new rqs is the only with active_branch True,
-            # among other 'next_snapshots' from the previous one
-            rqs: RequestQuerySnapshot = self.model_objects.filter(
-                **case.retrieve_filter.args).first()
-            if rqs.previous_snapshot:
-                self.assertTrue(all(
-                    not r.is_active_branch for r in
-                    rqs.previous_snapshot.next_snapshots.exclude(pk=rqs.pk)
-                ))
-
-    def check_create_case(self, case: RqsCreateCase, other_view: Any = None,
+    def check_create_case(self, case: RqsCreateCase, other_view: any = None,
                           **view_kwargs):
         return self.check_create_case_with_mock(
             case, other_view=other_view or None, view_kwargs=view_kwargs)
@@ -275,10 +243,9 @@ class RqsCreateTests(RqsTests):
             request=self.user1_req1,
             previous_snapshot=self.user1_req1_snap1,
             serialized_query='{"perimeter": "Terra"}',
-            is_active_branch=True,
         )
 
-        self.test_query = '{"test": "query"}'
+        self.test_query = '{"test": "query", "sourcePopulation": {"caresiteCohortList": ["1", "2", "3"]}}'
         self.basic_data = dict(
             request=self.user1_req2.pk,
             serialized_query=self.test_query,
@@ -290,12 +257,8 @@ class RqsCreateTests(RqsTests):
             data=self.basic_data,
             retrieve_filter=RqsCaseRetrieveFilter(
                 serialized_query=self.test_query),
-            mock_fhir_resp=CRBValidateResponse(True),
-            mock_fhir_called=True,
-            mock_retrieve_perimeters_value=[]
         )
         self.basic_err_case = self.basic_case.clone(
-            mock_fhir_called=False,
             success=False,
             status=status.HTTP_400_BAD_REQUEST,
         )
@@ -315,7 +278,6 @@ class RqsCreateTests(RqsTests):
         # As a user, I can create a request
         self.check_create_case(self.basic_case.clone(
             data={**self.basic_data,
-                  'is_active_branch': False,
                   'created_at': timezone.now() + timedelta(hours=1),
                   'modified_at': timezone.now() + timedelta(hours=1),
                   'deleted': timezone.now() + timedelta(hours=1),
@@ -332,17 +294,14 @@ class RqsCreateTests(RqsTests):
     def test_create_from_previous(self):
         # As a user, I can create a RQS specifying a previous snapshot
         # using nestedViewSet
-        self.check_create_case(self.basic_case.clone(
-            data={'serialized_query': self.test_query},
-        ), NestedRqsViewSet.as_view({'post': 'create'}),
-            previous_snapshot=self.user1_req1_snap1.pk)
+        self.check_create_case(case=self.basic_case.clone(data={'serialized_query': self.test_query}),
+                               other_view=NestedRqsViewSet.as_view({'post': 'create'}),
+                               previous_snapshot=self.user1_req1_snap1.pk)
 
     def test_error_create_missing_field(self):
-        # As a user, I cannot create a folder if some fields are missing
-        cases = (self.basic_err_case.clone(
-            data={**self.basic_data, k: None},
-        ) for k in ['serialized_query'])
-        [self.check_create_case(case) for case in cases]
+        # As a user, I cannot create a RQS if some fields are missing
+        case = self.basic_err_case.clone(data={**self.basic_data, 'serialized_query': None})
+        self.check_create_case(case)
 
     def test_error_create_missing_both_request_previous(self):
         # As a user, I cannot create a RQS not specifying either
@@ -358,7 +317,7 @@ class RqsCreateTests(RqsTests):
         ))
 
     def test_error_create_with_not_owned_request(self):
-        # As a user, I cannot create a RQS providing another user as owner
+        # As a user, I cannot create a RQS providing a request I don't own
         self.check_create_case(self.basic_err_case.clone(
             data={**self.basic_data, 'request': self.user2_req1.pk},
         ))

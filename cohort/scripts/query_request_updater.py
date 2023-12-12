@@ -16,7 +16,7 @@ MATCH_ALL_VALUES = "__MATCH_ALL_VALUES__"
 class QueryRequestUpdater:
     def __init__(self,
                  version_name: str,
-                 previous_version_name: Optional[str],
+                 previous_version_name: Optional[List[str]],
                  filter_mapping: Dict[str, Dict[str, str]],
                  filter_names_to_skip: Dict[str, List[str]],
                  filter_values_mapping: Dict[str, Dict[str, Dict[str, Union[str, Callable[[str], str]]]]],
@@ -147,7 +147,7 @@ class QueryRequestUpdater:
         if query_version == self.version_name:
             LOGGER.info("Skipping already updated query")
             return False, False
-        elif self.previous_version_name is not None and query_version != self.previous_version_name:
+        elif self.previous_version_name is not None and query_version not in self.previous_version_name:
             LOGGER.info(
                 f"Won't upgrade a query which is not from previous version (expected: {self.previous_version_name},"
                 f" actual {self.version_name})")

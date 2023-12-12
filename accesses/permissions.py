@@ -46,6 +46,14 @@ def can_user_make_export_jupyter_pseudo(user: User):
     return any(filter(lambda role: role.right_export_jupyter_pseudonymized, get_bound_roles(user)))
 
 
+def can_user_make_export_csv_nomi(user: User):
+    return any(filter(lambda role: role.right_export_csv_nominative, get_bound_roles(user)))
+
+
+def can_user_make_export_csv_pseudo(user: User):
+    return any(filter(lambda role: role.right_export_csv_pseudonymized, get_bound_roles(user)))
+
+
 def can_user_make_csv_export(user: User) -> bool:
     return any(filter(lambda role: role.right_export_csv_nominative or role.right_export_csv_pseudonymized,
                       get_bound_roles(user)))

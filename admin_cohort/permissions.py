@@ -4,7 +4,7 @@ from rest_framework.permissions import OR as drf_OR
 from accesses.permissions import can_user_read_users, can_user_read_logs
 from accesses.services.accesses import accesses_service
 from admin_cohort.models import User
-from admin_cohort.settings import ETL_USERNAME
+from admin_cohort.settings import ETL_USERNAME, ROLLOUT_USERNAME
 
 
 def user_is_authenticated(user):
@@ -17,7 +17,7 @@ class MaintenancesPermission(permissions.BasePermission):
             return True
         user = request.user
         return user_is_authenticated(user) and (accesses_service.user_is_full_admin(user) or
-                                                user.provider_username == ETL_USERNAME)
+                                                user.provider_username in (ROLLOUT_USERNAME, ETL_USERNAME))
 
 
 class LogsPermission(permissions.BasePermission):
@@ -52,10 +52,11 @@ class UsersPermission(permissions.BasePermission):
     def has_permission(self, request, view):
         if not user_is_authenticated(request.user):
             return False
-        return request.method in permissions.SAFE_METHODS and can_user_read_users(request.user)
+        return request.method in permissions.SAFE_METHODS \
+            and (view.detail or can_user_read_users(request.user))
 
     def has_object_permission(self, request, view, obj):
-        return self.has_permission(request=request, view=view)
+        return request.user.pk == obj.pk or can_user_read_users(request.user)
 
 
 class CachePermission(permissions.BasePermission):

@@ -48,7 +48,6 @@ class DatedMeasuresTests(RqsTests):
             request=self.user1_req1,
             previous_snapshot=self.user1_req1_snap1,
             serialized_query='{"perimeter": "Terra"}',
-            is_active_branch=True,
         )
         self.user2_req1_snap1 = RequestQuerySnapshot.objects.create(
             owner=self.user2,
@@ -168,9 +167,9 @@ class DatedMeasuresCreateTests(DatedMeasuresTests):
                                                       request_job_status=JobStatus.pending,
                                                       owner=self.user1)
 
-    @mock.patch('cohort.serializers.cohort_job_api.get_authorization_header')
-    @mock.patch('cohort.tasks.cancel_previously_running_dm_jobs.delay')
-    @mock.patch('cohort.tasks.get_count_task.delay')
+    @mock.patch('cohort.services.dated_measure.get_authorization_header')
+    @mock.patch('cohort.services.dated_measure.cancel_previously_running_dm_jobs.delay')
+    @mock.patch('cohort.services.dated_measure.get_count_task.delay')
     def check_create_case_with_mock(self, case: DMCreateCase, mock_count_task: MagicMock, mock_cancel_task: MagicMock, mock_header: MagicMock,
                                     other_view: any, view_kwargs: dict):
         mock_header.return_value = None
@@ -192,17 +191,6 @@ class DatedMeasuresCreateTests(DatedMeasuresTests):
         # it will launch a task
         self.check_create_case(self.basic_case)
 
-    def test_create_with_data(self):
-        # As a user, I can create a DatedMeasure with all fields,
-        # no task will be launched
-        case = self.basic_case.clone(data={**self.basic_data,
-                                           'measure': 1,
-                                           'measure_min': 1,
-                                           'measure_max': 1,
-                                           'fhir_datetime': timezone.now()},
-                                     mock_count_task_called=False)
-        self.check_create_case(case)
-
     def test_create_with_unread_fields(self):
         # As a user, I can create a dm
         self.check_create_case(self.basic_case.clone(
@@ -215,14 +203,6 @@ class DatedMeasuresCreateTests(DatedMeasuresTests):
                   'modified_at': timezone.now() + timedelta(hours=1),
                   'deleted': timezone.now() + timedelta(hours=1)},
         ))
-
-    def test_error_create_missing_time_or_measure(self):
-        # As a user, I cannot create a dm if I provide one of fhir_datetime
-        # and measure but not both
-        cases = (self.basic_err_case.clone(data={**self.basic_data, k: v},
-                                           mock_header_called=False,
-                                           mock_cancel_task_called=False) for (k, v) in {'fhir_datetime': timezone.now(), 'measure': 1}.items())
-        [self.check_create_case(case) for case in cases]
 
     def test_error_create_missing_field(self):
         # As a user, I cannot create a dm if some field is missing

@@ -56,7 +56,7 @@ class Migration(migrations.Migration):
                 ('motivation', models.TextField(null=True)),
                 ('clean_datetime', models.DateTimeField(null=True)),
                 ('status', models.CharField(choices=[('PENDING', 'En attente'), ('SENT_TO_DE', 'Envoyé au DataExporter'), ('DELIVERED', 'Livré')], max_length=55)),
-                ('output_format', models.CharField(choices=[('CSV', 'csv'), ('HIVE', 'hive')], max_length=20)),
+                ('output_format', models.CharField(choices=[('csv', 'csv'), ('hive', 'hive')], max_length=20)),
                 ('target_name', models.CharField(max_length=255, null=True)),
                 ('target_location', models.TextField(null=True)),
                 ('data_exporter_version', models.CharField(max_length=20, null=True)),

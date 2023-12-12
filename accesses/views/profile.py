@@ -10,8 +10,9 @@ from rest_framework.response import Response
 
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.permissions import IsAuthenticated, can_user_read_users
+from admin_cohort.tools.request_log_mixin import RequestLogMixin
 from admin_cohort.types import MissingDataError, ServerError
-from admin_cohort.views import BaseViewSet, CustomLoggingMixin
+from admin_cohort.views import BaseViewSet
 from ..models import Profile
 from ..permissions import ProfilesPermission
 from ..serializers import ProfileSerializer, ReducedProfileSerializer, ProfileCheckSerializer
@@ -46,7 +47,7 @@ class ProfileFilter(filters.FilterSet):
                   "is_active")
 
 
-class ProfileViewSet(CustomLoggingMixin, BaseViewSet):
+class ProfileViewSet(RequestLogMixin, BaseViewSet):
     queryset = Profile.objects.filter(delete_datetime__isnull=True).all()
     lookup_field = "id"
     http_method_names = ['get', 'post', 'patch', 'delete']

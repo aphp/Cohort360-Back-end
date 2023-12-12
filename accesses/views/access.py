@@ -14,7 +14,8 @@ from accesses.services.accesses import accesses_service
 from admin_cohort.permissions import IsAuthenticated
 from admin_cohort.settings import ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS
 from admin_cohort.tools.cache import cache_response
-from admin_cohort.views import BaseViewSet, CustomLoggingMixin
+from admin_cohort.tools.request_log_mixin import RequestLogMixin
+from admin_cohort.views import BaseViewSet
 from accesses.models import Access
 from accesses.permissions import AccessesPermission
 from accesses.serializers import AccessSerializer, DataRightSerializer, ExpiringAccessesSerializer
@@ -35,7 +36,7 @@ class AccessFilter(filters.FilterSet):
         fields = "__all__"
 
 
-class AccessViewSet(CustomLoggingMixin, BaseViewSet):
+class AccessViewSet(RequestLogMixin, BaseViewSet):
     serializer_class = AccessSerializer
     queryset = Access.objects.all()
     lookup_field = "id"

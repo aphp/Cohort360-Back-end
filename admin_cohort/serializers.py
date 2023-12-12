@@ -13,16 +13,13 @@ class UserDetailsSerializer(serializers.Serializer):
     provider_id = serializers.CharField()
 
 
-class APIRequestLogSerializer(serializers.ModelSerializer):
+class RequestLogSerializer(serializers.ModelSerializer):
     related_names = serializers.DictField(read_only=True)
     user_details = UserDetailsSerializer(allow_null=True)
 
     class Meta:
         model = APIRequestLog
-        fields = [f.name for f in APIRequestLog._meta.fields] + [
-            "related_names",
-            "user_details",
-        ]
+        fields = "__all__"
 
 
 class BaseSerializer(serializers.ModelSerializer):
@@ -107,6 +104,4 @@ class ReleaseNoteSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ReleaseNote
-        exclude = ("insert_datetime",
-                   "update_datetime",
-                   "delete_datetime")
+        exclude = ("delete_datetime",)

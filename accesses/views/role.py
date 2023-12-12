@@ -13,7 +13,8 @@ from accesses.services.roles import roles_service
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.permissions import IsAuthenticated, UsersPermission
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
-from admin_cohort.views import BaseViewSet, CustomLoggingMixin
+from admin_cohort.views import BaseViewSet
+from admin_cohort.tools.request_log_mixin import RequestLogMixin
 
 
 class RoleFilter(filters.FilterSet):
@@ -28,7 +29,7 @@ class RoleFilter(filters.FilterSet):
 USERS_ORDERING_FIELDS = ["lastname", "firstname", "perimeter", "start_datetime", "end_datetime"]
 
 
-class RoleViewSet(CustomLoggingMixin, BaseViewSet):
+class RoleViewSet(RequestLogMixin, BaseViewSet):
     queryset = Role.objects.filter(delete_datetime__isnull=True).all()
     serializer_class = RoleSerializer
     lookup_field = "id"

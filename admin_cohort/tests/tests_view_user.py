@@ -44,9 +44,10 @@ class UserTests(BaseTests):
                                                          type_source_value=PERIMETERS_TYPES[2],
                                                          source_value="Hospital 03"))
 
-        self.main_admin_role = Role.objects.create(**dict([(f, True) for f in self.all_rights]), name='Admin full role')
-        self.admin_role = Role.objects.create(**dict([(f, True) for f in self.all_rights]), name='Admin role')
-        self.pseudo_anonymised_data_role = Role.objects.create(**dict([(f, True) for f in self.all_rights]), name='Pseudo anonymised data role')
+        self.role_full_admin = Role.objects.create(**dict([(f, True) for f in self.all_rights]), name='Admin full role')
+        self.pseudo_anonymised_data_role = Role.objects.create(**{**dict([(f, False) for f in self.all_rights]),
+                                                                  "right_read_patient_pseudonymized": True},
+                                                               name='Pseudo anonymised data role')
 
         self.admin_user = User.objects.create(provider_username="000000", firstname="Admin", lastname="ADMIN", email="admin@aphp.fr")
         self.user1 = User.objects.create(provider_username="1111111", firstname="User 01", lastname="USER01", email="user01@aphp.fr")
@@ -57,13 +58,13 @@ class UserTests(BaseTests):
         self.profile2 = Profile.objects.create(source=MANUAL_SOURCE, user=self.user2, manual_is_active=True)
 
         self.admin_access = Access.objects.create(perimeter_id=self.aphp.id,
-                                                  role=self.main_admin_role,
+                                                  role=self.role_full_admin,
                                                   profile=self.admin_profile)
         self.access_user1_admin_h1 = Access.objects.create(perimeter_id=self.hospital1.id,
-                                                           role=self.admin_role,
+                                                           role=self.role_full_admin,
                                                            profile=self.profile1)
         self.access_user2_admin_h2 = Access.objects.create(perimeter_id=self.hospital2.id,
-                                                           role=self.admin_role,
+                                                           role=self.role_full_admin,
                                                            profile=self. profile2)
         self.access_user1_pseudo_h3 = Access.objects.create(perimeter_id=self.hospital3.id,
                                                             role=self.pseudo_anonymised_data_role,

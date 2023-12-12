@@ -55,6 +55,13 @@ class UserInfo:
                    lastname="SERVER",
                    email="spark.jobserver@aphp.fr")
 
+    @classmethod
+    def rollout(cls):
+        return cls(username="ROLLOUT_PIPELINE",
+                   firstname="Rollout",
+                   lastname="PIPELINE",
+                   email="rollout.pipeline@aphp.fr")
+
 
 class StrEnum(str, Enum):
     def __str__(self):

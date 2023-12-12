@@ -1,14 +1,15 @@
 from typing import Set, List
 
 from django.db.models import QuerySet, Q
+from django.http import Http404
 
+from accesses.conf_perimeters import FactRelationShip
 from accesses.models import Perimeter, Role
 from accesses.services.accesses import accesses_service
 from accesses.services.shared import PerimeterReadRight
 from admin_cohort.models import User
 from admin_cohort.settings import PERIMETERS_TYPES
 from admin_cohort.tools import join_qs
-from cohort.tools import get_list_cohort_id_care_site
 
 
 class PerimetersService:
@@ -90,9 +91,20 @@ class PerimetersService:
             return Perimeter.objects.filter(id__in=top_same_level_perimeters_ids.union(top_inf_levels_perimeters_ids))
 
     @staticmethod
-    def get_target_perimeters(cohort_ids: str, owner: User) -> QuerySet:
-        virtual_cohort_ids = get_list_cohort_id_care_site(cohorts_ids=[int(cohort_id) for cohort_id in cohort_ids.split(",")],
-                                                          all_user_cohorts=owner.user_cohorts.all())
+    def get_list_cohort_id_care_site(cohorts_ids: list, owner: User):
+        fact_relationships = FactRelationShip.objects.raw(FactRelationShip.psql_query_get_cohort_population_source(cohorts_ids))
+        cohort_pop_source = cohorts_ids.copy()
+        for fact in fact_relationships:
+            if not owner.user_cohorts.filter(fhir_group_id=fact.fact_id_1).exists():
+                raise Http404(f"The cohort with id={fact.fact_id_1} does not belong to user '{owner.displayed_name}'")
+            if fact.fact_id_1 in cohort_pop_source:
+                cohort_pop_source.remove(fact.fact_id_1)
+            cohort_pop_source.append(fact.fact_id_2)
+        return cohort_pop_source
+
+    def get_target_perimeters(self, cohort_ids: str, owner: User) -> QuerySet:
+        virtual_cohort_ids = self.get_list_cohort_id_care_site(cohorts_ids=[int(cohort_id) for cohort_id in cohort_ids.split(",")],
+                                                               owner=owner)
         return Perimeter.objects.filter(cohort_id__in=virtual_cohort_ids)
 
     @staticmethod

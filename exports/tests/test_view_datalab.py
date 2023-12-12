@@ -13,8 +13,8 @@ class DatalabViewSetTest(ExportsTestBase):
 
     def setUp(self):
         super().setUp()
-        self.datalabs = [Datalab.objects.create(infrastructure_provider=self.infra_provider_aphp)
-                         for _ in range(5)]
+        self.datalabs = [Datalab.objects.create(name=f"datalab_{i}",
+                                                infrastructure_provider=self.infra_provider_aphp) for i in range(5)]
         self.target_datalab_to_retrieve = self.datalabs[0]
         self.target_datalab_to_patch = self.datalabs[1]
         self.target_datalab_to_delete = self.datalabs[2]
@@ -39,7 +39,7 @@ class DatalabViewSetTest(ExportsTestBase):
         create_url = reverse(viewname=self.viewname_list)
         self.check_test_create_view(request_user=self.datalabs_manager_user,
                                     create_url=create_url,
-                                    request_data={"infrastructure_provider": self.infra_provider_aphp.uuid},
+                                    request_data={"name": "main_datalab", "infrastructure_provider": self.infra_provider_aphp.uuid},
                                     expected_resp_status=status.HTTP_201_CREATED)
 
     def test_error_create_datalab_with_no_right(self):
