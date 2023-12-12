@@ -136,8 +136,8 @@ class PerimeterViewTests(AccessesAppTestsBase):
         data_read_rights_aphp = PerimeterReadRight(perimeter=self.aphp,
                                                    right_read_patient_nominative=False,
                                                    right_read_patient_pseudonymized=False,
-                                                   right_search_patients_by_ipp=True,       # todo: this should be False since no read data rights
-                                                   right_read_opposed_patients_data=True)   # todo: same
+                                                   right_search_patients_by_ipp=True,
+                                                   right_read_opposed_patients_data=True)
 
         data_read_rights_p0 = PerimeterReadRight(perimeter=self.p0,
                                                  right_read_patient_nominative=False,

@@ -75,7 +75,7 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
 
     @swagger_auto_schema(operation_summary="Get the top hierarchy perimeters on which the user has at least "
                                            "one role that allows to give accesses."
-                                           "-Same level rights give access to a perimeter and its lower levels."   # todo: should be same level only
+                                           "-Same level rights give access to a perimeter and its lower levels."
                                            "-Inferior level rights give only access to children of a perimeter.",
                          responses={'200': openapi.Response("Manageable perimeters", PerimeterLiteSerializer())})
     @action(detail=False, methods=['get'], url_path="manageable")
