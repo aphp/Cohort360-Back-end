@@ -33,7 +33,7 @@ class FhirFilterViewSet(UserObjectsRestrictedViewSet):
 
     @swagger_auto_schema(request_body=openapi.Schema(type=openapi.TYPE_OBJECT,
                                                      properties={"uuids": openapi.Schema(type=openapi.TYPE_ARRAY,
-                                                                                       items=openapi.Schema(type=openapi.TYPE_STRING))}),
+                                                                                         items=openapi.Schema(type=openapi.TYPE_STRING))}),
                          responses={'204': openapi.Response("FhirFilters deleted"),
                                     '500': openapi.Response("One or more IDs is not a valid UUID")})
     @action(methods=['delete'], detail=False)
