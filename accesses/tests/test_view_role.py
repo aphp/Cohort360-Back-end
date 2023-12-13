@@ -58,17 +58,6 @@ class RoleViewTests(AccessesAppTestsBase):
         except IntegrityError:
             self.fail("Must be able to create a role having the same name as a previously deleted role")
 
-    def test_unique_combination_of_rights(self):
-        data = {**ALL_FALSY_RIGHTS,
-                "name": "JUPYTER EXPORTER",
-                "right_export_jupyter_nominative": True,
-                "right_export_jupyter_pseudonymized": True,
-                }
-        r = Role.objects.create(**data)
-        self.assertIsNotNone(r)
-        with self.assertRaises(IntegrityError):
-            Role.objects.create(**{**data, "name": "DIFFERENT NAME, SAME RIGHTS!"})
-
     def test_duplicated_combination_of_rights_as_a_deleted_role(self):
         data = {**ALL_FALSY_RIGHTS,
                 "name": "JUPYTER EXPORTER",

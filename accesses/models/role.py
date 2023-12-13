@@ -46,10 +46,8 @@ class Role(BaseModel):
     class Meta:
         constraints = [UniqueConstraint(name="unique_name",
                                         fields=["name"],
-                                        condition=Q(delete_datetime__isnull=True)),
-                       UniqueConstraint(name="unique_rights_combination",
-                                        fields=[right.name for right in all_rights],
-                                        condition=Q(delete_datetime__isnull=True))]
+                                        condition=Q(delete_datetime__isnull=True))
+                       ]
 
     def has_any_global_management_right(self):
         return any((self.right_full_admin,
