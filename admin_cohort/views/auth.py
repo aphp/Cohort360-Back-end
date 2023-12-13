@@ -136,18 +136,3 @@ def token_refresh_view(request):
         _logger.error(f"Error while refreshing access token: {e}")
         return JsonResponse(data={"error": f"{e}"},
                             status=status.HTTP_401_UNAUTHORIZED)
-
-
-# @receiver(user_logged_in)
-# def log_user_login(sender, **kwargs):
-#     print("user logged in: ", kwargs)
-#     request = kwargs.get("request")
-#     APIRequestLog.objects.create(user=kwargs.get("user"),
-#                                  username_persistent=kwargs.get("user").displayed_name,
-#                                  requested_at=timezone.now(),
-#                                  path=request.path,
-#                                  method=request.method,
-#                                  view=request.resolver_match.func,
-#                                  status_code=201)
-#
-# # todo: make decorator @request_log

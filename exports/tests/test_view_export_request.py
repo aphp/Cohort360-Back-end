@@ -1,6 +1,6 @@
 import random
 from datetime import timedelta
-from typing import List
+from typing import List, Any
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -45,29 +45,29 @@ Cas à tester POST export_request:
   - il faut que le provider_id soit lié au target_unix_account (via API infra)
   - il faut que le provider ait créé la cohorte
   - si provider_id != user_id : il faut que le user ait accès
-    right_review_transfer_jupyter
+    right_review_export_jupyter
   - il faut que le provider ait accès read nomi/pseudo (demande FHIR)
-    et right_transfer_jupyter_nominative
+    et right_export_jupyter_nominative
 
   - si le user (créateur de la requête) a le droit
-  right_review_transfer_jupyter:
+  right_review_export_jupyter:
     - le status réponse doit être validated
     - sinon, le status est à new
 
 Cas à tester pour GET /exports/users :
   - réponse contient ses propres users (Account, dans workspaces)
-  - réponse de liste complète si le user a right_review_transfer_jupyter
+  - réponse de liste complète si le user a right_review_export_jupyter
   - permet filtre par provider_id : renvoie, grâce à l'API FHIR,
     uniquement les users unix liés au provider_id
 
 Cas à tester pour GET /exports/cohorts :
   - réponse contient les cohortes de l'utilisateur
-  - réponse de liste complète si le user a right_review_transfer_jupyter
+  - réponse de liste complète si le user a right_review_export_jupyter
 
 Cas à tester pour PATCH /exports/{id} :
   - renvoie 403
   - réussit seulement si on a /deny ou /validate dans l'url, si la requête
-    est en status created, si le user a right_review_transfer_jupyter
+    est en status created, si le user a right_review_export_jupyter
 """
 
 REGEX_TEST_EMAIL = r"^[\w.+-]+@test\.com$"
@@ -144,50 +144,40 @@ class ExportsTests(ViewSetTestsWithBasicPerims):
         super(ExportsTests, self).setUp()
 
         # ROLES
-        (self.role_review_csv,
-         self.role_review_jupyter,
-         self.role_read_pseudo,
+        (self.role_read_pseudo,
          self.role_read_nomi,
          self.role_exp_csv_pseudo,
          self.role_exp_csv_nomi,
          self.role_exp_jup_pseudo,
          self.role_exp_jup_nomi) = [
-            Role.objects.create(**dict([
-                (f, f == right) for f in self.all_rights]), name=name)
-            for (name, right) in [
-                ("REVIEW_CSV", "right_review_export_csv"),
-                ("REVIEW_JUPYTER", "right_review_transfer_jupyter"),
-                ("READ_PSEUDO", "right_read_patient_pseudo_anonymised"),
-                ("READ_NOMI", "right_read_patient_nominative"),
-                ("EXP_CSV_PSEUDO", "right_export_csv_pseudo_anonymised"),
-                ("EXP_CSV_NOMI", "right_export_csv_nominative"),
-                ("EXP_JUP_PSEUDO", "right_transfer_jupyter_pseudo_anonymised"),
-                ("EXP_JUP_NOMI", "right_transfer_jupyter_nominative"),
-            ]]
+            Role.objects.create(**dict([(f, f == right) for f in self.all_rights]), name=name)
+            for (name, right) in [("READ_PSEUDO", "right_read_patient_pseudonymized"),
+                                  ("READ_NOMI", "right_read_patient_nominative"),
+                                  ("EXP_CSV_PSEUDO", "right_export_csv_pseudonymized"),
+                                  ("EXP_CSV_NOMI", "right_export_csv_nominative"),
+                                  ("EXP_JUP_PSEUDO", "right_export_jupyter_pseudonymized"),
+                                  ("EXP_JUP_NOMI", "right_export_jupyter_nominative")]]
 
         # USERS
         self.user_with_no_right, ph_with_no_right = new_user_and_profile(
             email=f"with_no_right{END_TEST_EMAIL}")
-        self.user_jup_reviewer, self.ph_jup_reviewer = new_user_and_profile(
-            email=f"jup_reviewer{END_TEST_EMAIL}")
-        self.user_csv_reviewer, ph_csv_reviewer = new_user_and_profile(
-            email=f"csv_reviewer{END_TEST_EMAIL}")
 
         self.user1, self.prof_1 = new_user_and_profile(email=f"us1{END_TEST_EMAIL}")
         self.user2, self.prof_2 = new_user_and_profile(email=f"us2{END_TEST_EMAIL}")
         self.user3, self.prof_3 = new_user_and_profile(email=f"us3{END_TEST_EMAIL}")
 
         # ACCESSES
-        self.jup_review_access: Access = Access.objects.create(
-            perimeter=self.aphp, role=self.role_review_jupyter,
-            profile=self.ph_jup_reviewer)
-        self.jup_review_nomi_access: Access = Access.objects.create(
-            perimeter=self.aphp, role=self.role_exp_jup_nomi,
-            profile=self.ph_jup_reviewer)
+        self.user1_csv_nomi_acc: Access = Access.objects.create(
+            perimeter=self.aphp,
+            profile=self.prof_1,
+            role=self.role_exp_csv_nomi
+        )
 
-        self.csv_review_access: Access = Access.objects.create(
-            perimeter=self.aphp, role=self.role_review_csv,
-            profile=ph_csv_reviewer)
+        self.user1_csv_pseudo_acc: Access = Access.objects.create(
+            perimeter=self.aphp,
+            profile=self.prof_1,
+            role=self.role_exp_csv_pseudo
+        )
 
         self.user1_nomi_acc: Access = Access.objects.create(
             perimeter=self.aphp,
@@ -213,6 +203,16 @@ class ExportsTests(ViewSetTestsWithBasicPerims):
             perimeter=self.aphp,
             profile=self.prof_3,
             role=self.role_exp_jup_pseudo
+        )
+        self.user2_nomi_acc: Access = Access.objects.create(
+            perimeter=self.aphp,
+            profile=self.prof_2,
+            role=self.role_read_nomi
+        )
+        self.user2_exp_csv_nomi_acc: Access = Access.objects.create(
+            perimeter=self.aphp,
+            profile=self.prof_2,
+            role=self.role_exp_csv_nomi
         )
 
         # COHORTS
@@ -381,26 +381,6 @@ class ExportsListTests(ExportsTests):
                 ) for i in range(0, 200)
             ])
 
-    def test_list_requests_as_jup_reviewer(self):
-        base_results = self.user1_reqs + self.user2_reqs
-
-        self.check_get_paged_list_case(ListCase(to_find=[e for e in base_results if e.output_format == ExportType.HIVE],
-                                                page_size=20,
-                                                user=self.user_jup_reviewer,
-                                                status=status.HTTP_200_OK,
-                                                success=True,
-                                                params={"output_format": ExportType.HIVE}))
-
-    def test_list_requests_as_csv_reviewer(self):
-        base_results = self.user1_reqs + self.user2_reqs
-
-        self.check_get_paged_list_case(ListCase(to_find=[e for e in base_results if e.output_format == ExportType.CSV],
-                                                page_size=20,
-                                                user=self.user_csv_reviewer,
-                                                status=status.HTTP_200_OK,
-                                                success=True,
-                                                params={"output_format": ExportType.CSV}))
-
     def test_list_requests_as_user1(self):
         base_results = self.user1_reqs
 
@@ -411,58 +391,10 @@ class ExportsListTests(ExportsTests):
                                                 success=True,
                                                 params={"owner": self.user1.pk}))
 
-    def test_list_requests_as_full_reviewer_with_filters(self):
-        # As a user with right_read_admin_accesses_same_level on a
-        # care_site, I can get accesses on the same care_site and whom
-        # the role has admin rights, and only them
-
-        # we also give right to review csv exports to jupyter reviewer
-        Access.objects.create(
-            perimeter=self.aphp,
-            role=self.role_review_csv,
-            profile=self.ph_jup_reviewer,
-        )
-
-        base_results = self.user1_reqs + self.user2_reqs
-        param_cases = {
-            'output_format': {
-                'value': ExportType.CSV.value,
-                'to_find': [
-                    e for e in base_results
-                    if e.output_format == ExportType.CSV.value
-                ]
-            },
-            'request_job_status': {
-                'value': JobStatus.new.value,
-                'to_find': [
-                    e for e in base_results
-                    if e.request_job_status == JobStatus.new
-                ]
-            },
-        }
-
-        for (param, pc) in param_cases.items():
-            pcs = [pc] if not isinstance(pc, list) else pc
-            for pc_ in pcs:
-                param_cases = [
-                    {**pc_, 'value': v} for v in pc_['value']
-                ] if isinstance(pc_['value'], list) else [pc_]
-
-                [
-                    self.check_get_paged_list_case(ListCase(
-                        params=dict({param: p_case['value']}),
-                        to_find=p_case['to_find'],
-                        page_size=20,
-                        user=self.user_jup_reviewer,
-                        status=status.HTTP_200_OK,
-                        success=True
-                    )) for p_case in param_cases
-                ]
-
 
 class DownloadCase(RequestCase):
-    def __init__(self, export: ExportRequest, mock_hdfs_resp: any = None,
-                 mock_file_size_resp: any = None, mock_hdfs_called: bool = True,
+    def __init__(self, export: ExportRequest, mock_hdfs_resp: Any = None,
+                 mock_file_size_resp: Any = None, mock_hdfs_called: bool = True,
                  mock_file_size_called: bool = True, **kwargs):
         self.export = export
         self.mock_hdfs_resp = mock_hdfs_resp
@@ -530,7 +462,7 @@ class ExportsRetrieveTests(ExportsWithSimpleSetUp):
         self.check_retrieve_case(RetrieveCase(
             to_find=self.user2_exp_req_succ,
             view_params=dict(id=self.user2_exp_req_succ.id),
-            status=status.HTTP_404_NOT_FOUND,
+            status=status.HTTP_403_FORBIDDEN,
             user=self.user1,
             success=False,
         ))
@@ -614,7 +546,7 @@ class ExportsRetrieveTests(ExportsWithSimpleSetUp):
         export = self.base_err_download_case.export
         export.owner = self.user2
         export.save()
-        self.check_download(self.base_err_download_case.clone(status=status.HTTP_404_NOT_FOUND))
+        self.check_download(self.base_err_download_case.clone(status=status.HTTP_403_FORBIDDEN))
 
 # JOBS ##################################################################
 
@@ -773,12 +705,6 @@ class ExportsCsvCreateTests(ExportsCreateTests):
     def setUp(self):
         super(ExportsCsvCreateTests, self).setUp()
 
-        self.user1_csv_nomi_acc: Access = Access.objects.create(
-            perimeter=self.aphp,
-            profile=self.prof_1,
-            role=self.role_exp_csv_nomi
-        )
-
         basic_export_descr = "basic_export"
         self.basic_data = dict(
             output_format=ExportType.CSV.value,
@@ -864,7 +790,7 @@ class ExportsCsvCreateTests(ExportsCreateTests):
         )
         self.check_create_case(case)
 
-    def test_error_create_cohort_not_owned(self):
+    def test_error_create_export_with_not_owned_cohort(self):
         # As a user, I cannot create an export request
         # if I do not own the targeted cohort
         case = self.err_basic_case.clone(
@@ -886,7 +812,7 @@ class ExportsCsvCreateTests(ExportsCreateTests):
         self.check_create_case(case)
 
     def test_error_create_csv_pseudo(self):
-        # I cannot create an export request with Pseudonym mode
+        # I cannot create a CSV export request with pseudo mode
         case = self.err_basic_case.clone(
             data={**self.basic_data, 'nominative': False},
             created=False,
@@ -899,17 +825,6 @@ class ExportsJupyterCreateTests(ExportsCreateTests):
     def setUp(self):
         super(ExportsJupyterCreateTests, self).setUp()
 
-        self.user2_nomi_acc: Access = Access.objects.create(
-            perimeter=self.aphp,
-            profile=self.prof_2,
-            role=self.role_read_nomi
-        )
-        self.user2_jup_nomi_acc: Access = Access.objects.create(
-            perimeter=self.aphp,
-            profile=self.prof_2,
-            role=self.role_exp_jup_nomi
-        )
-
         self.user1_unix_acc: Account = Account.objects.create(
             username='user1', spark_port_start=0)
 
@@ -921,7 +836,6 @@ class ExportsJupyterCreateTests(ExportsCreateTests):
             tables=[dict(omop_table_name="provider")],
             cohort_fk=self.user1_cohort.pk,
             motivation=basic_export_descr,
-            # actual validity will be returned by mock
             target_unix_account=self.user1_unix_acc.pk,
         )
         self.basic_case = ExportJupyterCreateCase(
@@ -1008,49 +922,6 @@ class ExportsJupyterCreateTests(ExportsCreateTests):
 
         [self.check_create_case(case) for case in cases]
 
-    def test_create_jup_other_recipient_with_rev_access(self):
-        # As a user with right to review jupyter exports,
-        # I can create an export request with a cohort from another user
-        # to a Unix account owned by a third user
-        self.check_create_case(self.basic_case.clone(
-            data={**self.basic_data,
-                  'cohort_fk': self.user1_cohort.pk,
-                  'owner': self.user2.pk},
-            mock_user_bound_called=False,
-            user=self.user_jup_reviewer,
-        ))
-
-    def test_create_jup_no_owner_with_rev_access(self):
-        # As a user with right to review jupyter exports,
-        # I can create an export request with a cohort from another user
-        # without providing owner (will be me by default)
-        self.check_create_case(self.basic_case.clone(
-            data={**self.basic_data,
-                  'cohort_fk': self.user2_cohort.pk},
-            mock_user_bound_resp=False,
-            mock_user_bound_called=False,
-            user=self.user_jup_reviewer,
-            created=True,
-            status=status.HTTP_201_CREATED,
-        ))
-
-    def test_error_create_jup_not_owned_cohort_without_rev_access(self):
-        # As a user, I cannot create an export request for a cohort I don't own
-        self.check_create_case(self.err_basic_case.clone(
-            data={**self.basic_data, 'cohort_fk': self.user2_cohort.pk},
-            created=False,
-            status=status.HTTP_400_BAD_REQUEST,
-        ))
-
-    def test_error_create_jup_other_recipient_without_rev_access(self):
-        # As a user, I cannot create an export request for another owner
-        self.check_create_case(self.err_basic_case.clone(
-            data={**self.basic_data},
-            created=False,
-            user=self.user2,
-            status=status.HTTP_400_BAD_REQUEST,
-        ))
-
     def test_error_create_request_no_email(self):
         # As a user, I cannot create an export request if the owner has no
         # email address
@@ -1091,7 +962,6 @@ class ExportsJupyterCreateTests(ExportsCreateTests):
         # As a user, I cannot create a nominative export request
         # without the right to do it
 
-        # we close the access that should allow reviewer to review exports
         self.user1_exp_jup_nomi_acc.end_datetime = timezone.now() - timedelta(days=2)
         self.user1_exp_jup_nomi_acc.save()
 

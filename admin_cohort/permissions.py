@@ -1,53 +1,23 @@
-from django.db.models.query import QuerySet
 from rest_framework import permissions
 from rest_framework.permissions import OR as drf_OR
 
+from accesses.permissions import can_user_read_users, can_user_read_logs
+from accesses.services.accesses import accesses_service
 from admin_cohort.models import User
-from admin_cohort.settings import ETL_USERNAME, ADMINS, ROLLOUT_USERNAME
+from admin_cohort.settings import ETL_USERNAME, ROLLOUT_USERNAME
 
 
 def user_is_authenticated(user):
     return user and hasattr(user, User.USERNAME_FIELD)
 
 
-def get_bound_roles(user: User) -> QuerySet:
-    """
-    Check all valid accesses from a provider and retrieves all the roles
-    indirectly bound to them
-    @param user:
-    @type user: User
-    @return:
-    @rtype:
-    """
-    from accesses.models import get_user_valid_manual_accesses, Role
-
-    accesses = get_user_valid_manual_accesses(user)
-    return Role.objects.filter(id__in=[a.role_id for a in accesses])
-
-
-def can_user_read_users(user: User) -> bool:
-    return any([r.right_read_users for r in get_bound_roles(user)])
-
-
-def can_user_read_logs(user: User) -> bool:
-    return any([
-        r.right_read_logs or r.right_edit_roles
-        for r in get_bound_roles(user)
-    ])
-
-
-def user_is_admin(user) -> bool:
-    admins_emails = [a[1] for a in ADMINS]
-    return user.email in admins_emails
-
-
-class MaintenancePermission(permissions.BasePermission):
+class MaintenancesPermission(permissions.BasePermission):
     def has_permission(self, request, view):
         if request.method in permissions.SAFE_METHODS:
             return True
         user = request.user
-        return user_is_authenticated(user) and \
-            (user_is_admin(user) or user.provider_username in (ROLLOUT_USERNAME, ETL_USERNAME))
+        return user_is_authenticated(user) and (accesses_service.user_is_full_admin(user) or
+                                                user.provider_username in (ROLLOUT_USERNAME, ETL_USERNAME))
 
 
 class LogsPermission(permissions.BasePermission):
@@ -93,7 +63,7 @@ class CachePermission(permissions.BasePermission):
     def has_permission(self, request, view):
         return user_is_authenticated(user=request.user) \
             and request.method in ["GET", "DELETE"] \
-            and user_is_admin(user=request.user)
+            and accesses_service.user_is_full_admin(user=request.user)
 
 
 def either(*perms):

@@ -193,12 +193,12 @@ class RqsGetTests(RqsTests):
         # bound to
         req = self.user1.folders.first().requests.first()
 
-        self.check_get_paged_list_case(ListCase(
-            status=status.HTTP_200_OK,
-            success=True,
-            user=self.user1,
-            to_find=list(req.query_snapshots.all())
-        ), NestedRqsViewSet.as_view({'get': 'list'}), request_id=req.pk)
+        self.check_get_paged_list_case(ListCase(status=status.HTTP_200_OK,
+                                                success=True,
+                                                user=self.user1,
+                                                to_find=list(req.query_snapshots.all())),
+                                       other_view=NestedRqsViewSet.as_view({'get': 'list'}),
+                                       request_id=req.pk)
 
     def test_rest_get_list_from_previous_rqs(self):
         # As a user, I can get the list of RQSs from the previous RQS they are
@@ -206,13 +206,12 @@ class RqsGetTests(RqsTests):
         prev_rqs = self.user1.folders.first().requests.first() \
             .query_snapshots.first()
 
-        self.check_get_paged_list_case(ListCase(
-            status=status.HTTP_200_OK,
-            success=True,
-            user=self.user1,
-            to_find=list(prev_rqs.next_snapshots.all())
-        ), NestedRqsViewSet.as_view({'get': 'list'}),
-            previous_snapshot=prev_rqs.pk)
+        self.check_get_paged_list_case(ListCase(status=status.HTTP_200_OK,
+                                                success=True,
+                                                user=self.user1,
+                                                to_find=list(prev_rqs.next_snapshots.all())),
+                                       other_view=NestedRqsViewSet.as_view({'get': 'list'}),
+                                       previous_snapshot=prev_rqs.pk)
 
 
 class RqsCreateTests(RqsTests):

@@ -3,11 +3,11 @@ from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import viewsets
 
-from accesses.permissions import can_user_read_unix_accounts
+from accesses.permissions import can_user_read_datalabs
 from admin_cohort.models import User
 from workspaces.conf_workspaces import get_account_groups_from_id_aph
 from workspaces.models import Account
-from workspaces.permissions import AccountPermissions
+from workspaces.permissions import AccountsPermission
 from workspaces.serializers import AccountSerializer
 
 
@@ -39,7 +39,7 @@ class AccountViewSet(viewsets.ModelViewSet):
     queryset = Account.objects.all()
     lookup_field = "uid"
     http_method_names = ["get"]
-    permission_classes = (AccountPermissions,)
+    permission_classes = [AccountsPermission]
     filterset_class = AccountFilter
     search_fields = ["username", "name", "firstname", "lastname", "mail"]
     swagger_tags = ['Workspaces - users']
@@ -50,7 +50,7 @@ class AccountViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         q = super(AccountViewSet, self).get_queryset()
         user: User = self.request.user
-        if not user.is_anonymous and not can_user_read_unix_accounts(user):
+        if not user.is_anonymous and not can_user_read_datalabs(user):
             ad_groups = get_account_groups_from_id_aph(user.provider_username)
             return q.filter(aphp_ldap_group_dn__in=ad_groups)
         return q

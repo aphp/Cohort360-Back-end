@@ -1,6 +1,6 @@
 from rest_framework import viewsets
 
-from accesses.permissions import can_user_read_unix_accounts
+from accesses.permissions import can_user_read_datalabs
 from admin_cohort.permissions import user_is_authenticated
 from workspaces.models.project import Project
 from workspaces.serializers import ProjectSerializer, PublicProjectSerializer
@@ -14,7 +14,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
     swagger_tags = ['Workspaces - projects']
 
     def get_serializer_class(self):
-        if user_is_authenticated(self.request.user) and can_user_read_unix_accounts(self.request.user):
+        if user_is_authenticated(self.request.user) and can_user_read_datalabs(self.request.user):
             return ProjectSerializer
         else:
             return PublicProjectSerializer

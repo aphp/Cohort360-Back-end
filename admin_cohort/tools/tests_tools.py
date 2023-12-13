@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import random
 import string
-from typing import Tuple, List
+from typing import Tuple, List, Any
 
 from django.conf import settings
 from django.db.models import Manager, Field, Model
@@ -197,13 +197,13 @@ class ListCase(RequestCase):
 
     @property
     def description_dict(self) -> dict:
-        d = {
-            **super(ListCase, self).description_dict,
-            'previously_found_ids': [],
-            'to_find': ([str(obj) for obj in self.to_find[0:10]]
-                        + (["..."] if len(self.to_find) > 10 else [])),
-        }
-        return d
+        to_find = isinstance(self.to_find, list) and self.to_find \
+                  or isinstance(self.to_find, dict) and self.to_find.items() \
+                  or []
+        return {**super(ListCase, self).description_dict,
+                'previously_found_ids': [],
+                'to_find': [str(obj) for obj in to_find]
+                }
 
     def clone(self, **kwargs) -> ListCase:
         return self.__class__(**{**self.__dict__, **kwargs})
@@ -217,7 +217,7 @@ class NestedListCase(ListCase):
 
 
 class RetrieveCase(RequestCase):
-    def __init__(self, to_find: any = None, url: str = "", params: dict = None,
+    def __init__(self, to_find: Any = None, url: str = "", params: dict = None,
                  view_params: dict = None, **kwargs):
         super(RetrieveCase, self).__init__(**kwargs)
         self.to_find = to_find
@@ -380,7 +380,7 @@ class ViewSetTests(BaseTests):
     model_objects: Manager
     model_fields: List[Field]
 
-    def check_create_case(self, case: CreateCase, other_view: any = None, **view_kwargs):
+    def check_create_case(self, case: CreateCase, other_view: Any = None, **view_kwargs):
         request = self.factory.post(path=self.objects_url, data=case.json_data, format='json')
         request.jwt_access_key = "dummy_jwt_access_key"
         if case.user:
@@ -409,17 +409,11 @@ class ViewSetTests(BaseTests):
 
         request = self.factory.delete(self.objects_url)
         force_authenticate(request, case.user)
-        response = self.__class__.delete_view(
-            request, **{self.model._meta.pk.name: obj_id}
-        )
+        response = self.__class__.delete_view(request, **{self.model._meta.pk.name: obj_id})
         response.render()
 
-        self.assertEqual(
-            response.status_code, case.status,
-            msg=(f"{case.description}"
-                 + (f" -> {prettify_json(response.content)}"
-                    if response.content else "")),
-        )
+        self.assertEqual(response.status_code, case.status,
+                         msg=(f"{case.description}" + (f" -> {prettify_json(response.content)}" if response.content else "")))
 
         if isinstance(self.model, (BaseModel, CohortBaseModel)):
             obj = self.model_objects.filter(even_deleted=True, pk=obj_id).first()
@@ -434,17 +428,14 @@ class ViewSetTests(BaseTests):
                 self.assertIsNone(obj.delete_datetime)
             obj.delete()
 
-    def check_patch_case(self, case: PatchCase):
+    def check_patch_case(self, case: PatchCase, other_view: Any = None):
         obj_id = self.model_objects.create(**case.initial_data).pk
         obj = self.model_objects.get(pk=obj_id)
 
-        request = self.factory.patch(
-            self.objects_url, case.data_to_update, format='json'
-        )
+        request = self.factory.patch(self.objects_url, case.data_to_update, format='json')
         force_authenticate(request, case.user)
-        response = self.__class__.update_view(
-            request, **{self.model._meta.pk.name: obj_id}
-        )
+        response = other_view and other_view(request, **{self.model._meta.pk.name: obj_id}) or \
+            self.__class__.update_view(request, **{self.model._meta.pk.name: obj_id})
         response.render()
 
         self.assertEqual(
@@ -476,7 +467,7 @@ class ViewSetTests(BaseTests):
                 getattr(new_obj, f), getattr(obj, f), case.description
             ) for f in [fd.name for fd in self.model_fields]]
 
-    def check_get_paged_list_case(self, case: ListCase, other_view: any = None, **view_kwargs):
+    def check_list_case(self, case: ListCase, other_view: Any = None, is_paged_list_case: bool = False, **view_kwargs):
         request = self.factory.get(path=case.url or self.objects_url,
                                    data=[] if case.url else case.params)
         force_authenticate(request, case.user)
@@ -490,27 +481,40 @@ class ViewSetTests(BaseTests):
             self.assertNotIn('results', response.data, f"Case {case.title}")
             return
 
+        if is_paged_list_case:
+            return response
+
+        self.assertEqual(len(response.data), len(case.to_find),
+                         case.description + "Found: " + "\n".join(map(str, response.data)))
+
+        if view_kwargs.get("yield_response_data"):
+            return json.loads(response.content)
+
+    def check_get_paged_list_case(self, case: ListCase, other_view: Any = None, **view_kwargs):
+        response = self.check_list_case(case=case, other_view=other_view, is_paged_list_case=True, **view_kwargs)
+
+        if not case.success:
+            return
+
         res = PagedResponse(response)
 
-        self.assertEqual(res.count, len(case.to_find), case.description)
+        self.assertEqual(res.count, len(case.to_find),
+                         case.description + f'''Found IDs: {" - ".join(str(r.get('id', r.get('uuid'))) for r in res.results)}''')
 
         obj_to_find_ids = [str(obj.pk) for obj in case.to_find]
-        current_obj_found_ids = [obj.get(self.model._meta.pk.name)
-                                 for obj in res.results]
+        current_obj_found_ids = [obj.get(self.model._meta.pk.name) for obj in res.results]
         obj_found_ids = current_obj_found_ids + case.previously_found_ids
 
         if case.page_size is not None:
             if res.next:
-                self.assertEqual(
-                    len(current_obj_found_ids), case.page_size
-                )
-                next_case = case.clone(
-                    url=res.next, previously_found_ids=obj_found_ids)
-                self.check_get_paged_list_case(next_case, other_view,
-                                               **view_kwargs)
+                self.assertEqual(len(current_obj_found_ids), case.page_size)
+                next_case = case.clone(url=res.next, previously_found_ids=obj_found_ids)
+                self.check_get_paged_list_case(next_case, other_view, **view_kwargs)
         else:
             self.assertCountEqual(map(str, obj_found_ids),
                                   map(str, obj_to_find_ids))
+        if view_kwargs.get("yield_response_results"):
+            return res.results
 
     def check_retrieve_case(self, case: RetrieveCase):
         request = self.factory.get(

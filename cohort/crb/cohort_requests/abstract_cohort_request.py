@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
 from accesses.models import Perimeter
-from accesses.tools.perimeter_process import get_all_read_patient_accesses, \
-    get_read_nominative_boolean_from_specific_logic_function, get_read_patient_right
+from accesses.services.accesses import accesses_service
 from admin_cohort.auth.utils import get_userinfo_from_token, get_user_from_token
 from cohort.crb.enums import Mode
 from cohort.crb.exceptions import FhirException
@@ -17,15 +16,11 @@ if TYPE_CHECKING:
     from cohort.crb.schemas import CohortQuery
 
 
-def is_cohort_request_pseudo_read(auth_headers: dict, source_population: list) -> bool:
+def is_cohort_request_pseudo_read(auth_headers: dict, source_population: List[int]) -> bool:
     user = get_user_from_token(auth_headers['Authorization'].replace('Bearer ', ''),
                                auth_headers['authorizationMethod'])
-    all_read_patient_nominative_accesses, all_read_patient_pseudo_accesses = get_all_read_patient_accesses(user)
     perimeters = Perimeter.objects.filter(cohort_id__in=source_population)
-    return not get_read_nominative_boolean_from_specific_logic_function(perimeters,
-                                                                        all_read_patient_nominative_accesses,
-                                                                        all_read_patient_pseudo_accesses,
-                                                                        get_read_patient_right)
+    return not accesses_service.can_user_read_patient_data_in_pseudo(user=user, target_perimeters=perimeters)
 
 
 class AbstractCohortRequest(ABC):

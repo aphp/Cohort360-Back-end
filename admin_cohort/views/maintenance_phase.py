@@ -5,7 +5,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from admin_cohort.models import MaintenancePhase, get_next_maintenance
-from admin_cohort.permissions import MaintenancePermission
+from admin_cohort.permissions import MaintenancesPermission
 from admin_cohort.serializers import MaintenancePhaseSerializer
 
 
@@ -16,7 +16,7 @@ class MaintenancePhaseViewSet(viewsets.ModelViewSet):
     search_fields = ["subject"]
     filterset_fields = ["subject", "start_datetime", "end_datetime"]
     http_method_names = ["get", "delete", "post", "patch"]
-    permission_classes = (MaintenancePermission,)
+    permission_classes = (MaintenancesPermission,)
     serializer_class = MaintenancePhaseSerializer
 
     @swagger_auto_schema(

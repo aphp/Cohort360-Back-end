@@ -6,7 +6,8 @@ from django.db.models import QuerySet
 from django.http import Http404
 
 from accesses.conf_perimeters import FactRelationShip
-from accesses.models import Role, Perimeter, get_user_valid_manual_accesses
+from accesses.models import Role, Perimeter
+from accesses.services.accesses import accesses_service
 from admin_cohort.models import User
 from cohort.models import CohortResult
 
@@ -41,7 +42,7 @@ class CohortRightsService:
         fhir_group_ids = [i.strip() for i in fhir_group_ids.split(",") if i]
         if not CohortResult.objects.filter(fhir_group_id__in=fhir_group_ids).exists():
             raise Http404("No cohorts found. The provided `fhir_group_id`s are not valid")
-        user_accesses = get_user_valid_manual_accesses(user=user)
+        user_accesses = accesses_service.get_user_valid_accesses(user=user)
         if not user_accesses:
             raise Http404(f"The user `{user}` has no valid accesses")
         cohort_perimeters = self.get_cohort_perimeters(cohort_ids=fhir_group_ids)
@@ -68,13 +69,13 @@ class CohortRightsService:
 
     @staticmethod
     def get_accesses_per_right(user_accesses: QuerySet) -> dict[str, QuerySet]:
-        return {READ_PATIENT_NOMI: user_accesses.filter(Role.is_read_patient_role_nominative(ROLE)),
-                READ_PATIENT_PSEUDO: user_accesses.filter(Role.is_read_patient_role(ROLE)),
-                EXPORT_CSV_NOMI: user_accesses.filter(Role.is_export_csv_nominative_role(ROLE)),
-                EXPORT_CSV_PSEUDO: user_accesses.filter(Role.is_export_csv_pseudo_role(ROLE)),
-                EXPORT_JUPYTER_NOMI: user_accesses.filter(Role.is_export_jupyter_nominative_role(ROLE)),
-                EXPORT_JUPYTER_PSEUDO: user_accesses.filter(Role.is_export_jupyter_pseudo_role(ROLE))
-                }
+        return {READ_PATIENT_NOMI: user_accesses.filter(Role.q_allow_read_patient_data_nominative()),
+                READ_PATIENT_PSEUDO: user_accesses.filter(Role.q_allow_read_patient_data_pseudo() |
+                                                          Role.q_allow_read_patient_data_nominative()),
+                EXPORT_CSV_NOMI: user_accesses.filter(Role.q_allow_export_csv_nominative()),
+                EXPORT_CSV_PSEUDO: user_accesses.filter(Role.q_allow_export_csv_pseudo()),
+                EXPORT_JUPYTER_NOMI: user_accesses.filter(Role.q_allow_export_jupyter_nominative()),
+                EXPORT_JUPYTER_PSEUDO: user_accesses.filter(Role.q_allow_export_jupyter_pseudo())}
 
     @staticmethod
     def get_rights_on_perimeters(accesses_per_right: dict, perimeters: List[Perimeter]) -> dict[str, bool]:

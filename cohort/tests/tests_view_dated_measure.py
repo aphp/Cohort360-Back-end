@@ -1,6 +1,6 @@
 import random
 from datetime import timedelta
-from typing import List
+from typing import List, Any
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -183,7 +183,7 @@ class DatedMeasuresCreateTests(DatedMeasuresTests):
         mock_cancel_task.assert_called() if case.mock_cancel_task_called else mock_cancel_task.assert_not_called()
         mock_count_task.assert_called() if case.mock_count_task_called else mock_count_task.assert_not_called()
 
-    def check_create_case(self, case: DMCreateCase, other_view: any = None, **view_kwargs):
+    def check_create_case(self, case: DMCreateCase, other_view: Any = None, **view_kwargs):
         return self.check_create_case_with_mock(case, other_view=other_view or None, view_kwargs=view_kwargs)
 
     def test_create(self):

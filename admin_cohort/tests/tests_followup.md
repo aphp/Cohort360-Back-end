@@ -64,20 +64,20 @@
 
 #### POST
 
-- [x] As a user with right_edit_roles, I can create a maintenance phase
-- [x] As a user with everything but right_edit_roles, I cannot create a maintenance phase
+- [x] As a user with right_full_admin, I can create a maintenance phase
+- [x] As a user with everything but right_full_admin, I cannot create a maintenance phase
 - [x] As a user with all the rights, I cannot create a maintenance phase if start_datetime > end_datetime
 
 #### PATCH
 
-- [x] As a user with right_edit_roles, I can edit a maintenance phase
-- [x] As a user with everything but right_edit_roles, I cannot edit a maintenance phase
+- [x] As a user with right_full_admin, I can edit a maintenance phase
+- [x] As a user with everything but right_full_admin, I cannot edit a maintenance phase
 - [x] As a user with all the rights, I cannot edit a maintenance phase with start_datetime > end_datetime
 
 #### DELETE
 
-- [x] As a user with right_edit_roles, I can delete a maintenance phase
-- [x] As a user with everything but right_edit_roles, I cannot delete a maintenance phase
+- [x] As a user with right_full_admin, I can delete a maintenance phase
+- [x] As a user with everything but right_full_admin, I cannot delete a maintenance phase
 
 
 #### OTHERS
@@ -95,9 +95,9 @@
 - [ ] As a user authentified with no rights, I cannot create a maintenance phase
 - [ ] As a user authentified with no rights, I cannot delete a maintenance phase
 
-- [ ] As a user authentified with right_edit_roles, I cann patch a maintenance phase
-- [ ] As a user authentified with right_edit_roles, I cann create a maintenance phase
-- [ ] As a user authentified with right_edit_roles, I cann delete a maintenance phase
+- [ ] As a user authentified with right_full_admin, I cann patch a maintenance phase
+- [ ] As a user authentified with right_full_admin, I cann create a maintenance phase
+- [ ] As a user authentified with right_full_admin, I cann delete a maintenance phase
 
 `/maintenances/next` :
 - [ ] As a user authentified with no rights, I can read next maintenance

@@ -163,13 +163,12 @@ class RequestsGetTests(RequestsTests):
         # bound to
         folder = self.user1.folders.first()
 
-        self.check_get_paged_list_case(ListCase(
-            status=status.HTTP_200_OK,
-            success=True,
-            user=self.user1,
-            to_find=list(folder.requests.all())
-        ), NestedRequestViewSet.as_view({'get': 'list'}),
-            parent_folder=folder.pk)
+        self.check_get_paged_list_case(ListCase(status=status.HTTP_200_OK,
+                                                success=True,
+                                                user=self.user1,
+                                                to_find=list(folder.requests.all())),
+                                       other_view=NestedRequestViewSet.as_view({'get': 'list'}),
+                                       parent_folder=folder.pk)
 
 
 class RequestsCreateTests(RequestsTests):

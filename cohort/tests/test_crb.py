@@ -2,8 +2,6 @@ import json
 from pathlib import Path
 from unittest import mock
 
-from django.http import Http404
-
 from admin_cohort.models import User
 from cohort.crb.cohort_requests.abstract_cohort_request import is_cohort_request_pseudo_read
 from cohort.crb.enums import ResourceType
@@ -101,6 +99,6 @@ class TestQueryFormatter(CohortAppTests):
                                                                     provider_username='1111111')
         auth_headers = {"Authorization": "Bearer XXX",
                         "authorizationMethod": "OIDC"}
-        with self.assertRaises(Http404):
-            is_cohort_request_pseudo_read(auth_headers=auth_headers, source_population=[])
+        read_in_pseudo = is_cohort_request_pseudo_read(auth_headers=auth_headers, source_population=[])
+        self.assertTrue(read_in_pseudo)
         mock_get_user_from_token.assert_called()

@@ -24,9 +24,8 @@ from cohort.models import CohortResult
 from exports import conf_exports
 from exports.emails import check_email_address, push_email_notification
 from exports.models import ExportRequest
-from exports.permissions import ExportRequestPermissions, ExportJupyterPermissions, can_review_transfer_jupyter, \
-    can_review_export_csv
-from exports.serializers import ExportRequestSerializer, ExportRequestSerializerNoReviewer, ExportRequestListSerializer
+from exports.permissions import ExportRequestsPermission
+from exports.serializers import ExportRequestSerializer, ExportRequestListSerializer
 from exports.types import ExportType, HdfsServerUnreachableError
 
 _logger = logging.getLogger('django.request')
@@ -67,7 +66,7 @@ class ExportRequestViewSet(RequestLogMixin, viewsets.ModelViewSet):
     queryset = ExportRequest.objects.all()
     serializer_class = ExportRequestSerializer
     lookup_field = "id"
-    permission_classes = (ExportRequestPermissions, ExportJupyterPermissions)
+    permission_classes = [ExportRequestsPermission]
     swagger_tags = ['Exports']
     pagination_class = NegativeLimitOffsetPagination
     filterset_class = ExportRequestFilter
@@ -82,22 +81,6 @@ class ExportRequestViewSet(RequestLogMixin, viewsets.ModelViewSet):
 
     def get_serializer_context(self):
         return {'request': self.request}
-
-    def get_serializer_class(self):
-        if can_review_transfer_jupyter(self.request.user):
-            return ExportRequestSerializer
-        else:
-            return ExportRequestSerializerNoReviewer
-
-    def get_queryset(self):
-        q = self.__class__.queryset
-        reviewer = self.request.user
-        types = []
-        if can_review_export_csv(reviewer):
-            types.append(ExportType.CSV)
-        if can_review_transfer_jupyter(reviewer):
-            types.append(ExportType.HIVE)
-        return q.filter(owner=self.request.user) | q.filter(output_format__in=types)
 
     @swagger_auto_schema(responses={'200': openapi.Response("List of export requests", ExportRequestListSerializer()),
                                     '204': openapi.Response("HTTP_204 if no export requests found")})
@@ -186,7 +169,7 @@ class ExportRequestViewSet(RequestLogMixin, viewsets.ModelViewSet):
                 response.data['warning'] = f"L'email de confirmation n'a pas pu être envoyé à cause de l'erreur: {e}"
         return response
 
-    @action(detail=True, methods=['get'], permission_classes=(ExportRequestPermissions,), url_path="download")
+    @action(detail=True, methods=['get'], permission_classes=(ExportRequestsPermission,), url_path="download")
     def download(self, request, *args, **kwargs):
         export = self.get_object()
         if export.request_job_status != JobStatus.finished:

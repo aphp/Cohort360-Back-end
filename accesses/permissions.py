@@ -1,105 +1,102 @@
+from __future__ import annotations
+
+from typing import List
+
 from rest_framework import permissions
 
-from accesses.models import Role, get_all_user_managing_accesses_on_perimeter, can_roles_manage_access, Perimeter
+from accesses.models import Role
+from accesses.services.accesses import accesses_service
+from accesses.services.roles import roles_service
 from admin_cohort.models import User
-from admin_cohort.permissions import get_bound_roles, can_user_read_users
 
 
-def can_user_edit_roles(user: User) -> bool:
-    return any([r.right_edit_roles for r in get_bound_roles(user)])
-
-
-def can_user_manage_access(user: User, role: Role, perimeter: Perimeter) -> bool:
-    user_accesses = get_all_user_managing_accesses_on_perimeter(user, perimeter)
-    return can_roles_manage_access(list(user_accesses), role, perimeter)
+def get_bound_roles(user: User) -> List[Role]:
+    return [access.role for access in accesses_service.get_user_valid_accesses(user)]
 
 
 def can_user_manage_accesses(user: User) -> bool:
-    return any([r.can_manage_other_accesses for r in get_bound_roles(user)])
-
-
-def can_user_manage_review_transfer_jupyter_accesses(user: User) -> bool:
-    return any([r.right_manage_review_transfer_jupyter for r in get_bound_roles(user)])
-
-
-def can_user_manage_transfer_jupyter_accesses(user: User) -> bool:
-    return any([r.right_manage_transfer_jupyter for r in get_bound_roles(user)])
-
-
-def can_user_manage_review_export_csv_accesses(user: User) -> bool:
-    return any([r.right_manage_review_export_csv for r in get_bound_roles(user)])
-
-
-def can_user_manage_export_csv_accesses(user: User) -> bool:
-    return any([r.right_manage_export_csv for r in get_bound_roles(user)])
+    return any(filter(lambda role: roles_service.role_allows_to_manage_accesses(role), get_bound_roles(user)))
 
 
 def can_user_read_accesses(user: User) -> bool:
-    return any([r.can_read_other_accesses for r in get_bound_roles(user)])
+    return any(filter(lambda role: roles_service.role_allows_to_read_accesses(role), get_bound_roles(user)))
 
 
-def can_user_read_access(user: User, role: Role, perimeter: Perimeter) -> bool:
-    user_accesses = get_all_user_managing_accesses_on_perimeter(user, perimeter)
-    return can_roles_manage_access(list(user_accesses), role, perimeter, just_read=True)
+def can_user_read_users(user: User) -> bool:
+    return any(filter(lambda role: role.right_read_users, get_bound_roles(user)))
 
 
-def can_user_edit_profiles(user: User) -> bool:
-    return any([r.right_edit_users for r in get_bound_roles(user)])
+def can_user_read_logs(user: User) -> bool:
+    return any(filter(lambda role: role.right_read_logs, get_bound_roles(user)))
 
 
-def can_user_add_profiles(user: User) -> bool:
-    return any([r.right_add_users for r in get_bound_roles(user)])
+def can_user_manage_profiles(user: User) -> bool:
+    return any(filter(lambda role: role.right_manage_users, get_bound_roles(user)))
 
 
-class RolePermissions(permissions.BasePermission):
+def can_user_read_profiles(user: User) -> bool:
+    return any(filter(lambda role: role.right_read_users, get_bound_roles(user)))
+
+
+def can_user_make_export_jupyter_nomi(user: User):
+    return any(filter(lambda role: role.right_export_jupyter_nominative, get_bound_roles(user)))
+
+
+def can_user_make_export_jupyter_pseudo(user: User):
+    return any(filter(lambda role: role.right_export_jupyter_pseudonymized, get_bound_roles(user)))
+
+
+def can_user_make_export_csv_nomi(user: User):
+    return any(filter(lambda role: role.right_export_csv_nominative, get_bound_roles(user)))
+
+
+def can_user_make_export_csv_pseudo(user: User):
+    return any(filter(lambda role: role.right_export_csv_pseudonymized, get_bound_roles(user)))
+
+
+def can_user_make_csv_export(user: User) -> bool:
+    return any(filter(lambda role: role.right_export_csv_nominative or role.right_export_csv_pseudonymized,
+                      get_bound_roles(user)))
+
+
+def can_user_make_jupyter_export(user: User) -> bool:
+    return any(filter(lambda role: role.right_export_jupyter_nominative or role.right_export_jupyter_pseudonymized,
+                      get_bound_roles(user)))
+
+
+def can_user_read_datalabs(user: User) -> bool:
+    return any(filter(lambda role: role.right_read_datalabs, get_bound_roles(user)))
+
+
+def can_user_manage_datalabs(user: User) -> bool:
+    return any(filter(lambda role: role.right_manage_datalabs, get_bound_roles(user)))
+
+
+class RolesPermission(permissions.BasePermission):
     def has_permission(self, request, view):
-        if request.method in ["PUT", "PATCH", "POST", "DELETE"]:
-            return can_user_edit_roles(request.user.provider_username)
+        if request.method in ["POST", "PATCH", "DELETE"]:
+            return accesses_service.user_is_full_admin(request.user)
         return request.method in permissions.SAFE_METHODS
 
-    def has_object_permission(self, request, view, obj):
-        if request.method in ["PUT", "PATCH", "POST"]:
-            return can_user_edit_roles(request.user.provider_username)
-        return request.method == "GET"
 
-
-class AccessPermissions(permissions.BasePermission):
+class AccessesPermission(permissions.BasePermission):
     def has_permission(self, request, view):
-        if request.method in ["POST", "PUT", "PATCH", "DELETE"]:
+        if request.method in ["POST", "PATCH", "DELETE"]:
             return can_user_manage_accesses(request.user)
         return request.method in permissions.SAFE_METHODS and can_user_read_accesses(request.user)
 
     def has_object_permission(self, request, view, obj):
-        if request.method in ["PUT", "PATCH", "DELETE"]:
-            return can_user_manage_access(request.user, obj.role, obj.perimeter)
-        return request.method == "GET" and can_user_read_access(request.user, obj.role, obj.perimeter)
+        if request.method in ["PATCH", "DELETE"]:
+            return accesses_service.can_user_manage_access(user=request.user, target_access=obj)
+        return request.method == "GET" and accesses_service.can_user_read_access(user=request.user, target_access=obj)
 
 
-class HasUserAddingPermission(permissions.BasePermission):
+class ProfilesPermission(permissions.BasePermission):
     def has_permission(self, request, view):
-        return can_user_edit_profiles(request.user)
-
-
-class ProfilePermissions(permissions.BasePermission):
-    def has_permission(self, request, view):
-        if request.method == "POST":
-            return can_user_add_profiles(request.user)
-        if request.method == "PATCH":
-            return can_user_edit_profiles(request.user)
-        return request.method in permissions.SAFE_METHODS and can_user_read_users(request.user)
+        if request.method in ("POST", "PATCH"):
+            return can_user_manage_profiles(request.user)
+        return request.method in permissions.SAFE_METHODS and can_user_read_profiles(request.user)
 
     def has_object_permission(self, request, view, obj):
-        if request.method in ["POST", "PATCH"]:
-            return can_user_edit_profiles(request.user)
-        return request.method == "GET"
-
-
-# WORKSPACES
-
-
-def can_user_read_unix_accounts(user: User) -> bool:
-    return any([r.right_read_env_unix_users for r in get_bound_roles(user)])
-
-
-def can_user_manage_unix_accounts(user: User) -> bool:
-    return any([r.right_manage_env_unix_users for r in get_bound_roles(user)])
+        if request.method in ("GET", "PATCH"):
+            return self.has_permission(request, view)

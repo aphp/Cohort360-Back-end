@@ -4,7 +4,7 @@ from django_filters import rest_framework as filters, OrderingFilter
 from admin_cohort.permissions import either
 from admin_cohort.tools import join_qs
 from exports.models import Export
-from exports.permissions import CSVExportPermission, JupyterExportPermission
+from exports.permissions import CSVExportsPermission, JupyterExportPermission
 from exports.serializers import ExportSerializer
 from exports.views.v1.base_viewset import ExportsBaseViewSet
 
@@ -52,5 +52,5 @@ class ExportViewSet(ExportsBaseViewSet):
 
     def get_permissions(self):
         if self.request.method in ("POST", "PATCH", "DELETE"):
-            return either(CSVExportPermission(), JupyterExportPermission())
+            return either(CSVExportsPermission(), JupyterExportPermission())
         return super().get_permissions()
