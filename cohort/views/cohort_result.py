@@ -183,7 +183,6 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                                     '404': openapi.Response("No cohorts found matching the given fhir_group_ids or user has no valid accesses")})
     @action(detail=False, methods=['get'], url_path="cohort-rights")
     def get_rights_on_cohorts(self, request, *args, **kwargs):
-        cohorts = self.filter_queryset(self.get_queryset())
-        cohorts_rights = cohort_rights_service.get_user_rights_on_cohorts(cohorts=cohorts,
+        cohorts_rights = cohort_rights_service.get_user_rights_on_cohorts(fhir_group_ids=request.query_params.get('fhir_group_id'),
                                                                           user=request.user)
         return Response(data=cohorts_rights, status=status.HTTP_200_OK)

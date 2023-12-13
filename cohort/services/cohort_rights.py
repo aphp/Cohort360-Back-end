@@ -8,7 +8,7 @@ from django.http import Http404
 from accesses.conf_perimeters import FactRelationShip
 from accesses.models import Role, Perimeter, get_user_valid_manual_accesses
 from admin_cohort.models import User
-
+from cohort.models import CohortResult
 
 ROLE = "role"
 READ_PATIENT_NOMI = "read_patient_nomi"
@@ -37,15 +37,14 @@ class CohortRights:
 
 class CohortRightsService:
 
-    def get_user_rights_on_cohorts(self, cohorts: QuerySet, user: User) -> List[dict]:
-        if not cohorts:
+    def get_user_rights_on_cohorts(self, fhir_group_ids: str, user: User) -> List[dict]:
+        fhir_group_ids = [i.strip() for i in fhir_group_ids.split(",") if i]
+        if not CohortResult.objects.filter(fhir_group_id__in=fhir_group_ids).exists():
             raise Http404("No cohorts found. The provided `fhir_group_id`s are not valid")
         user_accesses = get_user_valid_manual_accesses(user=user)
         if not user_accesses:
             raise Http404(f"The user `{user}` has no valid accesses")
-        cohort_ids = cohorts.filter(fhir_group_id__isnull=False)\
-                            .values_list("fhir_group_id", flat=True)
-        cohort_perimeters = self.get_cohort_perimeters(cohort_ids=cohort_ids)
+        cohort_perimeters = self.get_cohort_perimeters(cohort_ids=fhir_group_ids)
         accesses_per_right = self.get_accesses_per_right(user_accesses=user_accesses)
         cohort_rights = []
 
