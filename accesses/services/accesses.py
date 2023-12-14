@@ -77,9 +77,7 @@ class AccessesService:
             if user_can_read_accesses_from_above_levels:
                 q = q | (Q(perimeter_id__in=perimeter.above_levels)
                          & Role.q_impact_inferior_levels())
-        return accesses.filter(Q(sql_is_valid=True) & q)
-        # todo: check with the team to filter accesses or not
-        # return self.filter_accesses_for_user(user=user, accesses=accesses_on_perimeter)
+        return self.filter_accesses_for_user(user=user, accesses=accesses.filter(Q(sql_is_valid=True) & q))
 
     @staticmethod
     def has_at_least_one_read_nominative_access(target_perimeters: QuerySet, nomi_perimeters_ids: List[int]) -> bool:

@@ -63,6 +63,8 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
         role = self.get_object()
         if role.right_full_admin:
             return Response(data={"error": "Cannot delete the Full Admin role"}, status=status.HTTP_403_FORBIDDEN)
+        if role.accesses.all().exists():
+            return Response(data={"error": "This role is attached to existing accesses"}, status=status.HTTP_403_FORBIDDEN)
         self.perform_destroy(role)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
