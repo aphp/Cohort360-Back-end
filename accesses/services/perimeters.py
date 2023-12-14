@@ -92,7 +92,7 @@ class PerimetersService:
             return Perimeter.objects.filter(id__in=top_same_level_perimeters_ids.union(top_inf_levels_perimeters_ids))
 
     @staticmethod
-    def get_list_cohort_id_care_site(cohorts_ids: list, owner: User):
+    def get_list_cohort_id_care_site(cohorts_ids: List[str], owner: User):
         fact_relationships = FactRelationShip.objects.raw(FactRelationShip.psql_query_get_cohort_population_source(cohorts_ids))
         cohort_pop_source = cohorts_ids.copy()
         for fact in fact_relationships:
@@ -104,7 +104,7 @@ class PerimetersService:
         return cohort_pop_source
 
     def get_target_perimeters(self, cohort_ids: str, owner: User) -> QuerySet:
-        virtual_cohort_ids = self.get_list_cohort_id_care_site(cohorts_ids=[int(cohort_id) for cohort_id in cohort_ids.split(",")],
+        virtual_cohort_ids = self.get_list_cohort_id_care_site(cohorts_ids=[cohort_id for cohort_id in cohort_ids.split(",")],
                                                                owner=owner)
         return Perimeter.objects.filter(cohort_id__in=virtual_cohort_ids)
 
