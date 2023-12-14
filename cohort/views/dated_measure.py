@@ -5,7 +5,6 @@ from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
-from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
@@ -63,20 +62,16 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                              type=openapi.TYPE_OBJECT,
                              properties={"request_query_snapshot_id": openapi.Schema(type=openapi.TYPE_STRING)},
                              required=["request_query_snapshot_id"]),
+                         manual_parameters=[openapi.Parameter(name="feasibility", in_=openapi.IN_QUERY, type=openapi.TYPE_BOOLEAN,
+                                                              description="Launch a count request to get feasibility report")],
                          responses={'200': openapi.Response("DatedMeasure created", DatedMeasureSerializer()),
                                     '400': openapi.Response("Bad Request")})
     @transaction.atomic
     def create(self, request, *args, **kwargs):
-        # POST /cohort/dated-measures/?feasibility=true
         response = super().create(request, *args, **kwargs)
         transaction.on_commit(lambda: dated_measure_service.process_dated_measure(dm_uuid=response.data.get("uuid"),
                                                                                   request=request))
         return response
-
-    # @action(methods=['post'], detail=False, url_path='feasibility')
-    # def make_feasibility_report(self, request, *args, **kwargs):
-    #     # POST /cohort/dated-measures/feasibility/
-    #     return True
 
     @swagger_auto_schema(operation_summary="Called by SJS to update DM's `measure` and other fields",
                          request_body=openapi.Schema(

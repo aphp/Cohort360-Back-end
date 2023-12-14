@@ -39,11 +39,15 @@ def get_count_task(auth_headers: dict, json_query: str, dm_uuid: str, is_for_fea
     dm.request_job_status = JobStatus.pending
     dm.save()
 
-    resp = cohort_job_api.post_count_cohort(dm_uuid=dm_uuid,
-                                            json_query=json_query,
-                                            auth_headers=auth_headers,
-                                            is_for_feasibility=is_for_feasibility,
-                                            global_estimate=dm.mode == GLOBAL_DM_MODE)
+    if is_for_feasibility:
+        resp = cohort_job_api.post_count_feasibility(dm_uuid=dm_uuid,
+                                                     json_query=json_query,
+                                                     auth_headers=auth_headers)
+    else:
+        resp = cohort_job_api.post_count_cohort(dm_uuid=dm_uuid,
+                                                json_query=json_query,
+                                                auth_headers=auth_headers,
+                                                global_estimate=dm.mode == GLOBAL_DM_MODE)
     if resp.success:
         dm.request_job_id = resp.fhir_job_id
     else:

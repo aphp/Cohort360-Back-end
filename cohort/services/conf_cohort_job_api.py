@@ -29,15 +29,6 @@ _logger = logging.getLogger("info")
 _logger_err = logging.getLogger("django.request")
 _celery_logger = logging.getLogger("django.request")
 
-GLOBAL_ESTIMATE = "global_estimate"
-FEASIBILITY = "feasibility"
-COUNT = "count"
-
-COUNT_CLASSES = {COUNT: (CohortCount, log_count_task),
-                 GLOBAL_ESTIMATE: (CohortCountAll, log_count_all_task),
-                 FEASIBILITY: (CohortCountFeasibility, log_count_task)
-                 }
-
 
 def parse_date(d):
     possible_formats = ['%Y-%m-%d %H:%M:%S.%f',
@@ -68,6 +59,12 @@ def fhir_to_job_status() -> Dict[str, JobStatus]:
             "PENDING": JobStatus.pending,
             "LONG_PENDING": JobStatus.long_pending
             }
+
+
+def update_query_perimeter(query: dict) -> None:
+    current_perimeter = query["sourcePopulation"]["caresiteCohortList"]
+    if current_perimeter != aphp.id:
+        query["sourcePopulation"]["caresiteCohortList"] = aphp.id
 
 
 def get_authorization_header(request: Request) -> dict:
@@ -150,6 +147,8 @@ def post_to_sjs(json_query: str, uuid: str, cohort_cls: AbstractCohortRequest, r
     try:
         logger(uuid, f"Step 1: Parse the json query to make it CRB compatible {json_query}")
         cohort_query = CohortQuery(cohortUuid=uuid, **json.loads(json_query))
+        if cohort_cls is CohortCountFeasibility:
+            cohort_query.source_population.care_site_cohort_list = [aphp.id]
         logger(uuid, f"Step 2: Send request to sjs: {cohort_query}")
         resp, data = cohort_cls.action(cohort_query)
     except (TypeError, ValueError, ValidationError, HTTPError) as e:
@@ -160,10 +159,14 @@ def post_to_sjs(json_query: str, uuid: str, cohort_cls: AbstractCohortRequest, r
     return response_cls(success=True, fhir_job_id=job.job_id)
 
 
-def post_count_cohort(auth_headers: dict, json_query: str, dm_uuid: str,
-                      is_for_feasibility: bool = False, global_estimate: bool = False) -> CRBCountResponse:
-    count_type = global_estimate and GLOBAL_ESTIMATE or is_for_feasibility and FEASIBILITY or COUNT
-    count_cls, logger = COUNT_CLASSES.get(count_type)
+def post_count_feasibility(auth_headers: dict, json_query: str, dm_uuid: str) -> CRBCountResponse:
+    # update_query_perimeter(query=json_query)
+    count_request = CohortCountFeasibility(auth_headers=auth_headers, sjs_client=SjsClient())
+    return post_to_sjs(json_query, dm_uuid, count_request, CRBCountResponse, log_count_task)
+
+
+def post_count_cohort(auth_headers: dict, json_query: str, dm_uuid: str, global_estimate: bool = False) -> CRBCountResponse:
+    count_cls, logger = global_estimate and (CohortCountAll, log_count_all_task) or (CohortCount, log_count_task)
     count_request = count_cls(auth_headers=auth_headers, sjs_client=SjsClient())
     return post_to_sjs(json_query, dm_uuid, count_request, CRBCountResponse, logger)
 
