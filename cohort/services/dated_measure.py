@@ -1,3 +1,4 @@
+import json
 import logging
 
 from django.utils import timezone
@@ -13,6 +14,8 @@ COUNT = "count"
 MAXIMUM = "maximum"
 MINIMUM = "minimum"
 ERR_MESSAGE = "message"
+EXTRA = "extra"
+
 
 _logger = logging.getLogger('info')
 _logger_err = logging.getLogger('django.request')
@@ -23,21 +26,21 @@ class DatedMeasureService:
     @staticmethod
     def process_dated_measure(dm_uuid: str, request):
         dm = DatedMeasure.objects.get(pk=dm_uuid)
-        cancel_previously_running_dm_jobs.delay(dm_uuid)
-
+        is_for_feasibility = json.loads(request.query_params.get("feasibility", "false"))
+        if not is_for_feasibility:
+            cancel_previously_running_dm_jobs.delay(dm_uuid)
         try:
             auth_headers = get_authorization_header(request)
             get_count_task.delay(auth_headers,
                                  dm.request_query_snapshot.serialized_query,
-                                 dm_uuid)
+                                 dm_uuid,
+                                 is_for_feasibility)
         except Exception as e:
             dm.delete()
             raise ServerError("INTERNAL ERROR: Could not launch count request") from e
 
-    @staticmethod
-    def process_patch_data(dm: DatedMeasure, data: dict) -> None:
+    def process_patch_data(self, dm: DatedMeasure, data: dict) -> None:
         _logger.info(f"Received data for DM patch: {data}")
-
         job_status = data.get(JOB_STATUS, "")
         job_status = fhir_to_job_status().get(job_status.upper())
         if not job_status:
@@ -45,12 +48,16 @@ class DatedMeasureService:
         job_duration = str(timezone.now() - dm.created_at)
 
         if job_status == JobStatus.finished:
-            if dm.mode == GLOBAL_DM_MODE:
-                data.update({"measure_min": data.pop(MINIMUM, None),
-                             "measure_max": data.pop(MAXIMUM, None)
-                             })
+            count_per_group = data.get(EXTRA)
+            if count_per_group:
+                self.generate_feasibility_report()
             else:
-                data["measure"] = data.pop(COUNT, None)
+                if dm.mode == GLOBAL_DM_MODE:
+                    data.update({"measure_min": data.pop(MINIMUM, None),
+                                 "measure_max": data.pop(MAXIMUM, None)
+                                 })
+                else:
+                    data["measure"] = data.pop(COUNT, None)
             _logger.info(f"DatedMeasure [{dm.uuid}] successfully updated from SJS")
         else:
             data["request_job_fail_msg"] = data.pop(ERR_MESSAGE, None)
@@ -59,6 +66,9 @@ class DatedMeasureService:
         data.update({"request_job_status": job_status,
                      "request_job_duration": job_duration
                      })
+
+    def generate_feasibility_report(self):
+        ...
 
 
 dated_measure_service = DatedMeasureService()

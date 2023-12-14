@@ -13,6 +13,7 @@ from rest_framework.request import Request
 from admin_cohort.middleware.request_trace_id_middleware import add_trace_id
 from admin_cohort.types import JobStatus, MissingDataError
 from cohort.crb import CohortQuery, CohortCreate, CohortCountAll, CohortCount, AbstractCohortRequest, SjsClient
+from cohort.crb.cohort_requests.count_feasibility import CohortCountFeasibility
 from cohort.services.crb_responses import CRBCountResponse, CRBCohortResponse
 from cohort.services.misc import log_count_task, log_create_task, log_delete_task, log_count_all_task
 
@@ -27,6 +28,15 @@ FHIR_CANCEL_ACTION = "cancel"
 _logger = logging.getLogger("info")
 _logger_err = logging.getLogger("django.request")
 _celery_logger = logging.getLogger("django.request")
+
+GLOBAL_ESTIMATE = "global_estimate"
+FEASIBILITY = "feasibility"
+COUNT = "count"
+
+COUNT_CLASSES = {COUNT: (CohortCount, log_count_task),
+                 GLOBAL_ESTIMATE: (CohortCountAll, log_count_all_task),
+                 FEASIBILITY: (CohortCountFeasibility, log_count_task)
+                 }
 
 
 def parse_date(d):
@@ -150,10 +160,12 @@ def post_to_sjs(json_query: str, uuid: str, cohort_cls: AbstractCohortRequest, r
     return response_cls(success=True, fhir_job_id=job.job_id)
 
 
-def post_count_cohort(auth_headers: dict, json_query: str, dm_uuid: str, global_estimate=False) -> CRBCountResponse:
-    count_cls, logger = (CohortCountAll, log_count_all_task) if global_estimate else (CohortCount, log_count_task)
-    cohort_request = count_cls(auth_headers=auth_headers, sjs_client=SjsClient())
-    return post_to_sjs(json_query, dm_uuid, cohort_request, CRBCountResponse, logger)
+def post_count_cohort(auth_headers: dict, json_query: str, dm_uuid: str,
+                      is_for_feasibility: bool = False, global_estimate: bool = False) -> CRBCountResponse:
+    count_type = global_estimate and GLOBAL_ESTIMATE or is_for_feasibility and FEASIBILITY or COUNT
+    count_cls, logger = COUNT_CLASSES.get(count_type)
+    count_request = count_cls(auth_headers=auth_headers, sjs_client=SjsClient())
+    return post_to_sjs(json_query, dm_uuid, count_request, CRBCountResponse, logger)
 
 
 def post_create_cohort(auth_headers: dict, json_query: str, cr_uuid: str) -> CRBCohortResponse:

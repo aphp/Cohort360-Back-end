@@ -5,6 +5,7 @@ from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
@@ -13,15 +14,9 @@ from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagin
 from cohort.models import DatedMeasure
 from cohort.permissions import SJSorETLCallbackPermission
 from cohort.serializers import DatedMeasureSerializer
-from cohort.services.dated_measure import dated_measure_service
+from cohort.services.dated_measure import dated_measure_service, JOB_STATUS, MINIMUM, MAXIMUM, COUNT, EXTRA
 from cohort.services.misc import is_sjs_user
 from cohort.views.shared import UserObjectsRestrictedViewSet
-
-JOB_STATUS = "request_job_status"
-COUNT = "count"
-MAXIMUM = "maximum"
-MINIMUM = "minimum"
-ERR_MESSAGE = "message"
 
 _logger = logging.getLogger('info')
 _logger_err = logging.getLogger('django.request')
@@ -72,10 +67,16 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                                     '400': openapi.Response("Bad Request")})
     @transaction.atomic
     def create(self, request, *args, **kwargs):
+        # POST /cohort/dated-measures/?feasibility=true
         response = super().create(request, *args, **kwargs)
         transaction.on_commit(lambda: dated_measure_service.process_dated_measure(dm_uuid=response.data.get("uuid"),
                                                                                   request=request))
         return response
+
+    # @action(methods=['post'], detail=False, url_path='feasibility')
+    # def make_feasibility_report(self, request, *args, **kwargs):
+    #     # POST /cohort/dated-measures/feasibility/
+    #     return True
 
     @swagger_auto_schema(operation_summary="Called by SJS to update DM's `measure` and other fields",
                          request_body=openapi.Schema(
@@ -83,7 +84,8 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                              properties={JOB_STATUS: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback"),
                                          MINIMUM: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback"),
                                          MAXIMUM: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback"),
-                                         COUNT: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback")},
+                                         COUNT: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback"),
+                                         EXTRA: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback, for feasibility reports")},
                              required=[JOB_STATUS, MINIMUM, MAXIMUM, COUNT]),
                          responses={'200': openapi.Response("DatedMeasure updated successfully", DatedMeasureSerializer()),
                                     '400': openapi.Response("Bad Request")})

@@ -33,7 +33,7 @@ def create_cohort_task(auth_headers: dict, json_query: str, cohort_uuid: str):
 
 
 @shared_task
-def get_count_task(auth_headers: dict, json_query: str, dm_uuid: str):
+def get_count_task(auth_headers: dict, json_query: str, dm_uuid: str, is_for_feasibility: bool):
     dm = DatedMeasure.objects.get(uuid=dm_uuid)
     dm.count_task_id = current_task.request.id or ""
     dm.request_job_status = JobStatus.pending
@@ -42,8 +42,8 @@ def get_count_task(auth_headers: dict, json_query: str, dm_uuid: str):
     resp = cohort_job_api.post_count_cohort(dm_uuid=dm_uuid,
                                             json_query=json_query,
                                             auth_headers=auth_headers,
+                                            is_for_feasibility=is_for_feasibility,
                                             global_estimate=dm.mode == GLOBAL_DM_MODE)
-
     if resp.success:
         dm.request_job_id = resp.fhir_job_id
     else:
