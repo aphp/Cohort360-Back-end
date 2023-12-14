@@ -1,3 +1,4 @@
+from functools import reduce
 from typing import Set, List
 
 from django.db.models import QuerySet, Q
@@ -159,13 +160,14 @@ class PerimetersService:
                                                                 right_read_opposed_patients_data=allow_read_opposed_patient))
         return perimeter_read_right_list
 
-    def get_data_reading_rights_on_perimeters(self, user: User, target_perimeters: QuerySet) -> List[PerimeterReadRight]:
+    def get_data_read_rights_on_perimeters(self, user: User, is_request_filtered: bool, filtered_perimeters: QuerySet):
         user_accesses = accesses_service.get_user_valid_accesses(user=user)
+        allow_search_by_ipp = user_accesses.filter(Role.q_allow_search_patients_by_ipp()).exists()
+        allow_read_opposed_patient = user_accesses.filter(Role.q_allow_read_research_opposed_patient_data()).exists()
+
         read_patient_nominative_accesses = user_accesses.filter(Role.q_allow_read_patient_data_nominative())
         read_patient_pseudo_accesses = user_accesses.filter(Role.q_allow_read_patient_data_pseudo() |
                                                             Role.q_allow_read_patient_data_nominative())
-        allow_search_by_ipp = user_accesses.filter(Role.q_allow_search_patients_by_ipp()).exists()
-        allow_read_opposed_patient = user_accesses.filter(Role.q_allow_read_research_opposed_patient_data()).exists()
 
         read_nomi_perimeters_ids = [access.perimeter_id for access in read_patient_nominative_accesses]
         read_pseudo_perimeters_ids = [access.perimeter_id for access in read_patient_pseudo_accesses]
@@ -174,12 +176,22 @@ class PerimetersService:
         top_read_pseudo_perimeters_ids = self.get_top_perimeters_with_right_read_pseudo(top_read_nomi_perimeters_ids=top_read_nomi_perimeters_ids,
                                                                                         read_pseudo_perimeters_ids=read_pseudo_perimeters_ids)
 
-        perimeters_read_rights = self.get_perimeters_read_rights(target_perimeters=target_perimeters,
-                                                                 top_read_nomi_perimeters_ids=top_read_nomi_perimeters_ids,
-                                                                 top_read_pseudo_perimeters_ids=top_read_pseudo_perimeters_ids,
-                                                                 allow_search_by_ipp=allow_search_by_ipp,
-                                                                 allow_read_opposed_patient=allow_read_opposed_patient)
-        return perimeters_read_rights
+        if is_request_filtered:
+            user_main_perimeters = Perimeter.objects.filter(id__in={a.perimeter_id for a in user_accesses})
+            all_user_perimeters = [user_main_perimeters] + [self.get_all_child_perimeters(p) for p in user_main_perimeters]
+            user_accessible_perimeters = reduce(lambda qs1, qs2: qs1 | qs2, all_user_perimeters)
+            target_perimeters = user_accessible_perimeters
+        else:
+            target_perimeters = Perimeter.objects.filter(id__in=top_read_nomi_perimeters_ids + top_read_pseudo_perimeters_ids)
+
+        target_perimeters = target_perimeters.filter(id__in=filtered_perimeters)
+
+        data_reading_rights = self.get_perimeters_read_rights(target_perimeters=target_perimeters,
+                                                              top_read_nomi_perimeters_ids=top_read_nomi_perimeters_ids,
+                                                              top_read_pseudo_perimeters_ids=top_read_pseudo_perimeters_ids,
+                                                              allow_search_by_ipp=allow_search_by_ipp,
+                                                              allow_read_opposed_patient=allow_read_opposed_patient)
+        return data_reading_rights
 
 
 perimeters_service = PerimetersService()

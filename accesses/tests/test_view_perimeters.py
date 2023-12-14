@@ -2,6 +2,7 @@ from django.utils import timezone
 from rest_framework import status
 
 from accesses.models import Perimeter
+from accesses.serializers import ReadRightPerimeter
 from accesses.services.perimeters import perimeters_service
 from accesses.services.shared import PerimeterReadRight
 from accesses.tests.base import AccessesAppTestsBase
@@ -117,9 +118,13 @@ class PerimeterViewTests(AccessesAppTestsBase):
                     |             |                                                   |             |
                    P11           P12                                                 P13           P14
 
-        - With respect to this hierarchy, User Z has 5 accesses defined on P0, P1, P2, P4 and P10
-          allowing him to read patient data and/or search by IPP or search opposed patients.
         """
+        base_case = ListCase(params={},
+                             to_find=[],
+                             user=self.user_y,
+                             status=status.HTTP_200_OK,
+                             success=True)
+
         perimeters = [self.p0, self.p1, self.p2, self.p4, self.p10]
         roles = [self.role_data_reader_pseudo,
                  self.role_search_by_ipp_and_search_opposed,
@@ -131,47 +136,75 @@ class PerimeterViewTests(AccessesAppTestsBase):
         for perimeter, role in zip(perimeters, roles):
             self.create_new_access_for_user(profile=self.profile_y, role=role, perimeter=perimeter, close_existing=False)
 
-        target_perimeters = [self.aphp, self.p0, self.p4, self.p8, self.p10]
+        def get_data_read_rights_on_perimeters_1():
+            data_read_rights_p0 = PerimeterReadRight(perimeter=self.p0,
+                                                     right_read_patient_nominative=False,
+                                                     right_read_patient_pseudonymized=True,
+                                                     right_search_patients_by_ipp=True,
+                                                     right_read_opposed_patients_data=True)
 
-        data_read_rights_aphp = PerimeterReadRight(perimeter=self.aphp,
-                                                   right_read_patient_nominative=False,
-                                                   right_read_patient_pseudonymized=False,
-                                                   right_search_patients_by_ipp=True,
-                                                   right_read_opposed_patients_data=True)
+            data_read_rights_p2 = PerimeterReadRight(perimeter=self.p2,
+                                                     right_read_patient_nominative=True,
+                                                     right_read_patient_pseudonymized=True,
+                                                     right_search_patients_by_ipp=True,
+                                                     right_read_opposed_patients_data=True)
 
-        data_read_rights_p0 = PerimeterReadRight(perimeter=self.p0,
-                                                 right_read_patient_nominative=False,
-                                                 right_read_patient_pseudonymized=True,
-                                                 right_search_patients_by_ipp=True,
-                                                 right_read_opposed_patients_data=True)
+            data_read_rights_p4 = PerimeterReadRight(perimeter=self.p4,
+                                                     right_read_patient_nominative=True,
+                                                     right_read_patient_pseudonymized=True,
+                                                     right_search_patients_by_ipp=True,
+                                                     right_read_opposed_patients_data=True)
 
-        data_read_rights_p4 = PerimeterReadRight(perimeter=self.p4,
-                                                 right_read_patient_nominative=True,
-                                                 right_read_patient_pseudonymized=True,
-                                                 right_search_patients_by_ipp=True,
-                                                 right_read_opposed_patients_data=True)
+            expected_data_read_rights = [data_read_rights_p0,
+                                         data_read_rights_p2,
+                                         data_read_rights_p4]
+            return base_case.clone(params={},
+                                   to_find=expected_data_read_rights)
 
-        data_read_rights_p8 = PerimeterReadRight(perimeter=self.p8,
-                                                 right_read_patient_nominative=True,
-                                                 right_read_patient_pseudonymized=True,
-                                                 right_search_patients_by_ipp=True,
-                                                 right_read_opposed_patients_data=True)
+        def get_data_read_rights_on_perimeters_2():
+            data_read_rights_p1 = PerimeterReadRight(perimeter=self.p1,
+                                                     right_read_patient_nominative=False,
+                                                     right_read_patient_pseudonymized=False,
+                                                     right_search_patients_by_ipp=True,
+                                                     right_read_opposed_patients_data=True)
 
-        data_read_rights_p10 = PerimeterReadRight(perimeter=self.p10,
-                                                  right_read_patient_nominative=True,
-                                                  right_read_patient_pseudonymized=True,
-                                                  right_search_patients_by_ipp=True,
-                                                  right_read_opposed_patients_data=True)
+            data_read_rights_p5 = PerimeterReadRight(perimeter=self.p5,
+                                                     right_read_patient_nominative=False,
+                                                     right_read_patient_pseudonymized=True,
+                                                     right_search_patients_by_ipp=True,
+                                                     right_read_opposed_patients_data=True)
 
-        expected_data_read_rights = [data_read_rights_aphp,
-                                     data_read_rights_p0,
-                                     data_read_rights_p4,
-                                     data_read_rights_p8,
-                                     data_read_rights_p10]
+            data_read_rights_p9 = PerimeterReadRight(perimeter=self.p9,
+                                                     right_read_patient_nominative=True,
+                                                     right_read_patient_pseudonymized=True,
+                                                     right_search_patients_by_ipp=True,
+                                                     right_read_opposed_patients_data=True)
 
-        data_read_rights = perimeters_service.get_data_reading_rights_on_perimeters(user=self.user_y,
-                                                                                    target_perimeters=target_perimeters)
-        self.assertEqual(expected_data_read_rights, data_read_rights)
+            expected_data_read_rights = [data_read_rights_p1,
+                                         data_read_rights_p5,
+                                         data_read_rights_p9]
+
+            target_local_ids = [self.p1.local_id,
+                                self.p5.local_id,
+                                self.p9.local_id]
+
+            return base_case.clone(params={"local_id": ",".join(target_local_ids)},
+                                   to_find=expected_data_read_rights)
+
+        case_1 = get_data_read_rights_on_perimeters_1()
+        case_2 = get_data_read_rights_on_perimeters_2()
+
+        for case in (case_1, case_2):
+            response_results = self.check_get_paged_list_case(case=case,
+                                                              other_view=PerimeterViewTests.get_data_read_rights_on_perimeters_view,
+                                                              check_found_objects=False,
+                                                              yield_response_results=True)
+            for result_item in response_results:
+                for expected_dr in case.to_find:
+                    if expected_dr.perimeter.id == result_item.get("perimeter").get("id"):
+                        for k, v in result_item.items():
+                            if k != "perimeter":
+                                self.assertEqual(getattr(expected_dr, k, False), v)
 
     def test_check_read_patient_data_rights(self):
         """                                                    APHP

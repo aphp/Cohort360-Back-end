@@ -490,7 +490,7 @@ class ViewSetTests(BaseTests):
         if view_kwargs.get("yield_response_data"):
             return json.loads(response.content)
 
-    def check_get_paged_list_case(self, case: ListCase, other_view: Any = None, **view_kwargs):
+    def check_get_paged_list_case(self, case: ListCase, other_view: Any = None, check_found_objects: bool = True, **view_kwargs):
         response = self.check_list_case(case=case, other_view=other_view, is_paged_list_case=True, **view_kwargs)
 
         if not case.success:
@@ -501,18 +501,19 @@ class ViewSetTests(BaseTests):
         self.assertEqual(res.count, len(case.to_find),
                          case.description + f'''Found IDs: {" - ".join(str(r.get('id', r.get('uuid'))) for r in res.results)}''')
 
-        obj_to_find_ids = [str(obj.pk) for obj in case.to_find]
-        current_obj_found_ids = [obj.get(self.model._meta.pk.name) for obj in res.results]
-        obj_found_ids = current_obj_found_ids + case.previously_found_ids
+        if check_found_objects:
+            obj_to_find_ids = [str(obj.pk) for obj in case.to_find]
+            current_obj_found_ids = [obj.get(self.model._meta.pk.name) for obj in res.results]
+            obj_found_ids = current_obj_found_ids + case.previously_found_ids
 
-        if case.page_size is not None:
-            if res.next:
-                self.assertEqual(len(current_obj_found_ids), case.page_size)
-                next_case = case.clone(url=res.next, previously_found_ids=obj_found_ids)
-                self.check_get_paged_list_case(next_case, other_view, **view_kwargs)
-        else:
-            self.assertCountEqual(map(str, obj_found_ids),
-                                  map(str, obj_to_find_ids))
+            if case.page_size is not None:
+                if res.next:
+                    self.assertEqual(len(current_obj_found_ids), case.page_size)
+                    next_case = case.clone(url=res.next, previously_found_ids=obj_found_ids)
+                    self.check_get_paged_list_case(next_case, other_view, **view_kwargs)
+            else:
+                self.assertCountEqual(map(str, obj_found_ids),
+                                      map(str, obj_to_find_ids))
         if view_kwargs.get("yield_response_results"):
             return res.results
 

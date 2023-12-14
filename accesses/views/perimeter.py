@@ -91,20 +91,28 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
         return Response(data=PerimeterLiteSerializer(manageable_perimeters, many=True).data,
                         status=status.HTTP_200_OK)
 
+    # @swagger_auto_schema(operation_summary="Return a patient-data-reading-rights summary on target perimeters.",
+    #                      responses={'200': openapi.Response("Rights per perimeter", ReadRightPerimeter())})
+    # @action(detail=False, methods=['get'], url_path="patient-data/rights")
+    # @cache_response()
+    # def get_data_read_rights_on_perimeters(self, request, *args, **kwargs):
+    #     data_reading_rights = perimeters_service.get_data_reading_rights_on_perimeters(user=request.user,
+    #                                                                                    target_perimeters=self.filter_queryset(self.queryset))
+    #     page = self.paginate_queryset(data_reading_rights)
+    #     if page:
+    #         serializer = ReadRightPerimeter(page, many=True)
+    #         return self.get_paginated_response(serializer.data)
+    #     return Response(data={}, status=status.HTTP_200_OK)
+
     @swagger_auto_schema(operation_summary="Return a patient-data-reading-rights summary on target perimeters.",
                          responses={'200': openapi.Response("Rights per perimeter", ReadRightPerimeter())})
     @action(detail=False, methods=['get'], url_path="patient-data/rights")
     @cache_response()
     def get_data_read_rights_on_perimeters(self, request, *args, **kwargs):
-        perimeters_qs = self.filter_queryset(self.queryset)
-        user_accesses = accesses_service.get_user_valid_accesses(user=request.user)
-        user_main_perimeters = Perimeter.objects.filter(id__in={a.perimeter_id for a in user_accesses})
-        all_user_perimeters = [user_main_perimeters] + [perimeters_service.get_all_child_perimeters(perimeter=p)
-                                                        for p in user_main_perimeters]
-        accessible_perimeters = reduce(lambda qs1, qs2: qs1.union(qs2), all_user_perimeters)
-        target_perimeters = perimeters_qs & accessible_perimeters
-        data_reading_rights = perimeters_service.get_data_reading_rights_on_perimeters(user=request.user,
-                                                                                       target_perimeters=target_perimeters)
+        filtered_perimeters = self.filter_queryset(self.queryset)
+        data_reading_rights = perimeters_service.get_data_read_rights_on_perimeters(user=request.user,
+                                                                                    is_request_filtered=bool(request.query_params),
+                                                                                    filtered_perimeters=filtered_perimeters)
         page = self.paginate_queryset(data_reading_rights)
         if page:
             serializer = ReadRightPerimeter(page, many=True)

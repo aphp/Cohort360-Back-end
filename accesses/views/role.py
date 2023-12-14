@@ -59,6 +59,13 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
             return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return super(RoleViewSet, self).partial_update(request, *args, **kwargs)
 
+    def destroy(self, request, *args, **kwargs):
+        role = self.get_object()
+        if role.right_full_admin:
+            return Response(data={"error": "Cannot delete the Full Admin role"}, status=status.HTTP_403_FORBIDDEN)
+        self.perform_destroy(role)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     @swagger_auto_schema(method='get',
                          operation_summary="Get the list of users who have that role",
                          manual_parameters=[openapi.Parameter(name="order", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING,
