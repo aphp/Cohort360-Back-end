@@ -2,8 +2,6 @@ from django.utils import timezone
 from rest_framework import status
 
 from accesses.models import Perimeter
-from accesses.serializers import ReadRightPerimeter
-from accesses.services.perimeters import perimeters_service
 from accesses.services.shared import PerimeterReadRight
 from accesses.tests.base import AccessesAppTestsBase
 from accesses.views import PerimeterViewSet
