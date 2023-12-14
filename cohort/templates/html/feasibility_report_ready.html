@@ -1,0 +1,27 @@
+{% extends "email_base_template.html" %}
+
+{% block content %}
+
+Votre rapport de faisabilité concernant la requête "{{ request_name }}" a été généré avec succès.
+<br/><br/>
+
+<table>
+    <thead>
+        <td>Périmètre</td>
+        <td>Nombre de patients</td>
+    </thead>
+    <tbody>
+        {% for perimeter_name, count in results.items %}
+        <tr>
+            <td>{{ perimeter_name }}</td>
+            <td>{{ count }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<br/><br/>
+Pour toute question, contactez le support Cohort360 à dsi-id-recherche-support-cohort360@aphp.fr
+
+{% endblock %}
+

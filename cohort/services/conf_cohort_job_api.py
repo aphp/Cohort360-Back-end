@@ -10,12 +10,17 @@ from requests import Response, HTTPError
 from rest_framework import status
 from rest_framework.request import Request
 
+from accesses.models import Perimeter
 from admin_cohort.middleware.request_trace_id_middleware import add_trace_id
 from admin_cohort.types import JobStatus, MissingDataError
 from cohort.crb import CohortQuery, CohortCreate, CohortCountAll, CohortCount, AbstractCohortRequest, SjsClient
 from cohort.crb.cohort_requests.count_feasibility import CohortCountFeasibility
 from cohort.services.crb_responses import CRBCountResponse, CRBCohortResponse
 from cohort.services.misc import log_count_task, log_create_task, log_delete_task, log_count_all_task
+
+env = os.environ
+
+APHP_ID = int(env.get("TOP_HIERARCHY_CARE_SITE_ID"))
 
 COHORT_REQUEST_BUILDER_URL = os.environ.get('COHORT_REQUEST_BUILDER_URL')
 JOBS_API = f"{COHORT_REQUEST_BUILDER_URL}/jobs"
@@ -59,12 +64,6 @@ def fhir_to_job_status() -> Dict[str, JobStatus]:
             "PENDING": JobStatus.pending,
             "LONG_PENDING": JobStatus.long_pending
             }
-
-
-def update_query_perimeter(query: dict) -> None:
-    current_perimeter = query["sourcePopulation"]["caresiteCohortList"]
-    if current_perimeter != aphp.id:
-        query["sourcePopulation"]["caresiteCohortList"] = aphp.id
 
 
 def get_authorization_header(request: Request) -> dict:
@@ -148,7 +147,8 @@ def post_to_sjs(json_query: str, uuid: str, cohort_cls: AbstractCohortRequest, r
         logger(uuid, f"Step 1: Parse the json query to make it CRB compatible {json_query}")
         cohort_query = CohortQuery(cohortUuid=uuid, **json.loads(json_query))
         if cohort_cls is CohortCountFeasibility:
-            cohort_query.source_population.care_site_cohort_list = [aphp.id]
+            aphp_perimeter = Perimeter.objects.get(id=APHP_ID)
+            cohort_query.source_population.care_site_cohort_list = [aphp_perimeter.cohort_id]
         logger(uuid, f"Step 2: Send request to sjs: {cohort_query}")
         resp, data = cohort_cls.action(cohort_query)
     except (TypeError, ValueError, ValidationError, HTTPError) as e:

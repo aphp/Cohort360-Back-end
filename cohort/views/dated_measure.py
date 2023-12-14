@@ -86,7 +86,7 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                                     '400': openapi.Response("Bad Request")})
     def partial_update(self, request, *args, **kwargs):
         try:
-            dated_measure_service.process_patch_data(dm=self.get_object(), data=request.data)
+            is_for_feasibility = dated_measure_service.process_patch_data(dm=self.get_object(), data=request.data)
         except ValueError as ve:
             return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
         return super(DatedMeasureViewSet, self).partial_update(request, *args, **kwargs)

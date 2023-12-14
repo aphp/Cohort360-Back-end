@@ -36,3 +36,32 @@ def send_email_notif_about_shared_request(request_name: str, owner: User, recipi
                                     txt_template="txt/shared_request.txt",
                                     context=context)
     email_notif.push()
+
+
+def send_email_notif_feasibility_report_confirmed(request_name: str, owner: User) -> None:
+    subject = "Votre demande de rapport de faisabilité"
+    context = {**BASE_CONTEXT,
+               "recipient_name": owner.displayed_name,
+               "request_name": request_name
+               }
+    email_notif = EmailNotification(subject=subject,
+                                    to=owner.email,
+                                    html_template="html/feasibility_report_requested.html",
+                                    txt_template="txt/feasibility_report_requested.txt",
+                                    context=context)
+    email_notif.push()
+
+
+def send_email_notif_feasibility_report_ready(request_name: str, owner: User, report_results: dict) -> None:
+    subject = "Votre rapport de faisabilité est prêt"
+    context = {**BASE_CONTEXT,
+               "recipient_name": owner.displayed_name,
+               "request_name": request_name,
+               "results": report_results
+               }
+    email_notif = EmailNotification(subject=subject,
+                                    to=owner.email,
+                                    html_template="html/feasibility_report_ready.html",
+                                    txt_template="txt/feasibility_report_ready.txt",
+                                    context=context)
+    email_notif.push()
