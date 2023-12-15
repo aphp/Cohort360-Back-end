@@ -2,7 +2,7 @@ import logging
 
 from admin_cohort.emails import EmailNotification
 from admin_cohort.models import User
-from admin_cohort.settings import FRONT_URL, EMAIL_SUPPORT_CONTACT
+from admin_cohort.settings import FRONT_URL, EMAIL_SUPPORT_CONTACT, BACK_URL
 
 BASE_CONTEXT = {"contact_email_address": EMAIL_SUPPORT_CONTACT}
 _logger = logging.getLogger('info')
@@ -52,12 +52,13 @@ def send_email_notif_feasibility_report_confirmed(request_name: str, owner: User
     email_notif.push()
 
 
-def send_email_notif_feasibility_report_ready(request_name: str, owner: User, report_results: dict) -> None:
+def send_email_notif_feasibility_report_ready(request_name: str, owner: User, dm_uuid: str) -> None:
     subject = "Votre rapport de faisabilité est prêt"
+    report_link = f"{BACK_URL}/cohort/dated-measures/{dm_uuid}/feasibility"
     context = {**BASE_CONTEXT,
                "recipient_name": owner.displayed_name,
                "request_name": request_name,
-               "results": report_results
+               "report_link": report_link
                }
     email_notif = EmailNotification(subject=subject,
                                     to=owner.email,

@@ -1,10 +1,12 @@
 import logging
 
 from django.db import transaction
+from django.http import StreamingHttpResponse
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
@@ -90,4 +92,9 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         except ValueError as ve:
             return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
         return super(DatedMeasureViewSet, self).partial_update(request, *args, **kwargs)
+
+    @action(detail=True, methods=['get'], url_path='feasibility')
+    def download_feasibility_report(self, request, *args, **kwargs):
+        report = dated_measure_service.build_feasibility_report(dm=self.get_object())
+        return StreamingHttpResponse(data=report, content_type='')
 

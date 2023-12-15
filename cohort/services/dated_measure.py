@@ -54,7 +54,7 @@ class DatedMeasureService:
         if job_status == JobStatus.finished:
             count_per_perimeter = data.pop(EXTRA, {})
             if count_per_perimeter:
-                self.send_email_report_ready(dm=dm, count_per_perimeter=count_per_perimeter)
+                self.send_email_report_ready(dm=dm)
             else:
                 if dm.mode == GLOBAL_DM_MODE:
                     data.update({"measure_min": data.pop(MINIMUM, None),
@@ -81,23 +81,69 @@ class DatedMeasureService:
                                   f"after requesting a feasibility report: {e}")
 
     @staticmethod
-    def build_report_results(count_per_perimeter: dict) -> dict:
-        report_results = {}
-        for pid, count in count_per_perimeter.items():
-            perimeter = Perimeter.objects.filter(cohort_id=pid).first()
-            if not perimeter:
-                continue
-            report_results[perimeter.name] = count
-        return report_results
-
-    def send_email_report_ready(self, dm: DatedMeasure, count_per_perimeter: dict) -> None:
-        report_results = self.build_report_results(count_per_perimeter)
+    def send_email_report_ready(dm: DatedMeasure) -> None:
         try:
             send_email_notif_feasibility_report_ready(request_name=dm.request_query_snapshot.request.name,
                                                       owner=dm.owner,
-                                                      report_results=report_results)
+                                                      dm_uuid=dm.uuid)
         except (ValueError, SMTPException) as e:
             _logger_err.exception(f"""DatedMeasure [{dm.uuid}] - Couldn't send "feasibility report ready" email to user: {e}""")
+
+    def build_feasibility_report(self, dm: DatedMeasure) -> dict:
+        feasibility_results = dm.feasibility_results.all()
+        report_results = {}
+        for res in feasibility_results:
+            try:
+                perimeter = Perimeter.objects.get(cohort_id=res.group_id)
+            except Perimeter.DoesNotExist:
+                continue
+            report_results[perimeter.name] = res.count
+        self.build_html_report(perimeters_tree=perimeters_tree)
+        return report_results
+
+    @staticmethod
+    def build_html_report(perimeters_tree: dict):
+        html = generate_html_tree(perimeters_tree)
+        return html
+
+
+def generate_html_tree(perimeters, level=1):
+    html_content = '<ul>'
+    for location, children in perimeters.items():
+        html_content += f"""<li>
+                            <input type="checkbox" id="location{level}">
+                            <label for="location{level}">{location}</label>
+                         """
+        if children:
+            html_content += generate_html_tree(children, level + 1)
+        html_content += '</li>'
+    html_content += '</ul>'
+    return html_content
+
+
+perimeters_tree = {
+    'APHP': {
+        'count': 555,
+        'children':
+        'Perimeter 1': {
+            'Perimeter 1.1': {
+                'Perimeter 1.1.1': None,
+                'Perimeter 1.1.2': None
+            },
+            'Perimeter 1.2': None
+        },
+        'Perimeter 2': {
+            'Perimeter 2.1': None,
+            'Perimeter 2.2': {
+                'Perimeter 2.2.1': None,
+                'Perimeter 2.2.2': None
+            }
+        }
+    }
+}
+
+html_tree = generate_html_tree(perimeters_tree)
+print(html_tree)  # Output the generated HTML code
 
 
 dated_measure_service = DatedMeasureService()
