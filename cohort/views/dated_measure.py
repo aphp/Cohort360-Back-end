@@ -2,6 +2,7 @@ import logging
 
 from django.db import transaction
 from django.http import StreamingHttpResponse
+from django.template.loader import get_template
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
@@ -88,13 +89,15 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                                     '400': openapi.Response("Bad Request")})
     def partial_update(self, request, *args, **kwargs):
         try:
-            is_for_feasibility = dated_measure_service.process_patch_data(dm=self.get_object(), data=request.data)
+            dated_measure_service.process_patch_data(dm=self.get_object(), data=request.data)
         except ValueError as ve:
             return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
         return super(DatedMeasureViewSet, self).partial_update(request, *args, **kwargs)
 
     @action(detail=True, methods=['get'], url_path='feasibility')
     def download_feasibility_report(self, request, *args, **kwargs):
-        report = dated_measure_service.build_feasibility_report(dm=self.get_object())
-        return StreamingHttpResponse(data=report, content_type='')
+        from django.shortcuts import render
+        html_report = dated_measure_service.build_feasibility_report(dm=self.get_object())
+        # html_content = get_template("html/feasibility_report.html").render({"html_report": html_report})
+        return render(request, "html/feasibility_report.html", context={"html_report": html_report})
 

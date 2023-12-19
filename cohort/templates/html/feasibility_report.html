@@ -1,0 +1,98 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="utf-8">
+    <link rel="icon" href="{% static 'admin_cohort/img/favicon.ico' %}"/>
+    <title>Rapport d'étude de faisabilité</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+        }
+        #root {
+            padding: 10px 20px;
+            box-shadow: 0 5px 10px 0 #80808070;
+            border-radius: 5px;
+        }
+        #root > h2 {
+            font-family: 'Roboto', sans-serif;
+            color: #4b4b7b;
+            margin-bottom: 50px;
+        }
+        #root > ul {
+            border-left: 5px solid #ddd;
+        }
+        ul.perimeters-tree {
+            font-family: 'Roboto', sans-serif;
+        }
+        ul.perimeters-tree li {
+            list-style: none;
+            padding: 0.2em 0;
+            width: fit-content;
+        }
+        ul.perimeters-tree li label {
+            display: inline-block;
+            margin-left: 0.5em;
+            padding: 0.2em 0.3em;
+            border-radius: 0.2em;
+            cursor: pointer;
+        }
+        ul.perimeters-tree li > ul {
+            padding-left: 1.2em;
+            position: relative;
+        }
+        ul.perimeters-tree li > ul > li {
+            display: none;
+            width: 100%;
+        }
+        ul.perimeters-tree li > ul:before {
+            content: '\203A';
+            visibility: visible;
+            font-size: 20px;
+            position: absolute;
+            left: -17px;
+            top: -25px;
+            transition: transform 0.3s;
+            font-weight: bolder;
+            color: #151588;
+            background: #4ca3ce70;
+            padding: 0 8px;
+            border-radius: 15px;
+        }
+        ul.perimeters-tree li input {
+            min-width: 100%;
+            position: absolute;
+            margin-top: 0.5em;
+            opacity: 0;
+            margin-left: -20px;
+            z-index: 9999;
+        }
+        ul.perimeters-tree li input:checked ~ ul:before {
+            transform: rotate(90deg);
+        }
+        ul.perimeters-tree li input:checked ~ ul > li {
+            display: block;
+        }
+        div.label-count {
+            display: flex;
+            justify-content: space-between;
+            min-width: 500px;
+        }
+        div.label-count span {
+            padding: 2px 4px;
+        }
+        span:not([data-key='0']) {
+            background: #eae9e9;
+            border-radius: 5px;
+            font-weight: bolder;
+        }
+    </style>
+</head>
+<body>
+    <div id="root">
+        <h2>Répartition Des Patients Par Structure Hospitalière</h2>
+        {{ html_report | safe }}
+    </div>
+</body>
+</html>

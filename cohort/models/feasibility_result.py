@@ -16,3 +16,6 @@ class FeasibilityResultCount(CohortBaseModel):
     perimeter_id = models.IntegerField(null=False, blank=False)
     count = models.IntegerField(null=False, blank=False)
     feasibility_result = models.ForeignKey(FeasibilityResult, related_name="feasibility_result_counts", on_delete=models.CASCADE, null=False)
+
+    class Meta:
+        unique_together = [("feasibility_result", "perimeter_id")]

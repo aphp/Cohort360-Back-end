@@ -120,22 +120,24 @@ class DatedMeasureService:
         return html_content
 
     @staticmethod
-    def get_patients_count(perimeter_id: int, result_counts: List[dict] = None) -> int:
+    def get_patients_count(perimeter_id: int, result_counts: QuerySet = None) -> int:
         for r in result_counts:
             if r['perimeter_id'] == perimeter_id:
-                count = r['count']
-                result_counts.remove(r)
-                return count
+                return r['count']
+                # count = r['count']
+                # result_counts.remove(r)
         return 0
 
-    def generate_html_tree(self, perimeters: QuerySet, result_counts: List[dict] = None) -> str:
-        html_content = '<ul class="tree-list">'
+    def generate_html_tree(self, perimeters: QuerySet, result_counts: QuerySet = None) -> str:
+        html_content = '<ul class="perimeters-tree">'
         for p in perimeters:
             patients_count = self.get_patients_count(perimeter_id=p.id, result_counts=result_counts)
             html_content += f"""<li class="item">
                                 <input type="checkbox" id="p{p.id}">
-                                <label for="p{p.id}">{p.name}</label>
-                                <strong id="count_p{p.id}">{patients_count}</strong>
+                                <div class="label-count">
+                                    <label for="p{p.id}">{p.name}</label>
+                                    <span id="count_p{p.id}" data-key="{patients_count}">{patients_count}</span>
+                                </div>
                              """
             children = p.children.all()
             if children:
@@ -145,73 +147,10 @@ class DatedMeasureService:
         return html_content
 
 
-# def generate_html_tree(perimeters, level=1):
-#     html_content = '<ul class="tree-list">'
-#     for perimeter, perimeter_data in perimeters.items():
-#         html_content += f"""<li class="item">
-#                             <input type="checkbox" id="perimeter_{level}">
-#                             <label for="perimeter_{level}">{perimeter}</label>
-#                             <strong id="perimeter_{level}">{perimeter_data.get('count')}</strong>
-#                          """
-#         children = perimeter_data.get('children')
-#         if children:
-#             html_content += generate_html_tree(children, level + 1)
-#         html_content += '</li>'
-#     html_content += '</ul>'
-#     return html_content
-
-
-perimeters_tree2 = {
-    'APHP': {
-        'count': 42,
-        'children': {
-            'Perimeter 1': {
-                'count': 23,
-                'children': {
-                    'Perimeter 1.1': {
-                        'count': 17,
-                        'children': {
-                            'Perimeter 1.1.1': {
-                                'count': 14,
-                                'children': {}
-                            },
-                            'Perimeter 1.1.2': {
-                                'count': 3,
-                                'children': {}
-                            }
-                        }
-                    },
-                    'Perimeter 1.2': {
-                        'count': 6,
-                        'children': {}
-                    }
-                }
-            },
-            'Perimeter 2': {
-                'count': 19,
-                'children': {
-                    'Perimeter 2.1': {
-                        'count': 10,
-                        'children': {}
-                    },
-                    'Perimeter 2.2': {
-                        'count': 9,
-                        'children': {
-                            'Perimeter 2.2.1': {
-                                'count': 7,
-                                'children': {}
-                            },
-                            'Perimeter 2.2.2': {
-                                'count': 2,
-                                'children': {}
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-
 dated_measure_service = DatedMeasureService()
+
+# d_m = DatedMeasure.objects.get(pk='9714dbcb-d67f-4a41-a9d1-9978b2396120')
+# html = dated_measure_service.build_feasibility_report(dm=d_m)
+#
+# with open("/home/hicham/dev/p3.html", 'w') as f:
+#     f.write(html)
