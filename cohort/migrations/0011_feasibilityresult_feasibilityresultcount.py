@@ -46,4 +46,8 @@ class Migration(migrations.Migration):
                 'abstract': False,
             },
         ),
+        migrations.AlterUniqueTogether(
+            name='feasibilityresultcount',
+            unique_together={('feasibility_result', 'perimeter_id')},
+        )
     ]
