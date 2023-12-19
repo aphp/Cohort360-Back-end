@@ -66,3 +66,17 @@ def send_email_notif_feasibility_report_ready(request_name: str, owner: User, dm
                                     txt_template="txt/feasibility_report_ready.txt",
                                     context=context)
     email_notif.push()
+
+
+def send_email_notif_error_feasibility_report(request_name: str, owner: User) -> None:
+    subject = "Votre demande de rapport de faisabilité a échoué"
+    context = {**BASE_CONTEXT,
+               "recipient_name": owner.displayed_name,
+               "request_name": request_name,
+               }
+    email_notif = EmailNotification(subject=subject,
+                                    to=owner.email,
+                                    html_template="html/feasibility_report_error.html",
+                                    txt_template="txt/feasibility_report_error.txt",
+                                    context=context)
+    email_notif.push()

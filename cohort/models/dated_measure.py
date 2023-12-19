@@ -25,6 +25,7 @@ class DatedMeasure(CohortBaseModel, JobModel):
     measure_max = models.BigIntegerField(null=True, blank=False)
     count_task_id = models.TextField(blank=True)
     mode = models.CharField(max_length=20, choices=DATED_MEASURE_MODE_CHOICES, default=SNAPSHOT_DM_MODE, null=True)
+    feasibility_report = models.BinaryField(null=True, blank=True)
 
     @property
     def count_outdated(self):

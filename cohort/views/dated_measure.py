@@ -1,8 +1,7 @@
 import logging
 
 from django.db import transaction
-from django.http import StreamingHttpResponse
-from django.template.loader import get_template
+from django.http import FileResponse
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
@@ -96,8 +95,13 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
 
     @action(detail=True, methods=['get'], url_path='feasibility')
     def download_feasibility_report(self, request, *args, **kwargs):
-        from django.shortcuts import render
-        html_report = dated_measure_service.build_feasibility_report(dm=self.get_object())
-        # html_content = get_template("html/feasibility_report.html").render({"html_report": html_report})
-        return render(request, "html/feasibility_report.html", context={"html_report": html_report})
+        dm = self.get_object()
+        if not dm.feasibility_report:
+            return Response(data="Missing report", status=status.HTTP_404_NOT_FOUND)
+        file_name = f"rapport_etude_de_faisabilite_{dm.created_at.strftime('%d-%m-%Y')}.zip"
+        response = FileResponse(dm.feasibility_report, content_type='application/zip')
+        response['Content-Disposition'] = f'attachment; filename="{file_name}"'
+        return response
+
+    # todo: add a periodic task to delete saved .zip files in DB
 
