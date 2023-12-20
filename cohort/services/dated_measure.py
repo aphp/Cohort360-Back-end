@@ -154,12 +154,3 @@ class DatedMeasureService:
 
 
 dated_measure_service = DatedMeasureService()
-
-# d_m = DatedMeasure.objects.get(pk='9714dbcb-d67f-4a41-a9d1-9978b2396120')
-# html = dated_measure_service.build_feasibility_report(dm=d_m)
-# with open("/home/hicham/dev/p3.html", 'w') as f:
-#     f.write(html)
-
-# counts_per_perimeter_1 = {group_id: count for (group_id, count) in
-#                          [("47543", "10"), ("59559", "10"), ("109370", "10"), ("38297", "10"), ("73973", "10"),
-#                           ("7735", "15"), ("59036", "15"), ("1034", "15"), ("215", "15"), ("71878", "15"), ("35876", "15"), ("57664", "25")]}
