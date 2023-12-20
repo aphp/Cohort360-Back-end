@@ -97,11 +97,8 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     def download_feasibility_report(self, request, *args, **kwargs):
         dm = self.get_object()
         if not dm.feasibility_report:
-            return Response(data="Missing report", status=status.HTTP_404_NOT_FOUND)
-        file_name = f"rapport_etude_de_faisabilite_{dm.created_at.strftime('%d-%m-%Y')}.zip"
+            return Response(data="Feasibility report not found", status=status.HTTP_404_NOT_FOUND)
+        file_name = dated_measure_service.get_file_name(dm=dm)
         response = FileResponse(dm.feasibility_report, content_type='application/zip')
-        response['Content-Disposition'] = f'attachment; filename="{file_name}"'
+        response['Content-Disposition'] = f'attachment; filename="{file_name}.zip"'
         return response
-
-    # todo: add a periodic task to delete saved .zip files in DB
-

@@ -316,3 +316,18 @@ class DMUpdateTests(DatedMeasuresTests):
         invalid_status = 'invalid_status'
         case = self.basic_err_case.clone(data_to_update={'request_job_status': invalid_status})
         self.check_patch_case(case)
+
+    @mock.patch('cohort.services.dated_measure.DatedMeasureService.build_feasibility_report')
+    def test_update_dm_by_sjs_callback_with_detailed_counts(self, mock_build_feasibility_report):
+        dm = self.model_objects.create(**self.basic_data)
+        extra = {group_id: count for (group_id, count) in [("1", "10"), ("2", "10"), ("3", "10"),
+                                                           ("4", "15"), ("5", "15"), ("6", "25")]}
+        data = {'request_job_status': 'finished',
+                'count': 25,
+                'extra': extra}
+        request = self.factory.patch(self.objects_url, data=data, format='json')
+        force_authenticate(request, dm.owner)
+        response = self.__class__.update_view(request, **{self.model._meta.pk.name: dm.uuid})
+        response.render()
+        self.assertEqual(dm.request_job_status, JobStatus.finished.value)
+        self.assertIsNotNone(dm.feasibility_report)

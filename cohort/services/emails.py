@@ -38,7 +38,7 @@ def send_email_notif_about_shared_request(request_name: str, owner: User, recipi
     email_notif.push()
 
 
-def send_email_notif_feasibility_report_confirmed(request_name: str, owner: User) -> None:
+def send_email_notif_feasibility_report_requested(request_name: str, owner: User) -> None:
     subject = "Votre demande de rapport de faisabilité"
     context = {**BASE_CONTEXT,
                "recipient_name": owner.displayed_name,
