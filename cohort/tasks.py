@@ -6,7 +6,7 @@ import cohort.services.conf_cohort_job_api as cohort_job_api
 from admin_cohort import celery_app
 from admin_cohort.types import JobStatus
 from admin_cohort.settings import COHORT_LIMIT
-from cohort.models import CohortResult, DatedMeasure
+from cohort.models import CohortResult, DatedMeasure, FeasibilityStudy
 from cohort.models.dated_measure import GLOBAL_DM_MODE
 from cohort.services.misc import log_count_task, log_create_task
 
@@ -33,21 +33,15 @@ def create_cohort_task(auth_headers: dict, json_query: str, cohort_uuid: str):
 
 
 @shared_task
-def get_count_task(auth_headers: dict, json_query: str, dm_uuid: str, is_for_feasibility: bool):
+def get_count_task(auth_headers: dict, json_query: str, dm_uuid: str):
     dm = DatedMeasure.objects.get(uuid=dm_uuid)
     dm.count_task_id = current_task.request.id or ""
     dm.request_job_status = JobStatus.pending
     dm.save()
-
-    if is_for_feasibility:
-        resp = cohort_job_api.post_count_feasibility(dm_uuid=dm_uuid,
-                                                     json_query=json_query,
-                                                     auth_headers=auth_headers)
-    else:
-        resp = cohort_job_api.post_count_cohort(dm_uuid=dm_uuid,
-                                                json_query=json_query,
-                                                auth_headers=auth_headers,
-                                                global_estimate=dm.mode == GLOBAL_DM_MODE)
+    resp = cohort_job_api.post_count_cohort(dm_uuid=dm_uuid,
+                                            json_query=json_query,
+                                            auth_headers=auth_headers,
+                                            global_estimate=dm.mode == GLOBAL_DM_MODE)
     if resp.success:
         dm.request_job_id = resp.fhir_job_id
     else:
@@ -55,6 +49,14 @@ def get_count_task(auth_headers: dict, json_query: str, dm_uuid: str, is_for_fea
         dm.request_job_fail_msg = resp.err_msg
     dm.save()
     log_count_task(dm_uuid, resp.success and "DatedMeasure updated" or resp.err_msg)
+
+
+@shared_task
+def get_feasibility_count_task(auth_headers: dict, json_query: str, fs_uuid: str):
+    resp = cohort_job_api.post_count_for_feasibility(fs_uuid=fs_uuid,
+                                                     json_query=json_query,
+                                                     auth_headers=auth_headers)
+    log_count_task(fs_uuid, resp.success and "FeasibilityStudy updated" or resp.err_msg)
 
 
 @shared_task

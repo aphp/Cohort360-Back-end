@@ -1,12 +1,10 @@
 import logging
 
 from django.db import transaction
-from django.http import FileResponse
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
-from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
@@ -15,7 +13,7 @@ from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagin
 from cohort.models import DatedMeasure
 from cohort.permissions import SJSorETLCallbackPermission
 from cohort.serializers import DatedMeasureSerializer
-from cohort.services.dated_measure import dated_measure_service, JOB_STATUS, MINIMUM, MAXIMUM, COUNT, EXTRA
+from cohort.services.dated_measure import dated_measure_service, JOB_STATUS, MINIMUM, MAXIMUM, COUNT
 from cohort.services.misc import is_sjs_user
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
@@ -81,8 +79,7 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                              properties={JOB_STATUS: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback"),
                                          MINIMUM: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback"),
                                          MAXIMUM: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback"),
-                                         COUNT: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback"),
-                                         EXTRA: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback, for feasibility reports")},
+                                         COUNT: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback")},
                              required=[JOB_STATUS, MINIMUM, MAXIMUM, COUNT]),
                          responses={'200': openapi.Response("DatedMeasure updated successfully", DatedMeasureSerializer()),
                                     '400': openapi.Response("Bad Request")})
@@ -92,13 +89,3 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         except ValueError as ve:
             return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
         return super(DatedMeasureViewSet, self).partial_update(request, *args, **kwargs)
-
-    @action(detail=True, methods=['get'], url_path='feasibility')
-    def download_feasibility_report(self, request, *args, **kwargs):
-        dm = self.get_object()
-        if not dm.feasibility_report:
-            return Response(data="Feasibility report not found", status=status.HTTP_404_NOT_FOUND)
-        file_name = dated_measure_service.get_file_name(dm=dm)
-        response = FileResponse(dm.feasibility_report, content_type='application/zip')
-        response['Content-Disposition'] = f'attachment; filename="{file_name}.zip"'
-        return response

@@ -159,10 +159,9 @@ def post_to_sjs(json_query: str, uuid: str, cohort_cls: AbstractCohortRequest, r
     return response_cls(success=True, fhir_job_id=job.job_id)
 
 
-def post_count_feasibility(auth_headers: dict, json_query: str, dm_uuid: str) -> CRBCountResponse:
-    # update_query_perimeter(query=json_query)
+def post_count_for_feasibility(auth_headers: dict, json_query: str, fs_uuid: str) -> CRBCountResponse:
     count_request = CohortCountFeasibility(auth_headers=auth_headers, sjs_client=SjsClient())
-    return post_to_sjs(json_query, dm_uuid, count_request, CRBCountResponse, log_count_task)
+    return post_to_sjs(json_query, fs_uuid, count_request, CRBCountResponse, log_count_task)
 
 
 def post_count_cohort(auth_headers: dict, json_query: str, dm_uuid: str, global_estimate: bool = False) -> CRBCountResponse:
