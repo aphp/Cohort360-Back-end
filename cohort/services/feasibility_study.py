@@ -53,9 +53,6 @@ class FeasibilityStudyService:
         if not job_status:
             raise ValueError(f"Bad Request: Invalid job status: {data.get(JOB_STATUS)}")
 
-        # todo: + store a json object containing all hierarchy with counts      OK
-        #       + provide sjs with callbackPath variable
-
         if job_status == JobStatus.finished:
             data["total_count"] = data.pop(COUNT, None)
             counts_per_perimeter = data.pop(EXTRA, {})
