@@ -149,6 +149,7 @@ def post_to_sjs(json_query: str, uuid: str, cohort_cls: AbstractCohortRequest, r
         if cohort_cls is CohortCountFeasibility:
             aphp_perimeter = Perimeter.objects.get(id=APHP_ID)
             cohort_query.source_population.care_site_cohort_list = [aphp_perimeter.cohort_id]
+            cohort_query.callbackPath = f"/cohort/feasibility-studies/{uuid}/"
         logger(uuid, f"Step 2: Send request to sjs: {cohort_query}")
         resp, data = cohort_cls.action(cohort_query)
     except (TypeError, ValueError, ValidationError, HTTPError) as e:
