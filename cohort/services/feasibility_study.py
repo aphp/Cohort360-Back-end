@@ -104,7 +104,7 @@ class FeasibilityStudyService:
         try:
             json_content, html_content = self.build_feasibility_report(counts_per_perimeter=counts_per_perimeter)
             html_content = get_template("html/feasibility_report.html").render({"html_content": html_content})
-            contents = dict(json=json_content,
+            contents = dict(json=json.dumps(json_content),
                             html=html_content)
             json_zip_bytes, html_zip_bytes = self.compress_report_contents(fs=fs, contents=contents)
             fs.report_json_content = json_zip_bytes
@@ -124,12 +124,12 @@ class FeasibilityStudyService:
             in_memory_zip.close()
         return zipped_bytes
 
-    def build_feasibility_report(self, counts_per_perimeter: dict) -> Tuple[str, str]:
+    def build_feasibility_report(self, counts_per_perimeter: dict) -> Tuple[dict, str]:
         root_perimeter = Perimeter.objects.filter(id=APHP_ID)
         return self.generate_report_content(perimeters=root_perimeter,
                                             counts_per_perimeter=counts_per_perimeter)
 
-    def generate_report_content(self, perimeters: QuerySet, counts_per_perimeter: dict = None) -> Tuple[str, str]:
+    def generate_report_content(self, perimeters: QuerySet, counts_per_perimeter: dict = None) -> Tuple[dict, str]:
         json_content = {}
         html_content = '<ul class="perimeters-tree">'
 
@@ -146,10 +146,12 @@ class FeasibilityStudyService:
                              """
             children = p.children.all()
             if children:
-                html_content += self.generate_report_content(perimeters=children, counts_per_perimeter=counts_per_perimeter)
+                content = self.generate_report_content(perimeters=children, counts_per_perimeter=counts_per_perimeter)
+                json_content.update(content[0])
+                html_content += content[1]
             html_content += '</li>'
         html_content += '</ul>'
-        return json.dumps(json_content), html_content
+        return json_content, html_content
 
 
 feasibility_study_service = FeasibilityStudyService()

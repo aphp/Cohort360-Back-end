@@ -7,8 +7,6 @@ from typing import TYPE_CHECKING
 import requests
 from requests import Response
 
-from cohort.crb.enums import Mode
-
 if TYPE_CHECKING:
     from cohort.crb.schemas import CohortQuery, SparkJobObject
 

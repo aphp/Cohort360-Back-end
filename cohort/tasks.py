@@ -6,7 +6,7 @@ import cohort.services.conf_cohort_job_api as cohort_job_api
 from admin_cohort import celery_app
 from admin_cohort.types import JobStatus
 from admin_cohort.settings import COHORT_LIMIT
-from cohort.models import CohortResult, DatedMeasure, FeasibilityStudy
+from cohort.models import CohortResult, DatedMeasure
 from cohort.models.dated_measure import GLOBAL_DM_MODE
 from cohort.services.misc import log_count_task, log_create_task
 

@@ -112,7 +112,6 @@ class TasksTests(DatedMeasuresTests):
         mock_cohort_job_api.post_count_cohort.return_value = CRBCountResponse(**self.basic_count_response)
         get_count_task(auth_headers={},
                        json_query="{}",
-                       is_for_feasibility=False,
                        dm_uuid=self.user1_req1_snap1_initial_dm.uuid)
 
         new_dm = DatedMeasure.objects.filter(pk=self.user1_req1_snap1_initial_dm.uuid,
@@ -145,7 +144,6 @@ class TasksTests(DatedMeasuresTests):
         mock_cohort_job_api.post_count_cohort.return_value = CRBCountResponse(**self.basic_count_response)
         get_count_task(auth_headers={},
                        json_query="{}",
-                       is_for_feasibility=False,
                        dm_uuid=self.user1_req1_snap1_initial_global_dm.uuid)
 
         new_dm = DatedMeasure.objects.filter(pk=self.user1_req1_snap1_initial_global_dm.uuid,
@@ -157,7 +155,6 @@ class TasksTests(DatedMeasuresTests):
         mock_cohort_job_api.post_count_cohort.return_value = CRBCountResponse(**self.failed_count_response)
         get_count_task(auth_headers={},
                        json_query="{}",
-                       is_for_feasibility=False,
                        dm_uuid=self.user1_req1_snap1_initial_dm.uuid)
         test_err_msg = "Error on getting count"
         new_dm = DatedMeasure.objects.filter(pk=self.user1_req1_snap1_initial_dm.uuid,

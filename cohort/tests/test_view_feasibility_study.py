@@ -92,6 +92,7 @@ class TestFeasibilityStudiesService(TestCase):
         self.counts_per_perimeter = {cohort_id: count for (cohort_id, count) in [("1", "25"), ("2", "10"), ("3", "10"), ("4", "15"), ("5", "15")]}
 
     def test_build_feasibility_report(self):
-        html = feasibility_study_service.build_feasibility_report(counts_per_perimeter=self.counts_per_perimeter)
-        self.assertEqual(html.count('<li'), len(self.counts_per_perimeter))
-        self.assertEqual(html.count('<input'), len(self.counts_per_perimeter))
+        json_content, html_content = feasibility_study_service.build_feasibility_report(counts_per_perimeter=self.counts_per_perimeter)
+        self.assertEqual(html_content.count('<li'), len(self.counts_per_perimeter))
+        self.assertEqual(html_content.count('<input'), len(self.counts_per_perimeter))
+        self.assertEqual(len(json_content), len(self.counts_per_perimeter))

@@ -443,6 +443,7 @@ class ViewSetTests(BaseTests):
 
         if case.success:
             if check_fields_updated:
+                obj.refresh_from_db()
                 for field in case.data_to_update:
                     f = f"manual_{field}" if field in self.manual_dupplicated_fields else field
 
