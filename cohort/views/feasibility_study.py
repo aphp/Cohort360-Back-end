@@ -24,17 +24,11 @@ _logger_err = logging.getLogger('django.request')
 
 
 class FeasibilityStudyFilter(filters.FilterSet):
-    request_id = filters.CharFilter(field_name='request_query_snapshot__request__pk')
-    ordering = OrderingFilter(fields=("-created_at", "modified_at", "result_size"))
+    ordering = OrderingFilter(fields=("-created_at",))
 
     class Meta:
         model = FeasibilityStudy
-        fields = ('uuid',
-                  'mode',
-                  'request_id',
-                  'count_task_id',
-                  'request_query_snapshot',
-                  'request_query_snapshot__request')
+        fields = ["created_at"]
 
 
 class FeasibilityStudyViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
@@ -69,28 +63,28 @@ class FeasibilityStudyViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
-        transaction.on_commit(lambda: feasibility_study_service.process_feasibility_study(fs_uuid=response.data.get("uuid"),
-                                                                                          request=request))
+        transaction.on_commit(lambda: feasibility_study_service.process_feasibility_study_request(fs_uuid=response.data.get("uuid"),
+                                                                                                  request=request))
         return response
 
-    @swagger_auto_schema(operation_summary="Called by SJS with detailed count",
+    @swagger_auto_schema(operation_summary="Called by SJS with detailed counts",
                          request_body=openapi.Schema(
                              type=openapi.TYPE_OBJECT,
                              properties={JOB_STATUS: openapi.Schema(type=openapi.TYPE_STRING, description="SJS job status"),
                                          COUNT: openapi.Schema(type=openapi.TYPE_STRING, description="Total patient count"),
-                                         EXTRA: openapi.Schema(type=openapi.TYPE_STRING, description="Detailed patient count")},
+                                         EXTRA: openapi.Schema(type=openapi.TYPE_STRING, description="Detailed patient counts")},
                              required=[JOB_STATUS, COUNT, EXTRA]),
                          responses={'200': openapi.Response("FeasibilityStudy updated successfully", FeasibilityStudySerializer()),
                                     '400': openapi.Response("Bad Request")})
     def partial_update(self, request, *args, **kwargs):
         try:
-            feasibility_study_service.process_patch_data(dm=self.get_object(), data=request.data)
+            feasibility_study_service.process_patch_data(fs=self.get_object(), data=request.data)
         except ValueError as ve:
             return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
         return super(FeasibilityStudyViewSet, self).partial_update(request, *args, **kwargs)
 
     @action(detail=True, methods=['get'], url_path='download')
-    def download_feasibility_report(self, request, *args, **kwargs):
+    def download_report(self, request, *args, **kwargs):
         fs = self.get_object()
         if not fs.report_file:
             return Response(data="Feasibility report not found", status=status.HTTP_404_NOT_FOUND)

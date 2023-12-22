@@ -1,19 +1,17 @@
 import random
 from datetime import timedelta
 from typing import List, Any
-from unittest import mock, TestCase
+from unittest import mock
 from unittest.mock import MagicMock
 
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import force_authenticate
 
-from accesses.models import Perimeter
 from admin_cohort.tools.tests_tools import random_str, ListCase, RetrieveCase, CaseRetrieveFilter, CreateCase, DeleteCase, PatchCase
 from admin_cohort.types import JobStatus
 from cohort.models import DatedMeasure, RequestQuerySnapshot, Request
 from cohort.models.dated_measure import DATED_MEASURE_MODE_CHOICES, GLOBAL_DM_MODE
-from cohort.services.dated_measure import dated_measure_service
 from cohort.tests.tests_view_rqs import RqsTests
 from cohort.views import DatedMeasureViewSet
 
@@ -301,9 +299,7 @@ class DMUpdateTests(DatedMeasuresTests):
         self.assertEqual(response.data.get("measure_min"), data['minimum'])
         self.assertEqual(response.data.get("measure_max"), data['maximum'])
 
-    @mock.patch('cohort.services.dated_measure.DatedMeasureService.send_email_feasibility_report_error')
-    def test_update_dm_by_sjs_callback_status_failed(self, mock_send_email_report_error):
-        mock_send_email_report_error.return_value = None
+    def test_update_dm_by_sjs_callback_status_failed(self):
         dm: DatedMeasure = self.model_objects.create(**self.basic_data)
         data = {'request_job_status': 'error',
                 'message': 'Error on count job'
@@ -315,51 +311,8 @@ class DMUpdateTests(DatedMeasuresTests):
         self.assertEqual(response.data.get("request_job_status"), JobStatus.failed.value)
         self.assertIsNotNone(response.data.get("request_job_fail_msg"))
         self.assertIsNotNone(response.data.get("request_job_duration"))
-        mock_send_email_report_error.assert_called()
 
     def test_error_update_dm_by_sjs_callback_invalid_status(self):
         invalid_status = 'invalid_status'
         case = self.basic_err_case.clone(data_to_update={'request_job_status': invalid_status})
         self.check_patch_case(case)
-
-    @mock.patch('cohort.services.dated_measure.DatedMeasureService.send_email_feasibility_report_ready')
-    @mock.patch('cohort.services.dated_measure.DatedMeasureService.build_feasibility_report')
-    def test_update_dm_by_sjs_callback_with_detailed_counts(self, mock_build_report, mock_send_email_report_ready):
-        mock_build_report.return_value = "<html><body><h1>Some HTML</h1></body></html>"
-        mock_send_email_report_ready.return_value = None
-        dm = self.model_objects.create(**self.basic_data)
-        extra = {group_id: count for (group_id, count) in [("1", "10"), ("2", "10"), ("3", "10"),
-                                                           ("4", "15"), ("5", "15"), ("6", "25")]}
-        data = {'request_job_status': 'finished',
-                'count': 25,
-                'extra': extra}
-        request = self.factory.patch(self.objects_url, data=data, format='json')
-        force_authenticate(request, dm.owner)
-        response = self.__class__.update_view(request, **{self.model._meta.pk.name: dm.uuid})
-        response.render()
-        self.assertEqual(response.data.get('request_job_status'), JobStatus.finished.value)
-        self.assertIsNotNone(response.data.get('feasibility_report'))
-        mock_build_report.assert_called()
-        mock_send_email_report_ready.assert_called()
-
-
-class TestDatedMeasureService(TestCase):
-    @staticmethod
-    def create_perimeters_tree():
-        basic_data = [{'id': 8312002244, 'name': 'APHP', 'source_value': 'APHP', 'cohort_id': '1', 'local_id': '8312002244', 'parent_id': None},
-                      {'id': 8312002245, 'name': 'P2', 'source_value': 'P2', 'cohort_id': '2', 'local_id': '8312002245', 'parent_id': 8312002244},
-                      {'id': 8312002246, 'name': 'P3', 'source_value': 'P3', 'cohort_id': '3', 'local_id': '8312002246', 'parent_id': 8312002245},
-                      {'id': 8312002247, 'name': 'P4', 'source_value': 'P4', 'cohort_id': '4', 'local_id': '8312002247', 'parent_id': 8312002244},
-                      {'id': 8312002248, 'name': 'P5', 'source_value': 'P5', 'cohort_id': '5', 'local_id': '8312002248', 'parent_id': 8312002247}]
-        for d in basic_data:
-            Perimeter.objects.create(**d)
-
-    def setUp(self):
-        super(TestDatedMeasureService, self).setUp()
-        self.create_perimeters_tree()
-        self.counts_per_perimeter = {cohort_id: count for (cohort_id, count) in [("1", "25"), ("2", "10"), ("3", "10"), ("4", "15"), ("5", "15")]}
-
-    def test_build_feasibility_report(self):
-        html = dated_measure_service.build_feasibility_report(counts_per_perimeter=self.counts_per_perimeter)
-        self.assertEqual(html.count('<li'), len(self.counts_per_perimeter))
-        self.assertEqual(html.count('<input'), len(self.counts_per_perimeter))

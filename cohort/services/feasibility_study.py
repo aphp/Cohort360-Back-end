@@ -34,7 +34,7 @@ _logger_err = logging.getLogger('django.request')
 
 class FeasibilityStudyService:
 
-    def process_feasibility_study(self, fs_uuid: str, request):
+    def process_feasibility_study_request(self, fs_uuid: str, request):
         fs = FeasibilityStudy.objects.get(pk=fs_uuid)
         try:
             auth_headers = get_authorization_header(request)
@@ -50,24 +50,25 @@ class FeasibilityStudyService:
         _logger.info(f"Received data to patch FeasibilityStudy: {data}")
         job_status = data.get(JOB_STATUS, "")
         job_status = fhir_to_job_status().get(job_status.upper())
-        if not job_status:
-            raise ValueError(f"Bad Request: Invalid job status: {data.get(JOB_STATUS)}")
 
-        if job_status == JobStatus.finished:
-            data["total_count"] = data.pop(COUNT, None)
-            counts_per_perimeter = data.pop(EXTRA, {})
-            if not counts_per_perimeter:
-                raise ValueError(f"Bad Request: Payload missing `{EXTRA}` key")
-            try:
+        try:
+            if not job_status:
+                raise ValueError(f"Bad Request: Invalid job status: {data.get(JOB_STATUS)}")
+            if job_status == JobStatus.finished:
+                data["total_count"] = data.pop(COUNT, None)
+                counts_per_perimeter = data.pop(EXTRA, {})
+                if not counts_per_perimeter:
+                    raise ValueError(f"Bad Request: Payload missing `{EXTRA}` key")
                 self.persist_feasibility_report(fs=fs, counts_per_perimeter=counts_per_perimeter)
-            except ValueError as e:
+                self.send_email_feasibility_report_ready(fs=fs)
+            else:
+                data["request_job_fail_msg"] = data.pop(ERR_MESSAGE, None)
                 self.send_email_feasibility_report_error(fs=fs)
-                _logger_err.exception(f"FeasibilityStudy [{fs.uuid}] - Error saving feasibility report - {e}")
-            self.send_email_feasibility_report_ready(fs=fs)
-        else:
-            data["request_job_fail_msg"] = data.pop(ERR_MESSAGE, None)
+                _logger_err.exception(f"FeasibilityStudy [{fs.uuid}] - Error on SJS callback")
+        except ValueError as ve:
             self.send_email_feasibility_report_error(fs=fs)
-            _logger_err.exception(f"FeasibilityStudy [{fs.uuid}] - Error on SJS callback")
+            _logger_err.exception(f"FeasibilityStudy [{fs.uuid}] - Error on SJS callback - {ve}")
+            raise ve
 
     @staticmethod
     def send_email_feasibility_report_requested(fs: FeasibilityStudy) -> None:
@@ -99,15 +100,18 @@ class FeasibilityStudyService:
     def get_file_name(fs: FeasibilityStudy) -> str:
         return f"{REPORT_FILE_NAME}_{fs.created_at.strftime('%d-%m-%Y')}"
 
-    def persist_feasibility_report(self, fs: FeasibilityStudy, counts_per_perimeter: dict) -> None:
-        json_content, html_content = self.build_feasibility_report(counts_per_perimeter=counts_per_perimeter)
-        html_content = get_template("html/feasibility_report.html").render({"html_content": html_content})
-        contents = dict(json=json_content,
-                        html=html_content)
-        json_zip_bytes, html_zip_bytes = self.compress_report_contents(fs=fs, contents=contents)
-        fs.report_json_content = json_zip_bytes
-        fs.report_file = html_zip_bytes
-        fs.save()
+    def persist_feasibility_report(self, fs: FeasibilityStudy, counts_per_perimeter: dict):
+        try:
+            json_content, html_content = self.build_feasibility_report(counts_per_perimeter=counts_per_perimeter)
+            html_content = get_template("html/feasibility_report.html").render({"html_content": html_content})
+            contents = dict(json=json_content,
+                            html=html_content)
+            json_zip_bytes, html_zip_bytes = self.compress_report_contents(fs=fs, contents=contents)
+            fs.report_json_content = json_zip_bytes
+            fs.report_file = html_zip_bytes
+            fs.save()
+        except Exception as e :
+            raise ValueError(f"Error saving feasibility report - {e}")
 
     def compress_report_contents(self, fs: FeasibilityStudy, contents: dict) -> List[bytes]:
         zipped_bytes = []
@@ -115,7 +119,7 @@ class FeasibilityStudyService:
             in_memory_zip = BytesIO()
             file_name = self.get_file_name(fs=fs)
             with zipfile.ZipFile(in_memory_zip, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-                zip_file.writestr(f"{file_name}.{content_type}", str.encode(content))
+                zip_file.writestr(f"{file_name}.{content_type}", str(content))
             zipped_bytes.append(in_memory_zip.getvalue())
             in_memory_zip.close()
         return zipped_bytes
