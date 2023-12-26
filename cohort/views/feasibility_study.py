@@ -31,7 +31,7 @@ class FeasibilityStudyFilter(filters.FilterSet):
         fields = ["created_at"]
 
 
-class FeasibilityStudyViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
+class FeasibilityStudyViewSet(UserObjectsRestrictedViewSet):
     queryset = FeasibilityStudy.objects.all()
     serializer_class = FeasibilityStudySerializer
     http_method_names = ['get', 'post', 'patch']

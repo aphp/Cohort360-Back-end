@@ -1,9 +1,10 @@
 from unittest import TestCase, mock
 
+from django.urls import reverse
 from rest_framework import status
 
 from accesses.models import Perimeter
-from admin_cohort.tools.tests_tools import PatchCase
+from admin_cohort.tools.tests_tools import PatchCase, FileDownloadCase
 from cohort.models import RequestQuerySnapshot, Request, Folder, FeasibilityStudy
 from cohort.services.feasibility_study import feasibility_study_service
 from cohort.tests.cohort_app_tests import CohortAppTests
@@ -73,6 +74,27 @@ class FeasibilityStudyViewTests(CohortAppTests):
         for case in (case_status_not_finished, case_missing_extra):
             self.check_patch_case(case)
             mock_send_email_report_error.assert_called()
+
+    def test_download_report(self):
+        html_report = "<html><body><p>some content</p></body></html>"
+        f_study = FeasibilityStudy.objects.create(**self.basic_data,
+                                                  report_file=str.encode(html_report))
+        url = reverse(viewname="cohort:feasibility-studies-download-report", args=[f_study.uuid])
+        base_case = FileDownloadCase(url=url,
+                                     view_params=dict(uuid=f_study.uuid),
+                                     expected_content_type=None,
+                                     user=self.user1,
+                                     success=True,
+                                     status=status.HTTP_200_OK)
+        success_case = base_case.clone(expected_content_type="application/zip")
+        self.check_file_download_case(case=success_case, download_view=self.__class__.download_view)
+
+        f_study.report_file = None
+        f_study.save()
+        error_case = base_case.clone(success=False,
+                                     status=status.HTTP_404_NOT_FOUND)
+        self.check_file_download_case(case=error_case, download_view=self.__class__.download_view)
+
 
 
 class TestFeasibilityStudiesService(TestCase):

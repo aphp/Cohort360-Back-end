@@ -237,6 +237,17 @@ class RetrieveCase(RequestCase):
         return self.__class__(**{**self.__dict__, **kwargs})
 
 
+class FileDownloadCase(RequestCase):
+    def __init__(self, url: str, view_params: dict = None, expected_content_type: str = None, **kwargs):
+        super().__init__(**kwargs)
+        self.url = url
+        self.view_params = view_params or dict()
+        self.expected_content_type = expected_content_type
+
+    def clone(self, **kwargs) -> FileDownloadCase:
+        return self.__class__(**{**self.__dict__, **kwargs})
+
+
 class BaseTests(TestCase):
     databases = ["default"]
     unupdatable_fields = []
@@ -517,11 +528,8 @@ class ViewSetTests(BaseTests):
         force_authenticate(request, case.user)
         response = self.__class__.retrieve_view(request, **case.view_params)
         response.render()
-        self.assertEqual(
-            response.status_code, case.status,
-            msg=(f"{case.title}: "
-                 + prettify_json(response.content) if response.content else ""),
-        )
+        self.assertEqual(response.status_code, case.status,
+                         msg=f"{case.title}: " + prettify_json(response.content) if response.content else "")
         res: dict = response.data
 
         if case.success:
@@ -531,6 +539,15 @@ class ViewSetTests(BaseTests):
                                  case.description)
             else:
                 self.assertEqual(len(res), 0, case.description)
+
+    def check_file_download_case(self, case: FileDownloadCase, download_view: Any = None):
+        request = self.factory.get(path=case.url, data=[])
+        force_authenticate(request, case.user)
+        response = download_view(request, **case.view_params)
+        self.assertEqual(response.status_code, case.status)
+        if case.success:
+            self.assertEqual(case.expected_content_type, response.headers.get("Content-Type"), case.description)
+            self.assertTrue(response.block_size > 0, msg="Unexpected empty FileResponse")
 
 
 class ViewSetTestsWithBasicPerims(ViewSetTests, SimplePerimSetup):
