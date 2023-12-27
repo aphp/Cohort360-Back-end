@@ -55,7 +55,7 @@ pyspnego==0.7.0
 python-json-logger==2.0.7
 pytz==2022.7
 pytest==7.4.0
-PyYAML==6.0.1
+PyYAML==6.0
 redis==4.4.4
 requests==2.31.0
 requests-kerberos==0.14.0
