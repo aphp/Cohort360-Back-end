@@ -13,7 +13,7 @@ ENV LC_CTYPE="fr_FR.utf8"
 RUN dpkg-reconfigure locales
 
 WORKDIR /app
-COPY . .
+COPY . /app
 COPY --from=builder /usr/local/lib/python3.11/site-packages/ /usr/local/lib/python3.11/site-packages/
 COPY --from=builder /usr/bin /usr/bin
 COPY --from=builder /usr/local/bin/ /usr/local/bin/
