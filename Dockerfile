@@ -16,9 +16,9 @@ ENV LC_CTYPE="fr_FR.utf8"
 RUN dpkg-reconfigure locales
 
 COPY --from=builder /usr/local/lib/python3.11/site-packages/ /usr/local/lib/python3.11/site-packages/
+COPY --from=builder /usr/sbin /usr/sbin
 COPY --from=builder /usr/bin /usr/bin
-RUN echo "-------- Contents of the /usr/bin directory:" && ls -l /usr/bin
-RUN echo "-------- end Contents of the /usr/bin directory"
+RUN echo "-------- Contents of the /usr/sbin directory:" && ls -l /usr/sbin
 COPY --from=builder /usr/local/bin/ /usr/local/bin/
 COPY --from=builder /tempapp /app
 COPY .conf/nginx.conf /etc/nginx/
