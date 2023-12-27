@@ -3,8 +3,6 @@ set -e
 
 mkdir -p /app/log
 
-BACK_HOST='localhost:8000'
-
 sed -i s/{{BACK_HOST}}/"$BACK_HOST"/g /etc/nginx/nginx.conf;
 
 service nginx restart
