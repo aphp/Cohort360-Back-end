@@ -1,7 +1,7 @@
 FROM python:3.11.4-alpine as builder
 WORKDIR /app
 COPY requirements.txt .
-RUN apk add --no-cache krb5-dev build-base
+RUN apk add --no-cache krb5 build-base
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
 
