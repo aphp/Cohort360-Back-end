@@ -28,4 +28,4 @@ RUN chmod +x /app/docker-entrypoint.sh
 
 RUN echo "-------- 5 Contents of the /app directory:" && ls -l /app
 RUN echo "-------- end Contents of the /app directory 5"
-ENTRYPOINT ["/app/docker-entrypoint.sh"]
+ENTRYPOINT ["docker-entrypoint.sh"]
