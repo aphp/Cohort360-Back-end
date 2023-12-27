@@ -8,7 +8,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 FROM harbor.eds.aphp.fr/cohort360/python:3.11.4-slim-buster AS final
 WORKDIR /app
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update -y && apt-get install -y nginx curl gettext locales locales-all xxd gcc libkrb5-dev krb5-user nano cron && rm -rf /var/lib/apt/lists/*
+RUN apt-get update -y && apt-get install -y nginx curl gettext locales locales-all xxd krb5-user nano cron && rm -rf /var/lib/apt/lists/*
 ENV LC_ALL="fr_FR.utf8"
 ENV LC_CTYPE="fr_FR.utf8"
 RUN dpkg-reconfigure locales
