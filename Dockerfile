@@ -5,10 +5,11 @@ RUN apk add --no-cache krb5-dev build-base
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
 
-FROM nginx:1.21-alpine AS final
+FROM harbor.eds.aphp.fr/cohort360/nginx:1.21 AS final
 WORKDIR /app
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update -y && apt-get install -y nginx curl gettext locales locales-all xxd krb5-user nano cron
+# check maybe some of the packages is already present in nginx image
+RUN apt-get update -y && apt-get install -y curl gettext locales locales-all xxd krb5-user nano cron
 ENV LC_ALL="fr_FR.utf8"
 ENV LC_CTYPE="fr_FR.utf8"
 RUN dpkg-reconfigure locales
@@ -16,6 +17,7 @@ RUN dpkg-reconfigure locales
 COPY --from=builder /usr/local/lib/python3.11/site-packages/ /usr/local/lib/python3.11/site-packages/
 COPY --from=builder /usr/bin /usr/bin
 COPY --from=builder /usr/local/bin/ /usr/local/bin/
+COPY --from=builder /app /app
 
 COPY .conf/nginx.conf /etc/nginx/
 
