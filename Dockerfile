@@ -10,7 +10,7 @@ FROM harbor.eds.aphp.fr/cohort360/nginx:1.21 AS final
 WORKDIR /app
 ENV DEBIAN_FRONTEND=noninteractive
 # check maybe some of the packages is already present in nginx image
-RUN apt-get update -y && apt-get install -y curl gettext locales locales-all xxd krb5-user nano cron
+RUN apt-get update -y && apt-get install -y bash curl gettext locales locales-all xxd krb5-user nano cron
 ENV LC_ALL="fr_FR.utf8"
 ENV LC_CTYPE="fr_FR.utf8"
 RUN dpkg-reconfigure locales
@@ -21,11 +21,7 @@ COPY --from=builder /usr/local/bin/ /usr/local/bin/
 COPY --from=builder /tempapp /app
 COPY .conf/nginx.conf /etc/nginx/
 COPY docker-entrypoint.sh /app/
-RUN echo "-------- 4 Contents of the /app directory:" && ls -l /app
-RUN echo "-------- end Contents of the /app directory 4"
 
 RUN chmod +x /app/docker-entrypoint.sh
 
-RUN echo "-------- 5 Contents of the /app directory:" && ls -l /app
-RUN echo "-------- end Contents of the /app directory 5"
-ENTRYPOINT ["docker-entrypoint.sh"]
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
