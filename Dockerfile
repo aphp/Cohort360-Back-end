@@ -16,7 +16,7 @@ WORKDIR /app
 COPY . .
 COPY --from=builder /usr/local/lib/python3.11/site-packages/ /usr/local/lib/python3.11/site-packages/
 COPY --from=builder /usr/bin /usr/bin
-COPY --from=base /usr/local/bin/ /usr/local/bin/
+COPY --from=builder /usr/local/bin/ /usr/local/bin/
 COPY .conf/nginx.conf /etc/nginx/
 
 RUN chmod +x docker-entrypoint.sh
