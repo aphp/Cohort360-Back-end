@@ -1,4 +1,4 @@
-FROM harbor.eds.aphp.fr/cohort360/python:3.11.4-slim as builder
+FROM harbor.eds.aphp.fr/cohort360/python:3.11.4-alpine as builder
 WORKDIR /app
 COPY requirements.txt .
 RUN apk add --no-cache krb5-dev build-base
