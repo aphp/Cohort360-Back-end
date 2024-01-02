@@ -20,7 +20,6 @@ class FhirFilterFilter(filters.FilterSet):
 class FhirFilterViewSet(viewsets.ModelViewSet):
     queryset = FhirFilter.objects.all()
     serializer_class = FhirFilterSerializer
-    # lookup_field = "uuid"
     http_method_names = ["get"]
     permission_classes = [IsOwnerPermission]
     swagger_tags = ['Exports - fhir-filters']
