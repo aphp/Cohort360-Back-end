@@ -10,11 +10,17 @@ from requests import Response, HTTPError
 from rest_framework import status
 from rest_framework.request import Request
 
+from accesses.models import Perimeter
 from admin_cohort.middleware.request_trace_id_middleware import add_trace_id
 from admin_cohort.types import JobStatus, MissingDataError
 from cohort.crb import CohortQuery, CohortCreate, CohortCountAll, CohortCount, AbstractCohortRequest, SjsClient
+from cohort.crb.cohort_requests.count_feasibility import CohortCountFeasibility
 from cohort.services.crb_responses import CRBCountResponse, CRBCohortResponse
 from cohort.services.misc import log_count_task, log_create_task, log_delete_task, log_count_all_task
+
+env = os.environ
+
+APHP_ID = int(env.get("TOP_HIERARCHY_CARE_SITE_ID"))
 
 COHORT_REQUEST_BUILDER_URL = os.environ.get('COHORT_REQUEST_BUILDER_URL')
 JOBS_API = f"{COHORT_REQUEST_BUILDER_URL}/jobs"
@@ -140,6 +146,10 @@ def post_to_sjs(json_query: str, uuid: str, cohort_cls: AbstractCohortRequest, r
     try:
         logger(uuid, f"Step 1: Parse the json query to make it CRB compatible {json_query}")
         cohort_query = CohortQuery(cohortUuid=uuid, **json.loads(json_query))
+        if cohort_cls is CohortCountFeasibility:
+            aphp_perimeter = Perimeter.objects.get(id=APHP_ID)
+            cohort_query.source_population.care_site_cohort_list = [aphp_perimeter.cohort_id]
+            cohort_query.callbackPath = f"/cohort/feasibility-studies/{uuid}/"
         logger(uuid, f"Step 2: Send request to sjs: {cohort_query}")
         resp, data = cohort_cls.action(cohort_query)
     except (TypeError, ValueError, ValidationError, HTTPError) as e:
@@ -150,10 +160,15 @@ def post_to_sjs(json_query: str, uuid: str, cohort_cls: AbstractCohortRequest, r
     return response_cls(success=True, fhir_job_id=job.job_id)
 
 
-def post_count_cohort(auth_headers: dict, json_query: str, dm_uuid: str, global_estimate=False) -> CRBCountResponse:
-    count_cls, logger = (CohortCountAll, log_count_all_task) if global_estimate else (CohortCount, log_count_task)
-    cohort_request = count_cls(auth_headers=auth_headers, sjs_client=SjsClient())
-    return post_to_sjs(json_query, dm_uuid, cohort_request, CRBCountResponse, logger)
+def post_count_for_feasibility(auth_headers: dict, json_query: str, fs_uuid: str) -> CRBCountResponse:
+    count_request = CohortCountFeasibility(auth_headers=auth_headers, sjs_client=SjsClient())
+    return post_to_sjs(json_query, fs_uuid, count_request, CRBCountResponse, log_count_task)
+
+
+def post_count_cohort(auth_headers: dict, json_query: str, dm_uuid: str, global_estimate: bool = False) -> CRBCountResponse:
+    count_cls, logger = global_estimate and (CohortCountAll, log_count_all_task) or (CohortCount, log_count_task)
+    count_request = count_cls(auth_headers=auth_headers, sjs_client=SjsClient())
+    return post_to_sjs(json_query, dm_uuid, count_request, CRBCountResponse, logger)
 
 
 def post_create_cohort(auth_headers: dict, json_query: str, cr_uuid: str) -> CRBCohortResponse:

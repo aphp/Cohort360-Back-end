@@ -237,6 +237,17 @@ class RetrieveCase(RequestCase):
         return self.__class__(**{**self.__dict__, **kwargs})
 
 
+class FileDownloadCase(RequestCase):
+    def __init__(self, url: str, view_params: dict = None, expected_content_type: str = None, **kwargs):
+        super().__init__(**kwargs)
+        self.url = url
+        self.view_params = view_params or dict()
+        self.expected_content_type = expected_content_type
+
+    def clone(self, **kwargs) -> FileDownloadCase:
+        return self.__class__(**{**self.__dict__, **kwargs})
+
+
 class BaseTests(TestCase):
     databases = ["default"]
     unupdatable_fields = []
@@ -428,7 +439,7 @@ class ViewSetTests(BaseTests):
                 self.assertIsNone(obj.delete_datetime)
             obj.delete()
 
-    def check_patch_case(self, case: PatchCase, other_view: Any = None):
+    def check_patch_case(self, case: PatchCase, other_view: Any = None, check_fields_updated: bool = True, return_response_data: bool = False):
         obj_id = self.model_objects.create(**case.initial_data).pk
         obj = self.model_objects.get(pk=obj_id)
 
@@ -438,34 +449,27 @@ class ViewSetTests(BaseTests):
             self.__class__.update_view(request, **{self.model._meta.pk.name: obj_id})
         response.render()
 
-        self.assertEqual(
-            response.status_code, case.status,
-            msg=(f"{case.description}"
-                 + (f" -> {prettify_json(response.content)}"
-                    if response.content else "")),
-        )
-
-        new_obj = self.model_objects.filter(pk=obj_id).first()
+        self.assertEqual(response.status_code, case.status,
+                         msg=(f"{case.description}" + (f" -> {prettify_json(response.content)}" if response.content else "")))
 
         if case.success:
-            for field in case.data_to_update:
-                f = f"manual_{field}" if \
-                    field in self.manual_dupplicated_fields else field
+            if check_fields_updated:
+                obj.refresh_from_db()
+                for field in case.data_to_update:
+                    f = f"manual_{field}" if field in self.manual_dupplicated_fields else field
 
-                new_value = getattr(new_obj, f)
-                new_value = getattr(new_value, 'pk', new_value)
+                    new_value = getattr(obj, f)
+                    new_value = getattr(new_value, 'pk', new_value)
 
-                if f in self.unupdatable_fields:
-                    self.assertNotEqual(
-                        new_value, case.data_to_update.get(field),
-                        f"{field} updated")
-                else:
-                    self.assertEqual(new_value, case.data_to_update.get(field),
-                                     f"{field} not updated")
+                    if f in self.unupdatable_fields:
+                        self.assertNotEqual(new_value, case.data_to_update.get(field), msg=f"{field} updated")
+                    else:
+                        self.assertEqual(new_value, case.data_to_update.get(field), msg=f"{field} not updated")
         else:
-            [self.assertEqual(
-                getattr(new_obj, f), getattr(obj, f), case.description
-            ) for f in [fd.name for fd in self.model_fields]]
+            [self.assertEqual(getattr(obj, f), getattr(obj, f), case.description)
+             for f in [fd.name for fd in self.model_fields]]
+        if return_response_data:
+            return response.data
 
     def check_list_case(self, case: ListCase, other_view: Any = None, is_paged_list_case: bool = False, **view_kwargs):
         request = self.factory.get(path=case.url or self.objects_url,
@@ -524,11 +528,8 @@ class ViewSetTests(BaseTests):
         force_authenticate(request, case.user)
         response = self.__class__.retrieve_view(request, **case.view_params)
         response.render()
-        self.assertEqual(
-            response.status_code, case.status,
-            msg=(f"{case.title}: "
-                 + prettify_json(response.content) if response.content else ""),
-        )
+        self.assertEqual(response.status_code, case.status,
+                         msg=f"{case.title}: " + prettify_json(response.content) if response.content else "")
         res: dict = response.data
 
         if case.success:
@@ -538,6 +539,15 @@ class ViewSetTests(BaseTests):
                                  case.description)
             else:
                 self.assertEqual(len(res), 0, case.description)
+
+    def check_file_download_case(self, case: FileDownloadCase, download_view: Any = None):
+        request = self.factory.get(path=case.url, data=[])
+        force_authenticate(request, case.user)
+        response = download_view(request, **case.view_params)
+        self.assertEqual(response.status_code, case.status)
+        if case.success:
+            self.assertEqual(case.expected_content_type, response.headers.get("Content-Type"), case.description)
+            self.assertTrue(response.block_size > 0, msg="Unexpected empty FileResponse")
 
 
 class ViewSetTestsWithBasicPerims(ViewSetTests, SimplePerimSetup):

@@ -1,5 +1,4 @@
 import logging
-
 from django.utils import timezone
 
 from admin_cohort.types import JobStatus, ServerError
@@ -14,17 +13,16 @@ MAXIMUM = "maximum"
 MINIMUM = "minimum"
 ERR_MESSAGE = "message"
 
+
 _logger = logging.getLogger('info')
 _logger_err = logging.getLogger('django.request')
 
 
 class DatedMeasureService:
 
-    @staticmethod
-    def process_dated_measure(dm_uuid: str, request):
+    def process_dated_measure(self, dm_uuid: str, request):
         dm = DatedMeasure.objects.get(pk=dm_uuid)
         cancel_previously_running_dm_jobs.delay(dm_uuid)
-
         try:
             auth_headers = get_authorization_header(request)
             get_count_task.delay(auth_headers,
@@ -34,10 +32,8 @@ class DatedMeasureService:
             dm.delete()
             raise ServerError("INTERNAL ERROR: Could not launch count request") from e
 
-    @staticmethod
-    def process_patch_data(dm: DatedMeasure, data: dict) -> None:
+    def process_patch_data(self, dm: DatedMeasure, data: dict) -> None:
         _logger.info(f"Received data for DM patch: {data}")
-
         job_status = data.get(JOB_STATUS, "")
         job_status = fhir_to_job_status().get(job_status.upper())
         if not job_status:
