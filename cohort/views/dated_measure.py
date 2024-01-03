@@ -62,8 +62,6 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                              type=openapi.TYPE_OBJECT,
                              properties={"request_query_snapshot_id": openapi.Schema(type=openapi.TYPE_STRING)},
                              required=["request_query_snapshot_id"]),
-                         manual_parameters=[openapi.Parameter(name="feasibility", in_=openapi.IN_QUERY, type=openapi.TYPE_BOOLEAN,
-                                                              description="Launch a count request to get feasibility report")],
                          responses={'200': openapi.Response("DatedMeasure created", DatedMeasureSerializer()),
                                     '400': openapi.Response("Bad Request")})
     @transaction.atomic
