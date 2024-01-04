@@ -17,7 +17,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='export',
             name='cohort_id',
-            field=models.BigIntegerField(default=0),
-            preserve_default=False,
+            field=models.BigIntegerField(null=True),
         ),
     ]

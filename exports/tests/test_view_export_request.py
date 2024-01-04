@@ -303,8 +303,7 @@ class ExportsWithSimpleSetUp(ExportsTests):
         # Exports new flow with new models - v1
         self.infra_provider_aphp = InfrastructureProvider.objects.create(name="APHP")
         self.datalab = Datalab.objects.create(name="main_datalab", infrastructure_provider=self.infra_provider_aphp)
-        self.user1_export = Export.objects.create(name="Test Export",
-                                                  output_format=ExportType.HIVE,
+        self.user1_export = Export.objects.create(output_format=ExportType.HIVE,
                                                   owner=self.user1,
                                                   status=ExportStatus.PENDING.name,
                                                   target_name="12345_09092023_151500",

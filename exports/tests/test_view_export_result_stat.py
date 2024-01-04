@@ -15,8 +15,7 @@ class ExportResultStatViewSetTest(ExportsTestBase):
     def setUp(self):
         super().setUp()
         self.datalab = Datalab.objects.create(infrastructure_provider=self.infra_provider_aphp)
-        self.export = Export.objects.create(name="export 01",
-                                            output_format=ExportType.CSV,
+        self.export = Export.objects.create(output_format=ExportType.CSV,
                                             owner=self.datalabs_manager_user,
                                             datalab=self.datalab,
                                             status=ExportStatus.PENDING,

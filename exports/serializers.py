@@ -259,16 +259,20 @@ class ExportSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Export
-        fields = ["output_format",
+        fields = ["uuid",
+                  "output_format",
                   "datalab",
                   "nominative",
                   "shift_dates",
                   "export_tables",
-                  "motivation"]
-        read_only_fields = ["owner",
-                            "status",
-                            "target_name",
-                            "cohort_id"]
+                  "motivation",
+                  "status",
+                  "cohort_id",
+                  "owner",
+                  "target_name"]
+        read_only_fields = ["uuid",
+                            "owner",
+                            "target_name"]
 
     def create(self, validated_data):
         if "owner" not in validated_data:

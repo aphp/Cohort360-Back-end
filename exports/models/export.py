@@ -28,7 +28,7 @@ class Export(ExportsBaseModel):
     # CSV
     motivation = models.TextField(null=True)
     clean_datetime = models.DateTimeField(null=True)
-    cohort_id = models.BigIntegerField(null=False)
+    cohort_id = models.BigIntegerField(null=True)
 
     class Meta:
         db_table = 'export'
