@@ -248,21 +248,35 @@ class ExportTableSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ExportTable
-        fields = "__all__"
-        read_only_fields = ["uuid",
-                            "export",
-                            "cohort_result_subset",
-                            "respect_table_relationships"]
+        fields = ["name",
+                  "respect_table_relationships",
+                  "fhir_filter",
+                  "cohort_result_source"]
 
 
 class ExportSerializer(serializers.ModelSerializer):
-    export_tables = ExportTableSerializer(many=True)
+    export_tables = ExportTableSerializer(many=True, write_only=True)
 
     class Meta:
         model = Export
-        fields = "__all__"
+        fields = ["uuid",
+                  "output_format",
+                  "datalab",
+                  "nominative",
+                  "shift_dates",
+                  "export_tables",
+                  "motivation",
+                  "status",
+                  "cohort_id",
+                  "owner",
+                  "target_name"]
+        read_only_fields = ["uuid",
+                            "owner",
+                            "target_name"]
 
     def create(self, validated_data):
+        if "owner" not in validated_data:
+            validated_data["owner"] = self.context.get("request").user
         export_tables = validated_data.pop("export_tables", [])
         export = super(ExportSerializer, self).create(validated_data)
         export_service.validate_tables_data(tables_data=export_tables)
