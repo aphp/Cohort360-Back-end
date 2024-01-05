@@ -130,8 +130,9 @@ class ExportRequestSerializer(serializers.ModelSerializer):
     def validate_owner_rights(self, validated_data):
         owner = validated_data.get('owner')
         cohort = validated_data.get('cohort_fk')
-        perimeters = Perimeter.objects.filter(cohort_id__in=cohort.request_query_snapshot.perimeters_ids)
-        data_rights = accesses_service.get_data_reading_rights(user=owner, target_perimeters_ids=perimeters)
+        perimeters_ids = Perimeter.objects.filter(cohort_id__in=cohort.request_query_snapshot.perimeters_ids)\
+                                          .values_list('id', flat=True)
+        data_rights = accesses_service.get_data_reading_rights(user=owner, target_perimeters_ids=perimeters_ids)
         check_rights_on_perimeters_for_exports(rights=data_rights,
                                                export_type=validated_data.get('output_format'),
                                                is_nominative=validated_data.get('nominative'))
