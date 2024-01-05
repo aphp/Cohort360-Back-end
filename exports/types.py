@@ -1,6 +1,6 @@
 from hdfs import HdfsError
 
-from admin_cohort.types import StrEnum, JobStatus
+from admin_cohort.types import StrEnum
 
 
 class ExportType(StrEnum):
@@ -18,18 +18,6 @@ class StatType(StrEnum):
     INT: str = "Integer"
     TXT: str = "Text"
     SIZE_BYTES: str = "SizeBytes"
-
-
-class ApiJobResponse:
-    def __init__(self, status: JobStatus, output: str = "", err: str = ""):
-        self.status: JobStatus = status
-        self.output: str = output
-        self.err: str = err
-
-    @property
-    def has_ended(self):
-        return self.status in [JobStatus.failed, JobStatus.cancelled,
-                               JobStatus.finished, JobStatus.unknown]
 
 
 class HdfsServerUnreachableError(HdfsError):
