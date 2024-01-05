@@ -4,6 +4,7 @@ from enum import StrEnum
 class Mode(StrEnum):
     COUNT = 'count'
     COUNT_ALL = 'count_all'
+    COUNT_WITH_DETAILS = 'count_with_details'
     CREATE = 'create'
 
 

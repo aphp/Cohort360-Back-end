@@ -19,4 +19,4 @@ class CohortBaseModel(SafeDeleteModel):
 
     def save(self, *args, **kwargs):
         super(CohortBaseModel, self).save(*args, **kwargs)
-        invalidate_cache(model_name=self.__class__.__name__, user=str(self.owner_id))
+        invalidate_cache(model_name=self.__class__.__name__, user=str(getattr(self, "owner_id", "")))

@@ -65,10 +65,9 @@ def format_syntax(request: CohortQuery) -> str:
 
 
 def format_spark_job_request_for_sjs(spark_job_request: SparkJobObject) -> str:
-    return str(
-        f"input.cohortDefinitionName = {spark_job_request.cohort_definition_name},"
-        f"input.cohortDefinitionSyntax = {format_syntax(spark_job_request.cohort_definition_syntax)},"
-        f"input.ownerEntityId = {spark_job_request.owner_entity_id},"
-        f"input.mode = {spark_job_request.mode},"
-        f"input.cohortUuid = {spark_job_request.cohort_definition_syntax.cohort_uuid}"
-    )
+    return str(f"input.cohortDefinitionName = {spark_job_request.cohort_definition_name},"
+               f"input.cohortDefinitionSyntax = {format_syntax(spark_job_request.cohort_definition_syntax)},"
+               f"input.ownerEntityId = {spark_job_request.owner_entity_id},"
+               f"input.mode = {spark_job_request.mode},"
+               f"input.cohortUuid = {spark_job_request.cohort_definition_syntax.cohort_uuid}" 
+               f"input.callbackPath = {spark_job_request.cohort_definition_syntax.callback_path}")

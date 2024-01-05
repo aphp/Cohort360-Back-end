@@ -3,10 +3,8 @@ set -e
 
 mkdir -p /app/log
 
-# update variables in nginx
 sed -i s/{{BACK_HOST}}/"$BACK_HOST"/g /etc/nginx/nginx.conf;
 
-# restart nginx
 service nginx restart
 
 python manage.py migrate --database="default"

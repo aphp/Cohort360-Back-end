@@ -1,5 +1,7 @@
 from django.db.models import Q
 from django_filters import rest_framework as filters, OrderingFilter
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
 
 from admin_cohort.permissions import either
 from admin_cohort.tools import join_qs
@@ -54,3 +56,19 @@ class ExportViewSet(ExportsBaseViewSet):
         if self.request.method in ("POST", "PATCH", "DELETE"):
             return either(CSVExportsPermission(), JupyterExportPermission())
         return super().get_permissions()
+
+    @swagger_auto_schema(
+        request_body=openapi.Schema(type=openapi.TYPE_OBJECT,
+                                    properties={'output_format': openapi.Schema(type=openapi.TYPE_STRING, description="hive, csv (default)"),
+                                                'datalab': openapi.Schema(type=openapi.TYPE_STRING),
+                                                'nominative': openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Defaults to False"),
+                                                'shift_dates': openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Defaults to False"),
+                                                'export_tables': openapi.Schema(type=openapi.TYPE_OBJECT,
+                                                                                properties={'name': openapi.Schema(type=openapi.TYPE_STRING),
+                                                                                            'respect_table_relationships': openapi.Schema(
+                                                                                                type=openapi.TYPE_BOOLEAN),
+                                                                                            'fhir_filter': openapi.Schema(type=openapi.TYPE_STRING),
+                                                                                            'cohort_result_source': openapi.Schema(
+                                                                                                type=openapi.TYPE_STRING)})}))
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)

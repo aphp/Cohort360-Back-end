@@ -13,15 +13,9 @@ from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagin
 from cohort.models import DatedMeasure
 from cohort.permissions import SJSorETLCallbackPermission
 from cohort.serializers import DatedMeasureSerializer
-from cohort.services.dated_measure import dated_measure_service
+from cohort.services.dated_measure import dated_measure_service, JOB_STATUS, MINIMUM, MAXIMUM, COUNT
 from cohort.services.misc import is_sjs_user
 from cohort.views.shared import UserObjectsRestrictedViewSet
-
-JOB_STATUS = "request_job_status"
-COUNT = "count"
-MAXIMUM = "maximum"
-MINIMUM = "minimum"
-ERR_MESSAGE = "message"
 
 _logger = logging.getLogger('info')
 _logger_err = logging.getLogger('django.request')
@@ -93,4 +87,3 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         except ValueError as ve:
             return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
         return super(DatedMeasureViewSet, self).partial_update(request, *args, **kwargs)
-

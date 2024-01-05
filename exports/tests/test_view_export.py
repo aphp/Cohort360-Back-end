@@ -34,12 +34,11 @@ class ExportViewSetTest(ExportsTestBase):
                                                          "cohort_result_source": self.cohort_result.uuid,
                                                          "fhir_filter": self.fhir_filter.uuid}]
                                       }
-        self.exports = [Export.objects.create(**dict(name=f"Export_{i}",
-                                                     output_format=ExportType.CSV,
+        self.exports = [Export.objects.create(**dict(output_format=ExportType.CSV,
                                                      owner=self.csv_exporter_user,
                                                      status=ExportStatus.PENDING.name,
                                                      target_name="12345_09092023_151500"
-                                                     )) for i in range(5)]
+                                                     )) for _ in range(5)]
         self.target_export_to_retrieve = self.exports[0]
         self.target_export_to_patch = self.exports[1]
         self.target_export_to_delete = self.exports[2]
@@ -57,8 +56,8 @@ class ExportViewSetTest(ExportsTestBase):
                                       retrieve_url=retrieve_url,
                                       obj_id=self.target_export_to_retrieve.uuid,
                                       expected_resp_status=status.HTTP_200_OK,
-                                      to_read_from_response='name',
-                                      to_check_against=self.target_export_to_retrieve.name)
+                                      to_read_from_response='target_name',
+                                      to_check_against=self.target_export_to_retrieve.target_name)
 
     @mock.patch("cohort.services.cohort_result.create_cohort_task.delay")
     @mock.patch("cohort.services.cohort_result.get_authorization_header")
