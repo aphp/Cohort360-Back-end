@@ -89,7 +89,7 @@ class CohortQuery(BaseModel):
     criteria_type: CriteriaType = Field(None, alias="_type")
     criteria: Criteria = Field(None, alias="request")
     temporal_constraints: list[TemporalConstraint] = Field(default_factory=list, alias='temporalConstraints')
-    callbackPath: str = Field(None, alias='callbackPath')
+    callbackPath: Optional[str] = Field(None, alias='callbackPath')
 
 
 @dataclass
