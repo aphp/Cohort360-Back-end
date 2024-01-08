@@ -1025,22 +1025,22 @@ class ExportsJupyterCreateTests(ExportsCreateTests):
     def test_get_job_status(self, mock_requests_get):
         resp = Response()
         resp.status_code = 200
-        resp._content = b'{"task_status": "Pending", "flower": {"Result": {"status": "pending", "ret_code": "255", "err": "", "out": ""}}}'
+        resp._content = b'{"task_status": "Pending", "stdout": "", "stderr": ""}'
         mock_requests_get.return_value = resp
         status_response = get_job_status(service="hadoop", job_id="random_task_id")
         self.assertEqual(status_response.job_status, JobStatus.pending.value)
-        self.assertIsNone(status_response.out)
-        self.assertIsNone(status_response.err)
+        self.assertEqual(status_response.out, "")
+        self.assertEqual(status_response.err, "")
 
     @mock.patch("exports.conf_exports.requests.get")
     def test_get_job_status_with_unknown_status(self, mock_requests_get):
         resp = Response()
         resp.status_code = 200
-        resp._content = b'{"task_status": "WRONG", "flower": {"Result": {"status": "WRONG", "ret_code": "0", "err": "error", "out": "out"}}}'
+        resp._content = b'{"task_status": "WRONG", "stdout": "output", "stderr": "error"}'
         mock_requests_get.return_value = resp
         status_response = get_job_status(service="hadoop", job_id="random_task_id")
         self.assertEqual(status_response.job_status, JobStatus.unknown.value)
-        self.assertEqual(status_response.out, "out")
+        self.assertEqual(status_response.out, "output")
         self.assertEqual(status_response.err, "error")
 
     @mock.patch("exports.conf_exports.requests.get")

@@ -47,11 +47,10 @@ class ApiJobStatus(enum.Enum):
 
 
 class JobStatusResponse:
-    def __init__(self, job_status: str, job_result: dict = None):
+    def __init__(self, job_status: str, out: str = None, err: str = None):
         self.job_status = status_mapper.get(job_status, JobStatus.unknown)
-        self.ret_code = job_result and job_result.get('ret_code') or None
-        self.out = job_result and job_result.get('out') or None
-        self.err = job_result and job_result.get('err') or None
+        self.out = out
+        self.err = err
 
     @property
     def has_ended(self):
@@ -147,7 +146,8 @@ def get_job_status(service: str, job_id: str) -> JobStatusResponse:
         raise HTTPError(f"Error getting job status from Infra API: {response.text}")
     response = response.json()
     return JobStatusResponse(job_status=response.get('task_status'),
-                             job_result=response.get('flower', {}).get('Result'))
+                             out=response.get('stdout'),
+                             err=response.get('stderr'))
 
 # PROCESSES ###############################################################
 
