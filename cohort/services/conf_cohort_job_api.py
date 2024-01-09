@@ -10,7 +10,6 @@ from requests import Response, HTTPError
 from rest_framework import status
 from rest_framework.request import Request
 
-from accesses.models import Perimeter
 from admin_cohort.middleware.request_trace_id_middleware import add_trace_id
 from admin_cohort.types import JobStatus, MissingDataError
 from cohort.crb import CohortQuery, CohortCreate, CohortCountAll, CohortCount, AbstractCohortRequest, SjsClient
@@ -19,8 +18,6 @@ from cohort.services.crb_responses import CRBCountResponse, CRBCohortResponse
 from cohort.services.misc import log_count_task, log_create_task, log_delete_task, log_count_all_task
 
 env = os.environ
-
-APHP_ID = int(env.get("TOP_HIERARCHY_CARE_SITE_ID"))
 
 COHORT_REQUEST_BUILDER_URL = os.environ.get('COHORT_REQUEST_BUILDER_URL')
 JOBS_API = f"{COHORT_REQUEST_BUILDER_URL}/jobs"
@@ -146,10 +143,6 @@ def post_to_sjs(json_query: str, uuid: str, cohort_cls: AbstractCohortRequest, r
     try:
         logger(uuid, f"Step 1: Parse the json query to make it CRB compatible {json_query}")
         cohort_query = CohortQuery(cohortUuid=uuid, **json.loads(json_query))
-        if cohort_cls is CohortCountFeasibility:
-            aphp_perimeter = Perimeter.objects.get(id=APHP_ID)
-            cohort_query.source_population.care_site_cohort_list = [aphp_perimeter.cohort_id]
-            cohort_query.callbackPath = f"/cohort/feasibility-studies/{uuid}/"
         logger(uuid, f"Step 2: Send request to sjs: {cohort_query}")
         resp, data = cohort_cls.action(cohort_query)
     except (TypeError, ValueError, ValidationError, HTTPError) as e:

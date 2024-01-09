@@ -27,4 +27,4 @@ class CohortCountAll(AbstractCohortRequest):
 
 
 def get_top_care_site_source_population() -> int:
-    return Perimeter.objects.get(level=1).cohort_id
+    return Perimeter.objects.get(level=1, parent__isnull=True).cohort_id
