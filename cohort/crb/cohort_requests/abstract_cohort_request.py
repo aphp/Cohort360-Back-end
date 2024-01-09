@@ -20,7 +20,7 @@ def is_cohort_request_pseudo_read(auth_headers: dict, source_population: List[in
     user = get_user_from_token(auth_headers['Authorization'].replace('Bearer ', ''),
                                auth_headers['authorizationMethod'])
     perimeters = Perimeter.objects.filter(cohort_id__in=source_population)
-    return not accesses_service.can_user_read_patient_data_in_pseudo(user=user, target_perimeters=perimeters)
+    return not accesses_service.user_can_access_at_least_one_target_perimeter_in_nomi(user=user, target_perimeters=perimeters)
 
 
 class AbstractCohortRequest(ABC):

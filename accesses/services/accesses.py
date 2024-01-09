@@ -30,11 +30,6 @@ class AccessesService:
         return any(filter(lambda role: role.right_full_admin,
                           [access.role for access in self.get_user_valid_accesses(user)]))
 
-    def user_has_data_reading_accesses(self, user: User) -> bool:
-        return self.get_user_valid_accesses(user=user).filter(Role.q_allow_read_patient_data_nominative()
-                                                              | Role.q_allow_read_patient_data_pseudo())\
-                                                      .exists()
-
     @staticmethod
     def get_expiring_accesses(user: User, accesses: QuerySet):
         today = date.today()
@@ -79,57 +74,35 @@ class AccessesService:
                          & Role.q_impact_inferior_levels())
         return self.filter_accesses_for_user(user=user, accesses=accesses.filter(Q(sql_is_valid=True) & q))
 
-    @staticmethod
-    def has_at_least_one_read_nominative_access(target_perimeters: QuerySet, nomi_perimeters_ids: List[int]) -> bool:
+    def user_has_data_reading_accesses_on_target_perimeters(self, user: User, target_perimeters: QuerySet) -> bool:
+        user_data_accesses = self.get_user_valid_accesses(user=user).filter(Role.q_allow_read_patient_data_nominative()
+                                                                            | Role.q_allow_read_patient_data_pseudo())
+        for perimeter in target_perimeters:
+            perimeter_and_parents_ids = [perimeter.id] + perimeter.above_levels
+            if not user_data_accesses.filter(perimeter_id__in=perimeter_and_parents_ids).exists():
+                return False
+        return True
+
+    def get_nominative_perimeters(self, user: User) -> List[int]:
+        return self.get_user_valid_accesses(user=user)\
+                   .filter(Role.q_allow_read_patient_data_nominative())\
+                   .values_list('perimeter_id', flat=True)
+
+    def user_can_access_at_least_one_target_perimeter_in_nomi(self, user: User, target_perimeters: QuerySet) -> bool:
+        nomi_perimeters_ids = self.get_nominative_perimeters(user=user)
         for perimeter in target_perimeters:
             perimeter_and_parents_ids = [perimeter.id] + perimeter.above_levels
             if any(p_id in nomi_perimeters_ids for p_id in perimeter_and_parents_ids):
                 return True
         return False
 
-    def can_user_read_patient_data_in_nomi(self, user: User, target_perimeters: QuerySet) -> bool:
-        user_accesses = self.get_user_valid_accesses(user=user)
-        read_patient_data_nomi_accesses = user_accesses.filter(Role.q_allow_read_patient_data_nominative())
-        nomi_perimeters_ids = [access.perimeter_id for access in read_patient_data_nomi_accesses]
-        allow_read_patient_data_nomi = self.has_at_least_one_read_nominative_access(target_perimeters=target_perimeters,
-                                                                                    nomi_perimeters_ids=nomi_perimeters_ids)
-        return allow_read_patient_data_nomi
-
-    @staticmethod
-    def user_has_at_least_one_pseudo_access_on_target_perimeters(target_perimeters: QuerySet,
-                                                                 nomi_perimeters_ids: List[int],
-                                                                 pseudo_perimeters_ids: List[int]) -> bool:
+    def user_can_access_all_target_perimeters_in_nomi(self, user: User, target_perimeters: QuerySet) -> bool:
+        nomi_perimeters_ids = self.get_nominative_perimeters(user=user)
         for perimeter in target_perimeters:
             perimeter_and_parents_ids = [perimeter.id] + perimeter.above_levels
-            if any(p_id in pseudo_perimeters_ids and p_id not in nomi_perimeters_ids for p_id in perimeter_and_parents_ids):
-                return True
-
-    @staticmethod
-    def user_has_at_least_one_pseudo_access(nomi_perimeters_ids: List[int], pseudo_perimeters_ids: List[int]) -> bool:
-        for perimeter in Perimeter.objects.filter(id__in=pseudo_perimeters_ids):
-            perimeter_and_parents_ids = [perimeter.id] + perimeter.above_levels
-            if all(p_id not in nomi_perimeters_ids for p_id in perimeter_and_parents_ids):
-                return True
-        return False
-
-    def can_user_read_patient_data_in_pseudo(self, user: User, target_perimeters: QuerySet) -> bool:
-        user_accesses = self.get_user_valid_accesses(user=user)
-        read_patient_data_nomi_accesses = user_accesses.filter(Role.q_allow_read_patient_data_nominative())
-        read_patient_data_pseudo_accesses = user_accesses.filter(Role.q_allow_read_patient_data_pseudo() |
-                                                                 Role.q_allow_read_patient_data_nominative())
-
-        nomi_perimeters_ids = [access.perimeter_id for access in read_patient_data_nomi_accesses]
-        pseudo_perimeters_ids = [access.perimeter_id for access in read_patient_data_pseudo_accesses]
-
-        if target_perimeters:
-            allow_read_patient_data_pseudo = self.user_has_at_least_one_pseudo_access_on_target_perimeters(
-                target_perimeters=target_perimeters,
-                nomi_perimeters_ids=nomi_perimeters_ids,
-                pseudo_perimeters_ids=pseudo_perimeters_ids)
-        else:
-            allow_read_patient_data_pseudo = self.user_has_at_least_one_pseudo_access(nomi_perimeters_ids=nomi_perimeters_ids,
-                                                                                      pseudo_perimeters_ids=pseudo_perimeters_ids)
-        return allow_read_patient_data_pseudo
+            if not any(p_id in nomi_perimeters_ids for p_id in perimeter_and_parents_ids):
+                return False
+        return True
 
     def can_user_read_opposed_patient_data(self, user: User) -> bool:
         user_accesses = self.get_user_valid_accesses(user=user)
