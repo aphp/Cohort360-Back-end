@@ -91,19 +91,6 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
         return Response(data=PerimeterLiteSerializer(manageable_perimeters, many=True).data,
                         status=status.HTTP_200_OK)
 
-    # @swagger_auto_schema(operation_summary="Return a patient-data-reading-rights summary on target perimeters.",
-    #                      responses={'200': openapi.Response("Rights per perimeter", ReadRightPerimeter())})
-    # @action(detail=False, methods=['get'], url_path="patient-data/rights")
-    # @cache_response()
-    # def get_data_read_rights_on_perimeters(self, request, *args, **kwargs):
-    #     data_reading_rights = perimeters_service.get_data_reading_rights_on_perimeters(user=request.user,
-    #                                                                                    target_perimeters=self.filter_queryset(self.queryset))
-    #     page = self.paginate_queryset(data_reading_rights)
-    #     if page:
-    #         serializer = ReadRightPerimeter(page, many=True)
-    #         return self.get_paginated_response(serializer.data)
-    #     return Response(data={}, status=status.HTTP_200_OK)
-
     @swagger_auto_schema(operation_summary="Return a patient-data-reading-rights summary on target perimeters.",
                          responses={'200': openapi.Response("Rights per perimeter", ReadRightPerimeter())})
     @action(detail=False, methods=['get'], url_path="patient-data/rights")
@@ -139,17 +126,15 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
         if not target_perimeters:
             return Response(data={"error": "None of the target perimeters was found"}, status=status.HTTP_404_NOT_FOUND)
 
-        if not accesses_service.user_has_data_reading_accesses(user=user):
-            return Response(data={"error": "User has no data reading access"}, status=status.HTTP_404_NOT_FOUND)
+        if not accesses_service.user_has_data_reading_accesses_on_target_perimeters(user=user, target_perimeters=target_perimeters):
+            return Response(data={"error": "User has no data reading accesses"}, status=status.HTTP_404_NOT_FOUND)
 
         if read_mode == MAX:
-            allow_read_patient_data_nomi = accesses_service.can_user_read_patient_data_in_nomi(user=user,
-                                                                                               target_perimeters=target_perimeters)
+            allow_read_patient_data_nomi = accesses_service.user_can_access_at_least_one_target_perimeter_in_nominative(user=user,
+                                                                                                                        target_perimeters=target_perimeters)
         else:
-            allow_read_patient_data_pseudo = accesses_service.can_user_read_patient_data_in_pseudo(user=user,
-                                                                                                   target_perimeters=target_perimeters)
-            allow_read_patient_data_nomi = not allow_read_patient_data_pseudo
-
+            allow_read_patient_data_nomi = accesses_service.user_can_access_all_target_perimeters_in_nominative(user=user,
+                                                                                                                target_perimeters=target_perimeters)
         data = {"allow_read_patient_data_nomi": allow_read_patient_data_nomi,
                 "allow_lookup_opposed_patients": accesses_service.can_user_read_opposed_patient_data(user=user)}
         return Response(data=data, status=status.HTTP_200_OK)

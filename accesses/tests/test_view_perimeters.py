@@ -1,3 +1,6 @@
+from unittest import mock
+from unittest.mock import MagicMock
+
 from django.utils import timezone
 from rest_framework import status
 
@@ -25,6 +28,11 @@ class PerimeterViewTests(AccessesAppTestsBase):
 
     def setUp(self):
         super().setUp()
+        self.base_case = ListCase(params={},
+                                  to_find=[],
+                                  user=None,
+                                  success=True,
+                                  status=status.HTTP_200_OK)
 
     def test_get_manageable_perimeters(self):
         base_case = ListCase(params={},
@@ -204,95 +212,174 @@ class PerimeterViewTests(AccessesAppTestsBase):
                             if k != "perimeter":
                                 self.assertEqual(getattr(expected_dr, k, False), v)
 
-    def test_check_read_patient_data_rights(self):
-        """                                                    APHP
-                                     ___________________________|____________________________
-                                    |                           |                           |
-                                   P0                          P1                          P2
-                          _________|__________           ______|_______           _________|__________
-                         |         |         |          |             |          |         |         |
-                         P3        P4        P5         P6            P7         P8        P9       P10
-                             ______|_______                                                    ______|_______
-                            |             |                                                   |             |
-                           P11           P12                                                 P13           P14
+    @mock.patch('accesses.views.perimeter.perimeters_service.get_target_perimeters')
+    def check_list_case_with_mock(self, case: ListCase, mock_get_target_perimeters: MagicMock, check_mock_was_called=True):
+        mock_get_target_perimeters.return_value = Perimeter.objects.filter(cohort_id__in=case.params.get("cohort_ids", "").split(","))
+        response_data = self.check_list_case(case=case,
+                                             other_view=PerimeterViewTests.check_read_patient_data_rights_view,
+                                             yield_response_data=True)
+        if check_mock_was_called:
+            mock_get_target_perimeters.assert_called()
+        if case.success:
+            self.assertEqual(response_data, case.to_find)
 
-        """
-        base_case = ListCase(params={},
-                             to_find=[],
-                             user=None,
-                             status=status.HTTP_200_OK,
-                             success=True)
+#                                                        APHP
+#                              ___________________________|____________________________
+#                             |                           |                           |
+#                            P0                          P1                          P2
+#                   _________|__________           ______|_______           _________|__________
+#                  |         |         |          |             |          |         |         |
+#                  P3        P4        P5         P6            P7         P8        P9       P10
+#                      ______|_______                                                    ______|_______
+#                     |             |                                                   |             |
+#                    P11           P12                                                 P13           P14
+#
+    def test_read_patient_data_rights_case_1(self):
+        perimeters = [self.aphp, self.p1]
+        roles = [self.role_data_reader_pseudo,
+                 self.role_data_reader_nomi]
 
-        def check_read_patient_data_rights_nomi():
-            perimeters = [self.aphp, self.p1, self.p4, self.p10]
-            roles = [self.role_data_reader_pseudo,
-                     self.role_search_by_ipp_and_search_opposed,
-                     self.role_data_reader_nomi_pseudo,
-                     self.role_data_reader_nomi]
+        self.profile_z.accesses.all().update(end_datetime=timezone.now())
+        for perimeter, role in zip(perimeters, roles):
+            self.create_new_access_for_user(profile=self.profile_z, role=role, perimeter=perimeter, close_existing=False)
+        cohort_ids = ",".join([self.p1.cohort_id])
+        case = self.base_case.clone(user=self.user_z,
+                                    params={"cohort_ids": cohort_ids, "mode": "min"},
+                                    to_find={"allow_read_patient_data_nomi": True,
+                                             "allow_lookup_opposed_patients": False})
+        self.check_list_case_with_mock(case)
 
-            self.profile_z.accesses.all().update(end_datetime=timezone.now())
-            for perimeter, role in zip(perimeters, roles):
-                self.create_new_access_for_user(profile=self.profile_z, role=role, perimeter=perimeter, close_existing=False)
-            return base_case.clone(user=self.user_z,
-                                   params={"mode": "max"},
-                                   to_find={"allow_read_patient_data_nomi": True,
-                                            "allow_lookup_opposed_patients": True})
+    def test_read_patient_data_rights_case_2(self):
+        perimeters = [self.p1, self.aphp]
+        roles = [self.role_data_reader_pseudo,
+                 self.role_data_reader_nomi]
 
-        def check_read_patient_data_rights_pseudo():
-            perimeters = [self.p1, self.p4]
-            roles = [self.role_data_reader_pseudo,
-                     self.role_search_by_ipp_and_search_opposed]
+        self.profile_z.accesses.all().update(end_datetime=timezone.now())
+        for perimeter, role in zip(perimeters, roles):
+            self.create_new_access_for_user(profile=self.profile_z, role=role, perimeter=perimeter, close_existing=False)
+        cohort_ids = ",".join([self.p1.cohort_id, self.p5.cohort_id])
+        case = self.base_case.clone(user=self.user_z,
+                                    params={"cohort_ids": cohort_ids, "mode": "min"},
+                                    to_find={"allow_read_patient_data_nomi": True,
+                                             "allow_lookup_opposed_patients": False})
+        self.check_list_case_with_mock(case)
 
-            self.profile_t.accesses.all().update(end_datetime=timezone.now())
-            for perimeter, role in zip(perimeters, roles):
-                self.create_new_access_for_user(profile=self.profile_t, role=role, perimeter=perimeter, close_existing=False)
-            return base_case.clone(user=self.user_t,
-                                   params={"mode": "min"},
-                                   to_find={"allow_read_patient_data_nomi": False,
-                                            "allow_lookup_opposed_patients": True})
+    def test_read_patient_data_rights_case_3(self):
+        perimeters = [self.aphp, self.p0, self.p10]
+        roles = [self.role_data_reader_pseudo,
+                 self.role_data_reader_nomi,
+                 self.role_data_reader_nomi]
 
-        def check_read_patient_data_rights_with_user_having_no_data_rights():
-            perimeters = [self.aphp, self.p2]
-            roles = [self.role_data_accesses_manager,
-                     self.role_export_accesses_manager]
+        self.profile_z.accesses.all().update(end_datetime=timezone.now())
+        for perimeter, role in zip(perimeters, roles):
+            self.create_new_access_for_user(profile=self.profile_z, role=role, perimeter=perimeter, close_existing=False)
+        cohort_ids = ",".join([self.p5.cohort_id, self.p8.cohort_id])
+        case_1 = self.base_case.clone(user=self.user_z,
+                                      params={"cohort_ids": cohort_ids, "mode": "max"},
+                                      to_find={"allow_read_patient_data_nomi": True,
+                                               "allow_lookup_opposed_patients": False})
+        case_2 = case_1.clone(params={"cohort_ids": cohort_ids, "mode": "min"},
+                              to_find={"allow_read_patient_data_nomi": False,
+                                       "allow_lookup_opposed_patients": False})
+        self.check_list_case_with_mock(case_1)
+        self.check_list_case_with_mock(case_2)
 
-            self.profile_y.accesses.all().update(end_datetime=timezone.now())
-            for perimeter, role in zip(perimeters, roles):
-                self.create_new_access_for_user(profile=self.profile_y, role=role, perimeter=perimeter, close_existing=False)
-            return base_case.clone(title="user without rights",
-                                   user=self.user_y,
-                                   params={"mode": "min"},
-                                   status=status.HTTP_404_NOT_FOUND,
-                                   success=False)
+    def test_read_patient_data_rights_case_4(self):
+        perimeters = [self.aphp, self.p1, self.p4, self.p10]
+        roles = [self.role_data_reader_pseudo,
+                 self.role_search_by_ipp_and_search_opposed,
+                 self.role_data_reader_nomi_pseudo,
+                 self.role_data_reader_nomi]
 
-        def check_read_patient_data_rights_without_read_mode():
-            self.user_w, self.profile_w = new_user_and_profile(email="user_w@aphp.fr")
-            self.create_new_access_for_user(profile=self.profile_w, role=self.role_data_reader_nomi, perimeter=self.aphp)
-            return base_case.clone(title="missing mode param",
-                                   user=self.user_w,
-                                   params={},
-                                   status=status.HTTP_400_BAD_REQUEST,
-                                   success=False)
+        self.profile_z.accesses.all().update(end_datetime=timezone.now())
+        for perimeter, role in zip(perimeters, roles):
+            self.create_new_access_for_user(profile=self.profile_z, role=role, perimeter=perimeter, close_existing=False)
+        cohort_ids = ",".join([self.aphp.cohort_id, self.p1.cohort_id, self.p4.cohort_id, self.p10.cohort_id])
+        case = self.base_case.clone(user=self.user_z,
+                                    params={"cohort_ids": cohort_ids, "mode": "min"},
+                                    to_find={"allow_read_patient_data_nomi": False,
+                                             "allow_lookup_opposed_patients": True})
+        self.check_list_case_with_mock(case)
 
-        def check_read_patient_data_rights_with_wrong_read_mode():
-            self.user_u, self.profile_u = new_user_and_profile(email="user_u@aphp.fr")
-            self.create_new_access_for_user(profile=self.profile_u, role=self.role_data_reader_nomi, perimeter=self.aphp)
-            return base_case.clone(title="wrong value for mode param",
-                                   user=self.user_u,
-                                   params={"mode": "wrong_value"},
-                                   status=status.HTTP_400_BAD_REQUEST,
-                                   success=False)
+    def test_read_patient_data_rights_case_5(self):
+        perimeters = [self.aphp, self.p1, self.p4, self.p10]
+        roles = [self.role_data_reader_pseudo,
+                 self.role_search_by_ipp_and_search_opposed,
+                 self.role_data_reader_nomi_pseudo,
+                 self.role_data_reader_nomi]
 
-        case_1 = check_read_patient_data_rights_nomi()
-        case_2 = check_read_patient_data_rights_pseudo()
-        case_3 = check_read_patient_data_rights_with_user_having_no_data_rights()
-        case_4 = check_read_patient_data_rights_without_read_mode()
-        case_5 = check_read_patient_data_rights_with_wrong_read_mode()
+        self.profile_z.accesses.all().update(end_datetime=timezone.now())
+        for perimeter, role in zip(perimeters, roles):
+            self.create_new_access_for_user(profile=self.profile_z, role=role, perimeter=perimeter, close_existing=False)
+        cohort_ids = ",".join([self.aphp.cohort_id, self.p1.cohort_id, self.p4.cohort_id, self.p10.cohort_id])
+        case = self.base_case.clone(user=self.user_z,
+                                    params={"cohort_ids": cohort_ids, "mode": "max"},
+                                    to_find={"allow_read_patient_data_nomi": True,
+                                             "allow_lookup_opposed_patients": True})
+        self.check_list_case_with_mock(case)
 
-        for case in (case_1, case_2, case_3, case_4, case_5):
-            response_data = self.check_list_case(case=case,
-                                                 other_view=PerimeterViewTests.check_read_patient_data_rights_view,
-                                                 yield_response_data=True)
-            if case.success:
-                self.assertEqual(response_data, case.to_find)
+    def test_read_patient_data_rights_case_6(self):
+        perimeters = [self.p1, self.p4]
+        roles = [self.role_data_reader_pseudo,
+                 self.role_data_reader_nomi]
 
+        self.profile_t.accesses.all().update(end_datetime=timezone.now())
+        for perimeter, role in zip(perimeters, roles):
+            self.create_new_access_for_user(profile=self.profile_t, role=role, perimeter=perimeter, close_existing=False)
+        cohort_ids = ",".join([self.p6.cohort_id, self.p12.cohort_id])
+        case = self.base_case.clone(user=self.user_t,
+                                    params={"cohort_ids": cohort_ids, "mode": "min"},
+                                    to_find={"allow_read_patient_data_nomi": False,
+                                             "allow_lookup_opposed_patients": False})
+        self.check_list_case_with_mock(case)
+
+    def test_read_patient_data_rights_missing_access_on_some_target_perimeters(self):
+        perimeters = [self.p1, self.p2]
+        roles = [self.role_data_reader_pseudo,
+                 self.role_search_by_ipp_and_search_opposed]
+
+        self.profile_t.accesses.all().update(end_datetime=timezone.now())
+        for perimeter, role in zip(perimeters, roles):
+            self.create_new_access_for_user(profile=self.profile_t, role=role, perimeter=perimeter, close_existing=False)
+        cohort_ids = ",".join([self.p1.cohort_id, self.p5.cohort_id])
+        case = self.base_case.clone(user=self.user_t,
+                                    params={"cohort_ids": cohort_ids, "mode": "min"},
+                                    success=False,
+                                    status=status.HTTP_404_NOT_FOUND)
+        self.check_list_case_with_mock(case)
+
+    def test_read_patient_data_rights_with_user_having_no_data_rights(self):
+        perimeters = [self.aphp, self.p2]
+        roles = [self.role_data_accesses_manager,
+                 self.role_export_accesses_manager]
+
+        self.profile_y.accesses.all().update(end_datetime=timezone.now())
+        for perimeter, role in zip(perimeters, roles):
+            self.create_new_access_for_user(profile=self.profile_y, role=role, perimeter=perimeter, close_existing=False)
+        cohort_ids = ",".join([self.aphp.cohort_id, self.p2.cohort_id])
+        case = self.base_case.clone(title="user without rights",
+                                    user=self.user_y,
+                                    params={"cohort_ids": cohort_ids, "mode": "min"},
+                                    status=status.HTTP_404_NOT_FOUND,
+                                    success=False)
+        self.check_list_case_with_mock(case)
+
+    def test_read_patient_data_rights_without_read_mode(self):
+        self.user_w, self.profile_w = new_user_and_profile(email="user_w@aphp.fr")
+        self.create_new_access_for_user(profile=self.profile_w, role=self.role_data_reader_nomi, perimeter=self.aphp)
+        case = self.base_case.clone(title="missing mode param",
+                                    user=self.user_w,
+                                    params={},
+                                    status=status.HTTP_400_BAD_REQUEST,
+                                    success=False)
+        self.check_list_case_with_mock(case, check_mock_was_called=False)
+
+    def test_read_patient_data_rights_with_wrong_read_mode(self):
+        self.user_u, self.profile_u = new_user_and_profile(email="user_u@aphp.fr")
+        self.create_new_access_for_user(profile=self.profile_u, role=self.role_data_reader_nomi, perimeter=self.aphp)
+        case = self.base_case.clone(title="wrong value for mode param",
+                                    user=self.user_u,
+                                    params={"cohort_ids": "", "mode": "wrong_value"},
+                                    status=status.HTTP_400_BAD_REQUEST,
+                                    success=False)
+        self.check_list_case_with_mock(case, check_mock_was_called=False)

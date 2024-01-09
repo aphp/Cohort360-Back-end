@@ -40,7 +40,7 @@ def query_fhir(resource: str, params: dict[str, list[str]], auth_headers: dict) 
 
 def add_security_params_to_filter_fhir(sub_criteria: Criteria, source_population: SourcePopulation, is_pseudo: bool):
     filter_fhir_enriched = sub_criteria.add_criteria(source_population)
-    return META_SECURITY_PSEUDED + "&" + filter_fhir_enriched if is_pseudo else filter_fhir_enriched
+    return f"{META_SECURITY_PSEUDED}&{filter_fhir_enriched}" if is_pseudo else filter_fhir_enriched
 
 
 class QueryFormatter:
