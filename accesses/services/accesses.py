@@ -88,7 +88,7 @@ class AccessesService:
                    .filter(Role.q_allow_read_patient_data_nominative())\
                    .values_list('perimeter_id', flat=True)
 
-    def user_can_access_at_least_one_target_perimeter_in_nominative(self, user: User, target_perimeters: QuerySet) -> bool:
+    def user_can_access_at_least_one_target_perimeter_in_nomi(self, user: User, target_perimeters: QuerySet) -> bool:
         nomi_perimeters_ids = self.get_nominative_perimeters(user=user)
         for perimeter in target_perimeters:
             perimeter_and_parents_ids = [perimeter.id] + perimeter.above_levels
@@ -96,7 +96,7 @@ class AccessesService:
                 return True
         return False
 
-    def user_can_access_all_target_perimeters_in_nominative(self, user: User, target_perimeters: QuerySet) -> bool:
+    def user_can_access_all_target_perimeters_in_nomi(self, user: User, target_perimeters: QuerySet) -> bool:
         nomi_perimeters_ids = self.get_nominative_perimeters(user=user)
         for perimeter in target_perimeters:
             perimeter_and_parents_ids = [perimeter.id] + perimeter.above_levels

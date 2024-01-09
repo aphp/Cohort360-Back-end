@@ -130,11 +130,11 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
             return Response(data={"error": "User has no data reading accesses"}, status=status.HTTP_404_NOT_FOUND)
 
         if read_mode == MAX:
-            allow_read_patient_data_nomi = accesses_service.user_can_access_at_least_one_target_perimeter_in_nominative(user=user,
-                                                                                                                        target_perimeters=target_perimeters)
+            allow_read_patient_data_nomi = accesses_service.user_can_access_at_least_one_target_perimeter_in_nomi(user=user,
+                                                                                                                  target_perimeters=target_perimeters)
         else:
-            allow_read_patient_data_nomi = accesses_service.user_can_access_all_target_perimeters_in_nominative(user=user,
-                                                                                                                target_perimeters=target_perimeters)
+            allow_read_patient_data_nomi = accesses_service.user_can_access_all_target_perimeters_in_nomi(user=user,
+                                                                                                          target_perimeters=target_perimeters)
         data = {"allow_read_patient_data_nomi": allow_read_patient_data_nomi,
                 "allow_lookup_opposed_patients": accesses_service.can_user_read_opposed_patient_data(user=user)}
         return Response(data=data, status=status.HTTP_200_OK)

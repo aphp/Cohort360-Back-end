@@ -223,9 +223,14 @@ class PerimeterViewTests(AccessesAppTestsBase):
         if case.success:
             self.assertEqual(response_data, case.to_find)
 
-#                                                        APHP
-#                              ___________________________|____________________________
-#                             |                           |                           |
+    def make_accesses_for_user(self, profile, perimeters, roles):
+        profile.accesses.all().update(end_datetime=timezone.now())
+        for perimeter, role in zip(perimeters, roles):
+            self.create_new_access_for_user(profile=profile, role=role, perimeter=perimeter, close_existing=False)
+
+#                                                       APHP
+#                             ___________________________|____________________________
+#                            |                           |                           |
 #                            P0                          P1                          P2
 #                   _________|__________           ______|_______           _________|__________
 #                  |         |         |          |             |          |         |         |
@@ -238,10 +243,8 @@ class PerimeterViewTests(AccessesAppTestsBase):
         perimeters = [self.aphp, self.p1]
         roles = [self.role_data_reader_pseudo,
                  self.role_data_reader_nomi]
+        self.make_accesses_for_user(self.profile_z, perimeters, roles)
 
-        self.profile_z.accesses.all().update(end_datetime=timezone.now())
-        for perimeter, role in zip(perimeters, roles):
-            self.create_new_access_for_user(profile=self.profile_z, role=role, perimeter=perimeter, close_existing=False)
         cohort_ids = ",".join([self.p1.cohort_id])
         case = self.base_case.clone(user=self.user_z,
                                     params={"cohort_ids": cohort_ids, "mode": "min"},
@@ -253,10 +256,8 @@ class PerimeterViewTests(AccessesAppTestsBase):
         perimeters = [self.p1, self.aphp]
         roles = [self.role_data_reader_pseudo,
                  self.role_data_reader_nomi]
+        self.make_accesses_for_user(self.profile_z, perimeters, roles)
 
-        self.profile_z.accesses.all().update(end_datetime=timezone.now())
-        for perimeter, role in zip(perimeters, roles):
-            self.create_new_access_for_user(profile=self.profile_z, role=role, perimeter=perimeter, close_existing=False)
         cohort_ids = ",".join([self.p1.cohort_id, self.p5.cohort_id])
         case = self.base_case.clone(user=self.user_z,
                                     params={"cohort_ids": cohort_ids, "mode": "min"},
@@ -269,10 +270,7 @@ class PerimeterViewTests(AccessesAppTestsBase):
         roles = [self.role_data_reader_pseudo,
                  self.role_data_reader_nomi,
                  self.role_data_reader_nomi]
-
-        self.profile_z.accesses.all().update(end_datetime=timezone.now())
-        for perimeter, role in zip(perimeters, roles):
-            self.create_new_access_for_user(profile=self.profile_z, role=role, perimeter=perimeter, close_existing=False)
+        self.make_accesses_for_user(self.profile_z, perimeters, roles)
         cohort_ids = ",".join([self.p5.cohort_id, self.p8.cohort_id])
         case_1 = self.base_case.clone(user=self.user_z,
                                       params={"cohort_ids": cohort_ids, "mode": "max"},
@@ -290,42 +288,42 @@ class PerimeterViewTests(AccessesAppTestsBase):
                  self.role_search_by_ipp_and_search_opposed,
                  self.role_data_reader_nomi_pseudo,
                  self.role_data_reader_nomi]
+        self.make_accesses_for_user(self.profile_z, perimeters, roles)
 
-        self.profile_z.accesses.all().update(end_datetime=timezone.now())
-        for perimeter, role in zip(perimeters, roles):
-            self.create_new_access_for_user(profile=self.profile_z, role=role, perimeter=perimeter, close_existing=False)
         cohort_ids = ",".join([self.aphp.cohort_id, self.p1.cohort_id, self.p4.cohort_id, self.p10.cohort_id])
-        case = self.base_case.clone(user=self.user_z,
+        case_1 = self.base_case.clone(user=self.user_z,
                                     params={"cohort_ids": cohort_ids, "mode": "min"},
                                     to_find={"allow_read_patient_data_nomi": False,
                                              "allow_lookup_opposed_patients": True})
-        self.check_list_case_with_mock(case)
+        case_2 = case_1.clone(params={"cohort_ids": cohort_ids, "mode": "max"},
+                              to_find={"allow_read_patient_data_nomi": True,
+                                       "allow_lookup_opposed_patients": True})
+        self.check_list_case_with_mock(case_1)
+        self.check_list_case_with_mock(case_2)
 
     def test_read_patient_data_rights_case_5(self):
-        perimeters = [self.aphp, self.p1, self.p4, self.p10]
+        perimeters = [self.p2, self.p3]
         roles = [self.role_data_reader_pseudo,
-                 self.role_search_by_ipp_and_search_opposed,
-                 self.role_data_reader_nomi_pseudo,
-                 self.role_data_reader_nomi]
+                 self.role_data_reader_pseudo]
+        self.make_accesses_for_user(self.profile_z, perimeters, roles)
 
-        self.profile_z.accesses.all().update(end_datetime=timezone.now())
-        for perimeter, role in zip(perimeters, roles):
-            self.create_new_access_for_user(profile=self.profile_z, role=role, perimeter=perimeter, close_existing=False)
-        cohort_ids = ",".join([self.aphp.cohort_id, self.p1.cohort_id, self.p4.cohort_id, self.p10.cohort_id])
-        case = self.base_case.clone(user=self.user_z,
-                                    params={"cohort_ids": cohort_ids, "mode": "max"},
-                                    to_find={"allow_read_patient_data_nomi": True,
-                                             "allow_lookup_opposed_patients": True})
-        self.check_list_case_with_mock(case)
+        cohort_ids = ",".join([self.p2.cohort_id, self.p9.cohort_id])
+        case_1 = self.base_case.clone(user=self.user_z,
+                                      params={"cohort_ids": cohort_ids, "mode": "max"},
+                                      to_find={"allow_read_patient_data_nomi": False,
+                                               "allow_lookup_opposed_patients": False})
+        case_2 = case_1.clone(params={"cohort_ids": cohort_ids, "mode": "min"},
+                              to_find={"allow_read_patient_data_nomi": False,
+                                       "allow_lookup_opposed_patients": False})
+        self.check_list_case_with_mock(case_1)
+        self.check_list_case_with_mock(case_2)
 
     def test_read_patient_data_rights_case_6(self):
         perimeters = [self.p1, self.p4]
         roles = [self.role_data_reader_pseudo,
                  self.role_data_reader_nomi]
+        self.make_accesses_for_user(self.profile_t, perimeters, roles)
 
-        self.profile_t.accesses.all().update(end_datetime=timezone.now())
-        for perimeter, role in zip(perimeters, roles):
-            self.create_new_access_for_user(profile=self.profile_t, role=role, perimeter=perimeter, close_existing=False)
         cohort_ids = ",".join([self.p6.cohort_id, self.p12.cohort_id])
         case = self.base_case.clone(user=self.user_t,
                                     params={"cohort_ids": cohort_ids, "mode": "min"},
@@ -337,10 +335,8 @@ class PerimeterViewTests(AccessesAppTestsBase):
         perimeters = [self.p1, self.p2]
         roles = [self.role_data_reader_pseudo,
                  self.role_search_by_ipp_and_search_opposed]
+        self.make_accesses_for_user(self.profile_t, perimeters, roles)
 
-        self.profile_t.accesses.all().update(end_datetime=timezone.now())
-        for perimeter, role in zip(perimeters, roles):
-            self.create_new_access_for_user(profile=self.profile_t, role=role, perimeter=perimeter, close_existing=False)
         cohort_ids = ",".join([self.p1.cohort_id, self.p5.cohort_id])
         case = self.base_case.clone(user=self.user_t,
                                     params={"cohort_ids": cohort_ids, "mode": "min"},
@@ -352,10 +348,8 @@ class PerimeterViewTests(AccessesAppTestsBase):
         perimeters = [self.aphp, self.p2]
         roles = [self.role_data_accesses_manager,
                  self.role_export_accesses_manager]
+        self.make_accesses_for_user(self.profile_y, perimeters, roles)
 
-        self.profile_y.accesses.all().update(end_datetime=timezone.now())
-        for perimeter, role in zip(perimeters, roles):
-            self.create_new_access_for_user(profile=self.profile_y, role=role, perimeter=perimeter, close_existing=False)
         cohort_ids = ",".join([self.aphp.cohort_id, self.p2.cohort_id])
         case = self.base_case.clone(title="user without rights",
                                     user=self.user_y,
