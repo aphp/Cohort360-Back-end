@@ -96,7 +96,6 @@ class FeasibilityStudyViewTests(CohortAppTests):
         self.check_file_download_case(case=error_case, download_view=self.__class__.download_view)
 
 
-
 class TestFeasibilityStudiesService(TestCase):
     @staticmethod
     def create_perimeters_tree():

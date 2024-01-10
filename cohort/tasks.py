@@ -6,7 +6,7 @@ import cohort.services.conf_cohort_job_api as cohort_job_api
 from admin_cohort import celery_app
 from admin_cohort.types import JobStatus
 from admin_cohort.settings import COHORT_LIMIT
-from cohort.models import CohortResult, DatedMeasure
+from cohort.models import CohortResult, DatedMeasure, FeasibilityStudy
 from cohort.models.dated_measure import GLOBAL_DM_MODE
 from cohort.services.misc import log_count_task, log_create_task
 
@@ -52,10 +52,17 @@ def get_count_task(auth_headers: dict, json_query: str, dm_uuid: str):
 
 
 @shared_task
-def get_feasibility_count_task(auth_headers: dict, json_query: str, fs_uuid: str):
+def get_feasibility_count_task(fs_uuid: str, json_query: str, auth_headers: dict):
     resp = cohort_job_api.post_count_for_feasibility(fs_uuid=fs_uuid,
                                                      json_query=json_query,
                                                      auth_headers=auth_headers)
+    feasibility_study = FeasibilityStudy.objects.get(uuid=fs_uuid)
+    if resp.success:
+        feasibility_study.request_job_id = resp.fhir_job_id
+    else:
+        feasibility_study.request_job_status = JobStatus.failed
+        feasibility_study.request_job_fail_msg = resp.err_msg
+    feasibility_study.save()
     log_count_task(fs_uuid, resp.success and "FeasibilityStudy updated" or resp.err_msg)
 
 

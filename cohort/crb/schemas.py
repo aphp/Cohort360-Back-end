@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from dataclasses import field
 from typing import Optional
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 
@@ -83,7 +84,7 @@ class Criteria(BaseModel):
 
 
 class CohortQuery(BaseModel):
-    cohort_uuid: str = Field(None, alias='cohortUuid')
+    cohort_uuid: UUID = Field(None, alias='cohortUuid')
     cohort_name: str = Field(None, alias='cohortName')
     source_population: SourcePopulation = Field(alias="sourcePopulation")
     criteria_type: CriteriaType = Field(None, alias="_type")

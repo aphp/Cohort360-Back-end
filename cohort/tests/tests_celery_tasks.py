@@ -1,12 +1,15 @@
 from unittest import mock
 
 from django.utils import timezone
+from requests import Response
+from rest_framework import status
 
 from admin_cohort.types import JobStatus
+from cohort.crb import AbstractCohortRequest
 from cohort.services.crb_responses import CRBCountResponse, CRBCohortResponse
-from cohort.models import DatedMeasure, CohortResult, Request, RequestQuerySnapshot
+from cohort.models import DatedMeasure, CohortResult, Request, RequestQuerySnapshot, FeasibilityStudy
 from cohort.models.dated_measure import GLOBAL_DM_MODE
-from cohort.tasks import get_count_task, create_cohort_task, cancel_previously_running_dm_jobs
+from cohort.tasks import get_count_task, create_cohort_task, cancel_previously_running_dm_jobs, get_feasibility_count_task
 from cohort.tests.tests_view_dated_measure import DatedMeasuresTests
 
 
@@ -106,6 +109,8 @@ class TasksTests(DatedMeasuresTests):
         self.started_dm2 = DatedMeasure.objects.create(request_query_snapshot=self.user1_req_running_dms_snap2,
                                                        request_job_status=JobStatus.started,
                                                        owner=self.user1)
+        self.user1_feasibility_study = FeasibilityStudy.objects.create(owner=self.user1,
+                                                                       request_query_snapshot=self.user1_req_running_dms_snap1)
 
     @mock.patch('cohort.tasks.cohort_job_api')
     def test_get_count_task(self, mock_cohort_job_api):
@@ -202,3 +207,25 @@ class TasksTests(DatedMeasuresTests):
                                              request_job_fail_msg=create_err_msg,
                                              ).first()
         self.assertIsNotNone(new_cr)
+
+    @mock.patch('cohort.crb.cohort_requests.abstract_cohort_request.accesses_service.user_can_access_at_least_one_target_perimeter_in_nomi')
+    @mock.patch.object(AbstractCohortRequest, '_AbstractCohortRequest__headers_to_owner_entity')
+    @mock.patch('cohort.crb.cohort_requests.count_feasibility.get_top_care_site_source_population')
+    @mock.patch('cohort.crb.sjs_client.requests.post')
+    def test_get_feasibility_count_task(self, mock_sjs_client_count, mock_top_care_site_source_population,
+                                        mock_owner_entity, mock_is_nomi_access):
+        mock_response = Response()
+        mock_response.status_code = status.HTTP_200_OK
+        mock_response._text = 'returned a jobId'
+        mock_response._content = b'{"jobId": "some-job-uuid", "status": "running"}'
+        mock_sjs_client_count.return_value = mock_response
+        mock_top_care_site_source_population.return_value = '1111'
+        mock_owner_entity.return_value = self.user1.provider_username
+        mock_is_nomi_access.return_value = True
+        get_feasibility_count_task(fs_uuid=self.user1_feasibility_study.uuid,
+                                   json_query='{"sourcePopulation": {"caresiteCohortList": [1111]}}',
+                                   auth_headers={}
+                                   )
+        new_fs = FeasibilityStudy.objects.filter(pk=self.user1_feasibility_study.uuid,
+                                                 request_job_id="some-job-uuid").first()
+        self.assertIsNotNone(new_fs)

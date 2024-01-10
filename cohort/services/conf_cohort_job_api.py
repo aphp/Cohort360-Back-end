@@ -151,6 +151,15 @@ def post_to_sjs(json_query: str, uuid: str, cohort_cls: AbstractCohortRequest, r
     job = JobResponse(resp, **data)
     logger(uuid, f"Step 3: Get the response {job.__dict__=}")
     return response_cls(success=True, fhir_job_id=job.job_id)
+"""
+2 validation errors for CohortQuery
+cohortUuid
+  Input should be a valid string [type=string_type, input_value=UUID('c8c5168b-35ac-468f-8bb2-8c7483d6b329'), input_type=UUID]
+    For further information visit https://errors.pydantic.dev/2.4/v/string_type
+sourcePopulation
+  Field required [type=missing, input_value={'cohortUuid': UUID('c8c5...68f-8bb2-8c7483d6b329')}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.4/v/missing
+"""
 
 
 def post_count_for_feasibility(auth_headers: dict, json_query: str, fs_uuid: str) -> CRBCountResponse:

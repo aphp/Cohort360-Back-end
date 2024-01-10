@@ -5,7 +5,8 @@ from typing import TYPE_CHECKING, List
 
 from accesses.models import Perimeter
 from accesses.services.accesses import accesses_service
-from admin_cohort.auth.utils import get_userinfo_from_token, get_user_from_token
+from admin_cohort.auth.utils import get_userinfo_from_token
+from admin_cohort.models import User
 from cohort.crb.enums import Mode
 from cohort.crb.exceptions import FhirException
 from cohort.crb.query_formatter import QueryFormatter
@@ -16,9 +17,8 @@ if TYPE_CHECKING:
     from cohort.crb.schemas import CohortQuery
 
 
-def is_cohort_request_pseudo_read(auth_headers: dict, source_population: List[int]) -> bool:
-    user = get_user_from_token(auth_headers['Authorization'].replace('Bearer ', ''),
-                               auth_headers['authorizationMethod'])
+def is_cohort_request_pseudo_read(username: str, source_population: List[int]) -> bool:
+    user = User.objects.filter(pk=username).first()
     perimeters = Perimeter.objects.filter(cohort_id__in=source_population)
     return not accesses_service.user_can_access_at_least_one_target_perimeter_in_nomi(user=user, target_perimeters=perimeters)
 
@@ -42,8 +42,8 @@ class AbstractCohortRequest(ABC):
         if cohort_query is None:
             raise FhirException("No query received to format.")
 
-        is_pseudo = is_cohort_request_pseudo_read(self.auth_headers,
-                                                  cohort_query.source_population.care_site_cohort_list)
+        is_pseudo = is_cohort_request_pseudo_read(username=self.__headers_to_owner_entity(),
+                                                  source_population=cohort_query.source_population.care_site_cohort_list)
 
         sjs_request = QueryFormatter(self.auth_headers).format_to_fhir(cohort_query, is_pseudo)
         cohort_query.criteria = sjs_request

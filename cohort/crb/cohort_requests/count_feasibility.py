@@ -7,9 +7,10 @@ from requests import Response
 from cohort.crb import AbstractCohortRequest
 from cohort.crb.cohort_requests.count_all import get_top_care_site_source_population
 from cohort.crb.enums import Mode
+from cohort.crb.schemas import SourcePopulation
 
 if TYPE_CHECKING:
-    from cohort.crb.schemas import CohortQuery, SourcePopulation
+    from cohort.crb.schemas import CohortQuery
 
 
 class CohortCountFeasibility(AbstractCohortRequest):
