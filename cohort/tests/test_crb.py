@@ -91,14 +91,10 @@ class TestQueryFormatter(CohortAppTests):
         self.assertEquals(self.fq_value_string, res_criteria.filter_solr, )
         self.assertEquals("patient-active=true&codeList=A00-B99", res_criteria.filter_fhir)
 
-    @mock.patch("cohort.crb.cohort_requests.abstract_cohort_request.get_user_from_token")
-    def test_cohort_request_pseudo_read(self, mock_get_user_from_token):
-        mock_get_user_from_token.return_value = User.objects.create(firstname='Test',
-                                                                    lastname='USER',
-                                                                    email='test.user@aphp.fr',
-                                                                    provider_username='1111111')
-        auth_headers = {"Authorization": "Bearer XXX",
-                        "authorizationMethod": "OIDC"}
-        read_in_pseudo = is_cohort_request_pseudo_read(auth_headers=auth_headers, source_population=[])
+    def test_cohort_request_pseudo_read(self):
+        user1 = User.objects.create(firstname='Test',
+                                    lastname='USER',
+                                    email='test.user@aphp.fr',
+                                    provider_username='1111111')
+        read_in_pseudo = is_cohort_request_pseudo_read(username=user1.provider_username, source_population=[])
         self.assertTrue(read_in_pseudo)
-        mock_get_user_from_token.assert_called()
