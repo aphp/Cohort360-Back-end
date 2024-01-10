@@ -29,7 +29,6 @@ class SjsClient:
         }
 
         resp = requests.post(f"{SJS_URL}/jobs", params=params, data=input_payload)
-        resp.raise_for_status()
         result = resp.json()
         return resp, result
 
@@ -42,12 +41,10 @@ class SjsClient:
         }
 
         resp = requests.post(f"{SJS_URL}/jobs", params=params, data=input_payload)
-        resp.raise_for_status()
         return resp, resp.json()
 
     def delete(self, job_id: str) -> tuple[Response, dict]:
         resp = requests.delete(f"{SJS_URL}/jobs/{job_id}")
-        resp.raise_for_status()
         return resp, resp.json()
 
 
@@ -66,9 +63,11 @@ def format_syntax(request: CohortQuery) -> str:
 
 def format_spark_job_request_for_sjs(spark_job_request: SparkJobObject) -> str:
     callback_path = spark_job_request.cohort_definition_syntax.callbackPath
-    return str(f"input.cohortDefinitionName = {spark_job_request.cohort_definition_name},"
-               f"input.cohortDefinitionSyntax = {format_syntax(spark_job_request.cohort_definition_syntax)},"
-               f"input.ownerEntityId = {spark_job_request.owner_entity_id},"
-               f"input.mode = {spark_job_request.mode},"
-               f"input.cohortUuid = {spark_job_request.cohort_definition_syntax.cohort_uuid}" 
-               "" if callback_path is None else f",input.callbackPath = {callback_path}")
+    request_input = str(f"input.cohortDefinitionName = {spark_job_request.cohort_definition_name},"
+                        f"input.cohortDefinitionSyntax = {format_syntax(spark_job_request.cohort_definition_syntax)},"
+                        f"input.ownerEntityId = {spark_job_request.owner_entity_id},"
+                        f"input.mode = {spark_job_request.mode},"
+                        f"input.cohortUuid = {spark_job_request.cohort_definition_syntax.cohort_uuid}")
+    if callback_path:
+        request_input += f",input.callbackPath = {callback_path}"
+    return request_input
