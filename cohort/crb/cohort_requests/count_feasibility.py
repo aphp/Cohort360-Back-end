@@ -19,6 +19,5 @@ class CohortCountFeasibility(AbstractCohortRequest):
 
     def action(self, cohort_query: CohortQuery) -> tuple[Response, dict]:
         cohort_query.source_population = SourcePopulation(caresiteCohortList=[get_top_care_site_source_population()])
-        cohort_query.callbackPath = f"/cohort/feasibility-studies/{cohort_query.cohort_uuid}/"
         request = self.create_request_for_sjs(cohort_query)
         return self.sjs_client.count(request)

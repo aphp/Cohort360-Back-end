@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from typing import TYPE_CHECKING
 
@@ -12,6 +13,8 @@ if TYPE_CHECKING:
 
 SJS_URL = os.environ.get("SJS_URL")
 
+_logger = logging.getLogger('info')
+
 
 class SjsClient:
     APP_NAME = "omop-spark-job"
@@ -22,12 +25,12 @@ class SjsClient:
     CONTEXT = "shared"
 
     def count(self, input_payload: str) -> tuple[Response, dict]:
+        _logger.info(f"Count query payload: {input_payload}")
         params = {
             'appName': self.APP_NAME,
             'classPath': self.COUNT_CLASSPATH,
             'context': self.CONTEXT
         }
-
         resp = requests.post(f"{SJS_URL}/jobs", params=params, data=input_payload)
         result = resp.json()
         return resp, result
@@ -62,7 +65,7 @@ def format_syntax(request: CohortQuery) -> str:
 
 
 def format_spark_job_request_for_sjs(spark_job_request: SparkJobObject) -> str:
-    callback_path = spark_job_request.cohort_definition_syntax.callbackPath
+    callback_path = spark_job_request.callbackPath
     request_input = str(f"input.cohortDefinitionName = {spark_job_request.cohort_definition_name},"
                         f"input.cohortDefinitionSyntax = {format_syntax(spark_job_request.cohort_definition_syntax)},"
                         f"input.ownerEntityId = {spark_job_request.owner_entity_id},"

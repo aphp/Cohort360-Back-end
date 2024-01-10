@@ -48,9 +48,12 @@ class AbstractCohortRequest(ABC):
         sjs_request = QueryFormatter(self.auth_headers).format_to_fhir(cohort_query, is_pseudo)
         cohort_query.criteria = sjs_request
 
-        spark_job_request = SparkJobObject(
-            "Created from Django", cohort_query, self.mode, self.__headers_to_owner_entity()
-        )
+        callback_path = self.mode == Mode.COUNT_WITH_DETAILS and f"/cohort/feasibility-studies/{cohort_query.cohort_uuid}/" or None
+        spark_job_request = SparkJobObject(cohort_definition_name="Created from Django",
+                                           cohort_definition_syntax=cohort_query,
+                                           mode=self.mode,
+                                           owner_entity_id=self.__headers_to_owner_entity(),
+                                           callbackPath=callback_path)
         return format_spark_job_request_for_sjs(spark_job_request)
 
     @abstractmethod

@@ -90,7 +90,6 @@ class CohortQuery(BaseModel):
     criteria_type: CriteriaType = Field(None, alias="_type")
     criteria: Criteria = Field(None, alias="request")
     temporal_constraints: list[TemporalConstraint] = Field(default_factory=list, alias='temporalConstraints')
-    callbackPath: Optional[str] = Field(None, alias='callbackPath')
 
 
 @dataclass
@@ -99,6 +98,7 @@ class SparkJobObject:
     cohort_definition_syntax: CohortQuery
     mode: Mode
     owner_entity_id: str
+    callbackPath: Optional[str] = Field(None, alias='callbackPath')
 
 
 class FhirParameter(BaseModel):
