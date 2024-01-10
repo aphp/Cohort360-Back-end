@@ -144,11 +144,10 @@ class FeasibilityStudySerializer(serializers.ModelSerializer):
     class Meta:
         model = FeasibilityStudy
         write_only_fields = ["request_query_snapshot"]
-        read_only_fields = ["total_count",
-                            "request_job_id",
+        read_only_fields = ["request_job_id",
                             "report_json_content",
-                            "report_file"]
-        exclude = ["request_job_id",
-                   "request_job_duration",
+                            "report_file",
+                            "request_job_id"]
+        exclude = ["request_job_duration",
                    "deleted",
                    "deleted_by_cascade"]

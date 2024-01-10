@@ -1,4 +1,5 @@
 import logging
+from smtplib import SMTPException
 
 from celery import shared_task, current_task
 
@@ -8,6 +9,7 @@ from admin_cohort.types import JobStatus
 from admin_cohort.settings import COHORT_LIMIT
 from cohort.models import CohortResult, DatedMeasure, FeasibilityStudy
 from cohort.models.dated_measure import GLOBAL_DM_MODE
+from cohort.services.emails import send_email_notif_feasibility_report_requested, send_email_notif_error_feasibility_report
 from cohort.services.misc import log_count_task, log_create_task, log_feasibility_study_task
 
 _logger = logging.getLogger('django.request')
@@ -52,7 +54,7 @@ def get_count_task(auth_headers: dict, json_query: str, dm_uuid: str):
 
 
 @shared_task
-def get_feasibility_count_task(fs_uuid: str, json_query: str, auth_headers: dict):
+def get_feasibility_count_task(fs_uuid: str, json_query: str, auth_headers: dict) -> bool:
     resp = cohort_job_api.post_count_for_feasibility(fs_uuid=fs_uuid,
                                                      json_query=json_query,
                                                      auth_headers=auth_headers)
@@ -64,6 +66,21 @@ def get_feasibility_count_task(fs_uuid: str, json_query: str, auth_headers: dict
         feasibility_study.request_job_fail_msg = resp.err_msg
     feasibility_study.save()
     log_feasibility_study_task(fs_uuid, resp.success and "FeasibilityStudy updated" or resp.err_msg)
+    return resp.success
+
+
+@shared_task
+def send_email_notification_task(feasibility_count_task_succeeded: bool, *args, **kwargs):
+    fs = FeasibilityStudy.objects.get(uuid=args[0])
+    try:
+        if feasibility_count_task_succeeded:
+            send_email_notif_feasibility_report_requested(request_name=fs.request_query_snapshot.request.name,
+                                                          owner=fs.owner)
+        else:
+            send_email_notif_error_feasibility_report(request_name=fs.request_query_snapshot.request.name,
+                                                      owner=fs.owner)
+    except (ValueError, SMTPException) as e:
+        _logger.exception(f"FeasibilityStudy [{fs.uuid}] - Couldn't send email to user. {e}")
 
 
 @shared_task

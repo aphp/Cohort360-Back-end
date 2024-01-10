@@ -6,6 +6,7 @@ from io import BytesIO
 from smtplib import SMTPException
 from typing import Tuple, List
 
+from celery import chain
 from django.db.models import QuerySet
 from django.template.loader import get_template
 
@@ -13,9 +14,8 @@ from accesses.models import Perimeter
 from admin_cohort.types import JobStatus, ServerError
 from cohort.models import FeasibilityStudy
 from cohort.services.conf_cohort_job_api import fhir_to_job_status, get_authorization_header
-from cohort.services.emails import send_email_notif_feasibility_report_requested, send_email_notif_feasibility_report_ready, \
-    send_email_notif_error_feasibility_report
-from cohort.tasks import get_feasibility_count_task
+from cohort.services.emails import send_email_notif_feasibility_report_ready, send_email_notif_error_feasibility_report
+from cohort.tasks import get_feasibility_count_task, send_email_notification_task
 
 env = os.environ
 
@@ -34,17 +34,18 @@ _logger_err = logging.getLogger('django.request')
 
 class FeasibilityStudyService:
 
-    def process_feasibility_study_request(self, fs_uuid: str, request):
+    @staticmethod
+    def process_feasibility_study_request(fs_uuid: str, request):
         fs = FeasibilityStudy.objects.get(pk=fs_uuid)
         try:
             auth_headers = get_authorization_header(request)
-            get_feasibility_count_task.delay(fs_uuid,
-                                             fs.request_query_snapshot.serialized_query,
-                                             auth_headers)
+            chain(tasks=(get_feasibility_count_task.s(fs_uuid,
+                                                      fs.request_query_snapshot.serialized_query,
+                                                      auth_headers),
+                         send_email_notification_task.s(fs_uuid)))()
         except Exception as e:
             fs.delete()
             raise ServerError("INTERNAL ERROR: Could not launch feasibility request") from e
-        self.send_email_feasibility_report_requested(fs=fs)
 
     def process_patch_data(self, fs: FeasibilityStudy, data: dict) -> None:
         _logger.info(f"Received data to patch FeasibilityStudy: {data}")
@@ -55,7 +56,7 @@ class FeasibilityStudyService:
             if not job_status:
                 raise ValueError(f"Bad Request: Invalid job status: {data.get(JOB_STATUS)}")
             if job_status == JobStatus.finished:
-                data["total_count"] = data.pop(COUNT, None)
+                data["total_count"] = int(data.pop(COUNT, 0))
                 counts_per_perimeter = data.pop(EXTRA, {})
                 if not counts_per_perimeter:
                     raise ValueError(f"Bad Request: Payload missing `{EXTRA}` key")
@@ -69,15 +70,7 @@ class FeasibilityStudyService:
             self.send_email_feasibility_report_error(fs=fs)
             _logger_err.exception(f"FeasibilityStudy [{fs.uuid}] - Error on SJS callback - {ve}")
             raise ve
-
-    @staticmethod
-    def send_email_feasibility_report_requested(fs: FeasibilityStudy) -> None:
-        try:
-            send_email_notif_feasibility_report_requested(request_name=fs.request_query_snapshot.request.name,
-                                                          owner=fs.owner)
-        except (ValueError, SMTPException) as e:
-            _logger_err.exception(f"FeasibilityStudy [{fs.uuid}] - Couldn't send email to user "
-                                  f"after requesting a feasibility report: {e}")
+        data[JOB_STATUS] = job_status
 
     @staticmethod
     def send_email_feasibility_report_ready(fs: FeasibilityStudy) -> None:
@@ -110,7 +103,7 @@ class FeasibilityStudyService:
             fs.report_json_content = json_zip_bytes
             fs.report_file = html_zip_bytes
             fs.save()
-        except Exception as e :
+        except Exception as e:
             raise ValueError(f"Error saving feasibility report - {e}")
 
     def compress_report_contents(self, fs: FeasibilityStudy, contents: dict) -> List[bytes]:
