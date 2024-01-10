@@ -38,9 +38,9 @@ class FeasibilityStudyService:
         fs = FeasibilityStudy.objects.get(pk=fs_uuid)
         try:
             auth_headers = get_authorization_header(request)
-            get_feasibility_count_task.delay(auth_headers,
+            get_feasibility_count_task.delay(fs_uuid,
                                              fs.request_query_snapshot.serialized_query,
-                                             fs_uuid)
+                                             auth_headers)
         except Exception as e:
             fs.delete()
             raise ServerError("INTERNAL ERROR: Could not launch feasibility request") from e

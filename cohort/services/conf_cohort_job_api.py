@@ -15,7 +15,7 @@ from admin_cohort.types import JobStatus, MissingDataError
 from cohort.crb import CohortQuery, CohortCreate, CohortCountAll, CohortCount, AbstractCohortRequest, SjsClient
 from cohort.crb.cohort_requests.count_feasibility import CohortCountFeasibility
 from cohort.services.crb_responses import CRBCountResponse, CRBCohortResponse
-from cohort.services.misc import log_count_task, log_create_task, log_delete_task, log_count_all_task
+from cohort.services.misc import log_count_task, log_create_task, log_delete_task, log_count_all_task, log_feasibility_study_task
 
 env = os.environ
 
@@ -151,20 +151,11 @@ def post_to_sjs(json_query: str, uuid: str, cohort_cls: AbstractCohortRequest, r
     job = JobResponse(resp, **data)
     logger(uuid, f"Step 3: Get the response {job.__dict__=}")
     return response_cls(success=True, fhir_job_id=job.job_id)
-"""
-2 validation errors for CohortQuery
-cohortUuid
-  Input should be a valid string [type=string_type, input_value=UUID('c8c5168b-35ac-468f-8bb2-8c7483d6b329'), input_type=UUID]
-    For further information visit https://errors.pydantic.dev/2.4/v/string_type
-sourcePopulation
-  Field required [type=missing, input_value={'cohortUuid': UUID('c8c5...68f-8bb2-8c7483d6b329')}, input_type=dict]
-    For further information visit https://errors.pydantic.dev/2.4/v/missing
-"""
 
 
 def post_count_for_feasibility(auth_headers: dict, json_query: str, fs_uuid: str) -> CRBCountResponse:
     count_request = CohortCountFeasibility(auth_headers=auth_headers, sjs_client=SjsClient())
-    return post_to_sjs(json_query, fs_uuid, count_request, CRBCountResponse, log_count_task)
+    return post_to_sjs(json_query, fs_uuid, count_request, CRBCountResponse, log_feasibility_study_task)
 
 
 def post_count_cohort(auth_headers: dict, json_query: str, dm_uuid: str, global_estimate: bool = False) -> CRBCountResponse:
