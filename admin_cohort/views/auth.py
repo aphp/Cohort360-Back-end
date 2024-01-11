@@ -130,9 +130,6 @@ def token_refresh_view(request):
         else:
             response.raise_for_status()
     except KeyError as ke:
-        return JsonResponse(data={"error": f"Missing authorization method: {ke}"},
-                            status=status.HTTP_400_BAD_REQUEST)
+        return JsonResponse(data={"error": f"Missing authorization method: {ke}"}, status=status.HTTP_400_BAD_REQUEST)
     except (InvalidToken, RequestException) as e:
-        _logger.error(f"Error while refreshing access token: {e}")
-        return JsonResponse(data={"error": f"{e}"},
-                            status=status.HTTP_401_UNAUTHORIZED)
+        return JsonResponse(data={"error": f"{e}"}, status=status.HTTP_401_UNAUTHORIZED)
