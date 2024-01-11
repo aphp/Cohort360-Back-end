@@ -39,10 +39,10 @@ class FeasibilityStudyService:
         fs = FeasibilityStudy.objects.get(pk=fs_uuid)
         try:
             auth_headers = get_authorization_header(request)
-            chain(tasks=(get_feasibility_count_task.s(fs_uuid,
-                                                      fs.request_query_snapshot.serialized_query,
-                                                      auth_headers),
-                         send_email_notification_task.s(fs_uuid)))()
+            chain(*(get_feasibility_count_task.s(fs_uuid,
+                                                 fs.request_query_snapshot.serialized_query,
+                                                 auth_headers),
+                  send_email_notification_task.s(fs_uuid)))()
         except Exception as e:
             fs.delete()
             raise ServerError("INTERNAL ERROR: Could not launch feasibility request") from e
