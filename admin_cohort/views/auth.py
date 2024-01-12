@@ -17,7 +17,7 @@ from admin_cohort.auth.utils import logout_user, refresh_oidc_token, refresh_jwt
 from admin_cohort.auth.auth_form import AuthForm
 from admin_cohort.models import User
 from admin_cohort.serializers import UserSerializer
-from admin_cohort.settings import MANUAL_SOURCE, AUTHENTICATION_BACKENDS, OIDC_AUTH_MODE, JWT_AUTH_MODE
+from admin_cohort.settings import MANUAL_SOURCE, OIDC_AUTH_MODE, JWT_AUTH_MODE
 from admin_cohort.types import JwtTokens
 from admin_cohort.tools.request_log_mixin import RequestLogMixin, JWTLoginRequestLogMixin
 
@@ -61,7 +61,7 @@ class OIDCTokensView(RequestLogMixin, viewsets.ViewSet):
         except User.DoesNotExist:
             return JsonResponse(data={"error": "User not found in database"},
                                 status=status.HTTP_401_UNAUTHORIZED)
-        login(request=request, user=user, backend=AUTHENTICATION_BACKENDS[1])
+        login(request=request, user=user)
         return JsonResponse(data=get_response_data(request=request, user=user),
                             status=status.HTTP_200_OK)
 
