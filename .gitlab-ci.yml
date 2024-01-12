@@ -75,19 +75,12 @@ deploy-job:
     - export VERSION=$(cat ./admin_cohort/__init__.py | grep __version__ | head -1 | awk -F'=' '{ print $2 }' | sed "s/[' ]//g")
     - mkdir -p /kaniko/.docker
     - |-
-      KANIKOPROXYARGS=""
-      KANIKOCFG="\"auths\":{\"${CI_REGISTRY}\":{\"username\":\"${BOT_NAME}\",\"password\":\"${BOT_TOKEN}\"}}"
-      if [ "x${http_proxy}" != "x" -o "x${https_proxy}" != "x" ]; then
-        KANIKOCFG="${KANIKOCFG}, \"proxies\" : { \"default\" : { \"httpProxy\" : \"${http_proxy}\", \"httpsProxy\" : \"${https_proxy}\", \"noProxy\" : \"${no_proxy}\" } }"
-        KANIKOPROXYARGS="--build-arg http_proxy=${http_proxy} --build-arg https_proxy=${https_proxy} --build-arg no_proxy=${no_proxy}"
-      fi
-      KANIKOCFG="{ ${KANIKOCFG} }"
+      KANIKOCFG="{ "\"auths\":{\"${CI_REGISTRY}\":{\"username\":\"${BOT_NAME}\",\"password\":\"${BOT_TOKEN}\"}}" }"
       echo "${KANIKOCFG}" > /kaniko/.docker/config.json
     - >-
       /kaniko/executor
       --context "${CI_PROJECT_DIR}"
       --dockerfile "${CI_PROJECT_DIR}/Dockerfile"
-      $KANIKOPROXYARGS
       --destination "${CI_REGISTRY_IMAGE}:${VERSION}"
   only:
     - tags
