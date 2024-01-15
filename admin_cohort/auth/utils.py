@@ -65,7 +65,6 @@ def get_oidc_tokens(code):
             "code": code
             }
     response = requests.post(url=OIDC_SERVER_TOKEN_URL, data=data)
-    response.raise_for_status()
     return JwtTokens(**response.json())
 
 
