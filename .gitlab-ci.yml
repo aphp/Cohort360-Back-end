@@ -1,4 +1,4 @@
-image: harbor.eds.aphp.fr/cohort360/python:3.11.1
+image: harbor.eds.aphp.fr/cohort360/python-test:3.11.1
 
 workflow:
   rules:
@@ -21,7 +21,6 @@ lint-job:
   allow_failure: false
 
 test-job:
-  image: harbor.eds.aphp.fr/cohort360/python-test:3.11.1
   stage: test
   services:
     - postgres
