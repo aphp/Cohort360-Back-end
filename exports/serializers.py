@@ -30,9 +30,9 @@ class ExportRequestTableSerializer(serializers.ModelSerializer):
 
 def check_read_rights_on_perimeters(rights: List[DataRight], is_nominative: bool):
     if is_nominative:
-        wrong_perimeters = [r.perimeter.id for r in rights if not r.right_read_patient_nominative]
+        wrong_perimeters = [r.perimeter_id for r in rights if not r.right_read_patient_nominative]
     else:
-        wrong_perimeters = [r.perimeter.id for r in rights if not r.right_read_patient_pseudonymized]
+        wrong_perimeters = [r.perimeter_id for r in rights if not r.right_read_patient_pseudonymized]
     if wrong_perimeters:
         raise ValidationError(f"L'utilisateur n'a pas le droit de lecture {is_nominative and 'nominative' or 'pseudonymisée'} "
                               f"sur les périmètres suivants: {wrong_perimeters}.")
