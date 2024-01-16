@@ -1,6 +1,8 @@
 import logging
 from typing import List
 
+from rest_framework.exceptions import ValidationError
+
 from accesses.models import Perimeter
 from accesses.services.accesses import accesses_service
 from accesses.services.shared import DataRight
@@ -19,43 +21,38 @@ PERSON_TABLE = "person"
 
 class ExportService:
 
+    # def process_export_creation(self, data: dict, user: User):
+    #     data["owner"] = user
+    #     data['motivation'] = data.get('motivation', "").replace("\n", " -- ")
+    #     self.do_pre_export_check(data)
+    #     export_tables = data.pop("export_tables", [])
+    #     self.validate_tables_data(tables_data=export_tables, owner=user)
+    #     export = super(ExportSerializer, self).create(data)
+    #     self.create_tables(http_request=self.context.get("request"),
+    #                                  tables_data=export_tables,
+    #                                  export=export)
+
     def do_pre_export_check(self, validated_data: dict) -> None:
         check_email_address(validated_data["owner"].email)
-        if validated_data["output_format"] == ExportType.CSV:
-            self.validate_csv_export(validated_data)
-        else:
-            self.validate_hive_export(validated_data)
-
-    def validate_csv_export(self, validated_data: dict):
-        if not validated_data.get('nominative'):
-            raise ValueError("CSV exports in pseudonymized mode are not allowed")
-
-        export_tables = validated_data.get("export_tables", [])
-        source_cohorts = [table.get("cohort_result_source") for table in export_tables]
-        assert len(source_cohorts) == 1, "All export tables must have the same cohort source"
-
-        if self.validate_owner_rights(owner=validated_data["owner"],
-                                      output_format=validated_data["output_format"],
-                                      nominative=validated_data["nominative"],
-                                      source_cohorts=source_cohorts):
-            validated_data['request_job_status'] = JobStatus.validated
-        else:
-            ...
-
-    def validate_hive_export(self, validated_data: dict) -> None:
-        target_datalab = validated_data.get('datalab')
-        if not target_datalab:
-            raise ValueError("Missing `datalab` for Jupyter export")
-
-        owner = validated_data.get('owner')
+        try:
+            export_tables = validated_data.get("export_tables", [])
+            source_cohorts = [table.get("cohort_result_source") for table in export_tables]
+            if validated_data["output_format"] == ExportType.CSV:
+                if not validated_data.get('nominative'):
+                    raise ValidationError("CSV exports in pseudonymized mode are not allowed")
+                assert len(source_cohorts) == 1, "All export tables must have the same cohort source"
+            else:
+                if not validated_data.get('datalab'):
+                    raise ValueError("Missing `datalab` for Jupyter export")
+            self.check_owner_rights(owner=validated_data["owner"],
+                                    output_format=validated_data["output_format"],
+                                    nominative=validated_data["nominative"],
+                                    source_cohorts=source_cohorts)
+        except (ValidationError, KeyError, ValueError) as e:
+            raise ValidationError(f"Pre export check failed, reason: {e}")
         validated_data['request_job_status'] = JobStatus.validated
-        validated_data['reviewer_fk'] = self.context.get('request').user
-        if not conf_workspaces.is_user_bound_to_unix_account(owner, target_datalab.aphp_ldap_group_dn):
-            raise ValueError(f"Le compte Unix destinataire ({target_datalab.pk}) "
-                                  f"n'est pas lié à l'utilisateur voulu ({owner.pk})")
-        self.validate_owner_rights(validated_data)
 
-    def validate_owner_rights(self, owner: User, output_format:  str, nominative: bool, source_cohorts: List[CohortResult]):
+    def check_owner_rights(self, owner: User, output_format:  str, nominative: bool, source_cohorts: List[CohortResult]) -> None:
         cohort_ids = []
         for cohort in source_cohorts:
             cohort_ids.extend(cohort.request_query_snapshot.perimeters_ids)
@@ -67,14 +64,14 @@ class ExportService:
                                                     is_nominative=nominative)
 
     def check_rights_on_perimeters_for_exports(self, rights: List[DataRight], export_type: str, is_nominative: bool):
-        assert export_type in [e.value for e in ExportType], "Wrong value for `export_type`"
         self.check_read_rights_on_perimeters(rights=rights, is_nominative=is_nominative)
         if export_type == ExportType.CSV:
             self.check_csv_export_rights_on_perimeters(rights=rights, is_nominative=is_nominative)
         else:
             self.check_jupyter_export_rights_on_perimeters(rights=rights, is_nominative=is_nominative)
 
-    def check_read_rights_on_perimeters(self, rights: List[DataRight], is_nominative: bool):
+    @staticmethod
+    def check_read_rights_on_perimeters(rights: List[DataRight], is_nominative: bool):
         if is_nominative:
             wrong_perimeters = [r.perimeter_id for r in rights if not r.right_read_patient_nominative]
         else:
@@ -83,7 +80,8 @@ class ExportService:
             raise ValidationError(f"L'utilisateur n'a pas le droit de lecture {is_nominative and 'nominative' or 'pseudonymisée'} "
                                   f"sur les périmètres suivants: {wrong_perimeters}.")
 
-    def check_csv_export_rights_on_perimeters(self, rights: List[DataRight], is_nominative: bool):
+    @staticmethod
+    def check_csv_export_rights_on_perimeters(rights: List[DataRight], is_nominative: bool):
         if is_nominative:
             wrong_perimeters = [r.perimeter_id for r in rights if not r.right_export_csv_nominative]
         else:
@@ -92,7 +90,8 @@ class ExportService:
             raise ValidationError(f"L'utilisateur n'a pas le droit d'export CSV {is_nominative and 'nominatif' or 'pseudonymisé'} "
                                   f"sur les périmètres suivants: {wrong_perimeters}.")
 
-    def check_jupyter_export_rights_on_perimeters(self, rights: List[DataRight], is_nominative: bool):
+    @staticmethod
+    def check_jupyter_export_rights_on_perimeters(rights: List[DataRight], is_nominative: bool):
         if is_nominative:
             wrong_perimeters = [r.perimeter_id for r in rights if not r.right_export_jupyter_nominative]
         else:

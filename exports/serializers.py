@@ -269,20 +269,25 @@ class ExportSerializer(serializers.ModelSerializer):
                   "export_tables",
                   "motivation",
                   "status",
-                  "cohort_id",
                   "owner",
-                  "target_name"]
+                  "target_name",
+                  "request_job_id",
+                  "request_job_status",
+                  "request_job_fail_msg"]
         read_only_fields = ["uuid",
                             "owner",
-                            "target_name"]
+                            "target_name",
+                            "request_job_id",
+                            "request_job_status",
+                            "request_job_fail_msg"]
 
     def create(self, validated_data):
         if "owner" not in validated_data:
             validated_data["owner"] = self.context.get("request").user
         validated_data['motivation'] = validated_data.get('motivation', "").replace("\n", " -- ")
         export_service.do_pre_export_check(validated_data)
-        export = super(ExportSerializer, self).create(validated_data)
         export_tables = validated_data.pop("export_tables", [])
+        export = super(ExportSerializer, self).create(validated_data)
         export_service.validate_tables_data(tables_data=export_tables, owner=validated_data["owner"])
         export_service.create_tables(http_request=self.context.get("request"),
                                      tables_data=export_tables,

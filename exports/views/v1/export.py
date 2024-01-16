@@ -8,6 +8,7 @@ from admin_cohort.tools import join_qs
 from exports.models import Export
 from exports.permissions import CSVExportsPermission, JupyterExportPermission
 from exports.serializers import ExportSerializer
+from exports.services.export import export_service
 from exports.views.v1.base_viewset import ExportsBaseViewSet
 
 
@@ -72,4 +73,5 @@ class ExportViewSet(ExportsBaseViewSet):
                                                              'fhir_filter': openapi.Schema(type=openapi.TYPE_STRING),
                                                              'cohort_result_source': openapi.Schema(type=openapi.TYPE_STRING)}))}))
     def create(self, request, *args, **kwargs):
+        # export_service.process_export_creation(data=request.data, user=request.user)
         return super().create(request, *args, **kwargs)
