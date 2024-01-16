@@ -58,17 +58,18 @@ class ExportViewSet(ExportsBaseViewSet):
         return super().get_permissions()
 
     @swagger_auto_schema(
-        request_body=openapi.Schema(type=openapi.TYPE_OBJECT,
-                                    properties={'output_format': openapi.Schema(type=openapi.TYPE_STRING, description="hive, csv (default)"),
-                                                'datalab': openapi.Schema(type=openapi.TYPE_STRING),
-                                                'nominative': openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Defaults to False"),
-                                                'shift_dates': openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Defaults to False"),
-                                                'export_tables': openapi.Schema(type=openapi.TYPE_OBJECT,
-                                                                                properties={'name': openapi.Schema(type=openapi.TYPE_STRING),
-                                                                                            'respect_table_relationships': openapi.Schema(
-                                                                                                type=openapi.TYPE_BOOLEAN),
-                                                                                            'fhir_filter': openapi.Schema(type=openapi.TYPE_STRING),
-                                                                                            'cohort_result_source': openapi.Schema(
-                                                                                                type=openapi.TYPE_STRING)})}))
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={'output_format': openapi.Schema(type=openapi.TYPE_STRING, description="hive, csv (default)"),
+                        'datalab': openapi.Schema(type=openapi.TYPE_STRING),
+                        'nominative': openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Defaults to False"),
+                        'shift_dates': openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Defaults to False"),
+                        'export_tables': openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(type=openapi.TYPE_OBJECT,
+                                                 properties={'name': openapi.Schema(type=openapi.TYPE_STRING),
+                                                             'respect_table_relationships': openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                                                             'fhir_filter': openapi.Schema(type=openapi.TYPE_STRING),
+                                                             'cohort_result_source': openapi.Schema(type=openapi.TYPE_STRING)}))}))
     def create(self, request, *args, **kwargs):
         return super().create(request, *args, **kwargs)

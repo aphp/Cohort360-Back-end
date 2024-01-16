@@ -30,9 +30,9 @@ class ExportRequestTableSerializer(serializers.ModelSerializer):
 
 def check_read_rights_on_perimeters(rights: List[DataRight], is_nominative: bool):
     if is_nominative:
-        wrong_perimeters = [r.perimeter.id for r in rights if not r.right_read_patient_nominative]
+        wrong_perimeters = [r.perimeter_id for r in rights if not r.right_read_patient_nominative]
     else:
-        wrong_perimeters = [r.perimeter.id for r in rights if not r.right_read_patient_pseudonymized]
+        wrong_perimeters = [r.perimeter_id for r in rights if not r.right_read_patient_pseudonymized]
     if wrong_perimeters:
         raise ValidationError(f"L'utilisateur n'a pas le droit de lecture {is_nominative and 'nominative' or 'pseudonymisée'} "
                               f"sur les périmètres suivants: {wrong_perimeters}.")
@@ -279,9 +279,11 @@ class ExportSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         if "owner" not in validated_data:
             validated_data["owner"] = self.context.get("request").user
-        export_tables = validated_data.pop("export_tables", [])
+        validated_data['motivation'] = validated_data.get('motivation', "").replace("\n", " -- ")
+        export_service.do_pre_export_check(validated_data)
         export = super(ExportSerializer, self).create(validated_data)
-        export_service.validate_tables_data(tables_data=export_tables)
+        export_tables = validated_data.pop("export_tables", [])
+        export_service.validate_tables_data(tables_data=export_tables, owner=validated_data["owner"])
         export_service.create_tables(http_request=self.context.get("request"),
                                      tables_data=export_tables,
                                      export=export)
