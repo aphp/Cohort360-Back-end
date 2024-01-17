@@ -3,9 +3,6 @@ from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import viewsets
 
-from accesses.permissions import can_user_read_datalabs
-from admin_cohort.models import User
-from workspaces.conf_workspaces import get_account_groups_from_id_aph
 from workspaces.models import Account
 from workspaces.permissions import AccountsPermission
 from workspaces.serializers import AccountSerializer
@@ -47,13 +44,14 @@ class AccountViewSet(viewsets.ModelViewSet):
     def get_serializer_context(self):
         return {'request': self.request}
 
-    def get_queryset(self):
-        q = super(AccountViewSet, self).get_queryset()
-        user: User = self.request.user
-        if not user.is_anonymous and not can_user_read_datalabs(user):
-            ad_groups = get_account_groups_from_id_aph(user.provider_username)
-            return q.filter(aphp_ldap_group_dn__in=ad_groups)
-        return q
+    # /!\ Never been used /!\ todo: check with the team if necessary to keep this !
+    # def get_queryset(self):
+    #     q = super(AccountViewSet, self).get_queryset()
+    #     user: User = self.request.user
+    #     if not user.is_anonymous and not can_user_read_datalabs(user):
+    #         ad_groups = get_account_groups_from_id_aph(user.provider_username)
+    #         return q.filter(aphp_ldap_group_dn__in=ad_groups)
+    #     return q
 
     @swagger_auto_schema(manual_parameters=list(map(lambda x: openapi.Parameter(name=x[0], in_=openapi.IN_QUERY,
                                                                                 description=x[1], type=x[2],
