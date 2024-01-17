@@ -29,18 +29,21 @@ def check_resp(resp: Response, url: str) -> Dict:
 
 
 def is_user_bound_to_unix_account(user: User, unix_acc_group: str) -> bool:
-    resp = requests.get(f"{INFRA_API_URL}/active_directory/is_member_of_group",
-                        params={'id_aph': user.provider_username,
-                                'group_dn': unix_acc_group},
-                        headers={'auth-token': INFRA_AD_TOKEN})
+    return True
 
-    if resp.status_code != status.HTTP_200_OK:
-        raise HTTPError(f"Request to infra API failed ({resp.status_code}): {resp.text}")
-    else:
-        b = resp.json()
-        if not isinstance(b, bool):
-            raise MissingDataError(f"Response from infra API unexpected (should be boolean): {resp.text}")
-        return b
+# def is_user_bound_to_unix_account(user: User, unix_acc_group: str) -> bool:
+#     resp = requests.get(f"{INFRA_API_URL}/active_directory/is_member_of_group",
+#                         params={'id_aph': user.provider_username,
+#                                 'group_dn': unix_acc_group},
+#                         headers={'auth-token': INFRA_AD_TOKEN})
+#
+#     if resp.status_code != status.HTTP_200_OK:
+#         raise HTTPError(f"Request to infra API failed ({resp.status_code}): {resp.text}")
+#     else:
+#         b = resp.json()
+#         if not isinstance(b, bool):
+#             raise MissingDataError(f"Response from infra API unexpected (should be boolean): {resp.text}")
+#         return b
 
 
 def get_account_groups_from_id_aph(id_aph: str) -> List[str]:

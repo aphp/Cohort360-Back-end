@@ -89,6 +89,7 @@ def launch_request(er_id: int):
         export_request.target_location = EXPORT_CSV_PATH
     else:
         export_request.target_name = f"{export_request.target_unix_account.name}_{now.strftime('%Y%m%d_%H%M%S%f')}"
+        export_request.target_location = HIVE_DB_FOLDER
     export_request.save()
 
     if output_format == ExportType.HIVE:
