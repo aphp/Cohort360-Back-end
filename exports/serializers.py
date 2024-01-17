@@ -172,11 +172,11 @@ class ExportRequestSerializer(serializers.ModelSerializer):
         if not target_unix_account:
             raise ValidationError("Pour une demande d'export HIVE, il faut fournir target_unix_account")
 
+        owner = validated_data.get('owner')
         validated_data['request_job_status'] = JobStatus.validated
         validated_data['reviewer_fk'] = self.context.get('request').user
-        
+
         # /!\ Never been used /!\ todo: check with the team if necessary to keep this !
-        owner = validated_data.get('owner')
         if not conf_workspaces.is_user_bound_to_unix_account(owner, target_unix_account.aphp_ldap_group_dn):
             raise ValidationError(f"Le compte Unix destinataire ({target_unix_account.pk}) "
                                   f"n'est pas lié à l'utilisateur voulu ({owner.pk})")
