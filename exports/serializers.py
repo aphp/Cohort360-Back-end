@@ -3,7 +3,6 @@ from typing import List
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-import workspaces.conf_workspaces as conf_workspaces
 from accesses.models import Perimeter
 from accesses.services.accesses import accesses_service
 from accesses.services.shared import DataRight
@@ -11,6 +10,7 @@ from admin_cohort.types import JobStatus
 from admin_cohort.models import User
 from cohort.models import CohortResult
 from exports.services.export import export_service
+from workspaces import conf_workspaces
 from workspaces.models import Account
 from exports.emails import check_email_address
 from exports.models import ExportRequest, ExportRequestTable, Datalab, InfrastructureProvider, ExportTable, ExportResultStat, Export
@@ -175,6 +175,8 @@ class ExportRequestSerializer(serializers.ModelSerializer):
         owner = validated_data.get('owner')
         validated_data['request_job_status'] = JobStatus.validated
         validated_data['reviewer_fk'] = self.context.get('request').user
+
+        # /!\ Never been used /!\ todo: check with the team if necessary to keep this !
         if not conf_workspaces.is_user_bound_to_unix_account(owner, target_unix_account.aphp_ldap_group_dn):
             raise ValidationError(f"Le compte Unix destinataire ({target_unix_account.pk}) "
                                   f"n'est pas lié à l'utilisateur voulu ({owner.pk})")
