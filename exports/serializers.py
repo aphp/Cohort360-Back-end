@@ -175,9 +175,9 @@ class ExportRequestSerializer(serializers.ModelSerializer):
         owner = validated_data.get('owner')
         validated_data['request_job_status'] = JobStatus.validated
         validated_data['reviewer_fk'] = self.context.get('request').user
-        if not conf_workspaces.is_user_bound_to_unix_account(owner, target_unix_account.aphp_ldap_group_dn):
-            raise ValidationError(f"Le compte Unix destinataire ({target_unix_account.pk}) "
-                                  f"n'est pas lié à l'utilisateur voulu ({owner.pk})")
+        # if not conf_workspaces.is_user_bound_to_unix_account(owner, target_unix_account.aphp_ldap_group_dn):
+        #     raise ValidationError(f"Le compte Unix destinataire ({target_unix_account.pk}) "
+        #                           f"n'est pas lié à l'utilisateur voulu ({owner.pk})")
         self.validate_owner_rights(validated_data)
 
     def validate_csv_export(self, validated_data: dict):
@@ -257,7 +257,7 @@ class ExportTableSerializer(serializers.ModelSerializer):
 
 
 class ExportSerializer(serializers.ModelSerializer):
-    export_tables = ExportTableSerializer(many=True, write_only=True)
+    export_tables = ExportTableSerializer(many=True, write_only=True, required=False)
 
     class Meta:
         model = Export
@@ -271,26 +271,25 @@ class ExportSerializer(serializers.ModelSerializer):
                   "status",
                   "owner",
                   "target_name",
+                  "target_location",
+                  "target_full_path",
                   "request_job_id",
                   "request_job_status",
                   "request_job_fail_msg"]
         read_only_fields = ["uuid",
-                            "owner",
                             "target_name",
+                            "target_location",
+                            "target_full_path",
                             "request_job_id",
                             "request_job_status",
                             "request_job_fail_msg"]
+        extra_kwargs = {'owner': {'required': False}}
 
-    def create(self, validated_data):
-        if "owner" not in validated_data:
-            validated_data["owner"] = self.context.get("request").user
-        validated_data['motivation'] = validated_data.get('motivation', "").replace("\n", " -- ")
-        export_service.do_pre_export_check(validated_data)
-        export_tables = validated_data.pop("export_tables", [])
-        export = super(ExportSerializer, self).create(validated_data)
-        export_service.validate_tables_data(tables_data=export_tables, owner=validated_data["owner"])
-        export_service.create_tables(http_request=self.context.get("request"),
-                                     tables_data=export_tables,
-                                     export=export)
-        return export
+    # def create(self, validated_data):
+    #     export_tables = validated_data.pop("export_tables", [])
+    #     export = super(ExportSerializer, self).create(validated_data)
+    #     export_service.create_tables(http_request=self.context.get("request"),
+    #                                  tables_data=export_tables,
+    #                                  export=export)
+    #     return export
 

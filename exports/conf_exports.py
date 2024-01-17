@@ -187,6 +187,7 @@ def create_hive_db(export_request: ExportRequest):
     data = {"name": export_request.target_name,
             "location": export_request.target_full_path,
             "if_not_exists": False}
+    print(f"********************  {data}")
     try:
         response = requests.post(url=HADOOP_NEW_DB_URL, params=data, headers={'auth-token': INFRA_HADOOP_TOKEN})
         response = PostJobResponse(response=response, url=HADOOP_NEW_DB_URL)

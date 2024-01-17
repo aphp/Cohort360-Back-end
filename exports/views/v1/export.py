@@ -73,5 +73,10 @@ class ExportViewSet(ExportsBaseViewSet):
                                                              'fhir_filter': openapi.Schema(type=openapi.TYPE_STRING),
                                                              'cohort_result_source': openapi.Schema(type=openapi.TYPE_STRING)}))}))
     def create(self, request, *args, **kwargs):
-        # export_service.process_export_creation(data=request.data, user=request.user)
-        return super().create(request, *args, **kwargs)
+        export_service.process_export_creation(data=request.data, owner=request.user)
+        export_tables = request.data.pop("export_tables", [])
+        response = super().create(request, *args, **kwargs)
+        export_service.create_tables(export_uuid=response.data["uuid"],
+                                     export_tables=export_tables,
+                                     http_request=request)
+        return response

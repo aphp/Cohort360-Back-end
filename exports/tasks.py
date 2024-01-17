@@ -8,7 +8,6 @@ from django.utils import timezone
 from requests import RequestException, HTTPError
 
 from admin_cohort.celery import celery_app
-from admin_cohort.settings import EXPORT_CSV_PATH
 from admin_cohort.tools.celery_periodic_task_helper import ensure_single_task
 from admin_cohort.types import JobStatus
 from exports import conf_exports
@@ -20,6 +19,7 @@ _logger_err = logging.getLogger('django.request')
 _celery_logger = logging.getLogger('celery.app')
 env = os.environ
 
+EXPORT_CSV_PATH = env.get('EXPORT_CSV_PATH')
 HIVE_DB_FOLDER = env.get('HIVE_DB_FOLDER')
 
 
