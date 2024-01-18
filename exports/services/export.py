@@ -13,7 +13,7 @@ from exports.emails import check_email_address
 from exports.models import ExportTable, Export, Datalab
 from exports.services.rights_checker import rights_checker
 from exports.tasks import launch_export_task
-from exports.types import ExportType, StatType
+from exports.types import ExportType
 
 env = os.environ
 
