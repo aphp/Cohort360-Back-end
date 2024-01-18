@@ -41,4 +41,9 @@ class Migration(migrations.Migration):
             name='status',
             field=models.CharField(choices=[('PENDING', 'pending'), ('SENT_TO_DE', 'sent_to_dataexporter'), ('DELIVERED', 'delivered')], default=exports.types.ExportStatus['PENDING'], max_length=55, null=True),
         ),
+        migrations.AlterField(
+            model_name='export',
+            name='motivation',
+            field=models.TextField(blank=True, null=True),
+        ),
     ]

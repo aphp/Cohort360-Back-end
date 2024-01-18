@@ -3,14 +3,13 @@ from typing import List
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-import workspaces.conf_workspaces as conf_workspaces
 from accesses.models import Perimeter
 from accesses.services.accesses import accesses_service
 from accesses.services.shared import DataRight
 from admin_cohort.types import JobStatus
 from admin_cohort.models import User
 from cohort.models import CohortResult
-from exports.services.export import export_service
+from workspaces import conf_workspaces
 from workspaces.models import Account
 from exports.emails import check_email_address
 from exports.models import ExportRequest, ExportRequestTable, Datalab, InfrastructureProvider, ExportTable, ExportResultStat, Export
@@ -175,9 +174,9 @@ class ExportRequestSerializer(serializers.ModelSerializer):
         owner = validated_data.get('owner')
         validated_data['request_job_status'] = JobStatus.validated
         validated_data['reviewer_fk'] = self.context.get('request').user
-        # if not conf_workspaces.is_user_bound_to_unix_account(owner, target_unix_account.aphp_ldap_group_dn):
-        #     raise ValidationError(f"Le compte Unix destinataire ({target_unix_account.pk}) "
-        #                           f"n'est pas lié à l'utilisateur voulu ({owner.pk})")
+        if not conf_workspaces.is_user_bound_to_unix_account(owner, target_unix_account.aphp_ldap_group_dn):
+            raise ValidationError(f"Le compte Unix destinataire ({target_unix_account.pk}) "
+                                  f"n'est pas lié à l'utilisateur voulu ({owner.pk})")
         self.validate_owner_rights(validated_data)
 
     def validate_csv_export(self, validated_data: dict):
@@ -271,25 +270,12 @@ class ExportSerializer(serializers.ModelSerializer):
                   "status",
                   "owner",
                   "target_name",
-                  "target_location",
-                  "target_full_path",
                   "request_job_id",
                   "request_job_status",
                   "request_job_fail_msg"]
         read_only_fields = ["uuid",
-                            "target_name",
-                            "target_location",
-                            "target_full_path",
                             "request_job_id",
                             "request_job_status",
                             "request_job_fail_msg"]
-        extra_kwargs = {'owner': {'required': False}}
-
-    # def create(self, validated_data):
-    #     export_tables = validated_data.pop("export_tables", [])
-    #     export = super(ExportSerializer, self).create(validated_data)
-    #     export_service.create_tables(http_request=self.context.get("request"),
-    #                                  tables_data=export_tables,
-    #                                  export=export)
-    #     return export
-
+        extra_kwargs = {'owner': {'required': False},
+                        'motivation': {'required': False}}

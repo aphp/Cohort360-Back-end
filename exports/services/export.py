@@ -5,17 +5,15 @@ from typing import List
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
-from accesses.models import Perimeter
-from accesses.services.accesses import accesses_service
-from accesses.services.shared import DataRight
 from admin_cohort.models import User
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult
 from cohort.services.cohort_result import cohort_service
 from exports.emails import check_email_address
 from exports.models import ExportTable, Export, Datalab
+from exports.services.rights_checker import rights_checker
 from exports.tasks import launch_export_task
-from exports.types import ExportType
+from exports.types import ExportType, StatType
 
 env = os.environ
 
@@ -44,7 +42,8 @@ class ExportService:
                      "target_location": target_location
                      })
 
-    def do_pre_export_check(self, data: dict, owner: User) -> None:
+    @staticmethod
+    def do_pre_export_check(data: dict, owner: User) -> None:
         try:
             check_email_address(owner.email)
             export_tables = data.get("export_tables", [])
@@ -52,65 +51,17 @@ class ExportService:
             if data["output_format"] == ExportType.CSV:
                 if not data.get('nominative'):
                     raise ValidationError("CSV exports in pseudonymized mode are not allowed")
-                assert len(source_cohorts_ids) == 1, "All export tables must have the same cohort source"
+                assert len(source_cohorts_ids) == 1, "All export tables must have the same source cohort"
             else:
                 if not data.get('datalab'):
                     raise ValueError("Missing `datalab` for Jupyter export")
-            self.check_owner_rights(owner=owner,
-                                    output_format=data["output_format"],
-                                    nominative=data["nominative"],
-                                    source_cohorts_ids=source_cohorts_ids)
+            rights_checker.check_owner_rights(owner=owner,
+                                              output_format=data["output_format"],
+                                              nominative=data["nominative"],
+                                              source_cohorts_ids=source_cohorts_ids)
         except (ValidationError, KeyError, ValueError) as e:
             raise ValidationError(f"Pre export check failed, reason: {e}")
         data['request_job_status'] = JobStatus.validated
-
-    def check_owner_rights(self, owner: User, output_format:  str, nominative: bool, source_cohorts_ids: List[str]) -> None:
-        cohort_ids = []
-        for cohort in CohortResult.objects.filter(pk__in=source_cohorts_ids):
-            cohort_ids.extend(cohort.request_query_snapshot.perimeters_ids)
-        perimeters_ids = Perimeter.objects.filter(cohort_id__in=cohort_ids).values_list('id', flat=True)
-        data_rights = accesses_service.get_data_reading_rights(user=owner,
-                                                               target_perimeters_ids=','.join(map(str, perimeters_ids)))
-        self.check_rights_on_perimeters_for_exports(rights=data_rights,
-                                                    export_type=output_format,
-                                                    is_nominative=nominative)
-
-    def check_rights_on_perimeters_for_exports(self, rights: List[DataRight], export_type: str, is_nominative: bool):
-        self.check_read_rights_on_perimeters(rights=rights, is_nominative=is_nominative)
-        if export_type == ExportType.CSV:
-            self.check_csv_export_rights_on_perimeters(rights=rights, is_nominative=is_nominative)
-        else:
-            self.check_jupyter_export_rights_on_perimeters(rights=rights, is_nominative=is_nominative)
-
-    @staticmethod
-    def check_read_rights_on_perimeters(rights: List[DataRight], is_nominative: bool):
-        if is_nominative:
-            wrong_perimeters = [r.perimeter_id for r in rights if not r.right_read_patient_nominative]
-        else:
-            wrong_perimeters = [r.perimeter_id for r in rights if not r.right_read_patient_pseudonymized]
-        if wrong_perimeters:
-            raise ValidationError(f"L'utilisateur n'a pas le droit de lecture {is_nominative and 'nominative' or 'pseudonymisée'} "
-                                  f"sur les périmètres suivants: {wrong_perimeters}.")
-
-    @staticmethod
-    def check_csv_export_rights_on_perimeters(rights: List[DataRight], is_nominative: bool):
-        if is_nominative:
-            wrong_perimeters = [r.perimeter_id for r in rights if not r.right_export_csv_nominative]
-        else:
-            wrong_perimeters = [r.perimeter_id for r in rights if not r.right_export_csv_pseudonymized]
-        if wrong_perimeters:
-            raise ValidationError(f"L'utilisateur n'a pas le droit d'export CSV {is_nominative and 'nominatif' or 'pseudonymisé'} "
-                                  f"sur les périmètres suivants: {wrong_perimeters}.")
-
-    @staticmethod
-    def check_jupyter_export_rights_on_perimeters(rights: List[DataRight], is_nominative: bool):
-        if is_nominative:
-            wrong_perimeters = [r.perimeter_id for r in rights if not r.right_export_jupyter_nominative]
-        else:
-            wrong_perimeters = [r.perimeter_id for r in rights if not r.right_export_jupyter_pseudonymized]
-        if wrong_perimeters:
-            raise ValidationError(f"L'utilisateur n'a pas le droit d'export Jupyter {is_nominative and 'nominatif' or 'pseudonymisé'} "
-                                  f"sur les périmètres suivants: {wrong_perimeters}.")
 
     @staticmethod
     def validate_tables_data(tables_data: List[dict], owner: User):
@@ -133,20 +84,22 @@ class ExportService:
         create_cohort_subsets = False
         for table in export_tables:
             cohort_source, cohort_subset = None, None
+            table_name = table.get("name")
+            fhir_filter_id = table.get("fhir_filter")
             if table.get("cohort_result_source"):
                 cohort_source = CohortResult.objects.get(pk=table.get("cohort_result_source"))
-                if not table.get("fhir_filter"):
+                if not fhir_filter_id:
                     cohort_subset = cohort_source
                 else:
                     create_cohort_subsets = True
                     cohort_subset = cohort_service.create_cohort_subset(owner_id=export.owner_id,
-                                                                        table_name=table.get("name"),
-                                                                        fhir_filter=table.get("fhir_filter"),
-                                                                        source_cohort=table.get("cohort_result_source"),
+                                                                        table_name=table_name,
+                                                                        fhir_filter_id=fhir_filter_id,
+                                                                        source_cohort=cohort_source,
                                                                         http_request=http_request)
             ExportTable.objects.create(export=export,
-                                       name=table.get("name"),
-                                       fhir_filter=table.get("fhir_filter"),
+                                       name=table_name,
+                                       fhir_filter_id=fhir_filter_id,
                                        cohort_result_source=cohort_source,
                                        cohort_result_subset=cohort_subset)
         if not create_cohort_subsets:

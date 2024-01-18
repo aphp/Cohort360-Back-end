@@ -26,7 +26,7 @@ class Export(ExportsBaseModel, JobModel):
     shift_dates = models.BooleanField(null=False, default=False)
 
     # CSV
-    motivation = models.TextField(null=True)
+    motivation = models.TextField(null=True, blank=True)
     clean_datetime = models.DateTimeField(null=True)
 
     class Meta:
