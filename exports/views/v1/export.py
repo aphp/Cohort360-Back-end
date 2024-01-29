@@ -76,7 +76,7 @@ class ExportViewSet(ExportsBaseViewSet):
         export_service.process_export_creation(data=request.data, owner=request.user)
         export_tables = request.data.pop("export_tables", [])
         response = super().create(request, *args, **kwargs)
-        export_service.create_tables(export_uuid=response.data["uuid"],
+        export_service.create_tables(export_id=response.data["uuid"],
                                      export_tables=export_tables,
                                      http_request=request)
         return response

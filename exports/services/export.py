@@ -28,7 +28,7 @@ class ExportService:
 
     def process_export_creation(self, data: dict, owner: User):
         self.do_pre_export_check(data=data, owner=owner)
-        self.validate_tables_data(tables_data=data.get("export_tables", []), owner=owner)
+        self.validate_tables_data(tables_data=data.get("export_tables", []))
         if data["output_format"] == ExportType.CSV:
             target_name = f"{owner.pk}_{timezone.now().strftime('%Y%m%d_%H%M%S%f')}"
             target_location = EXPORT_CSV_PATH
@@ -49,9 +49,11 @@ class ExportService:
             export_tables = data.get("export_tables", [])
             source_cohorts_ids = [table.get("cohort_result_source") for table in export_tables]
             if data["output_format"] == ExportType.CSV:
+                assert len(source_cohorts_ids) == 1, "All export tables must have the same source cohort"
+                if CohortResult.objects.get(pk__in=source_cohorts_ids).owner != owner:
+                    raise ValidationError("The selected cohort does not belong to you")
                 if not data.get('nominative'):
                     raise ValidationError("CSV exports in pseudonymized mode are not allowed")
-                assert len(source_cohorts_ids) == 1, "All export tables must have the same source cohort"
             else:
                 if not data.get('datalab'):
                     raise ValueError("Missing `datalab` for Jupyter export")
@@ -64,23 +66,29 @@ class ExportService:
         data['request_job_status'] = JobStatus.validated
 
     @staticmethod
-    def validate_tables_data(tables_data: List[dict], owner: User):
-        found_source_cohorts = False
+    def validate_tables_data(tables_data: List[dict]):
+        source_cohort_id = None
+        person_table_provided = False
         for table in tables_data:
-            try:
-                cohort_source = CohortResult.objects.get(pk=table.get("cohort_result_source"), owner=owner)
-            except CohortResult.DoesNotExist:
-                raise ValueError(f"Cohort with ID `{table.get('cohort_result_source')}` not found for table `{table.get('name')}`")
+            source_cohort_id = table.get('cohort_result_source')
+            if table.get("name") == PERSON_TABLE:
+                person_table_provided = True
+                if not source_cohort_id:
+                    raise ValueError(f"The `{PERSON_TABLE}` table can not be exported without a source cohort")
 
-            if cohort_source.request_job_status != JobStatus.finished:
-                raise ValueError(f"The provided cohort `{cohort_source.uuid}` did not finish successfully")
-            found_source_cohorts = True
-        if not found_source_cohorts:
-            raise ValueError(f"No source cohort was provided. Must at least provide a source cohort for the `{PERSON_TABLE}` table")
+            if source_cohort_id:
+                try:
+                    cohort_source = CohortResult.objects.get(pk=source_cohort_id)
+                except CohortResult.DoesNotExist:
+                    raise ValueError(f"Cohort `{source_cohort_id}` linked to table `{table.get('name')}` was not found")
+                if cohort_source.request_job_status != JobStatus.finished:
+                    raise ValueError(f"The provided cohort `{source_cohort_id}` did not finish successfully")
+        if not (person_table_provided or source_cohort_id):
+            raise ValueError(f"`{PERSON_TABLE}` table was not specified, must then provide source cohort for all tables")
         return True
 
-    def create_tables(self, export_uuid: str, export_tables: List[dict], http_request) -> None:
-        export = Export.objects.get(pk=export_uuid)
+    def create_tables(self, export_id: str, export_tables: List[dict], http_request) -> None:
+        export = Export.objects.get(pk=export_id)
         create_cohort_subsets = False
         for table in export_tables:
             cohort_source, cohort_subset = None, None
@@ -103,7 +111,7 @@ class ExportService:
                                        cohort_result_source=cohort_source,
                                        cohort_result_subset=cohort_subset)
         if not create_cohort_subsets:
-            self.launch_export(export=export)
+            self.launch_export(export_id=export_id)
 
     def check_all_cohort_subsets_created(self, export: Export):
         for table in export.export_tables.filter(cohort_result_subset__isnull=False):
@@ -111,11 +119,11 @@ class ExportService:
                 _logger.info(f"Export [{export.uuid}]: waiting for some cohort subsets to finish before launching export")
                 return
         _logger.info(f"Export [{export.uuid}]: all cohort subsets were successfully created. Launching export.")
-        self.launch_export(export=export)
+        self.launch_export(export_id=export.uuid)
 
     @staticmethod
-    def launch_export(export: Export):
-        launch_export_task.delay(export.uuid)
+    def launch_export(export_id: str):
+        launch_export_task.delay(export_id)
 
 
 export_service = ExportService()

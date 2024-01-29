@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 from django.urls import reverse
 from rest_framework import status
 
+from admin_cohort.types import JobStatus
 from cohort.models import CohortResult, FhirFilter
 from exports.models import Export, Datalab
 from exports.tests.base_test import ExportsTestBase
@@ -20,16 +21,18 @@ class ExportViewSetTest(ExportsTestBase):
         super().setUp()
         self.datalab = Datalab.objects.create(name="main_datalab", infrastructure_provider=self.infra_provider_aphp)
         self.cohort_result = CohortResult.objects.create(name="Cohort For Export Purposes",
-                                                         owner=self.csv_exporter_user)
+                                                         owner=self.csv_exporter_user,
+                                                         request_query_snapshot=self.rqs,
+                                                         request_job_status=JobStatus.finished)
         self.fhir_filter = FhirFilter.objects.create(name="Some FHIR Filter",
                                                      owner=self.csv_exporter_user,
                                                      fhir_resource="some_resource",
                                                      filter="some_filter")
         self.csv_export_basic_data = {"name": "Special Export",
                                       "output_format": ExportType.CSV,
+                                      "nominative": True,
                                       "owner": self.csv_exporter_user.pk,
                                       "status": ExportStatus.PENDING.name,
-                                      "target_name": "12345_09092023_151500",
                                       "export_tables": [{"name": "person",
                                                          "cohort_result_source": self.cohort_result.uuid,
                                                          "fhir_filter": self.fhir_filter.uuid}]

@@ -6,6 +6,7 @@ from rest_framework.test import APIRequestFactory, force_authenticate
 
 from accesses.models import Role, Perimeter, Access
 from admin_cohort.tools.tests_tools import new_user_and_profile
+from cohort.models import Request, RequestQuerySnapshot, Folder
 from exports.models import InfrastructureProvider
 
 
@@ -26,7 +27,7 @@ class ExportsTestBase(TestCase):
         self.viewname_list = f"{self.view_root}-list"
         self.viewname_detail = f"{self.view_root}-detail"
 
-        self.perimeter_aphp = Perimeter.objects.create(name="APHP", local_id="1")
+        self.perimeter_aphp = Perimeter.objects.create(name="APHP", local_id="1", cohort_id="1")
 
         self.csv_exporter_role = Role.objects.create(name="CSV EXPORTER", right_export_csv_nominative=True)
         self.datalab_reader_role = Role.objects.create(name="DATALABS READER", right_read_datalabs=True)
@@ -55,6 +56,12 @@ class ExportsTestBase(TestCase):
                                                          perimeter=self.perimeter_aphp,
                                                          role=self.csv_exporter_role)
         self.infra_provider_aphp = InfrastructureProvider.objects.create(name="APHP")
+        self.folder = Folder.objects.create(name="TestFolder", owner=self.csv_exporter_user)
+        self.request = Request.objects.create(name="TestRequest", owner=self.csv_exporter_user, parent_folder=self.folder)
+        self.rqs = RequestQuerySnapshot.objects.create(owner=self.csv_exporter_user,
+                                                       request=self.request,
+                                                       serialized_query="{}",
+                                                       perimeters_ids=[self.perimeter_aphp.cohort_id])
 
     def make_request(self, url, http_verb, request_user, request_data=None):
         handler = getattr(self.factory, http_verb)
