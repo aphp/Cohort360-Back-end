@@ -2,8 +2,6 @@
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from accesses.models import Perimeter
-from accesses.services.accesses import accesses_service
 from admin_cohort.types import JobStatus
 from admin_cohort.models import User
 from cohort.models import CohortResult
@@ -86,17 +84,6 @@ class ExportRequestSerializer(serializers.ModelSerializer):
         for table in tables:
             ExportRequestTable.objects.create(export_request=er, **table)
 
-    def validate_owner_rights(self, validated_data):
-        owner = validated_data.get('owner')
-        cohort = validated_data.get('cohort_fk')
-        perimeters_ids = Perimeter.objects.filter(cohort_id__in=cohort.request_query_snapshot.perimeters_ids) \
-                                          .values_list('id', flat=True)
-        data_rights = accesses_service.get_data_reading_rights(user=owner,
-                                                               target_perimeters_ids=','.join(map(str, perimeters_ids)))
-        rights_checker.check_rights_on_perimeters(rights=data_rights,
-                                                  export_type=validated_data.get('output_format'),
-                                                  nominative=validated_data.get('nominative'))
-
     def create(self, validated_data):
         owner: User = validated_data.get('owner')
         check_email_address(owner.email)
@@ -109,6 +96,11 @@ class ExportRequestSerializer(serializers.ModelSerializer):
 
         output_format = validated_data.get('output_format')
         validated_data['motivation'] = validated_data.get('motivation', "").replace("\n", " -- ")
+
+        rights_checker.check_owner_rights(owner=owner,
+                                          output_format=output_format,
+                                          nominative=validated_data.get('nominative'),
+                                          source_cohorts_ids=[validated_data.get('cohort_fk').uuid])
 
         if output_format == ExportType.HIVE:
             self.validate_hive_export(validated_data)
@@ -139,7 +131,6 @@ class ExportRequestSerializer(serializers.ModelSerializer):
         if not conf_workspaces.is_user_bound_to_unix_account(owner, target_unix_account.aphp_ldap_group_dn):
             raise ValidationError(f"Le compte Unix destinataire ({target_unix_account.pk}) "
                                   f"n'est pas lié à l'utilisateur voulu ({owner.pk})")
-        self.validate_owner_rights(validated_data)
 
     def validate_csv_export(self, validated_data: dict):
         validated_data['request_job_status'] = JobStatus.validated
@@ -151,7 +142,6 @@ class ExportRequestSerializer(serializers.ModelSerializer):
             raise ValidationError("Actuellement, la demande d'export CSV en pseudo-anonymisée n'est pas possible.")
         if validated_data.get('cohort_fk').owner != creator:
             raise ValidationError("Vous ne pouvez pas exporter une cohorte d'un autre utilisateur.")
-        self.validate_owner_rights(validated_data)
 
 
 class OwnedCohortPrimaryKeyRelatedField(serializers.PrimaryKeyRelatedField):

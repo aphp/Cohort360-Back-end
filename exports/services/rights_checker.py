@@ -11,51 +11,32 @@ from exports.types import ExportType
 
 
 class RightsChecker:
+    right_read_nomi = "right_read_patient_nominative"
+    right_read_pseudo = "right_read_patient_pseudonymized"
+    right_csv_nomi = "right_export_csv_nominative"
+    right_csv_pseudo = "right_export_csv_pseudonymized"
+    right_jupyter_nomi = "right_export_jupyter_nominative"
+    right_jupyter_pseudo = "right_export_jupyter_pseudonymized"
 
     def check_owner_rights(self, owner: User, output_format:  str, nominative: bool, source_cohorts_ids: List[str]) -> None:
         cohort_ids = []
         for cohort in CohortResult.objects.filter(pk__in=source_cohorts_ids):
             cohort_ids.extend(cohort.request_query_snapshot.perimeters_ids)
         perimeters_ids = Perimeter.objects.filter(cohort_id__in=cohort_ids).values_list('id', flat=True)
-        data_rights = accesses_service.get_data_reading_rights(user=owner,
-                                                               target_perimeters_ids=','.join(map(str, perimeters_ids)))
-        self.check_rights_on_perimeters(rights=data_rights,
-                                        export_type=output_format,
-                                        nominative=nominative)
-
-    def check_rights_on_perimeters(self, rights: List[DataRight], export_type: str, nominative: bool) -> None:
-        self.check_patient_data_read_rights(rights=rights, nominative=nominative)
-        if export_type == ExportType.CSV:
-            self.check_csv_export_rights(rights=rights, nominative=nominative)
+        data_permissions = accesses_service.get_data_reading_rights(user=owner,
+                                                                    target_perimeters_ids=','.join(map(str, perimeters_ids)))
+        self._check_rights(data_permissions=data_permissions, required_right=nominative and self.right_read_nomi or self.right_read_pseudo)
+        if output_format == ExportType.CSV:
+            required_right = nominative and self.right_csv_nomi or self.right_csv_pseudo
         else:
-            self.check_jupyter_export_rights(rights=rights, nominative=nominative)
+            required_right = nominative and self.right_jupyter_nomi or self.right_jupyter_pseudo
+        self._check_rights(data_permissions=data_permissions, required_right=required_right)
 
     @staticmethod
-    def check_patient_data_read_rights(rights: List[DataRight], nominative: bool) -> None:
-        wrong_perimeters = [r.perimeter_id for r in rights
-                            if (nominative and not r.right_read_patient_nominative)
-                            or not (nominative or r.right_read_patient_pseudonymized)]
+    def _check_rights(data_permissions: List[DataRight], required_right: str) -> None:
+        wrong_perimeters = [p.perimeter_id for p in data_permissions if not getattr(p, required_right, False)]
         if wrong_perimeters:
-            raise ValidationError(f"The user has no  {nominative and 'nominative' or 'pseudonymized'} read right"
-                                  f"on the following perimeters: {wrong_perimeters}.")
-
-    @staticmethod
-    def check_csv_export_rights(rights: List[DataRight], nominative: bool) -> None:
-        wrong_perimeters = [r.perimeter_id for r in rights
-                            if (nominative and not r.right_export_csv_nominative)
-                            or not (nominative or r.right_export_csv_pseudonymized)]
-        if wrong_perimeters:
-            raise ValidationError(f"The user has no {nominative and 'nominative' or 'pseudonymized'} CSV export right"
-                                  f"on the following perimeters: {wrong_perimeters}.")
-
-    @staticmethod
-    def check_jupyter_export_rights(rights: List[DataRight], nominative: bool) -> None:
-        wrong_perimeters = [r.perimeter_id for r in rights
-                            if (nominative and not r.right_export_jupyter_nominative)
-                            or not (nominative or r.right_export_jupyter_pseudonymized)]
-        if wrong_perimeters:
-            raise ValidationError(f"The user has no {nominative and 'nominative' or 'pseudonymized'} Jupyter export right"
-                                  f"on the following perimeters: {wrong_perimeters}.")
+            raise ValidationError(f"The user is missing `{required_right}` on the following perimeters: {wrong_perimeters}.")
 
 
 rights_checker = RightsChecker()
