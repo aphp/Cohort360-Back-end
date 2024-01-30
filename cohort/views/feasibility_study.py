@@ -87,7 +87,7 @@ class FeasibilityStudyViewSet(UserObjectsRestrictedViewSet):
     def download_report(self, request, *args, **kwargs):
         fs = self.get_object()
         if not fs.report_file:
-            return Response(data="Feasibility report not found", status=status.HTTP_404_NOT_FOUND)
+            return Response(data="Report not found", status=status.HTTP_404_NOT_FOUND)
         file_name = feasibility_study_service.get_file_name(fs=fs)
         response = FileResponse(BytesIO(fs.report_file), content_type='application/zip')
         response['Content-Disposition'] = f'attachment; filename="{file_name}.zip"'
