@@ -39,7 +39,7 @@ def send_email_notif_about_shared_request(request_name: str, owner: User, recipi
 
 
 def send_email_notif_feasibility_report_requested(request_name: str, owner: User) -> None:
-    subject = "Votre demande de rapport de faisabilité"
+    subject = "Votre demande de rapport"
     context = {**BASE_CONTEXT,
                "recipient_name": owner.displayed_name,
                "request_name": request_name
@@ -53,7 +53,7 @@ def send_email_notif_feasibility_report_requested(request_name: str, owner: User
 
 
 def send_email_notif_feasibility_report_ready(request_name: str, owner: User, fs_uuid: str) -> None:
-    subject = "Votre rapport de faisabilité est prêt"
+    subject = "Votre rapport est prêt"
     report_link = f"{BACK_URL}/accounts/login/?next=/cohort/feasibility-studies/{fs_uuid}/download/"
     context = {**BASE_CONTEXT,
                "recipient_name": owner.displayed_name,
@@ -69,7 +69,7 @@ def send_email_notif_feasibility_report_ready(request_name: str, owner: User, fs
 
 
 def send_email_notif_error_feasibility_report(request_name: str, owner: User) -> None:
-    subject = "Votre demande de rapport de faisabilité a échoué"
+    subject = "Votre demande de rapport a échoué"
     context = {**BASE_CONTEXT,
                "recipient_name": owner.displayed_name,
                "request_name": request_name,

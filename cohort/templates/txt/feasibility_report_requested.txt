@@ -2,7 +2,7 @@
 
 {% block content %}
 
-Nous vous confirmons la réception de votre demande de rapport de faisabilité concernant votre requête "{{ request_name }}".
+Nous vous confirmons la réception de votre demande de rapport concernant votre requête "{{ request_name }}".
 
 Un lien de téléchargement vous sera envoyé par email lorsqu'il sera disponible.
 Un délai de 24h peut s'appliquer en fonction du volume des données.

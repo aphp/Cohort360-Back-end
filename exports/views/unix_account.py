@@ -26,14 +26,3 @@ class UnixAccountViewSet(AccountViewSet):
     permission_classes = [AccountsPermission]
     swagger_tags = ['Exports - users']
     filterset_class = UnixAccountFilter
-
-    def get_queryset(self):
-        q = super(UnixAccountViewSet, self).get_queryset()
-        user = self.request.user
-        if not user.is_anonymous:
-            ad_groups = get_account_groups_from_id_aph(user)
-            return q.filter(aphp_ldap_group_dn__in=ad_groups)
-        return q
-
-    def list(self, request, *args, **kwargs):
-        return super(UnixAccountViewSet, self).list(request, *args, **kwargs)

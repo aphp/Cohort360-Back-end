@@ -86,7 +86,7 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
             manageable_perimeters_children = reduce(lambda qs1, qs2: qs1.union(qs2),
                                                     [perimeters_service.get_all_child_perimeters(perimeter=p)
                                                      for p in manageable_perimeters])
-            manageable_perimeters = manageable_perimeters.union(manageable_perimeters_children)
+            manageable_perimeters = manageable_perimeters | manageable_perimeters_children
             manageable_perimeters = self.filter_queryset(queryset=manageable_perimeters)
         return Response(data=PerimeterLiteSerializer(manageable_perimeters, many=True).data,
                         status=status.HTTP_200_OK)
