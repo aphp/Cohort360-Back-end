@@ -2,7 +2,7 @@
 
 {% block content %}
 
-Nous vous informons que votre demande de rapport de faisabilité concernant votre requête "{{ request_name }}" a échoué.
+Nous vous informons que votre demande de rapport concernant votre requête "{{ request_name }}" a échoué.
 Nous essayerons de corriger l'erreur dans le plus brief des délais.
 
 Pour toute question, contactez le support Cohort360 à dsi-id-recherche-support-cohort360@aphp.fr

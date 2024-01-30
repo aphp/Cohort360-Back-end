@@ -20,7 +20,7 @@ from cohort.tasks import get_feasibility_count_task, send_email_notification_tas
 env = os.environ
 
 APHP_ID = int(env.get("TOP_HIERARCHY_CARE_SITE_ID"))
-REPORT_FILE_NAME = "rapport_etude_de_faisabilite"
+REPORT_FILE_NAME = "Rapport"
 
 JOB_STATUS = "request_job_status"
 COUNT = "count"
