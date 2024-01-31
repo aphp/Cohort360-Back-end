@@ -9,9 +9,9 @@ class ExportType(StrEnum):
 
 
 class ExportStatus(StrEnum):
-    PENDING: str = "En attente"
-    SENT_TO_DE: str = "Envoyé au DataExporter"
-    DELIVERED: str = "Livré"
+    PENDING: str = "pending"
+    SENT_TO_DE: str = "sent_to_dataexporter"
+    DELIVERED: str = "delivered"
 
 
 class StatType(StrEnum):
