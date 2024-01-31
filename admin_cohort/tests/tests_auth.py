@@ -10,7 +10,7 @@ from rest_framework_simplejwt.exceptions import InvalidToken
 from accesses.models import Access, Perimeter, Role
 from admin_cohort.models import User
 from admin_cohort.settings import JWT_AUTH_MODE, OIDC_AUTH_MODE
-from admin_cohort.tools.tests_tools import new_user_and_profile
+from admin_cohort.tests.tests_tools import new_user_and_profile
 from admin_cohort.types import JwtTokens, LoginError, ServerError, UserInfo
 from admin_cohort.views import UserViewSet, token_refresh_view
 
@@ -19,7 +19,7 @@ def create_regular_user() -> User:
     return User.objects.create(firstname="Regular",
                                lastname="USER",
                                email="regular.user@aphp.fr",
-                               provider_username="12345")
+                               username="12345")
 
 
 class JWTLoginTests(APITestCase):
@@ -43,7 +43,7 @@ class JWTLoginTests(APITestCase):
     @mock.patch("admin_cohort.auth.auth_backends.get_jwt_tokens")
     def test_login_with_wrong_credentials(self, mock_get_jwt_tokens: MagicMock):
         mock_get_jwt_tokens.side_effect = LoginError("Invalid username or password")
-        response = self.client.post(path=self.login_url, data={"username": self.regular_user.provider_username,
+        response = self.client.post(path=self.login_url, data={"username": self.regular_user.username,
                                                                "password": "wrong-psswd"})
         mock_get_jwt_tokens.assert_called()
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
@@ -51,7 +51,7 @@ class JWTLoginTests(APITestCase):
     @mock.patch("admin_cohort.auth.auth_backends.get_jwt_tokens")
     def test_login_unavailable_jwt_server(self, mock_get_jwt_tokens: MagicMock):
         mock_get_jwt_tokens.side_effect = ServerError("JWT server unavailable")
-        response = self.client.post(path=self.login_url, data={"username": self.regular_user.provider_username,
+        response = self.client.post(path=self.login_url, data={"username": self.regular_user.username,
                                                                "password": "psswd"})
         mock_get_jwt_tokens.assert_called()
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
@@ -59,7 +59,7 @@ class JWTLoginTests(APITestCase):
     @mock.patch("admin_cohort.auth.auth_backends.get_jwt_tokens")
     def test_login_success(self, mock_get_jwt_tokens: MagicMock):
         mock_get_jwt_tokens.return_value = JwtTokens(access="aaa", refresh="rrr")
-        response = self.client.post(path=self.login_url, data={"username": self.regular_user.provider_username,
+        response = self.client.post(path=self.login_url, data={"username": self.regular_user.username,
                                                                "password": "any-will-do"})
         mock_get_jwt_tokens.assert_called()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -81,7 +81,7 @@ class OIDCLoginTests(APITestCase):
         mock_get_oidc_tokens.return_value = JwtTokens(access_token="aaa", refresh_token="rrr")
         oidc_user_info_resp = Response()
         oidc_user_info_resp.status_code = status.HTTP_200_OK
-        content = {"preferred_username": self.regular_user.provider_username,
+        content = {"preferred_username": self.regular_user.username,
                    "given_name": self.regular_user.firstname,
                    "family_name": self.regular_user.lastname,
                    "email": self.regular_user.email
@@ -112,7 +112,7 @@ class AuthClassTests(APITestCase):
 
     @mock.patch("admin_cohort.auth.auth_class.get_userinfo_from_token")
     def test_authenticate_success(self, mock_get_userinfo: MagicMock):
-        mock_get_userinfo.return_value = UserInfo(username=self.regular_user.provider_username,
+        mock_get_userinfo.return_value = UserInfo(username=self.regular_user.username,
                                                   firstname=self.regular_user.firstname,
                                                   lastname=self.regular_user.lastname,
                                                   email=self.regular_user.email)

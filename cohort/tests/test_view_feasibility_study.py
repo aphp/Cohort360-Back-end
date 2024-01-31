@@ -4,7 +4,7 @@ from django.urls import reverse
 from rest_framework import status
 
 from accesses.models import Perimeter
-from admin_cohort.tools.tests_tools import PatchCase, FileDownloadCase
+from admin_cohort.tests.tests_tools import PatchCase, FileDownloadCase
 from cohort.models import RequestQuerySnapshot, Request, Folder, FeasibilityStudy
 from cohort.services.feasibility_study import feasibility_study_service
 from cohort.tests.cohort_app_tests import CohortAppTests

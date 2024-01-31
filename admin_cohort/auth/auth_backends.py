@@ -5,7 +5,7 @@ from admin_cohort.types import JwtTokens, UserInfo
 
 class BaseAuthBackend:
     def get_user(self, user_id) -> User:
-        return User.objects.get(provider_username=user_id)
+        return User.objects.get(username=user_id)
 
     def set_tokens_for_request(self, request, tokens: JwtTokens):
         request.jwt_access_key = tokens.access

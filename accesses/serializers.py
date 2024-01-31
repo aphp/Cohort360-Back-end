@@ -43,7 +43,7 @@ class RoleSerializer(BaseSerializer):
 
 
 class UsersInRoleSerializer(serializers.Serializer):
-    provider_username = serializers.CharField(read_only=True)
+    provider_username = serializers.CharField(read_only=True, source="username")
     firstname = serializers.CharField(read_only=True)
     lastname = serializers.CharField(read_only=True)
     email = serializers.CharField(read_only=True)

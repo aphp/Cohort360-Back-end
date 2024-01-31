@@ -10,17 +10,17 @@ from admin_cohort.views import BaseViewSet
 
 
 class UserFilter(filters.FilterSet):
-    ordering = OrderingFilter(fields=('firstname', "lastname", "provider_username", "email"))
+    ordering = OrderingFilter(fields=('firstname', "lastname", "username", "email"))
 
     class Meta:
         model = User
-        fields = ['firstname', "lastname", "provider_username", "email"]
+        fields = ['firstname', "lastname", "username", "email"]
 
 
 class UserViewSet(BaseViewSet):
     queryset = User.objects.all()
-    lookup_field = "provider_username"
-    search_fields = ["firstname", "lastname", "provider_username", "email"]
+    lookup_field = "username"
+    search_fields = ["firstname", "lastname", "username", "email"]
     filterset_class = UserFilter
     permission_classes = (UsersPermission,)
     http_method_names = ["get"]
@@ -46,12 +46,12 @@ class UserViewSet(BaseViewSet):
                                                     [["manual_only", "If True, only return users with a `manual` profile", openapi.TYPE_BOOLEAN],
                                                      ["firstname", "Search type", openapi.TYPE_STRING],
                                                      ["lastname", "Filter type", openapi.TYPE_STRING],
-                                                     ["provider_username", "Search type", openapi.TYPE_STRING],
+                                                     ["username", "Search type", openapi.TYPE_STRING],
                                                      ["email", "Search type", openapi.TYPE_STRING],
                                                      ["ordering", "Which field to use when ordering the results (firstname, lastname, "
-                                                                  "provider_username, email)",
+                                                                  "username, email)",
                                                       openapi.TYPE_STRING],
-                                                     ["search", "A search term on multiple fields (firstname, lastname, provider_username email)",
+                                                     ["search", "A search term on multiple fields (firstname, lastname, username email)",
                                                       openapi.TYPE_STRING],
                                                      ["page", "A page number within the paginated result set.", openapi.TYPE_INTEGER]])))
     @cache_response()

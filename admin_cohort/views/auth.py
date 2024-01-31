@@ -11,13 +11,13 @@ from rest_framework import status, viewsets
 from rest_framework.response import Response
 from rest_framework_simplejwt.exceptions import InvalidToken
 
-from accesses.models import Profile, Access
 from accesses.serializers import AccessSerializer
+from accesses.services.accesses import accesses_service
 from admin_cohort.auth.utils import logout_user, refresh_oidc_token, refresh_jwt_token
 from admin_cohort.auth.auth_form import AuthForm
 from admin_cohort.models import User
 from admin_cohort.serializers import UserSerializer
-from admin_cohort.settings import MANUAL_SOURCE, OIDC_AUTH_MODE, JWT_AUTH_MODE
+from admin_cohort.settings import OIDC_AUTH_MODE, JWT_AUTH_MODE
 from admin_cohort.types import JwtTokens
 from admin_cohort.tools.request_log_mixin import RequestLogMixin, JWTLoginRequestLogMixin
 
@@ -26,15 +26,12 @@ _logger = logging.getLogger("django.request")
 
 def get_response_data(request, user: User):
     # TODO for REST API: being returned with users/user_id/accesses
-    user_valid_profiles_ids = [p.id for p in Profile.objects.filter(user_id=user.provider_username,
-                                                                    source=MANUAL_SOURCE) if p.is_valid]
-    valid_accesses = [a for a in Access.objects.filter(profile_id__in=user_valid_profiles_ids) if a.is_valid]
-    accesses = AccessSerializer(valid_accesses, many=True).data
+    valid_accesses = accesses_service.get_user_valid_accesses(user=user)
     user = UserSerializer(user).data
     data = {"provider": user,
             "user": user,
             "session_id": request.session.session_key,
-            "accesses": accesses,
+            "accesses": AccessSerializer(valid_accesses, many=True).data,
             "jwt": {"access": request.jwt_access_key,
                     "refresh": request.jwt_refresh_key,
                     "last_connection": getattr(request, 'last_connection', dict())

@@ -45,7 +45,7 @@ class ExportViewSet(ExportsBaseViewSet):
     swagger_tags = ['Exports - Exports']
     filterset_class = ExportFilter
     search_fields = ("name",
-                     "owner__provider_username",
+                     "owner__username",
                      "owner__firstname",
                      "owner__lastname",
                      "request_job_status",

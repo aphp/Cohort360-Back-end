@@ -10,10 +10,6 @@ class ServerError(Exception):
     pass
 
 
-class WorkflowError(Exception):
-    pass
-
-
 class MissingDataError(Exception):
     pass
 

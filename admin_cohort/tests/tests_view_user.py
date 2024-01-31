@@ -4,7 +4,7 @@ from rest_framework.test import force_authenticate
 from accesses.models import Access, Role, Perimeter, Profile
 from admin_cohort.models import User
 from admin_cohort.settings import PERIMETERS_TYPES, MANUAL_SOURCE
-from admin_cohort.tools.tests_tools import BaseTests
+from admin_cohort.tests.tests_tools import BaseTests
 from admin_cohort.views import UserViewSet
 
 USERS_URL = "/users"
@@ -49,9 +49,9 @@ class UserTests(BaseTests):
                                                                   "right_read_patient_pseudonymized": True},
                                                                name='Pseudo anonymised data role')
 
-        self.admin_user = User.objects.create(provider_username="000000", firstname="Admin", lastname="ADMIN", email="admin@aphp.fr")
-        self.user1 = User.objects.create(provider_username="1111111", firstname="User 01", lastname="USER01", email="user01@aphp.fr")
-        self.user2 = User.objects.create(provider_username="2222222", firstname="User 02", lastname="USER02", email="user02@aphp.fr")
+        self.admin_user = User.objects.create(username="000000", firstname="Admin", lastname="ADMIN", email="admin@aphp.fr")
+        self.user1 = User.objects.create(username="1111111", firstname="User 01", lastname="USER01", email="user01@aphp.fr")
+        self.user2 = User.objects.create(username="2222222", firstname="User 02", lastname="USER02", email="user02@aphp.fr")
 
         self.admin_profile = Profile.objects.create(source=MANUAL_SOURCE, user=self.admin_user, manual_is_active=True)
         self.profile1 = Profile.objects.create(source=MANUAL_SOURCE, user=self.user1, manual_is_active=True)
@@ -80,11 +80,11 @@ class UserTestsAsAdmin(UserTests):
         # As a main admin, I can get a user's full data
         request = self.factory.get(USERS_URL)
         force_authenticate(request, self.admin_user)
-        response = UserViewSet.as_view({'get': 'retrieve'})(request, provider_username=self.user1.provider_username)
+        response = UserViewSet.as_view({'get': 'retrieve'})(request, username=self.user1.username)
         response.render()
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
         user_found = ObjectView(self.get_response_payload(response))
-        self.assertEqual(user_found.provider_username, self.user1.provider_username)
+        self.assertEqual(user_found.username, self.user1.username)
         self.assertEqual(user_found.email, self.user1.email)
 
     def test_get_users_as_main_admin(self):
@@ -97,15 +97,15 @@ class UserTestsAsAdmin(UserTests):
         users_to_find = [self.user1, self.user2, self.admin_user]
         users_found = [ObjectView(u) for u in self.get_response_payload(response)["results"]]
 
-        user_found_ids = [p.provider_username for p in users_found]
-        users_to_find_ids = [p.provider_username for p in users_to_find]
+        user_found_ids = [p.username for p in users_found]
+        users_to_find_ids = [p.username for p in users_to_find]
         msg = "\n".join(["", "got", str(user_found_ids), "should be", str(users_to_find_ids)])
         for i in users_to_find_ids:
             self.assertIn(i, user_found_ids, msg=msg)
         self.assertEqual(len(user_found_ids), len(users_to_find), msg=msg)
 
     def test_create_user_permission_denied(self):
-        data = dict(provider_username="000000", firstname="New", lastname="USER", email="new.user@aphp.fr")
+        data = dict(username="000000", firstname="New", lastname="USER", email="new.user@aphp.fr")
         request = self.factory.post(USERS_URL, data, format='json')
         force_authenticate(request, self.admin_user)
         response = UserViewSet.as_view({'post': 'create'})(request)
@@ -116,17 +116,17 @@ class UserTestsAsAdmin(UserTests):
         data = dict(email="updated.email.address@aphp.fr")
         request = self.factory.patch(USERS_URL, data, format='json')
         force_authenticate(request, self.admin_user)
-        response = UserViewSet.as_view({'patch': 'partial_update'})(request, provider_username=self.user2.provider_username)
+        response = UserViewSet.as_view({'patch': 'partial_update'})(request, username=self.user2.username)
         response.render()
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN, response.content)
-        user = User.objects.get(pk=self.user2.provider_username)
+        user = User.objects.get(pk=self.user2.username)
         self.check_unupdatable_not_updated(user, self.user2)
 
     def test_delete_user_permission_denied(self):
         request = self.factory.delete(USERS_URL)
         force_authenticate(request, self.admin_user)
-        response = UserViewSet.as_view({'delete': 'destroy'})(request, provider_username=self.user2.provider_username)
+        response = UserViewSet.as_view({'delete': 'destroy'})(request, username=self.user2.username)
         response.render()
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN, response.content)
-        user2 = User.objects.get(pk=self.user2.provider_username)
+        user2 = User.objects.get(pk=self.user2.username)
         self.assertIsNotNone(user2)

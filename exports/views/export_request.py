@@ -72,7 +72,7 @@ class ExportRequestViewSet(RequestLogMixin, viewsets.ModelViewSet):
     filterset_class = ExportRequestFilter
     http_method_names = ['get', 'post']
     logging_methods = ['POST']
-    search_fields = ("owner__provider_username", "owner__firstname", "owner__lastname",
+    search_fields = ("owner__username", "owner__firstname", "owner__lastname",
                      "cohort_id", "cohort_fk__name", "request_job_status", "output_format",
                      "target_name", "target_unix_account__name")
 

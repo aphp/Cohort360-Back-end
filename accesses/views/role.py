@@ -84,7 +84,7 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
         valid_accesses = [a for a in role.accesses.all() if a.is_valid]
         for access in valid_accesses:
             user = access.profile.user
-            users_perimeters.append({"provider_username": user.provider_username,
+            users_perimeters.append({"username": user.username,
                                      "firstname": user.firstname,
                                      "lastname": user.lastname,
                                      "email": user.email,
@@ -98,7 +98,7 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
         if filter_by_name:
             normalized_filter = filter_by_name.lower()
             users_perimeters = [user_perimeter for user_perimeter in users_perimeters if
-                                normalized_filter in user_perimeter["provider_username"] or
+                                normalized_filter in user_perimeter["username"] or
                                 normalized_filter in user_perimeter['firstname'].lower() or
                                 normalized_filter in user_perimeter["lastname"].lower()]
 

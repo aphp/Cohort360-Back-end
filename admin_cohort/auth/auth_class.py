@@ -18,7 +18,7 @@ class Authentication(BaseAuthentication):
             auth_method = auth_method.decode('utf-8')
         try:
             user_info = get_userinfo_from_token(token=access_token, auth_method=auth_method)
-            user = User.objects.get(provider_username=user_info.username)
+            user = User.objects.get(username=user_info.username)
         except (InvalidTokenError, ValueError, User.DoesNotExist):
             return None
         return user, access_token

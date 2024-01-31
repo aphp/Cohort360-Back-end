@@ -49,7 +49,7 @@ class AccountViewSet(viewsets.ModelViewSet):
     #     q = super(AccountViewSet, self).get_queryset()
     #     user: User = self.request.user
     #     if not user.is_anonymous and not can_user_read_datalabs(user):
-    #         ad_groups = get_account_groups_from_id_aph(user.provider_username)
+    #         ad_groups = get_account_groups_from_id_aph(user.username)
     #         return q.filter(aphp_ldap_group_dn__in=ad_groups)
     #     return q
 

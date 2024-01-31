@@ -53,7 +53,7 @@ class ProfilesService:
         if not re.compile(USERNAME_REGEX).match(username):
             raise ValueError("The given username format is not allowed")
         person = self.verify_identity(username)
-        user = User.objects.filter(provider_username=person.user_id).first()
+        user = User.objects.filter(username=person.user_id).first()
         manual_profile = Profile.objects.filter(Profile.q_is_valid()
                                                 & Q(source=MANUAL_SOURCE)
                                                 & Q(user_id=person.user_id)).first()
@@ -113,7 +113,7 @@ class ProfilesService:
         user = User.objects.create(firstname=data.get('firstname'),
                                    lastname=data.get('lastname'),
                                    email=data.get('email'),
-                                   provider_username=user_id,
+                                   username=user_id,
                                    provider_id=user_id)
         data.update({'provider_name': f"{user.firstname} {user.lastname}",
                      'provider_id': user_id})

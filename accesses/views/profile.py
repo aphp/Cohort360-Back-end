@@ -108,7 +108,7 @@ class ProfileViewSet(RequestLogMixin, BaseViewSet):
         return super(ProfileViewSet, self).create(request, *args, **kwargs)
 
     def perform_destroy(self, instance):
-        instance.entry_deleted_by = self.request.user.provider_username
+        instance.entry_deleted_by = self.request.user.username
         return super(ProfileViewSet, self).perform_destroy(instance)
 
     @swagger_auto_schema(request_body=openapi.Schema(type=openapi.TYPE_OBJECT,

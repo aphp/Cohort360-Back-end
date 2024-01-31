@@ -29,7 +29,7 @@ def log_delete_task(cr_uuid, msg):
 def is_sjs_or_etl_user(request: Request):
     return request.method in ("GET", "PATCH") and \
            request.user.is_authenticated and \
-           request.user.provider_username in [SJS_USERNAME, ETL_USERNAME]
+           request.user.username in [SJS_USERNAME, ETL_USERNAME]
 
 
 def is_sjs_user(request: Request):

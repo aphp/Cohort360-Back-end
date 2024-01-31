@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Union
+from typing import Union, Tuple
 
 import environ
 import jwt
@@ -146,7 +146,7 @@ def get_userinfo_from_token(token: str, auth_method: str) -> Union[None, UserInf
         try:
             decoded = jwt.decode(token, key=JWT_SIGNING_KEY, algorithms=JWT_ALGORITHMS, leeway=15)
             user = User.objects.get(pk=decoded["username"])
-            return UserInfo(username=user.provider_username,
+            return UserInfo(username=user.username,
                             firstname=user.firstname,
                             lastname=user.lastname,
                             email=user.email)
@@ -167,14 +167,14 @@ def get_userinfo_from_token(token: str, auth_method: str) -> Union[None, UserInf
         raise ValueError(f"Invalid authentication method : {auth_method}")
 
 
-def get_auth_data(request) -> (str, str):
+def get_auth_data(request) -> Tuple[str, str]:
     raw_token, auth_method = get_token_from_headers(request)
     if not raw_token:
         raw_token = request.COOKIES.get(JWT_ACCESS_COOKIE)
     return raw_token, auth_method
 
 
-def get_token_from_headers(request) -> (str, str):
+def get_token_from_headers(request) -> Tuple[str, str]:
     authorization_header = request.META.get('HTTP_AUTHORIZATION')
     authorization_method_header = request.META.get('HTTP_AUTHORIZATIONMETHOD')
 
@@ -192,7 +192,7 @@ def get_raw_token(header: bytes) -> Union[str, None]:
     from rest_framework_simplejwt.authentication import AUTH_HEADER_TYPE_BYTES
 
     parts = header.split()
-    if len(parts) == 0:
+    if not parts:
         return None
     if parts[0] not in AUTH_HEADER_TYPE_BYTES:
         return None

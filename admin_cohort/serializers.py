@@ -35,12 +35,12 @@ class OmopBaseSerializer(BaseSerializer):
 
 
 class ReducedUserSerializer(serializers.ModelSerializer):
-    provider_source_value = serializers.CharField(read_only=True, source="provider_username")
+    provider_source_value = serializers.CharField(read_only=True, source="username")
 
     class Meta:
         model = User
         fields = ["provider_id",
-                  "provider_username",
+                  "username",
                   "email",
                   "firstname",
                   "lastname",
@@ -49,12 +49,12 @@ class ReducedUserSerializer(serializers.ModelSerializer):
 
 class OpenUserSerializer(serializers.ModelSerializer):
     displayed_name = serializers.CharField(read_only=True)
-    provider_source_value = serializers.CharField(read_only=True, source="provider_username")
+    provider_source_value = serializers.CharField(read_only=True, source="username")
 
     class Meta:
         model = User
         fields = ["provider_id",
-                  "provider_username",
+                  "username",
                   "firstname",
                   "lastname",
                   "provider_source_value",
@@ -93,7 +93,7 @@ class MaintenancePhaseSerializer(BaseSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     displayed_name = serializers.CharField(read_only=True)
-    provider_source_value = serializers.CharField(read_only=True, source="provider_username")
+    provider_source_value = serializers.CharField(read_only=True, source="username")
 
     class Meta:
         model = User

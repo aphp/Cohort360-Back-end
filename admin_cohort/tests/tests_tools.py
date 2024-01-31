@@ -67,12 +67,12 @@ def new_random_user(
         provider_id = str(random.randint(0, 10000000))
 
         while provider_id in [
-            p.provider_username for p in User.objects.all()
+            p.username for p in User.objects.all()
         ]:
             provider_id = str(random.randint(0, 10000000))
 
     u: User = User.objects.create(
-        provider_username=str(provider_id),
+        username=str(provider_id),
         firstname=firstname,
         lastname=lastname,
         email=email,
