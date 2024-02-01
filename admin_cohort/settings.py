@@ -108,6 +108,8 @@ INSTALLED_APPS = ['django.contrib.admin',
                   'rest_framework_tracking',
                   'safedelete',
                   'admin_cohort'] + INCLUDED_APPS
+                  'admin_cohort',
+                  'channels'] + INCLUDED_APPS
 
 MIDDLEWARE = ['admin_cohort.middleware.influxdb_middleware.InfluxDBMiddleware',
               'django.middleware.security.SecurityMiddleware',
@@ -143,6 +145,7 @@ TEMPLATES = [{'BACKEND': 'django.template.backends.django.DjangoTemplates',
               }]
 
 WSGI_APPLICATION = 'admin_cohort.wsgi.application'
+ASGI_APPLICATION = 'admin_cohort.routing.application'  # for websockets
 
 DATABASES = {'default': {'ENGINE': 'django.db.backends.postgresql',
                          'NAME': env("DB_AUTH_NAME"),
