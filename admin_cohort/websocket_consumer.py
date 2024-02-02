@@ -24,7 +24,6 @@ class WebSocketStatusConsumer:
             )
             await self.handle_client(websocket, job_id)
 
-
     async def authenticate_client(self, receive, expected_token):
         # todo: check if the client is really the owner of the cohort (dm_uuid.owner)
         websocket = await receive()
@@ -54,4 +53,9 @@ class WebSocketStatusConsumer:
         await self.send_status_update(path, "FINISHED")
 
     async def send_status_update(self, uuid, status: JobStatus):
-        await self.clients[uuid].send(status)
+        try:
+            await self.clients[uuid].send(status)
+        except KeyError:
+            # no client connected to this uuid
+            # (or at the moment, need to fix the ASGI part)
+            pass
