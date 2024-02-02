@@ -3,6 +3,8 @@ from typing import Callable
 
 import websockets
 
+from admin_cohort.types import JobStatus
+
 
 class WebSocketStatusConsumer:
     def __init__(self, check_client_fn: Callable):
@@ -48,8 +50,8 @@ class WebSocketStatusConsumer:
 
     async def simulate_status_updates(self, path):
         """Testing method to simulate status updates"""
-        await asyncio.sleep(2)  # Simulate a delay
+        await asyncio.sleep(30)  # Should be called from the ASGI, we wait for some time
         await self.send_status_update(path, "FINISHED")
 
-    async def send_status_update(self, path, status):
-        await self.clients[path].send(status)
+    async def send_status_update(self, uuid, status: JobStatus):
+        await self.clients[uuid].send(status)
