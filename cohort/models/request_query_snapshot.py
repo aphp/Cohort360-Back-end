@@ -21,7 +21,7 @@ class RequestQuerySnapshot(CohortBaseModel):
 
     @property
     def has_linked_cohorts(self):
-        return bool(self.cohort_results.all())
+        return self.cohort_results.exists()
 
     def save(self, *args, **kwargs):
         try:

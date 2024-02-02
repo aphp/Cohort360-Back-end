@@ -3,8 +3,8 @@ from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 
 from admin_cohort.models import User
-from admin_cohort.permissions import UsersPermission, can_user_read_users
-from admin_cohort.serializers import UserSerializer, OpenUserSerializer
+from admin_cohort.permissions import UsersPermission
+from admin_cohort.serializers import UserSerializer
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.views import BaseViewSet
 
@@ -19,6 +19,7 @@ class UserFilter(filters.FilterSet):
 
 class UserViewSet(BaseViewSet):
     queryset = User.objects.all()
+    serializer_class = UserSerializer
     lookup_field = "username"
     search_fields = ["firstname", "lastname", "username", "email"]
     filterset_class = UserFilter
@@ -27,11 +28,6 @@ class UserViewSet(BaseViewSet):
 
     def get_serializer_context(self):
         return {'request': self.request}
-
-    def get_serializer(self, *args, **kwargs):
-        if can_user_read_users(self.request.user):
-            return UserSerializer(*args, **kwargs)
-        return OpenUserSerializer(*args, **kwargs)
 
     def get_queryset(self):
         # todo : to test manual_only

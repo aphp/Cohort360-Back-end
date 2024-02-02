@@ -5,7 +5,7 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from admin_cohort.models import User
-from admin_cohort.serializers import BaseSerializer, ReducedUserSerializer, UserSerializer
+from admin_cohort.serializers import BaseSerializer, UserSerializer
 from .conf_perimeters import Provider
 from .models import Role, Access, Profile, Perimeter
 from .services.roles import roles_service
@@ -72,7 +72,6 @@ class ReducedProfileSerializer(serializers.ModelSerializer):
 
 
 class ProfileSerializer(BaseSerializer):
-    provider = ReducedUserSerializer(read_only=True, source='user')
     user = serializers.PrimaryKeyRelatedField(required=False, queryset=User.objects.all())
     is_valid = serializers.BooleanField(read_only=True)
     is_active = serializers.BooleanField(required=False, default=True)
@@ -87,7 +86,6 @@ class ProfileSerializer(BaseSerializer):
         model = Profile
         fields = '__all__'
         read_only_fields = ["id",
-                            "provider",
                             "source",
                             "is_valid",
                             "actual_is_active",

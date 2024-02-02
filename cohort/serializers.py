@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from admin_cohort.models import User
-from admin_cohort.serializers import BaseSerializer, OpenUserSerializer
+from admin_cohort.serializers import BaseSerializer, UserSerializer
 from admin_cohort.types import MissingDataError
 from cohort.models import CohortResult, DatedMeasure, Folder, Request, RequestQuerySnapshot, FhirFilter, FeasibilityStudy
 
@@ -84,13 +84,12 @@ class RequestQuerySnapshotSerializer(BaseSerializer):
     previous_snapshot = PrimaryKeyRelatedFieldWithOwner(required=False, queryset=RequestQuerySnapshot.objects.all())
     dated_measures = DatedMeasureSerializer(many=True, read_only=True)
     cohort_results = CohortResultSerializer(many=True, read_only=True)
-    shared_by = OpenUserSerializer(allow_null=True, read_only=True, source='shared_by.provider')
+    shared_by = UserSerializer(allow_null=True, read_only=True)
 
     class Meta:
         model = RequestQuerySnapshot
         fields = "__all__"
-        read_only_fields = ["care_sites_ids",
-                            "dated_measures",
+        read_only_fields = ["dated_measures",
                             "cohort_results",
                             "shared_by"]
 
@@ -98,7 +97,7 @@ class RequestQuerySnapshotSerializer(BaseSerializer):
 class RequestSerializer(BaseSerializer):
     owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
     query_snapshots = ReducedRequestQuerySnapshotSerializer(read_only=True, many=True)
-    shared_by = OpenUserSerializer(read_only=True)
+    shared_by = UserSerializer(read_only=True)
     parent_folder = PrimaryKeyRelatedFieldWithOwner(queryset=Folder.objects.all())
 
     class Meta:

@@ -34,33 +34,6 @@ class OmopBaseSerializer(BaseSerializer):
         return super(OmopBaseSerializer, self).create(validated_data)
 
 
-class ReducedUserSerializer(serializers.ModelSerializer):
-    provider_source_value = serializers.CharField(read_only=True, source="username")
-
-    class Meta:
-        model = User
-        fields = ["provider_id",
-                  "username",
-                  "email",
-                  "firstname",
-                  "lastname",
-                  "provider_source_value"]
-
-
-class OpenUserSerializer(serializers.ModelSerializer):
-    displayed_name = serializers.CharField(read_only=True)
-    provider_source_value = serializers.CharField(read_only=True, source="username")
-
-    class Meta:
-        model = User
-        fields = ["provider_id",
-                  "username",
-                  "firstname",
-                  "lastname",
-                  "provider_source_value",
-                  "displayed_name"]
-
-
 class MaintenanceValidator:
     message = 'end_datetime is lower than start_datetime'
     requires_context = True
@@ -94,6 +67,7 @@ class MaintenancePhaseSerializer(BaseSerializer):
 class UserSerializer(serializers.ModelSerializer):
     displayed_name = serializers.CharField(read_only=True)
     provider_source_value = serializers.CharField(read_only=True, source="username")
+    provider_username = serializers.CharField(read_only=True, source="username")
 
     class Meta:
         model = User
