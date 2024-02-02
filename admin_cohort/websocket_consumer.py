@@ -15,7 +15,13 @@ class WebSocketStatusConsumer:
             job_id = path.split("/")[1]
             if not await self.check_client_fn(job_id):
                 raise websockets.ConnectionClosed(None, None)
-            await self.handle_client(websockets.WebSocketCommonProtocol(scope, receive, send), job_id)
+            websocket = websockets.WebSocketCommonProtocol(
+                logger=None, ping_interval=20, ping_timeout=20,
+                close_timeout=None, max_size=2 ** 20, max_queue=2 ** 5,
+                read_limit=2 ** 16, write_limit=2 ** 16,
+            )
+            await self.handle_client(websocket, job_id)
+
 
     async def authenticate_client(self, receive, expected_token):
         # todo: check if the client is really the owner of the cohort (dm_uuid.owner)
