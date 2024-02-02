@@ -13,7 +13,7 @@ class WebSocketStatusConsumer:
         path = scope.get("path", "").lstrip("/")
         if path.startswith("job/") and "/" in path:
             job_id = path.split("/")[1]
-            if not await self.check_client_fn(job_id):
+            if not self.check_client_fn(job_id):
                 raise websockets.ConnectionClosed(None, None)
             websocket = websockets.WebSocketCommonProtocol(
                 logger=None, ping_interval=20, ping_timeout=20,
