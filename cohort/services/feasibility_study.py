@@ -20,12 +20,7 @@ from cohort.tasks import get_feasibility_count_task, send_email_notification_tas
 env = os.environ
 
 APHP_ID = int(env.get("TOP_HIERARCHY_CARE_SITE_ID"))
-VALID_PERIMETERS_LEVELS = ["AP-HP",
-                           "GHU",
-                           "Hôpital",
-                           "Groupe hospitalier (GH)",
-                           "Pôle/DMU",
-                           "Unité Fonctionnelle (UF)"]
+REPORTING_PERIMETER_TYPES = env.get("REPORTING_PERIMETER_TYPES").split(",")
 
 REPORT_FILE_NAME = "Rapport"
 
@@ -144,7 +139,7 @@ class FeasibilityStudyService:
                                     <span id="count_p{p_id}" data-key="{patients_count}">{patients_count}</span>
                                 </div>
                              """
-            children = p.children.filter(type_source_value__in=VALID_PERIMETERS_LEVELS)
+            children = p.children.filter(type_source_value__in=REPORTING_PERIMETER_TYPES)
             if children:
                 content = self.generate_report_content(perimeters=children, counts_per_perimeter=counts_per_perimeter)
                 json_content.update(content[0])
