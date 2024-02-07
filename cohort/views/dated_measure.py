@@ -1,5 +1,8 @@
+import asyncio
 import logging
 
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from django.db import transaction
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
@@ -85,11 +88,9 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     def partial_update(self, request, *args, **kwargs):
         try:
             dated_measure_service.process_patch_data(dm=self.get_object(), data=request.data)
-            client_id = kwargs.get('uuid')  # Assuming uuid is the client_id
+            cohort_id = kwargs.get('uuid')
             cohort_status = request.data.get('request_job_status')
-
-            StatusConsumer().send_to_client(cohort_status=cohort_status, client_id=client_id)
-
+            StatusConsumer.send_to_client(cohort_status, "4212825", cohort_id, prefix="count")
         except ValueError as ve:
             return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
         return super(DatedMeasureViewSet, self).partial_update(request, *args, **kwargs)
