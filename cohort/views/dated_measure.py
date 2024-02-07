@@ -1,4 +1,3 @@
-import asyncio
 import logging
 
 from django.db import transaction
@@ -11,12 +10,12 @@ from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
-from admin_cohort.websocket_consumer import WebSocketStatusConsumer
 from cohort.models import DatedMeasure
 from cohort.permissions import SJSorETLCallbackPermission
 from cohort.serializers import DatedMeasureSerializer
 from cohort.services.dated_measure import dated_measure_service, JOB_STATUS, MINIMUM, MAXIMUM, COUNT
 from cohort.services.misc import is_sjs_user
+from cohort.status_consumer.consumers import StatusConsumer
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
 _logger = logging.getLogger('info')
@@ -86,7 +85,11 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     def partial_update(self, request, *args, **kwargs):
         try:
             dated_measure_service.process_patch_data(dm=self.get_object(), data=request.data)
-            asyncio.run(WebSocketStatusConsumer(lambda x: True).send_status_update(kwargs.get('uuid'), request.data.get('request_job_status')))
+            client_id = kwargs.get('uuid')  # Assuming uuid is the client_id
+            cohort_status = request.data.get('request_job_status')
+
+            StatusConsumer().send_to_client(cohort_status=cohort_status, client_id=client_id)
+
         except ValueError as ve:
             return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
         return super(DatedMeasureViewSet, self).partial_update(request, *args, **kwargs)
