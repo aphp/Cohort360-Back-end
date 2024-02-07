@@ -287,3 +287,13 @@ MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS = int(env("ACCESS_MIN_DEFAULT_END_DATE_OFFSE
 
 # CRB
 CRB_TEST_FHIR_QUERIES = bool(env("CRB_TEST_FHIR_QUERIES", default=False))
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            # todo mettre l'url complet du CELERY_BROKER_URL
+            "hosts": [('localhost', 6379)],
+        },
+    },
+}
