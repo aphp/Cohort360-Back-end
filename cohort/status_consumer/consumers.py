@@ -1,41 +1,62 @@
-import json
+import dataclasses
+from typing import Literal
 
 import jwt
+from asgiref.sync import async_to_sync
 from channels.generic.websocket import AsyncWebsocketConsumer
+from channels.layers import get_channel_layer
+
+
+@dataclasses.dataclass
+class WebsocketParams:
+    action_type: Literal['count', 'create', 'feasibility']
+    uuid: str
 
 
 class StatusConsumer(AsyncWebsocketConsumer):
     clients = {}
 
-    async def connect(self):
-        print("connecting")
-        token = self.scope['subprotocols'][1]
-        cohort_id = self.scope['query_string'].decode('utf-8')
-        decoded = jwt.decode(jwt=token,
+    def get_client_id_from_token(self, jwt_token: str) -> str:
+        decoded = jwt.decode(jwt=jwt_token,
                              algorithms=['RS256', 'HS256'],
                              options={'verify_signature': False})
-        await self.accept()
+        return decoded.get('preferred_username')
 
-        client_id = decoded.get('preferred_username')
-
-        self.clients[client_id] = {cohort_id: self}
-        await self.send("Welcome")
-        await self.send_to_client("finished", client_id, cohort_id)
-
-    async def receive(self, text_data=None, byte_data=None):
-        print(f"received message: {text_data}")
-        await self.send("Message received")
-
-    async def send_to_client(self, cohort_status, client_id, cohort_id):
+    def parse_params(self) -> WebsocketParams | None:
         try:
-            client_socket = self.clients[client_id][cohort_id]
-        except KeyError:
-            print(f"Socket not found with {client_id=} {cohort_id=}")
-            return
-        print(client_socket)
+            uuid = self.scope['path'].split('/')[-1]
+            action_type = "count"  # todo: get it scope
+            return WebsocketParams(uuid, action_type)
+        except Exception:  # Bad format for params
+            self.close()
+            return None
 
-        if client_socket:
-            print("sending")
-            await client_socket.send(json.dumps({"cohort_status": cohort_status, "cohort_id": cohort_id}))
-        else:
-            print(f"Client with ID {client_id} not found.")
+    async def connect(self):
+        try:
+            client_id = self.get_client_id_from_token("test_token")
+            self.accept()
+        except Exception:  # todo: raise User does not exist
+            self.close()
+            return
+
+        params = self.parse_params()
+        await self.channel_layer.group_add(f"{params.action_type}_{client_id}_{params.uuid}", self.channel_name)
+
+    @staticmethod
+    def send_to_client(cohort_status, client_id, cohort_id):
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f"group_{client_id}_{cohort_id}",
+            {
+                'type': 'cohort_status',
+                'cohort_status': cohort_status,
+                'cohort_id': cohort_id,
+            }
+        )
+
+    async def cohort_status(self, event):
+        cohort_status = event['cohort_status']
+        cohort_id = event['cohort_id']
+
+        # Send the cohort_status message to the WebSocket
+        await self.send(text_data=f"Cohort {cohort_id} status: {cohort_status}")
