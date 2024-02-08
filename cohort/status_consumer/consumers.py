@@ -34,9 +34,9 @@ class StatusConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         try:
             client_id = self.get_client_id_from_token("test_token")
-            self.accept()
+            await self.accept()
         except Exception:  # todo: raise User does not exist
-            self.close()
+            await self.close()
             return
 
         params = self.parse_params()
