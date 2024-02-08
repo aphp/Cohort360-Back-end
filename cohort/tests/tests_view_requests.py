@@ -27,7 +27,7 @@ class ShareCase(RequestCase):
     def description_dict(self) -> dict:
         d = {
             **self.__dict__,
-            'user': self.user and self.user.displayed_name,
+            'user': self.user and self.user.display_name,
             'recipients': [str(user) for user in self.recipients or []],
         }
         d.pop('title', None)

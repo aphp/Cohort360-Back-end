@@ -158,7 +158,7 @@ class ExportRequestViewSet(RequestLogMixin, viewsets.ModelViewSet):
         if response.status_code == http.HTTPStatus.CREATED and response.data["request_job_status"] != JobStatus.failed:
             try:
                 export_request = response.data.serializer.instance
-                notification_data = dict(recipient_name=export_request.owner.displayed_name,
+                notification_data = dict(recipient_name=export_request.owner.display_name,
                                          recipient_email=export_request.owner.email,
                                          cohort_id=export_request.cohort_id,
                                          cohort_name=export_request.cohort_name,

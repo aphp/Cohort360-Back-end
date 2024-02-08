@@ -168,10 +168,8 @@ class AccessSerializer(BaseSerializer):
     role_id = serializers.PrimaryKeyRelatedField(queryset=Role.objects.all(), source="role", write_only=True)
     profile = ReducedProfileSerializer(read_only=True)
     profile_id = serializers.PrimaryKeyRelatedField(queryset=Profile.objects.all(), source="profile", write_only=True)
-    provider_history_id = serializers.IntegerField(source='profile_id', required=False)
-    provider_history = ReducedProfileSerializer(read_only=True, source='profile')
-    created_by = serializers.SlugRelatedField(read_only=True, slug_field="displayed_name")
-    updated_by = serializers.SlugRelatedField(read_only=True, slug_field="displayed_name")
+    created_by = serializers.SlugRelatedField(read_only=True, slug_field="display_name")
+    updated_by = serializers.SlugRelatedField(read_only=True, slug_field="display_name")
     editable = serializers.BooleanField(read_only=True)
 
     class Meta:

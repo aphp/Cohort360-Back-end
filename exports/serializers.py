@@ -25,7 +25,7 @@ class ExportRequestTableSerializer(serializers.ModelSerializer):
 
 
 class ExportRequestListSerializer(serializers.ModelSerializer):
-    owner = serializers.SlugRelatedField(read_only=True, slug_field="displayed_name")
+    owner = serializers.SlugRelatedField(read_only=True, slug_field="display_name")
     cohort_name = serializers.CharField(read_only=True)
     patients_count = serializers.IntegerField(read_only=True)
     target_env = serializers.CharField(read_only=True)

@@ -10,7 +10,7 @@ _logger = logging.getLogger('info')
 
 def send_email_notif_about_large_cohort(cohort_name: str, cohort_id: str, cohort_owner: User) -> None:
     context = {**BASE_CONTEXT,
-               "recipient_name": cohort_owner.displayed_name,
+               "recipient_name": cohort_owner.display_name,
                "cohort_name": cohort_name,
                "cohort_url": f"{FRONT_URL}/cohort/{cohort_id}"
                }
@@ -26,7 +26,7 @@ def send_email_notif_about_large_cohort(cohort_name: str, cohort_id: str, cohort
 def send_email_notif_about_shared_request(request_name: str, owner: User, recipient: User) -> None:
     subject = f"{owner.firstname} {owner.lastname} a partagé une requête avec vous"
     context = {**BASE_CONTEXT,
-               "recipient_name": recipient.displayed_name,
+               "recipient_name": recipient.display_name,
                "owner_name": f"{owner.firstname} {owner.lastname}",
                "request_name": request_name
                }
@@ -41,7 +41,7 @@ def send_email_notif_about_shared_request(request_name: str, owner: User, recipi
 def send_email_notif_feasibility_report_requested(request_name: str, owner: User) -> None:
     subject = "Votre demande de rapport"
     context = {**BASE_CONTEXT,
-               "recipient_name": owner.displayed_name,
+               "recipient_name": owner.display_name,
                "request_name": request_name
                }
     email_notif = EmailNotification(subject=subject,
@@ -56,7 +56,7 @@ def send_email_notif_feasibility_report_ready(request_name: str, owner: User, fs
     subject = "Votre rapport est prêt"
     report_link = f"{BACK_URL}/accounts/login/?next=/cohort/feasibility-studies/{fs_uuid}/download/"
     context = {**BASE_CONTEXT,
-               "recipient_name": owner.displayed_name,
+               "recipient_name": owner.display_name,
                "request_name": request_name,
                "report_link": report_link
                }
@@ -71,7 +71,7 @@ def send_email_notif_feasibility_report_ready(request_name: str, owner: User, fs
 def send_email_notif_error_feasibility_report(request_name: str, owner: User) -> None:
     subject = "Votre demande de rapport a échoué"
     context = {**BASE_CONTEXT,
-               "recipient_name": owner.displayed_name,
+               "recipient_name": owner.display_name,
                "request_name": request_name,
                }
     email_notif = EmailNotification(subject=subject,
