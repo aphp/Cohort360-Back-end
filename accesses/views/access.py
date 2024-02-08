@@ -159,8 +159,8 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
     def get_my_accesses(self, request, *args, **kwargs):
         user = request.user
         accesses = accesses_service.get_user_valid_accesses(user=user)
-        expiring = request.query_params.get("expiring", "false")
-        if json.loads(expiring):
+        expiring = json.loads(request.query_params.get("expiring", "false"))
+        if expiring:
             accesses = accesses_service.get_expiring_accesses(user=user, accesses=accesses)
             if not accesses:
                 return Response(data={"message": f"No accesses to expire in the next {ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS} days"},

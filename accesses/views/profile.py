@@ -55,7 +55,7 @@ class ProfileViewSet(RequestLogMixin, BaseViewSet):
     permission_classes = (IsAuthenticated, ProfilesPermission)
     swagger_tags = ['Accesses - profiles']
     filterset_class = ProfileFilter
-    search_fields = ["lastname", "firstname", "email", "user_id"]
+    search_fields = ["lastname", "firstname", "provider_name", "email", "user_id"]
 
     def get_serializer_class(self):
         if self.request.method == 'GET' and not can_user_read_users(self.request.user):
@@ -65,24 +65,16 @@ class ProfileViewSet(RequestLogMixin, BaseViewSet):
     @swagger_auto_schema(manual_parameters=list(map(lambda x: openapi.Parameter(name=x[0], in_=openapi.IN_QUERY,
                                                                                 description=x[1], type=x[2],
                                                                                 pattern=x[3] if len(x) == 4 else None),
-                                                    [["provider_source_value", "(to deprecate -> user) Search type",
-                                                      openapi.TYPE_STRING, r"\d{1,7}"],
-                                                     ["user", "Filter type (User's id)", openapi.TYPE_STRING,
-                                                      r"\d{1,7}"],
+                                                    [["user_id", "Search type", openapi.TYPE_STRING, r"\d{1,7}"],
+                                                     ["user", "Filter type (User's id)", openapi.TYPE_STRING, r"\d{1,7}"],
                                                      ["provider_name", "Search type", openapi.TYPE_STRING],
                                                      ["email", "Search type", openapi.TYPE_STRING],
                                                      ["lastname", "Search type", openapi.TYPE_STRING],
                                                      ["firstname", "Search type", openapi.TYPE_STRING],
-                                                     ["provider_history_id", "(to deprecate -> id) Filter type",
-                                                      openapi.TYPE_INTEGER],
                                                      ["id", "Filter type", openapi.TYPE_INTEGER],
-                                                     ["provider_id", "Filter type", openapi.TYPE_STRING],
-                                                     ["source", "Filter type ('MANUAL', 'ORBIS', etc.)",
-                                                      openapi.TYPE_STRING],
+                                                     ["source", "Filter type ('MANUAL', 'ORBIS', etc.)", openapi.TYPE_STRING],
                                                      ["is_active", "Filter type", openapi.TYPE_BOOLEAN],
-                                                     ["search", "Filter on several fields (provider_source_value, "
-                                                                "provider_name, lastname, firstname, email)",
-                                                      openapi.TYPE_STRING]])))
+                                                     ["search", f"Search on multiple fields {' - '.join(search_fields)}", openapi.TYPE_STRING]])))
     @cache_response()
     def list(self, request, *args, **kwargs):
         return super(ProfileViewSet, self).list(request, *args, **kwargs)
@@ -97,12 +89,10 @@ class ProfileViewSet(RequestLogMixin, BaseViewSet):
         return super(ProfileViewSet, self).partial_update(request, *args, **kwargs)
 
     @swagger_auto_schema(request_body=openapi.Schema(type=openapi.TYPE_OBJECT,
-                                                     properties={"firstname": openapi.Schema(type=openapi.TYPE_STRING),
+                                                     properties={"user_id": openapi.Schema(type=openapi.TYPE_STRING),
+                                                                 "firstname": openapi.Schema(type=openapi.TYPE_STRING),
                                                                  "lastname": openapi.Schema(type=openapi.TYPE_STRING),
-                                                                 "email": openapi.Schema(type=openapi.TYPE_STRING),
-                                                                 "provider_id": openapi.Schema(type=openapi.TYPE_STRING),
-                                                                 "user": openapi.Schema(type=openapi.TYPE_STRING),
-                                                                 "provider_source_value": openapi.Schema(type=openapi.TYPE_STRING)}))
+                                                                 "email": openapi.Schema(type=openapi.TYPE_STRING)}))
     def create(self, request, *args, **kwargs):
         profiles_service.process_creation_data(data=request.data)
         return super(ProfileViewSet, self).create(request, *args, **kwargs)

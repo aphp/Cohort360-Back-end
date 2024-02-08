@@ -4,7 +4,6 @@ from django.db.models import Max, Q
 from django.utils import timezone
 from rest_framework import serializers
 
-from admin_cohort.models import User
 from admin_cohort.serializers import BaseSerializer, UserSerializer
 from .conf_perimeters import Provider
 from .models import Role, Access, Profile, Perimeter
@@ -54,17 +53,14 @@ class UsersInRoleSerializer(serializers.Serializer):
 
 class ReducedProfileSerializer(serializers.ModelSerializer):
     is_valid = serializers.BooleanField(read_only=True)
-    provider_source_value = serializers.CharField(read_only=True, source='user_id')
-    provider_history_id = serializers.IntegerField(read_only=True, source='id')
+    username = serializers.CharField(read_only=True, source='user_id')
 
     class Meta:
         model = Profile
         fields = ["id",
                   "provider_id",
-                  "provider_history_id",
                   "is_valid",
-                  "provider_source_value",
-                  "user_id",
+                  "username",
                   "email",
                   "firstname",
                   "lastname",
@@ -72,14 +68,11 @@ class ReducedProfileSerializer(serializers.ModelSerializer):
 
 
 class ProfileSerializer(BaseSerializer):
-    user = serializers.PrimaryKeyRelatedField(required=False, queryset=User.objects.all())
     is_valid = serializers.BooleanField(read_only=True)
     is_active = serializers.BooleanField(required=False, default=True)
     actual_is_active = serializers.BooleanField(read_only=True)
     actual_valid_start_datetime = serializers.DateTimeField(read_only=True)
     actual_valid_end_datetime = serializers.DateTimeField(read_only=True)
-    provider_history_id = serializers.IntegerField(required=False, source='id')
-    provider_source_value = serializers.CharField(source='user_id', required=False)
     user_id = serializers.CharField(required=False)
 
     class Meta:
@@ -104,13 +97,10 @@ class ProfileSerializer(BaseSerializer):
 class ProfileCheckSerializer(serializers.Serializer):
     firstname = serializers.CharField(read_only=True, allow_null=True)
     lastname = serializers.CharField(read_only=True, allow_null=True)
-    user_id = serializers.CharField(read_only=True, allow_null=True)
-    provider_source_value = serializers.CharField(read_only=True, allow_null=True, source='user_id')
+    username = serializers.CharField(read_only=True, allow_null=True, source='user_id')
     email = serializers.CharField(read_only=True, allow_null=True)
     user = UserSerializer(read_only=True, allow_null=True)
     manual_profile = ProfileSerializer(read_only=True, allow_null=True)
-    # todo : remove when ready
-    provider = UserSerializer(read_only=True, allow_null=True)
 
 
 class PerimeterSerializer(serializers.ModelSerializer):
@@ -163,7 +153,6 @@ class AccessSerializer(BaseSerializer):
     perimeter_id = serializers.PrimaryKeyRelatedField(queryset=Perimeter.objects.all(), source="perimeter")
     # todo : remove when ready with perimeter
     care_site = CareSiteSerializer(allow_null=True, required=False, source='perimeter')
-    care_site_history_id = serializers.IntegerField(read_only=True, source='id')
     role = RoleSerializer(read_only=True)
     role_id = serializers.PrimaryKeyRelatedField(queryset=Role.objects.all(), source="role", write_only=True)
     profile = ReducedProfileSerializer(read_only=True)
@@ -176,7 +165,6 @@ class AccessSerializer(BaseSerializer):
         model = Access
         fields = ["id",
                   "is_valid",
-                  "provider_history",
                   "profile",
                   "profile_id",
                   "care_site",
@@ -186,25 +174,20 @@ class AccessSerializer(BaseSerializer):
                   "start_datetime",
                   "end_datetime",
                   "care_site_id",
-                  "provider_history_id",
                   "role_id",
                   "perimeter",
                   "perimeter_id",
-                  "care_site_history_id",
                   "created_by",
                   "updated_by",
                   "editable"]
         write_only_fields = ["start_datetime", "end_datetime"]
-        read_only_fields = ["_id",
-                            "is_valid",
-                            "provider",
+        read_only_fields = ["is_valid",
                             "care_site",
                             "actual_start_datetime",
                             "actual_end_datetime",
                             "role",
                             "perimeter",
-                            "profile_id",
-                            "care_site_history_id"]
+                            "profile_id"]
 
     def create(self, validated_data):
         creator = self.context.get('request').user
