@@ -43,10 +43,10 @@ class StatusConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_add(f"{params.action_type}_{client_id}_{params.uuid}", self.channel_name)
 
     @staticmethod
-    def send_to_client(cohort_status, client_id, cohort_id):
+    def send_to_client(cohort_status, client_id, cohort_id, prefix):
         channel_layer = get_channel_layer()
         async_to_sync(channel_layer.group_send)(
-            f"group_{client_id}_{cohort_id}",
+            f"{prefix}_{client_id}_{cohort_id}",
             {
                 'type': 'cohort_status',
                 'cohort_status': cohort_status,
