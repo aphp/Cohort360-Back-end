@@ -1,33 +1,30 @@
-from admin_cohort.auth.utils import get_jwt_tokens, get_oidc_tokens, get_oidc_user_info
+from admin_cohort.auth.utils import get_jwt_tokens, get_oidc_tokens, extract_username_from_token
 from admin_cohort.models import User
-from admin_cohort.types import JwtTokens, UserInfo
+from admin_cohort.types import AuthTokens
 
 
 class BaseAuthBackend:
     def get_user(self, user_id) -> User:
         return User.objects.get(username=user_id)
 
-    def set_tokens_for_request(self, request, tokens: JwtTokens):
-        request.jwt_access_key = tokens.access
-        request.jwt_refresh_key = tokens.refresh
-        request.last_connection = tokens.last_connection
+    def set_auth_tokens(self, request, access_tokens: AuthTokens):
+        request.auth_tokens = access_tokens
 
 
 class JWTAuthBackend(BaseAuthBackend):
 
     def authenticate(self, request, username, password):
-        tokens: JwtTokens = get_jwt_tokens(username=username, password=password)
-        self.set_tokens_for_request(request=request, tokens=tokens)
+        auth_tokens: AuthTokens = get_jwt_tokens(username=username, password=password)
         user = self.get_user(username)
+        self.set_auth_tokens(request, auth_tokens)
         return user
 
 
 class OIDCAuthBackend(BaseAuthBackend):
 
     def authenticate(self, request, code):
-        tokens: JwtTokens = get_oidc_tokens(code=code)
-        self.set_tokens_for_request(request=request, tokens=tokens)
-        response = get_oidc_user_info(access_token=tokens.access)
-        user_info = UserInfo(**response.json())
-        user = self.get_user(user_info.username)
+        auth_tokens: AuthTokens = get_oidc_tokens(code=code)
+        username = extract_username_from_token(access_token=auth_tokens.access_token)
+        user = self.get_user(username)
+        self.set_auth_tokens(request, auth_tokens)
         return user

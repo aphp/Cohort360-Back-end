@@ -22,11 +22,10 @@ class PersonIdentity:
         self.email = email
 
 
-class JwtTokens:
+class AuthTokens:
     def __init__(self, **kwargs):
-        self.access = kwargs.get('access', kwargs.get('access_token'))
-        self.refresh = kwargs.get('refresh', kwargs.get('refresh_token'))
-        self.last_connection = kwargs.get('last_connection', {})
+        self.access_token = kwargs.get('access', kwargs.get('access_token'))
+        self.refresh_token = kwargs.get('refresh', kwargs.get('refresh_token'))
 
 
 class UserInfo:

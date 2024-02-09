@@ -12,35 +12,23 @@ from requests import RequestException
 from rest_framework import status
 from rest_framework_simplejwt.exceptions import InvalidToken
 
-from accesses.serializers import AccessSerializer
-from accesses.services.accesses import accesses_service
 from admin_cohort.auth.utils import logout_user, refresh_oidc_token, refresh_jwt_token
 from admin_cohort.auth.auth_form import AuthForm
 from admin_cohort.models import User
 from admin_cohort.serializers import UserSerializer
 from admin_cohort.settings import OIDC_AUTH_MODE, JWT_AUTH_MODE
-from admin_cohort.types import JwtTokens
+from admin_cohort.types import AuthTokens
 from admin_cohort.tools.request_log_mixin import RequestLogMixin, JWTLoginRequestLogMixin
 
 _logger = logging.getLogger("django.request")
 
 
-def get_response_data(request, user: User):
-    # TODO for REST API: being returned with users/user_id/accesses
-    valid_accesses = accesses_service.get_user_valid_accesses(user=user)
-    user = UserSerializer(user).data
-    data = {"provider": user,
-            "user": user,
-            "session_id": request.session.session_key,
-            "accesses": AccessSerializer(valid_accesses, many=True).data,
-            "jwt": {"access": request.jwt_access_key,
-                    "refresh": request.jwt_refresh_key,
-                    "last_connection": getattr(request, 'last_connection', dict())
-                    }
+def get_response_data(user: User, auth_tokens: AuthTokens):
+    return {"user": UserSerializer(user).data,
+            "last_login": user.last_login,
+            "access_token": auth_tokens.access_token,
+            "refresh_token": auth_tokens.refresh_token
             }
-    # when ready, try removing jwt field (so that does not process it,
-    # because it should be done with cookies only)
-    return data
 
 
 class ExemptedAuthView(View):
@@ -56,7 +44,7 @@ class ExemptedAuthView(View):
         return handler(request, *args, **kwargs)
 
 
-class OIDCTokensView(RequestLogMixin, ExemptedAuthView):
+class OIDCLoginView(RequestLogMixin, ExemptedAuthView):
     logging_methods = ['POST']
 
     def post(self, request, *args, **kwargs):
@@ -69,9 +57,9 @@ class OIDCTokensView(RequestLogMixin, ExemptedAuthView):
         except User.DoesNotExist:
             return JsonResponse(data={"error": "User not found in database"},
                                 status=status.HTTP_401_UNAUTHORIZED)
+        data = get_response_data(user=user, auth_tokens=request.auth_tokens)
         login(request=request, user=user)
-        return JsonResponse(data=get_response_data(request=request, user=user),
-                            status=status.HTTP_200_OK)
+        return JsonResponse(data=data, status=status.HTTP_200_OK)
 
 
 class JWTLoginView(JWTLoginRequestLogMixin, ExemptedAuthView, views.LoginView):
@@ -89,8 +77,9 @@ class JWTLoginView(JWTLoginRequestLogMixin, ExemptedAuthView, views.LoginView):
         return response
 
     def form_valid(self, form):
-        login(self.request, form.get_user())
-        data = get_response_data(request=self.request, user=self.request.user)
+        user = form.get_user()
+        data = get_response_data(user=user, auth_tokens=self.request.auth_tokens)
+        login(self.request, user)
         redirect_url = self.get_redirect_url()
         if redirect_url:
             return HttpResponseRedirect(redirect_url)
@@ -102,9 +91,13 @@ class JWTLoginView(JWTLoginRequestLogMixin, ExemptedAuthView, views.LoginView):
 
 
 class LogoutView(ExemptedAuthView, views.LogoutView):
+    http_method_names = ["post", "get"]
 
     def post(self, request, *args, **kwargs):
-        logout_user(request)
+        try:
+            logout_user(request)
+        except RequestException as e:
+            return JsonResponse(data={"error": f"Error on user logout, {e}"}, status=status.HTTP_401_UNAUTHORIZED)
         return JsonResponse(data={}, status=status.HTTP_200_OK)
 
 
@@ -116,9 +109,10 @@ class TokenRefreshView(ExemptedAuthView):
                       }
         try:
             refresher = refreshers[request.META.get("HTTP_AUTHORIZATIONMETHOD")]
-            response = refresher(request.jwt_refresh_key)
+            refresh_token = json.loads(request.body).get('refresh_token')
+            response = refresher(refresh_token)
             if response.status_code == status.HTTP_200_OK:
-                return JsonResponse(data=JwtTokens(**response.json()).__dict__,
+                return JsonResponse(data=AuthTokens(**response.json()).__dict__,
                                     status=status.HTTP_200_OK)
             elif response.status_code in (status.HTTP_400_BAD_REQUEST, status.HTTP_401_UNAUTHORIZED):
                 raise InvalidToken("Token is invalid or has expired")

@@ -12,10 +12,6 @@ class Authentication(BaseAuthentication):
         if access_token is None:
             return None
         auth_method = auth_method or JWT_AUTH_MODE
-        if isinstance(access_token, bytes):
-            access_token = access_token.decode('utf-8')
-        if isinstance(auth_method, bytes):
-            auth_method = auth_method.decode('utf-8')
         try:
             user_info = get_userinfo_from_token(token=access_token, auth_method=auth_method)
             user = User.objects.get(username=user_info.username)
