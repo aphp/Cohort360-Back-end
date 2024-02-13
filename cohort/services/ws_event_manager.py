@@ -20,6 +20,7 @@ class StatusConsumer(AsyncWebsocketConsumer):
         decoded = jwt.decode(jwt=jwt_token,
                              algorithms=['RS256', 'HS256'],
                              options={'verify_signature': False})
+        print(decoded)
         return decoded.get('preferred_username')
 
     def parse_params(self) -> WebsocketParams | None:
@@ -32,8 +33,9 @@ class StatusConsumer(AsyncWebsocketConsumer):
             return None
 
     async def connect(self):
+        print(self.__dict__)
         try:
-            client_id = self.get_client_id_from_token("test_token")
+            client_id = self.get_client_id_from_token("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzA3NDMwNjI0LCJqdGkiOiIzOTQzYmRlZjYzMjI0YWRmODg4M2EwZWJhMDU5NDI0NiIsInVzZXJuYW1lIjoiNDIxMjgyNSJ9.tatGSgn9VklyenUojNefCJuZDBGXPbMCvCBPlfQSHik")
             await self.accept()
         except Exception:  # todo: raise User does not exist
             await self.close()

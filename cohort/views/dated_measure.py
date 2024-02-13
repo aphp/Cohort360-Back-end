@@ -1,8 +1,5 @@
-import asyncio
 import logging
 
-from asgiref.sync import async_to_sync
-from channels.layers import get_channel_layer
 from django.db import transaction
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
@@ -18,7 +15,7 @@ from cohort.permissions import SJSorETLCallbackPermission
 from cohort.serializers import DatedMeasureSerializer
 from cohort.services.dated_measure import dated_measure_service, JOB_STATUS, MINIMUM, MAXIMUM, COUNT
 from cohort.services.misc import is_sjs_user
-from cohort.status_consumer.consumers import StatusConsumer
+from cohort.services.ws_event_manager import StatusConsumer
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
 _logger = logging.getLogger('info')
