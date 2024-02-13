@@ -197,8 +197,9 @@ class AuthService:
     def _get_authenticator(self, auth_method: str):
         try:
             return self.authenticators[auth_method]
-        except KeyError:
+        except KeyError as ke:
             _logger.error(f"Invalid authentication method : {auth_method}")
+            raise ke
 
     def get_tokens(self, **params) -> AuthTokens:
         for authenticator in self.authenticators.values():

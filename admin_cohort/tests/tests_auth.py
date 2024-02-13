@@ -1,7 +1,6 @@
 from unittest import mock
 from unittest.mock import MagicMock
 
-from requests import Response
 from rest_framework import status
 from rest_framework.test import APITestCase, APIRequestFactory
 from rest_framework_simplejwt.exceptions import InvalidToken
@@ -33,34 +32,34 @@ class JWTLoginTests(APITestCase):
         response = self.client.patch(path=self.login_url)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
-    @mock.patch("admin_cohort.auth.auth_backends.get_jwt_tokens")
-    def test_login_with_unregistered_user(self, mock_get_jwt_tokens: MagicMock):
-        mock_get_jwt_tokens.side_effect = User.DoesNotExist()
+    @mock.patch("admin_cohort.auth.auth_backends.auth_service.get_tokens")
+    def test_login_with_unregistered_user(self, mock_get_tokens: MagicMock):
+        mock_get_tokens.side_effect = User.DoesNotExist()
         response = self.client.post(path=self.login_url, data=self.unregistered_user_credentials)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    @mock.patch("admin_cohort.auth.auth_backends.get_jwt_tokens")
-    def test_login_with_wrong_credentials(self, mock_get_jwt_tokens: MagicMock):
-        mock_get_jwt_tokens.side_effect = LoginError("Invalid username or password")
+    @mock.patch("admin_cohort.auth.auth_backends.auth_service.get_tokens")
+    def test_login_with_wrong_credentials(self, mock_get_tokens: MagicMock):
+        mock_get_tokens.side_effect = LoginError("Invalid username or password")
         response = self.client.post(path=self.login_url, data={"username": self.regular_user.username,
                                                                "password": "wrong-psswd"})
-        mock_get_jwt_tokens.assert_called()
+        mock_get_tokens.assert_called()
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    @mock.patch("admin_cohort.auth.auth_backends.get_jwt_tokens")
-    def test_login_unavailable_jwt_server(self, mock_get_jwt_tokens: MagicMock):
-        mock_get_jwt_tokens.side_effect = ServerError("JWT server unavailable")
+    @mock.patch("admin_cohort.auth.auth_backends.auth_service.get_tokens")
+    def test_login_unavailable_jwt_server(self, mock_get_tokens: MagicMock):
+        mock_get_tokens.side_effect = ServerError("JWT server unavailable")
         response = self.client.post(path=self.login_url, data={"username": self.regular_user.username,
                                                                "password": "psswd"})
-        mock_get_jwt_tokens.assert_called()
+        mock_get_tokens.assert_called()
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    @mock.patch("admin_cohort.auth.auth_backends.get_jwt_tokens")
-    def test_login_success(self, mock_get_jwt_tokens: MagicMock):
-        mock_get_jwt_tokens.return_value = AuthTokens(access="aaa", refresh="rrr")
+    @mock.patch("admin_cohort.auth.auth_backends.auth_service.get_tokens")
+    def test_login_success(self, mock_get_tokens: MagicMock):
+        mock_get_tokens.return_value = AuthTokens(access_token="aaa", refresh_token="rrr")
         response = self.client.post(path=self.login_url, data={"username": self.regular_user.username,
                                                                "password": "any-will-do"})
-        mock_get_jwt_tokens.assert_called()
+        mock_get_tokens.assert_called()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
 
@@ -77,16 +76,16 @@ class OIDCLoginTests(APITestCase):
                                     data={"not_auth_code": "value"})
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    @mock.patch("admin_cohort.auth.auth_backends._decode_token")
-    @mock.patch("admin_cohort.auth.auth_backends.get_oidc_tokens")
-    def test_login_success(self, mock_get_oidc_tokens: MagicMock, mock_decode_token: MagicMock):
-        mock_get_oidc_tokens.return_value = AuthTokens(access_token="aaa", refresh_token="rrr")
-        mock_decode_token.return_value = {"preferred_username": self.regular_user.username}
+    @mock.patch("admin_cohort.auth.auth_backends.auth_service.retrieve_username")
+    @mock.patch("admin_cohort.auth.auth_backends.auth_service.get_tokens")
+    def test_login_success(self, mock_get_tokens: MagicMock, mock_retrieve_username: MagicMock):
+        mock_get_tokens.return_value = AuthTokens(access_token="aaa", refresh_token="rrr")
+        mock_retrieve_username.return_value = self.regular_user.username
         response = self.client.post(path=self.login_url,
                                     content_type="application/json",
                                     data={"auth_code": "any-auth-code-will-do"})
-        mock_get_oidc_tokens.assert_called()
-        mock_decode_token.assert_called()
+        mock_get_tokens.assert_called()
+        mock_retrieve_username.assert_called()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
 
@@ -106,13 +105,13 @@ class AuthClassTests(APITestCase):
                                                          perimeter=self.perimeter_aphp,
                                                          role=self.users_reader_role)
 
-    @mock.patch("admin_cohort.auth.auth_class.get_username_from_token")
-    def test_authenticate_success(self, mock_get_username: MagicMock):
-        mock_get_username.return_value = self.regular_user.username
+    @mock.patch("admin_cohort.auth.auth_class.auth_service.authenticate_request")
+    def test_authenticate_success(self, mock_authenticate_request: MagicMock):
+        mock_authenticate_request.return_value = self.regular_user, "some_token"
         request = self.factory.get(path=self.protected_url, **self.headers)
         request.user = self.regular_user
         response = self.protected_view.as_view({'get': 'list'})(request)
-        mock_get_username.assert_called()
+        mock_authenticate_request.assert_called()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_authenticate_without_token(self):
@@ -120,25 +119,13 @@ class AuthClassTests(APITestCase):
         response = self.protected_view.as_view({'get': 'list'})(request)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    @mock.patch("admin_cohort.auth.auth_class.get_username_from_token")
-    def test_authenticate_error(self, mock_get_userinfo: MagicMock):
-        mock_get_userinfo.side_effect = InvalidToken()
+    @mock.patch("admin_cohort.auth.auth_class.auth_service.authenticate_request")
+    def test_authenticate_error(self, mock_authenticate_request: MagicMock):
+        mock_authenticate_request.side_effect = InvalidToken()
         request = self.factory.get(path=self.protected_url, **self.headers)
         request.user = self.regular_user
         response = self.protected_view.as_view({'get': 'list'})(request)
-        mock_get_userinfo.assert_called()
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-
-    @mock.patch("admin_cohort.auth.auth_class.get_username_from_token")
-    @mock.patch("admin_cohort.auth.auth_class.get_auth_data")
-    def test_authenticate_error_with_bytes_token(self, mock_get_auth_data: MagicMock, mock_get_userinfo: MagicMock):
-        mock_get_auth_data.return_value = (b"SoMERaNdoMbYteS", None)
-        mock_get_userinfo.side_effect = InvalidToken()
-        request = self.factory.get(path=self.protected_url)
-        request.user = self.regular_user
-        response = self.protected_view.as_view({'get': 'list'})(request)
-        mock_get_auth_data.assert_called()
-        mock_get_userinfo.assert_called()
+        mock_authenticate_request.assert_called()
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
 
@@ -163,14 +150,11 @@ class RefreshTokenTests(APITestCase):
                                     data={"refresh_token": "any-auth-code-will-do"},
                                     headers={"Authorization": "Bearer any-auth",
                                              "AuthorizationMethod": "INVALID_AUTH_MODE"})
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    @mock.patch("admin_cohort.views.auth.refresh_jwt_token")
-    def test_refresh_token_with_jwt_auth_mode(self, mock_refresh_jwt_token: MagicMock):
-        jwt_resp = Response()
-        jwt_resp.status_code = status.HTTP_200_OK
-        jwt_resp._content = b'{"access": "aaa", "refresh": "rrr"}'
-        mock_refresh_jwt_token.return_value = jwt_resp
+    @mock.patch("admin_cohort.views.auth.auth_service.refresh_token")
+    def test_refresh_token_with_jwt_auth_mode(self, mock_refresh_token: MagicMock):
+        mock_refresh_token.return_value = {"access": "aaa", "refresh": "rrr"}
         response = self.client.post(path=self.refresh_url,
                                     content_type="application/json",
                                     data={"refresh_token": "any-auth-code-will-do"},
@@ -178,12 +162,9 @@ class RefreshTokenTests(APITestCase):
                                              "AuthorizationMethod": JWT_AUTH_MODE})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    @mock.patch("admin_cohort.views.auth.refresh_oidc_token")
-    def test_refresh_token_with_oidc_auth_mode(self, mock_refresh_oidc_token: MagicMock):
-        oidc_resp = Response()
-        oidc_resp.status_code = status.HTTP_200_OK
-        oidc_resp._content = b'{"access_token": "aaa", "refresh_token": "rrr"}'
-        mock_refresh_oidc_token.return_value = oidc_resp
+    @mock.patch("admin_cohort.views.auth.auth_service.refresh_token")
+    def test_refresh_token_with_oidc_auth_mode(self, mock_refresh_token: MagicMock):
+        mock_refresh_token.return_value = {"access_token": "aaa", "refresh_token": "rrr"}
         response = self.client.post(path=self.refresh_url,
                                     content_type="application/json",
                                     data={"refresh_token": "any-auth-code-will-do"},
@@ -191,11 +172,9 @@ class RefreshTokenTests(APITestCase):
                                              "AuthorizationMethod": OIDC_AUTH_MODE})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    @mock.patch("admin_cohort.views.auth.refresh_jwt_token")
-    def test_refresh_token_with_invalid_token(self, mock_refresh_jwt_token: MagicMock):
-        jwt_resp = Response()
-        jwt_resp.status_code = status.HTTP_401_UNAUTHORIZED
-        mock_refresh_jwt_token.return_value = jwt_resp
+    @mock.patch("admin_cohort.views.auth.auth_service.refresh_token")
+    def test_refresh_token_with_invalid_token(self, mock_refresh_token: MagicMock):
+        mock_refresh_token.side_effect = InvalidToken()
         response = self.client.post(path=self.refresh_url,
                                     content_type="application/json",
                                     data={"refresh_token": "any-auth-code-will-do"},
@@ -213,7 +192,7 @@ class LogoutTests(APITestCase):
         response = self.client.patch(path=self.logout_url)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
-    @mock.patch("admin_cohort.views.auth.logout_user")
+    @mock.patch("admin_cohort.views.auth.auth_service.logout_user")
     def test_logout_success(self, mock_logout_user: MagicMock):
         mock_logout_user.return_value = None
         response = self.client.post(path=self.logout_url)

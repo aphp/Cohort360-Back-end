@@ -16,12 +16,12 @@ class RequestLogMixinTests(APITestCase):
         self.login_url = '/auth/login/'
         self.regular_user = create_regular_user()
 
-    @mock.patch("admin_cohort.auth.auth_backends.get_jwt_tokens")
-    def test_request_is_logged_after_login(self, mock_get_jwt_tokens: MagicMock):
-        mock_get_jwt_tokens.return_value = AuthTokens(access="aaa", refresh="rrr")
+    @mock.patch("admin_cohort.auth.auth_backends.auth_service.get_tokens")
+    def test_request_is_logged_after_login(self, mock_get_tokens: MagicMock):
+        mock_get_tokens.return_value = AuthTokens(access_token="aaa", refresh_token="rrr")
         response = self.client.post(path=self.login_url, data={"username": self.regular_user.username,
                                                                "password": "any-will-do"})
-        mock_get_jwt_tokens.assert_called()
+        mock_get_tokens.assert_called()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         request_log = APIRequestLog.objects.latest("id")
         self.assertEqual(request_log.path, '/auth/login/')

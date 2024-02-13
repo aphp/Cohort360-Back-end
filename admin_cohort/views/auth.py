@@ -106,5 +106,5 @@ class TokenRefreshView(ExemptedAuthView):
         try:
             auth_tokens = auth_service.refresh_token(request)
             return JsonResponse(data=auth_tokens, status=status.HTTP_200_OK)
-        except (InvalidToken, RequestException) as e:
+        except (KeyError, InvalidToken, RequestException) as e:
             return JsonResponse(data={"error": f"{e}"}, status=status.HTTP_401_UNAUTHORIZED)
