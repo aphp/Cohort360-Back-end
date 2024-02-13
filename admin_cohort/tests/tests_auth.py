@@ -10,7 +10,7 @@ from accesses.models import Access, Perimeter, Role
 from admin_cohort.models import User
 from admin_cohort.settings import JWT_AUTH_MODE, OIDC_AUTH_MODE
 from admin_cohort.tests.tests_tools import new_user_and_profile
-from admin_cohort.types import AuthTokens, LoginError, ServerError, UserInfo
+from admin_cohort.types import AuthTokens, LoginError, ServerError
 from admin_cohort.views import UserViewSet
 
 
@@ -77,16 +77,16 @@ class OIDCLoginTests(APITestCase):
                                     data={"not_auth_code": "value"})
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    @mock.patch("admin_cohort.auth.auth_backends.extract_username_from_token")
+    @mock.patch("admin_cohort.auth.auth_backends._decode_token")
     @mock.patch("admin_cohort.auth.auth_backends.get_oidc_tokens")
-    def test_login_success(self, mock_get_oidc_tokens: MagicMock, mock_get_username: MagicMock):
+    def test_login_success(self, mock_get_oidc_tokens: MagicMock, mock_decode_token: MagicMock):
         mock_get_oidc_tokens.return_value = AuthTokens(access_token="aaa", refresh_token="rrr")
-        mock_get_username.return_value = self.regular_user.username
+        mock_decode_token.return_value = {"preferred_username": self.regular_user.username}
         response = self.client.post(path=self.login_url,
                                     content_type="application/json",
                                     data={"auth_code": "any-auth-code-will-do"})
         mock_get_oidc_tokens.assert_called()
-        mock_get_username.assert_called()
+        mock_decode_token.assert_called()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
 
@@ -106,16 +106,13 @@ class AuthClassTests(APITestCase):
                                                          perimeter=self.perimeter_aphp,
                                                          role=self.users_reader_role)
 
-    @mock.patch("admin_cohort.auth.auth_class.get_userinfo_from_token")
-    def test_authenticate_success(self, mock_get_userinfo: MagicMock):
-        mock_get_userinfo.return_value = UserInfo(username=self.regular_user.username,
-                                                  firstname=self.regular_user.firstname,
-                                                  lastname=self.regular_user.lastname,
-                                                  email=self.regular_user.email)
+    @mock.patch("admin_cohort.auth.auth_class.get_username_from_token")
+    def test_authenticate_success(self, mock_get_username: MagicMock):
+        mock_get_username.return_value = self.regular_user.username
         request = self.factory.get(path=self.protected_url, **self.headers)
         request.user = self.regular_user
         response = self.protected_view.as_view({'get': 'list'})(request)
-        mock_get_userinfo.assert_called()
+        mock_get_username.assert_called()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_authenticate_without_token(self):
@@ -123,7 +120,7 @@ class AuthClassTests(APITestCase):
         response = self.protected_view.as_view({'get': 'list'})(request)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    @mock.patch("admin_cohort.auth.auth_class.get_userinfo_from_token")
+    @mock.patch("admin_cohort.auth.auth_class.get_username_from_token")
     def test_authenticate_error(self, mock_get_userinfo: MagicMock):
         mock_get_userinfo.side_effect = InvalidToken()
         request = self.factory.get(path=self.protected_url, **self.headers)
@@ -132,7 +129,7 @@ class AuthClassTests(APITestCase):
         mock_get_userinfo.assert_called()
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    @mock.patch("admin_cohort.auth.auth_class.get_userinfo_from_token")
+    @mock.patch("admin_cohort.auth.auth_class.get_username_from_token")
     @mock.patch("admin_cohort.auth.auth_class.get_auth_data")
     def test_authenticate_error_with_bytes_token(self, mock_get_auth_data: MagicMock, mock_get_userinfo: MagicMock):
         mock_get_auth_data.return_value = (b"SoMERaNdoMbYteS", None)

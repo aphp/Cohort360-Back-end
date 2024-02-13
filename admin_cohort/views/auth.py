@@ -12,11 +12,10 @@ from requests import RequestException
 from rest_framework import status
 from rest_framework_simplejwt.exceptions import InvalidToken
 
-from admin_cohort.auth.utils import logout_user, refresh_oidc_token, refresh_jwt_token
+from admin_cohort.services.auth import auth_service
 from admin_cohort.auth.auth_form import AuthForm
 from admin_cohort.models import User
 from admin_cohort.serializers import UserSerializer
-from admin_cohort.settings import OIDC_AUTH_MODE, JWT_AUTH_MODE
 from admin_cohort.types import AuthTokens
 from admin_cohort.tools.request_log_mixin import RequestLogMixin, JWTLoginRequestLogMixin
 
@@ -33,6 +32,7 @@ def get_response_data(user: User, auth_tokens: AuthTokens):
 
 class ExemptedAuthView(View):
     http_method_names = ["post"]
+    logging_methods = ['POST']
 
     @method_decorator(csrf_exempt)
     @method_decorator(never_cache)
@@ -45,7 +45,6 @@ class ExemptedAuthView(View):
 
 
 class OIDCLoginView(RequestLogMixin, ExemptedAuthView):
-    logging_methods = ['POST']
 
     def post(self, request, *args, **kwargs):
         auth_code = json.loads(request.body).get("auth_code")
@@ -66,7 +65,6 @@ class JWTLoginView(JWTLoginRequestLogMixin, ExemptedAuthView, views.LoginView):
     form_class = AuthForm
     template_name = "login.html"
     http_method_names = ["get", "post"]
-    logging_methods = ['POST']
 
     @method_decorator(csrf_exempt)
     @method_decorator(never_cache)
@@ -78,8 +76,9 @@ class JWTLoginView(JWTLoginRequestLogMixin, ExemptedAuthView, views.LoginView):
 
     def form_valid(self, form):
         user = form.get_user()
-        data = get_response_data(user=user, auth_tokens=self.request.auth_tokens)
-        login(self.request, user)
+        request = self.request
+        data = get_response_data(user=user, auth_tokens=request.auth_tokens)
+        login(request, user)
         redirect_url = self.get_redirect_url()
         if redirect_url:
             return HttpResponseRedirect(redirect_url)
@@ -95,32 +94,17 @@ class LogoutView(ExemptedAuthView, views.LogoutView):
 
     def post(self, request, *args, **kwargs):
         try:
-            logout_user(request)
+            auth_service.logout_user(request)
+            return JsonResponse(data={}, status=status.HTTP_200_OK)
         except RequestException as e:
             return JsonResponse(data={"error": f"Error on user logout, {e}"}, status=status.HTTP_401_UNAUTHORIZED)
-        return JsonResponse(data={}, status=status.HTTP_200_OK)
 
 
 class TokenRefreshView(ExemptedAuthView):
 
     def post(self, request, *args, **kwargs):
-        refreshers = {JWT_AUTH_MODE: refresh_jwt_token,
-                      OIDC_AUTH_MODE: refresh_oidc_token
-                      }
         try:
-            refresher = refreshers[request.META.get("HTTP_AUTHORIZATIONMETHOD")]
-            refresh_token = json.loads(request.body).get('refresh_token')
-            response = refresher(refresh_token)
-            if response.status_code == status.HTTP_200_OK:
-                return JsonResponse(data=AuthTokens(**response.json()).__dict__,
-                                    status=status.HTTP_200_OK)
-            elif response.status_code in (status.HTTP_400_BAD_REQUEST, status.HTTP_401_UNAUTHORIZED):
-                raise InvalidToken("Token is invalid or has expired")
-            else:
-                response.raise_for_status()
-        except KeyError as ke:
-            return JsonResponse(data={"error": f"Missing AUTHORIZATIONMETHOD headers: {ke}"},
-                                status=status.HTTP_400_BAD_REQUEST)
+            auth_tokens = auth_service.refresh_token(request)
+            return JsonResponse(data=auth_tokens, status=status.HTTP_200_OK)
         except (InvalidToken, RequestException) as e:
-            return JsonResponse(data={"error": f"{e}"},
-                                status=status.HTTP_401_UNAUTHORIZED)
+            return JsonResponse(data={"error": f"{e}"}, status=status.HTTP_401_UNAUTHORIZED)

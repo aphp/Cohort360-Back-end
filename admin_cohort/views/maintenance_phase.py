@@ -5,7 +5,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from admin_cohort.models import MaintenancePhase
-from admin_cohort.services.maintenance import get_next_maintenance
+from admin_cohort.services.maintenance import maintenance_service
 from admin_cohort.permissions import MaintenancesPermission
 from admin_cohort.serializers import MaintenancePhaseSerializer
 
@@ -28,6 +28,6 @@ class MaintenancePhaseViewSet(viewsets.ModelViewSet):
                                                           'The response can be null otherwise.', MaintenancePhaseSerializer)})
     @action(methods=['get'], detail=False, url_path='next')
     def next(self, request, *args, **kwargs):
-        q = get_next_maintenance()
+        q = maintenance_service.get_next_maintenance()
         d = self.get_serializer(q).data if q is not None else {}
         return Response(d)

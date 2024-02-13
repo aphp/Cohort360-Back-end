@@ -10,6 +10,10 @@ from admin_cohort.views import BaseViewSet
 
 
 class UserFilter(filters.FilterSet):
+    username = filters.CharFilter(field_name='username', lookup_expr='icontains')
+    firstname = filters.CharFilter(field_name='firstname', lookup_expr='icontains')
+    lastname = filters.CharFilter(field_name='lastname', lookup_expr='icontains')
+    email = filters.CharFilter(field_name='email', lookup_expr='icontains')
     ordering = OrderingFilter(fields=('firstname', "lastname", "username", "email"))
 
     class Meta:

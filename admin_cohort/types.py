@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from enum import Enum
 from typing import List
 
@@ -22,40 +23,19 @@ class PersonIdentity:
         self.email = email
 
 
+@dataclass
 class AuthTokens:
-    def __init__(self, **kwargs):
-        self.access_token = kwargs.get('access', kwargs.get('access_token'))
-        self.refresh_token = kwargs.get('refresh', kwargs.get('refresh_token'))
+    access_token: str
+    refresh_token: str
 
 
-class UserInfo:
+class OIDCAuthTokens(AuthTokens):
+    pass
 
-    def __init__(self, **kwargs):
-        self.username = kwargs.get("username", kwargs.get("preferred_username"))
-        self.firstname = kwargs.get("firstname", kwargs.get("given_name"))
-        self.lastname = kwargs.get("lastname", kwargs.get("family_name"))
-        self.email = kwargs.get("email", f"{self.firstname}.{self.lastname}@aphp.fr")
 
-    @classmethod
-    def solr(cls):
-        return cls(username="SOLR_ETL",
-                   firstname="Solr",
-                   lastname="ETL",
-                   email="solr.etl@aphp.fr")
-
-    @classmethod
-    def sjs(cls):
-        return cls(username="SPARK_JOB_SERVER",
-                   firstname="SparkJob",
-                   lastname="SERVER",
-                   email="spark.jobserver@aphp.fr")
-
-    @classmethod
-    def rollout(cls):
-        return cls(username="ROLLOUT_PIPELINE",
-                   firstname="Rollout",
-                   lastname="PIPELINE",
-                   email="rollout.pipeline@aphp.fr")
+class JWTAuthTokens(AuthTokens):
+    def __init__(self, access: str, refresh: str):
+        super().__init__(access_token=access, refresh_token=refresh)
 
 
 class StrEnum(str, Enum):

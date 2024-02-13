@@ -5,10 +5,10 @@ from django.conf.global_settings import CSRF_COOKIE_NAME
 from rest_framework.test import APIRequestFactory
 
 from admin_cohort.middleware.jwt_session_middleware import JWTSessionMiddleware
-from admin_cohort.settings import JWT_ACCESS_COOKIE, JWT_REFRESH_COOKIE
+from admin_cohort.settings import SESSION_COOKIE_NAME, ACCESS_TOKEN_COOKIE
 
 
-class CustomJwtSessionMiddlewareTests(TestCase):
+class JWTSessionMiddlewareTests(TestCase):
 
     def setUp(self):
         self.get_response = MagicMock()
@@ -16,8 +16,8 @@ class CustomJwtSessionMiddlewareTests(TestCase):
         self.factory = APIRequestFactory()
         self.test_safe_route = "/accesses/roles/"
         self.test_logout_route = "/accounts/logout/"
-        self.cookies = {JWT_ACCESS_COOKIE: "SOMESESSIONACCESSCOOKIE",
-                        JWT_REFRESH_COOKIE: "SOMESESSIONREFERESHCOOKIE",
+        self.cookies = {SESSION_COOKIE_NAME: "SOMESESSIONCOOKIE",
+                        ACCESS_TOKEN_COOKIE: "SOMESESSIONACCESSCOOKIE",
                         CSRF_COOKIE_NAME: "SOMECSRFCOOKIE"
                         }
 
@@ -25,27 +25,10 @@ class CustomJwtSessionMiddlewareTests(TestCase):
         request = self.factory.get(path=self.test_safe_route)
         request.COOKIES = self.cookies
         self.middleware.process_request(request)
-        self.assertEqual(getattr(request, "jwt_access_key", False), self.cookies.get(JWT_ACCESS_COOKIE))
-        self.assertEqual(getattr(request, "jwt_refresh_key", False), self.cookies.get(JWT_REFRESH_COOKIE))
+        self.assertEqual(request.META.get('HTTP_SESSION_ID'), self.cookies.get(SESSION_COOKIE_NAME))
 
     def test_delete_cookies_after_logout(self):
         request = self.factory.get(path=self.test_logout_route)
         request.COOKIES = self.cookies
         response: MagicMock = self.middleware(request)
-        self.assertEqual(response.delete_cookie.call_count, 3)
-        self.assertEqual(response.delete_cookie.call_args_list[0].args, (JWT_ACCESS_COOKIE,))
-        self.assertEqual(response.delete_cookie.call_args_list[1].args, (JWT_REFRESH_COOKIE,))
-        self.assertEqual(response.delete_cookie.call_args_list[2].args, (CSRF_COOKIE_NAME,))
-
-    def test_set_cookies_on_response(self):
-        request = self.factory.get(path=self.test_safe_route)
-        request.COOKIES = self.cookies
-        secure = False
-        self.middleware.process_request(request)
-        self.get_response.content = "{}"
-        response: MagicMock = self.middleware.process_response(request, self.get_response)
-        self.assertEqual(response.set_cookie.call_count, 2)
-        self.assertEqual(list(response.set_cookie.call_args_list[0].kwargs.values()),
-                         [JWT_ACCESS_COOKIE, self.cookies.get(JWT_ACCESS_COOKIE), secure])
-        self.assertEqual(list(response.set_cookie.call_args_list[1].kwargs.values()),
-                         [JWT_REFRESH_COOKIE, self.cookies.get(JWT_REFRESH_COOKIE), secure])
+        self.assertEqual(response.delete_cookie.call_count, 2)
