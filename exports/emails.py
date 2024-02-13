@@ -48,7 +48,7 @@ def export_request_succeeded(**kwargs):
                "recipient_name": kwargs.get('recipient_name'),
                "cohort_id": kwargs.get('cohort_id'),
                "selected_tables": kwargs.get('selected_tables'),
-               "download_url": f"{BACKEND_URL}/accounts/login/?next=/exports/{kwargs.get('export_request_id')}/download/",
+               "download_url": f"{BACKEND_URL}/auth/login/?next=/exports/{kwargs.get('export_request_id')}/download/",
                "database_name": kwargs.get('database_name'),
                "delete_date": (timezone.now().date() + timedelta(days=int(DAYS_TO_DELETE_CSV_FILES))).strftime("%d %B %Y")
                }

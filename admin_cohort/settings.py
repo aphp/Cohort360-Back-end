@@ -183,8 +183,8 @@ REST_FRAMEWORK = {'DEFAULT_PERMISSION_CLASSES': ('admin_cohort.permissions.IsAut
 
 PAGINATION_MAX_LIMIT = 10_000
 
-SWAGGER_SETTINGS = {'LOGOUT_URL': '/accounts/logout/',
-                    'LOGIN_URL': '/accounts/login/',
+SWAGGER_SETTINGS = {'LOGOUT_URL': '/auth/logout/',
+                    'LOGIN_URL': '/auth/login/',
                     'DEFAULT_AUTHENTICATION_CLASSES': ('rest_framework.authentication.TokenAuthentication',),
                     'DEFAULT_AUTO_SCHEMA_CLASS': 'admin_cohort.views.CustomAutoSchema'
                     }

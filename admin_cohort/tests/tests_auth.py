@@ -24,7 +24,7 @@ def create_regular_user() -> User:
 class JWTLoginTests(APITestCase):
 
     def setUp(self):
-        self.login_url = '/accounts/login/'
+        self.login_url = '/auth/login/'
         self.regular_user = create_regular_user()
         self.unregistered_user_credentials = {"username": "spy-user",
                                               "password": "top-secret-007"}
@@ -146,7 +146,7 @@ class RefreshTokenTests(APITestCase):
 
     def setUp(self):
         self.client = Client()
-        self.refresh_url = '/accounts/refresh/'
+        self.refresh_url = '/auth/refresh/'
         self.factory = APIRequestFactory()
 
     def test_refresh_token_method_not_allowed(self):
@@ -207,7 +207,7 @@ class RefreshTokenTests(APITestCase):
 class LogoutTests(APITestCase):
 
     def setUp(self):
-        self.logout_url = '/accounts/logout/'
+        self.logout_url = '/auth/logout/'
 
     def test_logout_method_not_allowed(self):
         response = self.client.patch(path=self.logout_url)

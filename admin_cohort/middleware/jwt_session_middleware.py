@@ -5,8 +5,8 @@ from django.utils.deprecation import MiddlewareMixin
 
 from admin_cohort.settings import SESSION_COOKIE_NAME, ACCESS_TOKEN_COOKIE, ACCESS_TOKEN_COOKIE_SECURE
 
-LOGOUT_URL = "/accounts/logout/"
-REFRESH_URL = "/accounts/refresh/"
+LOGOUT_URL = "/auth/logout/"
+REFRESH_URL = "/auth/refresh/"
 
 
 class JWTSessionMiddleware(MiddlewareMixin):

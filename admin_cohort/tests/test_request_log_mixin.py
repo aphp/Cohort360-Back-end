@@ -13,7 +13,7 @@ class RequestLogMixinTests(APITestCase):
 
     def setUp(self):
         super().setUp()
-        self.login_url = '/accounts/login/'
+        self.login_url = '/auth/login/'
         self.regular_user = create_regular_user()
 
     @mock.patch("admin_cohort.auth.auth_backends.get_jwt_tokens")
@@ -24,7 +24,7 @@ class RequestLogMixinTests(APITestCase):
         mock_get_jwt_tokens.assert_called()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         request_log = APIRequestLog.objects.latest("id")
-        self.assertEqual(request_log.path, '/accounts/login/')
+        self.assertEqual(request_log.path, '/auth/login/')
         self.assertEqual(request_log.user_id, self.regular_user.username)
         self.assertEqual(request_log.method, "POST")
         self.assertEqual(request_log.status_code, status.HTTP_200_OK)

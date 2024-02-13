@@ -15,7 +15,7 @@ class JWTSessionMiddlewareTests(TestCase):
         self.middleware = JWTSessionMiddleware(self.get_response)
         self.factory = APIRequestFactory()
         self.test_safe_route = "/accesses/roles/"
-        self.test_logout_route = "/accounts/logout/"
+        self.test_logout_route = "/auth/logout/"
         self.cookies = {SESSION_COOKIE_NAME: "SOMESESSIONCOOKIE",
                         ACCESS_TOKEN_COOKIE: "SOMESESSIONACCESSCOOKIE",
                         CSRF_COOKIE_NAME: "SOMECSRFCOOKIE"

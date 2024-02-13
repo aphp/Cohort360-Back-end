@@ -54,7 +54,7 @@ def send_email_notif_feasibility_report_requested(request_name: str, owner: User
 
 def send_email_notif_feasibility_report_ready(request_name: str, owner: User, fs_uuid: str) -> None:
     subject = "Votre rapport est prêt"
-    report_link = f"{BACK_URL}/accounts/login/?next=/cohort/feasibility-studies/{fs_uuid}/download/"
+    report_link = f"{BACK_URL}/auth/login/?next=/cohort/feasibility-studies/{fs_uuid}/download/"
     context = {**BASE_CONTEXT,
                "recipient_name": owner.display_name,
                "request_name": request_name,

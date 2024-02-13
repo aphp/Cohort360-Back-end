@@ -29,9 +29,9 @@ router.register(r'logs', RequestLogViewSet, basename="logs")
 router.register(r'release-notes', ReleaseNotesViewSet, basename="release_notes")
 
 urlpatterns = [re_path(r'^auth/oidc/login', OIDCLoginView.as_view(), name='oidc-login'),
-               re_path(r'^accounts/login/$', JWTLoginView.as_view(), name='login'),
-               re_path(r'^accounts/refresh/$', TokenRefreshView.as_view(), name='token-refresh'),
-               re_path(r'^accounts/logout/$', LogoutView.as_view(), name='logout'),
+               re_path(r'^auth/login/$', JWTLoginView.as_view(), name='jwt-login'),
+               re_path(r'^auth/logout/$', LogoutView.as_view(), name='logout'),
+               re_path(r'^auth/refresh/$', TokenRefreshView.as_view(), name='token-refresh'),
                re_path(r'^cache', CacheViewSet.as_view(), name='cache'),
                re_path(r"^docs", schema_view.with_ui(renderer="swagger", cache_timeout=0, )),
                re_path(r"^redoc/$", schema_view.with_ui(renderer="redoc", cache_timeout=0), name="schema-redoc"),
