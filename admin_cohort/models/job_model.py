@@ -1,5 +1,5 @@
 from django.db import models
-from admin_cohort.types import JobStatus, WorkflowError
+from admin_cohort.types import JobStatus
 
 JOB_STATUSES = [(e.value, e.value) for e in JobStatus]
 
@@ -12,17 +12,3 @@ class JobModel(models.Model):
 
     class Meta:
         abstract = True
-
-    def validate(self):
-        if self.request_job_status != JobStatus.new:
-            raise WorkflowError(f"Job can be validated only if current status is '{JobStatus.new}'."
-                                f"Current status is '{self.request_job_status}'")
-        self.request_job_status = JobStatus.validated
-        self.save()
-
-    def deny(self):
-        if self.request_job_status != JobStatus.new:
-            raise WorkflowError(f"Job can be denied only if current status is {JobStatus.new}'."
-                                f"Current status is '{self.request_job_status}'")
-        self.request_job_status = JobStatus.denied
-        self.save()

@@ -10,7 +10,7 @@ class AccountsPermission(permissions.BasePermission):
         if not user_is_authenticated(request.user):
             return False
         return request.method in permissions.SAFE_METHODS and \
-            can_user_read_datalabs(request.user.provider_username)
+            can_user_read_datalabs(request.user.username)
 
     def has_object_permission(self, request, view, obj):
         # todo: check if user is owner of unix_account (needs to call Infra API)

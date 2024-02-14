@@ -72,7 +72,7 @@ class ExportRequestViewSet(RequestLogMixin, viewsets.ModelViewSet):
     filterset_class = ExportRequestFilter
     http_method_names = ['get', 'post']
     logging_methods = ['POST']
-    search_fields = ("owner__provider_username", "owner__firstname", "owner__lastname",
+    search_fields = ("owner__username", "owner__firstname", "owner__lastname",
                      "cohort_id", "cohort_fk__name", "request_job_status", "output_format",
                      "target_name", "target_unix_account__name")
 
@@ -158,7 +158,7 @@ class ExportRequestViewSet(RequestLogMixin, viewsets.ModelViewSet):
         if response.status_code == http.HTTPStatus.CREATED and response.data["request_job_status"] != JobStatus.failed:
             try:
                 export_request = response.data.serializer.instance
-                notification_data = dict(recipient_name=export_request.owner.displayed_name,
+                notification_data = dict(recipient_name=export_request.owner.display_name,
                                          recipient_email=export_request.owner.email,
                                          cohort_id=export_request.cohort_id,
                                          cohort_name=export_request.cohort_name,

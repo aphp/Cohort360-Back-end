@@ -6,7 +6,7 @@ from django.utils import timezone
 from rest_framework import status
 
 from admin_cohort.models import User
-from admin_cohort.tools.tests_tools import CaseRetrieveFilter, random_str, ListCase, RetrieveCase, CreateCase, DeleteCase, \
+from admin_cohort.tests.tests_tools import CaseRetrieveFilter, random_str, ListCase, RetrieveCase, CreateCase, DeleteCase, \
     PatchCase, RequestCase
 from cohort.models import Request, Folder
 from cohort.models.request import REQUEST_DATA_TYPES, PATIENT_DATA_TYPE
@@ -27,7 +27,7 @@ class ShareCase(RequestCase):
     def description_dict(self) -> dict:
         d = {
             **self.__dict__,
-            'user': self.user and self.user.displayed_name,
+            'user': self.user and self.user.display_name,
             'recipients': [str(user) for user in self.recipients or []],
         }
         d.pop('title', None)

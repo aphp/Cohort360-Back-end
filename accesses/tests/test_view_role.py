@@ -4,7 +4,7 @@ from rest_framework import status
 from accesses.models import Role, Access
 from accesses.tests.base import AccessesAppTestsBase, ALL_FALSY_RIGHTS
 from accesses.views import RoleViewSet
-from admin_cohort.tools.tests_tools import new_user_and_profile, CreateCase, CaseRetrieveFilter, PatchCase, ListCase
+from admin_cohort.tests.tests_tools import new_user_and_profile, CreateCase, CaseRetrieveFilter, PatchCase, ListCase
 
 
 class RoleRetrieveFilter(CaseRetrieveFilter):

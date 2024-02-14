@@ -133,13 +133,13 @@ PERIMETER_TYPES you provide in _admin_cohort/.env_ file):
   ```psql
     \c portail_dev
     -- An admin user
-    INSERT INTO "user" (firstname , lastname, provider_id, provider_username, email) 
+    INSERT INTO "user" (firstname , lastname, provider_id, username, email) 
                 VALUES ('Admin', 'ADMINSON', 1, '96214', 'admin.adminson@c360.co');
     INSERT INTO accesses_profile (id, user_id, source, is_active, firstname, lastname, email) 
                           VALUES (1, '96214', 'Manual', 't', 'admin', 'ADMIN', 'admin.adminson@c360.co');
 
     -- An simple user to play with
-    INSERT INTO "user" (firstname , lastname, provider_id, provider_username, email) 
+    INSERT INTO "user" (firstname , lastname, provider_id, username, email) 
                 VALUES ('Simple', 'SIMPLSON', 2, '41269', 'simple.simplson@c360.cc');
     INSERT INTO accesses_profile (id, user_id, source, is_active, firstname, lastname, email) 
                           VALUES (2, '41269', 'Manual', 't', 'Simple', 'SIMPLSON', 'simple.simplson@c360.co');
