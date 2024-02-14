@@ -17,6 +17,7 @@ from cohort.permissions import SJSorETLCallbackPermission
 from cohort.serializers import FeasibilityStudySerializer
 from cohort.services.feasibility_study import feasibility_study_service, JOB_STATUS, COUNT, EXTRA
 from cohort.services.misc import is_sjs_user
+from cohort.services.ws_event_manager import WebsocketManager
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
 _logger = logging.getLogger('info')
@@ -79,6 +80,9 @@ class FeasibilityStudyViewSet(UserObjectsRestrictedViewSet):
     def partial_update(self, request, *args, **kwargs):
         try:
             feasibility_study_service.process_patch_data(fs=self.get_object(), data=request.data)
+            cohort_id = kwargs.get('uuid')
+            cohort_status = request.data.get('request_job_status')
+            WebsocketManager.send_to_client(cohort_status, "4212825", cohort_id, prefix="feasibility")
         except ValueError as ve:
             return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
         return super(FeasibilityStudyViewSet, self).partial_update(request, *args, **kwargs)
