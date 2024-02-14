@@ -9,7 +9,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'admin_cohort.settings')
 
 
 websocket_urlpatterns = [
-    re_path(r'ws/status', ws_event_manager.StatusConsumer.as_asgi()),
+    re_path(r'ws/status', ws_event_manager.WebsocketManager.as_asgi()),
 ]
 
 application = ProtocolTypeRouter({

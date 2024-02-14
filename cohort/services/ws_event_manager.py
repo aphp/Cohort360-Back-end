@@ -1,51 +1,37 @@
-import dataclasses
-from typing import Literal
+import json
 
 import jwt
 from asgiref.sync import async_to_sync
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.layers import get_channel_layer
 
-
-@dataclasses.dataclass
-class WebsocketParams:
-    action_type: Literal['count', 'create', 'feasibility']
-    uuid: str
+from admin_cohort.models import User
 
 
-class StatusConsumer(AsyncWebsocketConsumer):
-    clients = {}
+class WebsocketManager(AsyncWebsocketConsumer):
+    accepted_clients = set()
 
     def get_client_id_from_token(self, jwt_token: str) -> str:
         decoded = jwt.decode(jwt=jwt_token,
                              algorithms=['RS256', 'HS256'],
                              options={'verify_signature': False})
-        print(decoded)
         return decoded.get('preferred_username')
 
-    def parse_params(self) -> WebsocketParams | None:
-        try:
-            uuid = self.scope['path'].split('/')[-1]
-            action_type = "count"  # todo: get it scope
-            return WebsocketParams(uuid, action_type)
-        except Exception:  # Bad format for params
-            self.close()
-            return None
-
     async def connect(self):
-        print(self.__dict__)
+        token = await self.receive()
         try:
-            client_id = self.get_client_id_from_token("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzA3NDMwNjI0LCJqdGkiOiIzOTQzYmRlZjYzMjI0YWRmODg4M2EwZWJhMDU5NDI0NiIsInVzZXJuYW1lIjoiNDIxMjgyNSJ9.tatGSgn9VklyenUojNefCJuZDBGXPbMCvCBPlfQSHik")
+            client_id = self.get_client_id_from_token(token)
             await self.accept()
-        except Exception:  # todo: raise User does not exist
+        except User.DoesNotExist:
             await self.close()
             return
 
-        params = self.parse_params()
-        await self.channel_layer.group_add(f"{params.action_type}_{client_id}_{params.uuid}", self.channel_name)
+        await self.channel_layer.group_add(f"{client_id}", self.channel_name)
 
     @staticmethod
     def send_to_client(cohort_status, client_id, cohort_id, prefix):
+        if client_id not in WebsocketManager.accepted_clients:
+            return
         channel_layer = get_channel_layer()
         async_to_sync(channel_layer.group_send)(
             f"{prefix}_{client_id}_{cohort_id}",
@@ -60,5 +46,4 @@ class StatusConsumer(AsyncWebsocketConsumer):
         cohort_status = event['cohort_status']
         cohort_id = event['cohort_id']
 
-        # Send the cohort_status message to the WebSocket
-        await self.send(text_data=f"Cohort {cohort_id} status: {cohort_status}")
+        await self.send(json.dumps({'type': 'status', 'uuid': cohort_id, 'status': cohort_status}))
