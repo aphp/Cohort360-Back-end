@@ -18,7 +18,7 @@ from cohort.permissions import SJSorETLCallbackPermission
 from cohort.serializers import CohortResultSerializer, CohortResultSerializerFullDatedMeasure
 from cohort.services.cohort_rights import cohort_rights_service
 from cohort.services.misc import is_sjs_or_etl_user
-from cohort.services.ws_event_manager import WebsocketManager
+from cohort.services.ws_event_manager import WebsocketManager, WebSocketInfos
 from cohort.views.shared import UserObjectsRestrictedViewSet
 from exports.services.export import export_service
 
@@ -175,7 +175,13 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             cohort_service.send_email_notification(cohort=cohort,
                                                    is_update_from_sjs=is_update_from_sjs,
                                                    is_update_from_etl=is_update_from_etl)
-            WebsocketManager.send_to_client(cohort.status, cohort.owner, cohort.uuid, prefix="create")
+            websocket_infos = WebSocketInfos(
+                status=cohort.status,
+                client_id=cohort.owner,
+                uuid=cohort.uuid,
+                type='create'
+            )
+            WebsocketManager.send_to_client(websocket_infos)
         return response
 
     @swagger_auto_schema(method='get',
