@@ -15,7 +15,7 @@ from cohort.permissions import SJSorETLCallbackPermission
 from cohort.serializers import DatedMeasureSerializer
 from cohort.services.dated_measure import dated_measure_service, JOB_STATUS, MINIMUM, MAXIMUM, COUNT
 from cohort.services.misc import is_sjs_user
-from cohort.services.ws_event_manager import WebsocketManager
+from cohort.services.ws_event_manager import WebsocketManager, WebSocketInfos
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
 _logger = logging.getLogger('info')
@@ -85,9 +85,13 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     def partial_update(self, request, *args, **kwargs):
         try:
             dated_measure_service.process_patch_data(dm=self.get_object(), data=request.data)
-            cohort_id = kwargs.get('uuid')
-            cohort_status = request.data.get('request_job_status')
-            WebsocketManager.send_to_client(cohort_status, "4212825", cohort_id, prefix="count")
+            websocket_infos = WebSocketInfos(
+                status=request.data.get('request_job_status'),
+                client_id='4212825', # todo: get from owner
+                uuid=kwargs.get('uuid'),
+                type='count'
+            )
+            WebsocketManager.send_to_client(websocket_infos)
         except ValueError as ve:
             return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
         return super(DatedMeasureViewSet, self).partial_update(request, *args, **kwargs)
