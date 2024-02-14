@@ -34,9 +34,9 @@ class WebsocketManager(AsyncWebsocketConsumer):
             return
         channel_layer = get_channel_layer()
         async_to_sync(channel_layer.group_send)(
-            f"{prefix}_{client_id}_{cohort_id}",
+            f"{client_id}",
             {
-                'type': 'cohort_status',
+                'type': prefix,
                 'cohort_status': cohort_status,
                 'cohort_id': cohort_id,
             }
