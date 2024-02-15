@@ -1,7 +1,7 @@
 from django.db import models
 from django.db.models import CASCADE
 
-from admin_cohort.models import User
+from admin_cohort.models import User, JobModel
 from cohort.models import CohortResult
 from exports.models import ExportsBaseModel, Datalab
 from exports.types import ExportStatus, ExportType
@@ -10,10 +10,10 @@ STATUSES = [(status.name, status.value) for status in ExportStatus]
 OUTPUT_FORMATS = [(out_format.value, out_format.value) for out_format in ExportType]
 
 
-class Export(ExportsBaseModel):
+class Export(ExportsBaseModel, JobModel):
     owner = models.ForeignKey(to=User, related_name="exports", on_delete=CASCADE)
     output_format = models.CharField(null=False, choices=OUTPUT_FORMATS, max_length=20)
-    status = models.CharField(choices=STATUSES, max_length=55, null=True)
+    status = models.CharField(choices=STATUSES, default=ExportStatus.PENDING, max_length=55, null=True)
     target_name = models.CharField(null=True, max_length=255)
     target_location = models.TextField(null=True)
     data_exporter_version = models.CharField(null=True, max_length=20)
@@ -26,9 +26,8 @@ class Export(ExportsBaseModel):
     shift_dates = models.BooleanField(null=False, default=False)
 
     # CSV
-    motivation = models.TextField(null=True)
+    motivation = models.TextField(null=True, blank=True)
     clean_datetime = models.DateTimeField(null=True)
-    cohort_id = models.BigIntegerField(null=True)
 
     class Meta:
         db_table = 'export'

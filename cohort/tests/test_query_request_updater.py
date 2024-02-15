@@ -1,7 +1,7 @@
 import dataclasses
 import json
 
-from admin_cohort.tools.tests_tools import BaseTests
+from admin_cohort.tests.tests_tools import BaseTests
 from cohort.scripts.query_request_updater import QueryRequestUpdater
 
 

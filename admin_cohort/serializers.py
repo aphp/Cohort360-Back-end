@@ -5,23 +5,6 @@ from rest_framework_tracking.models import APIRequestLog
 from admin_cohort.models import MaintenancePhase, User, ReleaseNote
 
 
-class UserDetailsSerializer(serializers.Serializer):
-    firstname = serializers.CharField()
-    lastname = serializers.CharField()
-    displayed_name = serializers.CharField()
-    email = serializers.CharField()
-    provider_id = serializers.CharField()
-
-
-class RequestLogSerializer(serializers.ModelSerializer):
-    related_names = serializers.DictField(read_only=True)
-    user_details = UserDetailsSerializer(allow_null=True)
-
-    class Meta:
-        model = APIRequestLog
-        fields = "__all__"
-
-
 class BaseSerializer(serializers.ModelSerializer):
     insert_datetime = serializers.DateTimeField(read_only=True)
     update_datetime = serializers.DateTimeField(read_only=True)
@@ -32,33 +15,6 @@ class OmopBaseSerializer(BaseSerializer):
     def create(self, validated_data):
         validated_data["hash"] = 0
         return super(OmopBaseSerializer, self).create(validated_data)
-
-
-class ReducedUserSerializer(serializers.ModelSerializer):
-    provider_source_value = serializers.CharField(read_only=True, source="provider_username")
-
-    class Meta:
-        model = User
-        fields = ["provider_id",
-                  "provider_username",
-                  "email",
-                  "firstname",
-                  "lastname",
-                  "provider_source_value"]
-
-
-class OpenUserSerializer(serializers.ModelSerializer):
-    displayed_name = serializers.CharField(read_only=True)
-    provider_source_value = serializers.CharField(read_only=True, source="provider_username")
-
-    class Meta:
-        model = User
-        fields = ["provider_id",
-                  "provider_username",
-                  "firstname",
-                  "lastname",
-                  "provider_source_value",
-                  "displayed_name"]
 
 
 class MaintenanceValidator:
@@ -92,12 +48,15 @@ class MaintenancePhaseSerializer(BaseSerializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
-    displayed_name = serializers.CharField(read_only=True)
-    provider_source_value = serializers.CharField(read_only=True, source="provider_username")
+    display_name = serializers.CharField(read_only=True)
 
     class Meta:
         model = User
-        fields = "__all__"
+        fields = ["username",
+                  "firstname",
+                  "lastname",
+                  "email",
+                  "display_name"]
 
 
 class ReleaseNoteSerializer(serializers.ModelSerializer):
@@ -105,3 +64,12 @@ class ReleaseNoteSerializer(serializers.ModelSerializer):
     class Meta:
         model = ReleaseNote
         exclude = ("delete_datetime",)
+
+
+class RequestLogSerializer(serializers.ModelSerializer):
+    related_names = serializers.DictField(read_only=True)
+    user_details = UserSerializer(allow_null=True)
+
+    class Meta:
+        model = APIRequestLog
+        fields = "__all__"

@@ -154,14 +154,14 @@ def psql_query_care_site_relationship(top_care_site_id: int) -> str:
             cs.care_site_type_source_value,
             cs.care_site_source_value,
             NULL as care_site_parent_id,
-            cd.cohort_definition_id as cohort_id,
-            cd.cohort_size as cohort_size
+            cd.id as cohort_id,
+            cd._size as cohort_size
             FROM omop.care_site cs
-            INNER JOIN omop.cohort_definition cd
-            ON cd.owner_entity_id = CAST(cs.care_site_id AS VARCHAR)
+            INNER JOIN omop.list cd
+            ON cd._sourcereferenceid = cs.care_site_id
             WHERE (cs.care_site_id = {top_care_site_id}
                    AND cs.delete_datetime IS NULL
-                   AND cd.delete_datetime IS NULL AND cd.owner_domain_id = 'Care_site')
+                   AND cd.delete_datetime IS NULL AND cd.source__type = 'Organization')
             UNION
             SELECT
             css.care_site_id,
@@ -170,13 +170,13 @@ def psql_query_care_site_relationship(top_care_site_id: int) -> str:
             css.care_site_type_source_value,
             css.care_site_source_value,
             CAST(frr.fact_id_2 AS BIGINT) care_site_parent_id,
-            cd.cohort_definition_id as cohort_id,
-            cd.cohort_size as cohort_size
+            cd.id as cohort_id,
+            cd._size as cohort_size
             FROM omop.care_site css
             INNER JOIN omop.fact_relationship frr
             ON css.care_site_id=frr.fact_id_1
-            INNER JOIN omop.cohort_definition cd
-            ON cd.owner_entity_id = CAST(css.care_site_id AS VARCHAR)
+            INNER JOIN omop.list cd
+            ON cd._sourcereferenceid = css.care_site_id
             WHERE (frr.fact_id_1!=frr.fact_id_2
                    AND frr.domain_concept_id_1={cs_domain_concept_id}
                    AND frr.domain_concept_id_2={cs_domain_concept_id}
@@ -184,7 +184,7 @@ def psql_query_care_site_relationship(top_care_site_id: int) -> str:
                    AND css.care_site_type_source_value IN ({str(settings.PERIMETERS_TYPES)[1:-1]})
                    AND css.delete_datetime IS NULL
                    AND frr.delete_datetime IS NULL
-                   AND cd.delete_datetime IS NULL AND cd.owner_domain_id = 'Care_site')
+                   AND cd.delete_datetime IS NULL AND cd.source__type = 'Organization')
             )
             SELECT DISTINCT * FROM care_sites;"""
 

@@ -67,12 +67,12 @@ def new_random_user(
         provider_id = str(random.randint(0, 10000000))
 
         while provider_id in [
-            p.provider_username for p in User.objects.all()
+            p.username for p in User.objects.all()
         ]:
             provider_id = str(random.randint(0, 10000000))
 
     u: User = User.objects.create(
-        provider_username=str(provider_id),
+        username=str(provider_id),
         firstname=firstname,
         lastname=lastname,
         email=email,
@@ -141,7 +141,7 @@ class RequestCase:
     def description_dict(self) -> dict:
         d = {
             **self.__dict__,
-            'user': self.user and self.user.displayed_name,
+            'user': self.user and self.user.display_name,
         }
         d.pop('title', None)
         return d
@@ -393,7 +393,6 @@ class ViewSetTests(BaseTests):
 
     def check_create_case(self, case: CreateCase, other_view: Any = None, **view_kwargs):
         request = self.factory.post(path=self.objects_url, data=case.json_data, format='json')
-        request.jwt_access_key = "dummy_jwt_access_key"
         if case.user:
             force_authenticate(request, case.user)
 

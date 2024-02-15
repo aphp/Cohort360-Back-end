@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from enum import Enum
 from typing import List
 
@@ -7,10 +8,6 @@ class LoginError(Exception):
 
 
 class ServerError(Exception):
-    pass
-
-
-class WorkflowError(Exception):
     pass
 
 
@@ -26,41 +23,21 @@ class PersonIdentity:
         self.email = email
 
 
-class JwtTokens:
-    def __init__(self, **kwargs):
-        self.access = kwargs.get('access', kwargs.get('access_token'))
-        self.refresh = kwargs.get('refresh', kwargs.get('refresh_token'))
-        self.last_connection = kwargs.get('last_connection', {})
+@dataclass
+class AuthTokens:
+    access_token: str
+    refresh_token: str
 
 
-class UserInfo:
+class OIDCAuthTokens(AuthTokens):
 
-    def __init__(self, **kwargs):
-        self.username = kwargs.get("username", kwargs.get("preferred_username"))
-        self.firstname = kwargs.get("firstname", kwargs.get("given_name"))
-        self.lastname = kwargs.get("lastname", kwargs.get("family_name"))
-        self.email = kwargs.get("email", f"{self.firstname}.{self.lastname}@aphp.fr")
+    def __init__(self, access_token: str, refresh_token: str, **kwargs):
+        super().__init__(access_token, refresh_token)
 
-    @classmethod
-    def solr(cls):
-        return cls(username="SOLR_ETL",
-                   firstname="Solr",
-                   lastname="ETL",
-                   email="solr.etl@aphp.fr")
 
-    @classmethod
-    def sjs(cls):
-        return cls(username="SPARK_JOB_SERVER",
-                   firstname="SparkJob",
-                   lastname="SERVER",
-                   email="spark.jobserver@aphp.fr")
-
-    @classmethod
-    def rollout(cls):
-        return cls(username="ROLLOUT_PIPELINE",
-                   firstname="Rollout",
-                   lastname="PIPELINE",
-                   email="rollout.pipeline@aphp.fr")
+class JWTAuthTokens(AuthTokens):
+    def __init__(self, access: str, refresh: str, **kwargs):
+        super().__init__(access_token=access, refresh_token=refresh)
 
 
 class StrEnum(str, Enum):

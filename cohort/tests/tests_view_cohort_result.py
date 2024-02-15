@@ -9,7 +9,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import force_authenticate
 
-from admin_cohort.tools.tests_tools import random_str, ListCase, RetrieveCase, CaseRetrieveFilter, CreateCase, PatchCase
+from admin_cohort.tests.tests_tools import random_str, ListCase, RetrieveCase, CaseRetrieveFilter, CreateCase, PatchCase
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult, RequestQuerySnapshot, DatedMeasure
 from cohort.models.dated_measure import GLOBAL_DM_MODE, SNAPSHOT_DM_MODE

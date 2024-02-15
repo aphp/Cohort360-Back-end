@@ -8,6 +8,7 @@ from admin_cohort.tools import join_qs
 from exports.models import Export
 from exports.permissions import CSVExportsPermission, JupyterExportPermission
 from exports.serializers import ExportSerializer
+from exports.services.export import export_service
 from exports.views.v1.base_viewset import ExportsBaseViewSet
 
 
@@ -44,7 +45,7 @@ class ExportViewSet(ExportsBaseViewSet):
     swagger_tags = ['Exports - Exports']
     filterset_class = ExportFilter
     search_fields = ("name",
-                     "owner__provider_username",
+                     "owner__username",
                      "owner__firstname",
                      "owner__lastname",
                      "request_job_status",
@@ -58,17 +59,24 @@ class ExportViewSet(ExportsBaseViewSet):
         return super().get_permissions()
 
     @swagger_auto_schema(
-        request_body=openapi.Schema(type=openapi.TYPE_OBJECT,
-                                    properties={'output_format': openapi.Schema(type=openapi.TYPE_STRING, description="hive, csv (default)"),
-                                                'datalab': openapi.Schema(type=openapi.TYPE_STRING),
-                                                'nominative': openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Defaults to False"),
-                                                'shift_dates': openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Defaults to False"),
-                                                'export_tables': openapi.Schema(type=openapi.TYPE_OBJECT,
-                                                                                properties={'name': openapi.Schema(type=openapi.TYPE_STRING),
-                                                                                            'respect_table_relationships': openapi.Schema(
-                                                                                                type=openapi.TYPE_BOOLEAN),
-                                                                                            'fhir_filter': openapi.Schema(type=openapi.TYPE_STRING),
-                                                                                            'cohort_result_source': openapi.Schema(
-                                                                                                type=openapi.TYPE_STRING)})}))
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={'output_format': openapi.Schema(type=openapi.TYPE_STRING, description="hive, csv (default)"),
+                        'datalab': openapi.Schema(type=openapi.TYPE_STRING),
+                        'nominative': openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Defaults to False"),
+                        'shift_dates': openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Defaults to False"),
+                        'export_tables': openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(type=openapi.TYPE_OBJECT,
+                                                 properties={'name': openapi.Schema(type=openapi.TYPE_STRING),
+                                                             'respect_table_relationships': openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                                                             'fhir_filter': openapi.Schema(type=openapi.TYPE_STRING),
+                                                             'cohort_result_source': openapi.Schema(type=openapi.TYPE_STRING)}))}))
     def create(self, request, *args, **kwargs):
-        return super().create(request, *args, **kwargs)
+        export_service.process_export_creation(data=request.data, owner=request.user)
+        export_tables = request.data.pop("export_tables", [])
+        response = super().create(request, *args, **kwargs)
+        export_service.create_tables(export_id=response.data["uuid"],
+                                     export_tables=export_tables,
+                                     http_request=request)
+        return response

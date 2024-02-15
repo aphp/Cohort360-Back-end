@@ -13,7 +13,7 @@ from rest_framework.test import force_authenticate
 from accesses.models import Access, Role, Perimeter
 from admin_cohort.types import JobStatus, MissingDataError
 from admin_cohort.models import User
-from admin_cohort.tools.tests_tools import new_user_and_profile, ViewSetTestsWithBasicPerims, random_str, CreateCase, \
+from admin_cohort.tests.tests_tools import new_user_and_profile, ViewSetTestsWithBasicPerims, random_str, CreateCase, \
     CaseRetrieveFilter, ListCase, RequestCase, RetrieveCase, PatchCase, DeleteCase
 from admin_cohort.tools import prettify_json
 from cohort.models import CohortResult, RequestQuerySnapshot, Request, DatedMeasure, Folder
@@ -588,9 +588,9 @@ class ExportsJobsTests(ExportsWithSimpleSetUp):
 
     @mock.patch.object(requests, 'post')
     @mock.patch('exports.tasks.push_email_notification')
-    @mock.patch('exports.tasks.conf_exports.prepare_hive_db')
-    @mock.patch('exports.tasks.conf_exports.conclude_export_hive')
-    @mock.patch('exports.tasks.conf_exports.get_job_status')
+    @mock.patch('exports.conf_exports.prepare_hive_db')
+    @mock.patch('exports.conf_exports.conclude_export_hive')
+    @mock.patch('exports.conf_exports.get_job_status')
     def test_task_launch_export_task_jupyter(self, mock_get_job_status, mock_prepare_hive_db, mock_conclude_export_hive,
                                              mock_push_email_notification, mock_post):
         mock_get_job_status.return_value = JobStatusResponse(job_status=ApiJobStatus.FinishedSuccessfully.value)
@@ -621,7 +621,7 @@ class ExportsJobsTests(ExportsWithSimpleSetUp):
     @mock.patch('exports.conf_exports.post_export_v1')
     @mock.patch('exports.conf_exports.prepare_hive_db')
     def test_task_launch_export_task_jupyter_failure_2(self, mock_prepare_hive_db, mock_post_export_v1, mock_mark_export_request_as_failed):
-        mock_prepare_hive_db.side_effect = None
+        mock_prepare_hive_db.return_value = None
         mock_post_export_v1.side_effect = RequestException()
         mock_mark_export_request_as_failed.return_value = None
         launch_export_task(export_id=self.user1_export.uuid)
@@ -630,13 +630,13 @@ class ExportsJobsTests(ExportsWithSimpleSetUp):
         mock_mark_export_request_as_failed.assert_called()
 
     @mock.patch('exports.conf_exports.mark_export_request_as_failed')
-    @mock.patch('exports.tasks.conf_exports.wait_for_export_job')
+    @mock.patch('exports.conf_exports.wait_for_export_job')
     @mock.patch('exports.conf_exports.post_export_v1')
     @mock.patch('exports.conf_exports.prepare_hive_db')
     def test_task_launch_export_task_jupyter_failure_3(self, mock_prepare_hive_db, mock_post_export_v1, mock_wait_for_export_job,
                                                        mock_mark_export_request_as_failed):
-        mock_prepare_hive_db.side_effect = None
-        mock_post_export_v1.side_effect = None
+        mock_prepare_hive_db.return_value = None
+        mock_post_export_v1.return_value = None
         mock_wait_for_export_job.side_effect = HTTPError()
         mock_mark_export_request_as_failed.return_value = None
         launch_export_task(export_id=self.user1_export.uuid)
@@ -647,14 +647,14 @@ class ExportsJobsTests(ExportsWithSimpleSetUp):
 
     @mock.patch('exports.conf_exports.mark_export_request_as_failed')
     @mock.patch('exports.conf_exports.conclude_export_hive')
-    @mock.patch('exports.tasks.conf_exports.wait_for_export_job')
+    @mock.patch('exports.conf_exports.wait_for_export_job')
     @mock.patch('exports.conf_exports.post_export_v1')
     @mock.patch('exports.conf_exports.prepare_hive_db')
     def test_task_launch_export_task_jupyter_failure_4(self, mock_prepare_hive_db, mock_post_export_v1, mock_wait_for_export_job,
                                                        mock_conclude_export_hive, mock_mark_export_request_as_failed):
-        mock_prepare_hive_db.side_effect = None
-        mock_post_export_v1.side_effect = None
-        mock_wait_for_export_job.side_effect = None
+        mock_prepare_hive_db.return_value = None
+        mock_post_export_v1.return_value = None
+        mock_wait_for_export_job.return_value = None
         mock_conclude_export_hive.side_effect = RequestException()
         mock_mark_export_request_as_failed.return_value = None
         launch_export_task(export_id=self.user1_export.uuid)
@@ -1051,7 +1051,7 @@ class ExportsJupyterCreateTests(ExportsCreateTests):
         with self.assertRaises(HTTPError):
             _ = get_job_status(service="hadoop", job_id="random_task_id")
 
-    @mock.patch("exports.tasks.conf_exports.get_job_status")
+    @mock.patch("exports.conf_exports.get_job_status")
     @mock.patch("exports.conf_exports.time.sleep")
     def test_wait_for_export_job(self, mock_sleep, mock_get_job_status):
         mock_sleep.return_value = None
@@ -1060,7 +1060,7 @@ class ExportsJupyterCreateTests(ExportsCreateTests):
         self.assertEqual(self.export_request.request_job_status, JobStatus.finished.value)
 
     @mock.patch("exports.conf_exports.log_export_request_task")
-    @mock.patch("exports.tasks.conf_exports.get_job_status")
+    @mock.patch("exports.conf_exports.get_job_status")
     @mock.patch("exports.conf_exports.time.sleep")
     def test_wait_for_export_job_error(self, mock_sleep, mock_get_job_status, mock_log_request_task):
         mock_sleep.return_value = None

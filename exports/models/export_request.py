@@ -1,7 +1,7 @@
 from django.db import models
 from django.db.models import CASCADE, SET_NULL
 
-from admin_cohort.models import JobModelWithReview, BaseModel, User
+from admin_cohort.models import JobModel, BaseModel, User
 from cohort.models import CohortResult
 from exports.types import ExportType
 from workspaces.models import Account
@@ -10,7 +10,7 @@ OUTPUT_FORMATS = [(ExportType.CSV.value, ExportType.CSV.value),
                   (ExportType.HIVE.value, ExportType.HIVE.value)]
 
 
-class ExportRequest(JobModelWithReview, BaseModel, models.Model):
+class ExportRequest(JobModel, BaseModel, models.Model):
     id = models.BigAutoField(primary_key=True)
     motivation = models.TextField(null=True)
     output_format = models.CharField(choices=OUTPUT_FORMATS, default=ExportType.CSV.value, max_length=20)
@@ -31,6 +31,8 @@ class ExportRequest(JobModelWithReview, BaseModel, models.Model):
     # to remove when infra is ready
     cohort_id = models.BigIntegerField(null=False)
     provider_id = models.CharField(max_length=25, blank=True, null=True)
+    reviewer_fk = models.ForeignKey(User, related_name='reviewed_export_requests', on_delete=SET_NULL, null=True)
+    review_request_datetime = models.DateTimeField(null=True)
 
     class Meta:
         db_table = 'export_request'

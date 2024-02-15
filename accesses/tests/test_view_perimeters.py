@@ -8,7 +8,7 @@ from accesses.models import Perimeter
 from accesses.services.shared import PerimeterReadRight
 from accesses.tests.base import AccessesAppTestsBase
 from accesses.views import PerimeterViewSet
-from admin_cohort.tools.tests_tools import ListCase, new_user_and_profile
+from admin_cohort.tests.tests_tools import ListCase, new_user_and_profile
 
 
 class PerimeterViewTests(AccessesAppTestsBase):

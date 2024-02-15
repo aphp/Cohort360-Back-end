@@ -4,7 +4,7 @@ from rest_framework import status
 from rest_framework.test import force_authenticate
 
 from admin_cohort.settings import RANGER_HIVE_POLICY_TYPES
-from admin_cohort.tools.tests_tools import BaseTests, new_user_and_profile
+from admin_cohort.tests.tests_tools import BaseTests, new_user_and_profile
 from admin_cohort.tools import prettify_json
 from workspaces.views import RangerHivePolicyViewSet
 

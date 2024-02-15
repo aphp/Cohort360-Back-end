@@ -44,8 +44,7 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 CSRF_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_SECURE = not DEBUG
-JWT_ACCESS_COOKIE_SECURE = not DEBUG
-JWT_REFRESH_COOKIE_SECURE = not DEBUG
+ACCESS_TOKEN_COOKIE_SECURE = not DEBUG
 
 ADMINS = [a.split(',') for a in env("ADMINS").split(';')]
 NOTIFY_ADMINS = bool(env("NOTIFY_ADMINS", default=False))
@@ -184,8 +183,8 @@ REST_FRAMEWORK = {'DEFAULT_PERMISSION_CLASSES': ('admin_cohort.permissions.IsAut
 
 PAGINATION_MAX_LIMIT = 10_000
 
-SWAGGER_SETTINGS = {'LOGOUT_URL': '/accounts/logout/',
-                    'LOGIN_URL': '/accounts/login/',
+SWAGGER_SETTINGS = {'LOGOUT_URL': '/auth/logout/',
+                    'LOGIN_URL': '/auth/login/',
                     'DEFAULT_AUTHENTICATION_CLASSES': ('rest_framework.authentication.TokenAuthentication',),
                     'DEFAULT_AUTO_SCHEMA_CLASS': 'admin_cohort.views.CustomAutoSchema'
                     }
@@ -203,7 +202,6 @@ EMAIL_SUPPORT_CONTACT = env("EMAIL_SUPPORT_CONTACT")
 EMAIL_SENDER_ADDRESS = env("EMAIL_SENDER_ADDRESS")
 EMAIL_REGEX_CHECK = env("EMAIL_REGEX_CHECK", default=r"^[\w.+-]+@[\w-]+\.[\w]+$")
 
-EXPORT_CSV_PATH = env('EXPORT_CSV_PATH')
 DAYS_TO_DELETE_CSV_FILES = int(env("DAYS_TO_DELETE_CSV_FILES", default=7))
 
 # Celery
@@ -231,9 +229,7 @@ SHARED_FOLDER_NAME = 'Mes requêtes reçues'
 MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE = utc.localize(datetime.combine(date(1970, 1, 1), time.min))
 MODEL_MANUAL_END_DATE_DEFAULT_ON_UPDATE = utc.localize(datetime.combine(date(2070, 1, 1), time.min))
 
-JWT_ACCESS_COOKIE = "access"
-JWT_REFRESH_COOKIE = "refresh"
-
+ACCESS_TOKEN_COOKIE = "access_token"
 SESSION_COOKIE_NAME = "sessionid"
 SESSION_COOKIE_AGE = 24 * 60 * 60
 
