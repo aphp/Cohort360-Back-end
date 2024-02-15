@@ -331,18 +331,41 @@ class PerimeterViewTests(AccessesAppTestsBase):
                                              "allow_lookup_opposed_patients": False})
         self.check_list_case_with_mock(case)
 
-    def test_read_patient_data_rights_missing_access_on_some_target_perimeters(self):
+    def test_read_patient_data_rights_missing_access_on_some_target_perimeters_1(self):
         perimeters = [self.p1, self.p2]
         roles = [self.role_data_reader_pseudo,
                  self.role_search_by_ipp_and_search_opposed]
         self.make_accesses_for_user(self.profile_t, perimeters, roles)
 
         cohort_ids = ",".join([self.p1.cohort_id, self.p5.cohort_id])
-        case = self.base_case.clone(user=self.user_t,
-                                    params={"cohort_ids": cohort_ids, "mode": "min"},
-                                    success=False,
-                                    status=status.HTTP_404_NOT_FOUND)
-        self.check_list_case_with_mock(case)
+        case1 = self.base_case.clone(user=self.user_t,
+                                     params={"cohort_ids": cohort_ids, "mode": "max"},
+                                     to_find={"allow_read_patient_data_nomi": False,
+                                              "allow_lookup_opposed_patients": True})
+        case2 = self.base_case.clone(user=self.user_t,
+                                     params={"cohort_ids": cohort_ids, "mode": "min"},
+                                     to_find={"allow_read_patient_data_nomi": False,
+                                              "allow_lookup_opposed_patients": True})
+        for case in (case1, case2):
+            self.check_list_case_with_mock(case)
+
+    def test_read_patient_data_rights_missing_access_on_some_target_perimeters_2(self):
+        perimeters = [self.p1, self.p2]
+        roles = [self.role_data_reader_nomi,
+                 self.role_search_by_ipp_and_search_opposed]
+        self.make_accesses_for_user(self.profile_t, perimeters, roles)
+
+        cohort_ids = ",".join([self.p1.cohort_id, self.p5.cohort_id])
+        case1 = self.base_case.clone(user=self.user_t,
+                                     params={"cohort_ids": cohort_ids, "mode": "max"},
+                                     to_find={"allow_read_patient_data_nomi": True,
+                                              "allow_lookup_opposed_patients": True})
+        case2 = self.base_case.clone(user=self.user_t,
+                                     params={"cohort_ids": cohort_ids, "mode": "min"},
+                                     to_find={"allow_read_patient_data_nomi": False,
+                                              "allow_lookup_opposed_patients": True})
+        for case in (case1, case2):
+            self.check_list_case_with_mock(case)
 
     def test_read_patient_data_rights_with_user_having_no_data_rights(self):
         perimeters = [self.aphp, self.p2]
