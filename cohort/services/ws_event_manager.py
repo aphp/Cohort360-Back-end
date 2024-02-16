@@ -6,6 +6,7 @@ import jwt
 from asgiref.sync import async_to_sync
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.layers import get_channel_layer
+from pydantic import BaseModel
 
 from admin_cohort.types import JobStatus
 
@@ -16,6 +17,20 @@ class WebSocketInfos:
     client_id: str
     uuid: str
     type: Literal['count', 'create', 'feasibility']
+
+
+class WebSocketObject(BaseModel):
+    type: str
+
+
+class WebSocketStatus(WebSocketObject):
+    uuid: str
+    status: str
+
+
+class HandshakeStatus(WebSocketObject):
+    status: str
+    details: str = ""
 
 
 class WebsocketManager(AsyncJsonWebsocketConsumer):
@@ -43,22 +58,25 @@ class WebsocketManager(AsyncJsonWebsocketConsumer):
 
     async def cohort_status(self, event):
         """Send an update for the count, create and feasibility status"""
-        cohort_status = event['cohort_status']
-        cohort_id = event['uuid']
-
-        await self.send_json({'type': 'status', 'uuid': cohort_id, 'status': cohort_status})
+        ws_status = WebSocketStatus(type='status', uuid=event['uuid'], status=event['cohort_status'])
+        await self.send_json(ws_status.model_dump())
 
     async def receive_json(self, content, **kwargs):
         try:
             token = content['token']
             client_id = self.get_client_id_from_token(token)
-            await self.send_json({'type': 'handshake', 'status': 'accepted'})
+
+            await self.send_json(HandshakeStatus(type='handshake', status='accepted').model_dump())
+
         except KeyError:
             await self.send_json(
-                {'type': 'handshake', 'status': 'pending', 'details': 'Could not understand the json object'})
+                HandshakeStatus(type='handshake', status='pending',
+                                details='Could not understand the JSON object, "token" key missing').model_dump())
             return
+
         except Exception:
-            await self.send_json({'type': 'handshake', 'status': 'forbidden'})
+            await self.send_json(
+                HandshakeStatus(type='handshake', status='forbidden', details='Bad token').model_dump())
             await self.close()
             return
         await self.channel_layer.group_add(f"{client_id}", self.channel_name)
