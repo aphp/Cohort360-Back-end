@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, List
 
 from accesses.models import Perimeter
 from accesses.services.accesses import accesses_service
-from admin_cohort.auth.utils import get_userinfo_from_token
+from admin_cohort.services.auth import auth_service
 from admin_cohort.models import User
 from cohort.crb.enums import Mode
 from cohort.crb.exceptions import FhirException
@@ -30,11 +30,8 @@ class AbstractCohortRequest(ABC):
         self.auth_headers = auth_headers
 
     def __headers_to_owner_entity(self) -> str:
-        user = get_userinfo_from_token(
-            self.auth_headers['Authorization'].replace('Bearer ', ''),
-            self.auth_headers['authorizationMethod']
-        )
-        return user.username
+        return auth_service.retrieve_username(token=self.auth_headers['Authorization']\
+                                                        .replace('Bearer ', ''))
 
     def create_request_for_sjs(self, cohort_query: CohortQuery) -> str:
         """Format the given query with the Fhir nomenclature and return a dict to be sent

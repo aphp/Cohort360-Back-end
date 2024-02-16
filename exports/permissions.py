@@ -24,7 +24,7 @@ class ExportRequestsPermission(permissions.BasePermission):
 
     def has_object_permission(self, request, view, obj):
         return user_is_authenticated(request.user) \
-               and obj.owner_id == request.user.provider_username \
+               and obj.owner_id == request.user.username \
                and request.method in permissions.SAFE_METHODS
 
 

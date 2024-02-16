@@ -20,7 +20,7 @@ cache_response = CustomCacheResponse
 
 
 def construct_cache_key(view_instance=None, view_method=None, request=None, *args, **kwargs):
-    username = request.user.provider_username
+    username = request.user.username
     view_class = view_instance.__class__.__name__
     view_meth_name = view_method.__name__
     key = ".".join((username, view_class, view_meth_name, request._request.path))

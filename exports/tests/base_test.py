@@ -5,7 +5,7 @@ from django.views import View
 from rest_framework.test import APIRequestFactory, force_authenticate
 
 from accesses.models import Role, Perimeter, Access
-from admin_cohort.tools.tests_tools import new_user_and_profile
+from admin_cohort.tests.tests_tools import new_user_and_profile
 from cohort.models import Request, RequestQuerySnapshot, Folder
 from exports.models import InfrastructureProvider
 

@@ -110,7 +110,7 @@ def mark_export_request_as_failed(er: ExportRequest, e: Exception, msg: str, sta
         er.request_job_status = JobStatus.failed
     er.request_job_duration = timezone.now() - start
     try:
-        notification_data = dict(recipient_name=er.owner.displayed_name,
+        notification_data = dict(recipient_name=er.owner.display_name,
                                  recipient_email=er.owner.email,
                                  cohort_id=er.cohort_id,
                                  cohort_name=er.cohort_name,

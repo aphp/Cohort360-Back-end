@@ -64,8 +64,7 @@ def fhir_to_job_status() -> Dict[str, JobStatus]:
 
 
 def get_authorization_header(request: Request) -> dict:
-    key = request.jwt_access_key or request.META.get("HTTP_AUTHORIZATION")
-    headers = {"Authorization": f"Bearer {key}",
+    headers = {"Authorization": f"Bearer {request.META.get('HTTP_AUTHORIZATION')}",
                "authorizationMethod": request.META.get('HTTP_AUTHORIZATIONMETHOD')
                }
     headers = add_trace_id(headers)

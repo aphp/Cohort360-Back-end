@@ -23,4 +23,4 @@ class SJSorETLCallbackPermission(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         return user_is_authenticated(request.user) and \
             request.method in ("GET", "PATCH") and \
-            request.user.provider_username in [SJS_USERNAME, ETL_USERNAME]
+            request.user.username in [SJS_USERNAME, ETL_USERNAME]

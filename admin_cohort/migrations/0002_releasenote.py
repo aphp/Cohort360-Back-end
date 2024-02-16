@@ -3,10 +3,9 @@
 import django.contrib.postgres.fields
 from django.db import migrations, models
 
-from admin_cohort.data.release_notes import release_notes
-
 
 def create_old_release_notes(apps, schema_editor):
+    release_notes = []
     release_note_model = apps.get_model('admin_cohort', 'ReleaseNote')
     db_alias = schema_editor.connection.alias
     for note in release_notes:

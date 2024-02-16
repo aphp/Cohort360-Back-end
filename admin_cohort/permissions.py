@@ -17,7 +17,7 @@ class MaintenancesPermission(permissions.BasePermission):
             return True
         user = request.user
         return user_is_authenticated(user) and (accesses_service.user_is_full_admin(user) or
-                                                user.provider_username in (ROLLOUT_USERNAME, ETL_USERNAME))
+                                                user.username in (ROLLOUT_USERNAME, ETL_USERNAME))
 
 
 class LogsPermission(permissions.BasePermission):

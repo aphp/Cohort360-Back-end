@@ -13,7 +13,7 @@ from rest_framework.test import force_authenticate
 from admin_cohort.models import User
 from admin_cohort.settings import SHARED_FOLDER_NAME
 from admin_cohort.tools import prettify_json
-from admin_cohort.tools.tests_tools import CaseRetrieveFilter, CreateCase, random_str, ListCase, RetrieveCase, \
+from admin_cohort.tests.tests_tools import CaseRetrieveFilter, CreateCase, random_str, ListCase, RetrieveCase, \
     DeleteCase, PatchCase
 from cohort.models import RequestQuerySnapshot, Request, Folder
 from cohort.tests.tests_view_requests import RequestsTests, ShareCase

@@ -4,7 +4,7 @@ from rest_framework_tracking.models import APIRequestLog
 
 from accesses.models import Access, Perimeter, Role
 from admin_cohort.settings import PERIMETERS_TYPES
-from admin_cohort.tools.tests_tools import BaseTests, new_user_and_profile
+from admin_cohort.tests.tests_tools import BaseTests, new_user_and_profile
 from admin_cohort.views import RequestLogViewSet
 
 REQUEST_LOGS_URL = "/logs"

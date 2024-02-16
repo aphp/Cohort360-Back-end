@@ -29,7 +29,7 @@ class ResourceType(StrEnum):
     MEDICATION_ADMINISTRATION = "MedicationAdministration"
     DOCUMENT_REFERENCE = "DocumentReference"
     IMAGING_STUDY = "ImagingStudy"
-    QUESTIONNAIRE_REPONSE = "QuestionnaireReponse"
+    QUESTIONNAIRE_REPONSE = "QuestionnaireResponse"
     PATIENT_APHP = "patientAphp"
     CLAIM_APHP = "claimAphp"
     COMPOSITION_APHP = "compositionAphp"

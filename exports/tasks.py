@@ -78,7 +78,7 @@ def launch_request(er_id: int):
             return
     export_request.request_job_duration = timezone.now() - now
     export_request.save()
-    notification_data = dict(recipient_name=export_request.owner.displayed_name,
+    notification_data = dict(recipient_name=export_request.owner.display_name,
                              recipient_email=export_request.owner.email,
                              export_request_id=export_request.id,
                              cohort_id=export_request.cohort_id,
@@ -135,7 +135,7 @@ def launch_export_task(export_id: str):
             return
     export.request_job_duration = timezone.now() - now
     export.save()
-    notification_data = dict(recipient_name=export.owner.displayed_name,
+    notification_data = dict(recipient_name=export.owner.display_name,
                              recipient_email=export.owner.email,
                              export_request_id=export_id,
                              cohort_id=output_format == ExportType.CSV and export.cohort_id or None,
@@ -162,7 +162,7 @@ def delete_export_requests_csv_files():
             continue
         try:
             conf_exports.delete_file(export_request.target_full_path)
-            notification_data = dict(recipient_name=export_request.owner.displayed_name,
+            notification_data = dict(recipient_name=export_request.owner.display_name,
                                      recipient_email=export_request.owner.email,
                                      cohort_id=export_request.cohort_id)
             push_email_notification(base_notification=exported_csv_files_deleted, **notification_data)

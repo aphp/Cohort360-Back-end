@@ -1,10 +1,11 @@
-from unittest import TestCase, mock
+from unittest import mock
 
+from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
 
 from accesses.models import Perimeter
-from admin_cohort.tools.tests_tools import PatchCase, FileDownloadCase
+from admin_cohort.tests.tests_tools import PatchCase, FileDownloadCase
 from cohort.models import RequestQuerySnapshot, Request, Folder, FeasibilityStudy
 from cohort.services.feasibility_study import feasibility_study_service
 from cohort.tests.cohort_app_tests import CohortAppTests
@@ -99,11 +100,16 @@ class FeasibilityStudyViewTests(CohortAppTests):
 class TestFeasibilityStudiesService(TestCase):
     @staticmethod
     def create_perimeters_tree():
-        basic_data = [{'id': 8312002244, 'name': 'APHP', 'source_value': 'APHP', 'cohort_id': '1', 'local_id': '8312002244', 'parent_id': None},
-                      {'id': 8312002245, 'name': 'P2', 'source_value': 'P2', 'cohort_id': '2', 'local_id': '8312002245', 'parent_id': 8312002244},
-                      {'id': 8312002246, 'name': 'P3', 'source_value': 'P3', 'cohort_id': '3', 'local_id': '8312002246', 'parent_id': 8312002245},
-                      {'id': 8312002247, 'name': 'P4', 'source_value': 'P4', 'cohort_id': '4', 'local_id': '8312002247', 'parent_id': 8312002244},
-                      {'id': 8312002248, 'name': 'P5', 'source_value': 'P5', 'cohort_id': '5', 'local_id': '8312002248', 'parent_id': 8312002247}]
+        basic_data = [
+            {'id': 8312002244, 'name': 'APHP', 'type_source_value': 'AP-HP', 'cohort_id': '1', 'local_id': '8312002244', 'parent_id': None},
+            {'id': 8312002245, 'name': 'GHU-01', 'type_source_value': 'GHU', 'cohort_id': '2', 'local_id': '8312002245', 'parent_id': 8312002244},
+            {'id': 8312002246, 'name': 'Hop-01', 'type_source_value': 'Hôpital', 'cohort_id': '3', 'local_id': '8312002246', 'parent_id': 8312002245},
+            {'id': 8312002247, 'name': 'Pole/DMU-01', 'type_source_value': 'Pôle/DMU', 'cohort_id': '4', 'local_id': '8312002247',
+             'parent_id': 8312002246},
+            {'id': 8312002248, 'name': 'UF-01', 'type_source_value': 'Unité Fonctionnelle (UF)', 'cohort_id': '5', 'local_id': '8312002248',
+             'parent_id': 8312002247},
+            {'id': 8312002249, 'name': 'UC-01', 'type_source_value': 'Unité de consultation (UC)', 'cohort_id': '6', 'local_id': '8312002249',
+             'parent_id': 8312002248}]
         for d in basic_data:
             Perimeter.objects.create(**d)
 

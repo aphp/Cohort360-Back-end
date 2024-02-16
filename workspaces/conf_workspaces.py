@@ -31,7 +31,7 @@ def check_resp(resp: Response, url: str) -> Dict:
 def is_user_bound_to_unix_account(user: User, unix_acc_group: str) -> bool:
     return user is not None and unix_acc_group is not None
     # resp = requests.get(f"{INFRA_API_URL}/active_directory/is_member_of_group",
-    #                     params={'id_aph': user.provider_username,
+    #                     params={'id_aph': user.username,
     #                             'group_dn': unix_acc_group},
     #                     headers={'auth-token': INFRA_AD_TOKEN})
     #

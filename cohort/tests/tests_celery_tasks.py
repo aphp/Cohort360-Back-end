@@ -220,7 +220,7 @@ class TasksTests(DatedMeasuresTests):
         mock_response._content = b'{"jobId": "some-job-uuid", "status": "running"}'
         mock_sjs_client_count.return_value = mock_response
         mock_top_care_site_source_population.return_value = '1111'
-        mock_owner_entity.return_value = self.user1.provider_username
+        mock_owner_entity.return_value = self.user1.username
         mock_is_nomi_access.return_value = True
         get_feasibility_count_task(fs_uuid=self.user1_feasibility_study.uuid,
                                    json_query='{"sourcePopulation": {"caresiteCohortList": [1111]}}',

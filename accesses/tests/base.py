@@ -6,7 +6,7 @@ from django.utils import timezone
 
 from accesses.models import Perimeter, Role, Access
 from accesses.services.shared import all_rights
-from admin_cohort.tools.tests_tools import ViewSetTests, new_user_and_profile
+from admin_cohort.tests.tests_tools import ViewSetTests, new_user_and_profile
 
 """
                                             APHP                                                   _________1_______ APHP

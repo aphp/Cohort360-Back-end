@@ -2,7 +2,7 @@ from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
 
-from admin_cohort.tools.tests_tools import new_user_and_profile
+from admin_cohort.tests.tests_tools import new_user_and_profile
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult
 from exports.models import ExportTable, Export, Datalab

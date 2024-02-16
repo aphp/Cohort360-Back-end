@@ -95,6 +95,6 @@ class TestQueryFormatter(CohortAppTests):
         user1 = User.objects.create(firstname='Test',
                                     lastname='USER',
                                     email='test.user@aphp.fr',
-                                    provider_username='1111111')
-        read_in_pseudo = is_cohort_request_pseudo_read(username=user1.provider_username, source_population=[])
+                                    username='1111111')
+        read_in_pseudo = is_cohort_request_pseudo_read(username=user1.username, source_population=[])
         self.assertTrue(read_in_pseudo)
