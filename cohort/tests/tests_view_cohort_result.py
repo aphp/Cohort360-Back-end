@@ -383,7 +383,9 @@ class CohortsUpdateTests(CohortsTests):
         self.basic_err_case = self.basic_case.clone(status=status.HTTP_400_BAD_REQUEST,
                                                     success=False)
 
-    def test_update_cohort_as_owner(self):
+    @mock.patch('cohort.views.cohort_result.ws_send_to_client')
+    def test_update_cohort_as_owner(self, mock_ws_send_to_client):
+        mock_ws_send_to_client.return_value = None
         # As a user, I can patch a CR I own
         data_to_update = dict(name="new_name",
                               description="new_desc",
@@ -398,14 +400,18 @@ class CohortsUpdateTests(CohortsTests):
                               )
         self.check_patch_case(self.basic_case.clone(data_to_update=data_to_update))
 
-    def test_error_update_cohort_as_not_owner(self):
+    @mock.patch('cohort.views.cohort_result.ws_send_to_client')
+    def test_error_update_cohort_as_not_owner(self, mock_ws_send_to_client):
+        mock_ws_send_to_client.return_value = None
         # As a user, I cannot update another user's cohort result
         case = self.basic_err_case.clone(data_to_update=dict(name="new_name"),
                                          user=self.user2,
                                          status=status.HTTP_404_NOT_FOUND)
         self.check_patch_case(case)
 
-    def test_error_update_cohort_forbidden_fields(self):
+    @mock.patch('cohort.views.cohort_result.ws_send_to_client')
+    def test_error_update_cohort_forbidden_fields(self, mock_ws_send_to_client):
+        mock_ws_send_to_client.return_value = None
         user1_req1_snap1_dm2: DatedMeasure = DatedMeasure.objects.create(owner=self.user1,
                                                                          request_query_snapshot=self.user1_req1_snap1,
                                                                          measure=2,
@@ -416,7 +422,9 @@ class CohortsUpdateTests(CohortsTests):
                                   dated_measure=user1_req1_snap1_dm2.pk).items()]
         [self.check_patch_case(case) for case in cases]
 
-    def test_update_cohort_by_sjs_callback_status_finished(self):
+    @mock.patch('cohort.views.cohort_result.ws_send_to_client')
+    def test_update_cohort_by_sjs_callback_status_finished(self, mock_ws_send_to_client):
+        mock_ws_send_to_client.return_value = None
         new_cohort: CohortResult = self.model_objects.create(**self.basic_data)
         data = {'request_job_status': 'finished',
                 'group.id': '123456',
@@ -431,7 +439,9 @@ class CohortsUpdateTests(CohortsTests):
         self.assertEqual(response.data.get("fhir_group_id"), data['group.id'])
         self.assertEqual(response.data.get("result_size"), data['group.count'])
 
-    def test_update_cohort_by_sjs_callback_status_failed(self):
+    @mock.patch('cohort.views.cohort_result.ws_send_to_client')
+    def test_update_cohort_by_sjs_callback_status_failed(self, mock_ws_send_to_client):
+        mock_ws_send_to_client.return_value = None
         new_cohort: CohortResult = self.model_objects.create(**self.basic_data)
         data = {'request_job_status': 'error',
                 'group.id': '',
@@ -446,14 +456,18 @@ class CohortsUpdateTests(CohortsTests):
         self.assertIsNotNone(response.data.get("request_job_fail_msg"))
         self.assertIsNotNone(response.data.get("request_job_duration"))
 
-    def test_error_update_cohort_by_sjs_callback_invalid_status(self):
+    @mock.patch('cohort.views.cohort_result.ws_send_to_client')
+    def test_error_update_cohort_by_sjs_callback_invalid_status(self, mock_ws_send_to_client):
+        mock_ws_send_to_client.return_value = None
         invalid_status = 'INVALID_STATUS'
         case = self.basic_err_case.clone(data_to_update={'request_job_status': invalid_status})
         self.check_patch_case(case)
 
+    @mock.patch('cohort.views.cohort_result.ws_send_to_client')
     @mock.patch('cohort.services.cohort_result.send_email_notif_about_large_cohort')
-    def test_update_cohort_status_by_etl_callback(self, mock_send_email_notif: MagicMock):
+    def test_update_cohort_status_by_etl_callback(self, mock_send_email_notif: MagicMock, mock_ws_send_to_client):
         case = self.basic_case.clone(data_to_update={'request_job_status': 'finished'})
         mock_send_email_notif.side_effect = SMTPException("SMTP server error")
+        mock_ws_send_to_client.return_value = None
         self.check_patch_case(case)
         mock_send_email_notif.assert_called()

@@ -1,22 +1,25 @@
 import dataclasses
 from json import JSONDecodeError
-from typing import Literal
+from typing import Literal, Union
 
-import jwt
 from asgiref.sync import async_to_sync
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.layers import get_channel_layer
 from pydantic import BaseModel
 
+from admin_cohort.services.auth import auth_service
 from admin_cohort.types import JobStatus
+from cohort.models import CohortResult, DatedMeasure, FeasibilityStudy
+
+ws_info_type = Literal['count', 'create', 'feasibility']
 
 
 @dataclasses.dataclass
 class WebSocketInfos:
-    status: JobStatus
+    status: Union[JobStatus, str]
     client_id: str
     uuid: str
-    type: Literal['count', 'create', 'feasibility']
+    type: ws_info_type
 
 
 class WebSocketObject(BaseModel):
@@ -34,12 +37,6 @@ class HandshakeStatus(WebSocketObject):
 
 
 class WebsocketManager(AsyncJsonWebsocketConsumer):
-
-    def get_client_id_from_token(self, jwt_token: str) -> str:
-        decoded = jwt.decode(jwt=jwt_token,
-                             algorithms=['RS256', 'HS256'],
-                             options={'verify_signature': False})
-        return decoded.get('preferred_username') or decoded.get('username')
 
     async def connect(self):
         await self.accept()
@@ -63,8 +60,8 @@ class WebsocketManager(AsyncJsonWebsocketConsumer):
 
     async def receive_json(self, content, **kwargs):
         try:
-            token = content['token']
-            client_id = self.get_client_id_from_token(token)
+            client_id = auth_service.authenticate_ws_request(token=content['token'],
+                                                             auth_method=content['auth_method'])   # todo: add this to the request payload in frontend
 
             await self.send_json(HandshakeStatus(type='handshake', status='accepted').model_dump())
 
@@ -86,3 +83,11 @@ class WebsocketManager(AsyncJsonWebsocketConsumer):
             await super().receive(text_data, bytes_data)
         except JSONDecodeError:
             return
+
+
+def ws_send_to_client(_object: Union[CohortResult, DatedMeasure, FeasibilityStudy], info_type: ws_info_type):
+    websocket_infos = WebSocketInfos(status=_object.request_job_status,
+                                     client_id=str(_object.owner_id),
+                                     uuid=_object.uuid,
+                                     type=info_type)
+    WebsocketManager.send_to_client(websocket_infos)

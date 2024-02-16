@@ -22,6 +22,7 @@ from admin_cohort.types import ServerError, LoginError, OIDCAuthTokens, JWTAuthT
 
 env = environ.Env()
 _logger = logging.getLogger('info')
+_logger_err = logging.getLogger('django.request')
 
 
 class Auth(ABC):
@@ -225,13 +226,10 @@ class AuthService:
         authenticator.logout_user(request.body, access_token)
         logout(request)
 
-    def authenticate_request(self, request) -> Union[Tuple[User, str], None]:
-        token, auth_method = self.get_auth_data(request)
+    def authenticate_token(self, token: str, auth_method: str) -> Union[Tuple[User, str], None]:
+        assert auth_method is not None, "Missing `auth_method` parameter"
         if token is None:
             return None
-        if token in self.applicative_users:
-            return self.applicative_users[token]
-        auth_method = auth_method or JWT_AUTH_MODE
         try:
             authenticator = self._get_authenticator(auth_method)
             username = authenticator.authenticate(token=token)
@@ -240,8 +238,20 @@ class AuthService:
             return None
         return user, token
 
-    def retrieve_username(self, token: str) -> str:
-        authenticator = self._get_authenticator(OIDC_AUTH_MODE)
+    def authenticate_http_request(self, request) -> Union[Tuple[User, str], None]:
+        token, auth_method = self.get_auth_data(request)
+        if token in self.applicative_users:
+            return self.applicative_users[token]
+        return self.authenticate_token(token=token, auth_method=auth_method)
+
+    def authenticate_ws_request(self, token: str, auth_method: str) -> Union[str, None]:
+        res = self.authenticate_token(token=token, auth_method=auth_method)
+        if res is None:
+            _logger_err.exception("Error authenticating WS request")
+        return res[0].username
+
+    def retrieve_username(self, token: str, auth_method: str) -> str:
+        authenticator = self._get_authenticator(auth_method)
         decoded = authenticator.decode_token(token=token, verify_signature=False)
         return authenticator.retrieve_username(decoded)
 

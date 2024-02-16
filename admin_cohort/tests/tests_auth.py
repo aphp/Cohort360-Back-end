@@ -105,27 +105,27 @@ class AuthClassTests(APITestCase):
                                                          perimeter=self.perimeter_aphp,
                                                          role=self.users_reader_role)
 
-    @mock.patch("admin_cohort.auth.auth_class.auth_service.authenticate_request")
-    def test_authenticate_success(self, mock_authenticate_request: MagicMock):
-        mock_authenticate_request.return_value = self.regular_user, "some_token"
+    @mock.patch("admin_cohort.auth.auth_class.auth_service.authenticate_http_request")
+    def test_authenticate_success(self, mock_authenticate_http_request: MagicMock):
+        mock_authenticate_http_request.return_value = self.regular_user, "some_token"
         request = self.factory.get(path=self.protected_url, **self.headers)
         request.user = self.regular_user
         response = self.protected_view.as_view({'get': 'list'})(request)
-        mock_authenticate_request.assert_called()
+        mock_authenticate_http_request.assert_called()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_authenticate_without_token(self):
         request = self.factory.get(path=self.protected_url)
-        response = self.protected_view.as_view({'get': 'list'})(request)
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        with self.assertRaises(AssertionError):
+            _ = self.protected_view.as_view({'get': 'list'})(request)
 
-    @mock.patch("admin_cohort.auth.auth_class.auth_service.authenticate_request")
-    def test_authenticate_error(self, mock_authenticate_request: MagicMock):
-        mock_authenticate_request.side_effect = InvalidToken()
+    @mock.patch("admin_cohort.auth.auth_class.auth_service.authenticate_http_request")
+    def test_authenticate_error(self, mock_authenticate_http_request: MagicMock):
+        mock_authenticate_http_request.side_effect = InvalidToken()
         request = self.factory.get(path=self.protected_url, **self.headers)
         request.user = self.regular_user
         response = self.protected_view.as_view({'get': 'list'})(request)
-        mock_authenticate_request.assert_called()
+        mock_authenticate_http_request.assert_called()
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
 

@@ -15,7 +15,7 @@ from cohort.permissions import SJSorETLCallbackPermission
 from cohort.serializers import DatedMeasureSerializer
 from cohort.services.dated_measure import dated_measure_service, JOB_STATUS, MINIMUM, MAXIMUM, COUNT
 from cohort.services.misc import is_sjs_user
-from cohort.services.ws_event_manager import WebsocketManager, WebSocketInfos
+from cohort.services.ws_event_manager import ws_send_to_client
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
 _logger = logging.getLogger('info')
@@ -89,9 +89,5 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         except ValueError as ve:
             return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
         response = super(DatedMeasureViewSet, self).partial_update(request, *args, **kwargs)
-        websocket_infos = WebSocketInfos(status=dm.request_job_status,
-                                         client_id=dm.owner_id,
-                                         uuid=dm.uuid,
-                                         type='count')
-        WebsocketManager.send_to_client(websocket_infos)
+        ws_send_to_client(_object=dm, info_type='count')
         return response

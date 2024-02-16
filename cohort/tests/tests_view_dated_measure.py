@@ -274,7 +274,9 @@ class DMUpdateTests(DatedMeasuresTests):
         self.basic_err_case = self.basic_case.clone(status=status.HTTP_400_BAD_REQUEST,
                                                     success=False)
 
-    def test_update_dm_by_sjs_callback_status_finished(self):
+    @mock.patch('cohort.views.dated_measure.ws_send_to_client')
+    def test_update_dm_by_sjs_callback_status_finished(self, mock_ws_send_to_client):
+        mock_ws_send_to_client.return_value = None
         dm: DatedMeasure = self.model_objects.create(**self.basic_data)
         data = {'request_job_status': 'finished',
                 'count': 10500
@@ -286,7 +288,9 @@ class DMUpdateTests(DatedMeasuresTests):
         self.assertEqual(response.data.get("request_job_status"), JobStatus.finished.value)
         self.assertEqual(response.data.get("measure"), data['count'])
 
-    def test_update_dm_with_global_estimate_by_sjs_callback_status_finished(self):
+    @mock.patch('cohort.views.dated_measure.ws_send_to_client')
+    def test_update_dm_with_global_estimate_by_sjs_callback_status_finished(self, mock_ws_send_to_client):
+        mock_ws_send_to_client.return_value = None
         dm_global: DatedMeasure = self.model_objects.create(**self.data_global_estimate_mode)
         data = {'request_job_status': 'finished',
                 'minimum': 10,
@@ -299,7 +303,9 @@ class DMUpdateTests(DatedMeasuresTests):
         self.assertEqual(response.data.get("measure_min"), data['minimum'])
         self.assertEqual(response.data.get("measure_max"), data['maximum'])
 
-    def test_update_dm_by_sjs_callback_status_failed(self):
+    @mock.patch('cohort.views.dated_measure.ws_send_to_client')
+    def test_update_dm_by_sjs_callback_status_failed(self, mock_ws_send_to_client):
+        mock_ws_send_to_client.return_value = None
         dm: DatedMeasure = self.model_objects.create(**self.basic_data)
         data = {'request_job_status': 'error',
                 'message': 'Error on count job'
@@ -312,7 +318,9 @@ class DMUpdateTests(DatedMeasuresTests):
         self.assertIsNotNone(response.data.get("request_job_fail_msg"))
         self.assertIsNotNone(response.data.get("request_job_duration"))
 
-    def test_error_update_dm_by_sjs_callback_invalid_status(self):
+    @mock.patch('cohort.views.dated_measure.ws_send_to_client')
+    def test_error_update_dm_by_sjs_callback_invalid_status(self, mock_ws_send_to_client):
+        mock_ws_send_to_client.return_value = None
         invalid_status = 'invalid_status'
         case = self.basic_err_case.clone(data_to_update={'request_job_status': invalid_status})
         self.check_patch_case(case)
