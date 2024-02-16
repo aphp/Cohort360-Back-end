@@ -292,8 +292,7 @@ CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            # todo mettre l'url complet du CELERY_BROKER_URL
-            "hosts": [('localhost', 6379)],
+            "hosts": [CELERY_BROKER_URL],
         },
     },
 }
