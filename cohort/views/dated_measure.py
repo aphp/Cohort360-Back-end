@@ -87,7 +87,7 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             dated_measure_service.process_patch_data(dm=self.get_object(), data=request.data)
             websocket_infos = WebSocketInfos(
                 status=request.data.get('request_job_status'),
-                client_id='4212825', # todo: get from owner
+                client_id=request.user.pk,
                 uuid=kwargs.get('uuid'),
                 type='count'
             )
