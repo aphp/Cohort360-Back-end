@@ -89,11 +89,9 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         except ValueError as ve:
             return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
         response = super(DatedMeasureViewSet, self).partial_update(request, *args, **kwargs)
-        websocket_infos = WebSocketInfos(
-            status=request.data.get('request_job_status'),
-            client_id=dm.owner_id,
-            uuid=dm.uuid,
-            type='count'
-        )
+        websocket_infos = WebSocketInfos(status=dm.request_job_status,
+                                         client_id=dm.owner_id,
+                                         uuid=dm.uuid,
+                                         type='count')
         WebsocketManager.send_to_client(websocket_infos)
         return response
