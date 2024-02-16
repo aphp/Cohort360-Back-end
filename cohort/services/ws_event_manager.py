@@ -51,14 +51,14 @@ class WebsocketManager(AsyncJsonWebsocketConsumer):
             f"{ws_infos.client_id}",
             {
                 'type': 'cohort_status_handler',  # finds handler method cohort_status_handler
-                'cohort_status': ws_infos.status,
+                'object_status': ws_infos.status,
                 'uuid': ws_infos.uuid,
             }
         )
 
     async def cohort_status_handler(self, event):
         """Send an update for the count, create and feasibility status"""
-        ws_status = WebSocketStatus(type='status', uuid=event['uuid'], status=event['cohort_status'])
+        ws_status = WebSocketStatus(type='status', uuid=event['uuid'], status=event['object_status'])
         await self.send_json(ws_status.model_dump())
 
     async def receive_json(self, content, **kwargs):
