@@ -18,6 +18,7 @@ from cohort.permissions import SJSorETLCallbackPermission
 from cohort.serializers import CohortResultSerializer, CohortResultSerializerFullDatedMeasure
 from cohort.services.cohort_rights import cohort_rights_service
 from cohort.services.misc import is_sjs_or_etl_user
+from cohort.services.ws_event_manager import WebsocketManager, WebSocketInfos
 from cohort.views.shared import UserObjectsRestrictedViewSet
 from exports.services.export import export_service
 
@@ -168,6 +169,13 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         except ValueError as ve:
             return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
         response = super(CohortResultViewSet, self).partial_update(request, *args, **kwargs)
+        websocket_infos = WebSocketInfos(
+            status=cohort.request_job_status,
+            client_id=cohort.owner.provider_username,
+            uuid=cohort.uuid,
+            type='create'
+        )
+        WebsocketManager.send_to_client(websocket_infos)
         if status.is_success(response.status_code):
             if is_update_from_sjs and cohort.export_table.exists():
                 export_service.check_all_cohort_subsets_created(export=cohort.export_table.export)

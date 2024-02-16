@@ -23,6 +23,9 @@ sleep 10
 python setup_logging.py &
 gunicorn admin_cohort.wsgi --config .conf/gunicorn.conf.py
 
+# For websockets
+daphne -p 8005 cohort.asgi:application
+
 tail -f /app/log/django.error.log
 
 # Wait for any process to exit

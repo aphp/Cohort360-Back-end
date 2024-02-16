@@ -106,7 +106,8 @@ INSTALLED_APPS = ['django.contrib.admin',
                   'rest_framework_swagger',
                   'rest_framework_tracking',
                   'safedelete',
-                  'admin_cohort'] + INCLUDED_APPS
+                  'admin_cohort',
+                  'channels'] + INCLUDED_APPS
 
 MIDDLEWARE = ['admin_cohort.middleware.influxdb_middleware.InfluxDBMiddleware',
               'django.middleware.security.SecurityMiddleware',
@@ -283,3 +284,12 @@ MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS = int(env("ACCESS_MIN_DEFAULT_END_DATE_OFFSE
 
 # CRB
 CRB_TEST_FHIR_QUERIES = bool(env("CRB_TEST_FHIR_QUERIES", default=False))
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [CELERY_BROKER_URL],
+        },
+    },
+}
