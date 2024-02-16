@@ -55,8 +55,9 @@ class WebsocketManager(AsyncJsonWebsocketConsumer):
         try:
             token = content['token']
             client_id = self.get_client_id_from_token(token)
-            await self.send({'type': 'handshake', 'status': 'accepted'})
+            await self.send_json({'type': 'handshake', 'status': 'accepted'})
         except KeyError:
+            await self.send_json({'type': 'handshake', 'status': 'pending', 'details': 'Could not understand the json object'})
             return
         except Exception:
             await self.send_json({'type': 'handshake', 'status': 'forbidden'})
