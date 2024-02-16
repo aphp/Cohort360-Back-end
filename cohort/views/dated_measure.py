@@ -84,10 +84,11 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                                     '400': openapi.Response("Bad Request")})
     def partial_update(self, request, *args, **kwargs):
         try:
-            dated_measure_service.process_patch_data(dm=self.get_object(), data=request.data)
+            dm = self.get_object()
+            dated_measure_service.process_patch_data(dm=dm, data=request.data)
             websocket_infos = WebSocketInfos(
                 status=request.data.get('request_job_status'),
-                client_id=request.user.pk,
+                client_id=dm.owner.provider_username,
                 uuid=kwargs.get('uuid'),
                 type='count'
             )

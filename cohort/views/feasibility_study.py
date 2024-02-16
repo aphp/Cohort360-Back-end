@@ -79,10 +79,11 @@ class FeasibilityStudyViewSet(UserObjectsRestrictedViewSet):
                                     '400': openapi.Response("Bad Request")})
     def partial_update(self, request, *args, **kwargs):
         try:
-            feasibility_study_service.process_patch_data(fs=self.get_object(), data=request.data)
+            fs = self.get_object()
+            feasibility_study_service.process_patch_data(fs=fs, data=request.data)
             websocket_infos = WebSocketInfos(
                 status=request.data.get('request_job_status'),
-                client_id=request.user.pk,
+                client_id=fs.owner.provider_username,
                 uuid=kwargs.get('uuid'),
                 type='feasibility'
             )

@@ -177,7 +177,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                                                    is_update_from_etl=is_update_from_etl)
             websocket_infos = WebSocketInfos(
                 status=cohort.status,
-                client_id=cohort.owner,
+                client_id=cohort.owner.provider_username,
                 uuid=cohort.uuid,
                 type='create'
             )
