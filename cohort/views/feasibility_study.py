@@ -81,16 +81,17 @@ class FeasibilityStudyViewSet(UserObjectsRestrictedViewSet):
         try:
             fs = self.get_object()
             feasibility_study_service.process_patch_data(fs=fs, data=request.data)
-            websocket_infos = WebSocketInfos(
-                status=request.data.get('request_job_status'),
-                client_id=fs.owner.provider_username,
-                uuid=kwargs.get('uuid'),
-                type='feasibility'
-            )
-            WebsocketManager.send_to_client(websocket_infos)
         except ValueError as ve:
             return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
-        return super(FeasibilityStudyViewSet, self).partial_update(request, *args, **kwargs)
+        response = super(FeasibilityStudyViewSet, self).partial_update(request, *args, **kwargs)
+        websocket_infos = WebSocketInfos(
+            status=request.data.get('request_job_status'),
+            client_id=fs.owner_id,
+            uuid=fs.uuid,
+            type='feasibility'
+        )
+        WebsocketManager.send_to_client(websocket_infos)
+        return response
 
     @action(detail=True, methods=['get'], url_path='download')
     def download_report(self, request, *args, **kwargs):

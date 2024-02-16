@@ -169,19 +169,19 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         except ValueError as ve:
             return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
         response = super(CohortResultViewSet, self).partial_update(request, *args, **kwargs)
+        websocket_infos = WebSocketInfos(
+            status=cohort.request_job_status,
+            client_id=cohort.owner.provider_username,
+            uuid=cohort.uuid,
+            type='create'
+        )
+        WebsocketManager.send_to_client(websocket_infos)
         if status.is_success(response.status_code):
             if is_update_from_sjs and cohort.export_table.exists():
                 export_service.check_all_cohort_subsets_created(export=cohort.export_table.export)
             cohort_service.send_email_notification(cohort=cohort,
                                                    is_update_from_sjs=is_update_from_sjs,
                                                    is_update_from_etl=is_update_from_etl)
-            websocket_infos = WebSocketInfos(
-                status=cohort.status,
-                client_id=cohort.owner.provider_username,
-                uuid=cohort.uuid,
-                type='create'
-            )
-            WebsocketManager.send_to_client(websocket_infos)
         return response
 
     @swagger_auto_schema(method='get',
