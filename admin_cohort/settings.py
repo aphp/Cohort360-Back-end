@@ -106,8 +106,8 @@ INSTALLED_APPS = ['django.contrib.admin',
                   'rest_framework_swagger',
                   'rest_framework_tracking',
                   'safedelete',
-                  'admin_cohort',
-                  'channels'] + INCLUDED_APPS
+                  'channels',
+                  'admin_cohort'] + INCLUDED_APPS
 
 MIDDLEWARE = ['admin_cohort.middleware.influxdb_middleware.InfluxDBMiddleware',
               'django.middleware.security.SecurityMiddleware',

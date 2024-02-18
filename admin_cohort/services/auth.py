@@ -249,6 +249,8 @@ class AuthService:
         if res is None:
             _logger_err.exception("Error authenticating WS request")
         return res[0].username
+        # todo: return user instance for auth middleware
+        # return res[0]
 
     def retrieve_username(self, token: str, auth_method: str) -> str:
         authenticator = self._get_authenticator(auth_method)

@@ -7,7 +7,7 @@ from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.layers import get_channel_layer
 from pydantic import BaseModel
 
-from admin_cohort.services.auth import auth_service
+# from admin_cohort.services.auth import auth_service
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult, DatedMeasure, FeasibilityStudy
 
@@ -39,6 +39,8 @@ class HandshakeStatus(WebSocketObject):
 class WebsocketManager(AsyncJsonWebsocketConsumer):
 
     async def connect(self):
+        user = self.scope["user"]  # todo: try this
+        print(f"********** {user=}")
         await self.accept()
 
     @staticmethod
@@ -60,9 +62,11 @@ class WebsocketManager(AsyncJsonWebsocketConsumer):
 
     async def receive_json(self, content, **kwargs):
         try:
-            client_id = auth_service.authenticate_ws_request(token=content['token'],
-                                                             auth_method=content['auth_method'])   # todo: add this to the request payload in frontend
+            # todo: add `auth_method` to the request payload in frontend
+            # client_id = auth_service.authenticate_ws_request(token=content['token'],
+            #                                                  auth_method=content['auth_method'])
 
+            client_id = self.scope['user'].username
             await self.send_json(HandshakeStatus(type='handshake', status='accepted').model_dump())
 
         except KeyError:
