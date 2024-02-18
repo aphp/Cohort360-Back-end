@@ -15,7 +15,8 @@ stages:
 lint-job:
   stage: lint
   before_script:
-    - pip install ruff
+    - pip install uv
+    - uv pip install ruff
   script:
     - ruff check .
   allow_failure: false
@@ -30,9 +31,9 @@ test-job:
     POSTGRES_PASSWORD: portail_psswd
   script:
     - cp .conf/.test.env admin_cohort/.env
-    - pip install --upgrade pip
-    - pip install -r requirements.txt
     - mkdir log
+    - pip install --upgrade pip && pip install uv
+    - uv pip install -r requirements.txt
     - coverage run --source='.' --omit="*/test*","*/migrations/*" manage.py test
     - coverage xml --omit="*/test*","*/migrations/*" -o coverage.xml
     - coverage html --omit="*/test*","*/migrations/*" -d htmlcov
