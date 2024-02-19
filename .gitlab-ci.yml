@@ -15,8 +15,7 @@ stages:
 lint-job:
   stage: lint
   before_script:
-    - pip install uv
-    - uv venv && uv pip install ruff
+    - pip install ruff
   script:
     - ruff check .
   allow_failure: false
