@@ -7,9 +7,7 @@ from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.layers import get_channel_layer
 from pydantic import BaseModel
 
-from admin_cohort.services.auth import auth_service
 from admin_cohort.types import JobStatus
-from cohort.models import CohortResult, DatedMeasure, FeasibilityStudy
 
 ws_info_type = Literal['count', 'create', 'feasibility']
 
@@ -60,9 +58,11 @@ class WebsocketManager(AsyncJsonWebsocketConsumer):
 
     async def receive_json(self, content, **kwargs):
         try:
-            client_id = auth_service.authenticate_ws_request(token=content['token'],
-                                                             auth_method=content['auth_method'])   # todo: add this to the request payload in frontend
+            # todo: add `auth_method` to the request payload in frontend
+            # client_id = auth_service.authenticate_ws_request(token=content['token'],
+            #                                                  auth_method=content['auth_method'])
 
+            client_id = self.scope['user'].username
             await self.send_json(HandshakeStatus(type='handshake', status='accepted').model_dump())
 
         except KeyError:
@@ -85,7 +85,7 @@ class WebsocketManager(AsyncJsonWebsocketConsumer):
             return
 
 
-def ws_send_to_client(_object: Union[CohortResult, DatedMeasure, FeasibilityStudy], info_type: ws_info_type):
+def ws_send_to_client(_object, info_type: ws_info_type):
     websocket_infos = WebSocketInfos(status=_object.request_job_status,
                                      client_id=str(_object.owner_id),
                                      uuid=_object.uuid,
