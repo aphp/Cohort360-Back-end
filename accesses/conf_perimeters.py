@@ -158,7 +158,7 @@ def psql_query_care_site_relationship(top_care_site_id: int) -> str:
             cd._size as cohort_size
             FROM omop.care_site cs
             INNER JOIN omop.list cd
-            ON cd._sourcereferenceid = cs.care_site_id
+            ON cd._sourcereferenceid = CAST(cs.care_site_id as VARCHAR)
             WHERE (cs.care_site_id = {top_care_site_id}
                    AND cs.delete_datetime IS NULL
                    AND cd.delete_datetime IS NULL AND cd.source__type = 'Organization')
@@ -176,7 +176,7 @@ def psql_query_care_site_relationship(top_care_site_id: int) -> str:
             INNER JOIN omop.fact_relationship frr
             ON css.care_site_id=frr.fact_id_1
             INNER JOIN omop.list cd
-            ON cd._sourcereferenceid = css.care_site_id
+            ON cd._sourcereferenceid = cast(css.care_site_id as VARCHAR)
             WHERE (frr.fact_id_1!=frr.fact_id_2
                    AND frr.domain_concept_id_1={cs_domain_concept_id}
                    AND frr.domain_concept_id_2={cs_domain_concept_id}
