@@ -16,7 +16,7 @@ lint-job:
   stage: lint
   before_script:
     - pip install uv
-    - uv pip install ruff
+    - uv venv && uv pip install ruff
   script:
     - ruff check .
   allow_failure: false
@@ -33,7 +33,7 @@ test-job:
     - cp .conf/.test.env admin_cohort/.env
     - mkdir log
     - pip install --upgrade pip && pip install uv
-    - uv pip install -r requirements.txt
+    - uv venv && uv pip install -r requirements.txt
     - coverage run --source='.' --omit="*/test*","*/migrations/*" manage.py test
     - coverage xml --omit="*/test*","*/migrations/*" -o coverage.xml
     - coverage html --omit="*/test*","*/migrations/*" -d htmlcov
