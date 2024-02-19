@@ -244,13 +244,11 @@ class AuthService:
             return self.applicative_users[token]
         return self.authenticate_token(token=token, auth_method=auth_method)
 
-    def authenticate_ws_request(self, token: str, auth_method: str) -> Union[str, None]:
+    def authenticate_ws_request(self, token: str, auth_method: str) -> Union[User, None]:
         res = self.authenticate_token(token=token, auth_method=auth_method)
-        if res is None:
-            _logger_err.exception("Error authenticating WS request")
-        return res[0].username
-        # todo: return user instance for auth middleware
-        # return res[0]
+        if res is not None:
+            return res[0]
+        _logger_err.exception("Error authenticating WS request")
 
     def retrieve_username(self, token: str, auth_method: str) -> str:
         authenticator = self._get_authenticator(auth_method)

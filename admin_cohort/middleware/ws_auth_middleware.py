@@ -1,29 +1,33 @@
-from channels.db import database_sync_to_async
+from typing import Tuple
+
+from asgiref.sync import sync_to_async
 from channels.sessions import CookieMiddleware
 
-from admin_cohort.models import User
 from admin_cohort.services.auth import auth_service
 
 
-@database_sync_to_async
-def get_user(user_id):
-    try:
-        return User.objects.get(pk=user_id)
-    except User.DoesNotExist:
-        return None
+@sync_to_async
+def authenticate_ws_request(token, auth_method):
+    return auth_service.authenticate_ws_request(token, auth_method)
 
 
 class WSAuthMiddleware:
+    AUTH_HEADER = "authorization"
+    AUTH_METHOD_HEADER = "authorizationmethod"
 
     def __init__(self, app):
         self.app = app
 
+    def _get_auth_data(self, scope: dict) -> Tuple[str, str]:
+        headers = dict((k.decode('utf-8'), v.decode('utf-8')) for k, v in scope.get("headers"))
+        token = headers[self.AUTH_HEADER]
+        auth_method = headers[self.AUTH_METHOD_HEADER]
+        return token, auth_method
+
     async def __call__(self, scope, receive, send):
-        print("************* scope", scope)     # scope["query_string"]
         if "user" not in scope:
-            token, auth_method = scope['token'], scope['auth_method']
-            user_id = auth_service.authenticate_ws_request(token, auth_method)  # maybe will need to use a sync_to_async decorated version for auth
-            scope['user'] = await get_user(user_id)
+            user = await authenticate_ws_request(*self._get_auth_data(scope=scope))
+            scope['user'] = user
         return await self.app(scope, receive, send)
 
 
@@ -31,8 +35,3 @@ class WSAuthMiddleware:
 def WSAuthMiddlewareStack(app):
     return CookieMiddleware(WSAuthMiddleware(app))
 
-# todo: try and put this version as final solution
-# class WSAuthMiddlewareStack:
-#
-#     async def __call__(self, app, *args, **kwargs):
-#         return CookieMiddleware(WSAuthMiddleware(app))

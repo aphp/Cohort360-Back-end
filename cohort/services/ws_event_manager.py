@@ -7,9 +7,7 @@ from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.layers import get_channel_layer
 from pydantic import BaseModel
 
-# from admin_cohort.services.auth import auth_service
 from admin_cohort.types import JobStatus
-from cohort.models import CohortResult, DatedMeasure, FeasibilityStudy
 
 ws_info_type = Literal['count', 'create', 'feasibility']
 
@@ -39,8 +37,6 @@ class HandshakeStatus(WebSocketObject):
 class WebsocketManager(AsyncJsonWebsocketConsumer):
 
     async def connect(self):
-        user = self.scope["user"]  # todo: try this
-        print(f"********** {user=}")
         await self.accept()
 
     @staticmethod
@@ -89,7 +85,7 @@ class WebsocketManager(AsyncJsonWebsocketConsumer):
             return
 
 
-def ws_send_to_client(_object: Union[CohortResult, DatedMeasure, FeasibilityStudy], info_type: ws_info_type):
+def ws_send_to_client(_object, info_type: ws_info_type):
     websocket_infos = WebSocketInfos(status=_object.request_job_status,
                                      client_id=str(_object.owner_id),
                                      uuid=_object.uuid,
