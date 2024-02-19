@@ -44,14 +44,13 @@ def get_count_task(auth_headers: dict, json_query: str, dm_uuid: str):
                                             json_query=json_query,
                                             auth_headers=auth_headers,
                                             global_estimate=dm.mode == GLOBAL_DM_MODE)
-    # status update callback may occur before task ends
-    dm.refresh_from_db()
     if resp.success:
         dm.request_job_id = resp.fhir_job_id
     else:
         dm.request_job_status = JobStatus.failed
         dm.request_job_fail_msg = resp.err_msg
     dm.save()
+    dm.refresh_from_db()    # b/c status update callback may occur before the task ends
     log_count_task(dm_uuid, resp.success and "DatedMeasure updated" or resp.err_msg)
 
 
