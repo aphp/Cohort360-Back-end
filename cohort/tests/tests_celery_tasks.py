@@ -61,14 +61,16 @@ class TasksTests(DatedMeasuresTests):
                                                         dated_measure=self.user1_req1_snap1_dm2)
 
         self.basic_count_response = {"success": True,
-                                     "job_id": self.test_job_id}
-
+                                     "jobId": self.test_job_id,
+                                     "status": "started"
+                                     }
         self.failed_count_response = {"success": False,
                                       "status": "error",
-                                      "err_msg": self.test_count_err_msg}
-
+                                      "err_msg": self.test_count_err_msg
+                                      }
         self.resp_create_cohort_success = {"success": True,
-                                           "job_id": self.test_job_id,
+                                           "jobId": self.test_job_id,
+                                           "status": "started"
                                            }
         self.resp_create_cohort_failed = {"success": False,
                                           "status": "error",
