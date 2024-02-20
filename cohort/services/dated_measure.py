@@ -33,7 +33,7 @@ class DatedMeasureService:
             raise ServerError("INTERNAL ERROR: Could not launch count request") from e
 
     def process_patch_data(self, dm: DatedMeasure, data: dict) -> None:
-        _logger.info(f"Received data for DM patch: {data}")
+        _logger.info(f"DatedMeasure [{dm.uuid}] Received patch data: {data}")
         job_status = data.get(JOB_STATUS, "")
         job_status = fhir_to_job_status().get(job_status.upper())
         if not job_status:
