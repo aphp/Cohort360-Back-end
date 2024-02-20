@@ -116,8 +116,8 @@ class AuthClassTests(APITestCase):
 
     def test_authenticate_without_token(self):
         request = self.factory.get(path=self.protected_url)
-        with self.assertRaises(AssertionError):
-            _ = self.protected_view.as_view({'get': 'list'})(request)
+        response = self.protected_view.as_view({'get': 'list'})(request)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     @mock.patch("admin_cohort.auth.auth_class.auth_service.authenticate_http_request")
     def test_authenticate_error(self, mock_authenticate_http_request: MagicMock):
