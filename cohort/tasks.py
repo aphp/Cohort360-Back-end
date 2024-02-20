@@ -6,11 +6,9 @@ from celery import shared_task, current_task
 import cohort.services.conf_cohort_job_api as cohort_job_api
 from admin_cohort import celery_app
 from admin_cohort.types import JobStatus
-from admin_cohort.settings import COHORT_LIMIT
 from cohort.models import CohortResult, DatedMeasure, FeasibilityStudy
 from cohort.models.dated_measure import GLOBAL_DM_MODE
 from cohort.services.emails import send_email_notif_feasibility_report_requested, send_email_notif_error_feasibility_report
-from cohort.services.misc import log_count_task, log_create_task, log_feasibility_study_task
 from cohort.services.decorators import locked_instance_task
 
 _logger = logging.getLogger('django.request')
@@ -18,21 +16,12 @@ _logger = logging.getLogger('django.request')
 
 @shared_task
 def create_cohort_task(auth_headers: dict, json_query: str, cohort_uuid: str):
-    cohort_result = CohortResult.objects.get(uuid=cohort_uuid)
-    resp = cohort_job_api.post_create_cohort(cr_uuid=cohort_uuid,
-                                             json_query=json_query,
-                                             auth_headers=auth_headers)
-
-    cohort_result.create_task_id = current_task.request.id or ""
-    if resp.success:
-        cohort_result.request_job_id = resp.fhir_job_id
-        count = cohort_result.dated_measure.measure
-        cohort_result.request_job_status = count >= COHORT_LIMIT and JobStatus.long_pending or JobStatus.pending
-    else:
-        cohort_result.request_job_status = JobStatus.failed
-        cohort_result.request_job_fail_msg = resp.err_msg
-    cohort_result.save()
-    log_create_task(cohort_uuid, resp.success and "CohortResult updated" or resp.err_msg)
+    cr = CohortResult.objects.get(uuid=cohort_uuid)
+    cr.create_task_id = current_task.request.id or ""
+    cr.save()
+    cohort_job_api.post_create_cohort(cr_uuid=cohort_uuid,
+                                      json_query=json_query,
+                                      auth_headers=auth_headers)
 
 
 @shared_task
@@ -42,32 +31,20 @@ def get_count_task(auth_headers=None, json_query=None, dm_uuid=None):
     dm.count_task_id = current_task.request.id or ""
     dm.request_job_status = JobStatus.pending
     dm.save()
-    resp = cohort_job_api.post_count_cohort(dm_uuid=dm_uuid,
-                                            json_query=json_query,
-                                            auth_headers=auth_headers,
-                                            global_estimate=dm.mode == GLOBAL_DM_MODE)
-    if resp.success:
-        dm.request_job_id = resp.fhir_job_id
-    else:
-        dm.request_job_status = JobStatus.failed
-        dm.request_job_fail_msg = resp.err_msg
-    dm.save()
-    log_count_task(dm_uuid, resp.success and "DatedMeasure updated" or resp.err_msg)
+    cohort_job_api.post_count_cohort(dm_uuid=dm_uuid,
+                                     json_query=json_query,
+                                     auth_headers=auth_headers,
+                                     global_estimate=dm.mode == GLOBAL_DM_MODE)
 
 
 @shared_task
 def get_feasibility_count_task(fs_uuid: str, json_query: str, auth_headers: dict) -> bool:
+    fs = FeasibilityStudy.objects.get(uuid=fs_uuid)
+    fs.count_task_id = current_task.request.id or ""
+    fs.save()
     resp = cohort_job_api.post_count_for_feasibility(fs_uuid=fs_uuid,
                                                      json_query=json_query,
                                                      auth_headers=auth_headers)
-    feasibility_study = FeasibilityStudy.objects.get(uuid=fs_uuid)
-    if resp.success:
-        feasibility_study.request_job_id = resp.fhir_job_id
-    else:
-        feasibility_study.request_job_status = JobStatus.failed
-        feasibility_study.request_job_fail_msg = resp.err_msg
-    feasibility_study.save()
-    log_feasibility_study_task(fs_uuid, resp.success and "FeasibilityStudy updated" or resp.err_msg)
     return resp.success
 
 

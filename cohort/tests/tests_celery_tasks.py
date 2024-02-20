@@ -6,9 +6,9 @@ from rest_framework import status
 
 from admin_cohort.types import JobStatus
 from cohort.crb import AbstractCohortRequest
-from cohort.services.crb_responses import CRBCountResponse, CRBCohortResponse
 from cohort.models import DatedMeasure, CohortResult, Request, RequestQuerySnapshot, FeasibilityStudy
 from cohort.models.dated_measure import GLOBAL_DM_MODE
+from cohort.services.conf_cohort_job_api import JobServerResponse
 from cohort.tasks import get_count_task, create_cohort_task, cancel_previously_running_dm_jobs, get_feasibility_count_task
 from cohort.tests.tests_view_dated_measure import DatedMeasuresTests
 
@@ -61,17 +61,17 @@ class TasksTests(DatedMeasuresTests):
                                                         dated_measure=self.user1_req1_snap1_dm2)
 
         self.basic_count_response = {"success": True,
-                                     "fhir_job_id": self.test_job_id}
+                                     "job_id": self.test_job_id}
 
         self.failed_count_response = {"success": False,
-                                      "fhir_job_status": JobStatus.failed,
+                                      "status": "error",
                                       "err_msg": self.test_count_err_msg}
 
         self.resp_create_cohort_success = {"success": True,
-                                           "fhir_job_id": self.test_job_id,
+                                           "job_id": self.test_job_id,
                                            }
         self.resp_create_cohort_failed = {"success": False,
-                                          "fhir_job_status": JobStatus.failed,
+                                          "status": "error",
                                           "err_msg": self.test_create_err_msg
                                           }
 
@@ -114,7 +114,7 @@ class TasksTests(DatedMeasuresTests):
 
     @mock.patch('cohort.tasks.cohort_job_api')
     def test_get_count_task(self, mock_cohort_job_api):
-        mock_cohort_job_api.post_count_cohort.return_value = CRBCountResponse(**self.basic_count_response)
+        mock_cohort_job_api.post_count_cohort.return_value = JobServerResponse(**self.basic_count_response)
         get_count_task(auth_headers={},
                        json_query="{}",
                        dm_uuid=self.user1_req1_snap1_initial_dm.uuid)
@@ -146,7 +146,7 @@ class TasksTests(DatedMeasuresTests):
 
     @mock.patch('cohort.tasks.cohort_job_api')
     def test_get_count_global_task(self, mock_cohort_job_api):
-        mock_cohort_job_api.post_count_cohort.return_value = CRBCountResponse(**self.basic_count_response)
+        mock_cohort_job_api.post_count_cohort.return_value = JobServerResponse(**self.basic_count_response)
         get_count_task(auth_headers={},
                        json_query="{}",
                        dm_uuid=self.user1_req1_snap1_initial_global_dm.uuid)
@@ -157,7 +157,7 @@ class TasksTests(DatedMeasuresTests):
 
     @mock.patch('cohort.tasks.cohort_job_api')
     def test_failed_get_count_task(self, mock_cohort_job_api):
-        mock_cohort_job_api.post_count_cohort.return_value = CRBCountResponse(**self.failed_count_response)
+        mock_cohort_job_api.post_count_cohort.return_value = JobServerResponse(**self.failed_count_response)
         get_count_task(auth_headers={},
                        json_query="{}",
                        dm_uuid=self.user1_req1_snap1_initial_dm.uuid)
@@ -169,7 +169,7 @@ class TasksTests(DatedMeasuresTests):
 
     @mock.patch('cohort.tasks.cohort_job_api')
     def test_create_cohort_task_for_small_cohort(self, mock_cohort_job_api):
-        mock_cohort_job_api.post_create_cohort.return_value = CRBCohortResponse(**self.resp_create_cohort_success)
+        mock_cohort_job_api.post_create_cohort.return_value = JobServerResponse(**self.resp_create_cohort_success)
         create_cohort_task(auth_headers={},
                            json_query="{}",
                            cohort_uuid=self.small_cohort.uuid)
@@ -183,7 +183,7 @@ class TasksTests(DatedMeasuresTests):
 
     @mock.patch('cohort.tasks.cohort_job_api')
     def test_create_cohort_task_for_large_cohort(self, mock_cohort_job_api):
-        mock_cohort_job_api.post_create_cohort.return_value = CRBCohortResponse(**self.resp_create_cohort_success)
+        mock_cohort_job_api.post_create_cohort.return_value = JobServerResponse(**self.resp_create_cohort_success)
         create_cohort_task({}, "{}", self.large_cohort.uuid)
 
         new_cr = CohortResult.objects.filter(pk=self.large_cohort.pk,
@@ -195,7 +195,7 @@ class TasksTests(DatedMeasuresTests):
 
     @mock.patch('cohort.tasks.cohort_job_api')
     def test_failed_create_cohort_task(self, mock_cohort_job_api):
-        mock_cohort_job_api.post_create_cohort.return_value = CRBCohortResponse(**self.resp_create_cohort_failed)
+        mock_cohort_job_api.post_create_cohort.return_value = JobServerResponse(**self.resp_create_cohort_failed)
         create_cohort_task(auth_headers={},
                            json_query="{}",
                            cohort_uuid=self.small_cohort.uuid)

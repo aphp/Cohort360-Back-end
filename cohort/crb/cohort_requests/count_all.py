@@ -9,6 +9,7 @@ from accesses.models import Perimeter
 from cohort.crb.schemas import SourcePopulation
 from cohort.crb.cohort_requests.abstract_cohort_request import AbstractCohortRequest
 from cohort.crb.enums import Mode
+from cohort.models import DatedMeasure
 
 if TYPE_CHECKING:
     from cohort.crb.schemas import CohortQuery
@@ -17,6 +18,8 @@ env = os.environ
 
 
 class CohortCountAll(AbstractCohortRequest):
+    model = DatedMeasure
+
     def __init__(self, *args, **kwargs):
         super().__init__(mode=Mode.COUNT_ALL, *args, **kwargs)
 

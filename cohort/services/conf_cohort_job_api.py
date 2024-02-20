@@ -11,10 +11,11 @@ from rest_framework import status
 from rest_framework.request import Request
 
 from admin_cohort.middleware.request_trace_id_middleware import add_trace_id
+from admin_cohort.settings import COHORT_LIMIT
 from admin_cohort.types import JobStatus, MissingDataError
 from cohort.crb import CohortQuery, CohortCreate, CohortCountAll, CohortCount, AbstractCohortRequest, SjsClient
 from cohort.crb.cohort_requests.count_feasibility import CohortCountFeasibility
-from cohort.services.crb_responses import CRBCountResponse, CRBCohortResponse
+from cohort.models import CohortResult
 from cohort.services.misc import log_count_task, log_create_task, log_delete_task, log_count_all_task, log_feasibility_study_task
 
 env = os.environ
@@ -71,20 +72,17 @@ def get_authorization_header(request: Request) -> dict:
     return headers
 
 
-class JobResponse:
-    def __init__(self, resp: Response, **kwargs):
-        self.status: JobStatus = fhir_to_job_status().get(kwargs.get('status', '').upper())
-        if not self.status:
-            raise ValueError(f"Expected valid status value, got None : {resp.json()}")
-        self.job_id: str = kwargs.get('jobId')
-        self.source: str = kwargs.get('source')
-        self.count = kwargs.get("count")
-        self.count_min = kwargs.get("minimum")
-        self.count_max = kwargs.get("maximum")
-        self.group_id = kwargs.get("group.id")
-        self.message = kwargs.get('message', f'No message. Full response: {resp.text}')
-        self.stack = kwargs.get("stack", resp.text)
-        self.request_response: Response = resp
+class JobServerResponse:
+    def __init__(self, success: bool = False, err_msg: str = "", **kwargs):
+        self.success = success
+        self.err_msg = err_msg
+        job_status = kwargs.get('status', '')
+        self.job_status = fhir_to_job_status().get(job_status.upper())
+        if not self.job_status:
+            raise ValueError(f"Invalid status value, got `{job_status}`")
+        self.job_id = kwargs.get('jobId')
+        self.message = kwargs.get('message', 'No message')
+        self.stack = kwargs.get("stack", 'No stack')
 
 
 def cancel_job(job_id: str) -> JobStatus:
@@ -137,8 +135,7 @@ T = TypeVar('T')
 LoggerType = Type[Callable[..., None]]
 
 
-def post_to_sjs(json_query: str, uuid: str, cohort_cls: AbstractCohortRequest, response_cls: Type[T],
-                logger: LoggerType) -> T:
+def post_to_sjs(json_query: str, uuid: str, cohort_cls: AbstractCohortRequest, logger: LoggerType) -> T:
     try:
         logger(uuid, f"Step 1: Parse the json query to make it CRB compatible {json_query}")
         cohort_query = CohortQuery(cohortUuid=uuid, **json.loads(json_query))
@@ -146,23 +143,34 @@ def post_to_sjs(json_query: str, uuid: str, cohort_cls: AbstractCohortRequest, r
         resp, data = cohort_cls.action(cohort_query)
     except (TypeError, ValueError, ValidationError, HTTPError) as e:
         _logger_err.error(f"Error sending `count` request: {e}")
-        return response_cls(success=False, fhir_job_status=JobStatus.failed, err_msg=str(e))
-    job = JobResponse(resp, **data)
-    logger(uuid, f"Step 3: Get the response {job.__dict__=}")
-    return response_cls(success=True, fhir_job_id=job.job_id)
+        return JobServerResponse(success=False, err_msg=str(e), status=JobStatus.failed)
+    job_response = JobServerResponse(success=True, **data)
+    logger(uuid, f"Step 3: Get the job server response {job_response.__dict__}")
+    obj_model = cohort_cls.model
+    instance = obj_model.objects.get(pk=uuid)
+    if job_response.success:
+        instance.request_job_id = job_response.job_id
+        if obj_model is CohortResult:
+            count = instance.dated_measure.measure
+            instance.request_job_status = count >= COHORT_LIMIT and JobStatus.long_pending or JobStatus.pending
+    else:
+        instance.request_job_status = job_response.job_status
+        instance.request_job_fail_msg = job_response.err_msg
+    instance.save()
+    logger(uuid, f"Done: {job_response.success and obj_model.__name__ + ' updated' or job_response.err_msg}")
 
 
-def post_count_for_feasibility(auth_headers: dict, json_query: str, fs_uuid: str) -> CRBCountResponse:
-    count_request = CohortCountFeasibility(auth_headers=auth_headers, sjs_client=SjsClient())
-    return post_to_sjs(json_query, fs_uuid, count_request, CRBCountResponse, log_feasibility_study_task)
-
-
-def post_count_cohort(auth_headers: dict, json_query: str, dm_uuid: str, global_estimate: bool = False) -> CRBCountResponse:
+def post_count_cohort(auth_headers: dict, json_query: str, dm_uuid: str, global_estimate: bool = False) -> None:
     count_cls, logger = global_estimate and (CohortCountAll, log_count_all_task) or (CohortCount, log_count_task)
     count_request = count_cls(auth_headers=auth_headers, sjs_client=SjsClient())
-    return post_to_sjs(json_query, dm_uuid, count_request, CRBCountResponse, logger)
+    post_to_sjs(json_query, dm_uuid, count_request, logger)
 
 
-def post_create_cohort(auth_headers: dict, json_query: str, cr_uuid: str) -> CRBCohortResponse:
+def post_create_cohort(auth_headers: dict, json_query: str, cr_uuid: str) -> None:
     cohort_request = CohortCreate(auth_headers=auth_headers, sjs_client=SjsClient())
-    return post_to_sjs(json_query, cr_uuid, cohort_request, CRBCohortResponse, log_create_task)
+    post_to_sjs(json_query, cr_uuid, cohort_request, log_create_task)
+
+
+def post_count_for_feasibility(auth_headers: dict, json_query: str, fs_uuid: str) -> JobServerResponse:
+    count_request = CohortCountFeasibility(auth_headers=auth_headers, sjs_client=SjsClient())
+    return post_to_sjs(json_query, fs_uuid, count_request, log_feasibility_study_task)

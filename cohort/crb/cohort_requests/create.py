@@ -6,12 +6,15 @@ from requests import Response
 
 from cohort.crb.cohort_requests.abstract_cohort_request import AbstractCohortRequest
 from cohort.crb.enums import Mode
+from cohort.models import CohortResult
 
 if TYPE_CHECKING:
     from cohort.crb.schemas import CohortQuery
 
 
 class CohortCreate(AbstractCohortRequest):
+    model = CohortResult
+
     def __init__(self, *args, **kwargs):
         super().__init__(mode=Mode.CREATE, *args, **kwargs)
 

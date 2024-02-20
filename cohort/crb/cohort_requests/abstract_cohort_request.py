@@ -24,6 +24,8 @@ def is_cohort_request_pseudo_read(username: str, source_population: List[int]) -
 
 
 class AbstractCohortRequest(ABC):
+    model = None
+
     def __init__(self, mode: Mode, sjs_client: SjsClient, auth_headers: dict):
         self.mode = mode
         self.sjs_client = sjs_client

@@ -8,12 +8,15 @@ from cohort.crb import AbstractCohortRequest
 from cohort.crb.cohort_requests.count_all import get_top_care_site_source_population
 from cohort.crb.enums import Mode
 from cohort.crb.schemas import SourcePopulation
+from cohort.models import FeasibilityStudy
 
 if TYPE_CHECKING:
     from cohort.crb.schemas import CohortQuery
 
 
 class CohortCountFeasibility(AbstractCohortRequest):
+    model = FeasibilityStudy
+
     def __init__(self, *args, **kwargs):
         super().__init__(mode=Mode.COUNT_WITH_DETAILS, *args, **kwargs)
 
