@@ -241,7 +241,7 @@ class AuthService:
     def authenticate_http_request(self, request) -> Union[Tuple[User, str], None]:
         token, auth_method = self.get_auth_data(request)
         if token in self.applicative_users:
-            return self.applicative_users[token]
+            return self.applicative_users[token], token
         return self.authenticate_token(token=token, auth_method=auth_method or JWT_AUTH_MODE)
 
     def authenticate_ws_request(self, token: str, auth_method: str) -> Union[User, None]:
