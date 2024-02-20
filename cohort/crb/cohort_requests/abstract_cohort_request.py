@@ -30,8 +30,8 @@ class AbstractCohortRequest(ABC):
         self.auth_headers = auth_headers
 
     def __headers_to_owner_entity(self) -> str:
-        return auth_service.retrieve_username(token=self.auth_headers['Authorization']\
-                                                        .replace('Bearer ', ''))
+        return auth_service.retrieve_username(token=self.auth_headers['Authorization'].replace('Bearer ', ''),
+                                              auth_method=self.auth_headers['authorizationMethod'])
 
     def create_request_for_sjs(self, cohort_query: CohortQuery) -> str:
         """Format the given query with the Fhir nomenclature and return a dict to be sent
