@@ -286,9 +286,9 @@ MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS = int(env("ACCESS_MIN_DEFAULT_END_DATE_OFFSE
 CRB_TEST_FHIR_QUERIES = bool(env("CRB_TEST_FHIR_QUERIES", default=False))
 
 # WebSockets
-AUTH_MIDDLEWARE = {"module": "admin_cohort.middleware.ws_auth_middleware",
-                   "middleware": "WSAuthMiddlewareStack"
-                   }
+WEBSOCKET_MANAGER = {"module": "cohort.services.ws_event_manager",
+                     "manager_class": "WebsocketManager"
+                     }
 
 CHANNEL_LAYERS = {
     'default': {
