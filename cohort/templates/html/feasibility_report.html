@@ -15,10 +15,21 @@
             box-shadow: 0 5px 10px 0 #80808070;
             border-radius: 5px;
         }
-        #root > h2 {
+        div.note {
+            width: 500px;
+            height: 180px;
+            padding: 25px 15px 40px 15px;
             font-family: 'Roboto', sans-serif;
-            color: #4b4b7b;
-            margin-bottom: 50px;
+            color: #0c0c4b;
+            background-color: aliceblue;
+            border-radius: 5px;
+            border: 1px solid #b8b8bb;
+            margin: 10px auto 50px auto;
+            box-shadow: 1px 1px 5px 1px #d6d6d9;
+        }
+        span.note-warn {
+            font-size: 25px;
+            background: transparent !important;
         }
         #root > ul {
             border-left: 5px solid #ddd;
@@ -61,7 +72,7 @@
             border-radius: 15px;
         }
         ul.perimeters-tree li input {
-            min-width: 100%;
+            min-width: 600px;
             position: absolute;
             margin-top: 0.5em;
             opacity: 0;
@@ -92,7 +103,14 @@
 </head>
 <body>
     <div id="root">
-        <h2>Répartition Des Patients Par Structure Hospitalière</h2>
+        <div class="note">
+            <span class="note-warn">⚠️</span>
+            Les résultats correspondent aux patients qui répondent aux critères d'inclusion. Un même patient peut être comptabilisé plusieurs fois
+            s'il est passé dans différentes structures de l'AP-HP.
+            <br><br>
+            Les diagnostics et les actes sont codés au niveau UF. Les GHM, Documents, Médicaments et Biologies sont codés au niveau Hôpital.
+            Ils ne ressortent donc pas aux niveaux inférieurs.
+        </div>
         {{ html_content | safe }}
     </div>
 </body>
