@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import urllib.parse
 from typing import TYPE_CHECKING
 
 import requests
@@ -112,10 +113,12 @@ class QueryFormatter:
             params = filter_fhir.split("&")
             for param in params:
                 key, value = param.split("=")
+                # because the filter_fhir we received has its value already urlencoded
+                decoded_value = urllib.parse.unquote(value)
                 if key in fhir_params:
-                    fhir_params[key].append(value)
+                    fhir_params[key].append(decoded_value)
                 else:
-                    fhir_params[key] = [value]
+                    fhir_params[key] = [decoded_value]
         params = query_fhir(resource_type, fhir_params, self.auth_headers)
         _logger.info(f"output: {params}")
         return params.to_dict()
