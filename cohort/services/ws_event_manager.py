@@ -37,46 +37,28 @@ class HandshakeStatus(WebSocketObject):
 class WebsocketManager(AsyncJsonWebsocketConsumer):
 
     async def connect(self):
-        await self.accept()
+        try:
+            subprotocol = self.scope.get('subprotocols')[0]
+            client_id = self.scope['user'].username
+        except (IndexError, KeyError):
+            await self.close()
+        else:
+            await self.accept(subprotocol=subprotocol)
+            await self.channel_layer.group_add(client_id, self.channel_name)
 
     @staticmethod
     def send_to_client(ws_infos: WebSocketInfos):
         channel_layer = get_channel_layer()
-        async_to_sync(channel_layer.group_send)(
-            f"{ws_infos.client_id}",
-            {
-                'type': 'object_status_handler',  # finds handler method `object_status_handler`
-                'object_status': ws_infos.status,
-                'uuid': ws_infos.uuid,
-            }
-        )
+        async_to_sync(channel_layer.group_send)(ws_infos.client_id,
+                                                {'type': 'object_status_handler',  # finds handler method `object_status_handler`
+                                                 'object_status': ws_infos.status,
+                                                 'uuid': ws_infos.uuid
+                                                 })
 
     async def object_status_handler(self, event):
         """Send an update for the count, create and feasibility status"""
         ws_status = WebSocketStatus(type='status', uuid=event['uuid'], status=event['object_status'])
         await self.send_json(ws_status.model_dump())
-
-    async def receive_json(self, content, **kwargs):
-        try:
-            # todo: add `auth_method` to the request payload in frontend
-            # client_id = auth_service.authenticate_ws_request(token=content['token'],
-            #                                                  auth_method=content['auth_method'])
-
-            client_id = self.scope['user'].username
-            await self.send_json(HandshakeStatus(type='handshake', status='accepted').model_dump())
-
-        except KeyError:
-            await self.send_json(
-                HandshakeStatus(type='handshake', status='pending',
-                                details='Could not understand the JSON object, "token" key missing').model_dump())
-            return
-
-        except Exception:
-            await self.send_json(
-                HandshakeStatus(type='handshake', status='forbidden', details='Bad token').model_dump())
-            await self.close()
-            return
-        await self.channel_layer.group_add(f"{client_id}", self.channel_name)
 
     async def receive(self, text_data=None, bytes_data=None, **kwargs):
         try:
