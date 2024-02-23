@@ -2,12 +2,11 @@ import dataclasses
 from json import JSONDecodeError
 from typing import Literal, Union
 
-from asgiref.sync import async_to_sync, sync_to_async
+from asgiref.sync import async_to_sync
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.layers import get_channel_layer
 from pydantic import BaseModel
 
-from admin_cohort.services.auth import auth_service
 from admin_cohort.types import JobStatus
 
 ws_info_type = Literal['count', 'create', 'feasibility']
@@ -37,10 +36,6 @@ class HandshakeStatus(WebSocketObject):
 
 class WebsocketManager(AsyncJsonWebsocketConsumer):
 
-    @sync_to_async
-    def authenticate_ws_request(self, token, auth_method):
-        return auth_service.authenticate_ws_request(token, auth_method)
-
     async def connect(self):
         await self.accept()
 
@@ -63,17 +58,22 @@ class WebsocketManager(AsyncJsonWebsocketConsumer):
 
     async def receive_json(self, content, **kwargs):
         try:
-            client = await self.authenticate_ws_request(token=content['token'],
-                                                        auth_method=content['auth_method'])
-            client_id = client.username
+            # todo: add `auth_method` to the request payload in frontend
+            # client_id = auth_service.authenticate_ws_request(token=content['token'],
+            #                                                  auth_method=content['auth_method'])
+
+            client_id = self.scope['user'].username
             await self.send_json(HandshakeStatus(type='handshake', status='accepted').model_dump())
+
         except KeyError:
-            await self.send_json(HandshakeStatus(type='handshake',
-                                                 status='pending',
-                                                 details='Could not understand the JSON object, "token" key missing').model_dump())
+            await self.send_json(
+                HandshakeStatus(type='handshake', status='pending',
+                                details='Could not understand the JSON object, "token" key missing').model_dump())
             return
+
         except Exception:
-            await self.send_json(HandshakeStatus(type='handshake', status='forbidden', details='Bad token').model_dump())
+            await self.send_json(
+                HandshakeStatus(type='handshake', status='forbidden', details='Bad token').model_dump())
             await self.close()
             return
         await self.channel_layer.group_add(f"{client_id}", self.channel_name)
