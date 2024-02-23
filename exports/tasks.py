@@ -1,6 +1,7 @@
 import logging
 import os
-from datetime import timedelta
+import time
+from datetime import timedelta, datetime
 
 from celery import shared_task
 from django.conf import settings
@@ -13,8 +14,8 @@ from admin_cohort.tools.celery_periodic_task_helper import ensure_single_task
 from admin_cohort.types import JobStatus
 from exports import conf_exports
 from .models import ExportRequest, Export
-from .emails import exported_csv_files_deleted, export_request_succeeded, push_email_notification
-from .types import ExportType, HdfsServerUnreachableError
+from .emails import exported_csv_files_deleted, export_request_failed, export_request_succeeded, push_email_notification
+from .types import ExportType, HdfsServerUnreachableError, ApiJobResponse
 
 _logger_err = logging.getLogger('django.request')
 _celery_logger = logging.getLogger('celery.app')
@@ -25,6 +26,52 @@ HIVE_DB_FOLDER = env.get('HIVE_DB_FOLDER')
 
 def log_export_request_task(er_id, msg):
     _celery_logger.info(f"[ExportTask] [ExportRequest: {er_id}] {msg}")
+
+
+def mark_export_request_as_failed(er: ExportRequest, e: Exception, msg: str, start: datetime):
+    err_msg = f"{msg}: {e}"
+    _logger_err.error(f"[ExportTask] [ExportRequest: {er.pk}] {err_msg}")
+    er.request_job_fail_msg = err_msg
+    if er.request_job_status in [JobStatus.pending, JobStatus.validated, JobStatus.new]:
+        er.request_job_status = JobStatus.failed
+    er.request_job_duration = timezone.now() - start
+    try:
+        notification_data = dict(recipient_name=er.owner.displayed_name,
+                                 recipient_email=er.owner.email,
+                                 cohort_id=er.cohort_id,
+                                 cohort_name=er.cohort_name,
+                                 error_message=er.request_job_fail_msg)
+        push_email_notification(base_notification=export_request_failed, **notification_data)
+    except OSError:
+        _logger_err.error(f"[ExportTask] [ExportRequest: {er.pk}] Error sending export failure email notification")
+    else:
+        er.is_user_notified = True
+    er.save()
+
+
+def wait_for_export_job(er: ExportRequest):
+    errors_count = 0
+    error_msg = ""
+    status_resp = ApiJobResponse(JobStatus.pending)
+
+    while errors_count < 5 and not status_resp.has_ended:
+        time.sleep(5)
+        log_export_request_task(er.pk, f"Asking for status of job {er.request_job_id}.")
+        try:
+            status_resp: ApiJobResponse = conf_exports.get_job_status(service="bigdata", job_id=er.request_job_id)
+            log_export_request_task(er.pk, f"Status received: {status_resp.status} - Err: {status_resp.err or ''}")
+            if er.request_job_status != status_resp.status:
+                er.request_job_status = status_resp.status
+                er.save()
+        except RequestException as e:
+            log_export_request_task(er.pk, f"Status not received: {e}")
+            errors_count += 1
+            error_msg = str(e)
+
+    if status_resp.status != JobStatus.finished:
+        raise HTTPError(status_resp.err or "No 'err' value returned.")
+    elif errors_count >= 5:
+        raise HTTPError(f"5 times internal error during task -> {error_msg}")
 
 
 @shared_task
@@ -49,7 +96,7 @@ def launch_request(er_id: int):
         try:
             conf_exports.prepare_hive_db(export_request)
         except RequestException as e:
-            conf_exports.mark_export_request_as_failed(export_request, e, f"Error while preparing for export {er_id}", now)
+            mark_export_request_as_failed(export_request, e, f"Error while preparing for export {er_id}", now)
             return
 
     try:
@@ -59,13 +106,13 @@ def launch_request(er_id: int):
         export_request.save()
         log_export_request_task(er_id, f"Request sent, job {job_id} is now {JobStatus.pending}")
     except RequestException as e:
-        conf_exports.mark_export_request_as_failed(export_request, e, f"Could not post export {er_id}", now)
+        mark_export_request_as_failed(export_request, e, f"Could not post export {er_id}", now)
         return
 
     try:
-        conf_exports.wait_for_export_job(export_request)
+        wait_for_export_job(export_request)
     except HTTPError as e:
-        conf_exports.mark_export_request_as_failed(export_request, e, f"Failure during export job {er_id}", now)
+        mark_export_request_as_failed(export_request, e, f"Failure during export job {er_id}", now)
         return
 
     log_export_request_task(er_id, "Export job finished, now concluding.")
@@ -74,7 +121,7 @@ def launch_request(er_id: int):
         try:
             conf_exports.conclude_export_hive(export_request)
         except RequestException as e:
-            conf_exports.mark_export_request_as_failed(export_request, e, f"Could not conclude export {er_id}", now)
+            mark_export_request_as_failed(export_request, e, f"Could not conclude export {er_id}", now)
             return
     export_request.request_job_duration = timezone.now() - now
     export_request.save()
@@ -106,7 +153,7 @@ def launch_export_task(export_id: str):
         try:
             conf_exports.prepare_hive_db(export_request=export)
         except RequestException as e:
-            conf_exports.mark_export_request_as_failed(export, e, f"Error while preparing for export {export_id}", now)
+            mark_export_request_as_failed(export, e, f"Error while preparing for export {export_id}", now)
             return
 
     try:
@@ -116,13 +163,13 @@ def launch_export_task(export_id: str):
         export.save()
         log_export_request_task(export_id, f"Request sent, job {job_id} is now {JobStatus.pending}")
     except RequestException as e:
-        conf_exports.mark_export_request_as_failed(export, e, f"Could not post export {export_id}", now)
+        mark_export_request_as_failed(export, e, f"Could not post export {export_id}", now)
         return
 
     try:
-        conf_exports.wait_for_export_job(export)
+        wait_for_export_job(export)
     except HTTPError as e:
-        conf_exports.mark_export_request_as_failed(export, e, f"Failure during export job {export_id}", now)
+        mark_export_request_as_failed(export, e, f"Failure during export job {export_id}", now)
         return
 
     log_export_request_task(export_id, "Export job finished, now concluding.")
@@ -131,7 +178,7 @@ def launch_export_task(export_id: str):
         try:
             conf_exports.conclude_export_hive(export)
         except RequestException as e:
-            conf_exports.mark_export_request_as_failed(export, e, f"Could not conclude export {export_id}", now)
+            mark_export_request_as_failed(export, e, f"Could not conclude export {export_id}", now)
             return
     export.request_job_duration = timezone.now() - now
     export.save()

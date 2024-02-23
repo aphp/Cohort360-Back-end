@@ -18,11 +18,10 @@ from admin_cohort.tools.tests_tools import new_user_and_profile, ViewSetTestsWit
 from admin_cohort.tools import prettify_json
 from cohort.models import CohortResult, RequestQuerySnapshot, Request, DatedMeasure, Folder
 from workspaces.models import Account
-from exports.conf_exports import create_hive_db, prepare_hive_db, wait_for_hive_db_creation_job, get_job_status, ApiJobStatus, JobStatusResponse, \
-    wait_for_export_job, mark_export_request_as_failed
+from exports.conf_exports import create_hive_db, prepare_hive_db, wait_for_hive_db_creation_job, get_job_status
 from exports.models import ExportRequest, ExportRequestTable, Export, ExportTable, InfrastructureProvider, Datalab
-from exports.tasks import delete_export_requests_csv_files, launch_request, launch_export_task
-from exports.types import ExportType, ExportStatus
+from exports.tasks import delete_export_requests_csv_files, wait_for_export_job, launch_request, mark_export_request_as_failed, launch_export_task
+from exports.types import ExportType, ApiJobResponse, ExportStatus
 from exports.views import ExportRequestViewSet
 
 EXPORTS_URL = "/exports"
@@ -574,7 +573,7 @@ class ExportsJobsTests(ExportsWithSimpleSetUp):
     @mock.patch('exports.conf_exports.get_job_status')
     def test_task_launch_request(self, mock_get_job_status, mock_prepare_hive_db, mock_post_export, mock_conclude_export_hive,
                                  mock_push_email_notification):
-        mock_get_job_status.return_value = JobStatusResponse(job_status=ApiJobStatus.FinishedSuccessfully.value)
+        mock_get_job_status.return_value = ApiJobResponse(status=JobStatus.finished)
         mock_prepare_hive_db.return_value = None
         mock_post_export.return_value = None
         mock_conclude_export_hive.return_value = None
@@ -588,12 +587,12 @@ class ExportsJobsTests(ExportsWithSimpleSetUp):
 
     @mock.patch.object(requests, 'post')
     @mock.patch('exports.tasks.push_email_notification')
-    @mock.patch('exports.tasks.conf_exports.prepare_hive_db')
-    @mock.patch('exports.tasks.conf_exports.conclude_export_hive')
-    @mock.patch('exports.tasks.conf_exports.get_job_status')
+    @mock.patch('exports.conf_exports.prepare_hive_db')
+    @mock.patch('exports.conf_exports.conclude_export_hive')
+    @mock.patch('exports.conf_exports.get_job_status')
     def test_task_launch_export_task_jupyter(self, mock_get_job_status, mock_prepare_hive_db, mock_conclude_export_hive,
                                              mock_push_email_notification, mock_post):
-        mock_get_job_status.return_value = JobStatusResponse(job_status=ApiJobStatus.FinishedSuccessfully.value)
+        mock_get_job_status.return_value = ApiJobResponse(status=JobStatus.finished)
         mock_prepare_hive_db.return_value = None
         mock_conclude_export_hive.return_value = None
         mock_push_email_notification.return_value = None
@@ -608,7 +607,7 @@ class ExportsJobsTests(ExportsWithSimpleSetUp):
         mock_conclude_export_hive.assert_called()
         mock_push_email_notification.assert_called()
 
-    @mock.patch('exports.conf_exports.mark_export_request_as_failed')
+    @mock.patch('exports.tasks.mark_export_request_as_failed')
     @mock.patch('exports.conf_exports.prepare_hive_db')
     def test_task_launch_export_task_jupyter_failure_1(self, mock_prepare_hive_db, mock_mark_export_request_as_failed):
         mock_prepare_hive_db.side_effect = RequestException()
@@ -617,7 +616,7 @@ class ExportsJobsTests(ExportsWithSimpleSetUp):
         mock_prepare_hive_db.assert_called()
         mock_mark_export_request_as_failed.assert_called()
 
-    @mock.patch('exports.conf_exports.mark_export_request_as_failed')
+    @mock.patch('exports.tasks.mark_export_request_as_failed')
     @mock.patch('exports.conf_exports.post_export_v1')
     @mock.patch('exports.conf_exports.prepare_hive_db')
     def test_task_launch_export_task_jupyter_failure_2(self, mock_prepare_hive_db, mock_post_export_v1, mock_mark_export_request_as_failed):
@@ -629,8 +628,8 @@ class ExportsJobsTests(ExportsWithSimpleSetUp):
         mock_prepare_hive_db.assert_called()
         mock_mark_export_request_as_failed.assert_called()
 
-    @mock.patch('exports.conf_exports.mark_export_request_as_failed')
-    @mock.patch('exports.tasks.conf_exports.wait_for_export_job')
+    @mock.patch('exports.tasks.mark_export_request_as_failed')
+    @mock.patch('exports.tasks.wait_for_export_job')
     @mock.patch('exports.conf_exports.post_export_v1')
     @mock.patch('exports.conf_exports.prepare_hive_db')
     def test_task_launch_export_task_jupyter_failure_3(self, mock_prepare_hive_db, mock_post_export_v1, mock_wait_for_export_job,
@@ -645,9 +644,9 @@ class ExportsJobsTests(ExportsWithSimpleSetUp):
         mock_wait_for_export_job.assert_called()
         mock_mark_export_request_as_failed.assert_called()
 
-    @mock.patch('exports.conf_exports.mark_export_request_as_failed')
+    @mock.patch('exports.tasks.mark_export_request_as_failed')
     @mock.patch('exports.conf_exports.conclude_export_hive')
-    @mock.patch('exports.tasks.conf_exports.wait_for_export_job')
+    @mock.patch('exports.tasks.wait_for_export_job')
     @mock.patch('exports.conf_exports.post_export_v1')
     @mock.patch('exports.conf_exports.prepare_hive_db')
     def test_task_launch_export_task_jupyter_failure_4(self, mock_prepare_hive_db, mock_post_export_v1, mock_wait_for_export_job,
@@ -1009,7 +1008,7 @@ class ExportsJupyterCreateTests(ExportsCreateTests):
     @mock.patch("exports.conf_exports.time.sleep")
     def test_wait_for_hive_db_creation_job(self, mock_sleep, mock_get_job_status):
         mock_sleep.return_value = None
-        mock_get_job_status.return_value = JobStatusResponse(job_status=ApiJobStatus.FinishedSuccessfully.value)
+        mock_get_job_status.return_value = ApiJobResponse(status=JobStatus.finished)
         result = wait_for_hive_db_creation_job(job_id="random_task_id")
         self.assertIsNone(result)
 
@@ -1017,7 +1016,7 @@ class ExportsJupyterCreateTests(ExportsCreateTests):
     @mock.patch("exports.conf_exports.time.sleep")
     def test_failure_on_wait_for_hive_db_creation_job(self, mock_sleep, mock_get_job_status):
         mock_sleep.return_value = None
-        mock_get_job_status.return_value = JobStatusResponse(job_status=ApiJobStatus.Failure.value)
+        mock_get_job_status.return_value = ApiJobResponse(status=JobStatus.failed)
         with self.assertRaises(HTTPError):
             wait_for_hive_db_creation_job(job_id="random_task_id")
 
@@ -1025,23 +1024,23 @@ class ExportsJupyterCreateTests(ExportsCreateTests):
     def test_get_job_status(self, mock_requests_get):
         resp = Response()
         resp.status_code = 200
-        resp._content = b'{"task_status": "Pending", "stdout": "", "stderr": ""}'
+        resp._content = b'{"task_status": "PENDING", "task_result": null}'
         mock_requests_get.return_value = resp
-        status_response = get_job_status(service="hadoop", job_id="random_task_id")
-        self.assertEqual(status_response.job_status, JobStatus.pending.value)
-        self.assertEqual(status_response.out, "")
-        self.assertEqual(status_response.err, "")
+        job_status = get_job_status(service="hadoop", job_id="random_task_id")
+        self.assertEqual(job_status.status, JobStatus.pending.value)
+        self.assertEqual(job_status.output, "")
+        self.assertEqual(job_status.err, "")
 
     @mock.patch("exports.conf_exports.requests.get")
     def test_get_job_status_with_unknown_status(self, mock_requests_get):
         resp = Response()
         resp.status_code = 200
-        resp._content = b'{"task_status": "WRONG", "stdout": "output", "stderr": "error"}'
+        resp._content = b'{"task_status": "WRONG", "task_result": {"status": "WRONG", "ret_code": "0", "err": "error", "out": "out"}}'
         mock_requests_get.return_value = resp
-        status_response = get_job_status(service="hadoop", job_id="random_task_id")
-        self.assertEqual(status_response.job_status, JobStatus.unknown.value)
-        self.assertEqual(status_response.out, "output")
-        self.assertEqual(status_response.err, "error")
+        job_status = get_job_status(service="hadoop", job_id="random_task_id")
+        self.assertEqual(job_status.status, JobStatus.unknown.value)
+        self.assertEqual(job_status.output, "out")
+        self.assertNotEqual(job_status.err, "")
 
     @mock.patch("exports.conf_exports.requests.get")
     def test_get_job_status_with_bad_status_code(self, mock_requests_get):
@@ -1051,17 +1050,26 @@ class ExportsJupyterCreateTests(ExportsCreateTests):
         with self.assertRaises(HTTPError):
             _ = get_job_status(service="hadoop", job_id="random_task_id")
 
+    @mock.patch("exports.conf_exports.requests.get")
+    def test_get_job_status_with_missing_data(self, mock_requests_get):
+        resp = Response()
+        resp.status_code = 200
+        resp._content = b'{"task_status": "PENDING"}'
+        mock_requests_get.return_value = resp
+        with self.assertRaises(MissingDataError):
+            _ = get_job_status(service="hadoop", job_id="random_task_id")
+
     @mock.patch("exports.tasks.conf_exports.get_job_status")
-    @mock.patch("exports.conf_exports.time.sleep")
+    @mock.patch("exports.tasks.time.sleep")
     def test_wait_for_export_job(self, mock_sleep, mock_get_job_status):
         mock_sleep.return_value = None
-        mock_get_job_status.return_value = JobStatusResponse(job_status=ApiJobStatus.FinishedSuccessfully.value)
+        mock_get_job_status.return_value = ApiJobResponse(status=JobStatus.finished)
         wait_for_export_job(er=self.export_request)
         self.assertEqual(self.export_request.request_job_status, JobStatus.finished.value)
 
-    @mock.patch("exports.conf_exports.log_export_request_task")
+    @mock.patch("exports.tasks.log_export_request_task")
     @mock.patch("exports.tasks.conf_exports.get_job_status")
-    @mock.patch("exports.conf_exports.time.sleep")
+    @mock.patch("exports.tasks.time.sleep")
     def test_wait_for_export_job_error(self, mock_sleep, mock_get_job_status, mock_log_request_task):
         mock_sleep.return_value = None
         mock_get_job_status.side_effect = RequestException()
@@ -1070,7 +1078,7 @@ class ExportsJupyterCreateTests(ExportsCreateTests):
             wait_for_export_job(er=self.export_request)
         mock_log_request_task.assert_called()
 
-    @mock.patch("exports.conf_exports.push_email_notification")
+    @mock.patch("exports.tasks.push_email_notification")
     def test_mark_export_request_as_failed(self, mock_push_email_notification):
         mock_push_email_notification.return_value = None
         mark_export_request_as_failed(er=self.export_request,

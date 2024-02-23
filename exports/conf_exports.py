@@ -2,10 +2,9 @@ import enum
 import logging
 import os
 import time
-from datetime import datetime
+from typing import Dict
 
 import requests
-from django.utils import timezone
 from hdfs import HdfsError
 from hdfs.ext.kerberos import KerberosClient
 from requests import Response, HTTPError, RequestException
@@ -13,9 +12,8 @@ from rest_framework import status
 
 from admin_cohort.tools import prettify_dict
 from admin_cohort.types import JobStatus, MissingDataError
-from exports.emails import push_email_notification, export_request_failed
 from exports.models import ExportRequest, Export
-from exports.types import HdfsServerUnreachableError, ExportType
+from exports.types import ApiJobResponse, HdfsServerUnreachableError, ExportType
 
 _logger = logging.getLogger('info')
 _logger_err = logging.getLogger('django.request')
@@ -34,28 +32,37 @@ OMOP_ENVIRONMENT = env.get('EXPORT_OMOP_ENVIRONMENT')
 
 
 class ApiJobStatus(enum.Enum):
-    Running = 'Running'
-    Pending = 'Pending'
-    NotFound = 'NotFound'
-    Revoked = 'Revoked'
-    Retry = 'Retry'
-    Failure = 'Failure'
-    FinishedSuccessfully = 'FinishedSuccessfully'
-    FinishedWithError = 'FinishedWithError'
-    FinishedWithTimeout = 'FinishedWithTimeout'
-    flowerNotAccessible = 'flowerNotAccessible'
+    pending = 'PENDING'
+    received = 'RECEIVED'
+    started = 'STARTED'
+    success = 'SUCCESS'
+    failure = 'FAILURE'
+    revoked = 'REVOKED'
+    rejected = 'REJECTED'
+    retry = 'RETRY'
+    ignored = 'IGNORED'
+
+
+class JobResult:
+    def __init__(self, **kwargs):
+        self.status = kwargs.get('status')
+        self.ret_code = kwargs.get('ret_code')
+        self.out = kwargs.get('out')
+        self.err = kwargs.get('err')
 
 
 class JobStatusResponse:
-    def __init__(self, job_status: str, out: str = None, err: str = None):
-        self.job_status = status_mapper.get(job_status, JobStatus.unknown)
-        self.out = out
-        self.err = err
-
-    @property
-    def has_ended(self):
-        return self.job_status in [JobStatus.failed, JobStatus.cancelled,
-                                   JobStatus.finished, JobStatus.unknown]
+    def __init__(self, response: Response):
+        if not status.is_success(response.status_code):
+            raise HTTPError(f"Error on getting job status - {response.text}")
+        res = response.json()
+        self.task_status = res.get('task_status')
+        if 'task_result' not in res:
+            raise MissingDataError(f"Response from Infra API is missing 'task_result'. Received: {prettify_dict(res)}")
+        if res.get('task_result'):
+            self.task_result = JobResult(**res.get('task_result'))
+        else:
+            self.task_result = None
 
 
 class PostJobResponse:
@@ -85,42 +92,25 @@ class HadoopApiResponse:
                f"err returned is : {self.err}"
 
 
-status_mapper = {ApiJobStatus.Pending.value: JobStatus.pending,
-                 ApiJobStatus.Retry.value: JobStatus.pending,
-                 ApiJobStatus.Running.value: JobStatus.started,
-                 ApiJobStatus.FinishedSuccessfully.value: JobStatus.finished,
-                 ApiJobStatus.FinishedWithError.value: JobStatus.failed,
-                 ApiJobStatus.FinishedWithTimeout.value: JobStatus.failed,
-                 ApiJobStatus.flowerNotAccessible.value: JobStatus.failed,
-                 ApiJobStatus.Failure.value: JobStatus.failed,
-                 ApiJobStatus.NotFound.value: JobStatus.failed,
-                 ApiJobStatus.Revoked.value: JobStatus.cancelled
-                 }
+statuses_mapper = {ApiJobStatus.pending.value: JobStatus.pending,
+                   ApiJobStatus.received.value: JobStatus.pending,
+                   ApiJobStatus.started.value: JobStatus.started,
+                   ApiJobStatus.success.value: JobStatus.finished,
+                   ApiJobStatus.failure.value: JobStatus.failed,
+                   ApiJobStatus.revoked.value: JobStatus.cancelled,
+                   ApiJobStatus.rejected.value: JobStatus.failed,
+                   ApiJobStatus.retry.value: JobStatus.pending,
+                   ApiJobStatus.ignored.value: JobStatus.failed}
 
 
 def log_export_request_task(id, msg):
     _logger.info(f"[ExportTask] [ExportRequest: {id}] {msg}")
 
 
-def mark_export_request_as_failed(er: ExportRequest, e: Exception, msg: str, start: datetime):
-    err_msg = f"{msg}: {e}"
-    _logger_err.error(f"[ExportTask] [ExportRequest: {er.pk}] {err_msg}")
-    er.request_job_fail_msg = err_msg
-    if er.request_job_status in [JobStatus.pending, JobStatus.validated, JobStatus.new]:
-        er.request_job_status = JobStatus.failed
-    er.request_job_duration = timezone.now() - start
-    try:
-        notification_data = dict(recipient_name=er.owner.displayed_name,
-                                 recipient_email=er.owner.email,
-                                 cohort_id=er.cohort_id,
-                                 cohort_name=er.cohort_name,
-                                 error_message=er.request_job_fail_msg)
-        push_email_notification(base_notification=export_request_failed, **notification_data)
-    except OSError:
-        _logger_err.error(f"[ExportTask] [ExportRequest: {er.pk}] Error sending export failure email notification")
-    else:
-        er.is_user_notified = True
-    er.save()
+def check_resp(resp: Response, url: str) -> Dict:
+    if not status.is_success(resp.status_code):
+        raise HTTPError(f"Connection error ({url}) : status code {resp.text}")
+    return resp.json()
 
 # API REQUESTS ###############################################################
 
@@ -134,20 +124,26 @@ def post_hadoop(url: str, data: dict):
             raise HTTPError(f"{resp.status_code} - {res.detail_err}")
 
 
-def get_job_status(service: str, job_id: str) -> JobStatusResponse:
+def get_job_status(service: str, job_id: str) -> ApiJobResponse:
     params = {"task_uuid": job_id,
-              "return_out_logs": True,
-              "return_err_logs": True
+              "return_out_logs": False,
+              "return_err_logs": False
               }
     job_status_url = f"{INFRA_API_URL}/{service}/task_status"
     auth_token = service == "hadoop" and INFRA_HADOOP_TOKEN or INFRA_EXPORT_TOKEN
     response = requests.get(url=job_status_url, params=params, headers={'auth-token': auth_token})
-    if not status.is_success(response.status_code):
-        raise HTTPError(f"Error getting job status from Infra API: {response.text}")
-    response = response.json()
-    return JobStatusResponse(job_status=response.get('task_status'),
-                             out=response.get('stdout'),
-                             err=response.get('stderr'))
+    status_response = JobStatusResponse(response=response)
+    job_status = statuses_mapper.get(status_response.task_status, JobStatus.unknown)
+
+    err, output = "", ""
+    if job_status == JobStatus.unknown:
+        err = f"Job status unknown: {status_response.task_status}."
+        if status_response.task_result:
+            status_response.task_result.err = err
+    if status_response.task_result:
+        err = f"{status_response.task_result.ret_code} - {status_response.task_result.err}"
+        output = status_response.task_result.out
+    return ApiJobResponse(status=job_status, output=output, err=err)
 
 # PROCESSES ###############################################################
 
@@ -167,16 +163,16 @@ def change_hive_db_ownership(export_request: ExportRequest, db_user: str):
 
 def wait_for_hive_db_creation_job(job_id):
     errors_count = 0
-    status_resp = JobStatusResponse(job_status=ApiJobStatus.Pending.value)
+    status_resp = ApiJobResponse(JobStatus.pending)
 
     while errors_count < 5 and not status_resp.has_ended:
         time.sleep(5)
         try:
-            status_resp = get_job_status(service="hadoop", job_id=job_id)
+            status_resp: ApiJobResponse = get_job_status(service="hadoop", job_id=job_id)
         except RequestException:
             errors_count += 1
 
-    if status_resp.job_status != JobStatus.finished:
+    if status_resp.status != JobStatus.finished:
         raise HTTPError(f"Error on creating Hive DB {status_resp.err or 'No `err` value returned'}")
     elif errors_count >= 5:
         raise HTTPError("5 consecutive errors during Hive DB creation")
@@ -241,31 +237,6 @@ def post_export_v1(export: Export) -> str:
         params.update({"file_path": export.target_full_path})
     resp = requests.post(url=url, params=params, headers={'auth-token': INFRA_EXPORT_TOKEN})
     return PostJobResponse(response=resp, url=url).task_id
-
-
-def wait_for_export_job(er: ExportRequest):
-    errors_count = 0
-    error_msg = ""
-    status_resp = JobStatusResponse(job_status=ApiJobStatus.Pending.value)
-
-    while errors_count < 5 and not status_resp.has_ended:
-        time.sleep(5)
-        log_export_request_task(er.pk, f"Asking for status of job {er.request_job_id}.")
-        try:
-            status_resp = get_job_status(service="bigdata", job_id=er.request_job_id)
-            log_export_request_task(er.pk, f"Status received: {status_resp.job_status} - Err: {status_resp.err or ''}")
-            if er.request_job_status != status_resp.job_status:
-                er.request_job_status = status_resp.job_status
-                er.save()
-        except RequestException as e:
-            log_export_request_task(er.pk, f"Status not received: {e}")
-            errors_count += 1
-            error_msg = str(e)
-
-    if status_resp.job_status != JobStatus.finished:
-        raise HTTPError(status_resp.err or "No 'err' value returned.")
-    elif errors_count >= 5:
-        raise HTTPError(f"5 times internal error during task -> {error_msg}")
 
 
 def conclude_export_hive(export_request: ExportRequest):
