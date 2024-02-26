@@ -161,7 +161,7 @@ class JWTAuth(Auth):
 
     @property
     def refresh_url(self):
-        return f"{self.token_url}/refresh/"
+        return f"{self.server_url}/jwt/refresh/"
 
     def get_tokens(self, username: str, password: str) -> AuthTokens:
         data = {"username": username,
