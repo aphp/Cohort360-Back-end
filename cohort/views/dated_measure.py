@@ -15,6 +15,7 @@ from cohort.permissions import SJSorETLCallbackPermission
 from cohort.serializers import DatedMeasureSerializer
 from cohort.services.dated_measure import dated_measure_service, JOB_STATUS, MINIMUM, MAXIMUM, COUNT
 from cohort.services.misc import is_sjs_user
+from cohort.services.decorators import await_celery_task
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
 _logger = logging.getLogger('info')
@@ -81,6 +82,7 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                              required=[JOB_STATUS, MINIMUM, MAXIMUM, COUNT]),
                          responses={'200': openapi.Response("DatedMeasure updated successfully", DatedMeasureSerializer()),
                                     '400': openapi.Response("Bad Request")})
+    @await_celery_task
     def partial_update(self, request, *args, **kwargs):
         try:
             dated_measure_service.process_patch_data(dm=self.get_object(), data=request.data)

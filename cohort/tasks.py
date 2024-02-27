@@ -2,7 +2,6 @@ import logging
 from smtplib import SMTPException
 
 from celery import shared_task, current_task
-from django.db import transaction
 
 import cohort.services.conf_cohort_job_api as cohort_job_api
 from admin_cohort import celery_app
@@ -12,6 +11,7 @@ from cohort.models import CohortResult, DatedMeasure, FeasibilityStudy
 from cohort.models.dated_measure import GLOBAL_DM_MODE
 from cohort.services.emails import send_email_notif_feasibility_report_requested, send_email_notif_error_feasibility_report
 from cohort.services.misc import log_count_task, log_create_task, log_feasibility_study_task
+from cohort.services.decorators import locked_instance_task
 
 _logger = logging.getLogger('django.request')
 
@@ -36,23 +36,23 @@ def create_cohort_task(auth_headers: dict, json_query: str, cohort_uuid: str):
 
 
 @shared_task
-def get_count_task(auth_headers: dict, json_query: str, dm_uuid: str):
+@locked_instance_task
+def get_count_task(auth_headers=None, json_query=None, dm_uuid=None):
     dm = DatedMeasure.objects.get(uuid=dm_uuid)
-    with transaction.atomic():
-        dm.count_task_id = current_task.request.id or ""
-        dm.request_job_status = JobStatus.pending
-        dm.save()
-        resp = cohort_job_api.post_count_cohort(dm_uuid=dm_uuid,
-                                                json_query=json_query,
-                                                auth_headers=auth_headers,
-                                                global_estimate=dm.mode == GLOBAL_DM_MODE)
-        if resp.success:
-            dm.request_job_id = resp.fhir_job_id
-        else:
-            dm.request_job_status = JobStatus.failed
-            dm.request_job_fail_msg = resp.err_msg
-        dm.save()
-        log_count_task(dm_uuid, resp.success and "DatedMeasure updated" or resp.err_msg)
+    dm.count_task_id = current_task.request.id or ""
+    dm.request_job_status = JobStatus.pending
+    dm.save()
+    resp = cohort_job_api.post_count_cohort(dm_uuid=dm_uuid,
+                                            json_query=json_query,
+                                            auth_headers=auth_headers,
+                                            global_estimate=dm.mode == GLOBAL_DM_MODE)
+    if resp.success:
+        dm.request_job_id = resp.fhir_job_id
+    else:
+        dm.request_job_status = JobStatus.failed
+        dm.request_job_fail_msg = resp.err_msg
+    dm.save()
+    log_count_task(dm_uuid, resp.success and "DatedMeasure updated" or resp.err_msg)
 
 
 @shared_task
