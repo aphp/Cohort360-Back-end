@@ -169,7 +169,7 @@ class DatedMeasuresCreateTests(DatedMeasuresTests):
 
     @mock.patch('cohort.services.dated_measure.get_authorization_header')
     @mock.patch('cohort.services.dated_measure.cancel_previously_running_dm_jobs.delay')
-    @mock.patch('cohort.services.dated_measure.get_count_task.delay')
+    @mock.patch('cohort.services.dated_measure.get_count_task.apply_async')
     def check_create_case_with_mock(self, case: DMCreateCase, mock_count_task: MagicMock, mock_cancel_task: MagicMock, mock_header: MagicMock,
                                     other_view: any, view_kwargs: dict):
         mock_header.return_value = None
