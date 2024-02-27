@@ -84,9 +84,10 @@ class CohortResultService:
         if cohort.dated_measure_global:
             dm_global = cohort.dated_measure_global
             try:
-                get_count_task.delay(auth_headers,
-                                     cohort.request_query_snapshot.serialized_query,
-                                     dm_global.uuid)
+                get_count_task.s(auth_headers=auth_headers,
+                                 json_query=cohort.request_query_snapshot.serialized_query,
+                                 dm_uuid=dm_global.uuid)\
+                              .apply_async()
             except Exception as e:
                 dm_global.request_job_fail_msg = f"ERROR: Could not launch cohort global count: {e}"
                 dm_global.request_job_status = JobStatus.failed

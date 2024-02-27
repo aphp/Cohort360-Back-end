@@ -25,9 +25,10 @@ class DatedMeasureService:
         cancel_previously_running_dm_jobs.delay(dm_uuid)
         try:
             auth_headers = get_authorization_header(request)
-            get_count_task.delay(auth_headers,
-                                 dm.request_query_snapshot.serialized_query,
-                                 dm_uuid)
+            get_count_task.s(auth_headers=auth_headers,
+                             json_query=dm.request_query_snapshot.serialized_query,
+                             dm_uuid=dm_uuid)\
+                          .apply_async()
         except Exception as e:
             dm.delete()
             raise ServerError("INTERNAL ERROR: Could not launch count request") from e
