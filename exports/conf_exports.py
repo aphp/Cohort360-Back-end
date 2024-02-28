@@ -205,7 +205,7 @@ def post_export(export_request: ExportRequest) -> str:
     params = {"cohort_id": export_request.cohort_fk.fhir_group_id,
               "tables": tables,
               "environment": OMOP_ENVIRONMENT,
-              "no_date_shift": not export_request.nominative and export_request.shift_dates,
+              "no_date_shift": export_request.nominative or not export_request.shift_dates,
               "overwrite": False,
               "user_for_pseudo": not export_request.nominative and export_request.target_unix_account.name or None,
               }
