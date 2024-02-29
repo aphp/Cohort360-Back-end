@@ -21,10 +21,11 @@ celery -A admin_cohort worker -B --loglevel=INFO --logfile=/app/log/celery.log &
 sleep 10
 
 python setup_logging.py &
+# For websockets
+daphne -p 8005 admin_cohort.asgi:application &
+
 gunicorn admin_cohort.wsgi --config .conf/gunicorn.conf.py
 
-# For websockets
-daphne -p 8005 admin_cohort.asgi:application
 
 tail -f /app/log/django.error.log
 
