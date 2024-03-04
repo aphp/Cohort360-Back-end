@@ -1,5 +1,4 @@
 import dataclasses
-import logging
 from json import JSONDecodeError
 from typing import Literal, Union
 
@@ -11,7 +10,6 @@ from pydantic import BaseModel
 from admin_cohort.services.auth import auth_service
 from admin_cohort.types import JobStatus
 
-_logger = logging.getLogger('info')
 
 ws_info_type = Literal['count', 'create', 'feasibility']
 
@@ -65,21 +63,17 @@ class WebsocketManager(AsyncJsonWebsocketConsumer):
         await self.send_json(ws_status.model_dump())
 
     async def receive_json(self, content, **kwargs):
-        _logger.info(f"[WS] - Received json message: {content}")
         try:
             client = await self.authenticate_ws_request(token=content['token'],
                                                         auth_method=content['auth_method'])
             client_id = client.username
-            _logger.info(f"[WS] - Successfully authenticated client: {client_id=}")
             await self.send_json(HandshakeStatus(type='handshake', status='accepted').model_dump())
         except KeyError:
-            _logger.error(f"[WS] - KeyError on received json message: {content}")
             await self.send_json(HandshakeStatus(type='handshake',
                                                  status='pending',
                                                  details='Could not understand the JSON object, "token" key missing').model_dump())
             return
-        except Exception as e:
-            _logger.error(f"[WS] - Error on received json message: {content=}, Error: {e}")
+        except Exception:
             await self.send_json(HandshakeStatus(type='handshake', status='forbidden', details='Bad token').model_dump())
             await self.close()
             return
