@@ -54,54 +54,24 @@ Here is a list of major frameworks used here.
 ## Getting Started
 _The following guide is valid for Unix like platforms. Another guide will be available soon for Windows users_
 
-### Prerequisites
-
-* Python (_version 3.11_)
-  ```sh
-  sudo apt-get update
-  sudo apt-get install python3.11
-  ```
-If you already have a different version of Python installed, consider adding the _deadsnakes_ repo:
-```sh
-sudo apt update && sudo apt upgrade
-sudo apt install software-properties-common -y
-sudo add-apt-repository ppa:deadsnakes/ppa -y
-sudo apt update
-sudo apt install python3.11 -y
-python3.11 --version
-```
-  
-* PostgreSQL
-  ```sh
-  sudo apt-get install postgresql postgresql-contrib
-  ```
-* Install python3.11-dev:
-    ```sh
-    sudo apt-get install python3.11-dev
-    ```
-* Kerberos authentication development library
-  ```sh
-  sudo apt-get install -y libkrb5-dev gcc
-  ```
-
-### Installation
+### PROJECT SETUP
 
 1. Clone the repo
    ```sh
    git clone https://github.com/aphp/Cohort360-Back-end.git
    cd Cohort360-Back-end
    ```
-2. Prepare a virtual environment
+2. Install prerequisites
+   Switch to root user and install prerequisites
    ```sh
-   pip install uv
-   uv venv -p python3.11 venv
-   source venv/bin/activate
-   uv pip install -r requirements.txt
+   sudo -s
+   bash .setup/prerequisites.sh
    ```
-    If you are using proxy, it can be necessary to add it in pip install:
-    ```shell
-    uv pip install --proxy http://my-proxy:proxy-port -r requirements.txt
-    ```
+3. Prepare a virtual environment
+   ```sh
+   exit
+   bash .setup/virtualenv.sh
+   ```
 
 
 3. Prepare your database
