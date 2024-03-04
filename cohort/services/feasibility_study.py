@@ -11,6 +11,7 @@ from django.db.models import QuerySet
 from django.template.loader import get_template
 
 from accesses.models import Perimeter
+from admin_cohort.settings import FRONT_URL
 from admin_cohort.types import JobStatus, ServerError
 from cohort.models import FeasibilityStudy
 from cohort.services.conf_cohort_job_api import fhir_to_job_status, get_authorization_header
@@ -21,6 +22,8 @@ env = os.environ
 
 APHP_ID = int(env.get("TOP_HIERARCHY_CARE_SITE_ID"))
 REPORTING_PERIMETER_TYPES = env.get("REPORTING_PERIMETER_TYPES").split(",")
+
+FRONT_REQUEST_URL = f"{FRONT_URL}/cohort/new"
 
 REPORT_FILE_NAME = "Rapport"
 
@@ -98,7 +101,14 @@ class FeasibilityStudyService:
     def persist_feasibility_report(self, fs: FeasibilityStudy, counts_per_perimeter: dict):
         try:
             json_content, html_content = self.build_feasibility_report(counts_per_perimeter=counts_per_perimeter)
-            html_content = get_template("html/feasibility_report.html").render({"html_content": html_content})
+            snapshot = fs.request_query_snapshot
+            context = {"request_name": snapshot.request.name,
+                       "request_version": snapshot.version,
+                       "request_date": snapshot.created_at,
+                       "request_url": f"{FRONT_REQUEST_URL}/{snapshot.request.uuid}",
+                       "html_content": html_content
+                       }
+            html_content = get_template("html/feasibility_report.html").render(context)
             contents = dict(json=json.dumps(json_content),
                             html=html_content)
             json_zip_bytes, html_zip_bytes = self.compress_report_contents(fs=fs, contents=contents)

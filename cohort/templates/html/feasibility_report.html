@@ -14,12 +14,15 @@
             padding: 10px 20px;
             box-shadow: 0 5px 10px 0 #80808070;
             border-radius: 5px;
+            font-family: 'Roboto', sans-serif;
+        }
+        div.top-container {
+            display: flex;
         }
         div.note {
             width: 500px;
             height: 180px;
             padding: 25px 15px 40px 15px;
-            font-family: 'Roboto', sans-serif;
             color: #0c0c4b;
             background-color: aliceblue;
             border-radius: 5px;
@@ -31,11 +34,38 @@
             font-size: 25px;
             background: transparent !important;
         }
-        #root > ul {
-            border-left: 5px solid #ddd;
+        div.metadata {
+            margin: 10px 0 10px 20px;
+            font-size: 13px;
+            min-width: 300px;
+            max-width: 350px;
         }
-        ul.perimeters-tree {
-            font-family: 'Roboto', sans-serif;
+        span.metadata-title {
+            color: #2b2c63;
+            margin-bottom: 10px;
+            font-size: large;
+        }
+        div.metadata-section {
+            border: 1px solid #9dc7ec;
+            display: grid;
+            margin-bottom: 5px;"
+        }
+        span.metada-property {
+            font-weight: bold;
+            color: #1b1b8f;
+            background: #c6e2fb8f;
+            padding: 3px 5px;
+        }
+        span.metadata-value {
+            font-style: italic;
+            padding: 5px;
+            margin-bottom: 5px;
+        }
+        div.report-tree {
+            text-align: center;
+        }
+        div.report-tree > ul.perimeters-tree:first-child {
+            display: inline-block;
         }
         ul.perimeters-tree li {
             list-style: none;
@@ -69,7 +99,7 @@
             color: #151588;
             background: #4ca3ce70;
             padding: 0 8px;
-            border-radius: 15px;
+            border-radius: 50%;
         }
         ul.perimeters-tree li input {
             min-width: 600px;
@@ -94,7 +124,7 @@
         div.label-count span {
             padding: 2px 4px;
         }
-        span:not([data-key='0']) {
+        div.label-count span:not([data-key='0']) {
             background: #eae9e9;
             border-radius: 5px;
             font-weight: bolder;
@@ -103,15 +133,39 @@
 </head>
 <body>
     <div id="root">
-        <div class="note">
-            <span class="note-warn">⚠️</span>
-            Les résultats correspondent aux patients qui répondent aux critères d'inclusion. Un même patient peut être comptabilisé plusieurs fois
-            s'il est passé dans différentes structures de l'AP-HP.
-            <br><br>
-            Les Diagnostics et les Actes sont codés au niveau UF. Les GHM, Documents, Médicaments et Biologies sont codés au niveau Hôpital.
-            Ils ne ressortent donc pas aux niveaux inférieurs.
+        <div class="top-container">
+            <div class="note">
+                <span class="note-warn">⚠️</span>
+                Les résultats correspondent aux patients qui répondent aux critères d'inclusion. Un même patient peut être comptabilisé plusieurs fois
+                s'il est passé dans différentes structures de l'AP-HP.
+                <br><br>
+                Les Diagnostics et les Actes sont codés au niveau UF. Les GHM, Documents, Médicaments et Biologies sont codés au niveau Hôpital.
+                Ils ne ressortent donc pas aux niveaux inférieurs.
+            </div>
+            <div class="metadata">
+                <div style="display: grid;">
+                    <span class="metadata-title">Requête d'origine</span>
+                    <div class="metadata-section">
+                        <span class="metada-property">Intitulé</span>
+                        <span class="metadata-value">
+                            {{ request_name }}
+                        </span>
+                    </div>
+                    <div class="metadata-section">
+                        <span class="metada-property">Version</span>
+                        <span class="metadata-value">version {{ request_version }}</span>
+                    </div>
+                    <div class="metadata-section">
+                        <span class="metada-property">Date</span>
+                        <span class="metadata-value">{{ request_date | date:'d/m/Y H:i' }}</span>
+                    </div>
+                    <a href="{{ request_url }}" target="_blank">Consulter la requête sur Cohort360</a>
+                </div>
+            </div>
         </div>
-        {{ html_content | safe }}
+        <div class="report-tree">
+            {{ html_content | safe }}
+        </div>
     </div>
 </body>
 </html>
