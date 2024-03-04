@@ -209,10 +209,7 @@ class AuthService:
                 authenticator_signature.bind(**params)
             except TypeError:
                 continue
-            try:
-                return authenticator.get_tokens(**params)
-            except (LoginError, ServerError):
-                break
+            return authenticator.get_tokens(**params)
 
     def refresh_token(self, request) -> Union[dict, None]:
         _, auth_method = self.get_auth_data(request)
