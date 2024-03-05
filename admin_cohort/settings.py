@@ -12,8 +12,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 env = environ.Env()
 environ.Env.read_env()
 
-SERVER_VERSION = env("SERVER_VERSION")
-
 BACK_HOST = env("BACK_HOST")
 BACK_URL = f"https://{env('BACK_HOST')}"
 FRONT_URL = env("FRONT_URL")
@@ -267,7 +265,7 @@ CACHES = {
         "LOCATION": CELERY_BROKER_URL
     }
 }
-if env("SERVER_VERSION") == "test":
+if env("DISABLE_CACHE"):
     CACHES = {'default': {'BACKEND': 'admin_cohort.tools.cache.CustomDummyCache'}}
 
 REST_FRAMEWORK_EXTENSIONS = {"DEFAULT_PARENT_LOOKUP_KWARG_NAME_PREFIX": "",
