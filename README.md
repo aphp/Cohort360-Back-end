@@ -93,14 +93,14 @@ python3.11 --version
    ```
 2. Prepare a virtual environment
    ```sh
-   pip install virtualenv
-   virtualenv -p python3.11 venv
+   pip install uv
+   uv venv -p python3.11 venv
    source venv/bin/activate
-   pip install -r requirements.txt
+   uv pip install -r requirements.txt
    ```
     If you are using proxy, it can be necessary to add it in pip install:
     ```shell
-    pip install --proxy http://my-proxy:proxy-port -r requirements.txt
+    uv pip install --proxy http://my-proxy:proxy-port -r requirements.txt
     ```
 
 
