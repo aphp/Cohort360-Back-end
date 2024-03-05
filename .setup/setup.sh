@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 set -e
 
-bash prerequisites.sh
-bash virtual_env.sh
-
 mkdir log
 
 sed -i s/{{BACK_HOST}}/"$BACK_HOST"/g /etc/nginx/nginx.conf;
