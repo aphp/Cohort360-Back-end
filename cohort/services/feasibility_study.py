@@ -96,7 +96,9 @@ class FeasibilityStudyService:
 
     @staticmethod
     def get_file_name(fs: FeasibilityStudy) -> str:
-        return f"{REPORT_FILE_NAME}_{fs.created_at.strftime('%d-%m-%Y')}"
+        request_name = fs.request_query_snapshot.request.name
+        request_name = f"{' '.join(request_name.split()[:4])}..."
+        return f"{REPORT_FILE_NAME}_{fs.created_at.strftime('%d-%m-%Y')}_{request_name}"
 
     def persist_feasibility_report(self, fs: FeasibilityStudy, counts_per_perimeter: dict):
         try:
