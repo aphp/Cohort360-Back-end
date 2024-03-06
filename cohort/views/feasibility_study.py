@@ -84,6 +84,7 @@ class FeasibilityStudyViewSet(UserObjectsRestrictedViewSet):
         except ValueError as ve:
             return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
         response = super(FeasibilityStudyViewSet, self).partial_update(request, *args, **kwargs)
+        fs.refresh_from_db()
         ws_send_to_client(_object=fs, info_type='feasibility')
         return response
 

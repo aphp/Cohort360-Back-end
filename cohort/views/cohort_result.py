@@ -169,6 +169,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         except ValueError as ve:
             return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
         response = super(CohortResultViewSet, self).partial_update(request, *args, **kwargs)
+        cohort.refresh_from_db()
         ws_send_to_client(_object=cohort, info_type='create')
         if status.is_success(response.status_code):
             if is_update_from_sjs and cohort.export_table.exists():
