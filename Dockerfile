@@ -9,7 +9,7 @@ RUN dpkg-reconfigure locales
 
 COPY . .
 RUN pip install --upgrade pip && pip install uv
-RUN uv venv && uv pip install --no-cache -r requirements.txt
+RUN uv venv && source .venv/bin/activate && uv pip install --no-cache -r requirements.txt
 
 COPY .conf/nginx.conf /etc/nginx/
 RUN chmod +x docker-entrypoint.sh
