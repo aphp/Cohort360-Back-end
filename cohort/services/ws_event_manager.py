@@ -89,6 +89,6 @@ class WebsocketManager(AsyncJsonWebsocketConsumer):
 def ws_send_to_client(_object, info_type: ws_info_type):
     websocket_infos = WebSocketInfos(status=_object.request_job_status,
                                      client_id=str(_object.owner_id),
-                                     uuid=_object.uuid,
+                                     uuid=str(_object.uuid),
                                      type=info_type)
     WebsocketManager.send_to_client(websocket_infos)
