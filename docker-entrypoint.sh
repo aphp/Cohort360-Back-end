@@ -7,6 +7,7 @@ sed -i s/{{BACK_HOST}}/"$BACK_HOST"/g /etc/nginx/nginx.conf;
 
 service nginx restart
 
+source venv/bin/activate
 python manage.py migrate --database="default"
 python manage.py collectstatic --noinput
 
