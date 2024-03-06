@@ -2,8 +2,7 @@ FROM harbor.eds.aphp.fr/cohort360/python:3.11.4-slim-buster AS builder
 WORKDIR /tempapp
 COPY requirements.txt .
 RUN apt-get update -y && apt-get install -y gcc libkrb5-dev && rm -rf /var/lib/apt/lists/*
-RUN pip install --upgrade pip && pip install uv
-RUN uv venv && uv pip install --no-cache -r requirements.txt
+RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
 FROM harbor.eds.aphp.fr/cohort360/python:3.11.4-slim-buster AS final
 WORKDIR /app
