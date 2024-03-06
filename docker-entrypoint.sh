@@ -7,7 +7,8 @@ sed -i s/{{BACK_HOST}}/"$BACK_HOST"/g /etc/nginx/nginx.conf;
 
 service nginx restart
 
-source .venv/bin/activate
+pip install --upgrade pip && pip install uv
+uv venv && source .venv/bin/activate && uv pip install -r requirements.txt
 python manage.py migrate --database="default"
 python manage.py collectstatic --noinput
 
