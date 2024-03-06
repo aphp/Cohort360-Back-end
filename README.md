@@ -1,5 +1,5 @@
 ![image](https://img.shields.io/badge/Python-3.11-blue/?color=blue&logo=python&logoColor=9cf)
-![image](https://img.shields.io/badge/Django-4.1-%2344b78b/?color=%2344b78b&logo=django&logoColor=green)
+![image](https://img.shields.io/badge/Django-4.2-%2344b78b/?color=%2344b78b&logo=django&logoColor=green)
 
 <!-- TABLE OF CONTENTS -->
 <details open="open">
@@ -12,14 +12,14 @@
       </ul>
     </li>
     <li>
-      <a href="#getting-started">Getting Started</a>
+      <a href="#project-setup">Project Setup</a>
       <ul>
-        <li><a href="#prerequisites">Prerequisites</a></li>
-        <li><a href="#installation">Installation</a></li>
+        <li><a href="#get-the-code">Get the code</a></li>
+        <li><a href="#configuration">Configuration</a></li>
+        <li><a href="#setup">Setup</a></li>
       </ul>
     </li>
     <li><a href="#usage">Usage</a></li>
-    <li><a href="#model">Modèle de données</a></li>
     <li><a href="#contact">Contact</a></li>
   </ol>
 </details>
@@ -27,17 +27,17 @@
 
 
 <!-- ABOUT THE PROJECT -->
-## About The Project
+## About the project
 
-**Cohort360-Back-end** serves as the backend of two main web applications: _Portail_ & _Cohort360_.
-_Portail_ aims to allow controlling accesses to EDS (Entrepôts de Données de Santé) data.
+**Cohort360-Back-end** serves as the backend of two main web applications: **Portail** & [**Cohort360**](https://github.com/aphp/Cohort360).  
+**Portail** provides capabilities to manage and control access to EDS data (Entrepôts de Données de Santé).
 
-The main functionalities are to allow:
-* Users to give access to other users over patient nominative or pseudonymised data 
-* Users to allow other users to give these accesses
-* Cohort360 users to ask for exports of their cohorts and download them as CSV files or transfer them to Jupyter 
-workspaces
-* Admins to manage Jupyter and Unix workspaces
+The main functionalities are:
+* Allow users to give access to other users over patient nominative or pseudonymized data. 
+* Provide users with managing roles in order to allow other users to control accesses.
+* Allow **Cohort360** users to export their cohorts and download them in CSV format or transfer them to Jupyter 
+workspaces.
+* Allow admins to manage Jupyter workspaces
 
 ### Built With
 
@@ -51,54 +51,31 @@ Here is a list of major frameworks used here.
 
 
 <!-- GETTING STARTED -->
-## Getting Started
-_The following guide is valid for Unix like platforms. Another guide will be available soon for Windows users_
 
-### PROJECT SETUP
-===============================================================
-===============================================================  /!\ maybe group all in one file   ===================================================
-===============================================================
-1. Clone the repo
+## Project setup
+### 1. Get the code
    ```sh
    git clone https://github.com/aphp/Cohort360-Back-end.git
-   cd Cohort360-Back-end
-   chmod +x .setup/*.sh
-   ```
-2. Install prerequisites
-   Switch to **root** user and install prerequisites
-   ```sh
-   sudo -s
-   bash .setup/prerequisites.sh
-   ```
-3. Prepare a virtual environment
-   ```sh
-   exit
-   bash .setup/virtualenv.sh
    ```
 
-4. Prepare your database
-   ```sh
-   bash .setup/setup_db.sh
-   ```
+### 2. Configuration
+   Create a **.env** file (admin_cohort/.env) following the **.setup/.env.example** format  
 
-5. Configuration
-- Create a **.env** file (admin_cohort/.env) following **.setup/.env.example** format
+
+### 3. Setup
+   ```sh
+   cd Cohort360-Back-end/.setup
+   chmod +x setup.sh
+   bash .setup/setup.sh
+   ```
+* Server running at: `localhost:8000`
+* API details at: `localhost:8000/docs`
 
 <!-- USAGE EXAMPLES -->
 ## Usage
 
 In the initial way to use this back-end server, authentication should be made using connection to _APHP JWT_'s server.
-
 If you want to use it fully locally, update `admin_cohort/AuthMiddleware.py` file.
-
-Run the server to start making request via `localhost:8000`:
-```sh
-source venv/bin/activate
-python manage.py runserver
-```
-Open the browser on `localhost:8000/docs` for more details on the API.
-
-## Data Models
 
 <!-- CONTRIBUTING -->
 <!-- ## Contributing

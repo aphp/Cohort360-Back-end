@@ -26,5 +26,5 @@ INSERT INTO accesses_role (id, name, right_full_admin, right_manage_users, right
                      VALUES(1,'FULL_ADMIN','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t','t', 't','t','t','t','t','t','t','t','t');
 -- Attribute admin role to admin profile
 INSERT INTO accesses_access (role_id, perimeter_id, profile_id, start_datetime, end_datetime)
-VALUES (1, 1, 1, now(), '2099-12-12 00:00');
+VALUES (1, 1, 1, now(), now() + INTERVAL '100 YEAR');
 
