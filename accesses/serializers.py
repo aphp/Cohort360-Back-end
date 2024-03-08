@@ -3,10 +3,11 @@ import logging
 from django.db.models import Max, Q
 from django.utils import timezone
 from rest_framework import serializers
+from rest_framework.serializers import ModelSerializer
 
 from admin_cohort.serializers import BaseSerializer, UserSerializer
 from .conf_perimeters import Provider
-from .models import Role, Access, Profile, Perimeter
+from .models import Role, Access, Profile, Perimeter, Right, RightCategory
 from .services.roles import roles_service
 
 _logger = logging.getLogger('django.request')
@@ -27,6 +28,33 @@ def get_provider_id(user_id: str) -> int:
         return p.provider_id
     from accesses.models import Profile
     return Profile.objects.aggregate(Max("provider_id"))['provider_id__max'] + 1
+
+
+class RightSerializer(ModelSerializer):
+    depends_on = serializers.SlugRelatedField(slug_field='name', queryset=Right.objects.all(), allow_null=True)
+
+    class Meta:
+        model = Right
+        fields = ["name",
+                  "label",
+                  "depends_on"]
+
+
+class RightCategorySerializer(ModelSerializer):
+    rights = RightSerializer(many=True)
+
+    class Meta:
+        model = RightCategory
+        fields = ["name",
+                  "is_global",
+                  "rights"]
+
+    def create(self, validated_data):
+        rights = validated_data.pop("rights")
+        rc = super(RightCategorySerializer, self).create(validated_data)
+        for right in rights:
+            Right.objects.create(**right, category=rc)
+        return rc
 
 
 class RoleSerializer(BaseSerializer):

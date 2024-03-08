@@ -10,7 +10,6 @@ from rest_framework.response import Response
 from accesses.models import Role
 from accesses.permissions import RolesPermission
 from accesses.serializers import RoleSerializer, UsersInRoleSerializer
-from accesses.services.rights import rights
 from accesses.services.roles import roles_service
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.permissions import IsAuthenticated, UsersPermission
@@ -133,10 +132,3 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
         assignable_roles = self.get_queryset().filter(id__in=assignable_roles_ids)
         return Response(data=RoleSerializer(assignable_roles, many=True).data,
                         status=status.HTTP_200_OK)
-
-    @action(url_path="rights", detail=False, methods=['get'])
-    @cache_response()
-    def get_rights(self, request, *args, **kwargs):
-        # todo: add rights dependencies with each others
-        # rights = [f.name for f in Role._meta.fields if f.name.startswith('right_')]
-        return Response(data={"rights": rights}, status=status.HTTP_200_OK)
