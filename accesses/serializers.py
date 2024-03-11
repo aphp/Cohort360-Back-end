@@ -31,13 +31,25 @@ def get_provider_id(user_id: str) -> int:
 
 
 class RightSerializer(ModelSerializer):
-    depends_on = serializers.SlugRelatedField(slug_field='name', queryset=Right.objects.all(), allow_null=True)
+    depends_on = serializers.SlugRelatedField(slug_field='name', read_only=True)
 
     class Meta:
         model = Right
         fields = ["name",
                   "label",
-                  "depends_on"]
+                  "depends_on",
+                  "allow_read_accesses_on_same_level",
+                  "allow_read_accesses_on_inf_levels",
+                  "allow_edit_accesses_on_same_level",
+                  "allow_edit_accesses_on_inf_levels",
+                  "impact_inferior_levels"
+                  ]
+        extra_kwargs = {'allow_read_accesses_on_same_level': {'write_only': True},
+                        'allow_read_accesses_on_inf_levels': {'write_only': True},
+                        'allow_edit_accesses_on_same_level': {'write_only': True},
+                        'allow_edit_accesses_on_inf_levels': {'write_only': True},
+                        'impact_inferior_levels': {'write_only': True}
+                        }
 
 
 class RightCategorySerializer(ModelSerializer):
