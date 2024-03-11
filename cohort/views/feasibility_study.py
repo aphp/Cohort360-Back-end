@@ -17,7 +17,6 @@ from cohort.permissions import SJSorETLCallbackPermission
 from cohort.serializers import FeasibilityStudySerializer
 from cohort.services.feasibility_study import feasibility_study_service, JOB_STATUS, COUNT, EXTRA
 from cohort.services.misc import is_sjs_user
-from cohort.services.ws_event_manager import ws_send_to_client
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
 _logger = logging.getLogger('info')
@@ -56,26 +55,30 @@ class FeasibilityStudyViewSet(UserObjectsRestrictedViewSet):
         return super(FeasibilityStudyViewSet, self).list(request, *args, **kwargs)
 
     @swagger_auto_schema(request_body=openapi.Schema(
-                             type=openapi.TYPE_OBJECT,
-                             properties={"request_query_snapshot_id": openapi.Schema(type=openapi.TYPE_STRING)},
-                             required=["request_query_snapshot_id"]),
-                         responses={'200': openapi.Response("FeasibilityStudy created", FeasibilityStudySerializer()),
-                                    '400': openapi.Response("Bad Request")})
+        type=openapi.TYPE_OBJECT,
+        properties={"request_query_snapshot_id": openapi.Schema(type=openapi.TYPE_STRING)},
+        required=["request_query_snapshot_id"]),
+        responses={'200': openapi.Response("FeasibilityStudy created", FeasibilityStudySerializer()),
+                   '400': openapi.Response("Bad Request")})
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
-        transaction.on_commit(lambda: feasibility_study_service.process_feasibility_study_request(fs_uuid=response.data.get("uuid"),
-                                                                                                  request=request))
+        transaction.on_commit(
+            lambda: feasibility_study_service.process_feasibility_study_request(fs_uuid=response.data.get("uuid"),
+                                                                                request=request))
         return response
 
     @swagger_auto_schema(operation_summary="Called by SJS with detailed counts",
                          request_body=openapi.Schema(
                              type=openapi.TYPE_OBJECT,
-                             properties={JOB_STATUS: openapi.Schema(type=openapi.TYPE_STRING, description="SJS job status"),
-                                         COUNT: openapi.Schema(type=openapi.TYPE_STRING, description="Total patient count"),
-                                         EXTRA: openapi.Schema(type=openapi.TYPE_STRING, description="Detailed patient counts")},
+                             properties={
+                                 JOB_STATUS: openapi.Schema(type=openapi.TYPE_STRING, description="SJS job status"),
+                                 COUNT: openapi.Schema(type=openapi.TYPE_STRING, description="Total patient count"),
+                                 EXTRA: openapi.Schema(type=openapi.TYPE_STRING,
+                                                       description="Detailed patient counts")},
                              required=[JOB_STATUS, COUNT, EXTRA]),
-                         responses={'200': openapi.Response("FeasibilityStudy updated successfully", FeasibilityStudySerializer()),
+                         responses={'200': openapi.Response("FeasibilityStudy updated successfully",
+                                                            FeasibilityStudySerializer()),
                                     '400': openapi.Response("Bad Request")})
     def partial_update(self, request, *args, **kwargs):
         try:
