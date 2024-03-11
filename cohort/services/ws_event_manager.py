@@ -1,4 +1,3 @@
-import dataclasses
 from json import JSONDecodeError
 from typing import Literal, Union
 
@@ -10,26 +9,21 @@ from pydantic import BaseModel
 from admin_cohort.services.auth import auth_service
 from admin_cohort.types import JobStatus
 
-ws_info_type = Literal['count', 'create']
+ws_info_type = Literal['status']
+ws_info_job_name = Literal['count', 'create']
 
 
-@dataclasses.dataclass
-class WebSocketInfos:
+class WebSocketInfos(BaseModel):
     status: Union[JobStatus, str]
     client_id: str
     uuid: str
     type: ws_info_type
-    extra_infos: dict
+    job_name: ws_info_job_name
+    extra_info: dict
 
 
 class WebSocketObject(BaseModel):
     type: str
-
-
-class WebSocketStatus(WebSocketObject):
-    uuid: str
-    status: str
-
 
 class HandshakeStatus(WebSocketObject):
     status: str
@@ -48,19 +42,12 @@ class WebsocketManager(AsyncJsonWebsocketConsumer):
     @staticmethod
     def send_to_client(ws_infos: WebSocketInfos):
         channel_layer = get_channel_layer()
-        async_to_sync(channel_layer.group_send)(
-            f"{ws_infos.client_id}",
-            {
-                'type': 'object_status_handler',  # finds handler method `object_status_handler`
-                'object_status': ws_infos.status,
-                'uuid': ws_infos.uuid,
-            }
-        )
+        payload = {'type': 'object_status_handler', 'payload': ws_infos.model_dump()}
+        async_to_sync(channel_layer.group_send)(f"{ws_infos.client_id}", payload)
 
     async def object_status_handler(self, event):
-        """Send an update for the count, create and feasibility status"""
-        ws_status = WebSocketStatus(type='status', uuid=event['uuid'], status=event['object_status'])
-        await self.send_json(ws_status.model_dump())
+        """Send an update for the count, create of type WebSocketInfos"""
+        await self.send_json(event["payload"])
 
     async def receive_json(self, content, **kwargs):
         try:
@@ -86,10 +73,11 @@ class WebsocketManager(AsyncJsonWebsocketConsumer):
             return
 
 
-def ws_send_to_client(_object, info_type: ws_info_type, extra_infos: dict):
+def ws_send_to_client(_object, job_name: ws_info_job_name, extra_info: dict):
     websocket_infos = WebSocketInfos(status=_object.request_job_status,
                                      client_id=str(_object.owner_id),
                                      uuid=str(_object.uuid),
-                                     type=info_type,
-                                     extra_infos=extra_infos)
+                                     type='status',
+                                     job_name=job_name,
+                                     extra_info=extra_info)
     WebsocketManager.send_to_client(websocket_infos)
