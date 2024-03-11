@@ -79,13 +79,10 @@ class FeasibilityStudyViewSet(UserObjectsRestrictedViewSet):
                                     '400': openapi.Response("Bad Request")})
     def partial_update(self, request, *args, **kwargs):
         try:
-            fs = self.get_object()
-            feasibility_study_service.process_patch_data(fs=fs, data=request.data)
+            feasibility_study_service.process_patch_data(fs=self.get_object(), data=request.data)
         except ValueError as ve:
             return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
         response = super(FeasibilityStudyViewSet, self).partial_update(request, *args, **kwargs)
-        fs.refresh_from_db()
-        ws_send_to_client(_object=fs, info_type='feasibility')
         return response
 
     @action(detail=True, methods=['get'], url_path='download')

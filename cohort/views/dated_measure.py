@@ -92,5 +92,5 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
         response = super(DatedMeasureViewSet, self).partial_update(request, *args, **kwargs)
         dm.refresh_from_db()
-        ws_send_to_client(_object=dm, info_type='count')
+        ws_send_to_client(_object=dm, info_type='count', extra_infos={"measure": dm.measure})
         return response

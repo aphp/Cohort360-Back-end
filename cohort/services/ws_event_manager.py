@@ -10,8 +10,7 @@ from pydantic import BaseModel
 from admin_cohort.services.auth import auth_service
 from admin_cohort.types import JobStatus
 
-
-ws_info_type = Literal['count', 'create', 'feasibility']
+ws_info_type = Literal['count', 'create']
 
 
 @dataclasses.dataclass
@@ -20,6 +19,7 @@ class WebSocketInfos:
     client_id: str
     uuid: str
     type: ws_info_type
+    extra_infos: dict
 
 
 class WebSocketObject(BaseModel):
@@ -86,9 +86,10 @@ class WebsocketManager(AsyncJsonWebsocketConsumer):
             return
 
 
-def ws_send_to_client(_object, info_type: ws_info_type):
+def ws_send_to_client(_object, info_type: ws_info_type, extra_infos: dict):
     websocket_infos = WebSocketInfos(status=_object.request_job_status,
                                      client_id=str(_object.owner_id),
                                      uuid=str(_object.uuid),
-                                     type=info_type)
+                                     type=info_type,
+                                     extra_infos=extra_infos)
     WebsocketManager.send_to_client(websocket_infos)
