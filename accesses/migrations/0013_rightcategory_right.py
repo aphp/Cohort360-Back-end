@@ -4,30 +4,21 @@ import logging
 from django.db import migrations, models
 import django.db.models.deletion
 
-from accesses.data.rights import right_categories, dependent_rights
-from accesses.serializers import RightCategorySerializer
+from accesses.migrations.data.rights import rights, dependent_rights
+from accesses.serializers import RightSerializer
 
 
 _logger = logging.getLogger('info')
 
 
 def load_rights(apps, schema_editor):
-    right_model = apps.get_model('accesses', 'Right')
-    db_alias = schema_editor.connection.alias
-
-    rc_serializer = RightCategorySerializer(data=right_categories, many=True)
-    if rc_serializer.is_valid():
-        rc_serializer.save()
-    else:
-        _logger.error(f"Serializer errors: {rc_serializer.errors}")
-        return
-
-    for r in dependent_rights:
-        depends_on = right_model.objects.using(db_alias).get(name=r.get('depends_on'))
-        r.update({"depends_on": depends_on,
-                  "category": depends_on.category
-                  })
-        right_model.objects.using(db_alias).create(**r)
+    for data_set in (rights, dependent_rights):
+        right_serializer = RightSerializer(data=data_set, many=True)
+        if right_serializer.is_valid():
+            right_serializer.save()
+        else:
+            _logger.error(f"Error on loading initial rights data: {right_serializer.errors}")
+            return
 
 
 class Migration(migrations.Migration):
@@ -38,20 +29,6 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='RightCategory',
-            fields=[
-                ('insert_datetime', models.DateTimeField(auto_now_add=True, null=True)),
-                ('update_datetime', models.DateTimeField(auto_now=True, null=True)),
-                ('delete_datetime', models.DateTimeField(blank=True, null=True)),
-                ('id', models.AutoField(primary_key=True, serialize=False)),
-                ('name', models.CharField()),
-                ('is_global', models.BooleanField(default=False)),
-            ],
-            options={
-                'abstract': False,
-            },
-        ),
-        migrations.CreateModel(
             name='Right',
             fields=[
                 ('insert_datetime', models.DateTimeField(auto_now_add=True, null=True)),
@@ -60,7 +37,8 @@ class Migration(migrations.Migration):
                 ('id', models.AutoField(primary_key=True, serialize=False)),
                 ('name', models.CharField()),
                 ('label', models.CharField()),
-                ('category', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='rights', to='accesses.rightcategory')),
+                ('is_global', models.BooleanField(default=False)),
+                ('category', models.CharField()),
                 ('depends_on', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='dependent_rights', to='accesses.right')),
                 ('allow_read_accesses_on_same_level', models.BooleanField(null=True, default=False)),
                 ('allow_read_accesses_on_inf_levels', models.BooleanField(null=True, default=False)),

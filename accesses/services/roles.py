@@ -5,7 +5,7 @@ from django.db.models import QuerySet
 
 from accesses.models import Perimeter
 from accesses.services.accesses import accesses_service
-from accesses.models.right import all_rights
+from accesses.services.rights import all_rights
 from admin_cohort.models import User
 
 ROLES_HELP_TEXT = dict(right_full_admin="Super user",
