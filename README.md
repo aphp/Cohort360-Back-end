@@ -19,8 +19,9 @@
         <li><a href="#setup">Setup</a></li>
       </ul>
     </li>
-    <li><a href="#usage">Usage</a></li>
     <li><a href="#contact">Contact</a></li>
+    <li><a href="#deployment-on-local-infrastructure">Deployment on local infrastructure</a></li>
+    <li><a href="#contributing">Contributing</a></li>
   </ol>
 </details>
 
@@ -59,34 +60,21 @@ Here is a list of major frameworks used here.
    ```
 
 ### 2. Configuration
-   Create a **.env** file (admin_cohort/.env) following the **.setup/.env.example** format  
+   * Create a **.env** file in the _admin_cohort_ directory following the **.setup/.env.example** format  
+   * Create a **perimeters.csv** file in the _.setup_ directory following the **.setup/perimeters.example.csv** format
 
 
 ### 3. Setup
    ```sh
    cd Cohort360-Back-end/.setup
    chmod +x setup.sh
-   bash .setup/setup.sh
+   bash setup.sh
    ```
 * Server running at: `localhost:8000`
 * API details at: `localhost:8000/docs`
 
-<!-- USAGE EXAMPLES -->
-## Usage
 
-In the initial way to use this back-end server, authentication should be made using connection to _APHP JWT_'s server.
-If you want to use it fully locally, update `admin_cohort/AuthMiddleware.py` file.
-
-<!-- CONTRIBUTING -->
-<!-- ## Contributing
-
-1. Clone the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request with develop branch -->
-
-## How to deploy this application to your infrastructure
+## Deployment on local infrastructure
 
 The following files contains AP-HP-specific code. You'll need to write your own implementation of the methods and
 replace
@@ -97,6 +85,16 @@ them in your CI/CD pipeline.
 3. [conf_cohort_job_api](cohort/services/conf_cohort_job_api.py)
 4. [conf_exports](exports/conf_exports.py)
 5. [conf_workspaces](workspaces/conf_workspaces.py)
+
+<!-- CONTRIBUTING -->
+## Contributing
+
+1. Clone the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request with _main_ branch
+
 
 <!-- CONTACT -->
 

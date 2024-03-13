@@ -15,10 +15,9 @@ source ../venv/bin/activate
 uv pip install -r ../requirements.txt
 echo "Successfully installed requirements"
 
-PG_PORT=5432
-COHORT_USER=cohort_dev
-COHORT_USER_PASSWORD=cohort_dev_pwd
-COHORT_DB=cohort_db
+COHORT_USER="cohort_dev"
+COHORT_USER_PASSWORD="cohort_dev_pwd"
+COHORT_DB="cohort_db"
 
 sudo -u postgres psql <<EOF
 CREATE USER $COHORT_USER PASSWORD '$COHORT_USER_PASSWORD';
@@ -32,8 +31,8 @@ echo "Database and user created. Running migrations..."
 source ../venv/bin/activate
 python ../manage.py migrate --database="default"
 
-echo "Done! Inserting initial data..."
-PGPASSWORD=$COHORT_USER_PASSWORD psql -h localhost -p $PG_PORT -d $COHORT_DB -U $COHORT_USER -f init_data.sql
+echo "Initializing a user with administration privileges"
+python ../manage.py load_initial_data --perimeters-conf perimeters.example.csv
 
 echo "Running server..."
 python ../manage.py runserver localhost:8000 &

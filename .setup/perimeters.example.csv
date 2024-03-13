@@ -1,0 +1,5 @@
+id;name;short_name;type_source_value;source_value;local_id;cohort_id;parent_id;level;above_levels_ids;inferior_levels_ids
+1;Main Hospital;Main Hospital;hospital;MH1;local_01;1;;1;;2,3
+2;Hospital Department 1;Hospital Depart 1;hospital_depart;HD1;local_02;11;1;2;1;4
+3;Hospital Department 2;Hospital Depart 2;hospital_depart;HD2;local_03;12;1;2;1;
+4;Hospital Service;Hospital Serv 1;hospital_serv;HS1;local_04;13;2;3;1,2;
