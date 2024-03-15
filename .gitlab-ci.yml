@@ -4,8 +4,7 @@ workflow:
   rules:
     - if: |
         $CI_COMMIT_TAG ||
-        $CI_COMMIT_BRANCH == "main" ||
-        $CI_COMMIT_BRANCH == "0000_use_uv_in_dockerfile"
+        $CI_COMMIT_BRANCH == "main"
 
 stages:
   - lint
