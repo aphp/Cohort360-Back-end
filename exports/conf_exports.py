@@ -25,9 +25,8 @@ env = os.environ
 INFRA_EXPORT_TOKEN = env.get('INFRA_EXPORT_TOKEN')
 INFRA_HADOOP_TOKEN = env.get('INFRA_HADOOP_TOKEN')
 INFRA_API_URL = env.get('INFRA_API_URL')
-DATA_EXPORTER_VERSION = env.get('DATA_EXPORTER_VERSION')
-EXPORT_HIVE_URL = f"{INFRA_API_URL}/bigdata/data_exporter{DATA_EXPORTER_VERSION}/hive/"
-EXPORT_CSV_URL = f"{INFRA_API_URL}/bigdata/data_exporter{DATA_EXPORTER_VERSION}/csv/"
+EXPORT_HIVE_URL = f"{INFRA_API_URL}/bigdata/data_exporter/hive/"
+EXPORT_CSV_URL = f"{INFRA_API_URL}/bigdata/data_exporter/csv/"
 HADOOP_NEW_DB_URL = f"{INFRA_API_URL}/hadoop/hive/create_base_hive"
 HADOOP_CHOWN_DB_URL = f"{INFRA_API_URL}/hadoop/hdfs/chown_directory"
 HIVE_DB_FOLDER = env.get('HIVE_DB_FOLDER')
@@ -221,7 +220,7 @@ def get_custom_params(export: ExportRequest | Export) -> Tuple[str, str]:
 
 
 def post_export(export: ExportRequest | Export) -> str:
-    log_export_request_task(export.pk, f"Asking to export for '{export.target_name}'")
+    log_export_request_task(export.uuid, f"Asking to export for '{export.target_name}'")
     tables, user_for_pseudo = get_custom_params(export=export)
     params = {"tables": tables,
               "environment": OMOP_ENVIRONMENT,
