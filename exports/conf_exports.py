@@ -25,9 +25,8 @@ env = os.environ
 INFRA_EXPORT_TOKEN = env.get('INFRA_EXPORT_TOKEN')
 INFRA_HADOOP_TOKEN = env.get('INFRA_HADOOP_TOKEN')
 INFRA_API_URL = env.get('INFRA_API_URL')
-DATA_EXPORTER_VERSION = env.get('DATA_EXPORTER_VERSION')
-EXPORT_HIVE_URL = f"{INFRA_API_URL}/bigdata/data_exporter{DATA_EXPORTER_VERSION}/hive/"
-EXPORT_CSV_URL = f"{INFRA_API_URL}/bigdata/data_exporter{DATA_EXPORTER_VERSION}/csv/"
+EXPORT_HIVE_URL = f"{INFRA_API_URL}/bigdata/data_exporter/hive/"
+EXPORT_CSV_URL = f"{INFRA_API_URL}/bigdata/data_exporter/csv/"
 HADOOP_NEW_DB_URL = f"{INFRA_API_URL}/hadoop/hive/create_base_hive"
 HADOOP_CHOWN_DB_URL = f"{INFRA_API_URL}/hadoop/hdfs/chown_directory"
 HIVE_DB_FOLDER = env.get('HIVE_DB_FOLDER')
@@ -209,9 +208,9 @@ def prepare_hive_db(export_request: ExportRequest):
 
 def get_custom_params(export: ExportRequest | Export) -> Tuple[str, str]:
     if isinstance(export, ExportRequest):
-        person_table = f"{PERSON_TABLE}:{export.cohort_id}:true"
-        other_tables = ",".join(map(lambda t: f'{t.omop_table_name}::true', export.tables.exclude(omop_table_name=PERSON_TABLE)))
-        tables = f"{person_table},{other_tables}"
+        tables = ",".join(map(lambda t: f'{t.omop_table_name}:{export.cohort_id}:true', export.tables.all()))
+        if not export.tables.filter(omop_table_name=PERSON_TABLE).exists():
+            tables = f"{PERSON_TABLE}:{export.cohort_id}:true,{tables}"
         user_for_pseudo = not export.nominative and export.target_unix_account.name or None
     else:
         tables = ",".join(map(lambda t: f'{t.name}:{t.cohort_result_subset.fhir_group_id}:{t.respect_table_relationships}',
@@ -221,7 +220,7 @@ def get_custom_params(export: ExportRequest | Export) -> Tuple[str, str]:
 
 
 def post_export(export: ExportRequest | Export) -> str:
-    log_export_request_task(export.pk, f"Asking to export for '{export.target_name}'")
+    log_export_request_task(export.uuid, f"Asking to export for '{export.target_name}'")
     tables, user_for_pseudo = get_custom_params(export=export)
     params = {"tables": tables,
               "environment": OMOP_ENVIRONMENT,
