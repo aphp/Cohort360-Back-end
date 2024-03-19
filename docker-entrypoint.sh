@@ -11,7 +11,6 @@ source $VIRTUAL_ENV/bin/activate
 python manage.py migrate --database="default"
 python manage.py collectstatic --noinput
 
-init kerberos
 kinit $KERBEROS_USER -k -t akouachi.keytab
 # Cron kerberos token refresh
 crontab -l | { cat; echo "0 0 * * */1 /usr/bin/kinit akouachi@EDS.APHP.FR -k -t /app/akouachi.keytab"; } | crontab -
