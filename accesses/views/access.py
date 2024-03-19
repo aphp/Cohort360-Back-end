@@ -75,7 +75,7 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
                                                      ["search", f"Will search in multiple fields: {','.join(search_fields)}", openapi.TYPE_STRING],
                                                      ["ordering", "Order by role_name, start_datetime, end_datetime, is_valid. Prepend '-' for "
                                                                   "descending order", openapi.TYPE_STRING]])))
-    # @cache_response()
+    @cache_response()
     def list(self, request, *args, **kwargs):
         accesses = self.filter_queryset(self.get_queryset())
         if request.query_params.get("profile_id"):
@@ -86,7 +86,7 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
                                                                   accesses=accesses,
                                                                   perimeter_id=request.query_params.get("perimeter_id"),
                                                                   include_parents=json.loads(request.query_params.get("include_parents", "false")))
-        page = self.paginate_queryset(accesses)
+        page = self.paginate_queryset([a for a in accesses])
         if page:
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
