@@ -270,11 +270,12 @@ class ExportsWithSimpleSetUp(ExportsTests):
                 request_job_status=JobStatus.finished,
                 target_location="user1_exp_req_succ",
                 is_user_notified=False,
+                nominative=True
             )
         self.user1_exp_req_succ_table1: ExportRequestTable = \
             ExportRequestTable.objects.create(
                 export_request=self.user1_exp_req_succ,
-                omop_table_name="Hello",
+                omop_table_name="table_x",
             )
 
         self.user1_exp_req_fail: ExportRequest = \
@@ -584,6 +585,21 @@ class ExportsJobsTests(ExportsWithSimpleSetUp):
         mock_prepare_hive_db.assert_not_called()
         mock_post_export.assert_called()
         mock_conclude_export_hive.assert_not_called()
+        mock_push_email_notification.assert_called()
+
+    @mock.patch.object(requests, 'post')
+    @mock.patch('exports.tasks.push_email_notification')
+    @mock.patch('exports.conf_exports.get_job_status')
+    def test_task_launch_export_task_csv(self, mock_get_job_status, mock_push_email_notification, mock_post):
+        mock_get_job_status.return_value = JobStatusResponse(job_status=ApiJobStatus.FinishedSuccessfully.value)
+        mock_push_email_notification.return_value = None
+        mock_response = Response()
+        mock_response.status_code = status.HTTP_201_CREATED
+        mock_response._text = 'returned some task_id'
+        mock_response._content = b'{"task_id": "some-task-uuid"}'
+        mock_post.return_value = mock_response
+        launch_request(er_id=self.user1_exp_req_succ.id)
+        mock_get_job_status.assert_called()
         mock_push_email_notification.assert_called()
 
     @mock.patch.object(requests, 'post')
