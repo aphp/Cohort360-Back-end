@@ -220,7 +220,7 @@ def get_custom_params(export: ExportRequest | Export) -> Tuple[str, str]:
 
 
 def post_export(export: ExportRequest | Export) -> str:
-    log_export_request_task(export.uuid, f"Asking to export for '{export.target_name}'")
+    log_export_request_task(export.pk, f"Asking to export for '{export.target_name}'")
     tables, user_for_pseudo = get_custom_params(export=export)
     params = {"tables": tables,
               "environment": OMOP_ENVIRONMENT,
