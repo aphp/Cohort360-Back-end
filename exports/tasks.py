@@ -110,7 +110,7 @@ def launch_export_task(export_id: str):
             return
 
     try:
-        job_id = conf_exports.post_export_v1(export=export)
+        job_id = conf_exports.post_export(export=export)
         export.request_job_status = JobStatus.pending
         export.request_job_id = job_id
         export.save()
