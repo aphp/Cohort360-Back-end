@@ -3,6 +3,7 @@ import logging
 import os
 import time
 from datetime import datetime
+from typing import Tuple
 
 import requests
 from django.utils import timezone
@@ -24,13 +25,16 @@ env = os.environ
 INFRA_EXPORT_TOKEN = env.get('INFRA_EXPORT_TOKEN')
 INFRA_HADOOP_TOKEN = env.get('INFRA_HADOOP_TOKEN')
 INFRA_API_URL = env.get('INFRA_API_URL')
-EXPORT_HIVE_URL = f"{INFRA_API_URL}/bigdata/data_exporter/hive/"
-EXPORT_CSV_URL = f"{INFRA_API_URL}/bigdata/data_exporter/csv/"
+DATA_EXPORTER_VERSION = env.get('DATA_EXPORTER_VERSION')
+EXPORT_HIVE_URL = f"{INFRA_API_URL}/bigdata/data_exporter{DATA_EXPORTER_VERSION}/hive/"
+EXPORT_CSV_URL = f"{INFRA_API_URL}/bigdata/data_exporter{DATA_EXPORTER_VERSION}/csv/"
 HADOOP_NEW_DB_URL = f"{INFRA_API_URL}/hadoop/hive/create_base_hive"
 HADOOP_CHOWN_DB_URL = f"{INFRA_API_URL}/hadoop/hdfs/chown_directory"
 HIVE_DB_FOLDER = env.get('HIVE_DB_FOLDER')
 HIVE_EXPORTER_USER = env.get('HIVE_EXPORTER_USER')
 OMOP_ENVIRONMENT = env.get('EXPORT_OMOP_ENVIRONMENT')
+
+PERSON_TABLE = "person"
 
 
 class ApiJobStatus(enum.Enum):
@@ -203,35 +207,27 @@ def prepare_hive_db(export_request: ExportRequest):
     change_hive_db_ownership(export_request=export_request, db_user=HIVE_EXPORTER_USER)
 
 
-def post_export(export_request: ExportRequest) -> str:
-    log_export_request_task(export_request.id, f"Asking to export for '{export_request.target_name}'")
-    tables = ",".join([t.omop_table_name for t in export_request.tables.all()])
-    params = {"cohort_id": export_request.cohort_fk.fhir_group_id,
-              "tables": tables,
-              "environment": OMOP_ENVIRONMENT,
-              "no_date_shift": export_request.nominative or not export_request.shift_dates,
-              "overwrite": False,
-              "user_for_pseudo": not export_request.nominative and export_request.target_unix_account.name or None,
-              }
-    if export_request.output_format == ExportType.HIVE:
-        url = EXPORT_HIVE_URL
-        params.update({"database_name": export_request.target_name})
+def get_custom_params(export: ExportRequest | Export) -> Tuple[str, str]:
+    if isinstance(export, ExportRequest):
+        tables = ",".join(map(lambda t: f'{t.omop_table_name}:{export.cohort_id}:true', export.tables.all()))
+        if not export.tables.filter(omop_table_name=PERSON_TABLE).exists():
+            tables = f"{PERSON_TABLE}:{export.cohort_id}:true,{tables}"
+        user_for_pseudo = not export.nominative and export.target_unix_account.name or None
     else:
-        url = EXPORT_CSV_URL
-        params.update({"file_path": export_request.target_full_path})
-    resp = requests.post(url=url, params=params, headers={'auth-token': INFRA_EXPORT_TOKEN})
-    return PostJobResponse(response=resp, url=url).task_id
+        tables = ",".join(map(lambda t: f'{t.name}:{t.cohort_result_subset.fhir_group_id}:{t.respect_table_relationships}',
+                              export.export_tables.all()))
+        user_for_pseudo = not export.nominative and export.datalab.name or None
+    return tables, user_for_pseudo
 
 
-def post_export_v1(export: Export) -> str:
-    log_export_request_task(export.uuid, f"Asking to export for '{export.target_name}'")
-    tables = ",".join([f"{table.name}:{table.cohort_result_subset.fhir_group_id}:{table.respect_table_relationships}"
-                       for table in export.export_tables.all()])
+def post_export(export: ExportRequest | Export) -> str:
+    log_export_request_task(export.pk, f"Asking to export for '{export.target_name}'")
+    tables, user_for_pseudo = get_custom_params(export=export)
     params = {"tables": tables,
               "environment": OMOP_ENVIRONMENT,
-              "no_date_shift": not export.nominative and export.shift_dates,
+              "no_date_shift": export.nominative or not export.shift_dates,
               "overwrite": False,
-              "user_for_pseudo": not export.nominative and export.datalab.name or None,
+              "user_for_pseudo": user_for_pseudo,
               }
     if export.output_format == ExportType.HIVE:
         url = EXPORT_HIVE_URL
