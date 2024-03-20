@@ -209,9 +209,9 @@ def prepare_hive_db(export_request: ExportRequest):
 
 def get_custom_params(export: ExportRequest | Export) -> Tuple[str, str]:
     if isinstance(export, ExportRequest):
-        tables = ",".join(map(lambda t: f'{t.omop_table_name}:{export.cohort_id}:true', export.tables.all()))
-        if not export.tables.filter(omop_table_name=PERSON_TABLE).exists():
-            tables = f"{PERSON_TABLE}:{export.cohort_id}:true,{tables}"
+        person_table = f"{PERSON_TABLE}:{export.cohort_id}:true"
+        other_tables = ",".join(map(lambda t: f'{t.omop_table_name}::true', export.tables.exclude(omop_table_name=PERSON_TABLE)))
+        tables = f"{person_table},{other_tables}"
         user_for_pseudo = not export.nominative and export.target_unix_account.name or None
     else:
         tables = ",".join(map(lambda t: f'{t.name}:{t.cohort_result_subset.fhir_group_id}:{t.respect_table_relationships}',
