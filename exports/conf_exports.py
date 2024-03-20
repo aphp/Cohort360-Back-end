@@ -38,6 +38,7 @@ PERSON_TABLE = "person"
 
 
 class ApiJobStatus(enum.Enum):
+    Received = 'Received'
     Running = 'Running'
     Pending = 'Pending'
     NotFound = 'NotFound'
@@ -89,7 +90,8 @@ class HadoopApiResponse:
                f"err returned is : {self.err}"
 
 
-status_mapper = {ApiJobStatus.Pending.value: JobStatus.pending,
+status_mapper = {ApiJobStatus.Received.value: JobStatus.new,
+                 ApiJobStatus.Pending.value: JobStatus.pending,
                  ApiJobStatus.Retry.value: JobStatus.pending,
                  ApiJobStatus.Running.value: JobStatus.started,
                  ApiJobStatus.FinishedSuccessfully.value: JobStatus.finished,
