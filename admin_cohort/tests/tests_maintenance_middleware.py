@@ -31,7 +31,7 @@ class MaintenanceModeMiddlewareTests(TestCase):
         self.non_safe_method_url = '/accesses/roles/'
         self.sjs_etl_callback_url = '/cohort/cohorts/'
         self.maintenance_url = '/maintenances/'
-        self.accounts_url = '/accounts/'
+        self.auth_url = '/auth/'
 
         enable_maintenance(5)
 
@@ -63,6 +63,6 @@ class MaintenanceModeMiddlewareTests(TestCase):
         self.assertNotEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
 
     def test_accounts_request(self):
-        request = self.factory.post(path=self.accounts_url, data={})
+        request = self.factory.post(path=self.auth_url, data={})
         response = self.middleware(request)
         self.assertNotEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
