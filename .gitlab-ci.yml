@@ -30,10 +30,9 @@ test-job:
     POSTGRES_PASSWORD: portail_psswd
   script:
     - cp .conf/.test.env admin_cohort/.env
+    - pip install --upgrade pip
+    - pip install -r requirements.txt
     - mkdir log
-    - pip install --upgrade pip && pip install uv
-    - uv venv && uv pip install -r requirements.txt
-    - source .venv/bin/activate
     - coverage run --source='.' --omit="*/test*","*/migrations/*" manage.py test
     - coverage xml --omit="*/test*","*/migrations/*" -o coverage.xml
     - coverage html --omit="*/test*","*/migrations/*" -d htmlcov

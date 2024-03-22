@@ -169,7 +169,15 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         except ValueError as ve:
             return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
         response = super(CohortResultViewSet, self).partial_update(request, *args, **kwargs)
-        ws_send_to_client(_object=cohort, info_type='create')
+        cohort.refresh_from_db()
+        global_dm = cohort.dated_measure_global
+        extra_info = {}
+        if global_dm:
+            extra_info = {'global': {'measure_min': global_dm.measure_min,
+                                     'measure_max': global_dm.measure_max
+                                     }
+                          }
+        ws_send_to_client(_object=cohort, job_name='create', extra_info=extra_info)
         if status.is_success(response.status_code):
             if is_update_from_sjs and cohort.export_table.exists():
                 export_service.check_all_cohort_subsets_created(export=cohort.export_table.export)
