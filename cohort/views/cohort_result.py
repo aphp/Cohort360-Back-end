@@ -173,7 +173,8 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         global_dm = cohort.dated_measure_global
         extra_info = {}
         if global_dm:
-            extra_info = {'global': {'measure_min': global_dm.measure_min,
+            extra_info = {'fhir_group_id': cohort.fhir_group_id,
+                          'global': {'measure_min': global_dm.measure_min,
                                      'measure_max': global_dm.measure_max
                                      }
                           }
