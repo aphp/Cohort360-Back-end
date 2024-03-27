@@ -3,11 +3,11 @@ from pathlib import Path
 from unittest import mock
 
 from admin_cohort.models import User
-from cohort.crb.cohort_requests.abstract_cohort_request import is_cohort_request_pseudo_read
-from cohort.crb.enums import ResourceType
-from cohort.crb.exceptions import FhirException
-from cohort.crb.query_formatter import QueryFormatter
-from cohort.crb.schemas import FhirParameters, FhirParameter, CohortQuery
+from cohort.job_server_api.cohort_requests.abstract_cohort_request import is_cohort_request_pseudo_read
+from cohort.job_server_api.enums import ResourceType
+from cohort.job_server_api.exceptions import FhirException
+from cohort.job_server_api.query_formatter import QueryFormatter
+from cohort.job_server_api.schemas import FhirParameters, FhirParameter, CohortQuery
 from cohort.tests.cohort_app_tests import CohortAppTests
 
 
@@ -60,7 +60,7 @@ class TestQueryFormatter(CohortAppTests):
             ]
         )
 
-    @mock.patch("cohort.crb.query_formatter.query_fhir")
+    @mock.patch("cohort.job_server_api.query_formatter.query_fhir")
     def test_format_to_fhir_simple_query(self, query_fhir):
         query_fhir.return_value = self.mocked_query_fhir_result
         res = self.query_formatter.format_to_fhir(self.cohort_query_simple, False)
@@ -70,7 +70,7 @@ class TestQueryFormatter(CohortAppTests):
         self.assertEquals(self.fq_value_string, res_criteria.filter_solr, )
         self.assertEquals("docstatus=final&type:not=doc-impor&empty=false&patient-active=true&_text=ok",
                           res_criteria.filter_fhir)
-    @mock.patch("cohort.crb.query_formatter.query_fhir")
+    @mock.patch("cohort.job_server_api.query_formatter.query_fhir")
     def test_format_to_fhir_simple_query_pseudo(self, query_fhir):
         query_fhir.return_value = self.mocked_query_fhir_result
         res = self.query_formatter.format_to_fhir(self.cohort_query_simple, True)
@@ -81,7 +81,7 @@ class TestQueryFormatter(CohortAppTests):
         self.assertEquals("docstatus=final&type:not=doc-impor&empty=false&patient-active=true&_text=ok",
                           res_criteria.filter_fhir)
 
-    @mock.patch("cohort.crb.query_formatter.query_fhir")
+    @mock.patch("cohort.job_server_api.query_formatter.query_fhir")
     def test_format_to_fhir_complex_query(self, query_fhir):
         query_fhir.return_value = self.mocked_query_fhir_result
         res = self.query_formatter.format_to_fhir(self.cohort_query_complex, False)

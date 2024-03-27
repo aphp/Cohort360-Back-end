@@ -8,9 +8,10 @@ from django.db import transaction
 from admin_cohort.types import JobStatus, ServerError
 from cohort.models import CohortResult, DatedMeasure, RequestQuerySnapshot, FhirFilter
 from cohort.models.dated_measure import GLOBAL_DM_MODE
-from cohort.services.conf_cohort_job_api import fhir_to_job_status, get_authorization_header
+from cohort.job_server_api import job_server_status_mapper
+from cohort.services.misc import get_authorization_header
 from cohort.services.emails import send_email_notif_about_large_cohort
-from cohort.tasks import get_count_task, create_cohort_task
+from cohort.tasks import count_cohort_task, create_cohort_task
 
 JOB_STATUS = "request_job_status"
 GROUP_ID = "group.id"
@@ -84,9 +85,9 @@ class CohortResultService:
         if cohort.dated_measure_global:
             dm_global = cohort.dated_measure_global
             try:
-                get_count_task.s(auth_headers=auth_headers,
-                                 json_query=cohort.request_query_snapshot.serialized_query,
-                                 dm_uuid=dm_global.uuid)\
+                count_cohort_task.s(auth_headers=auth_headers,
+                                    json_query=cohort.request_query_snapshot.serialized_query,
+                                    dm_uuid=dm_global.uuid)\
                               .apply_async()
             except Exception as e:
                 dm_global.request_job_fail_msg = f"ERROR: Could not launch cohort global count: {e}"
@@ -108,7 +109,7 @@ class CohortResultService:
         is_update_from_etl = JOB_STATUS in data and len(data) == 1
 
         if JOB_STATUS in data:
-            job_status = fhir_to_job_status().get(data[JOB_STATUS].upper())
+            job_status = job_server_status_mapper(data[JOB_STATUS])
             if not job_status:
                 raise ValueError(f"Bad Request: Invalid job status: {data.get(JOB_STATUS)}")
             if job_status in (JobStatus.finished, JobStatus.failed):
