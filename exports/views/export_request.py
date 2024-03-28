@@ -13,6 +13,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+import exports.services.hdfs_client
 from admin_cohort.settings import DAYS_TO_DELETE_CSV_FILES as DAYS_TO_KEEP_CSV_FILES
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.models import User
@@ -21,12 +22,11 @@ from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagin
 from admin_cohort.types import JobStatus
 from admin_cohort.tools.request_log_mixin import RequestLogMixin
 from cohort.models import CohortResult
-from exports import conf_exports
 from exports.emails import check_email_address, push_email_notification
 from exports.models import ExportRequest
 from exports.permissions import ExportRequestsPermission
 from exports.serializers import ExportRequestSerializer, ExportRequestListSerializer
-from exports.types import ExportType, HdfsServerUnreachableError
+from exports.types import ExportType, HdfsServerUnreachable
 
 _logger = logging.getLogger('django.request')
 
@@ -182,12 +182,12 @@ class ExportRequestViewSet(RequestLogMixin, viewsets.ModelViewSet):
                                  f"The export outcome is saved for {DAYS_TO_KEEP_CSV_FILES} days and is deleted afterwards",
                             status=status.HTTP_204_NO_CONTENT)
         try:
-            response = StreamingHttpResponse(streaming_content=conf_exports.stream_gen(export.target_full_path))
-            file_size = conf_exports.get_file_size(file_name=export.target_full_path)
+            response = StreamingHttpResponse(streaming_content=exports.services.hdfs_client.stream_gen(export.target_full_path))
+            file_size = exports.services.hdfs_client.get_file_size(file_name=export.target_full_path)
             response['Content-Type'] = 'application/zip'
             response['Content-Length'] = file_size
             response['Content-Disposition'] = f"attachment; filename=export_{export.cohort_id}.zip"
             return response
-        except (HdfsError, HdfsServerUnreachableError) as e:
+        except (HdfsError, HdfsServerUnreachable) as e:
             _logger.exception(e.message)
             return Response(data=e.message, status=http.HTTPStatus.INTERNAL_SERVER_ERROR)

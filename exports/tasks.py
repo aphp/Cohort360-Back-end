@@ -7,13 +7,14 @@ from django.conf import settings
 from django.utils import timezone
 from requests import RequestException, HTTPError
 
+import exports.services.hdfs_client
 from admin_cohort.celery import celery_app
 from admin_cohort.tools.celery_periodic_task_helper import ensure_single_task
 from admin_cohort.types import JobStatus
 from exports import conf_exports
 from .models import ExportRequest, Export
 from .emails import exported_csv_files_deleted, export_request_succeeded, push_email_notification
-from .types import ExportType, HdfsServerUnreachableError
+from .types import ExportType, HdfsServerUnreachable
 
 _logger_err = logging.getLogger('django.request')
 _celery_logger = logging.getLogger('celery.app')
@@ -161,12 +162,12 @@ def delete_export_requests_csv_files():
             _logger_err.error(f"ExportRequest {export_request.id} has no owner")
             continue
         try:
-            conf_exports.delete_file(export_request.target_full_path)
+            exports.services.hdfs_client.delete_file(export_request.target_full_path)
             notification_data = dict(recipient_name=export_request.owner.display_name,
                                      recipient_email=export_request.owner.email,
                                      cohort_id=export_request.cohort_id)
             push_email_notification(base_notification=exported_csv_files_deleted, **notification_data)
             export_request.cleaned_at = timezone.now()
             export_request.save()
-        except (RequestException, HdfsServerUnreachableError) as e:
+        except (RequestException, HdfsServerUnreachable) as e:
             _logger_err.exception(f"ExportRequest {export_request.id}: {e}")

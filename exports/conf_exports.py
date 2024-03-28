@@ -7,8 +7,6 @@ from typing import Tuple
 
 import requests
 from django.utils import timezone
-from hdfs import HdfsError
-from hdfs.ext.kerberos import KerberosClient
 from requests import Response, HTTPError, RequestException
 from rest_framework import status
 
@@ -16,7 +14,7 @@ from admin_cohort.tools import prettify_dict
 from admin_cohort.types import JobStatus, MissingDataError
 from exports.emails import push_email_notification, export_request_failed
 from exports.models import ExportRequest, Export
-from exports.types import HdfsServerUnreachableError, ExportType
+from exports.types import ExportType
 
 _logger = logging.getLogger('info')
 _logger_err = logging.getLogger('django.request')
@@ -270,51 +268,3 @@ def conclude_export_hive(export_request: ExportRequest):
     db_user = export_request.target_unix_account.name
     change_hive_db_ownership(export_request=export_request, db_user=db_user)
     log_export_request_task(export_request.id, f"DB '{export_request.target_name}' attributed to {db_user}. Conclusion finished.")
-
-
-# FILES EXTRACT ###############################################################
-
-HDFS_SERVERS = env.get("HDFS_SERVERS").split(',')
-
-
-HDFS_CLIENTS_DICT = {'current': HDFS_SERVERS[0],
-                     HDFS_SERVERS[0]: KerberosClient(HDFS_SERVERS[0])}
-
-
-def try_other_hdfs_servers():
-    for server in [s for s in HDFS_SERVERS if s != HDFS_CLIENTS_DICT['current']]:
-        cl = KerberosClient(server)
-        try:
-            cl.status('/')
-        except HdfsError:
-            continue
-        else:
-            HDFS_CLIENTS_DICT[server] = KerberosClient(server)
-            HDFS_CLIENTS_DICT['current'] = server
-            return cl
-    raise HdfsServerUnreachableError("HDFS servers are unreachable or in stand-by")
-
-
-def get_client():
-    cl = HDFS_CLIENTS_DICT.get(HDFS_CLIENTS_DICT['current'])
-    try:
-        cl.status('/')
-    except HdfsError:
-        return try_other_hdfs_servers()
-    else:
-        return cl
-
-
-def stream_gen(file_name: str):
-    with get_client().read(hdfs_path=file_name, offset=0, length=None, encoding=None, chunk_size=1000000,
-                           delimiter=None, progress=None) as f:
-        for chunk in f:
-            yield chunk
-
-
-def get_file_size(file_name: str) -> int:
-    return get_client().status(hdfs_path=file_name).get("length")
-
-
-def delete_file(file_name: str):
-    get_client().delete(hdfs_path=file_name)

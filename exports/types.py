@@ -20,5 +20,5 @@ class StatType(StrEnum):
     SIZE_BYTES: str = "SizeBytes"
 
 
-class HdfsServerUnreachableError(HdfsError):
+class HdfsServerUnreachable(HdfsError):
     pass
