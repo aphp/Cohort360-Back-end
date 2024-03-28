@@ -1,20 +1,14 @@
 import http
 import logging
-from datetime import timedelta
 
 from django.db.models import Q
-from django.http import StreamingHttpResponse
-from django.utils import timezone
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
-from hdfs import HdfsError
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-import exports.services.hdfs_client
-from admin_cohort.settings import DAYS_TO_DELETE_CSV_FILES as DAYS_TO_KEEP_CSV_FILES
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.models import User
 from admin_cohort.tools import join_qs
@@ -26,7 +20,8 @@ from exports.emails import check_email_address, push_email_notification
 from exports.models import ExportRequest
 from exports.permissions import ExportRequestsPermission
 from exports.serializers import ExportRequestSerializer, ExportRequestListSerializer
-from exports.types import ExportType, HdfsServerUnreachable
+from exports.services.export_operator import ExportDownloader
+from exports.exceptions import BadRequestError, FilesNoLongerAvailable, StorageProviderException
 
 _logger = logging.getLogger('django.request')
 
@@ -169,25 +164,11 @@ class ExportRequestViewSet(RequestLogMixin, viewsets.ModelViewSet):
                 response.data['warning'] = f"L'email de confirmation n'a pas pu être envoyé à cause de l'erreur: {e}"
         return response
 
-    @action(detail=True, methods=['get'], permission_classes=(ExportRequestsPermission,), url_path="download")
+    @action(detail=True, methods=['get'], url_path="download")
     def download(self, request, *args, **kwargs):
-        export = self.get_object()
-        if export.request_job_status != JobStatus.finished:
-            return Response(data="The export is not done yet or has failed.", status=status.HTTP_400_BAD_REQUEST)
-        if export.output_format != ExportType.CSV:
-            return Response(data=f"Can only download results of type CSV. Got {export.output_format} instead",
-                            status=status.HTTP_400_BAD_REQUEST)
-        if export.insert_datetime + timedelta(days=DAYS_TO_KEEP_CSV_FILES) < timezone.now():
-            return Response(data=f"The exported files are no longer available on the server.\n"
-                                 f"The export outcome is saved for {DAYS_TO_KEEP_CSV_FILES} days and is deleted afterwards",
-                            status=status.HTTP_204_NO_CONTENT)
         try:
-            response = StreamingHttpResponse(streaming_content=exports.services.hdfs_client.stream_gen(export.target_full_path))
-            file_size = exports.services.hdfs_client.get_file_size(file_name=export.target_full_path)
-            response['Content-Type'] = 'application/zip'
-            response['Content-Length'] = file_size
-            response['Content-Disposition'] = f"attachment; filename=export_{export.cohort_id}.zip"
-            return response
-        except (HdfsError, HdfsServerUnreachable) as e:
-            _logger.exception(e.message)
-            return Response(data=e.message, status=http.HTTPStatus.INTERNAL_SERVER_ERROR)
+            return ExportDownloader().download(export=self.get_object())
+        except (BadRequestError, FilesNoLongerAvailable) as e:
+            return Response(data=f"Error downloading files: {e}", status=status.HTTP_400_BAD_REQUEST)
+        except StorageProviderException as e:
+            return Response(data=f"Storage provider error: {e}", status=status.HTTP_500_INTERNAL_SERVER_ERROR)

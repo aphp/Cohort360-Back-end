@@ -1,5 +1,3 @@
-from hdfs import HdfsError
-
 from admin_cohort.types import StrEnum
 
 
@@ -18,7 +16,3 @@ class StatType(StrEnum):
     INT: str = "Integer"
     TXT: str = "Text"
     SIZE_BYTES: str = "SizeBytes"
-
-
-class HdfsServerUnreachable(HdfsError):
-    pass

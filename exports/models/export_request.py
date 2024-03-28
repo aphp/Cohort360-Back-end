@@ -1,10 +1,16 @@
+from datetime import timedelta
+
 from django.db import models
 from django.db.models import CASCADE, SET_NULL
+from django.utils import timezone
 
 from admin_cohort.models import JobModel, BaseModel, User
+from admin_cohort.settings import DAYS_TO_KEEP_EXPORTED_FILES
+from admin_cohort.types import JobStatus
 from cohort.models import CohortResult
 from exports.types import ExportType
 from workspaces.models import Account
+
 
 OUTPUT_FORMATS = [(ExportType.CSV.value, ExportType.CSV.value),
                   (ExportType.HIVE.value, ExportType.HIVE.value)]
@@ -61,3 +67,10 @@ class ExportRequest(JobModel, BaseModel, models.Model):
     @property
     def target_env(self) -> str:
         return self.target_unix_account and self.target_unix_account.name or ""
+
+    def downloadable(self) -> bool:
+        return self.request_job_status == JobStatus.finished \
+               and self.output_format == ExportType.CSV
+
+    def available_for_download(self) -> bool:
+        return self.insert_datetime + timedelta(days=DAYS_TO_KEEP_EXPORTED_FILES) > timezone.now()

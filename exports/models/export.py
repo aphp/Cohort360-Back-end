@@ -1,7 +1,12 @@
+from datetime import timedelta
+
 from django.db import models
 from django.db.models import CASCADE
+from django.utils import timezone
 
 from admin_cohort.models import User, JobModel
+from admin_cohort.settings import DAYS_TO_KEEP_EXPORTED_FILES
+from admin_cohort.types import JobStatus
 from cohort.models import CohortResult
 from exports.models import ExportsBaseModel, Datalab
 from exports.types import ExportStatus, ExportType
@@ -49,3 +54,10 @@ class Export(ExportsBaseModel, JobModel):
     def cohort_name(self) -> str:
         cohort = CohortResult.objects.filter(fhir_group_id=self.cohort_id).first()
         return cohort and cohort.name or ""
+
+    def downloadable(self) -> bool:
+        return self.request_job_status == JobStatus.finished \
+               and self.output_format == ExportType.CSV
+
+    def available_for_download(self) -> bool:
+        return self.created_at + timedelta(days=DAYS_TO_KEEP_EXPORTED_FILES) > timezone.now()
