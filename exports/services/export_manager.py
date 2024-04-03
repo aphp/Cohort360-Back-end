@@ -9,18 +9,20 @@ from exports.services.storage_provider import HDFSStorageProvider
 
 # todo: replace env var `DAYS_TO_DELETE_CSV_FILES`  by  `DAYS_TO_KEEP_EXPORTED_FILES`
 #       add  new env var `STORAGE_PROVIDERS_URLS`
+#       update task name: delete_exported_csv_files
+
 STORAGE_PROVIDERS_URLS = os.environ.get("STORAGE_PROVIDERS_URLS", "server1,server2").split(',')
 
 _logger = logging.getLogger('django.request')
 
 
-class ExportOperator:
+class ExportManager:
     
     def __init__(self, *args, **kwargs):
         self.storage_provider = HDFSStorageProvider(servers_urls=STORAGE_PROVIDERS_URLS)
 
 
-class ExportDownloader(ExportOperator):
+class ExportDownloader(ExportManager):
 
     def download(self, export: ExportRequest | Export):
         if not export.downloadable():
@@ -47,7 +49,7 @@ class ExportDownloader(ExportOperator):
         return self.storage_provider.get_file_size(file_name=file_name)
 
 
-class ExportCleaner(ExportOperator):
+class ExportCleaner(ExportManager):
 
     def delete_file(self, file_name: str):
         self.storage_provider.delete_file(file_name=file_name)

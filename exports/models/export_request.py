@@ -8,7 +8,7 @@ from admin_cohort.models import JobModel, BaseModel, User
 from admin_cohort.settings import DAYS_TO_KEEP_EXPORTED_FILES
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult
-from exports.types import ExportType
+from exports.exporters.types import ExportType
 from workspaces.models import Account
 
 

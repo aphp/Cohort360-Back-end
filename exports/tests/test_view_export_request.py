@@ -21,8 +21,9 @@ from workspaces.models import Account
 from exports.conf_exports import create_hive_db, prepare_hive_db, wait_for_hive_db_creation_job, get_job_status, ApiJobStatus, JobStatusResponse, \
     wait_for_export_job, mark_export_request_as_failed
 from exports.models import ExportRequest, ExportRequestTable, Export, ExportTable, InfrastructureProvider, Datalab
-from exports.tasks import delete_export_requests_csv_files, launch_request, launch_export_task
-from exports.types import ExportType, ExportStatus
+from exports.tasks import delete_exported_csv_files, launch_export, launch_export_task
+from exports.types import ExportStatus
+from exports.exporters.types import ExportType
 from exports.views import ExportRequestViewSet
 
 EXPORTS_URL = "/exports"
@@ -556,14 +557,14 @@ class ExportsJobsTests(ExportsWithSimpleSetUp):
 
     @mock.patch('exports.tasks.push_email_notification')
     @mock.patch('exports.conf_exports.delete_file')
-    def test_task_delete_export_requests_csv_files(self, mock_delete_hdfs_file, mock_push_email_notif):
+    def test_task_delete_exported_csv_files(self, mock_delete_hdfs_file, mock_push_email_notif):
         from admin_cohort.settings import DAYS_TO_DELETE_CSV_FILES
         mock_delete_hdfs_file.return_value = None
         mock_push_email_notif.return_value = None
         self.user1_exp_req_succ.insert_datetime = (timezone.now() - timedelta(days=DAYS_TO_DELETE_CSV_FILES))
         self.user1_exp_req_succ.is_user_notified = True
         self.user1_exp_req_succ.save()
-        delete_export_requests_csv_files()
+        delete_exported_csv_files()
         deleted_ers = list(ExportRequest.objects.filter(cleaned_at__isnull=False))
         self.assertCountEqual([er.pk for er in deleted_ers], [self.user1_exp_req_succ.pk])
         [self.assertAlmostEqual((er.cleaned_at - timezone.now()).total_seconds(), 0, delta=1) for er in deleted_ers]
@@ -580,7 +581,7 @@ class ExportsJobsTests(ExportsWithSimpleSetUp):
         mock_post_export.return_value = None
         mock_conclude_export_hive.return_value = None
         mock_push_email_notification.return_value = None
-        launch_request(er_id=self.user1_exp_req_succ.id)
+        launch_export(export_id=self.user1_exp_req_succ.id)
         mock_get_job_status.assert_called()
         mock_prepare_hive_db.assert_not_called()
         mock_post_export.assert_called()
@@ -598,7 +599,7 @@ class ExportsJobsTests(ExportsWithSimpleSetUp):
         mock_response._text = 'returned some task_id'
         mock_response._content = b'{"task_id": "some-task-uuid"}'
         mock_post.return_value = mock_response
-        launch_request(er_id=self.user1_exp_req_succ.id)
+        launch_export(export_id=self.user1_exp_req_succ.id)
         mock_get_job_status.assert_called()
         mock_push_email_notification.assert_called()
 
@@ -1089,10 +1090,7 @@ class ExportsJupyterCreateTests(ExportsCreateTests):
     @mock.patch("exports.conf_exports.push_email_notification")
     def test_mark_export_request_as_failed(self, mock_push_email_notification):
         mock_push_email_notification.return_value = None
-        mark_export_request_as_failed(er=self.export_request,
-                                      e=Exception("Error while processing export"),
-                                      msg="Error message",
-                                      start=timezone.now())
+        mark_export_request_as_failed(er=self.export_request, e=Exception("Error while processing export"), msg="Error message")
         mock_push_email_notification.assert_called()
         self.assertEqual(self.export_request.request_job_status, JobStatus.failed.value)
         self.assertIsNotNone(self.export_request.request_job_duration)

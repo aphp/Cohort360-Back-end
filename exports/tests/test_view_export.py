@@ -8,7 +8,8 @@ from admin_cohort.types import JobStatus
 from cohort.models import CohortResult, FhirFilter
 from exports.models import Export, Datalab
 from exports.tests.base_test import ExportsTestBase
-from exports.types import ExportType, ExportStatus
+from exports.types import ExportStatus
+from exports.exporters.types import ExportType
 from exports.views import ExportViewSet
 
 

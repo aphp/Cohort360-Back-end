@@ -3,6 +3,7 @@ import os
 from typing import List
 
 from django.utils import timezone
+from requests import Response
 from rest_framework.exceptions import ValidationError
 
 from admin_cohort.models import User
@@ -11,9 +12,10 @@ from cohort.models import CohortResult
 from cohort.services.cohort_result import cohort_service
 from exports.emails import check_email_address
 from exports.models import ExportTable, Export, Datalab
+from exports.services.export_manager import ExportDownloader
 from exports.services.rights_checker import rights_checker
 from exports.tasks import launch_export_task
-from exports.types import ExportType
+from exports.exporters.types import ExportType
 
 env = os.environ
 
@@ -25,9 +27,10 @@ _logger = logging.getLogger('info')
 
 
 class ExportService:
+    downloader = ExportDownloader
 
-    def process_export_creation(self, data: dict, owner: User):
-        self.do_pre_export_check(data=data, owner=owner)
+    def check_export_data(self, data: dict, owner: User):
+        self.pre_export_check(data=data, owner=owner)
         self.validate_tables_data(tables_data=data.get("export_tables", []))
         if data["output_format"] == ExportType.CSV:
             target_name = f"{owner.pk}_{timezone.now().strftime('%Y%m%d_%H%M%S%f')}"
@@ -43,7 +46,7 @@ class ExportService:
                      })
 
     @staticmethod
-    def do_pre_export_check(data: dict, owner: User) -> None:
+    def pre_export_check(data: dict, owner: User) -> None:
         try:
             check_email_address(owner.email)
             export_tables = data.get("export_tables", [])
@@ -123,7 +126,10 @@ class ExportService:
 
     @staticmethod
     def launch_export(export_id: str):
-        launch_export_task.delay(export_id)
+        launch_export_task.delay(export_id, Export)
+
+    def download(self, export) -> Response:
+        return self.downloader().download(export=export)
 
 
 export_service = ExportService()

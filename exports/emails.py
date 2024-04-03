@@ -7,8 +7,8 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from admin_cohort.emails import EmailNotification
-from admin_cohort.settings import EMAIL_BACK_HOST_URL, EMAIL_SUPPORT_CONTACT, DAYS_TO_DELETE_CSV_FILES, EMAIL_REGEX_CHECK
-from .types import ExportType
+from admin_cohort.settings import EMAIL_BACK_HOST_URL, EMAIL_SUPPORT_CONTACT, DAYS_TO_KEEP_EXPORTED_FILES, EMAIL_REGEX_CHECK
+from exports.exporters.types import ExportType
 
 locale.setlocale(locale.LC_ALL, 'fr_FR.utf8')
 
@@ -23,7 +23,7 @@ def check_email_address(email: str):
         raise ValidationError(f"Invalid email address '{email}'. Please contact an administrator.")
 
 
-def push_email_notification(base_notification: Callable[[dict], dict], **kwargs):
+def push_email_notification(base_notification: Callable, **kwargs):
     data = base_notification(**kwargs)
     EmailNotification(**data).push()
 
@@ -50,7 +50,7 @@ def export_request_succeeded(**kwargs):
                "selected_tables": kwargs.get('selected_tables'),
                "download_url": f"{BACKEND_URL}/auth/login/?next=/exports/{kwargs.get('export_request_id')}/download/",
                "database_name": kwargs.get('database_name'),
-               "delete_date": (timezone.now().date() + timedelta(days=int(DAYS_TO_DELETE_CSV_FILES))).strftime("%d %B %Y")
+               "delete_date": (timezone.now().date() + timedelta(days=DAYS_TO_KEEP_EXPORTED_FILES)).strftime("%d %B %Y")
                }
     return dict(subject=subject,
                 to=kwargs.get('recipient_email'),

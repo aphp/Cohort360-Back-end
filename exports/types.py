@@ -1,18 +1,13 @@
-from admin_cohort.types import StrEnum
+from enum import Enum
 
 
-class ExportType(StrEnum):
-    CSV: str = "csv"
-    HIVE: str = "hive"
-
-
-class ExportStatus(StrEnum):
+class ExportStatus(Enum):
     PENDING: str = "pending"
     SENT_TO_DE: str = "sent_to_dataexporter"
     DELIVERED: str = "delivered"
 
 
-class StatType(StrEnum):
+class StatType(Enum):
     INT: str = "Integer"
     TXT: str = "Text"
     SIZE_BYTES: str = "SizeBytes"
