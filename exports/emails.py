@@ -7,12 +7,11 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from admin_cohort.emails import EmailNotification
-from admin_cohort.settings import EMAIL_BACK_HOST_URL, EMAIL_SUPPORT_CONTACT, DAYS_TO_DELETE_CSV_FILES, EMAIL_REGEX_CHECK
+from admin_cohort.settings import FRONT_URL, EMAIL_SUPPORT_CONTACT, DAYS_TO_DELETE_CSV_FILES, EMAIL_REGEX_CHECK
 from .types import ExportType
 
 locale.setlocale(locale.LC_ALL, 'fr_FR.utf8')
 
-BACKEND_URL = EMAIL_BACK_HOST_URL
 BASE_CONTEXT = {"contact_email_address": EMAIL_SUPPORT_CONTACT}
 
 
@@ -48,7 +47,7 @@ def export_request_succeeded(**kwargs):
                "recipient_name": kwargs.get('recipient_name'),
                "cohort_id": kwargs.get('cohort_id'),
                "selected_tables": kwargs.get('selected_tables'),
-               "download_url": f"{BACKEND_URL}/auth/login/?next=/exports/{kwargs.get('export_request_id')}/download/",
+               "download_url": f"{FRONT_URL}/?next=/exports/{kwargs.get('export_request_id')}/download/",
                "database_name": kwargs.get('database_name'),
                "delete_date": (timezone.now().date() + timedelta(days=int(DAYS_TO_DELETE_CSV_FILES))).strftime("%d %B %Y")
                }
