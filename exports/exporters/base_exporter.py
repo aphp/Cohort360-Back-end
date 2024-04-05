@@ -1,9 +1,7 @@
 import logging
 import time
-from datetime import datetime
 from typing import Tuple
 
-import requests
 from django.utils import timezone
 from requests import RequestException, HTTPError
 from rest_framework.exceptions import ValidationError
@@ -12,21 +10,19 @@ from admin_cohort.models import User
 from admin_cohort.types import JobStatus
 from exports.emails import check_email_address, export_request_succeeded, push_email_notification, export_request_failed
 from exports.models import ExportRequest, Export
-from exports.exporters.infra_api import InfraAPI, JobResponse, JobStatusResponse
+from exports.exporters import ExportAPI
 from exports.services.rights_checker import rights_checker
-from exports.exporters.types import ExportType
+from exports.enums import ExportType
 
 _celery_logger = logging.getLogger('celery.app')
-_logger_err = logging.getLogger('django.request')
+_logger = logging.getLogger('django.request')
 
 
 class BaseExporter:
 
     def __init__(self):
-        self.export_api = InfraAPI()
-        self.service_name = None
-        self.target_endpoint = None
-        self.auth_token = None
+        self.export_api = ExportAPI()
+        self.type = None
 
     def validate(self, export_data: dict, owner: User, **kwargs) -> None:
         check_email_address(owner.email)
@@ -49,6 +45,7 @@ class BaseExporter:
 
     def handle(self, export: ExportRequest, params: dict) -> None:
         self.log_export_task(export.id, "Sending request to Infra API.")
+        start_time = timezone.now()
         try:
             job_id = self.send_export(export=export, params=params)
             export.request_job_status = JobStatus.pending
@@ -64,72 +61,64 @@ class BaseExporter:
         except HTTPError as e:
             self.mark_export_as_failed(export, e, f"Failure during export job {export.id}")
             return
-
-        self.log_export_task(export.id, "Export job finished, now concluding.")
+        export.request_job_duration = timezone.now() - start_time
+        export.save()
+        self.log_export_task(export.id, "Export job finished")
+        self.notify_export_succeeded(export=export)
 
     def send_export(self, export: ExportRequest | Export, params: dict) -> str:
+        def get_custom_params(exp: ExportRequest | Export) -> Tuple[str, str]:
+            if isinstance(exp, ExportRequest):
+                required_table = self.export_api.required_table
+                required_table = f"{required_table}:{exp.cohort_id}:true"
+                other_tables = ",".join(map(lambda t: f'{t.omop_table_name}::true', exp.tables.exclude(omop_table_name=required_table)))
+                tables_param = f"{required_table},{other_tables}"
+                user_for_pseudo_param = not exp.nominative and exp.target_unix_account.name or None
+            else:
+                tables_param = ",".join(map(lambda t: f'{t.name}:{t.cohort_result_subset.fhir_group_id}:{t.respect_table_relationships}',
+                                            exp.export_tables.all()))
+                user_for_pseudo_param = not exp.nominative and exp.datalab.name or None
+            return tables_param, user_for_pseudo_param
+
         self.log_export_task(export.pk, f"Asking to export for '{export.target_name}'")
-        tables, user_for_pseudo = self.get_custom_params(export=export)
-        params.update({"tables": tables,
+        tables, user_for_pseudo = get_custom_params(exp=export)
+        params.update({"export_type": self.type,
+                       "tables": tables,
                        "environment": self.export_api.target_environment,
                        "no_date_shift": export.nominative or not export.shift_dates,
                        "overwrite": False,
-                       "user_for_pseudo": user_for_pseudo,
+                       "user_for_pseudo": user_for_pseudo
                        })
-        url = f"{self.export_api.export_base_url}{self.target_endpoint}"
-        response = requests.post(url=url, params=params, headers={'auth-token': self.auth_token})
-        return JobResponse(response=response).task_id
-
-    def get_custom_params(self, export: ExportRequest | Export) -> Tuple[str, str]:
-        if isinstance(export, ExportRequest):
-            required_table = self.export_api.required_table
-            required_table = f"{required_table}:{export.cohort_id}:true"
-            other_tables = ",".join(map(lambda t: f'{t.omop_table_name}::true', export.tables.exclude(omop_table_name=required_table)))
-            tables = f"{required_table},{other_tables}"
-            user_for_pseudo = not export.nominative and export.target_unix_account.name or None
-        else:
-            tables = ",".join(map(lambda t: f'{t.name}:{t.cohort_result_subset.fhir_group_id}:{t.respect_table_relationships}',
-                                  export.export_tables.all()))
-            user_for_pseudo = not export.nominative and export.datalab.name or None
-        return tables, user_for_pseudo
+        return self.export_api.launch_export(params=params)
 
     def wait_for_export_job(self, export: ExportRequest):
         errors_count = 0
         error_msg = ""
-        status_resp = JobStatusResponse()
+        job_status = JobStatus.pending
 
-        while errors_count < 5 and not status_resp.job_ended:
+        while errors_count < 5 and not job_status.is_end_state:
             time.sleep(5)
             self.log_export_task(export.pk, f"Asking for status of job {export.request_job_id}.")
             try:
-                status_resp = self.get_job_status(job_id=export.request_job_id)
-                self.log_export_task(export.pk, f"Status received: {status_resp.job_status} - Err: {status_resp.err or ''}")
-                if export.request_job_status != status_resp.job_status:
-                    export.request_job_status = status_resp.job_status
-                    export.save()
+                job_status = self.get_job_status(job_id=export.request_job_id,
+                                                 service=self.export_api.Services.BIG_DATA)
+                self.log_export_task(export.pk, f"Status received: {job_status}")
+                export.request_job_status = job_status.value
+                export.save()
             except RequestException as e:
-                self.log_export_task(export.pk, f"Status not received: {e}")
                 errors_count += 1
                 error_msg = str(e)
 
-        if status_resp.job_status != JobStatus.finished:
-            raise HTTPError(status_resp.err or "No 'err' value returned.")
+        if job_status != JobStatus.finished:
+            raise HTTPError(f"Export job did not end successfully: {job_status}")
         elif errors_count >= 5:
-            raise HTTPError(f"5 times internal error during task -> {error_msg}")
+            raise HTTPError(f"too many consecutive errors during export: {error_msg}")
 
-    def get_job_status(self, job_id: str) -> JobStatusResponse:
-        params = {"task_uuid": job_id,
-                  "return_out_logs": True,
-                  "return_err_logs": True
-                  }
-        job_status_url = f"{self.export_api.api_url}/{self.service_name}/task_status"
-        response = requests.get(url=job_status_url, params=params, headers={'auth-token': self.auth_token})
-        return JobStatusResponse(response)
+    def get_job_status(self, job_id: str, service: ExportAPI.Services) -> JobStatus:
+        return self.export_api.get_job_status(job_id=job_id, service=service)
 
     @staticmethod
-    def finalize(export: ExportRequest | Export, start_time: datetime) -> None:
-        export.request_job_duration = timezone.now() - start_time
-        export.save()
+    def notify_export_succeeded(export: ExportRequest | Export) -> None:
         if isinstance(export, Export):
             cohort_id = export.output_format == ExportType.CSV and export.export_tables.first().cohort_result_source_id or None,
             selected_tables = export.export_tables.values_list("name", flat=True)
@@ -144,24 +133,30 @@ class BaseExporter:
                                  output_format=export.output_format,
                                  database_name=export.target_name,
                                  selected_tables=selected_tables)
-        push_email_notification(base_notification=export_request_succeeded, **notification_data)
+        try:
+            push_email_notification(base_notification=export_request_succeeded, **notification_data)
+        except OSError:
+            _logger.error(f"[ExportRequest: {export.pk}] Error sending export success notification")
+        else:
+            export.is_user_notified = True
+            export.save()
 
     @staticmethod
     def mark_export_as_failed(export: ExportRequest, e: Exception, msg: str) -> None:
         err_msg = f"{msg}: {e}"
-        _logger_err.error(f"[ExportTask] [ExportRequest: {export.pk}] {err_msg}")
+        _logger.error(f"[ExportTask] [ExportRequest: {export.pk}] {err_msg}")
         export.request_job_fail_msg = err_msg
         if export.request_job_status in [JobStatus.pending, JobStatus.validated, JobStatus.new]:
             export.request_job_status = JobStatus.failed
+        notification_data = dict(recipient_name=export.owner.display_name,
+                                 recipient_email=export.owner.email,
+                                 cohort_id=export.cohort_id,
+                                 cohort_name=export.cohort_name,
+                                 error_message=export.request_job_fail_msg)
         try:
-            notification_data = dict(recipient_name=export.owner.display_name,
-                                     recipient_email=export.owner.email,
-                                     cohort_id=export.cohort_id,
-                                     cohort_name=export.cohort_name,
-                                     error_message=export.request_job_fail_msg)
             push_email_notification(base_notification=export_request_failed, **notification_data)
         except OSError:
-            _logger_err.error(f"[ExportTask] [ExportRequest: {export.pk}] Error sending export failure email notification")
+            _logger.error(f"[ExportRequest: {export.pk}] Error sending export failure notification")
         else:
             export.is_user_notified = True
         export.save()

@@ -1,6 +1,11 @@
 from enum import Enum
 
 
+class ExportType(Enum):
+    CSV = "csv"
+    HIVE = "hive"
+
+
 class ExportStatus(Enum):
     PENDING: str = "pending"
     SENT_TO_DE: str = "sent_to_dataexporter"

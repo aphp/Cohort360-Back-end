@@ -15,7 +15,7 @@ from exports.models import ExportTable, Export, Datalab
 from exports.services.export_manager import ExportDownloader
 from exports.services.rights_checker import rights_checker
 from exports.tasks import launch_export_task
-from exports.exporters.types import ExportType
+from exports.enums import ExportType
 
 env = os.environ
 

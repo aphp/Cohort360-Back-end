@@ -1,28 +1,44 @@
 import logging
 import os
+from datetime import timedelta
 
 from django.http import StreamingHttpResponse
+from django.utils import timezone
+from requests import RequestException
 
+from admin_cohort.settings import DAYS_TO_KEEP_EXPORTED_FILES
+from admin_cohort.types import JobStatus
+from exports.emails import push_email_notification, exported_csv_files_deleted
 from exports.exceptions import BadRequestError, FilesNoLongerAvailable, StorageProviderException
+from exports.exporters.csv_exporter import CSVExporter
+from exports.enums import ExportType
+from exports.exporters.hive_exporter import HiveExporter
 from exports.models import ExportRequest, Export
 from exports.services.storage_provider import HDFSStorageProvider
 
-# todo: replace env var `DAYS_TO_DELETE_CSV_FILES`  by  `DAYS_TO_KEEP_EXPORTED_FILES`
-#       add  new env var `STORAGE_PROVIDERS_URLS`
-#       update task name: delete_exported_csv_files
 
-STORAGE_PROVIDERS_URLS = os.environ.get("STORAGE_PROVIDERS_URLS", "server1,server2").split(',')
+STORAGE_PROVIDERS = os.environ.get("STORAGE_PROVIDERS").split(',')
 
 _logger = logging.getLogger('django.request')
 
 
-class ExportManager:
-    
-    def __init__(self, *args, **kwargs):
-        self.storage_provider = HDFSStorageProvider(servers_urls=STORAGE_PROVIDERS_URLS)
+class Exporter:
+
+    def __init__(self):
+        self.exporters = {ExportType.CSV.value: CSVExporter,
+                          ExportType.HIVE.value: HiveExporter
+                          }
+
+    def handle_export(self, export_id: str, export_model: ExportRequest | Export) -> None:
+        export = export_model.objects.get(pk=export_id)
+        exporter = self.exporters[export.output_format]
+        exporter().handle_export(export=export)
 
 
-class ExportDownloader(ExportManager):
+class ExportDownloader:
+
+    def __init__(self):
+        self.storage_provider = HDFSStorageProvider(servers_urls=STORAGE_PROVIDERS)
 
     def download(self, export: ExportRequest | Export):
         if not export.downloadable():
@@ -49,9 +65,30 @@ class ExportDownloader(ExportManager):
         return self.storage_provider.get_file_size(file_name=file_name)
 
 
-class ExportCleaner(ExportManager):
+class ExportCleaner:
 
-    def delete_file(self, file_name: str):
-        self.storage_provider.delete_file(file_name=file_name)
+    def __init__(self):
+        self.storage_provider = HDFSStorageProvider(servers_urls=STORAGE_PROVIDERS)
+
+    def delete_exported_files(self):
+        d = timezone.now() - timedelta(days=DAYS_TO_KEEP_EXPORTED_FILES)
+        export_requests = ExportRequest.objects.filter(request_job_status=JobStatus.finished,
+                                                       output_format=ExportType.CSV,
+                                                       is_user_notified=True,
+                                                       insert_datetime__lte=d,
+                                                       cleaned_at__isnull=True)
+        for export_request in export_requests:
+            try:
+                self.storage_provider.delete_file(file_name=export_request.target_full_path)
+            except (RequestException, StorageProviderException) as e:
+                _logger.exception(f"ExportRequest {export_request.id}: {e}")
+
+            notification_data = dict(recipient_name=export_request.owner.display_name,
+                                     recipient_email=export_request.owner.email,
+                                     cohort_id=export_request.cohort_id)
+            push_email_notification(base_notification=exported_csv_files_deleted, **notification_data)
+            export_request.cleaned_at = timezone.now()
+            export_request.save()
+
 
 

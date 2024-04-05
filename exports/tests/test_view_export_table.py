@@ -8,8 +8,7 @@ from cohort.models import CohortResult
 from exports.models import ExportTable, Export, Datalab
 from exports.services.export import export_service
 from exports.tests.base_test import ExportsTestBase
-from exports.types import ExportStatus
-from exports.exporters.types import ExportType
+from exports.enums import ExportStatus, ExportType
 from exports.views import ExportTableViewSet
 
 

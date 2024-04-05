@@ -296,3 +296,22 @@ CHANNEL_LAYERS = {
         },
     },
 }
+
+# Exports
+if "exports" in INSTALLED_APPS:
+    EXPORT_API_CONF = {
+        "API_CLASS": env('EXPORT_API_CLASS'),
+        "API_URL": env('EXPORT_API_URL'),
+        "API_VERSION": env('EXPORT_API_VERSION'),
+        "TOKENS": env('EXPORT_API_TOKENS'),
+        "EXPORT_ENVIRONMENT": env('EXPORT_ENVIRONMENT'),
+    }
+
+# todo: add `EXPORT_API_CLASS`
+#       replace `INFRA_API_URL`  by `EXPORT_API_URL`
+#       replace `DATA_EXPORTER_VERSION`  by `EXPORT_API_VERSION`
+#       replace `INFRA_EXPORT_TOKEN` + `INFRA_HADOOP_TOKEN`  by  `EXPORT_API_TOKENS`
+#       replace `EXPORT_OMOP_ENVIRONMENT`  by `EXPORT_ENVIRONMENT`
+#       replace `DAYS_TO_DELETE_CSV_FILES`  by  `DAYS_TO_KEEP_EXPORTED_FILES`
+#       replace `HDFS_SERVERS`  by  `STORAGE_PROVIDERS`
+#       update task name: delete_exported_csv_files

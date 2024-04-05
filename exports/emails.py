@@ -8,7 +8,7 @@ from rest_framework.exceptions import ValidationError
 
 from admin_cohort.emails import EmailNotification
 from admin_cohort.settings import EMAIL_BACK_HOST_URL, EMAIL_SUPPORT_CONTACT, DAYS_TO_KEEP_EXPORTED_FILES, EMAIL_REGEX_CHECK
-from exports.exporters.types import ExportType
+from exports.enums import ExportType
 
 locale.setlocale(locale.LC_ALL, 'fr_FR.utf8')
 

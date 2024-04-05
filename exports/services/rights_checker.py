@@ -7,7 +7,7 @@ from accesses.services.accesses import accesses_service
 from accesses.services.shared import DataRight
 from admin_cohort.models import User
 from cohort.models import CohortResult
-from exports.exporters.types import ExportType
+from exports.enums import ExportType
 
 
 class RightsChecker:

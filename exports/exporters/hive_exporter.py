@@ -2,14 +2,13 @@ import logging
 import os
 import time
 
-import requests
 from requests import RequestException, HTTPError
 
 from admin_cohort.models import User
 from admin_cohort.types import JobStatus
+from exports.enums import ExportType
 from exports.models import ExportRequest
 from exports.exporters.base_exporter import BaseExporter
-from exports.exporters.infra_api import JobResponse, JobStatusResponse, HiveDbOwnershipResponse
 from workspaces.models import Account
 
 
@@ -20,12 +19,7 @@ class HiveExporter(BaseExporter):
 
     def __init__(self):
         super().__init__()
-        self.service_name = self.export_api.Services.HADOOP
-        self.auth_token = self.export_api.hadoop_auth_token
-        root_url = f"{self.export_api.api_url}/hadoop"
-        self.new_db_url = f"{root_url}/hive/create_base_hive"
-        self.chown_db_url = f"{root_url}/hdfs/chown_directory"
-        self.target_endpoint = "/hive"
+        self.type = ExportType.HIVE
         self.db_folder = os.environ.get('HIVE_DB_FOLDER')
         self.user = os.environ.get('HIVE_EXPORTER_USER')
 
@@ -50,12 +44,9 @@ class HiveExporter(BaseExporter):
 
     def create_hive_db(self, export: ExportRequest) -> None:
         self.log_export_task(export.id, f"Creating DB '{export.target_name}', location: {export.target_full_path}")
-        data = {"name": export.target_name,
-                "location": export.target_full_path,
-                "if_not_exists": False}
         try:
-            response = requests.post(url=self.new_db_url, params=data, headers={'auth-token': self.auth_token})
-            job_id = JobResponse(response=response).task_id
+            job_id = self.export_api.create_db(name=export.target_name,
+                                               location=export.target_full_path)
             self.log_export_task(export.id, f"Received Hive DB creation task_id: {job_id}")
             self.wait_for_hive_db_creation_job(job_id=job_id)
             self.log_export_task(export.id, f"DB '{export.target_name}' created.")
@@ -65,31 +56,24 @@ class HiveExporter(BaseExporter):
 
     def wait_for_hive_db_creation_job(self, job_id) -> None:
         errors_count = 0
-        status_resp = JobStatusResponse()
+        job_status = JobStatus.pending
 
-        while errors_count < 5 and not status_resp.job_ended:
+        while errors_count < 5 and not job_status.is_end_state:
             time.sleep(5)
             try:
-                status_resp = self.get_job_status(job_id=job_id)
+                job_status = self.get_job_status(job_id=job_id,
+                                                 service=self.export_api.Services.HADOOP)
             except RequestException:
                 errors_count += 1
 
-        if status_resp.job_status != JobStatus.finished:
-            raise HTTPError(f"Error on creating Hive DB {status_resp.err or 'No `err` value returned'}")
+        if job_status != JobStatus.finished:
+            raise HTTPError(f"Error creating Hive DB, status was: {job_status}")
         elif errors_count >= 5:
-            raise HTTPError("5 consecutive errors during Hive DB creation")
+            raise HTTPError("too many consecutive errors during Hive DB creation")
 
     def change_hive_db_ownership(self, export: ExportRequest, db_user: str) -> None:
-        data = {"location": export.target_full_path,
-                "uid": db_user,
-                "gid": "hdfs",
-                "recursive": True
-                }
         try:
-            response = requests.post(url=self.chown_db_url, params=data, headers={'auth-token': self.auth_token})
-            response = HiveDbOwnershipResponse(response)
-            if response.has_failed:
-                raise RequestException(f"Granting rights did not succeed: {response.err}")
+            self.export_api.change_db_ownership(location=export.target_full_path, db_user=db_user)
             self.log_export_task(export.id, f"`{db_user}` granted rights on DB `{export.target_name}`")
         except RequestException as e:
             raise RequestException(f"Error granting `{db_user}` rights on DB `{export.target_name}` - {e}")

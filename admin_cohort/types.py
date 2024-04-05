@@ -62,3 +62,10 @@ class JobStatus(StrEnum):
     finished = "finished"
     cleaned = "cleaned"
     unknown = "unknown"
+
+    @property
+    def is_end_state(self):
+        return self in [JobStatus.failed,
+                        JobStatus.cancelled,
+                        JobStatus.finished,
+                        JobStatus.unknown]

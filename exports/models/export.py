@@ -9,8 +9,7 @@ from admin_cohort.settings import DAYS_TO_KEEP_EXPORTED_FILES
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult
 from exports.models import ExportsBaseModel, Datalab
-from exports.types import ExportStatus
-from exports.exporters.types import ExportType
+from exports.enums import ExportStatus, ExportType
 
 STATUSES = [(status.name, status.value) for status in ExportStatus]
 OUTPUT_FORMATS = [(out_format.value, out_format.value) for out_format in ExportType]

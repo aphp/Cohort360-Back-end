@@ -4,7 +4,7 @@ from typing import List
 from hdfs import HdfsError
 from hdfs.ext.kerberos import KerberosClient
 
-from exports.exceptions import StorageProviderException, HdfsServerUnreachable
+from exports.exceptions import HdfsServerUnreachable, StorageProviderException
 
 
 class StorageProvider:
@@ -15,15 +15,33 @@ class StorageProvider:
         self.client = self.get_client()
 
     def get_client(self):
+        """
+        return a client connection to the storage provider
+        """
         raise NotImplementedError
 
     def get_file_size(self, file_name: str) -> int:
+        """
+        get the file size
+        @param file_name:
+        @return: file size
+        """
         raise NotImplementedError
 
-    def stream_file(self, file_name: str) -> int:
+    def stream_file(self, file_name: str):
+        """
+        read and stream a file from the storage provider
+        @param file_name: file to be streamed
+        @return: chunk of the file
+        """
         raise NotImplementedError
 
     def delete_file(self, file_name: str):
+        """
+        delete file from the storage provider
+        @param file_name: file to be deleted
+        @return: None
+        """
         raise NotImplementedError
 
 

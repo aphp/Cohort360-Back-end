@@ -7,7 +7,7 @@ from exports.models import ExportRequest, ExportRequestTable
 from exports.exporters.hive_exporter import HiveExporter
 from exports.exporters.csv_exporter import CSVExporter
 from exports.services.export_manager import ExportDownloader
-from exports.exporters.types import ExportType
+from exports.enums import ExportType
 from exports.tasks import launch_export_task, notify_export_request_received
 
 

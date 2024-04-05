@@ -5,6 +5,7 @@ from rest_framework.exceptions import ValidationError
 from admin_cohort.models import User
 from cohort.models import CohortResult
 from exports.models import ExportRequest, Export
+from exports.enums import ExportType
 from exports.exporters.base_exporter import BaseExporter
 
 
@@ -12,9 +13,7 @@ class CSVExporter(BaseExporter):
 
     def __init__(self):
         super().__init__()
-        self.service_name = self.export_api.Services.BIG_DATA
-        self.auth_token = self.export_api.bigdata_auth_token
-        self.target_endpoint = "/csv"
+        self.type = ExportType.CSV
         self.filepath = os.environ.get('EXPORT_CSV_PATH')
 
     def validate(self, export_data: dict, owner: User, **kwargs) -> None:
