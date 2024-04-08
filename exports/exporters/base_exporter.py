@@ -3,7 +3,7 @@ import time
 from typing import Tuple
 
 from django.utils import timezone
-from requests import RequestException, HTTPError
+from requests import RequestException
 from rest_framework.exceptions import ValidationError
 
 from admin_cohort.models import User
@@ -51,15 +51,10 @@ class BaseExporter:
             export.request_job_status = JobStatus.pending
             export.request_job_id = job_id
             export.save()
-            self.log_export_task(export.id, f"Request sent, job {job_id} is now {JobStatus.pending}")
+            self.log_export_task(export.id, f"Request sent, job `{job_id}` is now {JobStatus.pending}")
+            self.wait_for_export_job(export)
         except RequestException as e:
             self.mark_export_as_failed(export, e, f"Could not post export {export.id}")
-            return
-
-        try:
-            self.wait_for_export_job(export)
-        except HTTPError as e:
-            self.mark_export_as_failed(export, e, f"Failure during export job {export.id}")
             return
         export.request_job_duration = timezone.now() - start_time
         export.save()
@@ -91,31 +86,30 @@ class BaseExporter:
                        })
         return self.export_api.launch_export(params=params)
 
-    def wait_for_export_job(self, export: ExportRequest):
+    def wait_for_export_job(self, export: ExportRequest | Export) -> None:
+        job_status = self.wait_for_job(job_id=export.request_job_id,
+                                       service=self.export_api.Services.BIG_DATA)
+        export.request_job_status = job_status.value
+        export.save()
+
+    def wait_for_job(self, job_id: str, service: str) -> JobStatus:
         errors_count = 0
         error_msg = ""
         job_status = JobStatus.pending
 
         while errors_count < 5 and not job_status.is_end_state:
             time.sleep(5)
-            self.log_export_task(export.pk, f"Asking for status of job {export.request_job_id}.")
+            self.log_export_task("", f"Asking for status of job {job_id}.")
             try:
-                job_status = self.get_job_status(job_id=export.request_job_id,
-                                                 service=self.export_api.Services.BIG_DATA)
-                self.log_export_task(export.pk, f"Status received: {job_status}")
-                export.request_job_status = job_status.value
-                export.save()
+                job_status = self.export_api.get_job_status(job_id=job_id, service=service)
+                self.log_export_task("", f"Received status: {job_status}")
             except RequestException as e:
                 errors_count += 1
                 error_msg = str(e)
 
         if job_status != JobStatus.finished:
-            raise HTTPError(f"Export job did not end successfully: {job_status}")
-        elif errors_count >= 5:
-            raise HTTPError(f"too many consecutive errors during export: {error_msg}")
-
-    def get_job_status(self, job_id: str, service: ExportAPI.Services) -> JobStatus:
-        return self.export_api.get_job_status(job_id=job_id, service=service)
+            raise RequestException(f"Job `{job_id}` ended with status `{job_status}`, reason: {error_msg}")
+        return job_status
 
     @staticmethod
     def notify_export_succeeded(export: ExportRequest | Export) -> None:
@@ -145,14 +139,13 @@ class BaseExporter:
     def mark_export_as_failed(export: ExportRequest, e: Exception, msg: str) -> None:
         err_msg = f"{msg}: {e}"
         _logger.error(f"[ExportTask] [ExportRequest: {export.pk}] {err_msg}")
+        export.request_job_status = JobStatus.failed
         export.request_job_fail_msg = err_msg
-        if export.request_job_status in [JobStatus.pending, JobStatus.validated, JobStatus.new]:
-            export.request_job_status = JobStatus.failed
         notification_data = dict(recipient_name=export.owner.display_name,
                                  recipient_email=export.owner.email,
                                  cohort_id=export.cohort_id,
                                  cohort_name=export.cohort_name,
-                                 error_message=export.request_job_fail_msg)
+                                 error_message=err_msg)
         try:
             push_email_notification(base_notification=export_request_failed, **notification_data)
         except OSError:
