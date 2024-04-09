@@ -68,13 +68,30 @@ class CohortResultSerializerFullDatedMeasure(CohortResultSerializer):
     dated_measure_global = DatedMeasureSerializer(required=False, allow_null=True)
 
 
+class ReducedCohortResultSerializer(BaseSerializer):
+    query_snapshot = serializers.UUIDField(read_only=True, source='request_query_snapshot_id')
+
+    class Meta:
+        model = CohortResult
+        fields = ["name",
+                  "favorite",
+                  "request_job_status",
+                  "query_snapshot",
+                  "result_size",
+                  "modified_at",
+                  "exportable"]
+
+
 class ReducedRequestQuerySnapshotSerializer(BaseSerializer):
+    cohort_results = ReducedCohortResultSerializer(many=True, read_only=True)
+
     class Meta:
         model = RequestQuerySnapshot
         fields = ["uuid",
                   "created_at",
                   "title",
                   "has_linked_cohorts",
+                  "cohort_results",
                   "version"]
 
 

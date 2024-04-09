@@ -7,7 +7,6 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
-from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from cohort.models import RequestQuerySnapshot
 from cohort.permissions import IsOwnerPermission
@@ -35,7 +34,6 @@ class RequestQuerySnapshotViewSet(NestedViewSetMixin, UserObjectsRestrictedViewS
     filterset_class = RequestQuerySnapshotFilter
     search_fields = ('$serialized_query',)
 
-    @cache_response()
     def list(self, request, *args, **kwargs):
         return super(RequestQuerySnapshotViewSet, self).list(request, *args, **kwargs)
 
