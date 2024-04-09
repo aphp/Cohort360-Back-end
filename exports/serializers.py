@@ -46,15 +46,10 @@ class ExportRequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = ExportRequest
         fields = "__all__"
-        read_only_fields = ["export_request_id",
-                            "request_datetime",
-                            "execution_request_datetime",
-                            "validation_request_datetime",
+        read_only_fields = ["execution_request_datetime",
                             "is_user_notified",
                             "target_location",
                             "target_name",
-                            "creator_id",
-                            "reviewer_id",
                             "cleaned_at",
                             "insert_datetime",
                             "update_datetime",
@@ -68,7 +63,6 @@ class ExportRequestSerializer(serializers.ModelSerializer):
                             ]
         extra_kwargs = {'cohort': {'required': True},
                         'output_format': {'required': True},
-                        'creator': {'required': True},
                         'owner': {'required': True}
                         }
 

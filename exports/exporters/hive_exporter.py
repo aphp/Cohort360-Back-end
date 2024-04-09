@@ -35,12 +35,12 @@ class HiveExporter(BaseExporter):
 
     def prepare_db(self, export: ExportRequest) -> None:
         try:
-            self.create_hive_db(export=export)
-            self.change_hive_db_ownership(export=export, db_user=self.user)
+            self.create_db(export=export)
+            self.change_db_ownership(export=export, db_user=self.user)
         except RequestException as e:
             self.mark_export_as_failed(export, e, f"Error while preparing for export {export.id}")
 
-    def create_hive_db(self, export: ExportRequest) -> None:
+    def create_db(self, export: ExportRequest) -> None:
         self.log_export_task(export.id, f"Creating DB '{export.target_name}', location: {export.target_full_path}")
         try:
             job_id = self.export_api.create_db(name=export.target_name,
@@ -53,7 +53,7 @@ class HiveExporter(BaseExporter):
             raise e
         self.log_export_task(export.id, f"DB '{export.target_name}' created.")
 
-    def change_hive_db_ownership(self, export: ExportRequest, db_user: str) -> None:
+    def change_db_ownership(self, export: ExportRequest, db_user: str) -> None:
         try:
             self.export_api.change_db_ownership(location=export.target_full_path, db_user=db_user)
             self.log_export_task(export.id, f"`{db_user}` granted rights on DB `{export.target_name}`")
@@ -63,7 +63,7 @@ class HiveExporter(BaseExporter):
     def conclude_export(self, export: ExportRequest) -> None:
         try:
             db_user = export.target_unix_account.name
-            self.change_hive_db_ownership(export=export, db_user=db_user)
+            self.change_db_ownership(export=export, db_user=db_user)
             self.log_export_task(export.id, f"DB '{export.target_name}' attributed to {db_user}. Conclusion finished.")
         except RequestException as e:
             self.mark_export_as_failed(export, e, f"Could not conclude export {export.id}")

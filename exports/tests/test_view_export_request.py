@@ -1005,7 +1005,7 @@ class ExportsJupyterCreateTests(ExportsCreateTests):
         resp.status_code = 200
         resp._content = b'{"task_id": "random_task_id"}'
         mock_request_post.return_value = resp
-        self.hive_exporter.create_hive_db(export=self.export_request)
+        self.hive_exporter.create_db(export=self.export_request)
         mock_wait_for_hive_db.assert_called()
 
     @mock.patch("exports.conf_exports.requests.post")
@@ -1014,7 +1014,7 @@ class ExportsJupyterCreateTests(ExportsCreateTests):
         resp.status_code = 503
         mock_request_post.return_value = resp
         with self.assertRaises(RequestException):
-            self.hive_exporter.create_hive_db(export=self.export_request)
+            self.hive_exporter.create_db(export=self.export_request)
 
     @mock.patch("exports.conf_exports.requests.post")
     def test_create_hive_db_with_missing_data(self, mock_request_post):
@@ -1023,7 +1023,7 @@ class ExportsJupyterCreateTests(ExportsCreateTests):
         resp._content = b'{}'
         mock_request_post.return_value = resp
         with self.assertRaises(MissingDataError):
-            self.hive_exporter.create_hive_db(export=self.export_request)
+            self.hive_exporter.create_db(export=self.export_request)
 
     @mock.patch("exports.conf_exports.get_job_status")
     @mock.patch("exports.conf_exports.time.sleep")
