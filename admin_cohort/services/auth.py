@@ -192,7 +192,7 @@ class AuthService:
                       }
     applicative_users = {env("ETL_TOKEN"): ETL_USERNAME,
                          env("SJS_TOKEN"): SJS_USERNAME,
-                         env("ROLLOUT_MAINTENANCE_TOKEN"): ROLLOUT_USERNAME
+                         env("ROLLOUT_TOKEN"): ROLLOUT_USERNAME
                          }
 
     def _get_authenticator(self, auth_method: str):
