@@ -29,7 +29,7 @@ _logger = logging.getLogger('info')
 class ExportService:
     downloader = ExportDownloader
 
-    def check_export_data(self, data: dict, owner: User):
+    def validate_export_data(self, data: dict, owner: User):
         self.pre_export_check(data=data, owner=owner)
         self.validate_tables_data(tables_data=data.get("export_tables", []))
         if data["output_format"] == ExportType.CSV:

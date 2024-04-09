@@ -22,10 +22,8 @@ class ExportRequest(JobModel, BaseModel, models.Model):
     output_format = models.CharField(choices=OUTPUT_FORMATS, default=ExportType.CSV.value, max_length=20)
     nominative = models.BooleanField(default=False)
     owner = models.ForeignKey(User, related_name='export_requests', on_delete=CASCADE, null=True)
-    # OMOP
     cohort_fk = models.ForeignKey(CohortResult, related_name='export_requests', on_delete=SET_NULL, null=True)
     shift_dates = models.BooleanField(default=False)
-    # USERS
     target_unix_account = models.ForeignKey(Account, related_name='export_requests', on_delete=SET_NULL, null=True)
     creator_fk = models.ForeignKey(User, related_name='created_export_requests', on_delete=SET_NULL, null=True)
     is_user_notified = models.BooleanField(default=False)
@@ -33,8 +31,6 @@ class ExportRequest(JobModel, BaseModel, models.Model):
     target_name = models.TextField(null=True)
     cleaned_at = models.DateTimeField(null=True)
     execution_request_datetime = models.DateTimeField(null=True)
-    # to deprecated
-    # to remove when infra is ready
     cohort_id = models.BigIntegerField(null=False)
     provider_id = models.CharField(max_length=25, blank=True, null=True)
     reviewer_fk = models.ForeignKey(User, related_name='reviewed_export_requests', on_delete=SET_NULL, null=True)

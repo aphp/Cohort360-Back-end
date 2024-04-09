@@ -115,7 +115,7 @@ class ExportRequestViewSet(RequestLogMixin, viewsets.ModelViewSet):
                                     required=["tables"]))
     @transaction.atomic
     def create(self, request, *args, **kwargs):
-        export_request_service.check_export_data(data=request.data, owner=request.user)
+        export_request_service.validate_export_data(data=request.data, owner=request.user)
         tables = request.data.pop("tables", [])
         response = super().create(request, *args, **kwargs)
         transaction.on_commit(lambda: export_request_service.proceed_with_export(export=response.data.serializer.instance,

@@ -4,22 +4,15 @@ from requests import Response
 
 from admin_cohort.models import User
 from exports.models import ExportRequest, ExportRequestTable
-from exports.exporters.hive_exporter import HiveExporter
-from exports.exporters.csv_exporter import CSVExporter
-from exports.services.export_manager import ExportDownloader
-from exports.enums import ExportType
+from exports.services.export_manager import ExportDownloader, Exporter
 from exports.tasks import launch_export_task, notify_export_request_received
 
 
 class ExportRequestService:
-    exporters = {ExportType.CSV: CSVExporter,
-                 ExportType.HIVE: HiveExporter
-                 }
-    downloader = ExportDownloader
 
-    def check_export_data(self, data: dict, owner: User) -> None:
-        exporter = self.exporters.get(data["output_format"])
-        exporter().validate(export_data=data, owner=owner)
+    @staticmethod
+    def validate_export_data(data: dict, owner: User) -> None:
+        Exporter().validate(export_data=data, owner=owner)
 
     def proceed_with_export(self, export: ExportRequest, tables: List[dict]) -> None:
         self.create_tables(export, tables)
@@ -31,8 +24,9 @@ class ExportRequestService:
         for table in tables:
             ExportRequestTable.objects.create(export_request=export_request, **table)
 
-    def download(self, export) -> Response:
-        return self.downloader().download(export=export)
+    @staticmethod
+    def download(export) -> Response:
+        return ExportDownloader().download(export=export)
 
 
 export_request_service = ExportRequestService()

@@ -6,6 +6,7 @@ from django.http import StreamingHttpResponse
 from django.utils import timezone
 from requests import RequestException
 
+from admin_cohort.models import User
 from admin_cohort.settings import DAYS_TO_KEEP_EXPORTED_FILES
 from admin_cohort.types import JobStatus
 from exports.emails import push_email_notification, exported_csv_files_deleted
@@ -28,6 +29,10 @@ class Exporter:
         self.exporters = {ExportType.CSV.value: CSVExporter,
                           ExportType.HIVE.value: HiveExporter
                           }
+
+    def validate(self, export_data: dict, owner: User) -> None:
+        exporter = self.exporters[export_data.get("output_format")]
+        exporter().validate(export_data=export_data, owner=owner)
 
     def handle_export(self, export_id: str, export_model: ExportRequest | Export) -> None:
         export = export_model.objects.get(pk=export_id)
