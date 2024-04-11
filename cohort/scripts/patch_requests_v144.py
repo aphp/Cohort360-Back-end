@@ -4,7 +4,6 @@ import sys
 from django.db import connections
 
 from cohort.scripts.patch_requests_v140 import NEW_VERSION as PREV_VERSION
-from cohort.scripts.patch_requests_v141 import NEW_VERSION as PREV_VERSION_2
 from cohort.scripts.query_request_updater import RESOURCE_DEFAULT, MATCH_ALL_VALUES, QueryRequestUpdater, \
     find_mapped_code
 
