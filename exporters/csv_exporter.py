@@ -5,8 +5,9 @@ from rest_framework.exceptions import ValidationError
 from admin_cohort.models import User
 from cohort.models import CohortResult
 from exports.models import ExportRequest, Export
-from exports.enums import ExportType
-from exports.exporters.base_exporter import BaseExporter
+from exporters.base_exporter import BaseExporter
+from exporters.enums import ExportType
+from exporters.tasks import notify_export_received
 
 
 class CSVExporter(BaseExporter):
@@ -34,4 +35,5 @@ class CSVExporter(BaseExporter):
                            target_location=self.filepath)
 
     def handle_export(self, export: ExportRequest | Export) -> None:
-        super().handle(export=export, params={"file_path": export.target_full_path})
+        notify_export_received.delay(export.pk)
+        super().handle(export=export, params={"file_path": f"{export.target_full_path}.zip"})

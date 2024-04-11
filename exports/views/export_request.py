@@ -87,8 +87,7 @@ class ExportRequestViewSet(RequestLogMixin, viewsets.ModelViewSet):
     @swagger_auto_schema(
         request_body=openapi.Schema(type=openapi.TYPE_OBJECT,
                                     properties={'motivation': openapi.Schema(type=openapi.TYPE_STRING),
-                                                'output_format': openapi.Schema(type=openapi.TYPE_STRING,
-                                                                                description="hive, csv (default)"),
+                                                'output_format': openapi.Schema(type=openapi.TYPE_STRING),
                                                 'cohort_id': openapi.Schema(type=openapi.TYPE_STRING,
                                                                             description="use cohort_fk instead"),
                                                 'provider_source_value': openapi.Schema(type=openapi.TYPE_STRING),

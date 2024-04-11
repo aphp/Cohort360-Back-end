@@ -7,7 +7,7 @@ from accesses.services.accesses import accesses_service
 from accesses.services.shared import DataRight
 from admin_cohort.models import User
 from cohort.models import CohortResult
-from exports.enums import ExportType
+from exports import ExportTypes
 
 
 class RightsChecker:
@@ -26,7 +26,7 @@ class RightsChecker:
         data_permissions = accesses_service.get_data_reading_rights(user=owner,
                                                                     target_perimeters_ids=','.join(map(str, perimeters_ids)))
         self._check_rights(data_permissions=data_permissions, required_right=nominative and self.right_read_nomi or self.right_read_pseudo)
-        if output_format == ExportType.CSV:
+        if output_format == ExportTypes.CSV:
             required_right = nominative and self.right_csv_nomi or self.right_csv_pseudo
         else:
             required_right = nominative and self.right_jupyter_nomi or self.right_jupyter_pseudo

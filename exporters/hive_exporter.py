@@ -4,11 +4,11 @@ import os
 from requests import RequestException
 
 from admin_cohort.models import User
-from exports.enums import ExportType
 from exports.models import ExportRequest
-from exports.exporters.base_exporter import BaseExporter
 from workspaces.models import Account
-
+from exporters.base_exporter import BaseExporter
+from exporters.enums import ExportType
+from exporters.tasks import notify_export_received
 
 _logger_err = logging.getLogger('django.request')
 
@@ -29,6 +29,7 @@ class HiveExporter(BaseExporter):
                            target_location=self.db_folder)
 
     def handle_export(self, export: ExportRequest) -> None:
+        notify_export_received.delay(export.pk)
         self.prepare_db(export)
         super().handle(export=export, params={"database_name": export.target_name})
         self.conclude_export(export=export)
@@ -40,11 +41,16 @@ class HiveExporter(BaseExporter):
         except RequestException as e:
             self.mark_export_as_failed(export, e, f"Error while preparing for export {export.id}")
 
+    @staticmethod
+    def get_db_location(export: ExportRequest) -> str:
+        return f"{export.target_full_path}.db"
+
     def create_db(self, export: ExportRequest) -> None:
-        self.log_export_task(export.id, f"Creating DB '{export.target_name}', location: {export.target_full_path}")
+        db_location = self.get_db_location(export=export)
+        self.log_export_task(export.id, f"Creating DB '{export.target_name}', location: {db_location}")
         try:
             job_id = self.export_api.create_db(name=export.target_name,
-                                               location=export.target_full_path)
+                                               location=db_location)
             self.log_export_task(export.id, f"Received Hive DB creation task_id: {job_id}")
             self.wait_for_job(job_id=job_id,
                               service=self.export_api.Services.HADOOP)
@@ -55,7 +61,8 @@ class HiveExporter(BaseExporter):
 
     def change_db_ownership(self, export: ExportRequest, db_user: str) -> None:
         try:
-            self.export_api.change_db_ownership(location=export.target_full_path, db_user=db_user)
+            self.export_api.change_db_ownership(location=self.get_db_location(export=export),
+                                                db_user=db_user)
             self.log_export_task(export.id, f"`{db_user}` granted rights on DB `{export.target_name}`")
         except RequestException as e:
             raise RequestException(f"Error granting `{db_user}` rights on DB `{export.target_name}` - {e}")

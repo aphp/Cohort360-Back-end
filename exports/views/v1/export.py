@@ -70,7 +70,7 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
     @swagger_auto_schema(
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
-            properties={'output_format': openapi.Schema(type=openapi.TYPE_STRING, description="hive, csv (default)"),
+            properties={'output_format': openapi.Schema(type=openapi.TYPE_STRING),
                         'datalab': openapi.Schema(type=openapi.TYPE_STRING),
                         'nominative': openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Defaults to False"),
                         'shift_dates': openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Defaults to False"),

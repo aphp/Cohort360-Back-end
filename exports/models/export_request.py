@@ -1,25 +1,23 @@
 from datetime import timedelta
 
+from django.conf import settings
 from django.db import models
 from django.db.models import CASCADE, SET_NULL
 from django.utils import timezone
 
 from admin_cohort.models import JobModel, BaseModel, User
-from admin_cohort.settings import DAYS_TO_KEEP_EXPORTED_FILES
-from admin_cohort.types import JobStatus
 from cohort.models import CohortResult
-from exports.enums import ExportType
 from workspaces.models import Account
+from exports import ExportTypes
 
 
-OUTPUT_FORMATS = [(ExportType.CSV.value, ExportType.CSV.value),
-                  (ExportType.HIVE.value, ExportType.HIVE.value)]
+OUTPUT_FORMATS = [(out_format.value, out_format.value) for out_format in ExportTypes]
 
 
 class ExportRequest(JobModel, BaseModel, models.Model):
     id = models.BigAutoField(primary_key=True)
     motivation = models.TextField(null=True)
-    output_format = models.CharField(choices=OUTPUT_FORMATS, default=ExportType.CSV.value, max_length=20)
+    output_format = models.CharField(choices=OUTPUT_FORMATS, max_length=20)
     nominative = models.BooleanField(default=False)
     owner = models.ForeignKey(User, related_name='export_requests', on_delete=CASCADE, null=True)
     cohort_fk = models.ForeignKey(CohortResult, related_name='export_requests', on_delete=SET_NULL, null=True)
@@ -45,9 +43,7 @@ class ExportRequest(JobModel, BaseModel, models.Model):
     @property
     def target_full_path(self) -> str:
         if self.target_location and self.target_name:
-            extensions = {ExportType.CSV.value: ".zip",
-                          ExportType.HIVE.value: ".db"}
-            return f"{self.target_location}/{self.target_name}{extensions.get(self.output_format)}"
+            return f"{self.target_location}/{self.target_name}"
         return ""
 
     @property
@@ -64,9 +60,5 @@ class ExportRequest(JobModel, BaseModel, models.Model):
     def target_env(self) -> str:
         return self.target_unix_account and self.target_unix_account.name or ""
 
-    def downloadable(self) -> bool:
-        return self.request_job_status == JobStatus.finished \
-               and self.output_format == ExportType.CSV
-
     def available_for_download(self) -> bool:
-        return self.insert_datetime + timedelta(days=DAYS_TO_KEEP_EXPORTED_FILES) > timezone.now()
+        return self.insert_datetime + timedelta(days=settings.DAYS_TO_KEEP_EXPORTED_FILES) > timezone.now()

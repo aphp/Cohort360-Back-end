@@ -5,10 +5,11 @@ from rest_framework import status
 from admin_cohort.tests.tests_tools import new_user_and_profile
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult
+from exports import ExportTypes
 from exports.models import ExportTable, Export, Datalab
 from exports.services.export import export_service
 from exports.tests.base_test import ExportsTestBase
-from exports.enums import ExportStatus, ExportType
+from exports.enums import ExportStatus
 from exports.views import ExportTableViewSet
 
 
@@ -20,7 +21,7 @@ class ExportTableViewSetTest(ExportsTestBase):
     def setUp(self):
         super().setUp()
         self.datalab = Datalab.objects.create(infrastructure_provider=self.infra_provider_aphp)
-        self.export = Export.objects.create(output_format=ExportType.CSV,
+        self.export = Export.objects.create(output_format=ExportTypes.CSV,
                                             owner=self.datalabs_manager_user,
                                             datalab=self.datalab,
                                             status=ExportStatus.PENDING,

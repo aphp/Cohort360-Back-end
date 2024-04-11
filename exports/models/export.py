@@ -8,11 +8,12 @@ from admin_cohort.models import User, JobModel
 from admin_cohort.settings import DAYS_TO_KEEP_EXPORTED_FILES
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult
+from exports import ExportTypes
 from exports.models import ExportsBaseModel, Datalab
-from exports.enums import ExportStatus, ExportType
+from exports.enums import ExportStatus
 
 STATUSES = [(status.name, status.value) for status in ExportStatus]
-OUTPUT_FORMATS = [(out_format.value, out_format.value) for out_format in ExportType]
+OUTPUT_FORMATS = [(out_format.value, out_format.value) for out_format in ExportTypes]
 
 
 class Export(ExportsBaseModel, JobModel):
@@ -25,12 +26,8 @@ class Export(ExportsBaseModel, JobModel):
     data_version = models.CharField(null=True, max_length=20)
     nominative = models.BooleanField(null=False, default=False)
     is_user_notified = models.BooleanField(null=False, default=False)
-
-    # Jupyter
     datalab = models.ForeignKey(to=Datalab, related_name="exports", on_delete=CASCADE, null=True)
     shift_dates = models.BooleanField(null=False, default=False)
-
-    # CSV
     motivation = models.TextField(null=True, blank=True)
     clean_datetime = models.DateTimeField(null=True)
 
@@ -40,8 +37,8 @@ class Export(ExportsBaseModel, JobModel):
     @property
     def target_full_path(self) -> str:
         if self.target_location and self.target_name:
-            extensions = {ExportType.CSV.value: ".zip",
-                          ExportType.HIVE.value: ".db"
+            extensions = {ExportTypes.CSV.value: ".zip",
+                          ExportTypes.HIVE.value: ".db"
                           }
             return f"{self.target_location}/{self.target_name}{extensions.get(self.output_format)}"
         return ""
@@ -57,7 +54,7 @@ class Export(ExportsBaseModel, JobModel):
 
     def downloadable(self) -> bool:
         return self.request_job_status == JobStatus.finished \
-               and self.output_format == ExportType.CSV
+               and self.output_format == ExportTypes.CSV
 
     def available_for_download(self) -> bool:
         return self.created_at + timedelta(days=DAYS_TO_KEEP_EXPORTED_FILES) > timezone.now()

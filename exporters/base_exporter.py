@@ -8,11 +8,12 @@ from rest_framework.exceptions import ValidationError
 
 from admin_cohort.models import User
 from admin_cohort.types import JobStatus
-from exports.emails import check_email_address, export_request_succeeded, push_email_notification, export_request_failed
+from exports.emails import check_email_address, push_email_notification
 from exports.models import ExportRequest, Export
-from exports.exporters import ExportAPI
 from exports.services.rights_checker import rights_checker
 from exports.enums import ExportType
+from exporters.infra_api import InfraAPI
+from exporters.notifications import export_succeeded, export_failed
 
 _celery_logger = logging.getLogger('celery.app')
 _logger = logging.getLogger('django.request')
@@ -21,7 +22,7 @@ _logger = logging.getLogger('django.request')
 class BaseExporter:
 
     def __init__(self):
-        self.export_api = ExportAPI()
+        self.export_api = InfraAPI()
         self.type = None
 
     def validate(self, export_data: dict, owner: User, **kwargs) -> None:
@@ -92,7 +93,7 @@ class BaseExporter:
         export.request_job_status = job_status.value
         export.save()
 
-    def wait_for_job(self, job_id: str, service: str) -> JobStatus:
+    def wait_for_job(self, job_id: str, service: InfraAPI.Services) -> JobStatus:
         errors_count = 0
         error_msg = ""
         job_status = JobStatus.pending
@@ -128,7 +129,7 @@ class BaseExporter:
                                  database_name=export.target_name,
                                  selected_tables=selected_tables)
         try:
-            push_email_notification(base_notification=export_request_succeeded, **notification_data)
+            push_email_notification(base_notification=export_succeeded, **notification_data)
         except OSError:
             _logger.error(f"[ExportRequest: {export.pk}] Error sending export success notification")
         else:
@@ -147,7 +148,7 @@ class BaseExporter:
                                  cohort_name=export.cohort_name,
                                  error_message=err_msg)
         try:
-            push_email_notification(base_notification=export_request_failed, **notification_data)
+            push_email_notification(base_notification=export_failed, **notification_data)
         except OSError:
             _logger.error(f"[ExportRequest: {export.pk}] Error sending export failure notification")
         else:

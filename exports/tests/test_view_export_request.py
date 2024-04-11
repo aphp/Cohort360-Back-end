@@ -22,9 +22,10 @@ from exports.export_api.responses import JobStatusResponse
 from exports.exporters.csv_exporter import CSVExporter
 from exports.exporters.hive_exporter import HiveExporter
 from workspaces.models import Account
+from exports import ExportTypes
 from exports.models import ExportRequest, ExportRequestTable, Export, ExportTable, InfrastructureProvider, Datalab
 from exports.tasks import delete_exported_csv_files, launch_export_task
-from exports.enums import ExportStatus, ExportType
+from exports.enums import ExportStatus
 from exports.views import ExportRequestViewSet
 
 EXPORTS_URL = "/exports"
@@ -267,7 +268,7 @@ class ExportsWithSimpleSetUp(ExportsTests):
                 creator_fk=self.user1,
                 cohort_fk=self.user1_cohort,
                 cohort_id=42,
-                output_format=ExportType.CSV.value,
+                output_format=ExportTypes.CSV.value,
                 provider_id=self.user1.provider_id,
                 request_job_status=JobStatus.finished,
                 target_location="user1_exp_req_succ",
@@ -285,7 +286,7 @@ class ExportsWithSimpleSetUp(ExportsTests):
                 owner=self.user1,
                 cohort_fk=self.user1_cohort,
                 cohort_id=42,
-                output_format=ExportType.CSV.value,
+                output_format=ExportTypes.CSV.value,
                 provider_id=self.user1.provider_id,
                 request_job_status=JobStatus.failed.value,
                 target_location="user1_exp_req_failed",
@@ -297,7 +298,7 @@ class ExportsWithSimpleSetUp(ExportsTests):
                 owner=self.user2,
                 cohort_fk=self.user2_cohort,
                 cohort_id=43,
-                output_format=ExportType.CSV.value,
+                output_format=ExportTypes.CSV.value,
                 provider_id=self.user1.provider_id,
                 request_job_status=JobStatus.finished.value,
                 target_location="user2_exp_req_succ",
@@ -307,7 +308,7 @@ class ExportsWithSimpleSetUp(ExportsTests):
         # Exports new flow with new models - v1
         self.infra_provider_aphp = InfrastructureProvider.objects.create(name="APHP")
         self.datalab = Datalab.objects.create(name="main_datalab", infrastructure_provider=self.infra_provider_aphp)
-        self.user1_export = Export.objects.create(output_format=ExportType.HIVE,
+        self.user1_export = Export.objects.create(output_format=ExportTypes.HIVE,
                                                   owner=self.user1,
                                                   status=ExportStatus.PENDING.name,
                                                   target_name="12345_09092023_151500",
@@ -353,8 +354,8 @@ class ExportsListTests(ExportsTests):
                 nominative=random.random() > 0.5,
                 shift_dates=random.random() > 0.5,
                 target_unix_account=self.user1_unix_acc,
-                output_format=random.choice([ExportType.CSV.value,
-                                             ExportType.HIVE.value]),
+                output_format=random.choice([ExportTypes.CSV.value,
+                                             ExportTypes.HIVE.value]),
                 provider_id=self.user1.provider_id,
                 request_job_status=random.choice([
                     JobStatus.new.value, JobStatus.failed.value,
@@ -372,8 +373,8 @@ class ExportsListTests(ExportsTests):
                         self.user1_cohort2,
                     ]),
                     cohort_id=example_int,
-                    output_format=random.choice([ExportType.CSV.value,
-                                                 ExportType.HIVE.value]),
+                    output_format=random.choice([ExportTypes.CSV.value,
+                                                 ExportTypes.HIVE.value]),
                     provider_id=self.user2.provider_id,
                     owner=self.user2,
                     request_job_status=random.choice([
@@ -416,7 +417,7 @@ class ExportsRetrieveTests(ExportsWithSimpleSetUp):
             owner=self.user1,
             cohort_fk=self.user1_cohort,
             cohort_id=42,
-            output_format=ExportType.CSV.value,
+            output_format=ExportTypes.CSV.value,
             provider_id=self.user1.provider_id,
             request_job_status=JobStatus.finished.value,
             target_location="location_example",
@@ -540,7 +541,7 @@ class ExportsRetrieveTests(ExportsWithSimpleSetUp):
         # As a user, I cannot download the result of an ExportRequest that is
         # not of type CSV and with job status finished
         export = self.base_err_download_case.export
-        export.output_format = ExportType.HIVE
+        export.output_format = ExportTypes.HIVE
         export.save()
         self.check_download(self.base_err_download_case.clone(status=status.HTTP_400_BAD_REQUEST))
 
@@ -725,7 +726,7 @@ class ExportsCsvCreateTests(ExportsCreateTests):
 
         basic_export_descr = "basic_export"
         self.basic_data = dict(
-            output_format=ExportType.CSV.value,
+            output_format=ExportTypes.CSV.value,
             nominative=True,
             shift_dates=False,
             tables=[dict(omop_table_name="provider")],
@@ -848,7 +849,7 @@ class ExportsJupyterCreateTests(ExportsCreateTests):
 
         basic_export_descr = "basic_export"
         self.basic_data = dict(
-            output_format=ExportType.HIVE.value,
+            output_format=ExportTypes.HIVE.value,
             nominative=True,
             shift_dates=False,
             tables=[dict(omop_table_name="provider")],
@@ -880,7 +881,7 @@ class ExportsJupyterCreateTests(ExportsCreateTests):
                                                            nominative=True,
                                                            shift_dates=True,
                                                            target_unix_account=self.user1_unix_acc,
-                                                           output_format=ExportType.HIVE.value,
+                                                           output_format=ExportTypes.HIVE.value,
                                                            provider_id=self.user1.provider_id,
                                                            target_name="user1_12345",
                                                            target_location="test/user/exports")
@@ -1112,7 +1113,7 @@ class ExportsNotAllowedTests(ExportsWithSimpleSetUp):
             owner=self.full_admin_user,
             cohort_fk=self.user1_cohort,
             cohort_id=self.user1_cohort.fhir_group_id,
-            output_format=ExportType.HIVE.value,
+            output_format=ExportTypes.HIVE.value,
             provider_id=self.user1.provider_id,
             request_job_status=JobStatus.new.value,
             target_location="user1_exp_req_succ",
@@ -1120,7 +1121,7 @@ class ExportsNotAllowedTests(ExportsWithSimpleSetUp):
 
         )
         self.basic_csv_data = {**self.basic_jup_data,
-                               'output_format': ExportType.CSV.value}
+                               'output_format': ExportTypes.CSV.value}
 
 
 class ExportsPatchNotAllowedTests(ExportsNotAllowedTests):

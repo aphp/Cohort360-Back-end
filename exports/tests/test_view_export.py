@@ -6,9 +6,10 @@ from rest_framework import status
 
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult, FhirFilter
+from exports import ExportTypes
 from exports.models import Export, Datalab
 from exports.tests.base_test import ExportsTestBase
-from exports.enums import ExportStatus, ExportType
+from exports.enums import ExportStatus
 from exports.views import ExportViewSet
 
 
@@ -29,7 +30,7 @@ class ExportViewSetTest(ExportsTestBase):
                                                      fhir_resource="some_resource",
                                                      filter="some_filter")
         self.csv_export_basic_data = {"name": "Special Export",
-                                      "output_format": ExportType.CSV,
+                                      "output_format": ExportTypes.CSV,
                                       "nominative": True,
                                       "owner": self.csv_exporter_user.pk,
                                       "status": ExportStatus.PENDING.name,
@@ -37,7 +38,7 @@ class ExportViewSetTest(ExportsTestBase):
                                                          "cohort_result_source": self.cohort_result.uuid,
                                                          "fhir_filter": self.fhir_filter.uuid}]
                                       }
-        self.exports = [Export.objects.create(**dict(output_format=ExportType.CSV,
+        self.exports = [Export.objects.create(**dict(output_format=ExportTypes.CSV,
                                                      owner=self.csv_exporter_user,
                                                      status=ExportStatus.PENDING.name,
                                                      target_name="12345_09092023_151500"

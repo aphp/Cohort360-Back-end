@@ -1,5 +1,6 @@
 import logging
 from datetime import date, datetime, time
+from enum import Enum
 from logging.handlers import DEFAULT_TCP_LOGGING_PORT
 from pathlib import Path
 
@@ -297,18 +298,24 @@ CHANNEL_LAYERS = {
     },
 }
 
-# Exports
-if "exports" in INSTALLED_APPS:
-    EXPORT_API_CONF = {
-        "API_CLASS": env('EXPORT_API_CLASS'),
-        "API_URL": env('EXPORT_API_URL'),
-        "API_VERSION": env('EXPORT_API_VERSION'),
-        "TOKENS": env('EXPORT_API_TOKENS'),
-        "EXPORT_ENVIRONMENT": env('EXPORT_ENVIRONMENT'),
-    }
 
-# todo: add `EXPORT_API_CLASS`
-#       replace `INFRA_API_URL`  by `EXPORT_API_URL`
+# Exports
+
+
+class ExportTypes(Enum):
+    PLAIN = "plain"
+
+
+EXPORT_TYPES_CLASS = ExportTypes
+
+EXPORTERS = [
+    {
+        "TYPE": ExportTypes.PLAIN,
+        "EXPORTER_CLASS": "exports.services.exporter_manager.DefaultExporter"
+    }
+]
+
+# todo: replace `INFRA_API_URL`  by `EXPORT_API_URL`
 #       replace `DATA_EXPORTER_VERSION`  by `EXPORT_API_VERSION`
 #       replace `INFRA_EXPORT_TOKEN` + `INFRA_HADOOP_TOKEN`  by  `EXPORT_API_TOKENS`
 #       replace `EXPORT_OMOP_ENVIRONMENT`  by `EXPORT_ENVIRONMENT`

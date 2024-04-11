@@ -12,10 +12,10 @@ from cohort.models import CohortResult
 from cohort.services.cohort_result import cohort_service
 from exports.emails import check_email_address
 from exports.models import ExportTable, Export, Datalab
-from exports.services.export_manager import ExportDownloader
+from exports.services.export_operators import ExportDownloader
 from exports.services.rights_checker import rights_checker
 from exports.tasks import launch_export_task
-from exports.enums import ExportType
+from exports import ExportTypes
 
 env = os.environ
 
@@ -32,7 +32,7 @@ class ExportService:
     def validate_export_data(self, data: dict, owner: User):
         self.pre_export_check(data=data, owner=owner)
         self.validate_tables_data(tables_data=data.get("export_tables", []))
-        if data["output_format"] == ExportType.CSV:
+        if data["output_format"] == ExportTypes.CSV:
             target_name = f"{owner.pk}_{timezone.now().strftime('%Y%m%d_%H%M%S%f')}"
             target_location = EXPORT_CSV_PATH
         else:
@@ -51,7 +51,7 @@ class ExportService:
             check_email_address(owner.email)
             export_tables = data.get("export_tables", [])
             source_cohorts_ids = [table.get("cohort_result_source") for table in export_tables]
-            if data["output_format"] == ExportType.CSV:
+            if data["output_format"] == ExportTypes.CSV:
                 assert len(set(source_cohorts_ids)) == 1, "All export tables must have the same source cohort"
                 if CohortResult.objects.get(pk__in=source_cohorts_ids).owner != owner:
                     raise ValidationError("The selected cohort does not belong to you")

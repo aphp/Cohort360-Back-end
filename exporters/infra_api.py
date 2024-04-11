@@ -3,10 +3,10 @@ import logging
 from typing import Dict
 
 import requests
+from django.conf import settings
 from requests import Response, RequestException
 from rest_framework import status
 
-from admin_cohort.settings import EXPORT_API_CONF
 from admin_cohort.types import JobStatus
 
 
@@ -20,16 +20,17 @@ class InfraAPI:
         HADOOP = "hadoop"
 
     def __init__(self):
-        self.url = EXPORT_API_CONF.get('API_URL')
-        api_exporter_version = EXPORT_API_CONF.get('API_VERSION')
+        api_conf = settings.EXPORT_API_CONF
+        self.url = api_conf.get('API_URL')
+        api_exporter_version = api_conf.get('API_VERSION')
         self.export_base_url = f"{self.url}/bigdata/data_exporter{api_exporter_version}"
-        self.target_environment = EXPORT_API_CONF.get('EXPORT_ENVIRONMENT')
-        self.tokens = self.get_tokens()
+        self.target_environment = api_conf.get('EXPORT_ENVIRONMENT')
+        self.tokens = self.get_tokens(api_conf.get('TOKENS'))
         self.required_table = "person"  # todo: remove this when working with new export models
 
     @staticmethod
-    def get_tokens():
-        api_tokens = EXPORT_API_CONF.get('TOKENS').split(',')
+    def get_tokens(tokens: str):
+        api_tokens = tokens.split(',')
         token_by_service: Dict[InfraAPI.Services, str] = {}
         for token_item in api_tokens:
             service_name, token = token_item.split(':')
