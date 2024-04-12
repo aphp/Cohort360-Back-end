@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.db.models import Q
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
@@ -81,13 +82,14 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
                                                              'respect_table_relationships': openapi.Schema(type=openapi.TYPE_BOOLEAN),
                                                              'fhir_filter': openapi.Schema(type=openapi.TYPE_STRING),
                                                              'cohort_result_source': openapi.Schema(type=openapi.TYPE_STRING)}))}))
+    @transaction.atomic
     def create(self, request, *args, **kwargs):
         export_service.validate_export_data(data=request.data, owner=request.user)
-        export_tables = request.data.pop("export_tables", [])
+        tables = request.data.pop("export_tables", [])
         response = super().create(request, *args, **kwargs)
-        export_service.create_tables(export_id=response.data["uuid"],
-                                     export_tables=export_tables,
-                                     http_request=request)
+        transaction.on_commit(lambda: export_service.proceed_with_export(export=response.data.serializer.instance,
+                                                                         tables=tables,
+                                                                         http_request=request))
         return response
 
     @action(detail=True, methods=['get'], url_path="download")

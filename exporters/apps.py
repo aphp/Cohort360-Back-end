@@ -1,8 +1,9 @@
 import os
-from enum import Enum
 
 from django.apps import AppConfig
 from django.conf import settings
+
+from exporters.enums import ExportTypes
 
 
 class ExportersConfig(AppConfig):
@@ -29,16 +30,3 @@ class ExportersConfig(AppConfig):
             "TOKENS": env.get('EXPORT_API_TOKENS'),
             "EXPORT_ENVIRONMENT": env.get('EXPORT_ENVIRONMENT')
         }
-
-
-class ExportTypes(Enum):
-    CSV = "csv"
-    HIVE = "hive"
-
-    @property
-    def allow_download(self) -> bool:
-        return self == ExportTypes.CSV
-
-    @property
-    def allow_to_clean(self) -> bool:
-        return self == ExportTypes.CSV

@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Tuple
+from typing import Tuple, List
 
 from django.utils import timezone
 from requests import RequestException
@@ -8,12 +8,14 @@ from rest_framework.exceptions import ValidationError
 
 from admin_cohort.models import User
 from admin_cohort.types import JobStatus
+from cohort.models import CohortResult
 from exports.emails import check_email_address, push_email_notification
-from exports.models import ExportRequest, Export
+from exports.models import ExportRequest, Export, Datalab
 from exports.services.rights_checker import rights_checker
-from exports.enums import ExportType
+from exporters.enums import ExportTypes
 from exporters.infra_api import InfraAPI
 from exporters.notifications import export_succeeded, export_failed
+from workspaces.models import Account
 
 _celery_logger = logging.getLogger('celery.app')
 _logger = logging.getLogger('django.request')
@@ -24,24 +26,65 @@ class BaseExporter:
     def __init__(self):
         self.export_api = InfraAPI()
         self.type = None
+        self.target_location = None
 
     def validate(self, export_data: dict, owner: User, **kwargs) -> None:
+        if self.using_new_export_models(export_data=export_data):
+            self.validate_tables_data(tables_data=export_data.get("export_tables", []))
         check_email_address(owner.email)
+        self.check_user_rights(export_data=export_data, owner=owner)
+        export_data['request_job_status'] = JobStatus.validated
+        self.complete_data(export_data=export_data, owner=owner)
+
+    @staticmethod
+    def using_new_export_models(export_data: dict) -> bool:
+        # todo: remove all logic relative to this once starting to use new models only
+        return "export_tables" in export_data
+
+    def validate_tables_data(self, tables_data: List[dict]) -> bool:
+        required_table = self.export_api.required_table
+        source_cohort_id = None
+        required_table_provided = False
+        for table in tables_data:
+            source_cohort_id = table.get('cohort_result_source')
+            if table.get("name") == required_table:
+                required_table_provided = True
+                if not source_cohort_id:
+                    raise ValueError(f"The `{required_table}` table can not be exported without a source cohort")
+
+            if source_cohort_id:
+                try:
+                    cohort_source = CohortResult.objects.get(pk=source_cohort_id)
+                except CohortResult.DoesNotExist:
+                    raise ValueError(f"Cohort `{source_cohort_id}` linked to table `{table.get('name')}` was not found")
+                if cohort_source.request_job_status != JobStatus.finished:
+                    raise ValueError(f"The provided cohort `{source_cohort_id}` did not finish successfully")
+        if not (required_table_provided or source_cohort_id):
+            raise ValueError(f"`{required_table}` table was not specified, must then provide source cohort for all tables")
+        return True
+
+    @staticmethod
+    def check_user_rights(export_data: dict, owner: User, **kwargs) -> None:
         try:
             rights_checker.check_owner_rights(owner=owner,
                                               output_format=export_data["output_format"],
                                               nominative=export_data["nominative"],
-                                              source_cohorts_ids=[kwargs.get("cohort_id")])
+                                              source_cohorts_ids=kwargs.get("source_cohorts_ids"))
         except ValidationError as e:
             raise ValidationError(f"Pre export check failed, reason: {e}")
-        export_data['request_job_status'] = JobStatus.validated
 
-    @staticmethod
-    def complete_data(export_data: dict, owner: User, target_name: str, target_location: str) -> None:
+    def complete_data(self, export_data: dict, owner: User, **kwargs) -> None:
+        target_name = kwargs.get("target_name")
+        if not target_name:
+            model = "export_tables" in export_data and Export or ExportRequest
+            if model is ExportRequest:
+                target_name = Account.objects.get(pk=export_data["target_unix_account"]).name
+            else:
+                target_name = Datalab.objects.get(pk=export_data["datalab"]).name
         export_data.update({"owner": owner.pk,
                             "motivation": export_data.get('motivation', "").replace("\n", " -- "),
                             "target_name": f"{target_name}_{timezone.now().strftime('%Y%m%d_%H%M%S%f')}",
-                            "target_location": target_location
+                            "target_location": self.target_location
                             })
 
     def handle(self, export: ExportRequest, params: dict) -> None:
@@ -115,7 +158,7 @@ class BaseExporter:
     @staticmethod
     def notify_export_succeeded(export: ExportRequest | Export) -> None:
         if isinstance(export, Export):
-            cohort_id = export.output_format == ExportType.CSV and export.export_tables.first().cohort_result_source_id or None,
+            cohort_id = export.output_format == ExportTypes.CSV and export.export_tables.first().cohort_result_source_id or None,
             selected_tables = export.export_tables.values_list("name", flat=True)
         else:
             cohort_id = export.cohort_id,

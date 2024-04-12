@@ -1,0 +1,15 @@
+{% extends "email_base_template.txt" %}
+
+{% block content %}
+Nous vous confirmons la réception de votre demande d'export de données vers Hive concernant la cohorte numéro {{ cohort_id }}.
+
+Les tables sélectionnées sont:
+{% for table in selected_tables %}
+    - {{ table }}
+{% endfor %}
+
+Vous serez informé.e par email lorsque les données seront disponibles dans votre espace Jupyter.
+Un délai de 24h maximum peut s'appliquer en fonction du volume des données.
+
+Pour toute question, contactez le support Cohort360 à {{ contact_email_address }}
+{% endblock %}
