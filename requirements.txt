@@ -38,7 +38,7 @@ gssapi==1.8.2
 gunicorn==20.1.0
 hdfs==2.7.0
 hiredis==2.2.2
-idna==3.4
+idna==3.7
 importlib-metadata==5.2.0
 inflection==0.5.1
 influxdb-client==1.36.1
