@@ -1,6 +1,10 @@
 from enum import Enum
 
 
+class DefaultExportTypes(Enum):
+    PLAIN = "plain"
+
+
 class ExportStatus(Enum):
     PENDING: str = "pending"
     SENT_TO_DE: str = "sent_to_dataexporter"

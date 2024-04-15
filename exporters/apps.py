@@ -5,14 +5,14 @@ from django.conf import settings
 
 from exporters.enums import ExportTypes
 
+# set EXPORT_TYPES_CLASS before Django loads models
+settings.EXPORT_TYPES_CLASS = ExportTypes
+
 
 class ExportersConfig(AppConfig):
     name = 'exporters'
 
     def ready(self):
-        env = os.environ
-        settings.EXPORT_TYPES_CLASS = ExportTypes
-
         settings.EXPORTERS = [
             {
                 "TYPE": ExportTypes.CSV.value,
@@ -24,6 +24,7 @@ class ExportersConfig(AppConfig):
             }
         ]
 
+        env = os.environ
         settings.EXPORT_API_CONF = {
             "API_URL": env.get('EXPORT_API_URL'),
             "API_VERSION": env.get('EXPORT_API_VERSION'),

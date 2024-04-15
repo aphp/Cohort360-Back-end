@@ -10,8 +10,7 @@ from cohort.models import CohortResult
 from workspaces.models import Account
 from exports import ExportTypes
 
-
-OUTPUT_FORMATS = [(out_format.value, out_format.value) for out_format in ExportTypes]
+OUTPUT_FORMATS = [(t.value, t.value) for t in ExportTypes]
 
 
 class ExportRequest(JobModel, BaseModel, models.Model):

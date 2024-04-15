@@ -6,7 +6,6 @@ from requests import RequestException
 from exports.models import ExportRequest, Export
 from exporters.base_exporter import BaseExporter
 from exporters.enums import ExportTypes
-from exporters.tasks import notify_export_received
 
 _logger = logging.getLogger('django.request')
 
@@ -19,10 +18,10 @@ class HiveExporter(BaseExporter):
         self.target_location = os.environ.get('HIVE_DB_FOLDER')
         self.user = os.environ.get('HIVE_EXPORTER_USER')
 
-    def handle_export(self, export: ExportRequest | Export) -> None:
-        notify_export_received.delay(export.pk)
+    def handle_export(self, export: ExportRequest | Export, **kwargs) -> None:
+        self.confirm_export_received(export.pk)
         self.prepare_db(export)
-        super().handle(export=export, params={"database_name": export.target_name})
+        super().handle_export(export=export, params={"database_name": export.target_name})
         self.conclude_export(export=export)
 
     def prepare_db(self, export: ExportRequest | Export) -> None:
@@ -30,7 +29,7 @@ class HiveExporter(BaseExporter):
             self.create_db(export=export)
             self.change_db_ownership(export=export, db_user=self.user)
         except RequestException as e:
-            self.mark_export_as_failed(export, e, f"Error while preparing for export {export.id}")
+            self.mark_export_as_failed(export=export, reason=f"Error while preparing for export {export.pk}: {e}")
 
     @staticmethod
     def get_db_location(export: ExportRequest | Export) -> str:
@@ -64,4 +63,4 @@ class HiveExporter(BaseExporter):
             self.change_db_ownership(export=export, db_user=db_user)
             self.log_export_task(export.id, f"DB '{export.target_name}' attributed to {db_user}. Conclusion finished.")
         except RequestException as e:
-            self.mark_export_as_failed(export, e, f"Could not conclude export {export.id}")
+            self.mark_export_as_failed(export=export, reason=f"Could not conclude export {export.pk}: {e}")

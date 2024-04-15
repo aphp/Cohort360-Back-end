@@ -4,18 +4,16 @@ from typing import Tuple, List
 
 from django.utils import timezone
 from requests import RequestException
-from rest_framework.exceptions import ValidationError
 
 from admin_cohort.models import User
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult
-from exports.emails import check_email_address, push_email_notification
+from exports.emails import check_email_address
 from exports.models import ExportRequest, Export, Datalab
 from exports.services.rights_checker import rights_checker
-from exporters.enums import ExportTypes
-from exporters.infra_api import InfraAPI
-from exporters.notifications import export_succeeded, export_failed
 from workspaces.models import Account
+from exporters.infra_api import InfraAPI
+from exporters.tasks import notify_export_received, notify_export_succeeded, notify_export_failed
 
 _celery_logger = logging.getLogger('celery.app')
 _logger = logging.getLogger('django.request')
@@ -32,13 +30,13 @@ class BaseExporter:
         if self.using_new_export_models(export_data=export_data):
             self.validate_tables_data(tables_data=export_data.get("export_tables", []))
         check_email_address(owner.email)
-        self.check_user_rights(export_data=export_data, owner=owner)
+        self.check_user_rights(export_data=export_data, owner=owner, **kwargs)
         export_data['request_job_status'] = JobStatus.validated
         self.complete_data(export_data=export_data, owner=owner)
 
     @staticmethod
     def using_new_export_models(export_data: dict) -> bool:
-        # todo: remove all logic relative to this once starting to use new models only
+        # todo: 2b removed once starting to use new models
         return "export_tables" in export_data
 
     def validate_tables_data(self, tables_data: List[dict]) -> bool:
@@ -65,45 +63,42 @@ class BaseExporter:
 
     @staticmethod
     def check_user_rights(export_data: dict, owner: User, **kwargs) -> None:
-        try:
-            rights_checker.check_owner_rights(owner=owner,
-                                              output_format=export_data["output_format"],
-                                              nominative=export_data["nominative"],
-                                              source_cohorts_ids=kwargs.get("source_cohorts_ids"))
-        except ValidationError as e:
-            raise ValidationError(f"Pre export check failed, reason: {e}")
+        rights_checker.check_owner_rights(owner=owner,
+                                          output_format=export_data["output_format"],
+                                          nominative=export_data["nominative"],
+                                          source_cohorts_ids=kwargs.get("source_cohorts_ids"))
 
     def complete_data(self, export_data: dict, owner: User, **kwargs) -> None:
         target_name = kwargs.get("target_name")
         if not target_name:
-            model = "export_tables" in export_data and Export or ExportRequest
-            if model is ExportRequest:
-                target_name = Account.objects.get(pk=export_data["target_unix_account"]).name
-            else:
+            if self.using_new_export_models(export_data=export_data):
                 target_name = Datalab.objects.get(pk=export_data["datalab"]).name
+            else:
+                target_name = Account.objects.get(pk=export_data["target_unix_account"]).name
         export_data.update({"owner": owner.pk,
                             "motivation": export_data.get('motivation', "").replace("\n", " -- "),
                             "target_name": f"{target_name}_{timezone.now().strftime('%Y%m%d_%H%M%S%f')}",
                             "target_location": self.target_location
                             })
 
-    def handle(self, export: ExportRequest, params: dict) -> None:
-        self.log_export_task(export.id, "Sending request to Infra API.")
+    def handle_export(self, export: ExportRequest | Export, **kwargs) -> None:
+        params = kwargs.get("params", {})
+        self.log_export_task(export.pk, "Sending request to Infra API.")
         start_time = timezone.now()
         try:
             job_id = self.send_export(export=export, params=params)
             export.request_job_status = JobStatus.pending
             export.request_job_id = job_id
             export.save()
-            self.log_export_task(export.id, f"Request sent, job `{job_id}` is now {JobStatus.pending}")
+            self.log_export_task(export.pk, f"Request sent, job `{job_id}` is now {JobStatus.pending}")
             self.wait_for_export_job(export)
         except RequestException as e:
-            self.mark_export_as_failed(export, e, f"Could not post export {export.id}")
+            self.mark_export_as_failed(export=export, reason=f"Could not post export {export.pk}: {e}")
             return
         export.request_job_duration = timezone.now() - start_time
         export.save()
-        self.log_export_task(export.id, "Export job finished")
-        self.notify_export_succeeded(export=export)
+        self.log_export_task(export.pk, "Export job finished")
+        self.confirm_export_succeeded(export=export)
 
     def send_export(self, export: ExportRequest | Export, params: dict) -> str:
         def get_custom_params(exp: ExportRequest | Export) -> Tuple[str, str]:
@@ -156,47 +151,16 @@ class BaseExporter:
         return job_status
 
     @staticmethod
-    def notify_export_succeeded(export: ExportRequest | Export) -> None:
-        if isinstance(export, Export):
-            cohort_id = export.output_format == ExportTypes.CSV and export.export_tables.first().cohort_result_source_id or None,
-            selected_tables = export.export_tables.values_list("name", flat=True)
-        else:
-            cohort_id = export.cohort_id,
-            selected_tables = export.tables.values_list("omop_table_name", flat=True)
-        notification_data = dict(recipient_name=export.owner.display_name,
-                                 recipient_email=export.owner.email,
-                                 export_request_id=export.pk,
-                                 cohort_id=cohort_id,
-                                 cohort_name=export.cohort_name,
-                                 output_format=export.output_format,
-                                 database_name=export.target_name,
-                                 selected_tables=selected_tables)
-        try:
-            push_email_notification(base_notification=export_succeeded, **notification_data)
-        except OSError:
-            _logger.error(f"[ExportRequest: {export.pk}] Error sending export success notification")
-        else:
-            export.is_user_notified = True
-            export.save()
+    def confirm_export_received(export: ExportRequest | Export) -> None:
+        notify_export_received.delay(export.pk)
 
     @staticmethod
-    def mark_export_as_failed(export: ExportRequest, e: Exception, msg: str) -> None:
-        err_msg = f"{msg}: {e}"
-        _logger.error(f"[ExportTask] [ExportRequest: {export.pk}] {err_msg}")
-        export.request_job_status = JobStatus.failed
-        export.request_job_fail_msg = err_msg
-        notification_data = dict(recipient_name=export.owner.display_name,
-                                 recipient_email=export.owner.email,
-                                 cohort_id=export.cohort_id,
-                                 cohort_name=export.cohort_name,
-                                 error_message=err_msg)
-        try:
-            push_email_notification(base_notification=export_failed, **notification_data)
-        except OSError:
-            _logger.error(f"[ExportRequest: {export.pk}] Error sending export failure notification")
-        else:
-            export.is_user_notified = True
-        export.save()
+    def confirm_export_succeeded(export: ExportRequest | Export) -> None:
+        notify_export_succeeded.delay(export.id)
+
+    @staticmethod
+    def mark_export_as_failed(export: ExportRequest | Export, reason: str) -> None:
+        notify_export_failed.delay(export.id, reason)
 
     @staticmethod
     def log_export_task(export_id, msg):

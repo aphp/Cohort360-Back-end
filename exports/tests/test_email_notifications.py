@@ -1,7 +1,7 @@
 from unittest import TestCase, mock
 from unittest.mock import MagicMock
 
-from exports.emails import export_failed, export_request_succeeded, export_request_received, exported_files_deleted, \
+from exports.emails import exported_files_deleted, \
     push_email_notification
 
 
@@ -18,11 +18,7 @@ class EmailNotificationsTests(TestCase):
                                database_name="database_name",
                                selected_tables="table01,table02",
                                error_message="error_message")
-        self.registered_notifications = [export_failed,
-                                         export_request_succeeded,
-                                         export_request_received,
-                                         exported_files_deleted
-                                         ]
+        self.registered_notifications = [exported_files_deleted]
 
     @mock.patch("exports.emails.EmailNotification.push")
     @mock.patch("exports.emails.EmailNotification.attach_logo")

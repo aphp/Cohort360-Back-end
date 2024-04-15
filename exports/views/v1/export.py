@@ -61,7 +61,7 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
                      "target_unix_account__name")
 
     def should_log(self, request, response):
-        return super().should_log(request, response) or self.action == "download"
+        return super().should_log(request, response) or self.action == self.download.__name__
 
     def get_permissions(self):
         if self.request.method in ("POST", "PATCH", "DELETE"):

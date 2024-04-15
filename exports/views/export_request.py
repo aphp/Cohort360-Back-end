@@ -68,7 +68,7 @@ class ExportRequestViewSet(RequestLogMixin, viewsets.ModelViewSet):
                      "target_name", "target_unix_account__name")
 
     def should_log(self, request, response):
-        return super().should_log(request, response) or self.action == "download"
+        return super().should_log(request, response) or self.action == self.download.__name__
 
     def get_serializer_context(self):
         return {'request': self.request}

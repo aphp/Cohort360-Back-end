@@ -1,12 +1,12 @@
 import logging
 from datetime import date, datetime, time
-from enum import Enum
 from logging.handlers import DEFAULT_TCP_LOGGING_PORT
 from pathlib import Path
 
 import environ
 import pytz
 from celery.schedules import crontab
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -298,22 +298,6 @@ CHANNEL_LAYERS = {
     },
 }
 
-
-# Exports
-
-
-class ExportTypes(Enum):
-    PLAIN = "plain"
-
-
-EXPORT_TYPES_CLASS = ExportTypes
-
-EXPORTERS = [
-    {
-        "TYPE": ExportTypes.PLAIN,
-        "EXPORTER_CLASS": "exports.services.exporter_manager.DefaultExporter"
-    }
-]
 
 # todo: replace `INFRA_API_URL`  by `EXPORT_API_URL`
 #       replace `DATA_EXPORTER_VERSION`  by `EXPORT_API_VERSION`
