@@ -65,7 +65,7 @@ class InfraAPI:
                   "location": location,
                   "if_not_exists": False
                   }
-        response = self.post_hadoop(endpoint="hive/create_base_hive", params=params)
+        response = self.query_hadoop(endpoint="hive/create_base_hive", params=params)
         return response.json().get('task_id')
 
     def change_db_ownership(self, location: str, db_user: str) -> None:
@@ -74,10 +74,10 @@ class InfraAPI:
                   "gid": "hdfs",
                   "recursive": True
                   }
-        response = self.post_hadoop(endpoint="hdfs/chown_directory", params=params)
+        response = self.query_hadoop(endpoint="hdfs/chown_directory", params=params)
         self.check_response(response=response)
 
-    def post_hadoop(self, endpoint: str, params: dict) -> Response:
+    def query_hadoop(self, endpoint: str, params: dict) -> Response:
         return requests.post(url=f"{self.url}/hadoop/{endpoint}",
                              params=params,
                              headers={'auth-token': self.tokens[self.Services.HADOOP]})

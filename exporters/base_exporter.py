@@ -93,7 +93,7 @@ class BaseExporter:
             self.log_export_task(export.pk, f"Request sent, job `{job_id}` is now {JobStatus.pending}")
             self.wait_for_export_job(export)
         except RequestException as e:
-            self.mark_export_as_failed(export=export, reason=f"Could not post export {export.pk}: {e}")
+            self.mark_export_as_failed(export=export, reason=f"Could not post export: {e}")
             return
         export.request_job_duration = timezone.now() - start_time
         export.save()
@@ -156,11 +156,11 @@ class BaseExporter:
 
     @staticmethod
     def confirm_export_succeeded(export: ExportRequest | Export) -> None:
-        notify_export_succeeded.delay(export.id)
+        notify_export_succeeded.delay(export.pk)
 
     @staticmethod
     def mark_export_as_failed(export: ExportRequest | Export, reason: str) -> None:
-        notify_export_failed.delay(export.id, reason)
+        notify_export_failed.delay(export.pk, reason)
 
     @staticmethod
     def log_export_task(export_id, msg):

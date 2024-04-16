@@ -47,5 +47,6 @@ class CSVExporter(BaseExporter):
         super().complete_data(export_data=export_data, owner=owner, **kwargs)
 
     def handle_export(self, export: ExportRequest | Export, **kwargs) -> None:
-        self.confirm_export_received(export.pk)
-        super().handle_export(export=export, params={"file_path": f"{export.target_full_path}.zip"})
+        self.confirm_export_received(export=export)
+        kwargs["params"] = {"file_path": f"{export.target_full_path}.zip"}
+        super().handle_export(export=export, **kwargs)

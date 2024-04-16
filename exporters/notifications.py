@@ -3,6 +3,11 @@ from datetime import timedelta
 from django.conf import settings
 from django.utils import timezone
 
+from exporters.enums import ExportTypes
+
+CSV = ExportTypes.CSV.value
+HIVE = ExportTypes.HIVE.value
+
 BASE_CONTEXT = {"contact_email_address": settings.EMAIL_SUPPORT_CONTACT}
 
 
@@ -68,3 +73,11 @@ def csv_export_succeeded(**kwargs):
 
 def hive_export_succeeded(**kwargs):
     return export_succeeded(export_type="hive", **kwargs)
+
+
+EXPORT_RECEIVED_NOTIFICATIONS = {CSV: csv_export_received,
+                                 HIVE: hive_export_received
+                                 }
+EXPORT_SUCCEEDED_NOTIFICATIONS = {CSV: csv_export_succeeded,
+                                  HIVE: hive_export_succeeded
+                                  }

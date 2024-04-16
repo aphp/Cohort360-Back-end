@@ -6,17 +6,10 @@ from admin_cohort.types import JobStatus
 from exporters.enums import ExportTypes
 from exports.models import Export, ExportRequest
 from exports.emails import push_email_notification
-from exporters.notifications import csv_export_received, hive_export_received, csv_export_succeeded, hive_export_succeeded, export_failed
+from exporters.notifications import export_failed, \
+    EXPORT_RECEIVED_NOTIFICATIONS, EXPORT_SUCCEEDED_NOTIFICATIONS
 
 _logger = logging.getLogger('django.request')
-
-EXPORT_RECEIVED_NOTIFICATIONS = {ExportTypes.CSV.value: csv_export_received,
-                                 ExportTypes.HIVE.value: hive_export_received
-                                 }
-
-EXPORT_SUCCEEDED_NOTIFICATIONS = {ExportTypes.CSV.value: csv_export_succeeded,
-                                  ExportTypes.HIVE.value: hive_export_succeeded
-                                  }
 
 
 def get_export_by_id(export_id: str) -> Export | ExportRequest:
