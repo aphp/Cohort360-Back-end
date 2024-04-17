@@ -12,7 +12,7 @@ from workspaces.views import RangerHivePolicyViewSet
 class RangerHivePolicieTypesTests(BaseTests):
     def setUp(self):
         super(RangerHivePolicieTypesTests, self).setUp()
-        self.user_with_no_right, _ = new_user_and_profile(email='with@no.right')
+        self.user_with_no_right, _ = new_user_and_profile()
 
     def test_get_types(self):
         request = self.factory.get(path="/ranger_hive_policies/types")

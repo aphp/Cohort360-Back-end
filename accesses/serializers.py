@@ -213,8 +213,11 @@ class AccessSerializer(BaseSerializer):
 class ExpiringAccessesSerializer(serializers.Serializer):
     start_datetime = serializers.DateTimeField(read_only=True)
     end_datetime = serializers.DateTimeField(read_only=True)
-    profile = serializers.SlugRelatedField(slug_field='provider_name', read_only=True)
+    profile = serializers.SerializerMethodField()
     perimeter = serializers.SlugRelatedField(slug_field='name', read_only=True)
+
+    def get_profile(self, access):
+        return access.profile.user.display_name
 
 
 class DataRightSerializer(serializers.Serializer):

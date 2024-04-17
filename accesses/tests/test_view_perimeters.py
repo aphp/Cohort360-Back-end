@@ -382,7 +382,7 @@ class PerimeterViewTests(AccessesAppTestsBase):
         self.check_list_case_with_mock(case)
 
     def test_read_patient_data_rights_without_read_mode(self):
-        self.user_w, self.profile_w = new_user_and_profile(email="user_w@aphp.fr")
+        self.user_w, self.profile_w = new_user_and_profile()
         self.create_new_access_for_user(profile=self.profile_w, role=self.role_data_reader_nomi, perimeter=self.aphp)
         case = self.base_case.clone(title="missing mode param",
                                     user=self.user_w,
@@ -392,7 +392,7 @@ class PerimeterViewTests(AccessesAppTestsBase):
         self.check_list_case_with_mock(case, check_mock_was_called=False)
 
     def test_read_patient_data_rights_with_wrong_read_mode(self):
-        self.user_u, self.profile_u = new_user_and_profile(email="user_u@aphp.fr")
+        self.user_u, self.profile_u = new_user_and_profile()
         self.create_new_access_for_user(profile=self.profile_u, role=self.role_data_reader_nomi, perimeter=self.aphp)
         case = self.base_case.clone(title="wrong value for mode param",
                                     user=self.user_u,
