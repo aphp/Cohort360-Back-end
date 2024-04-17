@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import random
 import string
-import uuid
 from typing import Tuple, List, Any
 
 from django.conf import settings

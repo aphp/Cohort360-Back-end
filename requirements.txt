@@ -65,7 +65,7 @@ redis==4.6.0
 requests==2.31.0
 requests-kerberos==0.14.0
 ruamel.yaml==0.17.21
-ruff==0.0.283
+ruff==0.3.7
 setuptools==68.0.0
 simplejson==3.18.0
 six==1.16.0
