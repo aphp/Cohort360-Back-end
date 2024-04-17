@@ -52,7 +52,7 @@ class Command(BaseCommand):
                          lastname=ADMIN_LASTNAME,
                          email=ADMIN_EMAIL)
         user = User.objects.create(**user_data, username=ADMIN_USERNAME)
-        admin_profile = Profile.objects.create(**user_data, user_id=user.username, is_active=True)
+        admin_profile = Profile.objects.create(user_id=user.username, is_active=True)
         return admin_profile
 
     @staticmethod

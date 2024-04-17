@@ -36,8 +36,8 @@ class AccessViewTests(AccessesAppTestsBase):
 
     def setUp(self):
         super().setUp()
-        self.user_data_accesses_manager_on_aphp, profile1 = new_user_and_profile(email="user_data_accesses_manager@aphp.fr")
-        self.user_non_accesses_manager, profile2 = new_user_and_profile(email="user_non_accesses_manager@aphp.fr")
+        self.user_data_accesses_manager_on_aphp, profile1 = new_user_and_profile()
+        self.user_non_accesses_manager, profile2 = new_user_and_profile()
         Access.objects.create(profile=profile1,
                               role=self.role_data_accesses_manager,
                               perimeter=self.aphp,
@@ -49,7 +49,7 @@ class AccessViewTests(AccessesAppTestsBase):
                               start_datetime=timezone.now(),
                               end_datetime=timezone.now() + timedelta(weeks=1))
 
-        _, profile3 = new_user_and_profile(email="user_01@aphp.fr")
+        _, profile3 = new_user_and_profile()
         self.basic_access_data = {"profile_id": profile3.id,
                                   "role_id": self.role_data_reader_nomi.id,
                                   "perimeter_id": self.aphp.id
@@ -64,7 +64,7 @@ class AccessViewTests(AccessesAppTestsBase):
             self.assertFalse(access.is_valid)
 
     def create_accesses_on_all_perimeters(self):
-        _, regular_profile = new_user_and_profile(email="regular_user@aphp.fr")
+        _, regular_profile = new_user_and_profile()
         for perimeter in self.all_perimeters:
             Access.objects.create(profile=regular_profile,
                                   role=self.role_data_reader_nomi_pseudo,
@@ -294,7 +294,7 @@ class AccessViewTests(AccessesAppTestsBase):
         - Create different accesses for User Y and test which of the User X's accesses he's allowed to read/manage
         """
 
-        user_x, profile_x = new_user_and_profile(email="user_x@aphp.fr")
+        user_x, profile_x = new_user_and_profile()
 
         user_x_roles = [self.role_data_reader_nomi_pseudo, self.role_admin_accesses_manager, self.role_data_accesses_manager]
         user_x_perimeters = [self.p1, self.p4, self.p10]

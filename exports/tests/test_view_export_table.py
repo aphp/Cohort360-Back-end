@@ -49,7 +49,7 @@ class ExportTableViewSetTest(ExportsTestBase):
 class ExportTableServiceTests(TestCase):
 
     def setUp(self) -> None:
-        self.exporter_user, _ = new_user_and_profile(email="usr.exporter@aphp.fr")
+        self.exporter_user, _ = new_user_and_profile()
         self.person_table_name = "person"
         self.cohorts = [CohortResult.objects.create(name=f"Cohort {i}",
                                                     owner=self.exporter_user,

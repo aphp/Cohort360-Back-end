@@ -96,9 +96,7 @@ class AuthClassTests(APITestCase):
         self.headers = {"HTTP_AUTHORIZATION": "Bearer SoMERaNdoMStRIng"}
         self.protected_url = '/users/'
         self.protected_view = UserViewSet
-        self.regular_user, self.regular_profile = new_user_and_profile(firstname="Regular",
-                                                                       lastname="USER",
-                                                                       email="regular.user@aphp.fr")
+        self.regular_user, self.regular_profile = new_user_and_profile()
         self.perimeter_aphp = Perimeter.objects.create(name="APHP", local_id="1")
         self.users_reader_role = Role.objects.create(name="USERS READER", right_read_users=True)
         self.users_reader_access = Access.objects.create(profile=self.regular_profile,

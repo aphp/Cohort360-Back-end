@@ -33,18 +33,10 @@ class ExportsTestBase(TestCase):
         self.datalab_reader_role = Role.objects.create(name="DATALABS READER", right_read_datalabs=True)
         self.datalab_manager_role = Role.objects.create(name="DATALABS MANAGER", right_read_datalabs=True, right_manage_datalabs=True)
 
-        self.datalabs_reader_user, self.datalabs_reader_profile = new_user_and_profile(firstname="Datalabs",
-                                                                                       lastname="READER",
-                                                                                       email="d.r@aphp.fr")
-        self.datalabs_manager_user, self.datalabs_manager_profile = new_user_and_profile(firstname="Datalabs",
-                                                                                         lastname="MANAGER",
-                                                                                         email="d.m@aphp.fr")
-        self.csv_exporter_user, self.csv_exporter_profile = new_user_and_profile(firstname="Exporter",
-                                                                                 lastname="CSV",
-                                                                                 email="csv.e@aphp.fr")
-        self.user_without_rights, _ = new_user_and_profile(firstname="User",
-                                                           lastname="NO_RIGHTS",
-                                                           email="no_rights@aphp.fr")
+        self.datalabs_reader_user, self.datalabs_reader_profile = new_user_and_profile()
+        self.datalabs_manager_user, self.datalabs_manager_profile = new_user_and_profile()
+        self.csv_exporter_user, self.csv_exporter_profile = new_user_and_profile()
+        self.user_without_rights, _ = new_user_and_profile()
 
         self.datalabs_reader_access = Access.objects.create(profile=self.datalabs_reader_profile,
                                                             perimeter=self.perimeter_aphp,
