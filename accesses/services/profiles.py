@@ -110,17 +110,12 @@ class ProfilesService:
         self.check_fields_against_regex(data)
         self.fix_profile_entries(data, for_create=True)
 
-        user = User.objects.create(firstname=data.get('firstname'),
-                                   lastname=data.get('lastname'),
-                                   email=data.get('email'),
-                                   username=user_id,
-                                   provider_id=user_id)
-        data.update({'provider_name': f"{user.firstname} {user.lastname}",
-                     'provider_id': user_id})
+        User.objects.create(firstname=data.get('firstname'),
+                            lastname=data.get('lastname'),
+                            email=data.get('email'),
+                            username=user_id,
+                            provider_id=user_id)
 
-    def process_patch_data(self, data: dict) -> None:
-        self.check_fields_against_regex(data=data)
-        self.fix_profile_entries(data=data)
 
 
 profiles_service = ProfilesService()

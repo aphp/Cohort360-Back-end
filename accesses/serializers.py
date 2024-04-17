@@ -54,6 +54,11 @@ class UsersInRoleSerializer(serializers.Serializer):
 class ReducedProfileSerializer(serializers.ModelSerializer):
     is_valid = serializers.BooleanField(read_only=True)
     username = serializers.CharField(read_only=True, source='user_id')
+    provider_id = serializers.CharField(required=False, source="user_id")
+    firstname = serializers.CharField(required=False, source="user.firstname")
+    lastname = serializers.CharField(required=False, source="user.lastname")
+    email = serializers.CharField(required=False, source="user.email")
+
 
     class Meta:
         model = Profile
@@ -74,6 +79,11 @@ class ProfileSerializer(BaseSerializer):
     actual_valid_start_datetime = serializers.DateTimeField(read_only=True)
     actual_valid_end_datetime = serializers.DateTimeField(read_only=True)
     user_id = serializers.CharField(required=False)
+    firstname = serializers.CharField(read_only=True, source="user.firstname")
+    lastname = serializers.CharField(read_only=True, source="user.lastname")
+    email = serializers.CharField(read_only=True, source="user.email")
+    provider_id = serializers.CharField(read_only=True, source="user_id")
+    provider_name = serializers.CharField(read_only=True, source="user.display_name")
 
     class Meta:
         model = Profile
@@ -95,10 +105,10 @@ class ProfileSerializer(BaseSerializer):
 
 
 class ProfileCheckSerializer(serializers.Serializer):
-    firstname = serializers.CharField(read_only=True, allow_null=True)
-    lastname = serializers.CharField(read_only=True, allow_null=True)
+    firstname = serializers.CharField(required=False, source="user.firstname")
+    lastname = serializers.CharField(required=False, source="user.lastname")
+    email = serializers.CharField(required=False, source="user.email")
     username = serializers.CharField(read_only=True, allow_null=True, source='user_id')
-    email = serializers.CharField(read_only=True, allow_null=True)
     user = UserSerializer(read_only=True, allow_null=True)
     manual_profile = ProfileSerializer(read_only=True, allow_null=True)
 
