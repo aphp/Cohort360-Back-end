@@ -5,6 +5,7 @@ from django.conf import settings
 
 from exporters.enums import ExportTypes
 
+
 # set EXPORT_TYPES_CLASS before Django loads models
 settings.EXPORT_TYPES_CLASS = ExportTypes
 
@@ -23,7 +24,6 @@ class ExportersConfig(AppConfig):
                 "EXPORTER_CLASS": "exporters.hive_exporter.HiveExporter"
             }
         ]
-
         env = os.environ
         settings.EXPORT_API_CONF = {
             "API_URL": env.get('EXPORT_API_URL'),

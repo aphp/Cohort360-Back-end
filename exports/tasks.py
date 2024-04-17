@@ -1,4 +1,5 @@
 import logging
+from typing import Type
 
 from celery import shared_task
 
@@ -11,7 +12,7 @@ _logger = logging.getLogger('django.request')
 
 
 @shared_task
-def launch_export_task(export_id: str, export_model: ExportRequest | Export):
+def launch_export_task(export_id: str, export_model: Type[ExportRequest | Export]):
     ExportManager().handle_export(export_id=export_id, export_model=export_model)
 
 

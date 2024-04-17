@@ -13,6 +13,19 @@ from admin_cohort.types import JobStatus
 _logger = logging.getLogger('django.request')
 
 
+def get_tokens(tokens: str):
+    api_tokens = tokens.split(',')
+    token_by_service: Dict[InfraAPI.Services, str] = {}
+    for token_item in api_tokens:
+        service_name, token = token_item.split(':')
+        try:
+            token_by_service[InfraAPI.Services(service_name)] = token
+        except ValueError as e:
+            _logger.error(f"Unrecognized API service. Must be one of {[s.value for s in InfraAPI.Services]}")
+            raise e
+    return token_by_service
+
+
 class InfraAPI:
 
     class Services(enum.Enum):
@@ -25,21 +38,8 @@ class InfraAPI:
         api_exporter_version = api_conf.get('API_VERSION')
         self.export_base_url = f"{self.url}/bigdata/data_exporter{api_exporter_version}"
         self.target_environment = api_conf.get('EXPORT_ENVIRONMENT')
-        self.tokens = self.get_tokens(api_conf.get('TOKENS'))
+        self.tokens = get_tokens(api_conf.get('TOKENS'))
         self.required_table = "person"  # todo: remove this when working with new export models
-
-    @staticmethod
-    def get_tokens(tokens: str):
-        api_tokens = tokens.split(',')
-        token_by_service: Dict[InfraAPI.Services, str] = {}
-        for token_item in api_tokens:
-            service_name, token = token_item.split(':')
-            try:
-                token_by_service[InfraAPI.Services(service_name)] = token
-            except ValueError as e:
-                _logger.error(f"Unrecognized API service. Must be one of {[s.value for s in InfraAPI.Services]}")
-                raise e
-        return token_by_service
 
     def launch_export(self, params: dict) -> str:
         export_type = params.pop('export_type')

@@ -10,6 +10,6 @@ class ExportsConfig(AppConfig):
         settings.EXPORTERS = getattr(settings, "EXPORTERS", [
             {
                 "TYPE": "plain",
-                "EXPORTER_CLASS": "exports.services.exporter_manager.DefaultExporter"
+                "EXPORTER_CLASS": "exports.services.export_operators.DefaultExporter"
             }
         ])

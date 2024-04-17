@@ -39,9 +39,7 @@ class ExportsTestBase(TestCase):
         self.datalabs_manager_user, self.datalabs_manager_profile = new_user_and_profile(firstname="Datalabs",
                                                                                          lastname="MANAGER",
                                                                                          email="d.m@aphp.fr")
-        self.csv_exporter_user, self.csv_exporter_profile = new_user_and_profile(firstname="Exporter",
-                                                                                 lastname="CSV",
-                                                                                 email="csv.e@aphp.fr")
+        self.exporter_user, self.exporter_profile = new_user_and_profile(email="exporter.user@aphp.fr")
         self.user_without_rights, _ = new_user_and_profile(firstname="User",
                                                            lastname="NO_RIGHTS",
                                                            email="no_rights@aphp.fr")
@@ -52,13 +50,13 @@ class ExportsTestBase(TestCase):
         self.datalabs_manager_access = Access.objects.create(profile=self.datalabs_manager_profile,
                                                              perimeter=self.perimeter_aphp,
                                                              role=self.datalab_manager_role)
-        self.csv_exporter_access = Access.objects.create(profile=self.csv_exporter_profile,
+        self.csv_exporter_access = Access.objects.create(profile=self.exporter_profile,
                                                          perimeter=self.perimeter_aphp,
                                                          role=self.csv_exporter_role)
         self.infra_provider_aphp = InfrastructureProvider.objects.create(name="APHP")
-        self.folder = Folder.objects.create(name="TestFolder", owner=self.csv_exporter_user)
-        self.request = Request.objects.create(name="TestRequest", owner=self.csv_exporter_user, parent_folder=self.folder)
-        self.rqs = RequestQuerySnapshot.objects.create(owner=self.csv_exporter_user,
+        self.folder = Folder.objects.create(name="TestFolder", owner=self.exporter_user)
+        self.request = Request.objects.create(name="TestRequest", owner=self.exporter_user, parent_folder=self.folder)
+        self.rqs = RequestQuerySnapshot.objects.create(owner=self.exporter_user,
                                                        request=self.request,
                                                        serialized_query="{}",
                                                        perimeters_ids=[self.perimeter_aphp.cohort_id])

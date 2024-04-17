@@ -1,6 +1,6 @@
 from typing import List
 
-from requests import Response
+from django.http import StreamingHttpResponse
 
 from admin_cohort.models import User
 from exports.models import ExportRequest, Export
@@ -21,8 +21,8 @@ class ExportBaseService:
 
     @staticmethod
     def create_tables(export: ExportRequest | Export, tables: List[dict], **kwargs) -> bool:
-        raise NotImplementedError("Implement in subclass depending on `type(export)")
+        raise NotImplementedError("Implement in subclass depending on export model")
 
     @staticmethod
-    def download(export: ExportRequest | Export) -> Response:
+    def download(export: ExportRequest | Export) -> StreamingHttpResponse:
         return ExportDownloader().download(export=export)

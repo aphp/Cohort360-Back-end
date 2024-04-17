@@ -1,6 +1,7 @@
 import logging
 import os
 from datetime import timedelta
+from typing import Type
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
@@ -10,7 +11,6 @@ from django.utils.module_loading import import_string
 from requests import RequestException
 
 from admin_cohort.models import User
-from admin_cohort.settings import DAYS_TO_KEEP_EXPORTED_FILES
 from admin_cohort.types import JobStatus
 from exports import ExportTypes
 from exports.emails import push_email_notification, exported_files_deleted
@@ -27,11 +27,18 @@ _logger = logging.getLogger('django.request')
 def load_available_exporters() -> dict:
     exporters = {}
     for exporter_conf in settings.EXPORTERS:
-        export_type, cls_path = exporter_conf.values()
+        try:
+            export_type, cls_path = exporter_conf["TYPE"], exporter_conf["EXPORTER_CLASS"]
+            export_type = ExportTypes(export_type).value
+        except KeyError:
+            raise ImproperlyConfigured("Missing `TYPE` or `EXPORTER_CLASS` key in exporter configuration")
+        except ValueError as e:
+            raise ImproperlyConfigured(f"Invalid export type: {e}")
         exporter = import_string(cls_path)
-        if not exporter:
-            raise ImproperlyConfigured(f"Improperly configured exporter `{cls_path}`")
-        exporters[export_type] = exporter
+        if exporter:
+            exporters[export_type] = exporter
+        else:
+            _logger.warning(f"Improperly configured exporter `{cls_path}`")
     if not exporters:
         raise ImproperlyConfigured("No exporter is configured")
     return exporters
@@ -52,7 +59,7 @@ class ExportManager:
         exporter = self._get_exporter(export_data.get("output_format"))
         exporter().validate(export_data=export_data, owner=owner)
 
-    def handle_export(self, export_id: str, export_model: ExportRequest | Export) -> None:
+    def handle_export(self, export_id: str, export_model: Type[ExportRequest | Export]) -> None:
         export = export_model.objects.get(pk=export_id)
         exporter = self._get_exporter(export.output_format)
         exporter().handle_export(export=export)
@@ -60,7 +67,10 @@ class ExportManager:
 
 class DefaultExporter:
 
-    def __new__(cls, *args, **kwargs):
+    def validate(self, *args, **kwargs):
+        raise NotImplementedError("Please implement your own exporter")
+
+    def handle_export(self, *args, **kwargs):
         raise NotImplementedError("Please implement your own exporter")
 
 
@@ -68,11 +78,11 @@ class ExportDownloader:
 
     def __init__(self):
         self.storage_provider = HDFSStorageProvider(servers_urls=STORAGE_PROVIDERS)
-        self.downloadable_export_type = [t.value for t in ExportTypes if t.allow_download]
+        self.downloadable_export_types = [t.value for t in ExportTypes if t.allow_download]
 
-    def download(self, export: ExportRequest | Export):
-        if export.request_job_status != JobStatus.finished \
-           or export.output_format != self.downloadable_export_type:
+    def download(self, export: ExportRequest | Export) -> StreamingHttpResponse:
+        if export.request_job_status != JobStatus.finished.value \
+           or export.output_format not in self.downloadable_export_types:
             raise BadRequestError("The export is not done yet or has failed or not downloadable")
         if not export.available_for_download():
             raise FilesNoLongerAvailable("The exported files are no longer available on the server.")
@@ -104,7 +114,7 @@ class ExportCleaner:
         self.target_types = [t.value for t in ExportTypes if t.allow_to_clean]
 
     def delete_exported_files(self):
-        d = timezone.now() - timedelta(days=DAYS_TO_KEEP_EXPORTED_FILES)
+        d = timezone.now() - timedelta(days=settings.DAYS_TO_KEEP_EXPORTED_FILES)
         exports = ExportRequest.objects.filter(request_job_status=JobStatus.finished,
                                                output_format__in=self.target_types,
                                                is_user_notified=True,
@@ -115,6 +125,7 @@ class ExportCleaner:
                 self.storage_provider.delete_file(file_name=f"{export.target_full_path}.zip")
             except (RequestException, StorageProviderException) as e:
                 _logger.exception(f"ExportRequest {export.id}: {e}")
+                return
 
             notification_data = dict(recipient_name=export.owner.display_name,
                                      recipient_email=export.owner.email,

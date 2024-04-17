@@ -4,6 +4,14 @@ from enum import Enum
 class DefaultExportTypes(Enum):
     PLAIN = "plain"
 
+    @property
+    def allow_download(self) -> bool:
+        return True
+
+    @property
+    def allow_to_clean(self) -> bool:
+        return True
+
 
 class ExportStatus(Enum):
     PENDING: str = "pending"

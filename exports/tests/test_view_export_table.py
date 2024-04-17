@@ -16,7 +16,7 @@ class ExportTableViewSetTest(ExportsTestBase):
     def setUp(self):
         super().setUp()
         self.datalab = Datalab.objects.create(infrastructure_provider=self.infra_provider_aphp)
-        self.export = Export.objects.create(output_format=ExportTypes.CSV,
+        self.export = Export.objects.create(output_format=ExportTypes.PLAIN.value,
                                             owner=self.datalabs_manager_user,
                                             datalab=self.datalab,
                                             status=ExportStatus.PENDING,
@@ -28,13 +28,13 @@ class ExportTableViewSetTest(ExportsTestBase):
     def test_list_export_tables(self):
         list_url = reverse(viewname=self.viewname_list)
         self.check_test_list_view(list_url=list_url,
-                                  request_user=self.csv_exporter_user,
+                                  request_user=self.exporter_user,
                                   expected_resp_status=status.HTTP_200_OK,
                                   result_count=len(self.export_tables)-1)
 
     def test_retrieve_export_table(self):
         retrieve_url = reverse(viewname=self.viewname_detail, args=[self.target_export_table_to_retrieve.uuid])
-        self.check_test_retrieve_view(request_user=self.csv_exporter_user,
+        self.check_test_retrieve_view(request_user=self.exporter_user,
                                       retrieve_url=retrieve_url,
                                       obj_id=self.target_export_table_to_retrieve.uuid,
                                       expected_resp_status=status.HTTP_200_OK,
