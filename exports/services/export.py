@@ -49,7 +49,7 @@ class ExportService:
             export_tables = data.get("export_tables", [])
             source_cohorts_ids = [table.get("cohort_result_source") for table in export_tables]
             if data["output_format"] == ExportType.CSV:
-                assert len(source_cohorts_ids) == 1, "All export tables must have the same source cohort"
+                assert len(set(source_cohorts_ids)) == 1, "All export tables must have the same source cohort"
                 if CohortResult.objects.get(pk__in=source_cohorts_ids).owner != owner:
                     raise ValidationError("The selected cohort does not belong to you")
                 if not data.get('nominative'):

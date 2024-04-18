@@ -29,7 +29,7 @@ def query_fhir(resource: str, params: dict[str, list[str]], auth_headers: dict) 
     if CRB_TEST_FHIR_QUERIES:
         url_test = f"{FHIR_URL}/{resource}"
         _logger.info(f"Testing real fhir query with {url_test=} {params=}")
-        response = requests.get(url_test, params=params, headers=auth_headers)
+        response = requests.get(url_test, params={**params, "_count": 0}, headers=auth_headers)
         response.raise_for_status()
 
     _logger.info(f"Attempting to query fhir with {url=} {params=}")
@@ -57,7 +57,8 @@ class QueryFormatter:
 
             for sub_criteria in criteria.criteria:
                 if sub_criteria.criteria_type == CriteriaType.BASIC_RESOURCE:
-                    filter_fhir_enriched = add_security_params_to_filter_fhir(sub_criteria, source_population, is_pseudo)
+                    filter_fhir_enriched = add_security_params_to_filter_fhir(sub_criteria, source_population,
+                                                                              is_pseudo)
 
                     _logger.info(f"filterFhirEnriched {filter_fhir_enriched}")
 

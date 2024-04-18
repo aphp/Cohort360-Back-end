@@ -183,9 +183,9 @@ class AccessesAppTestsBase(ViewSetTests):
         self.role_data_accesses_manager_inf_levels = Role.objects.create(**role_data_accesses_manager_inf_levels_data)
         self.role_admin_accesses_manager_same_level = Role.objects.create(**role_admin_accesses_manager_same_level_data)
 
-        self.user_y, self.profile_y = new_user_and_profile(email="user_y@aphp.fr")
-        self.user_z, self.profile_z = new_user_and_profile(email="user_z@aphp.fr")
-        self.user_t, self.profile_t = new_user_and_profile(email="user_t@aphp.fr")
+        self.user_y, self.profile_y = new_user_and_profile()
+        self.user_z, self.profile_z = new_user_and_profile()
+        self.user_t, self.profile_t = new_user_and_profile()
 
     def create_new_access_for_user(self, profile, role, perimeter, start_datetime=None, end_datetime=None, close_existing: bool = True):
         if close_existing:
