@@ -14,7 +14,7 @@ class HiveExporter(BaseExporter):
 
     def __init__(self):
         super().__init__()
-        self.type = ExportTypes.HIVE
+        self.type = ExportTypes.HIVE.value
         self.target_location = os.environ.get('HIVE_DB_FOLDER')
         self.user = os.environ.get('HIVE_EXPORTER_USER')
 

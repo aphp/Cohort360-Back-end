@@ -8,7 +8,7 @@ from requests import Response, RequestException
 from rest_framework import status
 
 from admin_cohort.types import JobStatus
-
+from exporters.enums import ExportTypes
 
 _logger = logging.getLogger('django.request')
 
@@ -35,15 +35,21 @@ class InfraAPI:
     def __init__(self):
         api_conf = settings.EXPORT_API_CONF
         self.url = api_conf.get('API_URL')
-        api_exporter_version = api_conf.get('API_VERSION')
-        self.export_base_url = f"{self.url}/bigdata/data_exporter{api_exporter_version}"
+        self.csv_export_endpoint = api_conf.get('CSV_EXPORT_ENDPOINT')
+        self.hive_export_endpoint = api_conf.get('HIVE_EXPORT_ENDPOINT')
+        self.export_task_status_endpoint = api_conf.get('EXPORT_TASK_STATUS_ENDPOINT')
+        self.hadoop_task_status_endpoint = api_conf.get('HADOOP_TASK_STATUS_ENDPOINT')
+        self.create_db_endpoint = api_conf.get('CREATE_DB_ENDPOINT')
+        self.alter_db_endpoint = api_conf.get('ALTER_DB_ENDPOINT')
         self.target_environment = api_conf.get('EXPORT_ENVIRONMENT')
         self.tokens = get_tokens(api_conf.get('TOKENS'))
         self.required_table = "person"  # todo: remove this when working with new export models
 
     def launch_export(self, params: dict) -> str:
+        params["environment"] = self.target_environment
         export_type = params.pop('export_type')
-        response = requests.post(url=f"{self.export_base_url}/{export_type.value}",
+        endpoint = export_type == ExportTypes.CSV.value and self.csv_export_endpoint or self.hive_export_endpoint
+        response = requests.post(url=f"{self.url}{endpoint}",
                                  params=params,
                                  headers={'auth-token': self.tokens[self.Services.BIG_DATA]})
         return response.json().get('task_id')
@@ -53,7 +59,8 @@ class InfraAPI:
                   "return_out_logs": True,
                   "return_err_logs": True
                   }
-        response = requests.get(url=f"{self.url}/{service.value}/task_status",
+        endpoint = service == InfraAPI.Services.BIG_DATA and self.export_task_status_endpoint or self.hadoop_task_status_endpoint
+        response = requests.get(url=f"{self.url}{endpoint}",
                                 params=params,
                                 headers={'auth-token': self.tokens[service]})
         response = response.json()
@@ -65,7 +72,7 @@ class InfraAPI:
                   "location": location,
                   "if_not_exists": False
                   }
-        response = self.query_hadoop(endpoint="hive/create_base_hive", params=params)
+        response = self.query_hadoop(endpoint=self.create_db_endpoint, params=params)
         return response.json().get('task_id')
 
     def change_db_ownership(self, location: str, db_user: str) -> None:
@@ -74,11 +81,11 @@ class InfraAPI:
                   "gid": "hdfs",
                   "recursive": True
                   }
-        response = self.query_hadoop(endpoint="hdfs/chown_directory", params=params)
+        response = self.query_hadoop(endpoint=self.alter_db_endpoint, params=params)
         self.check_response(response=response)
 
     def query_hadoop(self, endpoint: str, params: dict) -> Response:
-        return requests.post(url=f"{self.url}/hadoop/{endpoint}",
+        return requests.post(url=f"{self.url}{endpoint}",
                              params=params,
                              headers={'auth-token': self.tokens[self.Services.HADOOP]})
 

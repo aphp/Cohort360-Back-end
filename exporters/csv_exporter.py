@@ -13,7 +13,7 @@ class CSVExporter(BaseExporter):
 
     def __init__(self):
         super().__init__()
-        self.type = ExportTypes.CSV
+        self.type = ExportTypes.CSV.value
         self.target_location = os.environ.get('EXPORT_CSV_PATH')
 
     def validate(self, export_data: dict, owner: User, **kwargs) -> None:

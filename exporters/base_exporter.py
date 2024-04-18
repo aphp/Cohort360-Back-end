@@ -118,7 +118,6 @@ class BaseExporter:
         tables, user_for_pseudo = get_custom_params(exp=export)
         params.update({"export_type": self.type,
                        "tables": tables,
-                       "environment": self.export_api.target_environment,
                        "no_date_shift": export.nominative or not export.shift_dates,
                        "overwrite": False,
                        "user_for_pseudo": user_for_pseudo
