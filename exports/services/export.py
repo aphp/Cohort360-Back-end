@@ -45,7 +45,7 @@ class ExportService(ExportBaseService):
                 _logger.info(f"Export [{export.uuid}]: waiting for some cohort subsets to finish before launching export")
                 return
         _logger.info(f"Export [{export.uuid}]: all cohort subsets were successfully created. Launching export.")
-        launch_export_task.delay(export.pk, Export)
+        launch_export_task.delay(export.pk)
 
 
 export_service = ExportService()

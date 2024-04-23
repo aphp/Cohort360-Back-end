@@ -56,7 +56,8 @@ class TestInfraAPI(TestCase):
         task_id = self.infra_api.launch_export(params)
         self.assertEqual(task_id, '123456')
         mock_requests.post.assert_called_once_with(url='https://exports-api.fr/api/csv',
-                                                   params={'api_param': 'value'},
+                                                   params={'api_param': 'value',
+                                                           'environment': 'test'},
                                                    headers={'auth-token': 'token1'})
 
     @mock.patch('exporters.infra_api.requests')
@@ -68,7 +69,8 @@ class TestInfraAPI(TestCase):
         task_id = self.infra_api.launch_export(params)
         self.assertEqual(task_id, '123456')
         mock_requests.post.assert_called_once_with(url='https://exports-api.fr/api/hive',
-                                                   params={'api_param': 'value'},
+                                                   params={'api_param': 'value',
+                                                           'environment': 'test'},
                                                    headers={'auth-token': 'token1'})
 
     @mock.patch('exporters.infra_api.requests')

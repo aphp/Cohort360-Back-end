@@ -1,7 +1,6 @@
 from django.urls import reverse
 from rest_framework import status
 
-from exports import ExportTypes
 from exports.models import ExportTable, Export, Datalab
 from exports.tests.base_test import ExportsTestBase
 from exports.enums import ExportStatus
@@ -16,7 +15,7 @@ class ExportTableViewSetTest(ExportsTestBase):
     def setUp(self):
         super().setUp()
         self.datalab = Datalab.objects.create(infrastructure_provider=self.infra_provider_aphp)
-        self.export = Export.objects.create(output_format=ExportTypes.PLAIN.value,
+        self.export = Export.objects.create(output_format=self.export_type,
                                             owner=self.datalabs_manager_user,
                                             datalab=self.datalab,
                                             status=ExportStatus.PENDING,

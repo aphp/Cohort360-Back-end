@@ -1,7 +1,6 @@
 import logging
 import os
 from datetime import timedelta
-from typing import Type
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
@@ -10,7 +9,6 @@ from django.utils import timezone
 from django.utils.module_loading import import_string
 from requests import RequestException
 
-from admin_cohort.models import User
 from admin_cohort.types import JobStatus
 from exports import ExportTypes
 from exports.emails import push_email_notification, exported_files_deleted
@@ -55,12 +53,17 @@ class ExportManager:
         except KeyError:
             raise ImproperlyConfigured(f"Missing exporter configuration for type `{export_type}`")
 
-    def validate(self, export_data: dict, owner: User) -> None:
+    def validate(self, export_data: dict, **kwargs) -> None:
         exporter = self._get_exporter(export_data.get("output_format"))
-        exporter().validate(export_data=export_data, owner=owner)
+        exporter().validate(export_data=export_data, **kwargs)
 
-    def handle_export(self, export_id: str, export_model: Type[ExportRequest | Export]) -> None:
-        export = export_model.objects.get(pk=export_id)
+    def handle_export(self, export_id: str) -> None:
+        try:
+            export = ExportRequest.objects.get(pk=export_id)
+        except ExportRequest.DoesNotExist:
+            export = Export.objects.get(pk=export_id)
+        except Export.DoesNotExist:
+            raise ValueError(f'No export matches the given ID : {export_id}')
         exporter = self._get_exporter(export.output_format)
         exporter().handle_export(export=export)
 

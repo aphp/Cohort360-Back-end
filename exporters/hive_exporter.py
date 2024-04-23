@@ -1,8 +1,10 @@
 import logging
 import os
+from typing import List
 
 from requests import RequestException
 
+from cohort.models import CohortResult
 from exports.models import ExportRequest, Export
 from exporters.base_exporter import BaseExporter
 from exporters.enums import ExportTypes
@@ -17,6 +19,20 @@ class HiveExporter(BaseExporter):
         self.type = ExportTypes.HIVE.value
         self.target_location = os.environ.get('HIVE_DB_FOLDER')
         self.user = os.environ.get('HIVE_EXPORTER_USER')
+
+    def get_source_cohorts(self, export_data: dict, **kwargs) -> List[str]:
+        using_new_export_models = self.using_new_export_models(export_data=export_data)
+        if using_new_export_models:
+            source_cohorts_ids = [t.get("cohort_result_source") for t in export_data.get("export_tables", [])]
+        else:
+            cohort = CohortResult.objects.get(fhir_group_id=export_data['cohort_id'])
+            export_data['cohort'] = cohort.uuid
+            source_cohorts_ids = [cohort.uuid]
+        return source_cohorts_ids
+
+    def validate(self, export_data: dict, **kwargs) -> None:
+        kwargs["source_cohorts_ids"] = self.get_source_cohorts(export_data=export_data)
+        super().validate(export_data=export_data, **kwargs)
 
     def handle_export(self, export: ExportRequest | Export, **kwargs) -> None:
         self.confirm_export_received(export=export)

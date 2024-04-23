@@ -61,7 +61,7 @@ class TestExportManager(ExportsTests):
                            )
         export = ExportRequest.objects.create(**export_data)
         with self.assertRaises(NotImplementedError):
-            self.export_manager.handle_export(export_id=export.pk, export_model=ExportRequest)
+            self.export_manager.handle_export(export_id=export.pk)
 
 
 

@@ -4,6 +4,10 @@ from enum import Enum
 class DefaultExportTypes(Enum):
     PLAIN = "plain"
 
+    @staticmethod
+    def default() -> str:
+        return DefaultExportTypes.PLAIN.value
+
     @property
     def allow_download(self) -> bool:
         return True

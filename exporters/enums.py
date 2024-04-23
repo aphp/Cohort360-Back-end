@@ -5,6 +5,10 @@ class ExportTypes(Enum):
     CSV = "csv"
     HIVE = "hive"
 
+    @staticmethod
+    def default() -> str:
+        return ExportTypes.CSV.value
+
     @property
     def allow_download(self) -> bool:
         return self == ExportTypes.CSV

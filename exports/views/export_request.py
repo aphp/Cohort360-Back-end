@@ -90,7 +90,6 @@ class ExportRequestViewSet(RequestLogMixin, viewsets.ModelViewSet):
                                                 'output_format': openapi.Schema(type=openapi.TYPE_STRING),
                                                 'cohort_id': openapi.Schema(type=openapi.TYPE_STRING,
                                                                             description="use cohort_fk instead"),
-                                                'provider_source_value': openapi.Schema(type=openapi.TYPE_STRING),
                                                 'target_unix_account': openapi.Schema(type=openapi.TYPE_INTEGER),
                                                 'tables': openapi.Schema(type=openapi.TYPE_ARRAY,
                                                                          items=openapi.Schema(
@@ -101,15 +100,7 @@ class ExportRequestViewSet(RequestLogMixin, viewsets.ModelViewSet):
                                                 'nominative': openapi.Schema(type=openapi.TYPE_BOOLEAN,
                                                                              description="Default at False"),
                                                 'shift_dates': openapi.Schema(type=openapi.TYPE_BOOLEAN,
-                                                                              description="Default at False"),
-                                                'cohort_fk': openapi.Schema(type=openapi.TYPE_STRING,
-                                                                            description="Pk for a CohortResult"),
-                                                'provider_id': openapi.Schema(type=openapi.TYPE_STRING,
-                                                                              description='Deprecated'),
-                                                'owner': openapi.Schema(type=openapi.TYPE_STRING,
-                                                                        description="Pk for user that will receive the "
-                                                                                    "export. WIll be set to the "
-                                                                                    "request creator if undefined.")
+                                                                              description="Default at False")
                                                 },
                                     required=["tables"]))
     @transaction.atomic

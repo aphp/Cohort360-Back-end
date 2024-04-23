@@ -26,11 +26,12 @@ class BaseExporter:
         self.type = None
         self.target_location = None
 
-    def validate(self, export_data: dict, owner: User, **kwargs) -> None:
+    def validate(self, export_data: dict, **kwargs) -> None:
+        owner = kwargs["owner"]
         if self.using_new_export_models(export_data=export_data):
             self.validate_tables_data(tables_data=export_data.get("export_tables", []))
         check_email_address(owner.email)
-        self.check_user_rights(export_data=export_data, owner=owner, **kwargs)
+        self.check_user_rights(export_data=export_data, **kwargs)
         export_data['request_job_status'] = JobStatus.validated
         self.complete_data(export_data=export_data, owner=owner)
 
@@ -62,8 +63,8 @@ class BaseExporter:
         return True
 
     @staticmethod
-    def check_user_rights(export_data: dict, owner: User, **kwargs) -> None:
-        rights_checker.check_owner_rights(owner=owner,
+    def check_user_rights(export_data: dict, **kwargs) -> None:
+        rights_checker.check_owner_rights(owner=kwargs.get("owner"),
                                           output_format=export_data["output_format"],
                                           nominative=export_data["nominative"],
                                           source_cohorts_ids=kwargs.get("source_cohorts_ids"))

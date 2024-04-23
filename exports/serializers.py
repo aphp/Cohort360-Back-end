@@ -48,8 +48,6 @@ class ExportRequestSerializer(serializers.ModelSerializer):
         fields = "__all__"
         read_only_fields = ["execution_request_datetime",
                             "is_user_notified",
-                            "target_location",
-                            "target_name",
                             "cleaned_at",
                             "insert_datetime",
                             "update_datetime",

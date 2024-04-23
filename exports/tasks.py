@@ -1,19 +1,17 @@
 import logging
-from typing import Type
 
 from celery import shared_task
 
 from admin_cohort.celery import celery_app
 from admin_cohort.tools.celery_periodic_task_helper import ensure_single_task
-from exports.models import ExportRequest, Export
 from exports.services.export_operators import ExportManager, ExportCleaner
 
 _logger = logging.getLogger('django.request')
 
 
 @shared_task
-def launch_export_task(export_id: str, export_model: Type[ExportRequest | Export]):
-    ExportManager().handle_export(export_id=export_id, export_model=export_model)
+def launch_export_task(export_id: str):
+    ExportManager().handle_export(export_id=export_id)
 
 
 @celery_app.task()

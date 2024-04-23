@@ -1,3 +1,5 @@
+from unittest import mock
+
 from exporters.base_exporter import BaseExporter
 from exporters.enums import ExportTypes
 from exporters.tests.base_test import ExportersTestBase
@@ -9,7 +11,20 @@ class TestBaseExporter(ExportersTestBase):
         super().setUp()
         self.person_table_name = "person"
         self.cohorts = [self.cohort, self.cohort2]
-        self.exporter = BaseExporter()
+        self.api_conf = {
+            'API_URL': 'https://exports-api.fr/api',
+            'CSV_EXPORT_ENDPOINT': '/csv',
+            'HIVE_EXPORT_ENDPOINT': '/hive',
+            'EXPORT_TASK_STATUS_ENDPOINT': '/bigdata/task_status',
+            'HADOOP_TASK_STATUS_ENDPOINT': '/hadoop/task_status',
+            'CREATE_DB_ENDPOINT': '/hadoop/create_db',
+            'ALTER_DB_ENDPOINT': '/hadoop/chown_db',
+            'EXPORT_ENVIRONMENT': 'test',
+            'TOKENS': "bigdata:token1,hadoop:token2"
+        }
+        with mock.patch('exporters.infra_api.settings') as mock_settings:
+            mock_settings.EXPORT_API_CONF = self.api_conf
+            self.exporter = BaseExporter()
 
     def test_validate_tables_data_all_tables_have_source_cohort(self):
         # all tables have a linked source cohort

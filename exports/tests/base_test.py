@@ -7,6 +7,7 @@ from rest_framework.test import APIRequestFactory, force_authenticate
 from accesses.models import Role, Perimeter, Access
 from admin_cohort.tests.tests_tools import new_user_and_profile
 from cohort.models import Request, RequestQuerySnapshot, Folder
+from exports import ExportTypes
 from exports.models import InfrastructureProvider
 
 
@@ -60,6 +61,7 @@ class ExportsTestBase(TestCase):
                                                        request=self.request,
                                                        serialized_query="{}",
                                                        perimeters_ids=[self.perimeter_aphp.cohort_id])
+        self.export_type = ExportTypes.default()
 
     def make_request(self, url, http_verb, request_user, request_data=None):
         handler = getattr(self.factory, http_verb)

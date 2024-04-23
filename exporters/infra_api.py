@@ -46,8 +46,8 @@ class InfraAPI:
         self.required_table = "person"  # todo: remove this when working with new export models
 
     def launch_export(self, params: dict) -> str:
-        params["environment"] = self.target_environment
         export_type = params.pop('export_type')
+        params["environment"] = self.target_environment
         endpoint = export_type == ExportTypes.CSV.value and self.csv_export_endpoint or self.hive_export_endpoint
         response = requests.post(url=f"{self.url}{endpoint}",
                                  params=params,

@@ -200,6 +200,7 @@ class ExportsTests(ViewSetTestsWithBasicPerims):
 
         _, _, _, _, self.user2_cohort = new_cohort_result(owner=self.user2,
                                                           status=JobStatus.finished.value)
+        self.export_type = ExportTypes.default()
 
     def check_is_created(self, base_instance: ExportRequest,
                          request_model: dict = None, user: User = None):
@@ -243,7 +244,7 @@ class ExportsWithSimpleSetUp(ExportsTests):
                 creator_fk=self.user1,
                 cohort_fk=self.user1_cohort,
                 cohort_id=42,
-                output_format=ExportTypes.PLAIN.value,
+                output_format=self.export_type,
                 provider_id=self.user1.provider_id,
                 request_job_status=JobStatus.finished,
                 target_location="user1_exp_req_succ",
@@ -261,7 +262,7 @@ class ExportsWithSimpleSetUp(ExportsTests):
                 owner=self.user1,
                 cohort_fk=self.user1_cohort,
                 cohort_id=42,
-                output_format=ExportTypes.PLAIN.value,
+                output_format=self.export_type,
                 provider_id=self.user1.provider_id,
                 request_job_status=JobStatus.failed.value,
                 target_location="user1_exp_req_failed",
@@ -273,7 +274,7 @@ class ExportsWithSimpleSetUp(ExportsTests):
                 owner=self.user2,
                 cohort_fk=self.user2_cohort,
                 cohort_id=43,
-                output_format=ExportTypes.PLAIN.value,
+                output_format=self.export_type,
                 provider_id=self.user1.provider_id,
                 request_job_status=JobStatus.finished.value,
                 target_location="user2_exp_req_succ",
@@ -283,7 +284,7 @@ class ExportsWithSimpleSetUp(ExportsTests):
         # Exports new flow with new models - v1
         self.infra_provider_aphp = InfrastructureProvider.objects.create(name="APHP")
         self.datalab = Datalab.objects.create(name="main_datalab", infrastructure_provider=self.infra_provider_aphp)
-        self.user1_export = Export.objects.create(output_format=ExportTypes.PLAIN.value,
+        self.user1_export = Export.objects.create(output_format=self.export_type,
                                                   owner=self.user1,
                                                   status=ExportStatus.PENDING.value,
                                                   target_name="12345_09092023_151500",
@@ -329,8 +330,8 @@ class ExportsListTests(ExportsTests):
                 nominative=random.random() > 0.5,
                 shift_dates=random.random() > 0.5,
                 target_unix_account=self.user1_unix_acc,
-                output_format=random.choice([ExportTypes.PLAIN.value,
-                                             ExportTypes.PLAIN.value]),
+                output_format=random.choice([self.export_type,
+                                             self.export_type]),
                 provider_id=self.user1.provider_id,
                 request_job_status=random.choice([
                     JobStatus.new.value, JobStatus.failed.value,
@@ -348,8 +349,8 @@ class ExportsListTests(ExportsTests):
                         self.user1_cohort2,
                     ]),
                     cohort_id=example_int,
-                    output_format=random.choice([ExportTypes.PLAIN.value,
-                                                 ExportTypes.PLAIN.value]),
+                    output_format=random.choice([self.export_type,
+                                                 self.export_type]),
                     provider_id=self.user2.provider_id,
                     owner=self.user2,
                     request_job_status=random.choice([
@@ -380,7 +381,7 @@ class ExportsRetrieveTests(ExportsWithSimpleSetUp):
             owner=self.user1,
             cohort_fk=self.user1_cohort,
             cohort_id=42,
-            output_format=ExportTypes.PLAIN.value,
+            output_format=self.export_type,
             provider_id=self.user1.provider_id,
             request_job_status=JobStatus.finished.value,
             target_location="location_example",
@@ -413,7 +414,7 @@ class ExportsNotAllowedTests(ExportsWithSimpleSetUp):
             owner=self.full_admin_user,
             cohort_fk=self.user1_cohort,
             cohort_id=self.user1_cohort.fhir_group_id,
-            output_format=ExportTypes.PLAIN.value,
+            output_format=self.export_type,
             provider_id=self.user1.provider_id,
             request_job_status=JobStatus.new.value,
             target_location="user1_exp_req_succ",
@@ -421,7 +422,7 @@ class ExportsNotAllowedTests(ExportsWithSimpleSetUp):
 
         )
         self.basic_csv_data = {**self.basic_jup_data,
-                               'output_format': ExportTypes.PLAIN.value}
+                               'output_format': self.export_type}
 
 
 class ExportsPatchNotAllowedTests(ExportsNotAllowedTests):
