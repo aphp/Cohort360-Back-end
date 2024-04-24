@@ -28,13 +28,17 @@ class CohortResultService:
         fhir_filter = FhirFilter.objects.get(pk=fhir_filter_id)
         query = {"_type": "request",
                  "resourceType": fhir_filter.fhir_resource,
-                 "request": {"_id": 1,
-                             "_type": "basicResource",
-                             "filterFhir": fhir_filter.filter,
+                 "sourcePopulation": {"caresiteCohortList": [cohort_source_id]},
+                 "request": {"_id": 0,
+                             "_type": "andGroup",
                              "isInclusive": True,
-                             "resourceType": fhir_filter.fhir_resource
-                             },
-                 "sourcePopulation": {"caresiteCohortList": [cohort_source_id]}
+                             "criteria": [{"_id": 1,
+                                           "_type": "basicResource",
+                                           "isInclusive": True,
+                                           "filterFhir": fhir_filter.filter,
+                                           "resourceType": fhir_filter.fhir_resource
+                                           }]
+                             }
                  }
         return json.dumps(query)
 
