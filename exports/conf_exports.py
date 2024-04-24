@@ -216,8 +216,9 @@ def get_custom_params(export: ExportRequest | Export) -> Tuple[str, str]:
         tables = f"{person_table},{other_tables}"
         user_for_pseudo = not export.nominative and export.target_unix_account.name or None
     else:
-        tables = ",".join(map(lambda t: f'{t.name}:{t.cohort_result_subset.fhir_group_id}:{t.respect_table_relationships}',
-                              export.export_tables.all()))
+        tables = ",".join(
+            map(lambda t: f"{t.name}:{t.cohort_result_subset and t.cohort_result_subset.fhir_group_id or ''}:{t.respect_table_relationships}",
+                export.export_tables.all()))
         user_for_pseudo = not export.nominative and export.datalab.name or None
     return tables, user_for_pseudo
 

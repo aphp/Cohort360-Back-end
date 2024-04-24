@@ -69,47 +69,54 @@ class ExportService:
     def validate_tables_data(tables_data: List[dict]):
         source_cohort_id = None
         person_table_provided = False
-        for table in tables_data:
-            source_cohort_id = table.get('cohort_result_source')
-            if table.get("name") == PERSON_TABLE:
-                person_table_provided = True
-                if not source_cohort_id:
-                    raise ValueError(f"The `{PERSON_TABLE}` table can not be exported without a source cohort")
-
+        for export_table in tables_data:
+            source_cohort_id = export_table.get('cohort_result_source')
             if source_cohort_id:
                 try:
                     cohort_source = CohortResult.objects.get(pk=source_cohort_id)
                 except CohortResult.DoesNotExist:
-                    raise ValueError(f"Cohort `{source_cohort_id}` linked to table `{table.get('name')}` was not found")
+                    raise ValueError(f"Cohort `{source_cohort_id}` linked to table `{export_table.get('name')}` was not found")
                 if cohort_source.request_job_status != JobStatus.finished:
                     raise ValueError(f"The provided cohort `{source_cohort_id}` did not finish successfully")
+
+            if PERSON_TABLE in export_table.get("table_ids"):
+                person_table_provided = True
+                if not source_cohort_id:
+                    raise ValueError(f"The `{PERSON_TABLE}` table can not be exported without a source cohort")
+
         if not (person_table_provided or source_cohort_id):
             raise ValueError(f"`{PERSON_TABLE}` table was not specified, must then provide source cohort for all tables")
         return True
 
+    @staticmethod
+    def allow_create_sub_cohort_for_table(table_name: str) -> bool:
+        return table_name not in ('imaging_series',
+                                  'questionnaire__item',
+                                  'questionnaireresponse__item',
+                                  'questionnaireresponse__item__answer')
+
     def create_tables(self, export_id: str, export_tables: List[dict], http_request) -> None:
         export = Export.objects.get(pk=export_id)
         create_cohort_subsets = False
-        for table in export_tables:
-            cohort_source, cohort_subset = None, None
-            table_name = table.get("name")
-            fhir_filter_id = table.get("fhir_filter")
-            if table.get("cohort_result_source"):
-                cohort_source = CohortResult.objects.get(pk=table.get("cohort_result_source"))
-                if not fhir_filter_id:
-                    cohort_subset = cohort_source
-                else:
+        for export_table in export_tables:
+            fhir_filter_id = export_table.get("fhir_filter")
+            cohort_source = CohortResult.objects.get(pk=export_table.get("cohort_result_source"))
+            for table_name in export_table.get("table_ids"):
+                if fhir_filter_id and self.allow_create_sub_cohort_for_table(table_name=table_name):
                     create_cohort_subsets = True
                     cohort_subset = cohort_service.create_cohort_subset(owner_id=export.owner_id,
                                                                         table_name=table_name,
                                                                         fhir_filter_id=fhir_filter_id,
                                                                         source_cohort=cohort_source,
                                                                         http_request=http_request)
-            ExportTable.objects.create(export=export,
-                                       name=table_name,
-                                       fhir_filter_id=fhir_filter_id,
-                                       cohort_result_source=cohort_source,
-                                       cohort_result_subset=cohort_subset)
+                else:
+                    cohort_subset = cohort_source
+
+                ExportTable.objects.create(export=export,
+                                           name=table_name,
+                                           fhir_filter_id=fhir_filter_id,
+                                           cohort_result_source=cohort_source,
+                                           cohort_result_subset=cohort_subset)
         if not create_cohort_subsets:
             self.launch_export(export_id=export_id)
 

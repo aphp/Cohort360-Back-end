@@ -44,6 +44,7 @@ class ExportViewSet(ExportsBaseViewSet):
     queryset = Export.objects.all()
     swagger_tags = ['Exports - Exports']
     filterset_class = ExportFilter
+    http_method_names = ['get', 'post', 'patch']
     search_fields = ("name",
                      "owner__username",
                      "owner__firstname",
@@ -54,7 +55,7 @@ class ExportViewSet(ExportsBaseViewSet):
                      "target_unix_account__name")
 
     def get_permissions(self):
-        if self.request.method in ("POST", "PATCH", "DELETE"):
+        if self.request.method in ("POST", "PATCH"):
             return either(CSVExportsPermission(), JupyterExportPermission())
         return super().get_permissions()
 
@@ -68,7 +69,8 @@ class ExportViewSet(ExportsBaseViewSet):
                         'export_tables': openapi.Schema(
                             type=openapi.TYPE_ARRAY,
                             items=openapi.Schema(type=openapi.TYPE_OBJECT,
-                                                 properties={'name': openapi.Schema(type=openapi.TYPE_STRING),
+                                                 properties={'table_ids': openapi.Schema(type=openapi.TYPE_ARRAY,
+                                                                                         items=openapi.Schema(type=openapi.TYPE_STRING)),
                                                              'respect_table_relationships': openapi.Schema(type=openapi.TYPE_BOOLEAN),
                                                              'fhir_filter': openapi.Schema(type=openapi.TYPE_STRING),
                                                              'cohort_result_source': openapi.Schema(type=openapi.TYPE_STRING)}))}))
