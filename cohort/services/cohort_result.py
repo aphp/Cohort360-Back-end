@@ -28,7 +28,7 @@ class CohortResultService:
         fhir_filter = FhirFilter.objects.get(pk=fhir_filter_id)
         query = {"_type": "request",
                  "resourceType": fhir_filter.fhir_resource,
-                 "cohortUuid": cohort_uuid,
+                 "cohortUuid": str(cohort_uuid),
                  "request": {"_id": 1,
                              "_type": "basicResource",
                              "filterFhir": fhir_filter.filter,
