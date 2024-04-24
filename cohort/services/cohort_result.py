@@ -1,3 +1,4 @@
+import json
 import logging
 from smtplib import SMTPException
 
@@ -23,29 +24,30 @@ _logger_err = logging.getLogger('django.request')
 class CohortResultService:
 
     @staticmethod
-    def build_query(cohort_source_id: str, cohort_uuid: str, fhir_filter_id: str) -> str:
+    def build_query(cohort_source_id: str, fhir_filter_id: str) -> str:
         fhir_filter = FhirFilter.objects.get(pk=fhir_filter_id)
         query = {"_type": "request",
-                 "resourceType": fhir_filter.fhir_resource,
-                 "cohortUuid": cohort_uuid,
-                 "request": {"_id": 1,
-                             "_type": "basicResource",
-                             "filterFhir": fhir_filter.filter,
-                             # "filterSolr": "fq=gender:f&fq=deceased:false&fq=active:true",    todo: rempli par le CRB
+                 "sourcePopulation": {"caresiteCohortList": [cohort_source_id]},
+                 "request": {"_id": 0,
+                             "_type": "andGroup",
                              "isInclusive": True,
-                             "resourceType": fhir_filter.fhir_resource
-                             },
-                 "sourcePopulation": {"caresiteCohortList": [cohort_source_id]}
+                             "criteria": [{"_id": 1,
+                                           "_type": "basicResource",
+                                           "isInclusive": True,
+                                           "filterFhir": fhir_filter.filter,
+                                           "resourceType": fhir_filter.fhir_resource
+                                           }]
+                             }
                  }
-        return str(query)
+        return json.dumps(query)
 
     @staticmethod
     def create_cohort_subset(http_request, owner_id: str, table_name: str, source_cohort: CohortResult, fhir_filter_id: str) -> CohortResult:
         cohort_subset = CohortResult.objects.create(name=f"{table_name}_{source_cohort.fhir_group_id}",
-                                                    owner_id=owner_id)
+                                                    owner_id=owner_id,
+                                                    dated_measure_id=source_cohort.dated_measure_id)
         with transaction.atomic():
             query = CohortResultService.build_query(cohort_source_id=source_cohort.fhir_group_id,
-                                                    cohort_uuid=cohort_subset.uuid,
                                                     fhir_filter_id=fhir_filter_id)
             try:
                 auth_headers = get_authorization_header(request=http_request)

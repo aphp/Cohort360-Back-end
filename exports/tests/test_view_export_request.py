@@ -71,8 +71,6 @@ Cas à tester pour PATCH /exports/{id} :
     est en status created, si le user a right_review_export_jupyter
 """
 
-REGEX_TEST_EMAIL = r"^[\w.+-]+@test\.com$"
-END_TEST_EMAIL = "@test.com"
 
 
 def new_cohort_result(owner: User, status: JobStatus = JobStatus.finished,
@@ -160,12 +158,11 @@ class ExportsTests(ViewSetTestsWithBasicPerims):
                                   ("EXP_JUP_NOMI", "right_export_jupyter_nominative")]]
 
         # USERS
-        self.user_with_no_right, ph_with_no_right = new_user_and_profile(
-            email=f"with_no_right{END_TEST_EMAIL}")
+        self.user_with_no_right, ph_with_no_right = new_user_and_profile()
 
-        self.user1, self.prof_1 = new_user_and_profile(email=f"us1{END_TEST_EMAIL}")
-        self.user2, self.prof_2 = new_user_and_profile(email=f"us2{END_TEST_EMAIL}")
-        self.user3, self.prof_3 = new_user_and_profile(email=f"us3{END_TEST_EMAIL}")
+        self.user1, self.prof_1 = new_user_and_profile()
+        self.user2, self.prof_2 = new_user_and_profile()
+        self.user3, self.prof_3 = new_user_and_profile()
 
         # ACCESSES
         self.user1_csv_nomi_acc: Access = Access.objects.create(
@@ -708,7 +705,6 @@ class ExportJupyterCreateCase(ExportCreateCase):
 class ExportsCreateTests(ExportsTests):
     @mock.patch('exports.tasks.launch_request.delay')
     @mock.patch('exports.views.export_request.push_email_notification')
-    @mock.patch('exports.emails.EMAIL_REGEX_CHECK', REGEX_TEST_EMAIL)
     def check_create_case(self, case: ExportCreateCase, mock_push_email_notif: MagicMock, mock_task: MagicMock):
         mock_task.return_value = None
         mock_push_email_notif.return_value = None
@@ -950,7 +946,7 @@ class ExportsJupyterCreateTests(ExportsCreateTests):
     def test_error_create_request_wrong_email(self):
         # As a user, I cannot create an export request if the owner has no
         # email address
-        self.user1.email = f"us1{END_TEST_EMAIL}m"
+        self.user1.email = "gfaphp.fr"
         self.user1.save()
 
         self.check_create_case(
@@ -1102,7 +1098,7 @@ class ExportsJupyterCreateTests(ExportsCreateTests):
 class ExportsNotAllowedTests(ExportsWithSimpleSetUp):
     def setUp(self):
         super(ExportsNotAllowedTests, self).setUp()
-        self.full_admin_user, full_admin_ph = new_user_and_profile("full@us.er")
+        self.full_admin_user, full_admin_ph = new_user_and_profile()
         role_full: Role = Role.objects.create(**dict([
             (f, True) for f in self.all_rights
         ]), name='FULL')

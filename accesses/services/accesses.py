@@ -420,11 +420,6 @@ class AccessesService:
     @staticmethod
     def check_access_dates(new_start_datetime: datetime = None, new_end_datetime: datetime = None,
                            old_start_datetime: datetime = None, old_end_datetime: datetime = None) -> None:
-        try:
-            old_start_datetime = old_start_datetime and timezone.get_current_timezone().localize(old_start_datetime)
-            old_end_datetime = old_end_datetime and timezone.get_current_timezone().localize(old_end_datetime)
-        except ValueError:
-            pass
         now = timezone.now()
 
         if old_start_datetime and new_start_datetime \
