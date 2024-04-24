@@ -78,9 +78,8 @@ class ProfilesService:
                                                 & Q(user_id=person.user_id)).first()
         return {"firstname": person.firstname,
                 "lastname": person.lastname,
-                "user_id": person.user_id,
                 "email": person.email,
-                "provider": user,
+                "username": username,
                 "user": user,
                 "manual_profile": manual_profile}
 

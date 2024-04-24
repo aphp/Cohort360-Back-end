@@ -130,12 +130,12 @@ class ProfileSerializer(BaseSerializer):
 
 
 class ProfileCheckSerializer(serializers.Serializer):
-    firstname = serializers.CharField(required=False, source="user.firstname")
-    lastname = serializers.CharField(required=False, source="user.lastname")
-    email = serializers.CharField(required=False, source="user.email")
-    username = serializers.CharField(read_only=True, allow_null=True, source='user_id')
-    user = UserSerializer(read_only=True, allow_null=True)
-    manual_profile = ProfileSerializer(read_only=True, allow_null=True)
+    firstname = serializers.CharField(read_only=True)
+    lastname = serializers.CharField(read_only=True)
+    email = serializers.CharField(read_only=True)
+    username = serializers.CharField(read_only=True)
+    user = UserSerializer(read_only=True)
+    manual_profile = ProfileSerializer(read_only=True)
 
 
 class PerimeterSerializer(serializers.ModelSerializer):
