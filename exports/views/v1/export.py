@@ -44,7 +44,7 @@ class ExportViewSet(ExportsBaseViewSet):
     queryset = Export.objects.all()
     swagger_tags = ['Exports - Exports']
     filterset_class = ExportFilter
-    http_method_names = ['get', 'post']
+    http_method_names = ['get', 'post', 'patch']
     search_fields = ("name",
                      "owner__username",
                      "owner__firstname",
@@ -55,7 +55,7 @@ class ExportViewSet(ExportsBaseViewSet):
                      "target_unix_account__name")
 
     def get_permissions(self):
-        if self.request.method == "POST":
+        if self.request.method in ("POST", "PATCH"):
             return either(CSVExportsPermission(), JupyterExportPermission())
         return super().get_permissions()
 

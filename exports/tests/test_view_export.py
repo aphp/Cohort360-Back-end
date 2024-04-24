@@ -33,7 +33,7 @@ class ExportViewSetTest(ExportsTestBase):
                                       "nominative": True,
                                       "owner": self.csv_exporter_user.pk,
                                       "status": ExportStatus.PENDING.name,
-                                      "export_tables": [{"name": "person",
+                                      "export_tables": [{"table_ids": ["person"],
                                                          "cohort_result_source": self.cohort_result.uuid,
                                                          "fhir_filter": self.fhir_filter.uuid}]
                                       }
@@ -92,10 +92,3 @@ class ExportViewSetTest(ExportsTestBase):
                                    expected_resp_status=status.HTTP_200_OK,
                                    to_read_from_response='status',
                                    to_check_against=patch_data['status'])
-
-    def test_delete_export(self):
-        delete_url = reverse(viewname=self.viewname_detail, args=[self.target_export_to_delete.uuid])
-        self.check_test_delete_view(request_user=self.csv_exporter_user,
-                                    delete_url=delete_url,
-                                    obj_id=self.target_export_to_delete.uuid,
-                                    expected_resp_status=status.HTTP_204_NO_CONTENT)

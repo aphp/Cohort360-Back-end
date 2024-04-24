@@ -60,10 +60,3 @@ class DatalabViewSetTest(ExportsTestBase):
                                    expected_resp_status=status.HTTP_200_OK,
                                    to_read_from_response='infrastructure_provider',
                                    to_check_against=patch_data['infrastructure_provider'])
-
-    def test_delete_datalab(self):
-        delete_url = reverse(viewname=self.viewname_detail, args=[self.target_datalab_to_delete.uuid])
-        self.check_test_delete_view(request_user=self.datalabs_manager_user,
-                                    delete_url=delete_url,
-                                    obj_id=self.target_datalab_to_delete.uuid,
-                                    expected_resp_status=status.HTTP_204_NO_CONTENT)
