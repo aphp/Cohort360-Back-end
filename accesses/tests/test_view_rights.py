@@ -13,7 +13,7 @@ class RightsViewTests(ViewSetTests):
 
     def setUp(self):
         super().setUp()
-        self.user, _ = new_user_and_profile(email="user.rights_tests@aphp.fr")
+        self.user, _ = new_user_and_profile()
         self.rights = self.create_rights()
 
     def create_rights(self):
