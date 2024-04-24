@@ -1,3 +1,4 @@
+import json
 import logging
 from smtplib import SMTPException
 
@@ -37,7 +38,7 @@ class CohortResultService:
                              },
                  "sourcePopulation": {"caresiteCohortList": [cohort_source_id]}
                  }
-        return str(query)
+        return json.dumps(query)
 
     @staticmethod
     def create_cohort_subset(http_request, owner_id: str, table_name: str, source_cohort: CohortResult, fhir_filter_id: str) -> CohortResult:
@@ -130,7 +131,7 @@ class CohortResultService:
             try:
                 send_email_notif_about_large_cohort(cohort.name, cohort.fhir_group_id, cohort.owner)
             except (ValueError, SMTPException) as e:
-                _logger_err.exception(f"Cohort [{cohort.uuid}] - Couldn't send email to user after ETL patch: {e}")
+                _logger_err.exception("Cohort [{cohort.uuid}] - Couldn't send email to user after ETL patch", e)
             else:
                 _logger.info(f"Cohort [{cohort.uuid}] successfully updated from ETL")
 
