@@ -28,7 +28,7 @@ class UserViewSet(BaseViewSet):
     search_fields = ["firstname", "lastname", "username", "email"]
     filterset_class = UserFilter
     permission_classes = (UsersPermission,)
-    http_method_names = ["get"]
+    http_method_names = ["get", "patch"]
 
     def get_serializer_context(self):
         return {'request': self.request}
@@ -57,7 +57,6 @@ class UserViewSet(BaseViewSet):
     @cache_response()
     def list(self, request, *args, **kwargs):
         return super(UserViewSet, self).list(request, *args, **kwargs)
-
 
     @swagger_auto_schema(request_body=openapi.Schema(type=openapi.TYPE_OBJECT,
                                                      properties={"firstname": openapi.Schema(type=openapi.TYPE_STRING),
