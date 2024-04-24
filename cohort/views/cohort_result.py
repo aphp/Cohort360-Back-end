@@ -81,7 +81,8 @@ class CohortFilter(filters.FilterSet):
 
 
 class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
-    queryset = CohortResult.objects.select_related('request_query_snapshot__request') \
+    queryset = CohortResult.objects.filter(export_table__isnull=True)\
+                                   .select_related('request_query_snapshot__request') \
                                    .annotate(request_id=F('request_query_snapshot__request__uuid')).all()
     serializer_class = CohortResultSerializer
     http_method_names = ['get', 'post', 'patch', 'delete']
