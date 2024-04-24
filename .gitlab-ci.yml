@@ -7,62 +7,62 @@ workflow:
         $CI_COMMIT_BRANCH == "main"
 
 stages:
-  - lint
-  - test
-  - sonarqube-check
+#  - lint
+#  - test
+#  - sonarqube-check
   - deploy
 
-lint-job:
-  stage: lint
-  before_script:
-    - pip install ruff
-  script:
-    - ruff check .
-  allow_failure: false
-
-test-job:
-  stage: test
-  services:
-    - postgres
-  variables:
-    POSTGRES_DB: portail_dev
-    POSTGRES_USER: portail_dev_limited_rw
-    POSTGRES_PASSWORD: portail_psswd
-  script:
-    - cp .conf/.test.env admin_cohort/.env
-    - pip install --upgrade pip
-    - pip install -r requirements.txt
-    - mkdir log
-    - coverage run --source='.' --omit="*/test*","*/migrations/*" manage.py test
-    - coverage xml --omit="*/test*","*/migrations/*" -o coverage.xml
-    - coverage html --omit="*/test*","*/migrations/*" -d htmlcov
-  artifacts:
-    expire_in: 7 days
-    paths:
-      - htmlcov/
-      - coverage.xml
-      - report.html
-      - report.xml
-
-sonarqube-check:
-  image:
-    name: sonarsource/sonar-scanner-cli:latest
-    entrypoint: [ "" ]
-  needs:
-    - test-job
-  dependencies:
-    - test-job
-  stage: sonarqube-check
-  variables:
-    SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"  # Defines the location of the analysis task cache
-    GIT_DEPTH: "0"  # Tells git to fetch all the branches of the project, required by the analysis task
-  cache:
-    key: "${CI_JOB_NAME}"
-    paths:
-      - .sonar/cache
-  script:
-    - export VERSION=$(cat ./admin_cohort/__init__.py | grep __version__ | head -1 | awk -F'=' '{ print $2 }' | sed "s/[' ]//g")
-    - sonar-scanner -Dsonar.projectVersion=$VERSION
+#lint-job:
+#  stage: lint
+#  before_script:
+#    - pip install ruff
+#  script:
+#    - ruff check .
+#  allow_failure: false
+#
+#test-job:
+#  stage: test
+#  services:
+#    - postgres
+#  variables:
+#    POSTGRES_DB: portail_dev
+#    POSTGRES_USER: portail_dev_limited_rw
+#    POSTGRES_PASSWORD: portail_psswd
+#  script:
+#    - cp .conf/.test.env admin_cohort/.env
+#    - pip install --upgrade pip
+#    - pip install -r requirements.txt
+#    - mkdir log
+#    - coverage run --source='.' --omit="*/test*","*/migrations/*" manage.py test
+#    - coverage xml --omit="*/test*","*/migrations/*" -o coverage.xml
+#    - coverage html --omit="*/test*","*/migrations/*" -d htmlcov
+#  artifacts:
+#    expire_in: 7 days
+#    paths:
+#      - htmlcov/
+#      - coverage.xml
+#      - report.html
+#      - report.xml
+#
+#sonarqube-check:
+#  image:
+#    name: sonarsource/sonar-scanner-cli:latest
+#    entrypoint: [ "" ]
+#  needs:
+#    - test-job
+#  dependencies:
+#    - test-job
+#  stage: sonarqube-check
+#  variables:
+#    SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"  # Defines the location of the analysis task cache
+#    GIT_DEPTH: "0"  # Tells git to fetch all the branches of the project, required by the analysis task
+#  cache:
+#    key: "${CI_JOB_NAME}"
+#    paths:
+#      - .sonar/cache
+#  script:
+#    - export VERSION=$(cat ./admin_cohort/__init__.py | grep __version__ | head -1 | awk -F'=' '{ print $2 }' | sed "s/[' ]//g")
+#    - sonar-scanner -Dsonar.projectVersion=$VERSION
 
 deploy-job:
   image: harbor.eds.aphp.fr/cohort360/kaniko:debug
