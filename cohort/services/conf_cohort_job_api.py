@@ -145,7 +145,7 @@ def post_to_sjs(json_query: str, uuid: str, cohort_cls: AbstractCohortRequest, r
         logger(uuid, f"Step 2: Send request to sjs: {cohort_query}")
         resp, data = cohort_cls.action(cohort_query)
     except (TypeError, ValueError, ValidationError, HTTPError) as e:
-        _logger_err.error("Error sending `count` request", e)
+        _logger_err.error(f"Error sending `count` request {e}")
         return response_cls(success=False, fhir_job_status=JobStatus.failed, err_msg=str(e))
     job = JobResponse(resp, **data)
     logger(uuid, f"Step 3: Get the response {job.__dict__=}")
