@@ -24,15 +24,13 @@ _logger_err = logging.getLogger('django.request')
 class CohortResultService:
 
     @staticmethod
-    def build_query(cohort_source_id: str, cohort_uuid: str, fhir_filter_id: str) -> str:
+    def build_query(cohort_source_id: str, fhir_filter_id: str) -> str:
         fhir_filter = FhirFilter.objects.get(pk=fhir_filter_id)
         query = {"_type": "request",
                  "resourceType": fhir_filter.fhir_resource,
-                 "cohortUuid": str(cohort_uuid),
                  "request": {"_id": 1,
                              "_type": "basicResource",
                              "filterFhir": fhir_filter.filter,
-                             # "filterSolr": "fq=gender:f&fq=deceased:false&fq=active:true",    todo: rempli par le CRB
                              "isInclusive": True,
                              "resourceType": fhir_filter.fhir_resource
                              },
@@ -46,7 +44,6 @@ class CohortResultService:
                                                     owner_id=owner_id)
         with transaction.atomic():
             query = CohortResultService.build_query(cohort_source_id=source_cohort.fhir_group_id,
-                                                    cohort_uuid=cohort_subset.uuid,
                                                     fhir_filter_id=fhir_filter_id)
             try:
                 auth_headers = get_authorization_header(request=http_request)
@@ -131,7 +128,7 @@ class CohortResultService:
             try:
                 send_email_notif_about_large_cohort(cohort.name, cohort.fhir_group_id, cohort.owner)
             except (ValueError, SMTPException) as e:
-                _logger_err.exception("Cohort [{cohort.uuid}] - Couldn't send email to user after ETL patch", e)
+                _logger_err.exception(f"Cohort [{cohort.uuid}] - Couldn't send email to user after ETL patch: {e}")
             else:
                 _logger.info(f"Cohort [{cohort.uuid}] successfully updated from ETL")
 
