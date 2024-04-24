@@ -3,10 +3,11 @@ import logging
 from django.db.models import Max, Q
 from django.utils import timezone
 from rest_framework import serializers
+from rest_framework.serializers import ModelSerializer
 
 from admin_cohort.serializers import BaseSerializer, UserSerializer
 from .conf_perimeters import Provider
-from .models import Role, Access, Profile, Perimeter
+from .models import Role, Access, Profile, Perimeter, Right
 from .services.roles import roles_service
 
 _logger = logging.getLogger('django.request')
@@ -27,6 +28,30 @@ def get_provider_id(user_id: str) -> int:
         return p.provider_id
     from accesses.models import Profile
     return Profile.objects.aggregate(Max("provider_id"))['provider_id__max'] + 1
+
+
+class RightSerializer(ModelSerializer):
+    depends_on = serializers.SlugRelatedField(slug_field='name', queryset=Right.objects.all(), required=False)
+
+    class Meta:
+        model = Right
+        fields = ["name",
+                  "label",
+                  "depends_on",
+                  "category",
+                  "is_global",
+                  "allow_read_accesses_on_same_level",
+                  "allow_read_accesses_on_inf_levels",
+                  "allow_edit_accesses_on_same_level",
+                  "allow_edit_accesses_on_inf_levels",
+                  "impact_inferior_levels"
+                  ]
+        extra_kwargs = {'allow_read_accesses_on_same_level': {'write_only': True},
+                        'allow_read_accesses_on_inf_levels': {'write_only': True},
+                        'allow_edit_accesses_on_same_level': {'write_only': True},
+                        'allow_edit_accesses_on_inf_levels': {'write_only': True},
+                        'impact_inferior_levels': {'write_only': True}
+                        }
 
 
 class RoleSerializer(BaseSerializer):

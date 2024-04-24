@@ -5,7 +5,6 @@ from django.db.models import Model, Manager, Field
 from django.utils import timezone
 
 from accesses.models import Perimeter, Role, Access
-from accesses.services.shared import all_rights
 from admin_cohort.tests.tests_tools import ViewSetTests, new_user_and_profile
 
 """
@@ -56,9 +55,11 @@ PERIMETERS_DATA = [
      'parent_id': 10, 'level': 4, 'above_levels_ids': '10,4,1', 'cohort_id': '14'}
     ]
 
-ALL_FALSY_RIGHTS = {right.name: False for right in all_rights}
+ALL_RIGHTS = [f.name for f in Role._meta.fields if f.name.startswith('right_')]
 
-role_full_admin_data = {**{right.name: True for right in all_rights}, "name": "FULL ADMIN"}
+ALL_FALSY_RIGHTS = {right: False for right in ALL_RIGHTS}
+
+role_full_admin_data = {**{right: True for right in ALL_RIGHTS}, "name": "FULL ADMIN"}
 
 role_admin_accesses_reader_data = {**ALL_FALSY_RIGHTS,
                                    "name": "ADMIN ACCESSES READER",
