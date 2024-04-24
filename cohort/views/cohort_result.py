@@ -81,8 +81,7 @@ class CohortFilter(filters.FilterSet):
 
 
 class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
-    queryset = CohortResult.objects.filter(export_table__isnull=True)\
-                                   .select_related('request_query_snapshot__request') \
+    queryset = CohortResult.objects.select_related('request_query_snapshot__request') \
                                    .annotate(request_id=F('request_query_snapshot__request__uuid')).all()
     serializer_class = CohortResultSerializer
     http_method_names = ['get', 'post', 'patch', 'delete']
@@ -105,7 +104,8 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     def get_queryset(self):
         if is_sjs_or_etl_user(request=self.request):
             return self.queryset
-        return super(CohortResultViewSet, self).get_queryset()
+        return super(CohortResultViewSet, self).get_queryset()\
+                                               .filter(export_table__isnull=True)
 
     def get_serializer_class(self):
         if self.request.method in ["POST", "PUT", "PATCH"] \
