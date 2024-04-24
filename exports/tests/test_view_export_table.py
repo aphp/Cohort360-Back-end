@@ -57,42 +57,42 @@ class ExportTableServiceTests(TestCase):
 
     def test_validate_tables_data_all_tables_have_source_cohort(self):
         # all tables have a linked source cohort
-        tables_data = [{"name": self.person_table_name, "cohort_result_source": self.cohorts[0].uuid},
-                       {"name": "other_table_01", "cohort_result_source": self.cohorts[1].uuid},
-                       {"name": "other_table_02", "cohort_result_source": self.cohorts[2].uuid}]
+        tables_data = [{"table_ids": self.person_table_name, "cohort_result_source": self.cohorts[0].uuid},
+                       {"table_ids": "other_table_01", "cohort_result_source": self.cohorts[1].uuid},
+                       {"table_ids": "other_table_02", "cohort_result_source": self.cohorts[2].uuid}]
         check = export_service.validate_tables_data(tables_data=tables_data)
         self.assertTrue(check)
 
     def test_validate_tables_data_only_person_table_has_source_cohort(self):
         # only `person` table has a linked source cohort, the other tables don't
-        tables_data = [{"name": self.person_table_name, "cohort_result_source": self.cohorts[0].uuid},
-                       {"name": "table_01"},
-                       {"name": "table_02"}]
+        tables_data = [{"table_ids": [self.person_table_name], "cohort_result_source": self.cohorts[0].uuid},
+                       {"table_ids": ["table_01"]},
+                       {"table_ids": ["table_02"]}]
         check = export_service.validate_tables_data(tables_data=tables_data)
         self.assertTrue(check)
 
     def test_validate_tables_data_one_table_with_source_cohort(self):
         # tables data is valid if the source cohort is provided within the table data
-        tables_data = [{"name": "table_01", "cohort_result_source": self.cohorts[0].uuid}]
+        tables_data = [{"table_ids": ["table_01"], "cohort_result_source": self.cohorts[0].uuid}]
         check = export_service.validate_tables_data(tables_data=tables_data)
         self.assertTrue(check)
 
     def test_validate_tables_data_missing_source_cohort_for_person_table(self):
         # tables tada is not valid if the `person` table dict is in the list but missing the source cohort
-        tables_data = [{"name": self.person_table_name},
-                       {"name": "table_01", "cohort_result_source": self.cohorts[0].uuid}]
+        tables_data = [{"table_ids": [self.person_table_name]},
+                       {"table_ids": ["table_01"], "cohort_result_source": self.cohorts[0].uuid}]
         with self.assertRaises(ValueError):
             export_service.validate_tables_data(tables_data=tables_data)
 
     def test_validate_tables_data_with_only_person_table_without_source_cohort(self):
         # tables data is not valid if the `person` table has no source cohort
-        tables_data = [{"name": self.person_table_name}]
+        tables_data = [{"table_ids": [self.person_table_name]}]
         with self.assertRaises(ValueError):
             export_service.validate_tables_data(tables_data=tables_data)
 
     def test_validate_tables_data_all_tables_without_source_cohort(self):
         # tables data is not valid if the `person` table has no source cohort
-        tables_data = [{"name": "table_01"},
-                       {"name": "table_02"}]
+        tables_data = [{"table_ids": ["table_01"]},
+                       {"table_ids": ["table_02"]}]
         with self.assertRaises(ValueError):
             export_service.validate_tables_data(tables_data=tables_data)

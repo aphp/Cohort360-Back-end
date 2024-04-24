@@ -69,20 +69,21 @@ class ExportService:
     def validate_tables_data(tables_data: List[dict]):
         source_cohort_id = None
         person_table_provided = False
-        for table in tables_data:
-            source_cohort_id = table.get('cohort_result_source')
-            if table.get("name") == PERSON_TABLE:
-                person_table_provided = True
-                if not source_cohort_id:
-                    raise ValueError(f"The `{PERSON_TABLE}` table can not be exported without a source cohort")
-
+        for export_table in tables_data:
+            source_cohort_id = export_table.get('cohort_result_source')
             if source_cohort_id:
                 try:
                     cohort_source = CohortResult.objects.get(pk=source_cohort_id)
                 except CohortResult.DoesNotExist:
-                    raise ValueError(f"Cohort `{source_cohort_id}` linked to table `{table.get('name')}` was not found")
+                    raise ValueError(f"Cohort `{source_cohort_id}` linked to table `{export_table.get('name')}` was not found")
                 if cohort_source.request_job_status != JobStatus.finished:
                     raise ValueError(f"The provided cohort `{source_cohort_id}` did not finish successfully")
+
+            if PERSON_TABLE in export_table.get("table_ids"):
+                person_table_provided = True
+                if not source_cohort_id:
+                    raise ValueError(f"The `{PERSON_TABLE}` table can not be exported without a source cohort")
+
         if not (person_table_provided or source_cohort_id):
             raise ValueError(f"`{PERSON_TABLE}` table was not specified, must then provide source cohort for all tables")
         return True
@@ -90,12 +91,13 @@ class ExportService:
     def create_tables(self, export_id: str, export_tables: List[dict], http_request) -> None:
         export = Export.objects.get(pk=export_id)
         create_cohort_subsets = False
-        for table in export_tables:
+        for export_table in export_tables:
             cohort_source, cohort_subset = None, None
-            table_name = table.get("name")
-            fhir_filter_id = table.get("fhir_filter")
-            if table.get("cohort_result_source"):
-                cohort_source = CohortResult.objects.get(pk=table.get("cohort_result_source"))
+            fhir_filter_id = export_table.get("fhir_filter")
+            cohort_source_id = export_table.get("cohort_result_source")
+            if cohort_source_id:
+                cohort_source = CohortResult.objects.get(pk=cohort_source_id)
+            for table_name in export_table.get("table_ids"):
                 if not fhir_filter_id:
                     cohort_subset = cohort_source
                 else:
@@ -105,11 +107,11 @@ class ExportService:
                                                                         fhir_filter_id=fhir_filter_id,
                                                                         source_cohort=cohort_source,
                                                                         http_request=http_request)
-            ExportTable.objects.create(export=export,
-                                       name=table_name,
-                                       fhir_filter_id=fhir_filter_id,
-                                       cohort_result_source=cohort_source,
-                                       cohort_result_subset=cohort_subset)
+                ExportTable.objects.create(export=export,
+                                           name=table_name,
+                                           fhir_filter_id=fhir_filter_id,
+                                           cohort_result_source=cohort_source,
+                                           cohort_result_subset=cohort_subset)
         if not create_cohort_subsets:
             self.launch_export(export_id=export_id)
 
