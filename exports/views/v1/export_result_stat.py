@@ -26,4 +26,4 @@ class ExportResultStatViewSet(ExportsBaseViewSet):
     queryset = ExportResultStat.objects.all()
     swagger_tags = ['Exports - ExportResultStat']
     filterset_class = ExportResultStatFilter
-    http_method_names = ['get', 'post']
+    http_method_names = ['get', 'post', 'patch']

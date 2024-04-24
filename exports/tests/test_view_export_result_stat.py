@@ -65,10 +65,3 @@ class ExportResultStatViewSetTest(ExportsTestBase):
                                    expected_resp_status=status.HTTP_200_OK,
                                    to_read_from_response='name',
                                    to_check_against=patch_data['name'])
-
-    def test_delete_export_result_stat(self):
-        delete_url = reverse(viewname=self.viewname_detail, args=[self.target_export_result_stat_to_delete.uuid])
-        self.check_test_delete_view(request_user=self.datalabs_manager_user,
-                                    delete_url=delete_url,
-                                    obj_id=self.target_export_result_stat_to_delete.uuid,
-                                    expected_resp_status=status.HTTP_204_NO_CONTENT)
