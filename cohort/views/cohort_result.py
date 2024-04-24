@@ -172,13 +172,11 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         response = super(CohortResultViewSet, self).partial_update(request, *args, **kwargs)
         cohort.refresh_from_db()
         global_dm = cohort.dated_measure_global
-        extra_info = {}
+        extra_info = {'fhir_group_id': cohort.fhir_group_id}
         if global_dm:
-            extra_info = {'fhir_group_id': cohort.fhir_group_id,
-                          'global': {'measure_min': global_dm.measure_min,
-                                     'measure_max': global_dm.measure_max
-                                     }
-                          }
+            extra_info['global'] = {'measure_min': global_dm.measure_min,
+                                    'measure_max': global_dm.measure_max
+                                    }
         ws_send_to_client(_object=cohort, job_name='create', extra_info=extra_info)
         if status.is_success(response.status_code):
             if is_update_from_sjs and cohort.export_table.exists():
