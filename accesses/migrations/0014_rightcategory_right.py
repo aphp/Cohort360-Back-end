@@ -24,7 +24,7 @@ def load_rights(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accesses', '0012_remove_old_rights_add_unique_constraint'),
+        ('accesses', '0013_remove_profile_email_remove_profile_firstname_and_more'),
     ]
 
     operations = [
