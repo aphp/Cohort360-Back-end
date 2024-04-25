@@ -105,7 +105,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         if is_sjs_or_etl_user(request=self.request):
             return self.queryset
         return super(CohortResultViewSet, self).get_queryset()\
-                                               .filter(export_table__isnull=True)
+                                               .filter(is_subset=False)
 
     def get_serializer_class(self):
         if self.request.method in ["POST", "PUT", "PATCH"] \

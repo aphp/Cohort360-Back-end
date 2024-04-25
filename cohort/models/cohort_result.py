@@ -25,6 +25,7 @@ class CohortResult(CohortBaseModel, JobModel):
     dated_measure_global = models.ForeignKey(DatedMeasure, related_name="global_cohorts", null=True, on_delete=models.SET_NULL)
     create_task_id = models.TextField(blank=True)
     type = models.CharField(max_length=20, choices=COHORT_TYPES, default=MY_COHORTS_TYPE)
+    is_subset = models.BooleanField(default=False)
 
     @property
     def result_size(self):
