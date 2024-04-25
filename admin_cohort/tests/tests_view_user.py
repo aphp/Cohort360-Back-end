@@ -112,13 +112,13 @@ class UserTestsAsAdmin(UserTests):
         response.render()
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN, response.content)
 
-    def test_update_user_permission_denied(self):
-        data = dict(email="updated.email.address@aphp.fr")
-        request = self.factory.patch(USERS_URL, data, format='json')
+    def test_update_user_success(self):
+        patch_data = dict(email="updated.email.address@aphp.fr")
+        request = self.factory.patch(USERS_URL, patch_data, format='json')
         force_authenticate(request, self.admin_user)
         response = UserViewSet.as_view({'patch': 'partial_update'})(request, username=self.user2.username)
         response.render()
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN, response.content)
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
         user = User.objects.get(pk=self.user2.username)
         self.check_unupdatable_not_updated(user, self.user2)
 
