@@ -3,7 +3,7 @@ from rest_framework import status
 
 from exports.models import ExportResultStat, Export, Datalab
 from exports.tests.base_test import ExportsTestBase
-from exports.enums import StatType, ExportStatus
+from exports.enums import StatType
 from exports.views import ExportResultStatViewSet
 
 
@@ -18,7 +18,6 @@ class ExportResultStatViewSetTest(ExportsTestBase):
         self.export = Export.objects.create(output_format=self.export_type,
                                             owner=self.datalabs_manager_user,
                                             datalab=self.datalab,
-                                            status=ExportStatus.PENDING,
                                             target_name="12345_09092023_151500")
         self.export_result_stats = [ExportResultStat.objects.create(name=f"Stat_{i}",
                                                                     type=StatType.INT.value,

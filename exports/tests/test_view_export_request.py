@@ -11,7 +11,6 @@ from cohort.models import CohortResult, RequestQuerySnapshot, Request, DatedMeas
 from workspaces.models import Account
 from exports import ExportTypes
 from exports.models import ExportRequest, ExportRequestTable, Export, ExportTable, InfrastructureProvider, Datalab
-from exports.enums import ExportStatus
 from exports.views import ExportRequestViewSet
 
 EXPORTS_URL = "/exports"
@@ -283,7 +282,6 @@ class ExportsWithSimpleSetUp(ExportsTests):
         self.datalab = Datalab.objects.create(name="main_datalab", infrastructure_provider=self.infra_provider_aphp)
         self.user1_export = Export.objects.create(output_format=self.export_type,
                                                   owner=self.user1,
-                                                  status=ExportStatus.PENDING.value,
                                                   target_name="12345_09092023_151500",
                                                   datalab=self.datalab)
         ExportTable.objects.create(export=self.user1_export,

@@ -23,8 +23,10 @@ class CSVExporter(BaseExporter):
         if not using_new_export_models:
             q = Q(fhir_group_id=export_data['cohort_id'])
         else:
-            source_cohorts_ids = [t.get("cohort_result_source") for t in export_data.get("export_tables", [])]
-            assert len(set(source_cohorts_ids)) == 1, "All export tables must have the same source cohort"
+            source_cohorts_ids = [t.get("cohort_result_source")
+                                  for t in export_data.get("export_tables", []) if t.get("cohort_result_source")]
+            if len(set(source_cohorts_ids)) != 1:
+                raise ValueError("All export tables must have the same source cohort")
             q = Q(pk=source_cohorts_ids[0])
 
         try:

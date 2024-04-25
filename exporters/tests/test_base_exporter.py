@@ -35,8 +35,8 @@ class TestBaseExporter(ExportersTestBase):
 
     def test_validate_tables_data_only_person_table_has_source_cohort(self):
         # only `person` table has a linked source cohort, the other tables don't
-        tables_data = [{"table_ids": [self.person_table_name], "cohort_result_source": self.cohorts[0].uuid},
-                       {"table_ids": ["table_01"]},
+        tables_data = [{"table_ids": ["table_01"]},
+                       {"table_ids": [self.person_table_name], "cohort_result_source": self.cohorts[0].uuid},
                        {"table_ids": ["table_02"]}]
         check = self.exporter.validate_tables_data(tables_data=tables_data)
         self.assertTrue(check)
@@ -60,7 +60,7 @@ class TestBaseExporter(ExportersTestBase):
         with self.assertRaises(ValueError):
             self.exporter.validate_tables_data(tables_data=tables_data)
 
-    def test_validate_tables_data_all_tables_without_source_cohort(self):
+    def test_validate_tables_data_all_tables_without_source_cohort_nor_person_table(self):
         # tables data is not valid if the `person` table has no source cohort
         tables_data = [{"table_ids": ["table_01"]},
                        {"table_ids": ["table_02"]}]

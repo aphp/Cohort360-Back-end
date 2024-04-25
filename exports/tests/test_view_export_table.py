@@ -3,7 +3,6 @@ from rest_framework import status
 
 from exports.models import ExportTable, Export, Datalab
 from exports.tests.base_test import ExportsTestBase
-from exports.enums import ExportStatus
 from exports.views import ExportTableViewSet
 
 
@@ -18,7 +17,6 @@ class ExportTableViewSetTest(ExportsTestBase):
         self.export = Export.objects.create(output_format=self.export_type,
                                             owner=self.datalabs_manager_user,
                                             datalab=self.datalab,
-                                            status=ExportStatus.PENDING,
                                             target_name="12345_09092023_151500")
         self.export_tables = [ExportTable.objects.create(name=f"export_table_{i}",
                                                          export=self.export) for i in range(5)]

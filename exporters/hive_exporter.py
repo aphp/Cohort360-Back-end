@@ -20,7 +20,7 @@ class HiveExporter(BaseExporter):
         self.target_location = os.environ.get('HIVE_DB_FOLDER')
         self.user = os.environ.get('HIVE_EXPORTER_USER')
 
-    def get_source_cohorts(self, export_data: dict, **kwargs) -> List[str]:
+    def get_source_cohorts(self, export_data: dict) -> List[str]:
         using_new_export_models = self.using_new_export_models(export_data=export_data)
         if using_new_export_models:
             source_cohorts_ids = [t.get("cohort_result_source") for t in export_data.get("export_tables", [])]

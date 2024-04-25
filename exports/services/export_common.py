@@ -1,6 +1,7 @@
 from typing import List
 
 from django.http import StreamingHttpResponse
+from rest_framework.exceptions import ValidationError
 
 from exports.models import ExportRequest, Export
 from exports.services.export_operators import ExportDownloader, ExportManager
@@ -11,7 +12,10 @@ class ExportBaseService:
 
     @staticmethod
     def validate_export_data(data: dict, **kwargs) -> None:
-        ExportManager().validate(export_data=data, **kwargs)
+        try:
+            ExportManager().validate(export_data=data, **kwargs)
+        except Exception as e:
+            raise ValidationError(f'Invalid export data: {e}')
 
     def proceed_with_export(self, export: ExportRequest | Export, tables: List[dict], **kwargs) -> None:
         requires_cohort_subsets = self.create_tables(export, tables, **kwargs)

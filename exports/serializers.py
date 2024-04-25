@@ -140,7 +140,6 @@ class ExportSerializer(serializers.ModelSerializer):
                   "shift_dates",
                   "export_tables",
                   "motivation",
-                  "status",
                   "owner",
                   "target_name",
                   "request_job_id",
