@@ -12,9 +12,9 @@ from workspaces.models import Account
 class ExportersTestBase(TestCase):
 
     def setUp(self):
-        self.csv_exporter_user, self.csv_exporter_profile = new_user_and_profile(email="csv.exporter@aphp.fr")
-        self.hive_exporter_user, self.hive_exporter_profile = new_user_and_profile(email="hive.exporter@aphp.fr")
-        self.second_csv_exporter_user, self.second_csv_exporter_profile = new_user_and_profile(email="csv.exporter.2nd@aphp.fr")
+        self.csv_exporter_user, self.csv_exporter_profile = new_user_and_profile()
+        self.hive_exporter_user, self.hive_exporter_profile = new_user_and_profile()
+        self.second_csv_exporter_user, self.second_csv_exporter_profile = new_user_and_profile()
         self.perimeter_aphp = Perimeter.objects.create(name="APHP", local_id="1", cohort_id="1")
         self.csv_exporter_role = Role.objects.create(name="CSV EXPORTER", right_export_csv_nominative=True)
         self.csv_exporter_access = Access.objects.create(profile=self.csv_exporter_profile,
