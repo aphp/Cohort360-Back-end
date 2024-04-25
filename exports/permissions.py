@@ -4,21 +4,21 @@ from rest_framework.exceptions import PermissionDenied
 from accesses.permissions import can_user_make_export_jupyter_nomi, can_user_make_export_jupyter_pseudo, can_user_make_csv_export, \
     can_user_make_jupyter_export, can_user_read_datalabs, can_user_manage_datalabs, can_user_make_export_csv_nomi, can_user_make_export_csv_pseudo
 from admin_cohort.permissions import user_is_authenticated
-from exports.types import ExportType
+from exports import ExportTypes
 
 
 class ExportRequestsPermission(permissions.BasePermission):
     def has_permission(self, request, view):
         if request.method == "POST":
             if request.data.get('nominative', False):
-                if request.data.get('output_format') == ExportType.CSV and not can_user_make_export_csv_nomi(request.user):
+                if request.data.get('output_format') == ExportTypes.CSV and not can_user_make_export_csv_nomi(request.user):
                     raise PermissionDenied("Vous n'avez pas le droit d'export CSV nominatif")
-                if request.data.get('output_format') == ExportType.HIVE and not can_user_make_export_jupyter_nomi(request.user):
+                if request.data.get('output_format') == ExportTypes.HIVE and not can_user_make_export_jupyter_nomi(request.user):
                     raise PermissionDenied("Vous n'avez pas le droit d'export Jupyter nominatif")
             else:
-                if request.data.get('output_format') == ExportType.CSV and not can_user_make_export_csv_pseudo(request.user):
+                if request.data.get('output_format') == ExportTypes.CSV and not can_user_make_export_csv_pseudo(request.user):
                     raise PermissionDenied("Vous n'avez pas le droit d'export CSV pseudonymisé")
-                if request.data.get('output_format') == ExportType.HIVE and not can_user_make_export_jupyter_pseudo(request.user):
+                if request.data.get('output_format') == ExportTypes.HIVE and not can_user_make_export_jupyter_pseudo(request.user):
                     raise PermissionDenied("Vous n'avez pas le droit d'export Jupyter pseudonymisé")
         return user_is_authenticated(request.user)
 

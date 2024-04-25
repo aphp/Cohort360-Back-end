@@ -3,7 +3,7 @@ from rest_framework import status
 
 from exports.models import ExportResultStat, Export, Datalab
 from exports.tests.base_test import ExportsTestBase
-from exports.types import StatType, ExportStatus, ExportType
+from exports.enums import StatType, ExportStatus
 from exports.views import ExportResultStatViewSet
 
 
@@ -15,13 +15,13 @@ class ExportResultStatViewSetTest(ExportsTestBase):
     def setUp(self):
         super().setUp()
         self.datalab = Datalab.objects.create(infrastructure_provider=self.infra_provider_aphp)
-        self.export = Export.objects.create(output_format=ExportType.CSV,
+        self.export = Export.objects.create(output_format=self.export_type,
                                             owner=self.datalabs_manager_user,
                                             datalab=self.datalab,
                                             status=ExportStatus.PENDING,
                                             target_name="12345_09092023_151500")
         self.export_result_stats = [ExportResultStat.objects.create(name=f"Stat_{i}",
-                                                                    type=StatType.INT,
+                                                                    type=StatType.INT.value,
                                                                     value=i,
                                                                     export=self.export) for i in range(5)]
         self.target_export_result_stat_to_retrieve = self.export_result_stats[0]
@@ -47,7 +47,7 @@ class ExportResultStatViewSetTest(ExportsTestBase):
     def test_create_export_result_stat(self):
         create_url = reverse(viewname=self.viewname_list)
         request_data = {"name": "Special stat",
-                        "type": StatType.INT,
+                        "type": StatType.INT.value,
                         "value": 43,
                         "export": self.export.uuid}
         self.check_test_create_view(request_user=self.datalabs_manager_user,
