@@ -42,25 +42,24 @@ class BaseExporter:
 
     def validate_tables_data(self, tables_data: List[dict]) -> bool:
         required_table = self.export_api.required_table
-        source_cohort_id = None
+        base_cohort_provided = False
         required_table_provided = False
-        for export_table in tables_data:
-            source_cohort_id = export_table.get('cohort_result_source')
-            if source_cohort_id:
-                try:
-                    cohort_source = CohortResult.objects.get(pk=source_cohort_id)
-                except CohortResult.DoesNotExist:
-                    raise ValueError(f"Cohort `{source_cohort_id}` linked to tables `{export_table.get('table_ids')}` was not found")
-                if cohort_source.request_job_status != JobStatus.finished:
-                    raise ValueError(f"The provided cohort `{source_cohort_id}` did not finish successfully")
+        for table_data in tables_data:
+            source_cohort_id = table_data.get('cohort_result_source')
 
-            if required_table in export_table.get("table_ids"):
+            if required_table in table_data.get("table_ids"):
                 required_table_provided = True
                 if not source_cohort_id:
                     raise ValueError(f"The `{required_table}` table can not be exported without a source cohort")
 
-        if not (required_table_provided or source_cohort_id):
-            raise ValueError(f"`{required_table}` table was not specified, must then provide source cohort for all tables")
+            if source_cohort_id:
+                if CohortResult.objects.filter(pk=source_cohort_id, request_job_status=JobStatus.finished).exists():
+                    base_cohort_provided = True
+                else:
+                    raise ValueError(f"Cohort `{source_cohort_id}` not found or did not finish successfully")
+
+        if not required_table_provided and not base_cohort_provided:
+            raise ValueError(f"`{required_table}` table was not specified; must then provide source cohort for all tables")
         return True
 
     @staticmethod

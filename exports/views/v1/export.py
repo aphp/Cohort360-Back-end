@@ -5,6 +5,7 @@ from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
 from admin_cohort.permissions import either
@@ -86,7 +87,10 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
                                                              'cohort_result_source': openapi.Schema(type=openapi.TYPE_STRING)}))}))
     @transaction.atomic
     def create(self, request, *args, **kwargs):
-        export_service.validate_export_data(data=request.data, owner=request.user)
+        try:
+            export_service.validate_export_data(data=request.data, owner=request.user)
+        except ValidationError as ve:
+            return Response(data=ve.detail, status=status.HTTP_400_BAD_REQUEST)
         tables = request.data.pop("export_tables", [])
         response = super().create(request, *args, **kwargs)
         transaction.on_commit(lambda: export_service.proceed_with_export(export=response.data.serializer.instance,

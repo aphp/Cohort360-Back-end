@@ -7,17 +7,14 @@ from django.utils import timezone
 from admin_cohort.models import User, JobModel
 from admin_cohort.settings import DAYS_TO_KEEP_EXPORTED_FILES
 from exports.models import ExportsBaseModel, Datalab
-from exports.enums import ExportStatus
 from exports import ExportTypes
 
-STATUSES = [(status.name, status.value) for status in ExportStatus]
 OUTPUT_FORMATS = [(t.value, t.value) for t in ExportTypes]
 
 
 class Export(ExportsBaseModel, JobModel):
     owner = models.ForeignKey(to=User, related_name="exports", on_delete=CASCADE)
     output_format = models.CharField(null=False, choices=OUTPUT_FORMATS, max_length=20)
-    status = models.CharField(choices=STATUSES, default=ExportStatus.PENDING, max_length=55, null=True)
     target_name = models.CharField(null=True, max_length=255)
     target_location = models.TextField(null=True)
     data_exporter_version = models.CharField(null=True, max_length=20)

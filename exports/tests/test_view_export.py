@@ -5,7 +5,6 @@ from admin_cohort.types import JobStatus
 from cohort.models import CohortResult, FhirFilter
 from exports.models import Export, Datalab
 from exports.tests.base_test import ExportsTestBase
-from exports.enums import ExportStatus
 from exports.views import ExportViewSet
 
 
@@ -28,15 +27,16 @@ class ExportViewSetTest(ExportsTestBase):
         self.export_basic_data = {"name": "Special Export",
                                   "output_format": self.export_type,
                                   "nominative": True,
-                                  "owner": self.exporter_user.pk,
-                                  "status": ExportStatus.PENDING.name,
                                   "export_tables": [{"table_ids": ["person"],
                                                      "cohort_result_source": self.cohort_result.uuid,
                                                      "fhir_filter": self.fhir_filter.uuid}]
-                              }
+                                  }
+        self.export_data_error = {**self.export_basic_data,
+                                  "export_tables": [{"table_ids": ["person"]},
+                                                    {"table_ids": ["table01", "table02"]}]
+                                  }
         self.exports = [Export.objects.create(**dict(output_format=self.export_type,
                                                      owner=self.exporter_user,
-                                                     status=ExportStatus.PENDING.name,
                                                      target_name="12345_09092023_151500"
                                                      )) for _ in range(5)]
         self.target_export_to_retrieve = self.exports[0]
@@ -59,6 +59,20 @@ class ExportViewSetTest(ExportsTestBase):
                                       to_read_from_response='target_name',
                                       to_check_against=self.target_export_to_retrieve.target_name)
 
+    def test_create_export_success(self):
+        create_url = reverse(viewname=self.viewname_list)
+        self.check_test_create_view(request_user=self.exporter_user,
+                                    create_url=create_url,
+                                    request_data=self.export_basic_data,
+                                    expected_resp_status=status.HTTP_201_CREATED)
+
+    def test_create_export_error(self):
+        create_url = reverse(viewname=self.viewname_list)
+        self.check_test_create_view(request_user=self.exporter_user,
+                                    create_url=create_url,
+                                    request_data=self.export_data_error,
+                                    expected_resp_status=status.HTTP_400_BAD_REQUEST)
+
     def test_error_create_export_with_no_right(self):
         create_url = reverse(viewname=self.viewname_list)
         self.check_test_create_view(request_user=self.user_without_rights,
@@ -68,7 +82,7 @@ class ExportViewSetTest(ExportsTestBase):
 
     def test_patch_export(self):
         patch_url = reverse(viewname=self.viewname_detail, args=[self.target_export_to_patch.uuid])
-        patch_data = {'status': ExportStatus.DELIVERED.name}
+        patch_data = {'request_job_status': JobStatus.finished.value}
         self.check_test_patch_view(request_user=self.exporter_user,
                                    patch_url=patch_url,
                                    obj_id=self.target_export_to_patch.uuid,
