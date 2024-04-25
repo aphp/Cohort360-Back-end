@@ -102,15 +102,18 @@ class ExportService:
             fhir_filter_id = export_table.get("fhir_filter")
             cohort_source = CohortResult.objects.get(pk=export_table.get("cohort_result_source"))
             for table_name in export_table.get("table_ids"):
-                if fhir_filter_id and self.allow_create_sub_cohort_for_table(table_name=table_name):
-                    create_cohort_subsets = True
-                    cohort_subset = cohort_service.create_cohort_subset(owner_id=export.owner_id,
-                                                                        table_name=table_name,
-                                                                        fhir_filter_id=fhir_filter_id,
-                                                                        source_cohort=cohort_source,
-                                                                        http_request=http_request)
+                if self.allow_create_sub_cohort_for_table(table_name=table_name):
+                    if fhir_filter_id:
+                        create_cohort_subsets = True
+                        cohort_subset = cohort_service.create_cohort_subset(owner_id=export.owner_id,
+                                                                            table_name=table_name,
+                                                                            fhir_filter_id=fhir_filter_id,
+                                                                            source_cohort=cohort_source,
+                                                                            http_request=http_request)
+                    else:
+                        cohort_subset = cohort_source
                 else:
-                    cohort_subset = cohort_source
+                    cohort_subset = None
 
                 ExportTable.objects.create(export=export,
                                            name=table_name,
