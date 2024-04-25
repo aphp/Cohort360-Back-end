@@ -3,10 +3,11 @@ import logging
 from django.db.models import Max, Q
 from django.utils import timezone
 from rest_framework import serializers
+from rest_framework.serializers import ModelSerializer
 
 from admin_cohort.serializers import BaseSerializer, UserSerializer
 from .conf_perimeters import Provider
-from .models import Role, Access, Profile, Perimeter
+from .models import Role, Access, Profile, Perimeter, Right
 from .services.roles import roles_service
 
 _logger = logging.getLogger('django.request')
@@ -27,6 +28,30 @@ def get_provider_id(user_id: str) -> int:
         return p.provider_id
     from accesses.models import Profile
     return Profile.objects.aggregate(Max("provider_id"))['provider_id__max'] + 1
+
+
+class RightSerializer(ModelSerializer):
+    depends_on = serializers.SlugRelatedField(slug_field='name', queryset=Right.objects.all(), required=False)
+
+    class Meta:
+        model = Right
+        fields = ["name",
+                  "label",
+                  "depends_on",
+                  "category",
+                  "is_global",
+                  "allow_read_accesses_on_same_level",
+                  "allow_read_accesses_on_inf_levels",
+                  "allow_edit_accesses_on_same_level",
+                  "allow_edit_accesses_on_inf_levels",
+                  "impact_inferior_levels"
+                  ]
+        extra_kwargs = {'allow_read_accesses_on_same_level': {'write_only': True},
+                        'allow_read_accesses_on_inf_levels': {'write_only': True},
+                        'allow_edit_accesses_on_same_level': {'write_only': True},
+                        'allow_edit_accesses_on_inf_levels': {'write_only': True},
+                        'impact_inferior_levels': {'write_only': True}
+                        }
 
 
 class RoleSerializer(BaseSerializer):
@@ -54,6 +79,11 @@ class UsersInRoleSerializer(serializers.Serializer):
 class ReducedProfileSerializer(serializers.ModelSerializer):
     is_valid = serializers.BooleanField(read_only=True)
     username = serializers.CharField(read_only=True, source='user_id')
+    provider_id = serializers.CharField(required=False, source="user_id")
+    firstname = serializers.CharField(required=False, source="user.firstname")
+    lastname = serializers.CharField(required=False, source="user.lastname")
+    email = serializers.CharField(required=False, source="user.email")
+
 
     class Meta:
         model = Profile
@@ -74,6 +104,11 @@ class ProfileSerializer(BaseSerializer):
     actual_valid_start_datetime = serializers.DateTimeField(read_only=True)
     actual_valid_end_datetime = serializers.DateTimeField(read_only=True)
     user_id = serializers.CharField(required=False)
+    firstname = serializers.CharField(read_only=True, source="user.firstname")
+    lastname = serializers.CharField(read_only=True, source="user.lastname")
+    email = serializers.CharField(read_only=True, source="user.email")
+    provider_id = serializers.CharField(read_only=True, source="user_id")
+    provider_name = serializers.CharField(read_only=True, source="user.display_name")
 
     class Meta:
         model = Profile
@@ -95,12 +130,12 @@ class ProfileSerializer(BaseSerializer):
 
 
 class ProfileCheckSerializer(serializers.Serializer):
-    firstname = serializers.CharField(read_only=True, allow_null=True)
-    lastname = serializers.CharField(read_only=True, allow_null=True)
-    username = serializers.CharField(read_only=True, allow_null=True, source='user_id')
-    email = serializers.CharField(read_only=True, allow_null=True)
-    user = UserSerializer(read_only=True, allow_null=True)
-    manual_profile = ProfileSerializer(read_only=True, allow_null=True)
+    firstname = serializers.CharField(read_only=True)
+    lastname = serializers.CharField(read_only=True)
+    email = serializers.CharField(read_only=True)
+    username = serializers.CharField(read_only=True)
+    user = UserSerializer(read_only=True)
+    manual_profile = ProfileSerializer(read_only=True)
 
 
 class PerimeterSerializer(serializers.ModelSerializer):
@@ -203,8 +238,11 @@ class AccessSerializer(BaseSerializer):
 class ExpiringAccessesSerializer(serializers.Serializer):
     start_datetime = serializers.DateTimeField(read_only=True)
     end_datetime = serializers.DateTimeField(read_only=True)
-    profile = serializers.SlugRelatedField(slug_field='provider_name', read_only=True)
+    profile = serializers.SerializerMethodField()
     perimeter = serializers.SlugRelatedField(slug_field='name', read_only=True)
+
+    def get_profile(self, access):
+        return access.profile.user.display_name
 
 
 class DataRightSerializer(serializers.Serializer):

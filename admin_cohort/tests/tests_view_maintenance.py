@@ -40,13 +40,13 @@ class MaintenanceTests(ViewSetTestsWithBasicPerims):
         super(MaintenanceTests, self).setUp()
 
         self.test_admin_email = ADMINS[0][1]
-        self.user_maintenance_manager, profile_maintenance_manager = new_user_and_profile(email=self.test_admin_email)
+        self.user_maintenance_manager, profile_maintenance_manager = new_user_and_profile()
         self.role_maintenance_manager = Role.objects.create(right_full_admin=True)
         Access.objects.create(perimeter_id=self.hospital3.id,
                               profile=profile_maintenance_manager,
                               role=self.role_maintenance_manager)
 
-        self.user_not_maintenance_manager, profile_not_maintenance_manager = new_user_and_profile(email="cannot@mng.roles")
+        self.user_not_maintenance_manager, profile_not_maintenance_manager = new_user_and_profile()
         self.role_all_but_edit_maintenances = Role.objects.create(**dict([(r, True) for r in self.all_rights
                                                                           if r != 'right_full_admin']))
         Access.objects.create(perimeter_id=self.aphp.id,
@@ -65,7 +65,7 @@ class MaintenanceGetTests(MaintenanceTests):
         super(MaintenanceGetTests, self).setUp()
         # can_read_mtnces
         self.user_with_no_right, self.prof_with_no_right = \
-            new_user_and_profile(email="with@no.right")
+            new_user_and_profile()
 
 
 class MaintenanceGetListTests(MaintenanceGetTests):

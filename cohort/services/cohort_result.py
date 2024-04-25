@@ -65,8 +65,7 @@ class CohortResultService:
         active_statuses = [JobStatus.new,
                            JobStatus.validated,
                            JobStatus.started,
-                           JobStatus.pending,
-                           JobStatus.long_pending]
+                           JobStatus.pending]
         return CohortResult.objects.filter(request_job_status__in=active_statuses)\
                                    .count()
 

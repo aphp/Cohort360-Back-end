@@ -13,10 +13,10 @@ from rest_framework.test import APIRequestFactory, force_authenticate
 
 from accesses.models import Role, Profile, Perimeter
 from admin_cohort.models import BaseModel, User
-from cohort.models import CohortBaseModel
 from admin_cohort.settings import PERIMETERS_TYPES, ROOT_PERIMETER_TYPE, MANUAL_SOURCE
 from admin_cohort.tools import prettify_dict, prettify_json
 from admin_cohort.types import MissingDataError
+from cohort.models import CohortBaseModel
 
 
 class ObjectView(object):
@@ -59,58 +59,38 @@ ALL_RIGHTS = [
 ]
 
 
-def new_random_user(
-        provider_id: int = None,
-        firstname: str = '', lastname: str = '', email: str = ''
-) -> User:
-    if provider_id is None:
-        provider_id = str(random.randint(0, 10000000))
+def new_random_user() -> User:
+    def get_random_email():
+        random_id = ''.join(random.choices(string.ascii_lowercase, k=10))
+        return f"{random_id}@aphp.fr"
 
-        while provider_id in [
-            p.username for p in User.objects.all()
-        ]:
-            provider_id = str(random.randint(0, 10000000))
+    provider_id = str(random.randint(0, 10000000))
+
+    while provider_id in [p.username for p in User.objects.all()]:
+        provider_id = str(random.randint(0, 10000000))
 
     u: User = User.objects.create(
         username=str(provider_id),
-        firstname=firstname,
-        lastname=lastname,
-        email=email,
+        firstname="firstname",
+        lastname="lastname",
+        email=get_random_email(),
         provider_id=provider_id,
     )
     return u
 
 
-def new_user_and_profile(
-        p_name: str = '', provider_id: int = None,
-        firstname: str = '', lastname: str = '', email: str = ''
-) -> Tuple[User, Profile]:
+def new_user_and_profile() -> Tuple[User, Profile]:
     """
     Creates a triplet necessary to define a new empty user
-    @param p_name: provider_name
-    @type p_name: str
-    @param provider_id:
-    @type provider_id: int
-    @param firstname:
-    @type firstname: str
-    @param lastname:
-    @type lastname: str
-    @param email:
-    @type email: str
     @return: a basic User, Provider, Profile tuple
     @rtype: Tuple[User, Provider, Profile]
     """
-    u = new_random_user(provider_id, firstname, lastname, email)
+    u = new_random_user()
 
     p: Profile = Profile.objects.create(
-        provider_name=p_name,
         source=MANUAL_SOURCE,
-        provider_id=provider_id,
         user=u,
         is_active=True,
-        email=email,
-        firstname=firstname,
-        lastname=lastname,
     )
 
     return u, p
@@ -406,7 +386,7 @@ class ViewSetTests(BaseTests):
                     if response.content else "")),
         )
 
-        inst = self.model_objects.filter(**case.retrieve_filter.args)\
+        inst = self.model_objects.filter(**case.retrieve_filter.args) \
             .exclude(**case.retrieve_filter.exclude).first()
 
         if case.success:
@@ -423,7 +403,8 @@ class ViewSetTests(BaseTests):
         response.render()
 
         self.assertEqual(response.status_code, case.status,
-                         msg=(f"{case.description}" + (f" -> {prettify_json(response.content)}" if response.content else "")))
+                         msg=(f"{case.description}" + (
+                             f" -> {prettify_json(response.content)}" if response.content else "")))
 
         if isinstance(self.model, (BaseModel, CohortBaseModel)):
             obj = self.model_objects.filter(even_deleted=True, pk=obj_id).first()
@@ -438,18 +419,20 @@ class ViewSetTests(BaseTests):
                 self.assertIsNone(obj.delete_datetime)
             obj.delete()
 
-    def check_patch_case(self, case: PatchCase, other_view: Any = None, check_fields_updated: bool = True, return_response_data: bool = False):
+    def check_patch_case(self, case: PatchCase, other_view: Any = None, check_fields_updated: bool = True,
+                         return_response_data: bool = False):
         obj_id = self.model_objects.create(**case.initial_data).pk
         obj = self.model_objects.get(pk=obj_id)
 
         request = self.factory.patch(self.objects_url, case.data_to_update, format='json')
         force_authenticate(request, case.user)
         response = other_view and other_view(request, **{self.model._meta.pk.name: obj_id}) or \
-            self.__class__.update_view(request, **{self.model._meta.pk.name: obj_id})
+                   self.__class__.update_view(request, **{self.model._meta.pk.name: obj_id})
         response.render()
 
         self.assertEqual(response.status_code, case.status,
-                         msg=(f"{case.description}" + (f" -> {prettify_json(response.content)}" if response.content else "")))
+                         msg=(f"{case.description}" + (
+                             f" -> {prettify_json(response.content)}" if response.content else "")))
 
         if case.success:
             if check_fields_updated:
@@ -493,7 +476,8 @@ class ViewSetTests(BaseTests):
         if view_kwargs.get("yield_response_data"):
             return json.loads(response.content)
 
-    def check_get_paged_list_case(self, case: ListCase, other_view: Any = None, check_found_objects: bool = True, **view_kwargs):
+    def check_get_paged_list_case(self, case: ListCase, other_view: Any = None, check_found_objects: bool = True,
+                                  **view_kwargs):
         response = self.check_list_case(case=case, other_view=other_view, is_paged_list_case=True, **view_kwargs)
 
         if not case.success:

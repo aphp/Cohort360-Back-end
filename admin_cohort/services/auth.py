@@ -2,7 +2,7 @@ import inspect
 import json
 import logging
 from abc import ABC, abstractmethod
-from typing import Union, Tuple
+from typing import Union, Tuple, Optional, Callable, Dict, List
 
 import environ
 import jwt
@@ -17,7 +17,8 @@ from rest_framework_simplejwt.authentication import AUTH_HEADER_TYPE_BYTES
 from rest_framework_simplejwt.exceptions import InvalidToken
 
 from admin_cohort.models import User
-from admin_cohort.settings import JWT_AUTH_MODE, OIDC_AUTH_MODE, ETL_USERNAME, SJS_USERNAME, ROLLOUT_USERNAME, ACCESS_TOKEN_COOKIE
+from admin_cohort.settings import JWT_AUTH_MODE, OIDC_AUTH_MODE, ETL_USERNAME, SJS_USERNAME, ROLLOUT_USERNAME, \
+    ACCESS_TOKEN_COOKIE
 from admin_cohort.types import ServerError, LoginError, OIDCAuthTokens, JWTAuthTokens, AuthTokens
 
 env = environ.Env()
@@ -123,7 +124,8 @@ class OIDCAuth(Auth):
         issuer_certs_url = f"{issuer}/protocol/openid-connect/certs"
         response = requests.get(url=issuer_certs_url)
         if response.status_code != status.HTTP_200_OK:
-            raise ServerError(f"Error {response.status_code} from OIDC Auth Server ({issuer_certs_url}): {response.text}")
+            raise ServerError(
+                f"Error {response.status_code} from OIDC Auth Server ({issuer_certs_url}): {response.text}")
         jwks = response.json()
         public_keys = {}
         for jwk in jwks['keys']:
@@ -192,8 +194,14 @@ class AuthService:
                       }
     applicative_users = {env("ETL_TOKEN"): ETL_USERNAME,
                          env("SJS_TOKEN"): SJS_USERNAME,
-                         env("ROLLOUT_MAINTENANCE_TOKEN"): ROLLOUT_USERNAME
+                         env("ROLLOUT_TOKEN"): ROLLOUT_USERNAME
                          }
+
+    def __init__(self):
+        self.post_auth_hooks: List[Callable[[User, str, Dict[str, str]], Optional[User]]] = []
+
+    def add_post_authentication_hook(self, callback: Callable[[User, str, Dict[str, str]], Optional[User]]):
+        self.post_auth_hooks += [callback]
 
     def _get_authenticator(self, auth_method: str):
         try:
@@ -223,7 +231,7 @@ class AuthService:
         authenticator.logout_user(request.body, access_token)
         logout(request)
 
-    def authenticate_token(self, token: str, auth_method: str) -> Union[Tuple[User, str], None]:
+    def authenticate_token(self, token: str, auth_method: str, headers: Dict[str, str]) -> Union[Tuple[User, str], None]:
         assert auth_method is not None, "Missing `auth_method` parameter"
         if token is None:
             return None
@@ -231,19 +239,21 @@ class AuthService:
             authenticator = self._get_authenticator(auth_method)
             username = authenticator.authenticate(token=token)
             user = User.objects.get(username=username)
+            for post_auth_hook in self.post_auth_hooks:
+                user = post_auth_hook(user, token, headers)
+            return user, token
         except (InvalidTokenError, ValueError, User.DoesNotExist):
             return None
-        return user, token
 
     def authenticate_http_request(self, request) -> Union[Tuple[User, str], None]:
         token, auth_method = self.get_auth_data(request)
         if token in self.applicative_users:
             applicative_user = User.objects.get(username=self.applicative_users[token])
             return applicative_user, token
-        return self.authenticate_token(token=token, auth_method=auth_method or JWT_AUTH_MODE)
+        return self.authenticate_token(token=token, auth_method=auth_method or JWT_AUTH_MODE, headers=request.headers)
 
-    def authenticate_ws_request(self, token: str, auth_method: str) -> Union[User, None]:
-        res = self.authenticate_token(token=token, auth_method=auth_method)
+    def authenticate_ws_request(self, token: str, auth_method: str, headers: Dict[str, str]) -> Union[User, None]:
+        res = self.authenticate_token(token=token, auth_method=auth_method, headers=headers)
         if res is not None:
             return res[0]
         _logger_err.exception("Error authenticating WS request")

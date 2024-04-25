@@ -60,8 +60,6 @@ Cas à tester pour PATCH /exports/{id} :
     est en status created, si le user a right_review_export_jupyter
 """
 
-REGEX_TEST_EMAIL = r"^[\w.+-]+@test\.com$"
-END_TEST_EMAIL = "@test.com"
 
 
 def new_cohort_result(owner: User, status: JobStatus = JobStatus.finished,
@@ -138,12 +136,11 @@ class ExportsTests(ViewSetTestsWithBasicPerims):
                                   ("EXP_JUP_NOMI", "right_export_jupyter_nominative")]]
 
         # USERS
-        self.user_with_no_right, ph_with_no_right = new_user_and_profile(
-            email=f"with_no_right{END_TEST_EMAIL}")
+        self.user_with_no_right, ph_with_no_right = new_user_and_profile()
 
-        self.user1, self.prof_1 = new_user_and_profile(email=f"us1{END_TEST_EMAIL}")
-        self.user2, self.prof_2 = new_user_and_profile(email=f"us2{END_TEST_EMAIL}")
-        self.user3, self.prof_3 = new_user_and_profile(email=f"us3{END_TEST_EMAIL}")
+        self.user1, self.prof_1 = new_user_and_profile()
+        self.user2, self.prof_2 = new_user_and_profile()
+        self.user3, self.prof_3 = new_user_and_profile()
 
         # ACCESSES
         self.user1_csv_nomi_acc: Access = Access.objects.create(
@@ -402,7 +399,7 @@ class ExportsRetrieveTests(ExportsWithSimpleSetUp):
 class ExportsNotAllowedTests(ExportsWithSimpleSetUp):
     def setUp(self):
         super(ExportsNotAllowedTests, self).setUp()
-        self.full_admin_user, full_admin_ph = new_user_and_profile("full@us.er")
+        self.full_admin_user, full_admin_ph = new_user_and_profile()
         role_full: Role = Role.objects.create(**dict([
             (f, True) for f in self.all_rights
         ]), name='FULL')

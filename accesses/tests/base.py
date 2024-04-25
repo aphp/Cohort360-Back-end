@@ -5,7 +5,6 @@ from django.db.models import Model, Manager, Field
 from django.utils import timezone
 
 from accesses.models import Perimeter, Role, Access
-from accesses.services.shared import all_rights
 from admin_cohort.tests.tests_tools import ViewSetTests, new_user_and_profile
 
 """
@@ -56,9 +55,11 @@ PERIMETERS_DATA = [
      'parent_id': 10, 'level': 4, 'above_levels_ids': '10,4,1', 'cohort_id': '14'}
     ]
 
-ALL_FALSY_RIGHTS = {right.name: False for right in all_rights}
+ALL_RIGHTS = [f.name for f in Role._meta.fields if f.name.startswith('right_')]
 
-role_full_admin_data = {**{right.name: True for right in all_rights}, "name": "FULL ADMIN"}
+ALL_FALSY_RIGHTS = {right: False for right in ALL_RIGHTS}
+
+role_full_admin_data = {**{right: True for right in ALL_RIGHTS}, "name": "FULL ADMIN"}
 
 role_admin_accesses_reader_data = {**ALL_FALSY_RIGHTS,
                                    "name": "ADMIN ACCESSES READER",
@@ -183,9 +184,9 @@ class AccessesAppTestsBase(ViewSetTests):
         self.role_data_accesses_manager_inf_levels = Role.objects.create(**role_data_accesses_manager_inf_levels_data)
         self.role_admin_accesses_manager_same_level = Role.objects.create(**role_admin_accesses_manager_same_level_data)
 
-        self.user_y, self.profile_y = new_user_and_profile(email="user_y@aphp.fr")
-        self.user_z, self.profile_z = new_user_and_profile(email="user_z@aphp.fr")
-        self.user_t, self.profile_t = new_user_and_profile(email="user_t@aphp.fr")
+        self.user_y, self.profile_y = new_user_and_profile()
+        self.user_z, self.profile_z = new_user_and_profile()
+        self.user_t, self.profile_t = new_user_and_profile()
 
     def create_new_access_for_user(self, profile, role, perimeter, start_datetime=None, end_datetime=None, close_existing: bool = True):
         if close_existing:

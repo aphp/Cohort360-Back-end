@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import datetime
-
 from django.db import models
 from django.db.models import CASCADE, SET_NULL
-from django.utils.datetime_safe import date, datetime as dt
+from django.utils import timezone
 
 from accesses.models import Perimeter, Profile, Role
 from admin_cohort.tools.cache import invalidate_cache
@@ -31,23 +29,10 @@ class Access(BaseModel):
 
     @property
     def is_valid(self):
-        now = datetime.datetime.now(tz=datetime.timezone.utc)
-        valid = True
-        if self.start_datetime:
-            if isinstance(self.start_datetime, date):
-                start_datetime = dt.combine(self.start_datetime, dt.min)
-            else:
-                start_datetime = self.start_datetime
-            if start_datetime > now:
-                valid = False
-        if self.end_datetime:
-            if isinstance(self.end_datetime, date):
-                end_datetime = dt.combine(self.end_datetime, dt.min)
-            else:
-                end_datetime = self.end_datetime
-            if end_datetime <= now:
-                valid = False
-        return valid
+        now = timezone.now()
+        if self.start_datetime > now or self.end_datetime <= now:
+            return False
+        return True
 
     @property
     def care_site_id(self):

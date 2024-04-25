@@ -5,12 +5,48 @@ from functools import reduce
 from pathlib import Path
 from typing import List, Tuple, TypeVar, Callable, Any, Optional, Dict, Union
 
+from django.db.backends.base.base import BaseDatabaseWrapper
+
 from cohort.models import RequestQuerySnapshot
 
 LOGGER = logging.getLogger("info")
 
 RESOURCE_DEFAULT = "_"
 MATCH_ALL_VALUES = "__MATCH_ALL_VALUES__"
+
+
+def find_mapped_code(code: str, src_system: str, target_system: str, default_value: Callable[[str], str],
+                     db: BaseDatabaseWrapper, code_mapping_cache: Dict[str, str]) -> str:
+    if code in code_mapping_cache:
+        return code_mapping_cache[code]
+    LOGGER.info(f"Searching for code {code}")
+    cursor = db.cursor()
+    q = '''
+        WITH src_codes AS (
+            SELECT source_concept_id as src_id,source_concept_code as src_code 
+            FROM omop.concept_fhir 
+            WHERE source_vocabulary_reference = %s AND delete_datetime IS NULL
+            ),
+            target_codes AS (
+            SELECT source_concept_id as target_id,source_concept_code as target_code 
+            FROM omop.concept_fhir 
+            WHERE source_vocabulary_reference = %s AND delete_datetime IS NULL
+            )
+        SELECT target_code FROM omop.concept_relationship r
+        INNER JOIN src_codes o
+        ON o.src_id = r.concept_id_1
+        INNER JOIN target_codes a
+        ON a.target_id = r.concept_id_2
+        WHERE relationship_id = 'Maps to' AND r.delete_datetime IS NULL AND o.src_code = %s;
+        '''
+    cursor.execute(q, (src_system, target_system, code))
+    res = cursor.fetchone()
+    if not res:
+        LOGGER.info(f"Failed to find related atc code {code}")
+        code_mapping_cache[code] = default_value(code)
+        return code_mapping_cache[code]
+    code_mapping_cache[code] = target_system + "|" + res[0]
+    return code_mapping_cache[code]
 
 
 class QueryRequestUpdater:
