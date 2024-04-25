@@ -300,9 +300,14 @@ CHANNEL_LAYERS = {
 
 
 # todo: replace `INFRA_API_URL`  by `EXPORT_API_URL`
-#       replace `DATA_EXPORTER_VERSION`  by `EXPORT_API_VERSION`
 #       replace `INFRA_EXPORT_TOKEN` + `INFRA_HADOOP_TOKEN`  by  `EXPORT_API_TOKENS`
 #       replace `EXPORT_OMOP_ENVIRONMENT`  by `EXPORT_ENVIRONMENT`
 #       replace `DAYS_TO_DELETE_CSV_FILES`  by  `DAYS_TO_KEEP_EXPORTED_FILES`
 #       replace `HDFS_SERVERS`  by  `STORAGE_PROVIDERS`
 #       update task name: delete_exported_csv_files
+#    +  add `CSV_EXPORT_ENDPOINT`
+#    +  add `HIVE_EXPORT_ENDPOINT`
+#    +  add `EXPORT_TASK_STATUS_ENDPOINT`
+#    +  add `HADOOP_TASK_STATUS_ENDPOINT`
+#    +  add `CREATE_DB_ENDPOINT`
+#    +  add `ALTER_DB_ENDPOINT`
