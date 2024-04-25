@@ -63,8 +63,8 @@ class TestCSVExporterWithNewModels(TestCSVExporter):
         export_data = dict(output_format=ExportTypes.CSV.value,
                            nominative=True,
                            motivation='motivation',
-                           export_tables=[{"name": "table1", "cohort_result_source": self.cohort.pk},
-                                          {"name": "person", "cohort_result_source": self.cohort.pk}]
+                           export_tables=[{"table_ids": ["table1"], "cohort_result_source": self.cohort.pk},
+                                          {"table_ids": ["person"], "cohort_result_source": self.cohort.pk}]
                            )
         self.exporter.validate(export_data=export_data, owner=self.csv_exporter_user)
 
@@ -72,8 +72,8 @@ class TestCSVExporterWithNewModels(TestCSVExporter):
         export_data = dict(output_format=ExportTypes.CSV.value,
                            nominative=True,
                            motivation='motivation',
-                           export_tables=[{"name": "table1", "cohort_result_source": self.cohort.pk},
-                                          {"name": "person", "cohort_result_source": self.cohort2.pk}]
+                           export_tables=[{"table_ids": ["table1"], "cohort_result_source": self.cohort.pk},
+                                          {"table_ids": ["person"], "cohort_result_source": self.cohort2.pk}]
                            )
         with self.assertRaises(AssertionError):
             self.exporter.validate(export_data=export_data, owner=self.csv_exporter_user)
