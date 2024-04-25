@@ -19,10 +19,11 @@ class InfrastructureProviderViewSet(ExportsBaseViewSet):
     queryset = InfrastructureProvider.objects.all()
     swagger_tags = ['Exports - Infrastructure Providers']
     filterset_class = InfrastructureProviderFilter
+    http_method_names = ['get', 'post', 'patch', 'delete']
     search_fields = ("infrastructure_provider__name",)
 
     def get_permissions(self):
-        if self.request.method in ['post', 'patch', 'delete']:
+        if self.request.method in ("POST", "PATCH", "DELETE"):
             return [ManageDatalabsPermission()]
         return [ReadDatalabsPermission()]
 

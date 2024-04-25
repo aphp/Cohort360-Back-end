@@ -24,10 +24,11 @@ class DatalabViewSet(ExportsBaseViewSet):
     queryset = Datalab.objects.all()
     swagger_tags = ['Exports - Datalabs']
     filterset_class = DatalabFilter
+    http_method_names = ['get', 'post', 'patch']
     search_fields = ("name", "infrastructure_provider__name")
 
     def get_permissions(self):
-        if self.request.method in ['post', 'patch', 'delete']:
+        if self.request.method in ("POST", "PATCH"):
             return [ManageDatalabsPermission()]
         return [ReadDatalabsPermission()]
 

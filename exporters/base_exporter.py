@@ -44,20 +44,21 @@ class BaseExporter:
         required_table = self.export_api.required_table
         source_cohort_id = None
         required_table_provided = False
-        for table in tables_data:
-            source_cohort_id = table.get('cohort_result_source')
-            if table.get("name") == required_table:
-                required_table_provided = True
-                if not source_cohort_id:
-                    raise ValueError(f"The `{required_table}` table can not be exported without a source cohort")
-
+        for export_table in tables_data:
+            source_cohort_id = export_table.get('cohort_result_source')
             if source_cohort_id:
                 try:
                     cohort_source = CohortResult.objects.get(pk=source_cohort_id)
                 except CohortResult.DoesNotExist:
-                    raise ValueError(f"Cohort `{source_cohort_id}` linked to table `{table.get('name')}` was not found")
+                    raise ValueError(f"Cohort `{source_cohort_id}` linked to tables `{export_table.get('table_ids')}` was not found")
                 if cohort_source.request_job_status != JobStatus.finished:
                     raise ValueError(f"The provided cohort `{source_cohort_id}` did not finish successfully")
+
+            if required_table in export_table.get("table_ids"):
+                required_table_provided = True
+                if not source_cohort_id:
+                    raise ValueError(f"The `{required_table}` table can not be exported without a source cohort")
+
         if not (required_table_provided or source_cohort_id):
             raise ValueError(f"`{required_table}` table was not specified, must then provide source cohort for all tables")
         return True
@@ -110,8 +111,9 @@ class BaseExporter:
                 tables_param = f"{required_table},{other_tables}"
                 user_for_pseudo_param = not exp.nominative and exp.target_unix_account.name or None
             else:
-                tables_param = ",".join(map(lambda t: f'{t.name}:{t.cohort_result_subset.fhir_group_id}:{t.respect_table_relationships}',
-                                            exp.export_tables.all()))
+                tables_param = ",".join(
+                    map(lambda t: f"{t.name}:{t.cohort_result_subset and t.cohort_result_subset.fhir_group_id or ''}:{t.respect_table_relationships}",
+                        exp.export_tables.all()))
                 user_for_pseudo_param = not exp.nominative and exp.datalab.name or None
             return tables_param, user_for_pseudo_param
 
