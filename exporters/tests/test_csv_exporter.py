@@ -75,5 +75,5 @@ class TestCSVExporterWithNewModels(TestCSVExporter):
                            export_tables=[{"table_ids": ["table1"], "cohort_result_source": self.cohort.pk},
                                           {"table_ids": ["person"], "cohort_result_source": self.cohort2.pk}]
                            )
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             self.exporter.validate(export_data=export_data, owner=self.csv_exporter_user)

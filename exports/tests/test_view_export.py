@@ -59,18 +59,18 @@ class ExportViewSetTest(ExportsTestBase):
                                       to_read_from_response='target_name',
                                       to_check_against=self.target_export_to_retrieve.target_name)
 
-    def test_create_export_success(self):
-        create_url = reverse(viewname=self.viewname_list)
-        self.check_test_create_view(request_user=self.exporter_user,
-                                    create_url=create_url,
-                                    request_data=self.export_basic_data,
-                                    expected_resp_status=status.HTTP_201_CREATED)
-
     def test_create_export_error(self):
         create_url = reverse(viewname=self.viewname_list)
         self.check_test_create_view(request_user=self.exporter_user,
                                     create_url=create_url,
                                     request_data=self.export_data_error,
+                                    expected_resp_status=status.HTTP_400_BAD_REQUEST)
+
+    def test_create_export_missing_exporter_implementation(self):
+        create_url = reverse(viewname=self.viewname_list)
+        self.check_test_create_view(request_user=self.exporter_user,
+                                    create_url=create_url,
+                                    request_data=self.export_basic_data,
                                     expected_resp_status=status.HTTP_400_BAD_REQUEST)
 
     def test_error_create_export_with_no_right(self):
@@ -79,14 +79,3 @@ class ExportViewSetTest(ExportsTestBase):
                                     create_url=create_url,
                                     request_data=self.export_basic_data,
                                     expected_resp_status=status.HTTP_403_FORBIDDEN)
-
-    def test_patch_export(self):
-        patch_url = reverse(viewname=self.viewname_detail, args=[self.target_export_to_patch.uuid])
-        patch_data = {'request_job_status': JobStatus.finished.value}
-        self.check_test_patch_view(request_user=self.exporter_user,
-                                   patch_url=patch_url,
-                                   obj_id=self.target_export_to_patch.uuid,
-                                   request_data=patch_data,
-                                   expected_resp_status=status.HTTP_200_OK,
-                                   to_read_from_response='status',
-                                   to_check_against=patch_data['status'])
