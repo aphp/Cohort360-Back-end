@@ -12,14 +12,12 @@ from exporters.notifications import export_failed, \
 _logger = logging.getLogger('django.request')
 
 
-def get_export_by_id(export_id: str) -> Export | ExportRequest:
+def get_export_by_id(export_id: str | int) -> Export | ExportRequest:
+    model = str(export_id).isnumeric() and ExportRequest or Export
     try:
-        export = Export.objects.get(pk=export_id)
-    except (ValueError, Export.DoesNotExist):
-        export = ExportRequest.objects.get(pk=export_id)
-    except (ValueError, ExportRequest.DoesNotExist):
+        return model.objects.get(pk=export_id)
+    except model.DoesNotExist:
         raise ValueError(f'No export matches the given ID : {export_id}')
-    return export
 
 
 def get_cohort_id(export: Export | ExportRequest) -> int | str:

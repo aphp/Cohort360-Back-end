@@ -57,12 +57,11 @@ class ExportManager:
         exporter = self._get_exporter(export_data.get("output_format"))
         exporter().validate(export_data=export_data, **kwargs)
 
-    def handle_export(self, export_id: str) -> None:
+    def handle_export(self, export_id: str | int) -> None:
+        model = str(export_id).isnumeric() and ExportRequest or Export
         try:
-            export = ExportRequest.objects.get(pk=export_id)
-        except (ValueError, ExportRequest.DoesNotExist):
-            export = Export.objects.get(pk=export_id)
-        except (ValueError, Export.DoesNotExist):
+            export = model.objects.get(pk=export_id)
+        except model.DoesNotExist:
             raise ValueError(f'No export matches the given ID : {export_id}')
         exporter = self._get_exporter(export.output_format)
         exporter().handle_export(export=export)
