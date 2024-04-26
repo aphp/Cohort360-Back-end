@@ -142,6 +142,7 @@ class ExportSerializer(serializers.ModelSerializer):
                   "motivation",
                   "owner",
                   "target_name",
+                  "target_location",
                   "request_job_id",
                   "request_job_status",
                   "request_job_fail_msg"]

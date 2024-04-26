@@ -15,11 +15,25 @@ _logger = logging.getLogger('django.request')
 def get_export_by_id(export_id: str) -> Export | ExportRequest:
     try:
         export = Export.objects.get(pk=export_id)
-    except Export.DoesNotExist:
+    except (ValueError, Export.DoesNotExist):
         export = ExportRequest.objects.get(pk=export_id)
-    except ExportRequest.DoesNotExist:
+    except (ValueError, ExportRequest.DoesNotExist):
         raise ValueError(f'No export matches the given ID : {export_id}')
     return export
+
+
+def get_cohort_id(export: Export | ExportRequest) -> int | str:
+    if isinstance(export, ExportRequest):
+        return export.cohort_id
+    if export.output_format == ExportTypes.CSV.value:
+        return export.export_tables.first().cohort_result_source.fhir_group_id
+    return '--'
+
+
+def get_selected_tables(export: Export | ExportRequest) -> str:
+    if isinstance(export, ExportRequest):
+        return export.tables.values_list("omop_table_name", flat=True)
+    return export.export_tables.values_list("name", flat=True)
 
 
 @shared_task
@@ -30,9 +44,9 @@ def notify_export_received(export_id: str) -> None:
     try:
         notification_data = dict(recipient_name=export.owner.display_name,
                                  recipient_email=export.owner.email,
-                                 cohort_id=export.cohort_id,
+                                 cohort_id=get_cohort_id(export=export),
                                  cohort_name=export.cohort_name,
-                                 selected_tables=export.tables.values_list("omop_table_name", flat=True))
+                                 selected_tables=get_selected_tables(export=export))
         push_email_notification(base_notification=EXPORT_RECEIVED_NOTIFICATIONS[export_type],
                                 **notification_data)
     except Exception as e:
@@ -42,19 +56,13 @@ def notify_export_received(export_id: str) -> None:
 @shared_task
 def notify_export_succeeded(export_id: str) -> None:
     export = get_export_by_id(export_id)
-    if type(export) is Export:
-        cohort_id = export.output_format == ExportTypes.CSV.value and export.export_tables.first().cohort_result_source_id or None,
-        selected_tables = export.export_tables.values_list("name", flat=True)
-    else:
-        cohort_id = export.cohort_id,
-        selected_tables = export.tables.values_list("omop_table_name", flat=True)
     notification_data = dict(recipient_name=export.owner.display_name,
                              recipient_email=export.owner.email,
                              export_request_id=export.pk,
-                             cohort_id=cohort_id,
+                             cohort_id=get_cohort_id(export=export),
                              cohort_name=export.cohort_name,
                              database_name=export.target_name,
-                             selected_tables=selected_tables)
+                             selected_tables=get_selected_tables(export=export))
     try:
         push_email_notification(base_notification=EXPORT_SUCCEEDED_NOTIFICATIONS.get(export.output_format),
                                 **notification_data)
@@ -73,7 +81,7 @@ def notify_export_failed(export_id: str, reason: str) -> None:
     export.request_job_fail_msg = reason
     notification_data = dict(recipient_name=export.owner.display_name,
                              recipient_email=export.owner.email,
-                             cohort_id=export.cohort_id,
+                             cohort_id=get_cohort_id(export=export),
                              cohort_name=export.cohort_name,
                              error_message=reason)
     try:

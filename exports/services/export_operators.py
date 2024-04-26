@@ -60,9 +60,9 @@ class ExportManager:
     def handle_export(self, export_id: str) -> None:
         try:
             export = ExportRequest.objects.get(pk=export_id)
-        except ExportRequest.DoesNotExist:
+        except (ValueError, ExportRequest.DoesNotExist):
             export = Export.objects.get(pk=export_id)
-        except Export.DoesNotExist:
+        except (ValueError, Export.DoesNotExist):
             raise ValueError(f'No export matches the given ID : {export_id}')
         exporter = self._get_exporter(export.output_format)
         exporter().handle_export(export=export)
