@@ -1,6 +1,5 @@
 import enum
 import logging
-from typing import Dict
 
 import requests
 from django.conf import settings
@@ -11,19 +10,6 @@ from admin_cohort.types import JobStatus
 from exporters.enums import ExportTypes
 
 _logger = logging.getLogger('django.request')
-
-
-def get_tokens(tokens: str):
-    api_tokens = tokens.split(',')
-    token_by_service: Dict[InfraAPI.Services, str] = {}
-    for token_item in api_tokens:
-        service_name, token = token_item.split(':')
-        try:
-            token_by_service[InfraAPI.Services(service_name)] = token
-        except ValueError as e:
-            _logger.error(f"Unrecognized API service. Must be one of {[s.value for s in InfraAPI.Services]}")
-            raise e
-    return token_by_service
 
 
 class InfraAPI:
@@ -42,7 +28,8 @@ class InfraAPI:
         self.create_db_endpoint = api_conf.get('CREATE_DB_ENDPOINT')
         self.alter_db_endpoint = api_conf.get('ALTER_DB_ENDPOINT')
         self.target_environment = api_conf.get('EXPORT_ENVIRONMENT')
-        self.tokens = get_tokens(api_conf.get('TOKENS'))
+        self.bigdata_token = api_conf.get('BIGDATA_TOKEN')
+        self.hadoop_token = api_conf.get('HADOOP_TOKEN')
         self.required_table = "person"  # todo: remove this when working with new export models
 
     def launch_export(self, params: dict) -> str:
@@ -51,7 +38,7 @@ class InfraAPI:
         endpoint = export_type == ExportTypes.CSV.value and self.csv_export_endpoint or self.hive_export_endpoint
         response = requests.post(url=f"{self.url}{endpoint}",
                                  params=params,
-                                 headers={'auth-token': self.tokens[self.Services.BIG_DATA]})
+                                 headers={'auth-token': self.bigdata_token})
         return response.json().get('task_id')
 
     def get_job_status(self, job_id: str, service: Services) -> JobStatus:
@@ -59,10 +46,13 @@ class InfraAPI:
                   "return_out_logs": True,
                   "return_err_logs": True
                   }
-        endpoint = service == InfraAPI.Services.BIG_DATA and self.export_task_status_endpoint or self.hadoop_task_status_endpoint
+        endpoint, token = self.export_task_status_endpoint, self.bigdata_token
+        if service == InfraAPI.Services.HADOOP:
+            endpoint, token = self.hadoop_task_status_endpoint, self.hadoop_token
+
         response = requests.get(url=f"{self.url}{endpoint}",
                                 params=params,
-                                headers={'auth-token': self.tokens[service]})
+                                headers={'auth-token': token})
         response = response.json()
         return status_mapper.get(response.get('task_status'),
                                  JobStatus.unknown)
@@ -87,7 +77,7 @@ class InfraAPI:
     def query_hadoop(self, endpoint: str, params: dict) -> Response:
         return requests.post(url=f"{self.url}{endpoint}",
                              params=params,
-                             headers={'auth-token': self.tokens[self.Services.HADOOP]})
+                             headers={'auth-token': self.hadoop_token})
 
     @staticmethod
     def check_response(response):

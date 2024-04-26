@@ -7,7 +7,7 @@ from rest_framework import status
 
 from admin_cohort.types import JobStatus
 from exporters.enums import ExportTypes
-from exporters.infra_api import get_tokens, InfraAPI
+from exporters.infra_api import InfraAPI
 
 
 class TestInfraAPI(TestCase):
@@ -22,30 +22,12 @@ class TestInfraAPI(TestCase):
                 'CREATE_DB_ENDPOINT': '/hadoop/create_db',
                 'ALTER_DB_ENDPOINT': '/hadoop/chown_db',
                 'EXPORT_ENVIRONMENT': 'test',
-                'TOKENS': "bigdata:token1,hadoop:token2"
+                'BIGDATA_TOKEN': "bigdata-token",
+                'HADOOP_TOKEN': "hadoop-token"
         }
         with mock.patch('exporters.infra_api.settings') as mock_settings:
             mock_settings.EXPORT_API_CONF = self.api_conf
             self.infra_api = InfraAPI()
-
-    def test_successfully_get_tokens(self):
-        bigdata_service = "bigdata"
-        hadoop_service = "hadoop"
-        token_for_bigdata = "token-for-bigdata"
-        token_for_hadoop = "token-for-hadoop"
-        tokens = f"{bigdata_service}:{token_for_bigdata},{hadoop_service}:{token_for_hadoop}"
-        token_by_service = get_tokens(tokens)
-        self.assertEqual(token_by_service[InfraAPI.Services.BIG_DATA], token_for_bigdata)
-        self.assertEqual(token_by_service[InfraAPI.Services.HADOOP], token_for_hadoop)
-
-    def test_error_get_tokens(self):
-        wrong_service = "wrong"
-        hadoop_service = "hadoop"
-        token_for_bigdata = "token-for-bigdata"
-        token_for_hadoop = "token-for-hadoop"
-        tokens = f"{wrong_service}:{token_for_bigdata},{hadoop_service}:{token_for_hadoop}"
-        with self.assertRaises(ValueError):
-            _ = get_tokens(tokens)
 
     @mock.patch('exporters.infra_api.requests')
     def test_launch_export_csv(self, mock_requests):
@@ -58,7 +40,7 @@ class TestInfraAPI(TestCase):
         mock_requests.post.assert_called_once_with(url='https://exports-api.fr/api/csv',
                                                    params={'api_param': 'value',
                                                            'environment': 'test'},
-                                                   headers={'auth-token': 'token1'})
+                                                   headers={'auth-token': 'bigdata-token'})
 
     @mock.patch('exporters.infra_api.requests')
     def test_launch_export_hive(self, mock_requests):
@@ -71,7 +53,7 @@ class TestInfraAPI(TestCase):
         mock_requests.post.assert_called_once_with(url='https://exports-api.fr/api/hive',
                                                    params={'api_param': 'value',
                                                            'environment': 'test'},
-                                                   headers={'auth-token': 'token1'})
+                                                   headers={'auth-token': 'bigdata-token'})
 
     @mock.patch('exporters.infra_api.requests')
     def test_get_export_job_status(self, mock_requests):
@@ -84,7 +66,7 @@ class TestInfraAPI(TestCase):
                                                   params={'task_uuid': '123456',
                                                           'return_out_logs': True,
                                                           'return_err_logs': True},
-                                                  headers={'auth-token': 'token1'})
+                                                  headers={'auth-token': 'bigdata-token'})
 
     @mock.patch('exporters.infra_api.requests')
     def test_get_db_creation_job_status(self, mock_requests):
@@ -97,7 +79,7 @@ class TestInfraAPI(TestCase):
                                                   params={'task_uuid': '123456',
                                                           'return_out_logs': True,
                                                           'return_err_logs': True},
-                                                  headers={'auth-token': 'token2'})
+                                                  headers={'auth-token': 'hadoop-token'})
 
     @mock.patch('exporters.infra_api.requests')
     def test_create_db(self, mock_requests):
@@ -110,7 +92,7 @@ class TestInfraAPI(TestCase):
                                                    params={'name': 'some_db_name',
                                                            'location': '/dir1/dir2',
                                                            'if_not_exists': False},
-                                                   headers={'auth-token': 'token2'})
+                                                   headers={'auth-token': 'hadoop-token'})
 
     @mock.patch('exporters.infra_api.requests')
     def test_change_db_ownership(self, mock_requests):
@@ -124,7 +106,7 @@ class TestInfraAPI(TestCase):
                                                            'uid': 'future_owner',
                                                            'gid': 'hdfs',
                                                            'recursive': True},
-                                                   headers={'auth-token': 'token2'})
+                                                   headers={'auth-token': 'hadoop-token'})
 
     @mock.patch('exporters.infra_api.requests')
     def test_error_change_db_ownership(self, mock_requests):

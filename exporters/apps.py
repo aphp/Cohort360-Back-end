@@ -33,6 +33,7 @@ class ExportersConfig(AppConfig):
             "HADOOP_TASK_STATUS_ENDPOINT": env.get('HADOOP_TASK_STATUS_ENDPOINT'),
             "CREATE_DB_ENDPOINT": env.get('CREATE_DB_ENDPOINT'),
             "ALTER_DB_ENDPOINT": env.get('ALTER_DB_ENDPOINT'),
-            "TOKENS": env.get('EXPORT_API_TOKENS'),
+            "BIGDATA_TOKEN": env.get('INFRA_EXPORT_TOKEN'),
+            "HADOOP_TOKEN": env.get('INFRA_HADOOP_TOKEN'),
             "EXPORT_ENVIRONMENT": env.get('EXPORT_ENVIRONMENT')
         }

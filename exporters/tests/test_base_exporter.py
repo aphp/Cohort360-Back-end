@@ -20,7 +20,8 @@ class TestBaseExporter(ExportersTestBase):
             'CREATE_DB_ENDPOINT': '/hadoop/create_db',
             'ALTER_DB_ENDPOINT': '/hadoop/chown_db',
             'EXPORT_ENVIRONMENT': 'test',
-            'TOKENS': "bigdata:token1,hadoop:token2"
+            'BIGDATA_TOKEN': "bigdata-token",
+            'HADOOP_TOKEN': "hadoop-token"
         }
         with mock.patch('exporters.infra_api.settings') as mock_settings:
             mock_settings.EXPORT_API_CONF = self.api_conf
