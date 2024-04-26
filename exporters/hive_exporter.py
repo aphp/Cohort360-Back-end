@@ -77,6 +77,9 @@ class HiveExporter(BaseExporter):
     def conclude_export(self, export: ExportRequest | Export) -> None:
         try:
             db_user = export.target_unix_account.name
+        except AttributeError:
+            db_user = export.datalab.name
+        try:
             self.change_db_ownership(export=export, db_user=db_user)
             self.log_export_task(export.pk, f"DB '{export.target_name}' attributed to {db_user}. Conclusion finished.")
         except RequestException as e:
