@@ -71,10 +71,10 @@ class ExportManager:
 class DefaultExporter:
 
     def validate(self, *args, **kwargs):
-        raise NotImplementedError("Please implement your own exporter")
+        raise NotImplementedError("Missing exporter implementation")
 
     def handle_export(self, *args, **kwargs):
-        raise NotImplementedError("Please implement your own exporter")
+        raise NotImplementedError("Missing exporter implementation")
 
 
 class ExportDownloader:
