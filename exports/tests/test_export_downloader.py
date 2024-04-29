@@ -9,7 +9,7 @@ from rest_framework import status
 from admin_cohort.types import JobStatus
 from exports import ExportTypes
 from exports.exceptions import BadRequestError, FilesNoLongerAvailable
-from exports.models import ExportRequest
+from exports.models import Export
 from exports.services.export_operators import ExportDownloader
 from exports.tests.test_view_export_request import ExportsTests
 
@@ -24,15 +24,12 @@ class TestExportDownloader(ExportsTests):
 
         downloadable_export_types = [t.value for t in ExportTypes if t.allow_download]
 
-        self.export1 = ExportRequest.objects.create(owner=self.user1,
-                                                    cohort_fk=self.user1_cohort,
-                                                    cohort_id=self.user1_cohort.fhir_group_id,
-                                                    output_format=downloadable_export_types and downloadable_export_types[0] or None,
-                                                    provider_id=self.user1.provider_id,
-                                                    request_job_status=JobStatus.finished,
-                                                    target_location="target_location",
-                                                    is_user_notified=True,
-                                                    nominative=True)
+        self.export1 = Export.objects.create(owner=self.user1,
+                                             output_format=downloadable_export_types and downloadable_export_types[0] or None,
+                                             request_job_status=JobStatus.finished,
+                                             target_location="target_location",
+                                             is_user_notified=True,
+                                             nominative=True)
 
     def test_successfully_download_export(self):
         self.mock_storage_provider.get_file_size.return_value = 11111
@@ -55,7 +52,7 @@ class TestExportDownloader(ExportsTests):
             self.export_downloader.download(self.export1)
 
     def test_error_download_old_export(self):
-        self.export1.insert_datetime = (timezone.now() - timedelta(days=settings.DAYS_TO_KEEP_EXPORTED_FILES + 1))
+        self.export1.created_at = (timezone.now() - timedelta(days=settings.DAYS_TO_KEEP_EXPORTED_FILES + 1))
         self.export1.save()
         with self.assertRaises(FilesNoLongerAvailable):
             self.export_downloader.download(self.export1)

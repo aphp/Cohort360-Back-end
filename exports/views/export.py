@@ -8,15 +8,15 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
-from admin_cohort.permissions import either
 from admin_cohort.tools import join_qs
+from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools.request_log_mixin import RequestLogMixin
 from exports.exceptions import FilesNoLongerAvailable, BadRequestError, StorageProviderException
 from exports.models import Export
-from exports.permissions import CSVExportsPermission, JupyterExportPermission
-from exports.serializers import ExportSerializer
+from exports.permissions import ExportPermission
+from exports.serializers import ExportSerializer, ExportsListSerializer
 from exports.services.export import export_service
-from exports.views.v1.base_viewset import ExportsBaseViewSet
+from exports.views.base_viewset import ExportsBaseViewSet
 
 
 class ExportFilter(filters.FilterSet):
@@ -49,9 +49,10 @@ class ExportFilter(filters.FilterSet):
 class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
     serializer_class = ExportSerializer
     queryset = Export.objects.all()
+    permission_classes = [ExportPermission]
     swagger_tags = ['Exports - Exports']
     filterset_class = ExportFilter
-    http_method_names = ['get', 'post', 'patch']
+    http_method_names = ['get', 'post']
     logging_methods = ['POST']
     search_fields = ("name",
                      "owner__username",
@@ -60,15 +61,21 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
                      "request_job_status",
                      "output_format",
                      "target_name",
-                     "target_unix_account__name")
+                     "datalab__name")
 
     def should_log(self, request, response):
         return super().should_log(request, response) or self.action == self.download.__name__
 
-    def get_permissions(self):
-        if self.request.method in ("POST", "PATCH"):
-            return either(CSVExportsPermission(), JupyterExportPermission())
-        return super().get_permissions()
+    @swagger_auto_schema(responses={'200': openapi.Response("List of exports", ExportsListSerializer()),
+                                    '204': openapi.Response("HTTP_204 if no export found")})
+    @cache_response()
+    def list(self, request, *args, **kwargs):
+        q = self.filter_queryset(self.queryset)
+        page = self.paginate_queryset(q)
+        if page:
+            serializer = ExportsListSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @swagger_auto_schema(
         request_body=openapi.Schema(

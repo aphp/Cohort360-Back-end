@@ -8,10 +8,9 @@ from admin_cohort.models import User
 from admin_cohort.tests.tests_tools import new_user_and_profile, ViewSetTestsWithBasicPerims, random_str, ListCase, \
     RetrieveCase, PatchCase, DeleteCase
 from cohort.models import CohortResult, RequestQuerySnapshot, Request, DatedMeasure, Folder
-from workspaces.models import Account
 from exports import ExportTypes
-from exports.models import ExportRequest, ExportRequestTable, Export, ExportTable, InfrastructureProvider, Datalab
-from exports.views import ExportRequestViewSet
+from exports.models import Export, ExportTable, InfrastructureProvider, Datalab
+from exports.views import ExportViewSet
 
 EXPORTS_URL = "/exports"
 
@@ -19,46 +18,6 @@ EXPORTS_URL = "/exports"
 class ObjectView(object):
     def __init__(self, d):
         self.__dict__ = d
-
-
-"""
-Cas à tester POST export_request:
-- si output_format est csv:
-  - le provider_id doit être vide ou bien égal à celui du user qui crée
-  - il faut que le provider ait créé la cohorte
-  - actuellement, le status réponse doit être validated
-- si output_format est hive:
-  - il faut provider_id
-  - en attendant url FHIR plus ouverte : il faut que provider_id = user_id
-  - il faut target_unix_account_id
-  - il faut que le provider_id soit lié au target_unix_account (via API infra)
-  - il faut que le provider ait créé la cohorte
-  - si provider_id != user_id : il faut que le user ait accès
-    right_review_export_jupyter
-  - il faut que le provider ait accès read nomi/pseudo (demande FHIR)
-    et right_export_jupyter_nominative
-
-  - si le user (créateur de la requête) a le droit
-  right_review_export_jupyter:
-    - le status réponse doit être validated
-    - sinon, le status est à new
-
-Cas à tester pour GET /exports/users :
-  - réponse contient ses propres users (Account, dans workspaces)
-  - réponse de liste complète si le user a right_review_export_jupyter
-  - permet filtre par provider_id : renvoie, grâce à l'API FHIR,
-    uniquement les users unix liés au provider_id
-
-Cas à tester pour GET /exports/cohorts :
-  - réponse contient les cohortes de l'utilisateur
-  - réponse de liste complète si le user a right_review_export_jupyter
-
-Cas à tester pour PATCH /exports/{id} :
-  - renvoie 403
-  - réussit seulement si on a /deny ou /validate dans l'url, si la requête
-    est en status created, si le user a right_review_export_jupyter
-"""
-
 
 
 def new_cohort_result(owner: User, status: JobStatus = JobStatus.finished,
@@ -94,12 +53,10 @@ class ExportsTests(ViewSetTestsWithBasicPerims):
         is_user_notified=False,
     )
     unsettable_fields = [
-        "id", "execution_request_datetime",
-        "is_user_notified", "target_location", "target_name",
-        "creator_fk", "cleaned_at", "request_job_id",
+        "id", "is_user_notified", "target_location", "target_name",
+        "creator_fk", "clean_datetime", "request_job_id",
         "request_job_status", "request_job_status", "request_job_fail_msg",
-        "request_job_duration", "review_request_datetime", "reviewer_fk",
-        "insert_datetime", "update_datetime", "delete_datetime",
+        "request_job_duration", "insert_datetime", "update_datetime", "delete_datetime",
     ]
     table_unsettable_fields = [
         "source_table_name", "export_request",
@@ -107,14 +64,14 @@ class ExportsTests(ViewSetTestsWithBasicPerims):
     ]
 
     objects_url = "/exports/"
-    retrieve_view = ExportRequestViewSet.as_view({'get': 'retrieve'})
-    list_view = ExportRequestViewSet.as_view({'get': 'list'})
-    create_view = ExportRequestViewSet.as_view({'post': 'create'})
-    delete_view = ExportRequestViewSet.as_view({'delete': 'destroy'})
-    update_view = ExportRequestViewSet.as_view({'patch': 'partial_update'})
-    model = ExportRequest
-    model_objects = ExportRequest.objects
-    model_fields = ExportRequest._meta.fields
+    retrieve_view = ExportViewSet.as_view({'get': 'retrieve'})
+    list_view = ExportViewSet.as_view({'get': 'list'})
+    create_view = ExportViewSet.as_view({'post': 'create'})
+    delete_view = ExportViewSet.as_view({'delete': 'destroy'})
+    update_view = ExportViewSet.as_view({'patch': 'partial_update'})
+    model = Export
+    model_objects = Export.objects
+    model_fields = Export._meta.fields
 
     def setUp(self):
         super(ExportsTests, self).setUp()
@@ -198,7 +155,7 @@ class ExportsTests(ViewSetTestsWithBasicPerims):
                                                           status=JobStatus.finished.value)
         self.export_type = ExportTypes.default()
 
-    def check_is_created(self, base_instance: ExportRequest,
+    def check_is_created(self, base_instance: Export,
                          request_model: dict = None, user: User = None):
         if user is None:
             self.fail("There should be user provided")
@@ -206,11 +163,9 @@ class ExportsTests(ViewSetTestsWithBasicPerims):
         super(ExportsTests, self).check_is_created(base_instance, request_model)
         self.assertEqual(base_instance.creator_fk.pk, user.pk)
 
-        for table in request_model.get("tables", []):
-            ert = ExportRequestTable.objects.filter(
-                omop_table_name=table.get("omop_table_name", ""),
-                export_request=base_instance
-            ).first()
+        for table in request_model.get("export_tables", []):
+            ert = ExportTable.objects.filter(name=table.get("name", ""),
+                                             export=base_instance).first()
             self.assertIsNotNone(ert)
 
             [self.assertNotEqual(
@@ -218,8 +173,8 @@ class ExportsTests(ViewSetTestsWithBasicPerims):
                 f"Error with model's table's {f}"
             ) for f in self.table_unsettable_fields if f in table]
 
-    def check_list_reqs(self, found: List[ExportRequest],
-                        to_find: List[ExportRequest], key: str = ""):
+    def check_list_reqs(self, found: List[Export],
+                        to_find: List[Export], key: str = ""):
         msg = f"{key} What was to find: \n {[r for r in to_find]}.\n " \
               f"What was found: \n {[r for r in found]}"
         self.assertEqual(len(to_find), len(found), msg)
@@ -234,44 +189,32 @@ class ExportsWithSimpleSetUp(ExportsTests):
     def setUp(self):
         super(ExportsWithSimpleSetUp, self).setUp()
 
-        self.user1_exp_req_succ: ExportRequest = \
-            ExportRequest.objects.create(
+        self.user1_exp_req_succ: Export = \
+            Export.objects.create(
                 owner=self.user1,
-                creator_fk=self.user1,
-                cohort_fk=self.user1_cohort,
-                cohort_id=42,
                 output_format=self.export_type,
-                provider_id=self.user1.provider_id,
                 request_job_status=JobStatus.finished,
                 target_location="user1_exp_req_succ",
                 is_user_notified=False,
                 nominative=True
             )
-        self.user1_exp_req_succ_table1: ExportRequestTable = \
-            ExportRequestTable.objects.create(
-                export_request=self.user1_exp_req_succ,
-                omop_table_name="table_x",
-            )
+        self.user1_exp_req_succ_table1: ExportTable = \
+            ExportTable.objects.create(export=self.user1_exp_req_succ,
+                                       name="table_x")
 
-        self.user1_exp_req_fail: ExportRequest = \
-            ExportRequest.objects.create(
+        self.user1_exp_req_fail: Export = \
+            Export.objects.create(
                 owner=self.user1,
-                cohort_fk=self.user1_cohort,
-                cohort_id=42,
                 output_format=self.export_type,
-                provider_id=self.user1.provider_id,
                 request_job_status=JobStatus.failed.value,
                 target_location="user1_exp_req_failed",
                 is_user_notified=False,
             )
 
-        self.user2_exp_req_succ: ExportRequest = \
-            ExportRequest.objects.create(
+        self.user2_exp_req_succ: Export = \
+            Export.objects.create(
                 owner=self.user2,
-                cohort_fk=self.user2_cohort,
-                cohort_id=43,
                 output_format=self.export_type,
-                provider_id=self.user1.provider_id,
                 request_job_status=JobStatus.finished.value,
                 target_location="user2_exp_req_succ",
                 is_user_notified=True,
@@ -309,25 +252,17 @@ class ExportsListTests(ExportsTests):
         _, _, _, _, self.user2_cohort2 = new_cohort_result(
             self.user2, JobStatus.finished, f, r, rqs, dm
         )
+        self.infrastructure_provider = InfrastructureProvider.objects.create(name="Main")
+        self.datalab = Datalab.objects.create(name='datalab-user1', infrastructure_provider=self.infrastructure_provider)
 
-        self.user1_unix_acc: Account = Account.objects.create(
-            username='user1', spark_port_start=0)
-
-        example_int = 42
-        self.user1_reqs = ExportRequest.objects.bulk_create([
-            ExportRequest(
+        self.user1_reqs = Export.objects.bulk_create([
+            Export(
                 owner=self.user1,
-                cohort_fk=random.choice([
-                    self.user1_cohort,
-                    self.user1_cohort2,
-                ]),
-                cohort_id=example_int,
                 nominative=random.random() > 0.5,
                 shift_dates=random.random() > 0.5,
-                target_unix_account=self.user1_unix_acc,
+                datalab=self.datalab,
                 output_format=random.choice([self.export_type,
                                              self.export_type]),
-                provider_id=self.user1.provider_id,
                 request_job_status=random.choice([
                     JobStatus.new.value, JobStatus.failed.value,
                     JobStatus.validated.value]),
@@ -336,17 +271,11 @@ class ExportsListTests(ExportsTests):
             ) for i in range(0, 200)
         ])
 
-        self.user2_reqs: List[ExportRequest] = \
-            ExportRequest.objects.bulk_create([
-                ExportRequest(
-                    cohort_fk=random.choice([
-                        self.user1_cohort,
-                        self.user1_cohort2,
-                    ]),
-                    cohort_id=example_int,
+        self.user2_reqs: List[Export] = \
+            Export.objects.bulk_create([
+                Export(
                     output_format=random.choice([self.export_type,
                                                  self.export_type]),
-                    provider_id=self.user2.provider_id,
                     owner=self.user2,
                     request_job_status=random.choice([
                         JobStatus.new.value, JobStatus.failed.value,
@@ -368,26 +297,23 @@ class ExportsListTests(ExportsTests):
 
 
 class ExportsRetrieveTests(ExportsWithSimpleSetUp):
-    download_view = ExportRequestViewSet.as_view({'get': 'download'})
+    download_view = ExportViewSet.as_view({'get': 'download'})
 
     def setUp(self):
         super(ExportsRetrieveTests, self).setUp()
         self.base_data = dict(
             owner=self.user1,
-            cohort_fk=self.user1_cohort,
-            cohort_id=42,
             output_format=self.export_type,
-            provider_id=self.user1.provider_id,
             request_job_status=JobStatus.finished.value,
             target_location="location_example",
             is_user_notified=False,
         )
 
     def test_get_request_as_owner(self):
-        # As a user, I can retrieve an ExportRequest I created
+        # As a user, I can retrieve an Export I created
         self.check_retrieve_case(RetrieveCase(
             to_find=self.user1_exp_req_succ,
-            view_params=dict(id=self.user1_exp_req_succ.id),
+            view_params=dict(uuid=self.user1_exp_req_succ.pk),
             status=status.HTTP_200_OK,
             user=self.user1,
             success=True,
@@ -407,10 +333,7 @@ class ExportsNotAllowedTests(ExportsWithSimpleSetUp):
 
         self.basic_jup_data = dict(
             owner=self.full_admin_user,
-            cohort_fk=self.user1_cohort,
-            cohort_id=self.user1_cohort.fhir_group_id,
             output_format=self.export_type,
-            provider_id=self.user1.provider_id,
             request_job_status=JobStatus.new.value,
             target_location="user1_exp_req_succ",
             is_user_notified=False,
@@ -438,7 +361,7 @@ class ExportsDeleteNotAllowedTests(ExportsNotAllowedTests):
 
 
 class ExportsUpdateNotAllowedTests(ExportsNotAllowedTests):
-    update_view = ExportRequestViewSet.as_view({'update': 'update'})
+    update_view = ExportViewSet.as_view({'update': 'update'})
 
     def test_error_update_request(self):
         [self.check_patch_case(PatchCase(

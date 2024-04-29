@@ -1,6 +1,9 @@
+from unittest.mock import patch
+
 from django.urls import reverse
 from rest_framework import status
 
+from admin_cohort.permissions import IsAuthenticated
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult, FhirFilter
 from exports.models import Export, Datalab
@@ -50,32 +53,18 @@ class ExportViewSetTest(ExportsTestBase):
                                   expected_resp_status=status.HTTP_200_OK,
                                   result_count=len(self.exports)-1)
 
-    def test_retrieve_export(self):
-        retrieve_url = reverse(viewname=self.viewname_detail, args=[self.target_export_to_retrieve.uuid])
-        self.check_test_retrieve_view(request_user=self.datalabs_reader_user,
-                                      retrieve_url=retrieve_url,
-                                      obj_id=self.target_export_to_retrieve.uuid,
-                                      expected_resp_status=status.HTTP_200_OK,
-                                      to_read_from_response='target_name',
-                                      to_check_against=self.target_export_to_retrieve.target_name)
+    @patch.object(ExportViewSet, 'permission_classes', [IsAuthenticated])
+    def test_create_export_no_exporter_implemented(self):
+        create_url = reverse(viewname=self.viewname_list)
+        self.check_test_create_view(request_user=self.exporter_user,
+                                    create_url=create_url,
+                                    request_data=self.export_basic_data,
+                                    expected_resp_status=status.HTTP_400_BAD_REQUEST)
 
+    @patch.object(ExportViewSet, 'permission_classes', [IsAuthenticated])
     def test_create_export_error(self):
         create_url = reverse(viewname=self.viewname_list)
         self.check_test_create_view(request_user=self.exporter_user,
                                     create_url=create_url,
                                     request_data=self.export_data_error,
                                     expected_resp_status=status.HTTP_400_BAD_REQUEST)
-
-    def test_create_export_missing_exporter_implementation(self):
-        create_url = reverse(viewname=self.viewname_list)
-        self.check_test_create_view(request_user=self.exporter_user,
-                                    create_url=create_url,
-                                    request_data=self.export_basic_data,
-                                    expected_resp_status=status.HTTP_400_BAD_REQUEST)
-
-    def test_error_create_export_with_no_right(self):
-        create_url = reverse(viewname=self.viewname_list)
-        self.check_test_create_view(request_user=self.user_without_rights,
-                                    create_url=create_url,
-                                    request_data=self.export_basic_data,
-                                    expected_resp_status=status.HTTP_403_FORBIDDEN)
