@@ -13,7 +13,7 @@ from exports.views import ExportViewSet
 
 class ExportViewSetTest(ExportsTestBase):
     view_set = ExportViewSet
-    view_root = "exports:v1:exports"
+    view_root = "exports:exports"
     model = Export
 
     def setUp(self):

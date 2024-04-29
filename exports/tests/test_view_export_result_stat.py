@@ -9,7 +9,7 @@ from exports.views import ExportResultStatViewSet
 
 class ExportResultStatViewSetTest(ExportsTestBase):
     view_set = ExportResultStatViewSet
-    view_root = "exports:v1:export_stats"
+    view_root = "exports:export_stats"
     model = ExportResultStat
 
     def setUp(self):
