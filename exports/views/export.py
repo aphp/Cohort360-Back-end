@@ -28,19 +28,16 @@ class ExportFilter(filters.FilterSet):
         return queryset
 
     output_format = filters.CharFilter(method="multi_value_filter", field_name="output_format")
-    status = filters.CharFilter(method="multi_value_filter", field_name="status")
-    name = filters.DateTimeFilter(field_name="name", lookup_expr='icontains')
+    status = filters.CharFilter(method="multi_value_filter", field_name="request_job_status")
     motivation = filters.DateTimeFilter(field_name="motivation", lookup_expr='icontains')
-    ordering = OrderingFilter(fields=('name',
-                                      'insert_datetime',
+    ordering = OrderingFilter(fields=('created_at',
                                       'output_format',
                                       'status',
                                       ('owner__firstname', 'owner')))
 
     class Meta:
         model = Export
-        fields = ("name",
-                  "motivation",
+        fields = ("motivation",
                   "output_format",
                   "status",
                   "owner")
@@ -54,8 +51,7 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
     filterset_class = ExportFilter
     http_method_names = ['get', 'post']
     logging_methods = ['POST']
-    search_fields = ("name",
-                     "owner__username",
+    search_fields = ("owner__username",
                      "owner__firstname",
                      "owner__lastname",
                      "request_job_status",
