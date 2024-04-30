@@ -13,7 +13,7 @@ from admin_cohort.types import JobStatus
 from exports import ExportTypes
 from exports.emails import push_email_notification, exported_files_deleted
 from exports.exceptions import BadRequestError, FilesNoLongerAvailable, StorageProviderException
-from exports.models import ExportRequest, Export
+from exports.models import Export
 from exports.services.storage_provider import HDFSStorageProvider
 
 
@@ -58,10 +58,9 @@ class ExportManager:
         exporter().validate(export_data=export_data, **kwargs)
 
     def handle_export(self, export_id: str | int) -> None:
-        model = str(export_id).isnumeric() and ExportRequest or Export
         try:
-            export = model.objects.get(pk=export_id)
-        except model.DoesNotExist:
+            export = Export.objects.get(pk=export_id)
+        except Export.DoesNotExist:
             raise ValueError(f'No export matches the given ID : {export_id}')
         exporter = self._get_exporter(export.output_format)
         exporter().handle_export(export=export)
@@ -82,7 +81,7 @@ class ExportDownloader:
         self.storage_provider = HDFSStorageProvider(servers_urls=STORAGE_PROVIDERS)
         self.downloadable_export_types = [t.value for t in ExportTypes if t.allow_download]
 
-    def download(self, export: ExportRequest | Export) -> StreamingHttpResponse:
+    def download(self, export: Export) -> StreamingHttpResponse:
         if export.request_job_status != JobStatus.finished.value \
            or export.output_format not in self.downloadable_export_types:
             raise BadRequestError("The export is not done yet or has failed or not downloadable")
@@ -92,9 +91,10 @@ class ExportDownloader:
             file_path = f"{export.target_full_path}.zip"
             response = StreamingHttpResponse(streaming_content=self.stream_file(file_path))
             file_size = self.get_file_size(file_name=file_path)
+            file_name = f"export_{export.motivation}.zip"
             response['Content-Type'] = 'application/zip'
             response['Content-Length'] = file_size
-            response['Content-Disposition'] = f"attachment; filename=export_{export.cohort_id}.zip"
+            response['Content-Disposition'] = f"attachment; filename={file_name}"
             return response
         except StorageProviderException as e:
             _logger.exception(f"Error occurred on Storage Provider `{self.storage_provider.name}` - {e}")
@@ -117,23 +117,23 @@ class ExportCleaner:
 
     def delete_exported_files(self):
         d = timezone.now() - timedelta(days=settings.DAYS_TO_KEEP_EXPORTED_FILES)
-        exports = ExportRequest.objects.filter(request_job_status=JobStatus.finished,
-                                               output_format__in=self.target_types,
-                                               is_user_notified=True,
-                                               insert_datetime__lte=d,
-                                               cleaned_at__isnull=True)
+        exports = Export.objects.filter(request_job_status=JobStatus.finished,
+                                        output_format__in=self.target_types,
+                                        is_user_notified=True,
+                                        created_at__lte=d,
+                                        clean_datetime__isnull=True)
         for export in exports:
             try:
                 self.storage_provider.delete_file(file_name=f"{export.target_full_path}.zip")
             except (RequestException, StorageProviderException) as e:
-                _logger.exception(f"ExportRequest {export.id}: {e}")
+                _logger.exception(f"Export {export.pk}: {e}")
                 return
 
             notification_data = dict(recipient_name=export.owner.display_name,
                                      recipient_email=export.owner.email,
-                                     cohort_id=export.cohort_id)
+                                     cohort_id=export.export_tables.first().cohort_result_source.fhir_group_id)
             push_email_notification(base_notification=exported_files_deleted, **notification_data)
-            export.cleaned_at = timezone.now()
+            export.clean_datetime = timezone.now()
             export.save()
 
 

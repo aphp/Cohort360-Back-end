@@ -1,11 +1,9 @@
 import logging
 import os
-from typing import List
 
 from requests import RequestException
 
-from cohort.models import CohortResult
-from exports.models import ExportRequest, Export
+from exports.models import Export
 from exporters.base_exporter import BaseExporter
 from exporters.enums import ExportTypes
 
@@ -20,28 +18,20 @@ class HiveExporter(BaseExporter):
         self.target_location = os.environ.get('HIVE_DB_FOLDER')
         self.user = os.environ.get('HIVE_EXPORTER_USER')
 
-    def get_source_cohorts(self, export_data: dict) -> List[str]:
-        using_new_export_models = self.using_new_export_models(export_data=export_data)
-        if using_new_export_models:
-            source_cohorts_ids = [t.get("cohort_result_source") for t in export_data.get("export_tables", [])]
-        else:
-            cohort = CohortResult.objects.get(fhir_group_id=export_data['cohort_id'])
-            export_data['cohort'] = cohort.uuid
-            source_cohorts_ids = [cohort.uuid]
-        return source_cohorts_ids
-
     def validate(self, export_data: dict, **kwargs) -> None:
-        kwargs["source_cohorts_ids"] = self.get_source_cohorts(export_data=export_data)
+        kwargs["source_cohorts_ids"] = [t.get("cohort_result_source")
+                                        for t in export_data.get("export_tables", [])
+                                        if t.get("cohort_result_source")]
         super().validate(export_data=export_data, **kwargs)
 
-    def handle_export(self, export: ExportRequest | Export, **kwargs) -> None:
+    def handle_export(self, export: Export, **kwargs) -> None:
         self.confirm_export_received(export=export)
         self.prepare_db(export)
         kwargs["params"] = {"database_name": export.target_name}
         super().handle_export(export=export, **kwargs)
         self.conclude_export(export=export)
 
-    def prepare_db(self, export: ExportRequest | Export) -> None:
+    def prepare_db(self, export: Export) -> None:
         try:
             self.create_db(export=export)
             self.change_db_ownership(export=export, db_user=self.user)
@@ -49,10 +39,10 @@ class HiveExporter(BaseExporter):
             self.mark_export_as_failed(export=export, reason=f"Error while preparing DB for export: {e}")
 
     @staticmethod
-    def get_db_location(export: ExportRequest | Export) -> str:
+    def get_db_location(export: Export) -> str:
         return f"{export.target_full_path}.db"
 
-    def create_db(self, export: ExportRequest | Export) -> None:
+    def create_db(self, export: Export) -> None:
         db_location = self.get_db_location(export=export)
         self.log_export_task(export.pk, f"Creating DB '{export.target_name}', location: {db_location}")
         try:
@@ -66,7 +56,7 @@ class HiveExporter(BaseExporter):
             raise e
         self.log_export_task(export.pk, f"DB '{export.target_name}' created.")
 
-    def change_db_ownership(self, export: ExportRequest | Export, db_user: str) -> None:
+    def change_db_ownership(self, export: Export, db_user: str) -> None:
         try:
             self.export_api.change_db_ownership(location=self.get_db_location(export=export),
                                                 db_user=db_user)
@@ -74,11 +64,8 @@ class HiveExporter(BaseExporter):
         except RequestException as e:
             raise RequestException(f"Error granting `{db_user}` rights on DB `{export.target_name}` - {e}")
 
-    def conclude_export(self, export: ExportRequest | Export) -> None:
-        try:
-            db_user = export.target_unix_account.name
-        except AttributeError:
-            db_user = export.datalab.name
+    def conclude_export(self, export: Export) -> None:
+        db_user = export.datalab.name
         try:
             self.change_db_ownership(export=export, db_user=db_user)
             self.log_export_task(export.pk, f"DB '{export.target_name}' attributed to {db_user}. Conclusion finished.")

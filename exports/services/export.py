@@ -1,17 +1,32 @@
 import logging
 from typing import List
 
+from django.http import StreamingHttpResponse
+from rest_framework.exceptions import ValidationError
+
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult
 from cohort.services.cohort_result import cohort_service
 from exports.models import ExportTable, Export
-from exports.services.export_common import ExportBaseService
+from exports.services.export_operators import ExportDownloader, ExportManager
 from exports.tasks import launch_export_task
 
 _logger = logging.getLogger('info')
 
 
-class ExportService(ExportBaseService):
+class ExportService:
+
+    @staticmethod
+    def validate_export_data(data: dict, **kwargs) -> None:
+        try:
+            ExportManager().validate(export_data=data, **kwargs)
+        except Exception as e:
+            raise ValidationError(f'Invalid export data: {e}')
+
+    def proceed_with_export(self, export: Export, tables: List[dict], **kwargs) -> None:
+        requires_cohort_subsets = self.create_tables(export, tables, **kwargs)
+        if not requires_cohort_subsets:
+            launch_export_task.delay(export.pk)
 
     @staticmethod
     def allow_create_sub_cohort_for_table(table_name: str) -> bool:
@@ -54,6 +69,10 @@ class ExportService(ExportBaseService):
                 return
         _logger.info(f"Export [{export.uuid}]: all cohort subsets were successfully created. Launching export.")
         launch_export_task.delay(export.pk)
+
+    @staticmethod
+    def download(export: Export) -> StreamingHttpResponse:
+        return ExportDownloader().download(export=export)
 
 
 export_service = ExportService()

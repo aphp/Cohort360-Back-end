@@ -8,7 +8,7 @@ from exports.views import DatalabViewSet
 
 class DatalabViewSetTest(ExportsTestBase):
     view_set = DatalabViewSet
-    view_root = "exports:v1:datalabs"
+    view_root = "exports:datalabs"
     model = Datalab
 
     def setUp(self):

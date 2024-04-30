@@ -50,10 +50,9 @@ class TestCSVExporterWithOldModels(TestCSVExporter):
 
     def test_successfully_validate_export(self):
         export_data = dict(output_format=ExportTypes.CSV.value,
-                           cohort_id=self.cohort.fhir_group_id,
                            nominative=True,
                            motivation='motivation',
-                           tables=[{"omop_table_name": "table1"}])
+                           export_tables=[{"table_ids": ["table1"], "cohort_result_source": self.cohort.pk}])
         self.exporter.validate(export_data=export_data, owner=self.csv_exporter_user)
 
 

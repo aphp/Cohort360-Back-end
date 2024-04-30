@@ -8,7 +8,7 @@ from exports.views import InfrastructureProviderViewSet
 
 class InfrastructureProviderViewSetTest(ExportsTestBase):
     view_set = InfrastructureProviderViewSet
-    view_root = "exports:v1:infrastructure_providers"
+    view_root = "exports:infrastructure_providers"
     model = InfrastructureProvider
 
     def setUp(self):

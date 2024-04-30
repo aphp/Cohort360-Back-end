@@ -2,7 +2,7 @@ from django_filters import rest_framework as filters, OrderingFilter
 
 from exports.models import ExportResultStat
 from exports.serializers import ExportResultStatSerializer
-from exports.views.v1.base_viewset import ExportsBaseViewSet
+from exports.views.base_viewset import ExportsBaseViewSet
 
 
 class ExportResultStatFilter(filters.FilterSet):
