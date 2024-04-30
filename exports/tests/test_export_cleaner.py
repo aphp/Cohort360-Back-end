@@ -8,7 +8,7 @@ from requests import RequestException
 
 from admin_cohort.types import JobStatus
 from exports import ExportTypes
-from exports.models import ExportRequest
+from exports.models import Export, ExportTable
 from exports.services.export_operators import ExportCleaner
 from exports.tests.test_view_export_request import ExportsTests
 
@@ -23,18 +23,18 @@ class TestExportCleaner(ExportsTests):
 
         cleanable_export_types = [t.value for t in ExportTypes if t.allow_to_clean]
 
-        self.export1 = ExportRequest.objects.create(owner=self.user1,
-                                                    cohort_fk=self.user1_cohort,
-                                                    cohort_id=self.user1_cohort.fhir_group_id,
-                                                    output_format=cleanable_export_types and cleanable_export_types[0] or None,
-                                                    provider_id=self.user1.provider_id,
-                                                    request_job_status=JobStatus.finished,
-                                                    target_location="target_location",
-                                                    is_user_notified=True,
-                                                    nominative=True)
+        self.export1 = Export.objects.create(owner=self.user1,
+                                             output_format=cleanable_export_types and cleanable_export_types[0] or None,
+                                             request_job_status=JobStatus.finished,
+                                             target_location="target_location",
+                                             is_user_notified=True,
+                                             nominative=True)
+        self.export_table = ExportTable.objects.create(export=self.export1,
+                                                       name="table01",
+                                                       cohort_result_source=self.user1_cohort)
 
     def update_export_insert_datetime(self) -> None:
-        self.export1.insert_datetime = (timezone.now() - timedelta(days=settings.DAYS_TO_KEEP_EXPORTED_FILES))
+        self.export1.created_at = (timezone.now() - timedelta(days=settings.DAYS_TO_KEEP_EXPORTED_FILES))
         self.export1.save()
 
     @mock.patch("exports.services.export_operators.push_email_notification")
@@ -46,7 +46,7 @@ class TestExportCleaner(ExportsTests):
         self.mock_storage_provider.delete_file.assert_called_once()
         mock_push_notification.assert_called_once()
         self.export1.refresh_from_db()
-        self.assertIsNotNone(self.export1.cleaned_at)
+        self.assertIsNotNone(self.export1.clean_datetime)
 
     @mock.patch("exports.services.export_operators.push_email_notification")
     def test_error_delete_exported_files(self, mock_push_notification: MagicMock):
@@ -56,5 +56,5 @@ class TestExportCleaner(ExportsTests):
         self.mock_storage_provider.delete_file.assert_called_once()
         mock_push_notification.assert_not_called()
         self.export1.refresh_from_db()
-        self.assertIsNone(self.export1.cleaned_at)
+        self.assertIsNone(self.export1.clean_datetime)
 

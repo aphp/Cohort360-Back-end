@@ -1,4 +1,5 @@
 from datetime import timedelta
+from typing import Optional
 
 from django.db import models
 from django.db.models import CASCADE
@@ -6,6 +7,7 @@ from django.utils import timezone
 
 from admin_cohort.models import User, JobModel
 from admin_cohort.settings import DAYS_TO_KEEP_EXPORTED_FILES
+from cohort.models import CohortResult
 from exports.models import ExportsBaseModel, Datalab
 from exports import ExportTypes
 
@@ -36,10 +38,26 @@ class Export(ExportsBaseModel, JobModel):
         return ""
 
     @property
-    def cohort_name(self) -> str:
+    def target_datalab(self) -> Optional[str]:
+        return self.datalab and self.datalab.name or None
+
+    @property
+    def base_cohort(self) -> Optional[CohortResult]:
         if self.datalab:
-            return ""
-        return self.export_tables.first().cohort_result_source.name
+            return None
+        return self.export_tables.first().cohort_result_source
+
+    @property
+    def cohort_name(self) -> Optional[str]:
+        return self.base_cohort and self.base_cohort.name or None
+
+    @property
+    def cohort_id(self) -> Optional[str]:
+        return self.base_cohort and self.base_cohort.fhir_group_id or None
+
+    @property
+    def patients_count(self) -> Optional[int]:
+        return self.base_cohort and self.base_cohort.dated_measure.measure or None
 
     def available_for_download(self) -> bool:
         return self.created_at + timedelta(days=DAYS_TO_KEEP_EXPORTED_FILES) > timezone.now()

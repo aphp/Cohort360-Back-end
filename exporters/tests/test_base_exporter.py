@@ -69,8 +69,8 @@ class TestBaseExporter(ExportersTestBase):
             self.exporter.validate_tables_data(tables_data=tables_data)
 
     def test_complete_export_data(self):
-        export_data = dict(output_format=ExportTypes.CSV.value,
-                           target_unix_account=self.unix_account.pk,
+        export_data = dict(output_format=ExportTypes.HIVE.value,
+                           datalab=self.datalab.pk,
                            nominative=True,
                            motivation='motivation\nover\nmulti lines',
                            tables=[{"omop_table_name": "table1"}]

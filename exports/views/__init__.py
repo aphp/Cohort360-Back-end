@@ -1,13 +1,13 @@
 from .cohort import CohortViewSet
-from .export_request import ExportRequestViewSet
 from .fhir_filter import FhirFilterViewSet
-from exports.views.v1 import ExportViewSet, ExportTableViewSet, ExportResultStatViewSet, DatalabViewSet, InfrastructureProviderViewSet
+from .export import ExportViewSet
+from .export_result_stat import ExportResultStatViewSet
+from .datalab import DatalabViewSet
+from .infrastructure_provider import InfrastructureProviderViewSet
 
-__all__ = ["ExportRequestViewSet",
-           "CohortViewSet",
+__all__ = ["CohortViewSet",
            "FhirFilterViewSet",
            "ExportViewSet",
-           "ExportTableViewSet",
            "ExportResultStatViewSet",
            "DatalabViewSet",
            "InfrastructureProviderViewSet"]

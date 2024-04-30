@@ -1,13 +1,13 @@
 from rest_framework import permissions
 from rest_framework.exceptions import PermissionDenied
 
-from accesses.permissions import can_user_make_export_jupyter_nomi, can_user_make_export_jupyter_pseudo, can_user_make_csv_export, \
-    can_user_make_jupyter_export, can_user_read_datalabs, can_user_manage_datalabs, can_user_make_export_csv_nomi, can_user_make_export_csv_pseudo
+from accesses.permissions import can_user_make_export_jupyter_nomi, can_user_make_export_jupyter_pseudo, \
+                                 can_user_read_datalabs, can_user_manage_datalabs, can_user_make_export_csv_nomi, can_user_make_export_csv_pseudo
 from admin_cohort.permissions import user_is_authenticated
 from exports import ExportTypes
 
 
-class ExportRequestsPermission(permissions.BasePermission):
+class ExportPermission(permissions.BasePermission):
     def has_permission(self, request, view):
         if request.method == "POST":
             if request.data.get('nominative', False):
@@ -42,21 +42,3 @@ class ManageDatalabsPermission(permissions.BasePermission):
         return user_is_authenticated(request.user) \
             and can_user_read_datalabs(user=request.user) \
             and can_user_manage_datalabs(user=request.user)
-
-
-class CSVExportsPermission(permissions.BasePermission):
-    def has_permission(self, request, view):
-        return user_is_authenticated(request.user) \
-            and can_user_make_csv_export(user=request.user)
-
-    def has_object_permission(self, request, view, obj):
-        return self.has_permission(request, view)
-
-
-class JupyterExportPermission(permissions.BasePermission):
-    def has_permission(self, request, view):
-        return user_is_authenticated(request.user) \
-            and can_user_make_jupyter_export(user=request.user)
-
-    def has_object_permission(self, request, view, obj):
-        return self.has_permission(request, view)

@@ -5,8 +5,7 @@ from admin_cohort.tests.tests_tools import new_user_and_profile
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult, Folder, Request, RequestQuerySnapshot
 from exporters.enums import ExportTypes
-from exports.models import ExportRequest
-from workspaces.models import Account
+from exports.models import Export, Datalab, InfrastructureProvider, ExportTable
 
 
 class ExportersTestBase(TestCase):
@@ -41,16 +40,18 @@ class ExportersTestBase(TestCase):
                                                    request_query_snapshot=self.rqs,
                                                    request_job_status=JobStatus.finished,
                                                    fhir_group_id="33333")
-        self.unix_account = Account.objects.create(username='user1', spark_port_start=0)
+        self.infrastructure_provider = InfrastructureProvider.objects.create(name="Main")
+        self.datalab = Datalab.objects.create(name='user1', infrastructure_provider=self.infrastructure_provider)
 
         export_vals = dict(owner=self.csv_exporter_user,
-                           cohort_fk=self.cohort,
-                           cohort_id=self.cohort.fhir_group_id,
                            target_location="target_location",
                            target_name="target_name",
                            nominative=True
                            )
-        self.csv_export = ExportRequest.objects.create(**export_vals, output_format=ExportTypes.CSV.value)
-        self.hive_export = ExportRequest.objects.create(**export_vals,
-                                                        output_format=ExportTypes.HIVE.value,
-                                                        target_unix_account=self.unix_account)
+        self.csv_export = Export.objects.create(**export_vals, output_format=ExportTypes.CSV.value)
+        self.csv_export_table = ExportTable.objects.create(export=self.csv_export,
+                                                           name="table01",
+                                                           cohort_result_source=self.cohort)
+        self.hive_export = Export.objects.create(**export_vals,
+                                                 output_format=ExportTypes.HIVE.value,
+                                                 datalab=self.datalab)

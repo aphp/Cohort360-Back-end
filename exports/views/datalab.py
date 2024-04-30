@@ -5,7 +5,7 @@ from drf_yasg.utils import swagger_auto_schema
 from exports.models import Datalab
 from exports.permissions import ManageDatalabsPermission, ReadDatalabsPermission
 from exports.serializers import DatalabSerializer
-from exports.views.v1.base_viewset import ExportsBaseViewSet
+from exports.views.base_viewset import ExportsBaseViewSet
 
 
 class DatalabFilter(filters.FilterSet):
