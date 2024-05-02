@@ -8,7 +8,6 @@ _logger = logging.getLogger('info')
 
 def populate_exports_with_export_requests(apps, schema_editor):
     export_request_model = apps.get_model('exports', 'ExportRequest')
-    export_request_table_model = apps.get_model('exports', 'ExportRequestTable')
     export_model = apps.get_model('exports', 'Export')
     export_table_model = apps.get_model('exports', 'ExportTable')
     datalab_model = apps.get_model('exports', 'Datalab')
@@ -17,8 +16,11 @@ def populate_exports_with_export_requests(apps, schema_editor):
     count = 0
     for er in export_request_model.objects.using(db_alias).all():
         datalab = None
-        if er.target_unix_account:
-            datalab = datalab_model.objects.using(db_alias).get(name=er.target_unix_account.name)
+        if er.output_format.lower() == 'hive' and er.target_name:
+            target_unix_account_name = er.target_name.split('_')[0]
+            if er.target_name.count('_') > 2:
+                target_unix_account_name = '_'.join(er.target_name.split('_')[:2])
+            datalab = datalab_model.objects.using(db_alias).get(name=target_unix_account_name)
         export = export_model.objects.using(db_alias).create(data_exporter_version='3',
                                                              data_version='NA',
                                                              deleted=er.delete_datetime,
