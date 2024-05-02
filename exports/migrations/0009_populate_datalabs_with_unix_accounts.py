@@ -1,16 +1,25 @@
 # written by HT on 2024-04-26 17:02
 import logging
+from typing import List
 
+from django.conf import settings
 from django.db import migrations
 
-
 _logger = logging.getLogger('info')
+
+
+def retrieve_unix_accounts(connection) -> List[str]:
+    if "workspaces" in settings.INSTALLED_APPS:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT name FROM workspaces_account;")
+            accounts = [a[0] for a in cursor.fetchall()]
+            return accounts
+    return []
 
 
 def populate_datalabs(apps, schema_editor):
     infrastructure_provider_model = apps.get_model('exports', 'InfrastructureProvider')
     datalab_model = apps.get_model('exports', 'Datalab')
-    account_model = apps.get_model('workspaces', 'Account')
     db_alias = schema_editor.connection.alias
 
     infra_provider = infrastructure_provider_model.objects.using(db_alias).first()
@@ -18,7 +27,7 @@ def populate_datalabs(apps, schema_editor):
         infra_provider = infrastructure_provider_model.objects.using(db_alias).create(name='Main')
         
     count = 0
-    for account_name in account_model.objects.using(db_alias).all().values_list('name', flat=True):
+    for account_name in retrieve_unix_accounts(schema_editor.connection):
         datalab_model.objects.using(db_alias).create(name=account_name,
                                                      infrastructure_provider=infra_provider)
         count += 1

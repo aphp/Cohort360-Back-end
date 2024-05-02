@@ -12,7 +12,6 @@ class Migration(migrations.Migration):
     dependencies = [
         ('cohort', '0001_initial'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('workspaces', '0001_initial'),
     ]
 
     operations = [
@@ -51,8 +50,8 @@ class Migration(migrations.Migration):
                                             to=settings.AUTH_USER_MODEL)),
                 ('reviewer_fk', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='reviewed_export_requests',
                                                   to=settings.AUTH_USER_MODEL)),
-                ('target_unix_account', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='export_requests',
-                                                          to='workspaces.account')),
+                # ('target_unix_account', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='export_requests',
+                #                                           to='workspaces.account')),
             ],
             options={
                 'db_table': 'export_request',
