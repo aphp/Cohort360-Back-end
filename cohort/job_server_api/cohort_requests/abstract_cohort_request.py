@@ -3,18 +3,20 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, List
 
+from requests import Response
+
 from accesses.models import Perimeter
 from accesses.services.accesses import accesses_service
 from admin_cohort.services.auth import auth_service
 from admin_cohort.models import User
-from cohort.crb.enums import Mode
-from cohort.crb.exceptions import FhirException
-from cohort.crb.query_formatter import QueryFormatter
-from cohort.crb.schemas import SparkJobObject
-from cohort.crb.sjs_client import SjsClient, format_spark_job_request_for_sjs
+from cohort.job_server_api.enums import Mode
+from cohort.job_server_api.exceptions import FhirException
+from cohort.job_server_api.query_formatter import QueryFormatter
+from cohort.job_server_api.schemas import SparkJobObject
+from cohort.job_server_api.sjs_client import SjsClient, format_spark_job_request_for_sjs
 
 if TYPE_CHECKING:
-    from cohort.crb.schemas import CohortQuery
+    from cohort.job_server_api.schemas import CohortQuery
 
 
 def is_cohort_request_pseudo_read(username: str, source_population: List[int]) -> bool:
@@ -24,6 +26,8 @@ def is_cohort_request_pseudo_read(username: str, source_population: List[int]) -
 
 
 class AbstractCohortRequest(ABC):
+    model = None
+
     def __init__(self, mode: Mode, sjs_client: SjsClient, auth_headers: dict):
         self.mode = mode
         self.sjs_client = sjs_client
@@ -54,6 +58,6 @@ class AbstractCohortRequest(ABC):
         return format_spark_job_request_for_sjs(spark_job_request)
 
     @abstractmethod
-    def action(self, cohort_query: CohortQuery) -> dict:
+    def action(self, cohort_query: CohortQuery) -> Response:
         """Perform the action (count, countAll, create) based on the cohort_query"""
         pass
