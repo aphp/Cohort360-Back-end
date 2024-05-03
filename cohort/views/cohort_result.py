@@ -47,7 +47,7 @@ class CohortFilter(filters.FilterSet):
     type = filters.AllValuesMultipleFilter()
     perimeter_id = filters.CharFilter(method="perimeter_filter")
     perimeters_ids = filters.CharFilter(method="perimeters_filter")
-    fhir_group_id = filters.CharFilter(method="multi_value_filter", field_name="fhir_group_id")
+    group_id = filters.CharFilter(method="multi_value_filter", field_name="group_id")
     status = filters.CharFilter(method="multi_value_filter", field_name="request_job_status")
 
     ordering = OrderingFilter(fields=('-created_at',
@@ -67,7 +67,7 @@ class CohortFilter(filters.FilterSet):
                   'min_fhir_datetime',
                   'max_fhir_datetime',
                   'favorite',
-                  'fhir_group_id',
+                  'group_id',
                   'create_task_id',
                   'request_query_snapshot',
                   'request_query_snapshot__request',
@@ -145,7 +145,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
 
     @swagger_auto_schema(operation_summary="Used by Front to update cohort's name, description and favorite."
                                            "By SJS to update cohort's request_job_status, request_job_duration and "
-                                           "fhir_group_id. Also update count on DM."
+                                           "group_id. Also update count on DM."
                                            "By ETL to update request_job_status on delayed large cohorts",
                          request_body=openapi.Schema(
                              type=openapi.TYPE_OBJECT,
@@ -172,7 +172,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         response = super(CohortResultViewSet, self).partial_update(request, *args, **kwargs)
         cohort.refresh_from_db()
         global_dm = cohort.dated_measure_global
-        extra_info = {'fhir_group_id': cohort.fhir_group_id}
+        extra_info = {'group_id': cohort.group_id}
         if global_dm:
             extra_info['global'] = {'measure_min': global_dm.measure_min,
                                     'measure_max': global_dm.measure_max
@@ -190,9 +190,9 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                          operation_summary="Returns a dict of rights (booleans) for each cohort based on user accesses."
                                            "Rights are computed by checking user accesses against every perimeter the cohort is built upon",
                          responses={'200': openapi.Response("Cohorts rights found"),
-                                    '404': openapi.Response("No cohorts found matching the given fhir_group_ids or user has no valid accesses")})
+                                    '404': openapi.Response("No cohorts found matching the given group_ids or user has no valid accesses")})
     @action(detail=False, methods=['get'], url_path="cohort-rights")
     def get_rights_on_cohorts(self, request, *args, **kwargs):
-        cohorts_rights = cohort_rights_service.get_user_rights_on_cohorts(fhir_group_ids=request.query_params.get('fhir_group_id'),
+        cohorts_rights = cohort_rights_service.get_user_rights_on_cohorts(group_ids=request.query_params.get('group_id'),
                                                                           user=request.user)
         return Response(data=cohorts_rights, status=status.HTTP_200_OK)

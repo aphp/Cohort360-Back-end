@@ -52,7 +52,7 @@ class CohortResultSerializer(BaseSerializer):
     request_query_snapshot = PrimaryKeyRelatedFieldWithOwner(queryset=RequestQuerySnapshot.objects.all())
     dated_measure = PrimaryKeyRelatedFieldWithOwner(queryset=DatedMeasure.objects.all())
     dated_measure_global = PrimaryKeyRelatedFieldWithOwner(queryset=DatedMeasure.objects.all(), required=False)
-    fhir_group_id = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    group_id = serializers.CharField(allow_blank=True, allow_null=True, required=False)
     exportable = serializers.BooleanField(read_only=True)
 
     class Meta:

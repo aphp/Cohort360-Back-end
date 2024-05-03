@@ -83,7 +83,7 @@ class CohortsGetTests(CohortsTests):
                                        and self.str_pattern),
                 favorite=random.random() > .5,
                 request_query_snapshot=dm.request_query_snapshot,
-                fhir_group_id=random_str(10, with_space=False),
+                group_id=random_str(10, with_space=False),
                 request_job_status=random.choice(JobStatus.list()),
                 dated_measure=dm,
                 dated_measure_global=dm_global,
@@ -155,7 +155,7 @@ class CohortsGetTests(CohortsTests):
                              to_find=[cr for cr in crs if cr.dated_measure.fhir_datetime <= example_datetime]),
             basic_case.clone(params=dict(favorite=True),
                              to_find=[cr for cr in crs if cr.favorite]),
-            basic_case.clone(params=dict(fhir_group_id=first_cr.fhir_group_id),
+            basic_case.clone(params=dict(group_id=first_cr.group_id),
                              to_find=[first_cr]),
             basic_case.clone(params=dict(request_query_snapshot=rqs.pk),
                              to_find=list(rqs.cohort_results.all())),
@@ -241,7 +241,7 @@ class CohortsCreateTests(CohortsTests):
             favorite=True,
             request_query_snapshot=self.user1_req1_snap1.pk,
             dated_measure=self.user1_req1_snap1_dm.pk,
-            # fhir_group_id
+            # group_id
             # dated_measure_global
             # create_task_id
             # type
@@ -436,7 +436,7 @@ class CohortsUpdateTests(CohortsTests):
         response.render()
 
         self.assertEqual(response.data.get("request_job_status"), JobStatus.finished.value)
-        self.assertEqual(response.data.get("fhir_group_id"), data['group.id'])
+        self.assertEqual(response.data.get("group_id"), data['group.id'])
         self.assertEqual(response.data.get("result_size"), data['group.count'])
 
     @mock.patch('cohort.views.cohort_result.ws_send_to_client')

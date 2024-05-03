@@ -41,7 +41,7 @@ def new_cohort_result(owner: User, status: JobStatus = JobStatus.finished,
     if not dm:
         dm: DatedMeasure = DatedMeasure.objects.create(owner=owner, request_query_snapshot=rqs)
     cr: CohortResult = CohortResult.objects.create(owner=owner,
-                                                   fhir_group_id=str(random.randint(0, 10000)),
+                                                   group_id=str(random.randint(0, 10000)),
                                                    dated_measure=dm,
                                                    request_query_snapshot=rqs,
                                                    request_job_status=status)

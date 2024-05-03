@@ -96,7 +96,7 @@ class PerimetersService:
         fact_relationships = FactRelationShip.objects.raw(FactRelationShip.psql_query_get_cohort_population_source(cohorts_ids))
         cohort_pop_source = cohorts_ids.copy()
         for fact in fact_relationships:
-            if not owner.user_cohorts.filter(fhir_group_id=fact.fact_id_1).exists():
+            if not owner.user_cohorts.filter(group_id=fact.fact_id_1).exists():
                 raise Http404(f"The cohort with id={fact.fact_id_1} does not belong to user '{owner.display_name}'")
             if fact.fact_id_1 in cohort_pop_source:
                 cohort_pop_source.remove(fact.fact_id_1)

@@ -45,11 +45,11 @@ class CohortResultService:
     @staticmethod
     def create_cohort_subset(http_request, owner_id: str, table_name: str, source_cohort: CohortResult, fhir_filter_id: str) -> CohortResult:
         cohort_subset = CohortResult.objects.create(is_subset=True,
-                                                    name=f"{table_name}_{source_cohort.fhir_group_id}",
+                                                    name=f"{table_name}_{source_cohort.group_id}",
                                                     owner_id=owner_id,
                                                     dated_measure_id=source_cohort.dated_measure_id)
         with transaction.atomic():
-            query = CohortResultService.build_query(cohort_source_id=source_cohort.fhir_group_id,
+            query = CohortResultService.build_query(cohort_source_id=source_cohort.group_id,
                                                     fhir_filter_id=fhir_filter_id)
             try:
                 auth_headers = get_authorization_header(request=http_request)
@@ -120,7 +120,7 @@ class CohortResultService:
                     data["request_job_fail_msg"] = "Received a failed status from SJS"
             data['request_job_status'] = job_status
         if GROUP_ID in data:
-            data["fhir_group_id"] = data.pop(GROUP_ID)
+            data["group_id"] = data.pop(GROUP_ID)
         if GROUP_COUNT in data:
             cohort.dated_measure.measure = data.pop(GROUP_COUNT)
             cohort.dated_measure.save()
@@ -132,7 +132,7 @@ class CohortResultService:
             _logger.info(f"Cohort [{cohort.uuid}] successfully updated from SJS")
         if is_update_from_etl:
             try:
-                send_email_notif_about_large_cohort(cohort.name, cohort.fhir_group_id, cohort.owner)
+                send_email_notif_about_large_cohort(cohort.name, cohort.group_id, cohort.owner)
             except (ValueError, SMTPException) as e:
                 _logger_err.exception(f"Cohort [{cohort.uuid}] - Couldn't send email to user after ETL patch: {e}")
             else:

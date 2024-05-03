@@ -53,7 +53,7 @@ class Export(ExportsBaseModel, JobModel):
 
     @property
     def cohort_id(self) -> Optional[str]:
-        return self.base_cohort and self.base_cohort.fhir_group_id or None
+        return self.base_cohort and self.base_cohort.group_id or None
 
     @property
     def patients_count(self) -> Optional[int]:
