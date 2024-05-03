@@ -7,6 +7,7 @@ import environ
 import pytz
 from celery.schedules import crontab
 
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 env = environ.Env()
@@ -163,7 +164,6 @@ DATABASES = {'default': {'ENGINE': 'django.db.backends.postgresql',
 
 LANGUAGE_CODE = 'en-us'
 USE_I18N = True
-USE_L10N = True
 USE_TZ = True
 TIME_ZONE = 'UTC'
 USE_DEPRECATED_PYTZ = True
@@ -201,7 +201,7 @@ EMAIL_SUPPORT_CONTACT = env("EMAIL_SUPPORT_CONTACT")
 EMAIL_SENDER_ADDRESS = env("EMAIL_SENDER_ADDRESS")
 EMAIL_REGEX_CHECK = env("EMAIL_REGEX_CHECK", default=r"^[\w.+-]+@[\w-]+\.[\w]+$")
 
-DAYS_TO_DELETE_CSV_FILES = int(env("DAYS_TO_DELETE_CSV_FILES", default=7))
+DAYS_TO_KEEP_EXPORTED_FILES = int(env("DAYS_TO_KEEP_EXPORTED_FILES", default=7))
 
 # Celery
 CELERY_BROKER_URL = env("CELERY_BROKER_URL")
@@ -234,10 +234,6 @@ SESSION_COOKIE_AGE = 24 * 60 * 60
 
 JWT_AUTH_MODE = "JWT"
 OIDC_AUTH_MODE = "OIDC"
-
-# WORKSPACES
-if 'workspaces' in INCLUDED_APPS:
-    RANGER_HIVE_POLICY_TYPES = env('RANGER_HIVE_POLICY_TYPES').split(",")
 
 # CUSTOM EXCEPTION REPORTER
 DEFAULT_EXCEPTION_REPORTER_FILTER = 'admin_cohort.tools.except_report_filter.CustomExceptionReporterFilter'
@@ -296,3 +292,16 @@ CHANNEL_LAYERS = {
         },
     },
 }
+
+
+# todo: replace `INFRA_API_URL`  by `EXPORT_API_URL`
+#       replace `EXPORT_OMOP_ENVIRONMENT`  by `EXPORT_ENVIRONMENT`
+#       replace `DAYS_TO_DELETE_CSV_FILES`  by  `DAYS_TO_KEEP_EXPORTED_FILES`
+#       replace `HDFS_SERVERS`  by  `STORAGE_PROVIDERS`
+#       update task name: delete_exported_csv_files                                 /!\ in prod only
+#    +  add `CSV_EXPORT_ENDPOINT`
+#    +  add `HIVE_EXPORT_ENDPOINT`
+#    +  add `EXPORT_TASK_STATUS_ENDPOINT`
+#    +  add `HADOOP_TASK_STATUS_ENDPOINT`
+#    +  add `CREATE_DB_ENDPOINT`
+#    +  add `ALTER_DB_ENDPOINT`

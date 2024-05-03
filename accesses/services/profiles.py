@@ -1,16 +1,18 @@
 import logging
 import re
-from typing import Optional
+from typing import Optional, Dict
 
 import requests
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, PermissionDenied
 from django.db.models import Q
 from django.utils import timezone
 from environ import environ
 from rest_framework import status
 
 from accesses.models import Profile
+from accesses.services.accesses import accesses_service
 from admin_cohort.models import User
+from admin_cohort.services.auth import auth_service
 from admin_cohort.settings import MANUAL_SOURCE
 from admin_cohort.types import PersonIdentity, ServerError, MissingDataError
 
@@ -20,13 +22,30 @@ ID_CHECKER_URL = env("ID_CHECKER_URL")
 ID_CHECKER_TOKEN_HEADER = env("ID_CHECKER_TOKEN_HEADER")
 ID_CHECKER_TOKEN = env("ID_CHECKER_TOKEN")
 ID_CHECKER_SERVER_HEADERS = {ID_CHECKER_TOKEN_HEADER: ID_CHECKER_TOKEN}
-
+IMPERSONATING_HEADER = "X-Impersonate"
 USERNAME_REGEX = env("USERNAME_REGEX")
 
 _logger = logging.getLogger("django.request")
 
 
 class ProfilesService:
+
+    def __init__(self):
+        auth_service.add_post_authentication_hook(ProfilesService.impersonate)
+
+    @staticmethod
+    def impersonate(user: User, token: str, headers: Dict[str, str]) -> Optional[User]:
+        if IMPERSONATING_HEADER in headers:
+            if accesses_service.user_is_full_admin(user):
+                impersonated = headers[IMPERSONATING_HEADER]
+                try:
+                    return User.objects.get(username=impersonated)
+                except User.DoesNotExist:
+                    _logger.warning(f"Failed to impersonate inexistent user {impersonated}")
+                    return user
+            else:
+                raise PermissionDenied("Vous n'avez pas le droit d'impersonnifier un autre utilisateur")
+        return user
 
     @staticmethod
     def verify_identity(id_aph: str) -> Optional[PersonIdentity]:
@@ -59,9 +78,8 @@ class ProfilesService:
                                                 & Q(user_id=person.user_id)).first()
         return {"firstname": person.firstname,
                 "lastname": person.lastname,
-                "user_id": person.user_id,
                 "email": person.email,
-                "provider": user,
+                "username": username,
                 "user": user,
                 "manual_profile": manual_profile}
 

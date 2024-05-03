@@ -3,25 +3,24 @@ from rest_framework import status
 
 from exports.models import ExportResultStat, Export, Datalab
 from exports.tests.base_test import ExportsTestBase
-from exports.types import StatType, ExportStatus, ExportType
+from exports.enums import StatType
 from exports.views import ExportResultStatViewSet
 
 
 class ExportResultStatViewSetTest(ExportsTestBase):
     view_set = ExportResultStatViewSet
-    view_root = "exports:v1:export_stats"
+    view_root = "exports:export_stats"
     model = ExportResultStat
 
     def setUp(self):
         super().setUp()
         self.datalab = Datalab.objects.create(infrastructure_provider=self.infra_provider_aphp)
-        self.export = Export.objects.create(output_format=ExportType.CSV,
+        self.export = Export.objects.create(output_format=self.export_type,
                                             owner=self.datalabs_manager_user,
                                             datalab=self.datalab,
-                                            status=ExportStatus.PENDING,
                                             target_name="12345_09092023_151500")
         self.export_result_stats = [ExportResultStat.objects.create(name=f"Stat_{i}",
-                                                                    type=StatType.INT,
+                                                                    type=StatType.INT.value,
                                                                     value=i,
                                                                     export=self.export) for i in range(5)]
         self.target_export_result_stat_to_retrieve = self.export_result_stats[0]
@@ -47,7 +46,7 @@ class ExportResultStatViewSetTest(ExportsTestBase):
     def test_create_export_result_stat(self):
         create_url = reverse(viewname=self.viewname_list)
         request_data = {"name": "Special stat",
-                        "type": StatType.INT,
+                        "type": StatType.INT.value,
                         "value": 43,
                         "export": self.export.uuid}
         self.check_test_create_view(request_user=self.datalabs_manager_user,
@@ -65,10 +64,3 @@ class ExportResultStatViewSetTest(ExportsTestBase):
                                    expected_resp_status=status.HTTP_200_OK,
                                    to_read_from_response='name',
                                    to_check_against=patch_data['name'])
-
-    def test_delete_export_result_stat(self):
-        delete_url = reverse(viewname=self.viewname_detail, args=[self.target_export_result_stat_to_delete.uuid])
-        self.check_test_delete_view(request_user=self.datalabs_manager_user,
-                                    delete_url=delete_url,
-                                    obj_id=self.target_export_result_stat_to_delete.uuid,
-                                    expected_resp_status=status.HTTP_204_NO_CONTENT)

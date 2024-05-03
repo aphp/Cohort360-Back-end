@@ -52,8 +52,8 @@ class ProfileFilter(filters.FilterSet):
 class ProfileViewSet(RequestLogMixin, BaseViewSet):
     queryset = Profile.objects.filter(delete_datetime__isnull=True).all()
     lookup_field = "id"
-    http_method_names = ['get', 'post', 'patch', 'delete']
-    logging_methods = ['POST', 'PATCH', 'DELETE']
+    http_method_names = ['get', 'post', 'delete']
+    logging_methods = ['POST', 'DELETE']
     permission_classes = (IsAuthenticated, ProfilesPermission)
     swagger_tags = ['Accesses - profiles']
     filterset_class = ProfileFilter
