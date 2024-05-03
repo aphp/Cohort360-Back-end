@@ -6,13 +6,13 @@ from django.utils import timezone
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
-from admin_cohort.types import JobStatus, ServerError
-from cohort.models import CohortResult, DatedMeasure, RequestQuerySnapshot, FhirFilter
-from cohort.models.dated_measure import GLOBAL_DM_MODE
+from admin_cohort.types import JobStatus
+from cohort.models import CohortResult, FhirFilter
 from cohort.job_server_api import job_server_status_mapper
+from cohort.services.cohort_managers import CohortCountManager, CohortCreateManager
 from cohort.services.misc import get_authorization_header
 from cohort.services.emails import send_email_notif_about_large_cohort
-from cohort.tasks import count_cohort_task, create_cohort_task
+from cohort.tasks import create_cohort_task
 
 JOB_STATUS = "request_job_status"
 GROUP_ID = "group.id"
@@ -71,37 +71,10 @@ class CohortResultService:
                                    .count()
 
     @staticmethod
-    def process_creation_data(data: dict) -> None:
-        if data.pop("global_estimate", False):
-            snapshot_id = data.get("request_query_snapshot")
-            snapshot = RequestQuerySnapshot.objects.get(pk=snapshot_id)
-            dm_global = DatedMeasure.objects.create(owner=snapshot.owner,
-                                                    request_query_snapshot=snapshot,
-                                                    mode=GLOBAL_DM_MODE)
-            data["dated_measure_global"] = dm_global.uuid
-
-    @staticmethod
-    def process_cohort_creation(request, cohort_uuid: str):
-        cohort = CohortResult.objects.get(pk=cohort_uuid)
-        auth_headers = get_authorization_header(request=request)
-        if cohort.dated_measure_global:
-            dm_global = cohort.dated_measure_global
-            try:
-                count_cohort_task.s(auth_headers=auth_headers,
-                                    json_query=cohort.request_query_snapshot.serialized_query,
-                                    dm_uuid=dm_global.uuid)\
-                              .apply_async()
-            except Exception as e:
-                dm_global.request_job_fail_msg = f"ERROR: Could not launch cohort global count: {e}"
-                dm_global.request_job_status = JobStatus.failed
-                dm_global.save()
-        try:
-            create_cohort_task.delay(auth_headers,
-                                     cohort.request_query_snapshot.serialized_query,
-                                     cohort_uuid)
-        except Exception as e:
-            cohort.delete()
-            raise ServerError("INTERNAL ERROR: Could not launch cohort creation") from e
+    def proceed_with_cohort_creation(request, cohort: CohortResult):
+        if request.data.pop("global_estimate", False):
+            CohortCountManager().handle_global_estimate(cohort, request)
+        CohortCreateManager().launch_cohort_creation(cohort, request)
 
     @staticmethod
     def process_patch_data(cohort: CohortResult, data: dict) -> tuple[bool, bool]:

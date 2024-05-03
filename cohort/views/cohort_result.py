@@ -137,10 +137,9 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                                     '400': openapi.Response("Bad Request")})
     @transaction.atomic
     def create(self, request, *args, **kwargs):
-        cohort_service.process_creation_data(data=request.data)
         response = super().create(request, *args, **kwargs)
-        transaction.on_commit(lambda: cohort_service.process_cohort_creation(request=request,
-                                                                             cohort_uuid=response.data.get("uuid")))
+        transaction.on_commit(lambda: cohort_service.proceed_with_cohort_creation(request=request,
+                                                                                  cohort=response.data.serializer.instance))
         return response
 
     @swagger_auto_schema(operation_summary="Used by Front to update cohort's name, description and favorite."
