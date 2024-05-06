@@ -104,6 +104,10 @@ class AccessesService:
         user_accesses = self.get_user_valid_accesses(user=user)
         return user_accesses.filter(Role.q_allow_read_research_opposed_patient_data()).exists()
 
+    def is_user_read_patient_full_access(self, user: User) -> bool:
+        user_accesses = self.get_user_valid_accesses(user=user)
+        return user_accesses.filter(Role.q_allow_search_patients_unlimited()).exists()
+
     def get_user_data_accesses(self, user: User) -> QuerySet:
         return self.get_user_valid_accesses(user).filter(join_qs([Q(role__right_read_patient_nominative=True),
                                                                   Q(role__right_read_patient_pseudonymized=True),
