@@ -21,7 +21,8 @@ class PerimetersService:
                                                  for i in range(1, len(PERIMETERS_TYPES))]))
 
     @staticmethod
-    def get_top_perimeters_ids_same_level(same_level_perimeters_ids: List[int], all_perimeters_ids: List[int]) -> Set[int]:
+    def get_top_perimeters_ids_same_level(same_level_perimeters_ids: List[int], all_perimeters_ids: List[int]) -> Set[
+        int]:
         """
         * If any of the parent perimeters of P is already linked to an access (same level OR inferior levels),
           then, perimeter P is not the highest perimeter in its relative hierarchy (branch), i.e. one of its parents is.
@@ -49,7 +50,8 @@ class PerimetersService:
         """
         top_perimeters_ids = []
         for p in Perimeter.objects.filter(id__in=inf_levels_perimeters_ids):
-            if p.id not in top_same_level_perimeters_ids and all(parent_id not in all_perimeters_ids for parent_id in p.above_levels):
+            if p.id not in top_same_level_perimeters_ids and all(
+                    parent_id not in all_perimeters_ids for parent_id in p.above_levels):
                 children_ids = p.inferior_levels
                 if not children_ids:
                     continue
@@ -84,16 +86,19 @@ class PerimetersService:
             inf_levels_perimeters_ids = [access.perimeter.id for access in inf_levels_accesses]
             all_perimeters_ids = same_level_perimeters_ids + inf_levels_perimeters_ids
 
-            top_same_level_perimeters_ids = self.get_top_perimeters_ids_same_level(same_level_perimeters_ids=same_level_perimeters_ids,
-                                                                                   all_perimeters_ids=all_perimeters_ids)
-            top_inf_levels_perimeters_ids = self.get_top_perimeter_ids_inf_levels(inf_levels_perimeters_ids=inf_levels_perimeters_ids,
-                                                                                  all_perimeters_ids=all_perimeters_ids,
-                                                                                  top_same_level_perimeters_ids=top_same_level_perimeters_ids)
+            top_same_level_perimeters_ids = self.get_top_perimeters_ids_same_level(
+                same_level_perimeters_ids=same_level_perimeters_ids,
+                all_perimeters_ids=all_perimeters_ids)
+            top_inf_levels_perimeters_ids = self.get_top_perimeter_ids_inf_levels(
+                inf_levels_perimeters_ids=inf_levels_perimeters_ids,
+                all_perimeters_ids=all_perimeters_ids,
+                top_same_level_perimeters_ids=top_same_level_perimeters_ids)
             return Perimeter.objects.filter(id__in=top_same_level_perimeters_ids.union(top_inf_levels_perimeters_ids))
 
     @staticmethod
     def get_list_cohort_id_care_site(cohorts_ids: List[str], owner: User):
-        fact_relationships = FactRelationShip.objects.raw(FactRelationShip.psql_query_get_cohort_population_source(cohorts_ids))
+        fact_relationships = FactRelationShip.objects.raw(
+            FactRelationShip.psql_query_get_cohort_population_source(cohorts_ids))
         cohort_pop_source = cohorts_ids.copy()
         for fact in fact_relationships:
             if not owner.user_cohorts.filter(fhir_group_id=fact.fact_id_1).exists():
@@ -104,8 +109,9 @@ class PerimetersService:
         return cohort_pop_source
 
     def get_target_perimeters(self, cohort_ids: str, owner: User) -> QuerySet:
-        virtual_cohort_ids = self.get_list_cohort_id_care_site(cohorts_ids=[cohort_id for cohort_id in cohort_ids.split(",")],
-                                                               owner=owner)
+        virtual_cohort_ids = self.get_list_cohort_id_care_site(
+            cohorts_ids=[cohort_id for cohort_id in cohort_ids.split(",")],
+            owner=owner)
         return Perimeter.objects.filter(cohort_id__in=virtual_cohort_ids)
 
     @staticmethod
@@ -158,7 +164,8 @@ class PerimetersService:
                                                                 right_read_patient_pseudonymized=read_pseudo,
                                                                 right_search_patients_by_ipp=allow_search_by_ipp,
                                                                 right_read_opposed_patients_data=allow_read_opposed_patient))
-        return perimeter_read_right_list
+
+        return sorted(perimeter_read_right_list, key=lambda x: (x.perimeter.full_path, x.perimeter.id))
 
     def get_data_read_rights_on_perimeters(self, user: User, is_request_filtered: bool, filtered_perimeters: QuerySet):
         user_accesses = accesses_service.get_user_valid_accesses(user=user)
@@ -172,17 +179,21 @@ class PerimetersService:
         read_nomi_perimeters_ids = [access.perimeter_id for access in read_patient_nominative_accesses]
         read_pseudo_perimeters_ids = [access.perimeter_id for access in read_patient_pseudo_accesses]
 
-        top_read_nomi_perimeters_ids = self.get_top_perimeters_with_right_read_nomi(read_nomi_perimeters_ids=read_nomi_perimeters_ids)
-        top_read_pseudo_perimeters_ids = self.get_top_perimeters_with_right_read_pseudo(top_read_nomi_perimeters_ids=top_read_nomi_perimeters_ids,
-                                                                                        read_pseudo_perimeters_ids=read_pseudo_perimeters_ids)
+        top_read_nomi_perimeters_ids = self.get_top_perimeters_with_right_read_nomi(
+            read_nomi_perimeters_ids=read_nomi_perimeters_ids)
+        top_read_pseudo_perimeters_ids = self.get_top_perimeters_with_right_read_pseudo(
+            top_read_nomi_perimeters_ids=top_read_nomi_perimeters_ids,
+            read_pseudo_perimeters_ids=read_pseudo_perimeters_ids)
 
         if is_request_filtered:
             user_main_perimeters = Perimeter.objects.filter(id__in={a.perimeter_id for a in user_accesses})
-            all_user_perimeters = [user_main_perimeters] + [self.get_all_child_perimeters(p) for p in user_main_perimeters]
+            all_user_perimeters = [user_main_perimeters] + [self.get_all_child_perimeters(p) for p in
+                                                            user_main_perimeters]
             user_accessible_perimeters = reduce(lambda qs1, qs2: qs1 | qs2, all_user_perimeters)
             target_perimeters = user_accessible_perimeters
         else:
-            target_perimeters = Perimeter.objects.filter(id__in=top_read_nomi_perimeters_ids + top_read_pseudo_perimeters_ids)
+            target_perimeters = Perimeter.objects.filter(
+                id__in=top_read_nomi_perimeters_ids + top_read_pseudo_perimeters_ids)
 
         target_perimeters = target_perimeters.filter(id__in=filtered_perimeters)
 
