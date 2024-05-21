@@ -61,7 +61,7 @@ python-json-logger==2.0.7
 pytest==7.4.0
 PyYAML==6.0
 redis==4.6.0
-requests==2.31.0
+requests==2.32.0
 requests-kerberos==0.14.0
 ruamel.yaml==0.17.21
 ruff==0.3.7
