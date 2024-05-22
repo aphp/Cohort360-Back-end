@@ -48,7 +48,7 @@ class ExportService:
                                                                             table_name=table_name,
                                                                             fhir_filter_id=fhir_filter_id,
                                                                             source_cohort=cohort_source,
-                                                                            http_request=kwargs.get("http_request"))
+                                                                            request=kwargs.get("http_request"))
                     else:
                         cohort_subset = cohort_source
                 else:

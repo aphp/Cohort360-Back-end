@@ -8,10 +8,11 @@ from rest_framework import status
 
 from admin_cohort.settings import COHORT_LIMIT
 from admin_cohort.types import JobStatus, MissingDataError
-from cohort.job_server_api.cohort_requests import CohortCreate, CohortCountAll, CohortCount, CohortCountFeasibility, AbstractCohortRequest
-from cohort.job_server_api import CohortQuery, SjsClient, JobServerResponse, job_server_status_mapper
 from cohort.models import CohortResult
-from cohort.services.misc import log_count_task, log_create_task, log_delete_task, log_count_all_task, log_feasibility_study_task
+from cohort_operators.misc import log_count_task, log_create_task, log_delete_task, log_count_all_task, log_feasibility_study_task
+from cohort_operators.cohort_requests import CohortCreate, CohortCountAll, CohortCount, CohortCountFeasibility, AbstractCohortRequest
+from cohort_operators import CohortQuery, SjsClient, JobServerResponse, job_server_status_mapper
+
 
 _logger = logging.getLogger("info")
 _logger_err = logging.getLogger("django.request")
@@ -49,7 +50,7 @@ def cancel_job(job_id: str) -> JobStatus:
     return new_status
 
 
-def post_to_sjs(json_query: str, uuid: str, cohort_cls: AbstractCohortRequest, logger: LoggerType) -> JobServerResponse:
+def post_to_job_server(json_query: str, uuid: str, cohort_cls: AbstractCohortRequest, logger: LoggerType) -> JobServerResponse:
     try:
         logger(uuid, f"Step 1: Converting the json query: {json_query}")
         cohort_query = CohortQuery(cohortUuid=uuid, **json.loads(json_query))
@@ -80,14 +81,14 @@ def post_to_sjs(json_query: str, uuid: str, cohort_cls: AbstractCohortRequest, l
 def post_count_cohort(auth_headers: dict, json_query: str, dm_uuid: str, global_estimate: bool = False) -> None:
     count_cls, logger = global_estimate and (CohortCountAll, log_count_all_task) or (CohortCount, log_count_task)
     count_request = count_cls(auth_headers=auth_headers, sjs_client=SjsClient())
-    post_to_sjs(json_query, dm_uuid, count_request, logger)
+    post_to_job_server(json_query, dm_uuid, count_request, logger)
 
 
 def post_create_cohort(auth_headers: dict, json_query: str, cr_uuid: str) -> None:
     cohort_request = CohortCreate(auth_headers=auth_headers, sjs_client=SjsClient())
-    post_to_sjs(json_query, cr_uuid, cohort_request, log_create_task)
+    post_to_job_server(json_query, cr_uuid, cohort_request, log_create_task)
 
 
 def post_count_for_feasibility(auth_headers: dict, json_query: str, fs_uuid: str) -> JobServerResponse:
     count_request = CohortCountFeasibility(auth_headers=auth_headers, sjs_client=SjsClient())
-    return post_to_sjs(json_query, fs_uuid, count_request, log_feasibility_study_task)
+    return post_to_job_server(json_query, fs_uuid, count_request, log_feasibility_study_task)

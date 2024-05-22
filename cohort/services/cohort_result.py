@@ -3,16 +3,13 @@ import logging
 from smtplib import SMTPException
 
 from django.utils import timezone
-from django.core.exceptions import ValidationError
 from django.db import transaction
 
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult, FhirFilter
-from cohort.job_server_api import job_server_status_mapper
-from cohort.services.cohort_managers import CohortCountManager, CohortCreateManager
-from cohort.services.misc import get_authorization_header
+from cohort.services.cohort_managers import CohortCountManager, CohortCreationManager
 from cohort.services.emails import send_email_notif_about_large_cohort
-from cohort.tasks import create_cohort_task
+from cohort_operators import job_server_status_mapper
 
 JOB_STATUS = "request_job_status"
 GROUP_ID = "group.id"
@@ -42,23 +39,24 @@ class CohortResultService:
                  }
         return json.dumps(query)
 
-    @staticmethod
-    def create_cohort_subset(http_request, owner_id: str, table_name: str, source_cohort: CohortResult, fhir_filter_id: str) -> CohortResult:
+    def create_cohort_subset(self, request, owner_id: str, table_name: str, source_cohort: CohortResult, fhir_filter_id: str) -> CohortResult:
+        def copy_query_snapshot(snapshot, serialized_query: str):
+            snapshot.pk = None
+            snapshot.save()
+            snapshot.serialized_query = serialized_query
+            snapshot.save()
+            return snapshot
+
+        query = self.build_query(cohort_source_id=source_cohort.group_id,
+                                 fhir_filter_id=fhir_filter_id)
+        rqs = copy_query_snapshot(source_cohort.request_query_snapshot, query)
         cohort_subset = CohortResult.objects.create(is_subset=True,
                                                     name=f"{table_name}_{source_cohort.group_id}",
                                                     owner_id=owner_id,
-                                                    dated_measure_id=source_cohort.dated_measure_id)
+                                                    dated_measure_id=source_cohort.dated_measure_id,
+                                                    request_query_snapshot=rqs)
         with transaction.atomic():
-            query = CohortResultService.build_query(cohort_source_id=source_cohort.group_id,
-                                                    fhir_filter_id=fhir_filter_id)
-            try:
-                auth_headers = get_authorization_header(request=http_request)
-                create_cohort_task.delay(auth_headers,
-                                         query,
-                                         cohort_subset.uuid)
-            except Exception as e:
-                cohort_subset.delete()
-                raise ValidationError(f"Error creating the cohort subset for export: {e}")
+            CohortCreationManager().handle_cohort_creation(cohort_subset, request)
         return cohort_subset
 
     @staticmethod
@@ -74,7 +72,7 @@ class CohortResultService:
     def proceed_with_cohort_creation(request, cohort: CohortResult):
         if request.data.pop("global_estimate", False):
             CohortCountManager().handle_global_estimate(cohort, request)
-        CohortCreateManager().launch_cohort_creation(cohort, request)
+        CohortCreationManager().handle_cohort_creation(cohort, request)
 
     @staticmethod
     def process_patch_data(cohort: CohortResult, data: dict) -> tuple[bool, bool]:

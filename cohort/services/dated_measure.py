@@ -1,12 +1,12 @@
 import logging
 from django.utils import timezone
 
-from admin_cohort.types import JobStatus, ServerError
+from admin_cohort.types import JobStatus
 from cohort.models import DatedMeasure
 from cohort.models.dated_measure import GLOBAL_DM_MODE
-from cohort.job_server_api import job_server_status_mapper
-from cohort.services.misc import get_authorization_header
-from cohort.tasks import count_cohort_task, cancel_previous_count_jobs
+
+from cohort.services.cohort_managers import CohortCountManager
+from cohort_operators import job_server_status_mapper
 
 JOB_STATUS = "request_job_status"
 COUNT = "count"
@@ -21,20 +21,12 @@ _logger_err = logging.getLogger('django.request')
 
 class DatedMeasureService:
 
-    def process_dated_measure(self, dm_uuid: str, request):
-        dm = DatedMeasure.objects.get(pk=dm_uuid)
-        cancel_previous_count_jobs.delay(dm_uuid)
-        try:
-            auth_headers = get_authorization_header(request)
-            count_cohort_task.s(auth_headers=auth_headers,
-                                json_query=dm.request_query_snapshot.serialized_query,
-                                dm_uuid=dm_uuid)\
-                          .apply_async()
-        except Exception as e:
-            dm.delete()
-            raise ServerError("INTERNAL ERROR: Could not launch count request") from e
+    @staticmethod
+    def process_dated_measure(dm: DatedMeasure, request) -> None:
+        CohortCountManager().handle_count(dm, request)
 
-    def process_patch_data(self, dm: DatedMeasure, data: dict) -> None:
+    @staticmethod
+    def process_patch_data(dm: DatedMeasure, data: dict) -> None:
         _logger.info(f"DatedMeasure [{dm.uuid}] Received patch data: {data}")
         job_status = job_server_status_mapper(data.get(JOB_STATUS))
         if not job_status:

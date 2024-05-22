@@ -63,9 +63,8 @@ class FeasibilityStudyViewSet(UserObjectsRestrictedViewSet):
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
-        transaction.on_commit(
-            lambda: feasibility_study_service.process_feasibility_study_request(fs_uuid=response.data.get("uuid"),
-                                                                                request=request))
+        transaction.on_commit(lambda: feasibility_study_service.process_feasibility_study(request=request,
+                                                                                          fs=response.data.serializer.instance))
         return response
 
     @swagger_auto_schema(operation_summary="Called by SJS with detailed counts",

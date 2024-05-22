@@ -69,17 +69,17 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
-        transaction.on_commit(lambda: dated_measure_service.process_dated_measure(dm_uuid=response.data.get("uuid"),
-                                                                                  request=request))
+        transaction.on_commit(lambda: dated_measure_service.process_dated_measure(request=request,
+                                                                                  dm=response.data.serializer.instance))
         return response
 
-    @swagger_auto_schema(operation_summary="Called by SJS to update DM's `measure` and other fields",
+    @swagger_auto_schema(operation_summary="Called by Job Server to update DM's `measure` and other fields",
                          request_body=openapi.Schema(
                              type=openapi.TYPE_OBJECT,
-                             properties={JOB_STATUS: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback"),
-                                         MINIMUM: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback"),
-                                         MAXIMUM: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback"),
-                                         COUNT: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback")},
+                             properties={JOB_STATUS: openapi.Schema(type=openapi.TYPE_STRING, description="For Job Server callback"),
+                                         MINIMUM: openapi.Schema(type=openapi.TYPE_STRING, description="For Job Server callback"),
+                                         MAXIMUM: openapi.Schema(type=openapi.TYPE_STRING, description="For Job Server callback"),
+                                         COUNT: openapi.Schema(type=openapi.TYPE_STRING, description="For Job Server callback")},
                              required=[JOB_STATUS, MINIMUM, MAXIMUM, COUNT]),
                          responses={'200': openapi.Response("DatedMeasure updated successfully", DatedMeasureSerializer()),
                                     '400': openapi.Response("Bad Request")})

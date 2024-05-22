@@ -3,13 +3,13 @@ from smtplib import SMTPException
 
 from celery import shared_task, current_task
 
-from cohort.services.job_server import post_count_cohort, post_create_cohort, post_count_for_feasibility, cancel_job
 from admin_cohort import celery_app
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult, DatedMeasure, FeasibilityStudy
 from cohort.models.dated_measure import GLOBAL_DM_MODE
 from cohort.services.emails import send_email_notif_feasibility_report_requested, send_email_notif_error_feasibility_report
 from cohort.services.decorators import locked_instance_task
+from cohort_operators.job_server import post_count_cohort, post_create_cohort, post_count_for_feasibility, cancel_job
 
 _logger = logging.getLogger('django.request')
 
@@ -26,7 +26,7 @@ def create_cohort_task(auth_headers: dict, json_query: str, cohort_uuid: str) ->
 
 @shared_task
 @locked_instance_task
-def count_cohort_task(auth_headers=None, json_query=None, dm_uuid=None) -> None:
+def count_cohort_task(auth_headers: dict, json_query: str, dm_uuid: str) -> None:
     dm = DatedMeasure.objects.get(uuid=dm_uuid)
     dm.count_task_id = current_task.request.id or ""
     dm.request_job_status = JobStatus.pending

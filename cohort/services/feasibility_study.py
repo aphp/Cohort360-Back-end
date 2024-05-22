@@ -6,18 +6,17 @@ from io import BytesIO
 from smtplib import SMTPException
 from typing import Tuple, List
 
-from celery import chain
 from django.db.models import QuerySet
 from django.template.loader import get_template
 
 from accesses.models import Perimeter
 from admin_cohort.settings import FRONT_URL
-from admin_cohort.types import JobStatus, ServerError
+from admin_cohort.types import JobStatus
 from cohort.models import FeasibilityStudy
-from cohort.job_server_api import job_server_status_mapper
-from cohort.services.misc import get_authorization_header
+
+from cohort.services.cohort_managers import CohortCountManager
 from cohort.services.emails import send_email_notif_feasibility_report_ready, send_email_notif_error_feasibility_report
-from cohort.tasks import feasibility_count_task, send_email_notification_task
+from cohort_operators import job_server_status_mapper
 
 env = os.environ
 
@@ -41,17 +40,8 @@ _logger_err = logging.getLogger('django.request')
 class FeasibilityStudyService:
 
     @staticmethod
-    def process_feasibility_study_request(fs_uuid: str, request):
-        fs = FeasibilityStudy.objects.get(pk=fs_uuid)
-        try:
-            auth_headers = get_authorization_header(request)
-            chain(*(feasibility_count_task.s(fs_uuid,
-                                             fs.request_query_snapshot.serialized_query,
-                                             auth_headers),
-                    send_email_notification_task.s(fs_uuid)))()
-        except Exception as e:
-            fs.delete()
-            raise ServerError("INTERNAL ERROR: Could not launch feasibility request") from e
+    def process_feasibility_study(fs: FeasibilityStudy, request) -> None:
+        CohortCountManager().handle_feasibility_study_count(fs, request)
 
     def process_patch_data(self, fs: FeasibilityStudy, data: dict) -> None:
         _logger.info(f"Received data to patch FeasibilityStudy: {data}")
