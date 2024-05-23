@@ -25,19 +25,19 @@ def load_operator(job_type: str):
 
 
 class CohortManager:
-    JOB_TYPE = None
+    job_type = None
 
     def __init__(self):
-        self.operator = load_operator(job_type=self.JOB_TYPE)
+        self.operator = load_operator(job_type=self.job_type)
 
 
 class CohortCountManager(CohortManager):
-    JOB_TYPE = "count"
+    job_type = "count"
 
     def handle_count(self, dm: DatedMeasure, request) -> None:
         self.operator.launch_count(dm, request)
 
-    def handle_global_estimate(self, cohort: CohortResult, request) -> None:
+    def handle_global_count(self, cohort: CohortResult, request) -> None:
         dm_global = DatedMeasure.objects.create(mode=GLOBAL_DM_MODE,
                                                 owner=request.user,
                                                 request_query_snapshot_id=request.data.get("request_query_snapshot"))
@@ -50,7 +50,7 @@ class CohortCountManager(CohortManager):
 
 
 class CohortCreationManager(CohortManager):
-    JOB_TYPE = "create"
+    job_type = "create"
 
     def handle_cohort_creation(self, cohort: CohortResult, request) -> None:
         self.operator.launch_cohort_creation(cohort, request)

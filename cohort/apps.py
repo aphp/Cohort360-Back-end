@@ -10,10 +10,10 @@ class CohortConfig(AppConfig):
         settings.COHORT_OPERATORS = getattr(settings, "COHORT_OPERATORS", [
             {
                 "TYPE": "count",
-                "OPERATOR_CLASS": "cohort.services.cohort_operators.DefaultCountOperator"
+                "OPERATOR_CLASS": "cohort.services.cohort_operators.DefaultCohortCount"
             },
             {
                 "TYPE": "create",
-                "OPERATOR_CLASS": "cohort.services.cohort_operators.DefaultCreateOperator"
+                "OPERATOR_CLASS": "cohort.services.cohort_operators.DefaultCohortCreator"
             }
         ])

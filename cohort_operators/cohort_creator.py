@@ -16,4 +16,4 @@ class CohortCreator:
 
         except Exception as e:
             cohort.delete()
-            raise ServerError("INTERNAL ERROR: Could not launch cohort creation") from e
+            raise ServerError("Could not launch cohort creation") from e

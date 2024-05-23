@@ -1,11 +1,23 @@
-from cohort.models import CohortResult
+from cohort.models import CohortResult, DatedMeasure, FeasibilityStudy
 
 
-class DefaultCountOperator:
+class DefaultCohortCount:
 
-    def launch_global_estimate(self, cohort: CohortResult, request):
+    @staticmethod
+    def launch_count(dm: DatedMeasure, request) -> None:
+        raise NotImplementedError()
+
+    @staticmethod
+    def launch_global_count(cohort: CohortResult, request) -> None:
+        raise NotImplementedError()
+
+    @staticmethod
+    def launch_feasibility_study_count(fs: FeasibilityStudy, request) -> None:
         raise NotImplementedError()
 
 
-class DefaultCreateOperator:
-    ...
+class DefaultCohortCreator:
+
+    @staticmethod
+    def launch_cohort_creation(cohort: CohortResult, request) -> None:
+        raise NotImplementedError()

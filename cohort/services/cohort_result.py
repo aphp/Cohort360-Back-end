@@ -6,7 +6,7 @@ from django.utils import timezone
 from django.db import transaction
 
 from admin_cohort.types import JobStatus
-from cohort.models import CohortResult, FhirFilter
+from cohort.models import CohortResult, FhirFilter, DatedMeasure, RequestQuerySnapshot
 from cohort.services.cohort_managers import CohortCountManager, CohortCreationManager
 from cohort.services.emails import send_email_notif_about_large_cohort
 from cohort_operators import job_server_status_mapper
@@ -40,21 +40,26 @@ class CohortResultService:
         return json.dumps(query)
 
     def create_cohort_subset(self, request, owner_id: str, table_name: str, source_cohort: CohortResult, fhir_filter_id: str) -> CohortResult:
-        def copy_query_snapshot(snapshot, serialized_query: str):
-            snapshot.pk = None
-            snapshot.save()
-            snapshot.serialized_query = serialized_query
-            snapshot.save()
-            return snapshot
+        def copy_query_snapshot(snapshot: RequestQuerySnapshot) -> RequestQuerySnapshot:
+            return RequestQuerySnapshot.objects.create(owner=snapshot.owner,
+                                                       request=snapshot.request,
+                                                       perimeters_ids=snapshot.perimeters_ids,
+                                                       serialized_query=query)
+
+        def copy_dated_measure(dm: DatedMeasure) -> DatedMeasure:
+            return DatedMeasure.objects.create(mode=dm.mode,
+                                               owner=dm.owner,
+                                               request_query_snapshot=new_rqs)
 
         query = self.build_query(cohort_source_id=source_cohort.group_id,
                                  fhir_filter_id=fhir_filter_id)
-        rqs = copy_query_snapshot(source_cohort.request_query_snapshot, query)
+        new_rqs = copy_query_snapshot(source_cohort.request_query_snapshot)
+        new_dm = copy_dated_measure(source_cohort.dated_measure)
         cohort_subset = CohortResult.objects.create(is_subset=True,
                                                     name=f"{table_name}_{source_cohort.group_id}",
                                                     owner_id=owner_id,
-                                                    dated_measure_id=source_cohort.dated_measure_id,
-                                                    request_query_snapshot=rqs)
+                                                    dated_measure_id=new_dm,
+                                                    request_query_snapshot=new_rqs)
         with transaction.atomic():
             CohortCreationManager().handle_cohort_creation(cohort_subset, request)
         return cohort_subset
@@ -71,7 +76,7 @@ class CohortResultService:
     @staticmethod
     def proceed_with_cohort_creation(request, cohort: CohortResult):
         if request.data.pop("global_estimate", False):
-            CohortCountManager().handle_global_estimate(cohort, request)
+            CohortCountManager().handle_global_count(cohort, request)
         CohortCreationManager().handle_cohort_creation(cohort, request)
 
     @staticmethod

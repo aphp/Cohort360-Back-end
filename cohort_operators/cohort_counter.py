@@ -19,7 +19,7 @@ class CohortCounter:
                              .apply_async()
         except Exception as e:
             dm.delete()
-            raise ServerError("INTERNAL ERROR: Could not launch count request") from e
+            raise ServerError("Could not launch count request") from e
 
     @staticmethod
     def launch_global_count(cohort: CohortResult, request) -> None:
@@ -30,7 +30,7 @@ class CohortCounter:
                                 dm_uuid=dm_global.uuid) \
                 .apply_async()
         except Exception as e:
-            dm_global.request_job_fail_msg = f"ERROR: Could not launch cohort global count: {e}"
+            dm_global.request_job_fail_msg = f"Could not launch cohort global count: {e}"
             dm_global.request_job_status = JobStatus.failed
             dm_global.save()
 
@@ -43,5 +43,5 @@ class CohortCounter:
                     send_email_notification_task.s(fs.uuid)))()
         except Exception as e:
             fs.delete()
-            raise ServerError("INTERNAL ERROR: Could not launch feasibility request") from e
+            raise ServerError("Could not launch feasibility request") from e
 
