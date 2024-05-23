@@ -44,10 +44,16 @@ class CohortResultService:
 
     @staticmethod
     def create_cohort_subset(http_request, owner_id: str, table_name: str, source_cohort: CohortResult, fhir_filter_id: str) -> CohortResult:
+        def copy_dated_measure(dm: DatedMeasure) -> DatedMeasure:
+            dm.pk = None
+            dm.save()
+            return dm
+
+        new_dm = copy_dated_measure(dm=source_cohort.dated_measure)
         cohort_subset = CohortResult.objects.create(is_subset=True,
                                                     name=f"{table_name}_{source_cohort.fhir_group_id}",
                                                     owner_id=owner_id,
-                                                    dated_measure_id=source_cohort.dated_measure_id)
+                                                    dated_measure=new_dm)
         with transaction.atomic():
             query = CohortResultService.build_query(cohort_source_id=source_cohort.fhir_group_id,
                                                     fhir_filter_id=fhir_filter_id)
