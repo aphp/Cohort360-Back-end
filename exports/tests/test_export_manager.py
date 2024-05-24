@@ -39,6 +39,11 @@ class TestExportManager(ExportsTests):
 
     def setUp(self):
         super().setUp()
+        self.basic_export_data = dict(output_format="plain",
+                                      nominative=True,
+                                      motivation='motivation')
+        self.basic_export = Export.objects.create(**self.basic_export_data,
+                                                  owner=self.user1)
         with mock.patch("exports.services.export_operators.load_available_exporters") as mock_load_available_exporters:
             mock_load_available_exporters.return_value = {"plain": DefaultExporter}
             self.export_manager = ExportManager()
@@ -54,13 +59,5 @@ class TestExportManager(ExportsTests):
             self.export_manager.validate(export_data=export_data, owner=self.user1)
 
     def test_handle_export(self):
-        export_data = dict(output_format="plain",
-                           nominative=True,
-                           motivation='motivation',
-                           owner=self.user1)
-        export = Export.objects.create(**export_data)
         with self.assertRaises(NotImplementedError):
-            self.export_manager.handle_export(export_id=export.pk)
-
-
-
+            self.export_manager.handle_export(export_id=self.basic_export.pk)

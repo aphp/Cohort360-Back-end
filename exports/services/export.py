@@ -64,11 +64,12 @@ class ExportService:
             cohort_subset_status = table.cohort_result_subset.request_job_status
             if cohort_subset_status == JobStatus.failed.value:
                 ExportManager().mark_as_failed(export=export, reason="One or multiple cohort subsets has failed")
+                return
             elif cohort_subset_status != JobStatus.finished.value:
                 _logger.info(f"Export[{export.uuid}]: waiting for cohort subsets to finish before launching export")
-            else:
-                _logger.info(f"Export[{export.uuid}]: all cohort subsets were successfully created. Launching export.")
-                launch_export_task.delay(export.pk)
+                return
+        _logger.info(f"Export[{export.uuid}]: all cohort subsets were successfully created. Launching export.")
+        launch_export_task.delay(export.pk)
 
     @staticmethod
     def download(export: Export) -> StreamingHttpResponse:
