@@ -61,10 +61,12 @@ class ExportService:
     @staticmethod
     def check_all_cohort_subsets_created(export: Export):
         for table in export.export_tables.filter(cohort_result_subset__isnull=False):
-            if table.cohort_result_subset.request_job_status != JobStatus.finished:
-                _logger.info(f"Export [{export.uuid}]: waiting for some cohort subsets to finish before launching export")
+            if table.cohort_result_subset.request_job_status != JobStatus.failed.value:
+                ExportManager().mark_as_failed(export=export, reason="One or multiple cohort subsets has failed")
+            elif table.cohort_result_subset.request_job_status != JobStatus.finished.value:
+                _logger.info(f"Export[{export.uuid}]: waiting for cohort subsets to finish before launching export")
                 return
-        _logger.info(f"Export [{export.uuid}]: all cohort subsets were successfully created. Launching export.")
+        _logger.info(f"Export[{export.uuid}]: all cohort subsets were successfully created. Launching export.")
         launch_export_task.delay(export.pk)
 
     @staticmethod

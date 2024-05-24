@@ -65,6 +65,10 @@ class ExportManager:
         exporter = self._get_exporter(export.output_format)
         exporter().handle_export(export=export)
 
+    def mark_as_failed(self, export: Export, reason: str) -> None:
+        exporter = self._get_exporter(export.output_format)
+        exporter().mark_export_as_failed(export=export, reason=reason)
+
 
 class DefaultExporter:
 

@@ -31,14 +31,10 @@ class CohortResultService:
                  "resourceType": fhir_filter.fhir_resource,
                  "sourcePopulation": {"caresiteCohortList": [cohort_source_id]},
                  "request": {"_id": 0,
-                             "_type": "andGroup",
+                             "_type": "basicResource",
                              "isInclusive": True,
-                             "criteria": [{"_id": 1,
-                                           "_type": "basicResource",
-                                           "isInclusive": True,
-                                           "filterFhir": fhir_filter.filter,
-                                           "resourceType": fhir_filter.fhir_resource
-                                           }]
+                             "filterFhir": fhir_filter.filter,
+                             "resourceType": fhir_filter.fhir_resource
                              }
                  }
         return json.dumps(query)
