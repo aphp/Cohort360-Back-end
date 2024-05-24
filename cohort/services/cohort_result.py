@@ -28,6 +28,7 @@ class CohortResultService:
     def build_query(cohort_source_id: str, fhir_filter_id: str) -> str:
         fhir_filter = FhirFilter.objects.get(pk=fhir_filter_id)
         query = {"_type": "request",
+                 "resourceType": fhir_filter.fhir_resource,
                  "sourcePopulation": {"caresiteCohortList": [cohort_source_id]},
                  "request": {"_id": 0,
                              "_type": "andGroup",
