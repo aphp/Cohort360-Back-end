@@ -86,7 +86,8 @@ class Criteria(BaseModel):
 class CohortQuery(BaseModel):
     cohort_uuid: UUID = Field(None, alias='cohortUuid')
     cohort_name: str = Field(None, alias='cohortName')
-    source_population: SourcePopulation = Field(alias="sourcePopulation")
+    source_population: SourcePopulation = Field(None, alias="sourcePopulation")
+    resource_type: ResourceType = Field(None, alias="resourceType")
     criteria_type: CriteriaType = Field(None, alias="_type")
     criteria: Criteria = Field(None, alias="request")
     temporal_constraints: list[TemporalConstraint] = Field(default_factory=list, alias='temporalConstraints')
