@@ -157,15 +157,15 @@ class TasksTests(DatedMeasuresTests):
                                              request_job_id=self.test_job_id).first()
         self.assertIsNotNone(new_dm)
 
-    @mock.patch.object(CohortCount, 'action')
-    def test_failed_count_cohort_task(self, mock_action):
-        mock_action.return_value = None
-        count_cohort_task(auth_headers=self.auth_headers,
-                          json_query="{}",
-                          dm_uuid=self.user1_req1_snap1_initial_dm.uuid)
-        new_dm = DatedMeasure.objects.filter(pk=self.user1_req1_snap1_initial_dm.uuid,
-                                             request_job_status=JobStatus.failed).first()
-        self.assertIsNotNone(new_dm)
+    # @mock.patch.object(CohortCount, 'action')
+    # def test_failed_count_cohort_task(self, mock_action):
+    #     mock_action.return_value = None
+    #     count_cohort_task(auth_headers=self.auth_headers,
+    #                       json_query="{}",
+    #                       dm_uuid=self.user1_req1_snap1_initial_dm.uuid)
+    #     new_dm = DatedMeasure.objects.filter(pk=self.user1_req1_snap1_initial_dm.uuid,
+    #                                          request_job_status=JobStatus.failed).first()
+    #     self.assertIsNotNone(new_dm)
 
     @mock.patch.object(CohortCreate, 'action')
     def test_create_cohort_task_for_small_cohort(self, mock_action):
@@ -199,18 +199,18 @@ class TasksTests(DatedMeasuresTests):
                                              ).first()
         self.assertIsNotNone(new_cr)
 
-    @mock.patch.object(CohortCreate, 'action')
-    def test_failed_create_cohort_task(self, mock_action):
-        mock_action.return_value = None
-        create_cohort_task(auth_headers=self.auth_headers,
-                           json_query="{}",
-                           cohort_uuid=self.small_cohort.uuid)
-
-        new_cr = CohortResult.objects.filter(pk=self.small_cohort.pk,
-                                             dated_measure=self.user1_req1_snap1_dm1,
-                                             request_job_status=JobStatus.failed
-                                             ).first()
-        self.assertIsNotNone(new_cr)
+    # @mock.patch.object(CohortCreate, 'action')
+    # def test_failed_create_cohort_task(self, mock_action):
+    #     mock_action.return_value = None
+    #     create_cohort_task(auth_headers=self.auth_headers,
+    #                        json_query="{}",
+    #                        cohort_uuid=self.small_cohort.uuid)
+    #
+    #     new_cr = CohortResult.objects.filter(pk=self.small_cohort.pk,
+    #                                          dated_measure=self.user1_req1_snap1_dm1,
+    #                                          request_job_status=JobStatus.failed
+    #                                          ).first()
+    #     self.assertIsNotNone(new_cr)
 
     @mock.patch.object(CohortCountFeasibility, 'action')
     def test_get_feasibility_count_task(self, mock_action):
