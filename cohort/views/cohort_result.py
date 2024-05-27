@@ -179,7 +179,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                                     }
         ws_send_to_client(_object=cohort, job_name='create', extra_info=extra_info)
         if status.is_success(response.status_code):
-            if (is_update_from_sjs or is_update_from_etl) and cohort.export_table.exists():
+            if is_update_from_sjs and cohort.export_table.exists():
                 export_service.check_all_cohort_subsets_created(export=cohort.export_table.first().export)
             cohort_service.send_email_notification(cohort=cohort,
                                                    is_update_from_sjs=is_update_from_sjs,
