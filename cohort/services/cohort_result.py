@@ -47,7 +47,8 @@ class CohortResultService:
         def copy_dated_measure(dm: DatedMeasure) -> DatedMeasure:
             return DatedMeasure.objects.create(mode=dm.mode,
                                                owner=dm.owner,
-                                               request_query_snapshot=dm.request_query_snapshot)
+                                               request_query_snapshot=dm.request_query_snapshot,
+                                               measure=dm.measure)
 
         new_dm = copy_dated_measure(source_cohort.dated_measure)
         cohort_subset = CohortResult.objects.create(is_subset=True,
