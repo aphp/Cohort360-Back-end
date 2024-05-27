@@ -27,14 +27,16 @@ class CohortResultService:
     @staticmethod
     def build_query(cohort_source_id: str, fhir_filter_id: str) -> str:
         fhir_filter = FhirFilter.objects.get(pk=fhir_filter_id)
+        resource_type = fhir_filter.fhir_resource
+        resource_type_suffixed = f"{resource_type}Aphp"
         query = {"_type": "request",
-                 "resourceType": fhir_filter.fhir_resource,
+                 "resourceType": resource_type,
                  "sourcePopulation": {"caresiteCohortList": [cohort_source_id]},
                  "request": {"_id": 0,
                              "_type": "basicResource",
                              "isInclusive": True,
                              "filterFhir": fhir_filter.filter,
-                             "resourceType": fhir_filter.fhir_resource
+                             "resourceType": resource_type_suffixed
                              }
                  }
         return json.dumps(query)
