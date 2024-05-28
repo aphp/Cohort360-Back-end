@@ -91,11 +91,11 @@ class Role(BaseModel):
         return Q(role__right_search_patients_by_ipp=True)
 
     @staticmethod
-    def q_allow_search_patients_unlimited() -> Q:
+    def q_allow_unlimited_patients_search() -> Q:
         return Q(right_search_patients_unlimited=True)
 
     @staticmethod
-    def q_allow_read_research_opposed_patient_data() -> Q:
+    def q_allow_read_search_opposed_patient_data() -> Q:
         return Q(role__right_search_opposed_patients=True)
 
     @staticmethod

@@ -20,8 +20,7 @@ class PerimeterViewTests(AccessesAppTestsBase):
     update_view = PerimeterViewSet.as_view({'patch': 'partial_update'})
     close_view = PerimeterViewSet.as_view(actions={'patch': 'close'})
     get_manageable_perimeters_view = PerimeterViewSet.as_view(actions={'get': 'get_manageable_perimeters'})
-    get_data_read_rights_on_perimeters_view = PerimeterViewSet.as_view(
-        actions={'get': 'get_data_read_rights_on_perimeters'})
+    get_data_read_rights_on_perimeters_view = PerimeterViewSet.as_view(actions={'get': 'get_data_read_rights_on_perimeters'})
     check_read_patient_data_rights_view = PerimeterViewSet.as_view(actions={'get': 'check_read_patient_data_rights'})
     model = Perimeter
     model_objects = Perimeter.objects
@@ -65,8 +64,7 @@ class PerimeterViewTests(AccessesAppTestsBase):
                      self.role_data_accesses_manager]
 
             for perimeter, role in zip(perimeters, roles):
-                self.create_new_access_for_user(profile=self.profile_z, role=role, perimeter=perimeter,
-                                                close_existing=False)
+                self.create_new_access_for_user(profile=self.profile_z, role=role, perimeter=perimeter, close_existing=False)
 
             top_manageable_perimeters_ids = [self.p0.id, self.p2.id]
             return base_case.clone(user=self.user_z,
@@ -94,8 +92,7 @@ class PerimeterViewTests(AccessesAppTestsBase):
                      self.role_data_accesses_manager_inf_levels]
 
             for perimeter, role in zip(perimeters, roles):
-                self.create_new_access_for_user(profile=self.profile_t, role=role, perimeter=perimeter,
-                                                close_existing=False)
+                self.create_new_access_for_user(profile=self.profile_t, role=role, perimeter=perimeter, close_existing=False)
 
             top_manageable_perimeters_ids = [self.p3.id, self.p4.id, self.p5.id,
                                              self.p1.id,
@@ -143,8 +140,7 @@ class PerimeterViewTests(AccessesAppTestsBase):
 
         self.profile_y.accesses.all().update(end_datetime=timezone.now())
         for perimeter, role in zip(perimeters, roles):
-            self.create_new_access_for_user(profile=self.profile_y, role=role, perimeter=perimeter,
-                                            close_existing=False)
+            self.create_new_access_for_user(profile=self.profile_y, role=role, perimeter=perimeter, close_existing=False)
 
         def get_data_read_rights_on_perimeters_1():
             data_read_rights_p0 = PerimeterReadRight(perimeter=self.p0,
@@ -217,10 +213,8 @@ class PerimeterViewTests(AccessesAppTestsBase):
                                 self.assertEqual(getattr(expected_dr, k, False), v)
 
     @mock.patch('accesses.views.perimeter.perimeters_service.get_target_perimeters')
-    def check_list_case_with_mock(self, case: ListCase, mock_get_target_perimeters: MagicMock,
-                                  check_mock_was_called=True):
-        mock_get_target_perimeters.return_value = Perimeter.objects.filter(
-            cohort_id__in=case.params.get("cohort_ids", "").split(","))
+    def check_list_case_with_mock(self, case: ListCase, mock_get_target_perimeters: MagicMock, check_mock_was_called=True):
+        mock_get_target_perimeters.return_value = Perimeter.objects.filter(cohort_id__in=case.params.get("cohort_ids", "").split(","))
         response_data = self.check_list_case(case=case,
                                              other_view=PerimeterViewTests.check_read_patient_data_rights_view,
                                              yield_response_data=True)
@@ -234,17 +228,17 @@ class PerimeterViewTests(AccessesAppTestsBase):
         for perimeter, role in zip(perimeters, roles):
             self.create_new_access_for_user(profile=profile, role=role, perimeter=perimeter, close_existing=False)
 
-    #                                                       APHP
-    #                             ___________________________|____________________________
-    #                            |                           |                           |
-    #                            P0                          P1                          P2
-    #                   _________|__________           ______|_______           _________|__________
-    #                  |         |         |          |             |          |         |         |
-    #                  P3        P4        P5         P6            P7         P8        P9       P10
-    #                      ______|_______                                                    ______|_______
-    #                     |             |                                                   |             |
-    #                    P11           P12                                                 P13           P14
-    #
+#                                                       APHP
+#                             ___________________________|____________________________
+#                            |                           |                           |
+#                            P0                          P1                          P2
+#                   _________|__________           ______|_______           _________|__________
+#                  |         |         |          |             |          |         |         |
+#                  P3        P4        P5         P6            P7         P8        P9       P10
+#                      ______|_______                                                    ______|_______
+#                     |             |                                                   |             |
+#                    P11           P12                                                 P13           P14
+#
     def test_read_patient_data_rights_case_1(self):
         perimeters = [self.aphp, self.p1]
         roles = [self.role_data_reader_pseudo,
@@ -341,8 +335,7 @@ class PerimeterViewTests(AccessesAppTestsBase):
                                     params={"cohort_ids": cohort_ids, "mode": "min"},
                                     to_find={"allow_read_patient_data_nomi": False,
                                              "allow_lookup_opposed_patients": False,
-                                             "allow_read_patient_without_perimeter_limit": False
-                                             })
+                                             "allow_read_patient_without_perimeter_limit": False})
         self.check_list_case_with_mock(case)
 
     def test_read_patient_data_rights_case_7(self):
@@ -355,8 +348,7 @@ class PerimeterViewTests(AccessesAppTestsBase):
                                     params={"cohort_ids": cohort_ids, "mode": "min"},
                                     to_find={"allow_read_patient_data_nomi": True,
                                              "allow_lookup_opposed_patients": True,
-                                             "allow_read_patient_without_perimeter_limit": True
-                                             })
+                                             "allow_read_patient_without_perimeter_limit": True})
         self.check_list_case_with_mock(case)
 
     def test_read_patient_data_rights_case_8(self):
@@ -369,8 +361,7 @@ class PerimeterViewTests(AccessesAppTestsBase):
                                     params={"cohort_ids": cohort_ids, "mode": "max"},
                                     to_find={"allow_read_patient_data_nomi": True,
                                              "allow_lookup_opposed_patients": True,
-                                             "allow_read_patient_without_perimeter_limit": True
-                                             })
+                                             "allow_read_patient_without_perimeter_limit": True})
         self.check_list_case_with_mock(case)
 
     def test_read_patient_data_rights_missing_access_on_some_target_perimeters_1(self):

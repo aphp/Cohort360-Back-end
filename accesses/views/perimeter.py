@@ -66,12 +66,9 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
 
     @swagger_auto_schema(manual_parameters=
                          list(map(lambda x: openapi.Parameter(name=x[0], description=x[1], type=x[2],
-                                                              pattern=x[3] if len(x) == 4 else None,
-                                                              in_=openapi.IN_QUERY),
-                                  [["ordering", "'field' or '-field': name, type_source_value, source_value",
-                                    openapi.TYPE_STRING],
-                                   ["search", "Based on: name, type_source_value, source_value",
-                                    openapi.TYPE_STRING]])))
+                                                              pattern=x[3] if len(x) == 4 else None, in_=openapi.IN_QUERY),
+                                  [["ordering", "'field' or '-field': name, type_source_value, source_value", openapi.TYPE_STRING],
+                                   ["search", "Based on: name, type_source_value, source_value", openapi.TYPE_STRING]])))
     @cache_response()
     def list(self, request, *args, **kwargs):
         return super(PerimeterViewSet, self).list(request, *args, **kwargs)
@@ -101,8 +98,7 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
     def get_data_read_rights_on_perimeters(self, request, *args, **kwargs):
         filtered_perimeters = self.filter_queryset(self.queryset)
         data_reading_rights = perimeters_service.get_data_read_rights_on_perimeters(user=request.user,
-                                                                                    is_request_filtered=bool(
-                                                                                        request.query_params),
+                                                                                    is_request_filtered=bool(request.query_params),
                                                                                     filtered_perimeters=filtered_perimeters)
         page = self.paginate_queryset(data_reading_rights)
         if page:
@@ -123,7 +119,7 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
             return Response(data={"error": "Patient data reading `mode` is missing or has invalid value"},
                             status=status.HTTP_400_BAD_REQUEST)
         target_perimeters = self.queryset
-        if accesses_service.is_user_read_patient_full_access(user=user):
+        if accesses_service.is_user_allowed_unlimited_patients_read(user=user):
             data = {"allow_read_patient_data_nomi": True,
                     "allow_lookup_opposed_patients": True,
                     "allow_read_patient_without_perimeter_limit": True
@@ -141,9 +137,8 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
             return Response(data={"error": "User has no data reading accesses"}, status=status.HTTP_404_NOT_FOUND)
 
         if read_mode == MAX:
-            allow_read_patient_data_nomi = accesses_service.user_can_access_at_least_one_target_perimeter_in_nomi(
-                user=user,
-                target_perimeters=target_perimeters)
+            allow_read_patient_data_nomi = accesses_service \
+                .user_can_access_at_least_one_target_perimeter_in_nomi(user=user, target_perimeters=target_perimeters)
         else:
             allow_read_patient_data_nomi = accesses_service.user_can_access_all_target_perimeters_in_nomi(user=user,
                                                                                                           target_perimeters=target_perimeters)

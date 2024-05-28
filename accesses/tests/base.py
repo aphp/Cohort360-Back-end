@@ -21,55 +21,38 @@ from admin_cohort.tests.tests_tools import ViewSetTests, new_user_and_profile
 """
 
 PERIMETERS_DATA = [
-    {'id': 9999, 'name': 'APHP', 'source_value': 'APHP', 'short_name': 'AP-HP', 'local_id': 'Local APHP',
-     'type_source_value': 'AP-HP',
+    {'id': 9999, 'name': 'APHP', 'source_value': 'APHP', 'short_name': 'AP-HP', 'local_id': 'Local APHP', 'type_source_value': 'AP-HP',
      'parent_id': None, 'level': 1, 'above_levels_ids': '', 'inferior_levels_ids': '0,1,2', 'cohort_id': '9999'},
-    {'id': 0, 'name': 'P0', 'source_value': 'P0', 'short_name': 'P0', 'local_id': 'Local P0',
-     'type_source_value': 'Groupe hospitalier (GH)',
+    {'id': 0, 'name': 'P0', 'source_value': 'P0', 'short_name': 'P0', 'local_id': 'Local P0', 'type_source_value': 'Groupe hospitalier (GH)',
      'parent_id': 9999, 'level': 2, 'above_levels_ids': '9999', 'inferior_levels_ids': '3,4,5', 'cohort_id': '0'},
-    {'id': 1, 'name': 'P1', 'source_value': 'P1', 'short_name': 'P1', 'local_id': 'Local P1',
-     'type_source_value': 'Groupe hospitalier (GH)',
+    {'id': 1, 'name': 'P1', 'source_value': 'P1', 'short_name': 'P1', 'local_id': 'Local P1', 'type_source_value': 'Groupe hospitalier (GH)',
      'parent_id': 9999, 'level': 2, 'above_levels_ids': '9999', 'inferior_levels_ids': '6,7', 'cohort_id': '1'},
-    {'id': 2, 'name': 'P2', 'source_value': 'P2', 'short_name': 'P2', 'local_id': 'Local P2',
-     'type_source_value': 'Groupe hospitalier (GH)',
+    {'id': 2, 'name': 'P2', 'source_value': 'P2', 'short_name': 'P2', 'local_id': 'Local P2', 'type_source_value': 'Groupe hospitalier (GH)',
      'parent_id': 9999, 'level': 2, 'above_levels_ids': '9999', 'inferior_levels_ids': '8,9,10', 'cohort_id': '2'},
-    {'id': 3, 'name': 'P3', 'source_value': 'P3', 'short_name': 'P3', 'local_id': 'Local P3',
-     'type_source_value': 'Hôpital', 'parent_id': 0,
+    {'id': 3, 'name': 'P3', 'source_value': 'P3', 'short_name': 'P3', 'local_id': 'Local P3', 'type_source_value': 'Hôpital', 'parent_id': 0,
      'level': 3, 'above_levels_ids': '0,9999', 'cohort_id': '3'},
-    {'id': 4, 'name': 'P4', 'source_value': 'P4', 'short_name': 'P4', 'local_id': 'Local P4',
-     'type_source_value': 'Hôpital', 'parent_id': 0,
+    {'id': 4, 'name': 'P4', 'source_value': 'P4', 'short_name': 'P4', 'local_id': 'Local P4', 'type_source_value': 'Hôpital', 'parent_id': 0,
      'level': 3, 'above_levels_ids': '0,9999', 'inferior_levels_ids': '11,12', 'cohort_id': '4'},
-    {'id': 5, 'name': 'P5', 'source_value': 'P5', 'short_name': 'P5', 'local_id': 'Local P5',
-     'type_source_value': 'Hôpital', 'parent_id': 0,
+    {'id': 5, 'name': 'P5', 'source_value': 'P5', 'short_name': 'P5', 'local_id': 'Local P5', 'type_source_value': 'Hôpital', 'parent_id': 0,
      'level': 3, 'above_levels_ids': '0,9999', 'cohort_id': '5'},
-    {'id': 6, 'name': 'P6', 'source_value': 'P6', 'short_name': 'P6', 'local_id': 'Local P6',
-     'type_source_value': 'Hôpital', 'parent_id': 1,
+    {'id': 6, 'name': 'P6', 'source_value': 'P6', 'short_name': 'P6', 'local_id': 'Local P6', 'type_source_value': 'Hôpital', 'parent_id': 1,
      'level': 3, 'above_levels_ids': '1,9999', 'cohort_id': '6'},
-    {'id': 7, 'name': 'P7', 'source_value': 'P7', 'short_name': 'P7', 'local_id': 'Local P7',
-     'type_source_value': 'Hôpital', 'parent_id': 1,
+    {'id': 7, 'name': 'P7', 'source_value': 'P7', 'short_name': 'P7', 'local_id': 'Local P7', 'type_source_value': 'Hôpital', 'parent_id': 1,
      'level': 3, 'above_levels_ids': '1,9999', 'cohort_id': '7'},
-    {'id': 8, 'name': 'P8', 'source_value': 'P8', 'short_name': 'P8', 'local_id': 'Local P8',
-     'type_source_value': 'Hôpital', 'parent_id': 2,
+    {'id': 8, 'name': 'P8', 'source_value': 'P8', 'short_name': 'P8', 'local_id': 'Local P8', 'type_source_value': 'Hôpital', 'parent_id': 2,
      'level': 3, 'above_levels_ids': '2,9999', 'cohort_id': '8'},
-    {'id': 9, 'name': 'P9', 'source_value': 'P9', 'short_name': 'P9', 'local_id': 'Local P9',
-     'type_source_value': 'Hôpital', 'parent_id': 2,
+    {'id': 9, 'name': 'P9', 'source_value': 'P9', 'short_name': 'P9', 'local_id': 'Local P9', 'type_source_value': 'Hôpital', 'parent_id': 2,
      'level': 3, 'above_levels_ids': '2,9999', 'cohort_id': '9'},
-    {'id': 10, 'name': 'P10', 'source_value': 'P10', 'short_name': 'P10', 'local_id': 'Local P10',
-     'type_source_value': 'Hôpital', 'parent_id': 2,
+    {'id': 10, 'name': 'P10', 'source_value': 'P10', 'short_name': 'P10', 'local_id': 'Local P10', 'type_source_value': 'Hôpital', 'parent_id': 2,
      'level': 3, 'above_levels_ids': '2,9999', 'inferior_levels_ids': '13,14', 'cohort_id': '10'},
-    {'id': 11, 'name': 'P11', 'source_value': 'P11', 'short_name': 'P11', 'local_id': 'Local P11',
-     'type_source_value': 'Pôle/DMU', 'parent_id': 4,
+    {'id': 11, 'name': 'P11', 'source_value': 'P11', 'short_name': 'P11', 'local_id': 'Local P11', 'type_source_value': 'Pôle/DMU', 'parent_id': 4,
      'level': 4, 'above_levels_ids': '4,0,9999', 'cohort_id': '11'},
-    {'id': 12, 'name': 'P12', 'source_value': 'P12', 'short_name': 'P12', 'local_id': 'Local P12',
-     'type_source_value': 'Pôle/DMU', 'parent_id': 4,
+    {'id': 12, 'name': 'P12', 'source_value': 'P12', 'short_name': 'P12', 'local_id': 'Local P12', 'type_source_value': 'Pôle/DMU', 'parent_id': 4,
      'level': 4, 'above_levels_ids': '4,0,9999', 'cohort_id': '12'},
-    {'id': 13, 'name': 'P13', 'source_value': 'P13', 'short_name': 'P13', 'local_id': 'Local P13',
-     'type_source_value': 'Pôle/DMU',
+    {'id': 13, 'name': 'P13', 'source_value': 'P13', 'short_name': 'P13', 'local_id': 'Local P13', 'type_source_value': 'Pôle/DMU',
      'parent_id': 10, 'level': 4, 'above_levels_ids': '10,2,9999', 'cohort_id': '13'},
-    {'id': 14, 'name': 'P14', 'source_value': 'P14', 'short_name': 'P14', 'local_id': 'Local P14',
-     'type_source_value': 'Pôle/DMU',
-     'parent_id': 10, 'level': 4, 'above_levels_ids': '10,4,1', 'cohort_id': '14'}
-]
+    {'id': 14, 'name': 'P14', 'source_value': 'P14', 'short_name': 'P14', 'local_id': 'Local P14', 'type_source_value': 'Pôle/DMU',
+     'parent_id': 10, 'level': 4, 'above_levels_ids': '10,4,1', 'cohort_id': '14'}]
 
 ALL_RIGHTS = [f.name for f in Role._meta.fields if f.name.startswith('right_')]
 
@@ -215,8 +198,7 @@ class AccessesAppTestsBase(ViewSetTests):
         self.user_z, self.profile_z = new_user_and_profile()
         self.user_t, self.profile_t = new_user_and_profile()
 
-    def create_new_access_for_user(self, profile, role, perimeter, start_datetime=None, end_datetime=None,
-                                   close_existing: bool = True):
+    def create_new_access_for_user(self, profile, role, perimeter, start_datetime=None, end_datetime=None, close_existing: bool = True):
         if close_existing:
             profile.accesses.all().update(end_datetime=timezone.now())
         Access.objects.create(profile=profile,
