@@ -12,15 +12,13 @@ from rest_framework_extensions.mixins import NestedViewSetMixin
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools import join_qs
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
-from cohort.services.cohort_result import cohort_service, JOB_STATUS, GROUP_ID, GROUP_COUNT
+from cohort.services.cohort_result import cohort_service
 from cohort.models import CohortResult
 from cohort.permissions import SJSorETLCallbackPermission
 from cohort.serializers import CohortResultSerializer, CohortResultSerializerFullDatedMeasure
 from cohort.services.cohort_rights import cohort_rights_service
 from cohort.services.misc import is_sjs_or_etl_user
-from cohort.services.ws_event_manager import ws_send_to_client
 from cohort.views.shared import UserObjectsRestrictedViewSet
-from exports.services.export import export_service
 
 
 class CohortFilter(filters.FilterSet):
@@ -97,7 +95,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     def get_permissions(self):
         if is_sjs_or_etl_user(request=self.request):
             return [SJSorETLCallbackPermission()]
-        if self.action == 'get_active_jobs':
+        if self.action == self.get_active_jobs.__name__:
             return [AllowAny()]
         return super(CohortResultViewSet, self).get_permissions()
 
@@ -142,47 +140,32 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                                                                                   cohort=response.data.serializer.instance))
         return response
 
-    @swagger_auto_schema(operation_summary="Used by Front to update cohort's name, description and favorite."
-                                           "By SJS to update cohort's request_job_status, request_job_duration and "
-                                           "group_id. Also update count on DM."
-                                           "By ETL to update request_job_status on delayed large cohorts",
+    @swagger_auto_schema(operation_summary="Used by Front to update cohort metadata and JobServer to update cohort status,"
+                                           "count and group_id and by ETL to update status on delayed large cohorts",
                          request_body=openapi.Schema(
                              type=openapi.TYPE_OBJECT,
-                             properties={JOB_STATUS: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS and ETL callback"),
-                                         GROUP_ID: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback"),
-                                         GROUP_COUNT: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback"),
+                             properties={"request_job_status": openapi.Schema(type=openapi.TYPE_STRING, description="For JobServer and ETL callback"),
+                                         "group.id": openapi.Schema(type=openapi.TYPE_STRING, description="For JobServer callback"),
+                                         "group.count": openapi.Schema(type=openapi.TYPE_STRING, description="For JobServer callback"),
                                          "name": openapi.Schema(type=openapi.TYPE_STRING),
                                          "description": openapi.Schema(type=openapi.TYPE_STRING),
                                          "favorite": openapi.Schema(type=openapi.TYPE_STRING)},
-                             required=[JOB_STATUS, GROUP_ID, GROUP_COUNT]),
+                             required=["request_job_status", "group.id", "group.count"]),
                          responses={'200': openapi.Response("Cohort updated successfully"),
                                     '400': openapi.Response("Bad Request")})
     def partial_update(self, request, *args, **kwargs):
-        for field in self.non_updatable_fields:
-            if field in request.data:
-                return Response(data=f"`{field}` field cannot be updated",
-                                status=status.HTTP_400_BAD_REQUEST)
+        if any(field in self.non_updatable_fields for field in request.data):
+            return Response(data=f"The payload contains non-updatable fields `{request.data}`",
+                            status=status.HTTP_400_BAD_REQUEST)
         cohort = self.get_object()
         try:
-            is_update_from_sjs, is_update_from_etl = cohort_service.process_patch_data(cohort=cohort,
-                                                                                       data=request.data)
+            cohort_service.handle_patch_data(cohort=cohort, data=request.data)
         except ValueError as ve:
             return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
         response = super(CohortResultViewSet, self).partial_update(request, *args, **kwargs)
-        cohort.refresh_from_db()
-        global_dm = cohort.dated_measure_global
-        extra_info = {'group_id': cohort.group_id}
-        if global_dm:
-            extra_info['global'] = {'measure_min': global_dm.measure_min,
-                                    'measure_max': global_dm.measure_max
-                                    }
-        ws_send_to_client(_object=cohort, job_name='create', extra_info=extra_info)
+        cohort_service.ws_send_to_client(cohort=cohort)
         if status.is_success(response.status_code):
-            if is_update_from_sjs and cohort.export_table.exists():
-                export_service.check_all_cohort_subsets_created(export=cohort.export_table.first().export)
-            cohort_service.send_email_notification(cohort=cohort,
-                                                   is_update_from_sjs=is_update_from_sjs,
-                                                   is_update_from_etl=is_update_from_etl)
+            cohort_service.handle_cohort_post_update()
         return response
 
     @swagger_auto_schema(method='get',

@@ -1,22 +1,11 @@
 import json
-import logging
-from smtplib import SMTPException
 
-from django.utils import timezone
 from django.db import transaction
 
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult, FhirFilter, DatedMeasure, RequestQuerySnapshot
 from cohort.services.cohort_managers import CohortCountManager, CohortCreationManager
-from cohort.services.emails import send_email_notif_about_large_cohort
-from cohort_operators import job_server_status_mapper
-
-JOB_STATUS = "request_job_status"
-GROUP_ID = "group.id"
-GROUP_COUNT = "group.count"
-
-_logger = logging.getLogger('info')
-_logger_err = logging.getLogger('django.request')
+from cohort.services.ws_event_manager import ws_send_to_client
 
 
 class CohortResultService:
@@ -49,10 +38,10 @@ class CohortResultService:
         def copy_dated_measure(dm: DatedMeasure) -> DatedMeasure:
             return DatedMeasure.objects.create(mode=dm.mode,
                                                owner=dm.owner,
-                                               request_query_snapshot=new_rqs)
+                                               request_query_snapshot=new_rqs,
+                                               measure=dm.measure)
 
-        query = self.build_query(cohort_source_id=source_cohort.group_id,
-                                 fhir_filter_id=fhir_filter_id)
+        query = self.build_query(source_cohort.group_id, fhir_filter_id)
         new_rqs = copy_query_snapshot(source_cohort.request_query_snapshot)
         new_dm = copy_dated_measure(source_cohort.dated_measure)
         cohort_subset = CohortResult.objects.create(is_subset=True,
@@ -80,39 +69,23 @@ class CohortResultService:
         CohortCreationManager().handle_cohort_creation(cohort, request)
 
     @staticmethod
-    def process_patch_data(cohort: CohortResult, data: dict) -> tuple[bool, bool]:
-        _logger.info(f"Received data for cohort patch: {data}")
-        sjs_data_keys = (JOB_STATUS, GROUP_ID, GROUP_COUNT)
-        is_update_from_sjs = all([key in data for key in sjs_data_keys])
-        is_update_from_etl = JOB_STATUS in data and len(data) == 1
-
-        if JOB_STATUS in data:
-            job_status = job_server_status_mapper(data[JOB_STATUS])
-            if not job_status:
-                raise ValueError(f"Bad Request: Invalid job status: {data.get(JOB_STATUS)}")
-            if job_status in (JobStatus.finished, JobStatus.failed):
-                data["request_job_duration"] = str(timezone.now() - cohort.created_at)
-                if job_status == JobStatus.failed:
-                    data["request_job_fail_msg"] = "Received a failed status from SJS"
-            data['request_job_status'] = job_status
-        if GROUP_ID in data:
-            data["group_id"] = data.pop(GROUP_ID)
-        if GROUP_COUNT in data:
-            cohort.dated_measure.measure = data.pop(GROUP_COUNT)
-            cohort.dated_measure.save()
-        return is_update_from_sjs, is_update_from_etl
+    def handle_patch_data(cohort: CohortResult, data: dict) -> None:
+        CohortCreationManager().handle_patch_data(cohort, data)
 
     @staticmethod
-    def send_email_notification(cohort: CohortResult, is_update_from_sjs: bool, is_update_from_etl: bool) -> None:
-        if is_update_from_sjs:
-            _logger.info(f"Cohort [{cohort.uuid}] successfully updated from SJS")
-        if is_update_from_etl:
-            try:
-                send_email_notif_about_large_cohort(cohort.name, cohort.group_id, cohort.owner)
-            except (ValueError, SMTPException) as e:
-                _logger_err.exception(f"Cohort [{cohort.uuid}] - Couldn't send email to user after ETL patch: {e}")
-            else:
-                _logger.info(f"Cohort [{cohort.uuid}] successfully updated from ETL")
+    def handle_cohort_post_update(cohort: CohortResult, data) -> None:
+        CohortCreationManager().handle_cohort_post_update(cohort, data)
+
+    @staticmethod
+    def ws_send_to_client(cohort: CohortResult) -> None:
+        cohort.refresh_from_db()
+        global_dm = cohort.dated_measure_global
+        extra_info = {'group_id': cohort.group_id}  # todo: [front] rename `fhir_group_id` to `group_id`
+        if global_dm:
+            extra_info['global'] = {'measure_min': global_dm.measure_min,
+                                    'measure_max': global_dm.measure_max
+                                    }
+        ws_send_to_client(instance=cohort, job_name='create', extra_info=extra_info)
 
 
 cohort_service = CohortResultService()

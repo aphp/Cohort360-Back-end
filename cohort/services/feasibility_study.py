@@ -20,7 +20,6 @@ from cohort_operators import job_server_status_mapper
 
 env = os.environ
 
-APHP_ID = int(env.get("TOP_HIERARCHY_CARE_SITE_ID"))
 REPORTING_PERIMETER_TYPES = env.get("REPORTING_PERIMETER_TYPES").split(",")
 
 FRONT_REQUEST_URL = f"{FRONT_URL}/cohort/new"
@@ -123,7 +122,7 @@ class FeasibilityStudyService:
         return zipped_bytes
 
     def build_feasibility_report(self, counts_per_perimeter: dict) -> Tuple[dict, str]:
-        root_perimeter = Perimeter.objects.filter(id=APHP_ID)
+        root_perimeter = Perimeter.objects.filter(parent__isnull=True, level=1)
         return self.generate_report_content(perimeters=root_perimeter,
                                             counts_per_perimeter=counts_per_perimeter)
 
