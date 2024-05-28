@@ -1,20 +1,15 @@
 from __future__ import annotations
 
-import os
 from typing import TYPE_CHECKING
 
 from requests import Response
 
 from accesses.models import Perimeter
-from cohort.job_server_api.schemas import SourcePopulation
-from cohort.job_server_api.cohort_requests import AbstractCohortRequest
-from cohort.job_server_api.enums import Mode
 from cohort.models import DatedMeasure
+from cohort_operators.sjs_api import AbstractCohortRequest, Mode, SourcePopulation
 
 if TYPE_CHECKING:
-    from cohort.job_server_api.schemas import CohortQuery
-
-env = os.environ
+    from cohort_operators.sjs_api import CohortQuery
 
 
 class CohortCountAll(AbstractCohortRequest):

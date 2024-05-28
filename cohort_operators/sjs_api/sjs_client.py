@@ -9,7 +9,7 @@ import requests
 from requests import Response
 
 if TYPE_CHECKING:
-    from cohort.job_server_api.schemas import CohortQuery, SparkJobObject
+    from cohort_operators.sjs_api import CohortQuery, SparkJobObject
 
 SJS_URL = os.environ.get("SJS_URL")
 

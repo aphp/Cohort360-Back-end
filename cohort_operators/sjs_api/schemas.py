@@ -5,8 +5,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from cohort_operators.enums import CriteriaType, ResourceType, Mode
-from cohort_operators.exceptions import FhirException
+from cohort_operators.sjs_api.enums import CriteriaType, ResourceType, Mode
+from cohort_operators.sjs_api.exceptions import FhirException
 
 
 class PatientAge(BaseModel):

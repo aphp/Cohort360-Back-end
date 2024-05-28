@@ -4,12 +4,11 @@ from typing import TYPE_CHECKING
 
 from requests import Response
 
-from cohort.job_server_api.cohort_requests import AbstractCohortRequest
-from cohort.job_server_api.enums import Mode
 from cohort.models import DatedMeasure
+from cohort_operators.sjs_api import AbstractCohortRequest, Mode
 
 if TYPE_CHECKING:
-    from cohort.job_server_api.schemas import CohortQuery
+    from cohort_operators.sjs_api import CohortQuery
 
 
 class CohortCount(AbstractCohortRequest):

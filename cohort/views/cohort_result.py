@@ -19,6 +19,7 @@ from cohort.serializers import CohortResultSerializer, CohortResultSerializerFul
 from cohort.services.cohort_rights import cohort_rights_service
 from cohort.services.misc import is_sjs_or_etl_user
 from cohort.views.shared import UserObjectsRestrictedViewSet
+from exports.services.export import export_service
 
 
 class CohortFilter(filters.FilterSet):
@@ -166,6 +167,8 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         cohort_service.ws_send_to_client(cohort=cohort)
         if status.is_success(response.status_code):
             cohort_service.handle_cohort_post_update()
+            if cohort.export_table.exists():
+                export_service.check_all_cohort_subsets_created(export=cohort.export_table.first().export)
         return response
 
     @swagger_auto_schema(method='get',

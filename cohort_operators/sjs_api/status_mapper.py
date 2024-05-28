@@ -12,6 +12,6 @@ status_mapper = {"KILLED": JobStatus.cancelled,
                  }
 
 
-def job_server_status_mapper(status: str) -> JobStatus:
+def sjs_status_mapper(status: str) -> JobStatus:
     status = status and status.upper() or None
     return status_mapper.get(status)

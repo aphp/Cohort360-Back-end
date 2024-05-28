@@ -9,7 +9,6 @@ from rest_framework.request import Request
 
 from admin_cohort.middleware.request_trace_id_middleware import add_trace_id
 from admin_cohort.types import JobStatus
-from exports.services.export import export_service
 from cohort.models import DatedMeasure, CohortResult, FeasibilityStudy
 from cohort.models.dated_measure import GLOBAL_DM_MODE
 from cohort.services.misc import ServerError
@@ -119,9 +118,3 @@ class CohortCreator(CohortManager):
 
     def handle_cohort_post_update(self, cohort: CohortResult, data: dict) -> None:
         self.operator.handle_cohort_post_update(cohort, data)
-        self.check_for_pending_export(cohort=cohort)
-
-    @staticmethod
-    def check_for_pending_export(cohort: CohortResult) -> None:
-        if cohort.export_table.exists():
-            export_service.check_all_cohort_subsets_created(export=cohort.export_table.first().export)

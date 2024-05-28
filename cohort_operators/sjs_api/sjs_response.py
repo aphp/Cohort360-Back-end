@@ -1,7 +1,7 @@
-from cohort_operators.status_mapper import status_mapper
+from cohort_operators.sjs_api.status_mapper import status_mapper
 
 
-class JobServerResponse:
+class SJSResponse:
     def __init__(self, success: bool = False, err_msg: str = "", **kwargs):
         self.success = success
         self.err_msg = err_msg

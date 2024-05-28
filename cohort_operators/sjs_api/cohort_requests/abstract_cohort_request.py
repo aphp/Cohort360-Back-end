@@ -9,14 +9,12 @@ from accesses.models import Perimeter
 from accesses.services.accesses import accesses_service
 from admin_cohort.services.auth import auth_service
 from admin_cohort.models import User
-from cohort.job_server_api.enums import Mode
-from cohort.job_server_api.exceptions import FhirException
-from cohort.job_server_api.query_formatter import QueryFormatter
-from cohort.job_server_api.schemas import SparkJobObject
-from cohort.job_server_api.sjs_client import SjsClient, format_spark_job_request_for_sjs
+from cohort_operators.sjs_api.exceptions import FhirException
+from cohort_operators.sjs_api.sjs_client import format_spark_job_request_for_sjs
+from cohort_operators.sjs_api import Mode, SjsClient, QueryFormatter, SparkJobObject
 
 if TYPE_CHECKING:
-    from cohort.job_server_api.schemas import CohortQuery
+    from cohort_operators.sjs_api import CohortQuery
 
 
 def is_cohort_request_pseudo_read(username: str, source_population: List[int]) -> bool:

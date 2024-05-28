@@ -4,14 +4,12 @@ from typing import TYPE_CHECKING
 
 from requests import Response
 
-from cohort.job_server_api.cohort_requests import AbstractCohortRequest
-from cohort.job_server_api.cohort_requests.count_all import get_top_care_site_source_population
-from cohort.job_server_api.enums import Mode
-from cohort.job_server_api.schemas import SourcePopulation
+from cohort_operators.sjs_api import AbstractCohortRequest, Mode, SourcePopulation
+from cohort_operators.sjs_api.cohort_requests.count_all import get_top_care_site_source_population
 from cohort.models import FeasibilityStudy
 
 if TYPE_CHECKING:
-    from cohort.job_server_api.schemas import CohortQuery
+    from cohort_operators.sjs_api import CohortQuery
 
 
 class CohortCountFeasibility(AbstractCohortRequest):
