@@ -9,7 +9,7 @@ import requests
 from requests import Response
 
 if TYPE_CHECKING:
-    from cohort.crb.schemas import CohortQuery, SparkJobObject
+    from cohort.job_server_api.schemas import CohortQuery, SparkJobObject
 
 SJS_URL = os.environ.get("SJS_URL")
 
@@ -24,31 +24,26 @@ class SjsClient:
     CREATE_CLASSPATH = "fr.aphp.id.eds.requester.CreateQuery"
     CONTEXT = "shared"
 
-    def count(self, input_payload: str) -> tuple[Response, dict]:
+    def count(self, input_payload: str) -> Response:
         _logger.info(f"Count query payload: {input_payload}")
         params = {
             'appName': self.APP_NAME,
             'classPath': self.COUNT_CLASSPATH,
             'context': self.CONTEXT
         }
-        resp = requests.post(f"{SJS_URL}/jobs", params=params, data=input_payload)
-        result = resp.json()
-        return resp, result
+        return requests.post(f"{SJS_URL}/jobs", params=params, data=input_payload)
 
-    def create(self, input_payload: str) -> tuple[Response, dict]:
+    def create(self, input_payload: str) -> Response:
         params = {
             'appName': self.APP_NAME,
             'classPath': self.CREATE_CLASSPATH,
             'context': self.CONTEXT,
             'sync': 'false'
         }
+        return requests.post(f"{SJS_URL}/jobs", params=params, data=input_payload)
 
-        resp = requests.post(f"{SJS_URL}/jobs", params=params, data=input_payload)
-        return resp, resp.json()
-
-    def delete(self, job_id: str) -> tuple[Response, dict]:
-        resp = requests.delete(f"{SJS_URL}/jobs/{job_id}")
-        return resp, resp.json()
+    def delete(self, job_id: str) -> Response:
+        return requests.delete(f"{SJS_URL}/jobs/{job_id}")
 
 
 def replace_pattern(text: str, replacements: list[tuple[str, str]]) -> str:

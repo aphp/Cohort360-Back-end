@@ -8,12 +8,12 @@ from typing import TYPE_CHECKING
 import requests
 
 from admin_cohort.settings import CRB_TEST_FHIR_QUERIES
-from cohort.crb.enums import CriteriaType, ResourceType
-from cohort.crb.exceptions import FhirException
-from cohort.crb.schemas import FhirParameters
+from cohort.job_server_api.enums import CriteriaType, ResourceType
+from cohort.job_server_api.exceptions import FhirException
+from cohort.job_server_api.schemas import FhirParameters
 
 if TYPE_CHECKING:
-    from cohort.crb.schemas import CohortQuery, Criteria, SourcePopulation
+    from cohort.job_server_api.schemas import CohortQuery, Criteria, SourcePopulation
 
 env = os.environ
 FHIR_URL = env.get("FHIR_URL")
@@ -51,24 +51,25 @@ class QueryFormatter:
         self.auth_headers = auth_headers
 
     def format_to_fhir(self, cohort_query: CohortQuery, is_pseudo: bool) -> Criteria | None:
+
         def build_solr_criteria(criteria: Criteria, source_population: SourcePopulation) -> Criteria | None:
             if criteria is None:
                 return None
 
+            if criteria.criteria_type == CriteriaType.BASIC_RESOURCE:
+                filter_fhir_enriched = add_security_params_to_filter_fhir(criteria,
+                                                                          source_population,
+                                                                          is_pseudo)
+                _logger.info(f"filterFhirEnriched {filter_fhir_enriched}")
+
+                solr_filter, resource_type = self.get_mapping_criteria_filter_fhir_to_solr(criteria.filter_fhir,
+                                                                                           criteria.resource_type)
+                criteria.filter_solr = solr_filter
+                criteria.resource_type = resource_type
+                return criteria
+
             for sub_criteria in criteria.criteria:
-                if sub_criteria.criteria_type == CriteriaType.BASIC_RESOURCE:
-                    filter_fhir_enriched = add_security_params_to_filter_fhir(sub_criteria, source_population,
-                                                                              is_pseudo)
-
-                    _logger.info(f"filterFhirEnriched {filter_fhir_enriched}")
-
-                    solr_filter, resource_type = self.get_mapping_criteria_filter_fhir_to_solr(
-                        sub_criteria.filter_fhir, sub_criteria.resource_type
-                    )
-                    sub_criteria.filter_solr = solr_filter
-                    sub_criteria.resource_type = resource_type
-                else:
-                    build_solr_criteria(sub_criteria, source_population)
+                build_solr_criteria(sub_criteria, source_population)
             return criteria
 
         return build_solr_criteria(cohort_query.criteria, cohort_query.source_population)

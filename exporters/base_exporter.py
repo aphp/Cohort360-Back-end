@@ -9,7 +9,7 @@ from admin_cohort.models import User
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult
 from exports.emails import check_email_address
-from exports.models import Export, Datalab
+from exports.models import Export, Datalab, ExportTable
 from exports.services.rights_checker import rights_checker
 from exporters.infra_api import InfraAPI
 from exporters.tasks import notify_export_received, notify_export_succeeded, notify_export_failed
@@ -96,13 +96,24 @@ class BaseExporter:
         self.log_export_task(export.pk, "Export job finished")
         self.confirm_export_succeeded(export=export)
 
+    def build_tables_input(self, export) -> str:
+        required_table_name = self.export_api.required_table
+        try:
+            required_table = export.export_tables.get(name=required_table_name)
+        except ExportTable.DoesNotExist:
+            raise ValueError(f"Missing {required_table_name} table from export")
+
+        linked_cohort = required_table.cohort_result_subset or required_table.cohort_result_source
+        required_table = f"{required_table_name}:{linked_cohort.fhir_group_id}:{required_table.respect_table_relationships}"
+        other_tables = ",".join(
+            map(lambda t: f"{t.name}:{t.cohort_result_subset and t.cohort_result_subset.fhir_group_id or ''}:{t.respect_table_relationships}",
+                export.export_tables.exclude(name=required_table_name)))
+        return f"{required_table},{other_tables}"
+
     def send_export(self, export: Export, params: dict) -> str:
         self.log_export_task(export.pk, f"Asking to export for '{export.target_name}'")
-        tables = ",".join(
-            map(lambda t: f"{t.name}:{t.cohort_result_subset and t.cohort_result_subset.fhir_group_id or ''}:{t.respect_table_relationships}",
-                export.export_tables.all()))
         params.update({"export_type": self.type,
-                       "tables": tables,
+                       "tables": self.build_tables_input(export),
                        "no_date_shift": export.nominative or not export.shift_dates,
                        "overwrite": False,
                        "user_for_pseudo": not export.nominative and export.datalab.name or None

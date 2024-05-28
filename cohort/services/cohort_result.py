@@ -9,9 +9,10 @@ from django.db import transaction
 from admin_cohort.types import JobStatus, ServerError
 from cohort.models import CohortResult, DatedMeasure, RequestQuerySnapshot, FhirFilter
 from cohort.models.dated_measure import GLOBAL_DM_MODE
-from cohort.services.conf_cohort_job_api import fhir_to_job_status, get_authorization_header
+from cohort.job_server_api import job_server_status_mapper
+from cohort.services.misc import get_authorization_header
 from cohort.services.emails import send_email_notif_about_large_cohort
-from cohort.tasks import get_count_task, create_cohort_task
+from cohort.tasks import count_cohort_task, create_cohort_task
 
 JOB_STATUS = "request_job_status"
 GROUP_ID = "group.id"
@@ -27,26 +28,31 @@ class CohortResultService:
     def build_query(cohort_source_id: str, fhir_filter_id: str) -> str:
         fhir_filter = FhirFilter.objects.get(pk=fhir_filter_id)
         query = {"_type": "request",
+                 "resourceType": fhir_filter.fhir_resource,
                  "sourcePopulation": {"caresiteCohortList": [cohort_source_id]},
                  "request": {"_id": 0,
-                             "_type": "andGroup",
+                             "_type": "basicResource",
                              "isInclusive": True,
-                             "criteria": [{"_id": 1,
-                                           "_type": "basicResource",
-                                           "isInclusive": True,
-                                           "filterFhir": fhir_filter.filter,
-                                           "resourceType": fhir_filter.fhir_resource
-                                           }]
+                             "filterFhir": fhir_filter.filter,
+                             "resourceType": fhir_filter.fhir_resource
                              }
                  }
         return json.dumps(query)
 
     @staticmethod
     def create_cohort_subset(http_request, owner_id: str, table_name: str, source_cohort: CohortResult, fhir_filter_id: str) -> CohortResult:
+
+        def copy_dated_measure(dm: DatedMeasure) -> DatedMeasure:
+            return DatedMeasure.objects.create(mode=dm.mode,
+                                               owner=dm.owner,
+                                               request_query_snapshot=dm.request_query_snapshot,
+                                               measure=dm.measure)
+
+        new_dm = copy_dated_measure(source_cohort.dated_measure)
         cohort_subset = CohortResult.objects.create(is_subset=True,
                                                     name=f"{table_name}_{source_cohort.fhir_group_id}",
                                                     owner_id=owner_id,
-                                                    dated_measure_id=source_cohort.dated_measure_id)
+                                                    dated_measure=new_dm)
         with transaction.atomic():
             query = CohortResultService.build_query(cohort_source_id=source_cohort.fhir_group_id,
                                                     fhir_filter_id=fhir_filter_id)
@@ -86,9 +92,9 @@ class CohortResultService:
         if cohort.dated_measure_global:
             dm_global = cohort.dated_measure_global
             try:
-                get_count_task.s(auth_headers=auth_headers,
-                                 json_query=cohort.request_query_snapshot.serialized_query,
-                                 dm_uuid=dm_global.uuid)\
+                count_cohort_task.s(auth_headers=auth_headers,
+                                    json_query=cohort.request_query_snapshot.serialized_query,
+                                    dm_uuid=dm_global.uuid)\
                               .apply_async()
             except Exception as e:
                 dm_global.request_job_fail_msg = f"ERROR: Could not launch cohort global count: {e}"
@@ -110,7 +116,7 @@ class CohortResultService:
         is_update_from_etl = JOB_STATUS in data and len(data) == 1
 
         if JOB_STATUS in data:
-            job_status = fhir_to_job_status().get(data[JOB_STATUS].upper())
+            job_status = job_server_status_mapper(data[JOB_STATUS])
             if not job_status:
                 raise ValueError(f"Bad Request: Invalid job status: {data.get(JOB_STATUS)}")
             if job_status in (JobStatus.finished, JobStatus.failed):

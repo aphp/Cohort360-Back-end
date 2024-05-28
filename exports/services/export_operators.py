@@ -65,14 +65,24 @@ class ExportManager:
         exporter = self._get_exporter(export.output_format)
         exporter().handle_export(export=export)
 
+    def mark_as_failed(self, export: Export, reason: str) -> None:
+        exporter = self._get_exporter(export.output_format)
+        exporter().mark_export_as_failed(export=export, reason=reason)
+
 
 class DefaultExporter:
 
-    def validate(self, *args, **kwargs):
+    def validate(self, export_data: dict, **kwargs):
         raise NotImplementedError("Missing exporter implementation")
 
-    def handle_export(self, *args, **kwargs):
+    def handle_export(self, export: Export):
         raise NotImplementedError("Missing exporter implementation")
+
+    @staticmethod
+    def mark_export_as_failed(export: Export, reason: str) -> None:
+        export.request_job_status = JobStatus.failed
+        export.request_job_fail_msg = reason
+        export.save()
 
 
 class ExportDownloader:

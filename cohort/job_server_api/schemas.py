@@ -5,8 +5,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from cohort.crb.enums import CriteriaType, ResourceType, Mode
-from cohort.crb.exceptions import FhirException
+from cohort.job_server_api.enums import CriteriaType, ResourceType, Mode
+from cohort.job_server_api.exceptions import FhirException
 
 
 class PatientAge(BaseModel):
@@ -86,7 +86,8 @@ class Criteria(BaseModel):
 class CohortQuery(BaseModel):
     cohort_uuid: UUID = Field(None, alias='cohortUuid')
     cohort_name: str = Field(None, alias='cohortName')
-    source_population: SourcePopulation = Field(alias="sourcePopulation")
+    source_population: SourcePopulation = Field(None, alias="sourcePopulation")
+    resource_type: ResourceType = Field(None, alias="resourceType")
     criteria_type: CriteriaType = Field(None, alias="_type")
     criteria: Criteria = Field(None, alias="request")
     temporal_constraints: list[TemporalConstraint] = Field(default_factory=list, alias='temporalConstraints')

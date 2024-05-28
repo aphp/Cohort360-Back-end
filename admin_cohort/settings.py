@@ -235,10 +235,6 @@ SESSION_COOKIE_AGE = 24 * 60 * 60
 JWT_AUTH_MODE = "JWT"
 OIDC_AUTH_MODE = "OIDC"
 
-# WORKSPACES
-if 'workspaces' in INCLUDED_APPS:
-    RANGER_HIVE_POLICY_TYPES = env('RANGER_HIVE_POLICY_TYPES').split(",")
-
 # CUSTOM EXCEPTION REPORTER
 DEFAULT_EXCEPTION_REPORTER_FILTER = 'admin_cohort.tools.except_report_filter.CustomExceptionReporterFilter'
 SENSITIVE_PARAMS = env('SENSITIVE_PARAMS').split(",")

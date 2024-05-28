@@ -41,16 +41,13 @@ class ExportService:
             fhir_filter_id = export_table.get("fhir_filter")
             cohort_source = CohortResult.objects.get(pk=export_table.get("cohort_result_source"))
             for table_name in export_table.get("table_ids"):
-                if self.allow_create_sub_cohort_for_table(table_name=table_name):
-                    if fhir_filter_id:
-                        requires_cohort_subsets = True
-                        cohort_subset = cohort_service.create_cohort_subset(owner_id=export.owner_id,
-                                                                            table_name=table_name,
-                                                                            fhir_filter_id=fhir_filter_id,
-                                                                            source_cohort=cohort_source,
-                                                                            http_request=kwargs.get("http_request"))
-                    else:
-                        cohort_subset = cohort_source
+                if self.allow_create_sub_cohort_for_table(table_name=table_name) and fhir_filter_id:
+                    requires_cohort_subsets = True
+                    cohort_subset = cohort_service.create_cohort_subset(owner_id=export.owner_id,
+                                                                        table_name=table_name,
+                                                                        fhir_filter_id=fhir_filter_id,
+                                                                        source_cohort=cohort_source,
+                                                                        http_request=kwargs.get("http_request"))
                 else:
                     cohort_subset = None
 
@@ -63,11 +60,18 @@ class ExportService:
 
     @staticmethod
     def check_all_cohort_subsets_created(export: Export):
+        _logger.info(f"Export[{export.uuid}]: Checking if all cohort subsets were created...")
         for table in export.export_tables.filter(cohort_result_subset__isnull=False):
-            if table.cohort_result_subset.request_job_status != JobStatus.finished:
-                _logger.info(f"Export [{export.uuid}]: waiting for some cohort subsets to finish before launching export")
+            cohort_subset_status = table.cohort_result_subset.request_job_status
+            if cohort_subset_status == JobStatus.failed.value:
+                failure_reason = "One or multiple cohort subsets has failed"
+                _logger.info(f"Export[{export.uuid}]: Aborting export - {failure_reason}")
+                ExportManager().mark_as_failed(export=export, reason=failure_reason)
                 return
-        _logger.info(f"Export [{export.uuid}]: all cohort subsets were successfully created. Launching export.")
+            elif cohort_subset_status != JobStatus.finished.value:
+                _logger.info(f"Export[{export.uuid}]: waiting for cohort subsets to finish before launching export")
+                return
+        _logger.info(f"Export[{export.uuid}]: all cohort subsets were successfully created. Launching export.")
         launch_export_task.delay(export.pk)
 
     @staticmethod

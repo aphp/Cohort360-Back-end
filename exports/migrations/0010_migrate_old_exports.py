@@ -1,6 +1,7 @@
 # written by HT on 2024-04-26 17:12
 import logging
 
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import migrations
 
 _logger = logging.getLogger('info')
@@ -20,7 +21,10 @@ def populate_exports_with_export_requests(apps, schema_editor):
             target_unix_account_name = er.target_name.split('_')[0]
             if er.target_name.count('_') > 2:
                 target_unix_account_name = '_'.join(er.target_name.split('_')[:2])
-            datalab = datalab_model.objects.using(db_alias).get(name=target_unix_account_name)
+            try:
+                datalab = datalab_model.objects.using(db_alias).get(name=target_unix_account_name)
+            except ObjectDoesNotExist:
+                pass
         export = export_model.objects.using(db_alias).create(data_exporter_version='3',
                                                              data_version='NA',
                                                              deleted=er.delete_datetime,

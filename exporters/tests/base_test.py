@@ -50,7 +50,7 @@ class ExportersTestBase(TestCase):
                            )
         self.csv_export = Export.objects.create(**export_vals, output_format=ExportTypes.CSV.value)
         self.csv_export_table = ExportTable.objects.create(export=self.csv_export,
-                                                           name="table01",
+                                                           name="person",
                                                            cohort_result_source=self.cohort)
         self.hive_export = Export.objects.create(**export_vals,
                                                  output_format=ExportTypes.HIVE.value,

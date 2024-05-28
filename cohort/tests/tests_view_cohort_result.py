@@ -200,7 +200,7 @@ class CohortCreateCase(CreateCase):
 class CohortsCreateTests(CohortsTests):
     @mock.patch('cohort.services.cohort_result.get_authorization_header')
     @mock.patch('cohort.services.cohort_result.create_cohort_task.delay')
-    @mock.patch('cohort.services.cohort_result.get_count_task.delay')
+    @mock.patch('cohort.services.cohort_result.count_cohort_task.apply_async')
     def check_create_case_with_mock(self, case: CohortCreateCase, mock_count_task: MagicMock, mock_create_task: MagicMock,
                                     mock_header: MagicMock, other_view: any, view_kwargs: dict):
         mock_header.return_value = None

@@ -9,12 +9,13 @@ _logger = logging.getLogger('info')
 
 
 def retrieve_unix_accounts(connection) -> List[str]:
-    if "workspaces" in settings.INSTALLED_APPS:
-        with connection.cursor() as cursor:
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT count(*) FROM information_schema.tables WHERE table_name = 'workspaces_account';")
+        if cursor.fetchone()[0] != 0:
             cursor.execute("SELECT name FROM workspaces_account;")
             accounts = [a[0] for a in cursor.fetchall()]
             return accounts
-    return []
+        return []
 
 
 def populate_datalabs(apps, schema_editor):
