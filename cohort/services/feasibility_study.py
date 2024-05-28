@@ -3,7 +3,6 @@ import logging
 import os
 import zipfile
 from io import BytesIO
-from smtplib import SMTPException
 from typing import Tuple, List
 
 from django.db.models import QuerySet
@@ -14,9 +13,8 @@ from admin_cohort.settings import FRONT_URL
 from admin_cohort.types import JobStatus
 from cohort.models import FeasibilityStudy
 
-from cohort.services.cohort_managers import CohortCountManager
-from cohort.services.emails import send_email_notif_feasibility_report_ready, send_email_notif_error_feasibility_report
-from cohort_operators import job_server_status_mapper
+from cohort.services.cohort_managers import CohortCounter
+from cohort.tasks import send_email_feasibility_report_error, send_email_feasibility_report_ready
 
 env = os.environ
 
@@ -40,49 +38,20 @@ class FeasibilityStudyService:
 
     @staticmethod
     def process_feasibility_study(fs: FeasibilityStudy, request) -> None:
-        CohortCountManager().handle_feasibility_study_count(fs, request)
+        CohortCounter().handle_feasibility_study_count(fs, request)
 
-    def process_patch_data(self, fs: FeasibilityStudy, data: dict) -> None:
-        _logger.info(f"Received data to patch FeasibilityStudy: {data}")
-        job_status = data.get(JOB_STATUS, "")
-        job_status = job_server_status_mapper(job_status)
-
+    def handle_patch_data(self, fs: FeasibilityStudy, data: dict) -> None:
         try:
-            if not job_status:
-                raise ValueError(f"Bad Request: Invalid job status: {data.get(JOB_STATUS)}")
-            if job_status == JobStatus.finished:
-                data["total_count"] = int(data.pop(COUNT, 0))
-                counts_per_perimeter = data.pop(EXTRA, {})
-                if not counts_per_perimeter:
-                    raise ValueError(f"Bad Request: Payload missing `{EXTRA}` key")
-                self.persist_feasibility_report(fs=fs, counts_per_perimeter=counts_per_perimeter)
-                self.send_email_feasibility_report_ready(fs=fs)
-            else:
-                data["request_job_fail_msg"] = data.pop(ERR_MESSAGE, None)
-                self.send_email_feasibility_report_error(fs=fs)
-                _logger_err.exception(f"FeasibilityStudy [{fs.uuid}] - Error on SJS callback")
+            job_status, counts_per_perimeter = CohortCounter().handle_patch_feasibility_study(fs, data)
         except ValueError as ve:
-            self.send_email_feasibility_report_error(fs=fs)
-            _logger_err.exception(f"FeasibilityStudy [{fs.uuid}] - Error on SJS callback - {ve}")
+            send_email_feasibility_report_error(fs_id=fs.uuid)
             raise ve
-        data[JOB_STATUS] = job_status
-
-    @staticmethod
-    def send_email_feasibility_report_ready(fs: FeasibilityStudy) -> None:
-        try:
-            send_email_notif_feasibility_report_ready(request_name=fs.request_query_snapshot.request.name,
-                                                      owner=fs.owner,
-                                                      fs_uuid=fs.uuid)
-        except (ValueError, SMTPException) as e:
-            _logger_err.exception(f"""FeasibilityStudy [{fs.uuid}] - Couldn't send "feasibility report ready" email to user: {e}""")
-
-    @staticmethod
-    def send_email_feasibility_report_error(fs: FeasibilityStudy) -> None:
-        try:
-            send_email_notif_error_feasibility_report(request_name=fs.request_query_snapshot.request.name,
-                                                      owner=fs.owner)
-        except (ValueError, SMTPException) as e:
-            _logger_err.exception(f"""FeasibilityStudy [{fs.uuid}] - Couldn't send "feasibility report error" email to user: {e}""")
+        else:
+            if job_status == JobStatus.finished:
+                self.persist_feasibility_report(fs=fs, counts_per_perimeter=counts_per_perimeter)
+                send_email_feasibility_report_ready(fs_id=fs.uuid)
+            elif job_status == JobStatus.failed:
+                send_email_feasibility_report_error(fs_id=fs.uuid)
 
     @staticmethod
     def get_file_name(fs: FeasibilityStudy) -> str:

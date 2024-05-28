@@ -10,7 +10,7 @@ from cohort.job_server_api.cohort_requests import CohortCreate, CohortCount, Coh
 from cohort.job_server_api.cohort_requests.count_feasibility import CohortCountFeasibility
 from cohort.models import DatedMeasure, CohortResult, Request, RequestQuerySnapshot, FeasibilityStudy
 from cohort.models.dated_measure import GLOBAL_DM_MODE
-from cohort.tasks import count_cohort_task, create_cohort_task, cancel_previous_count_jobs, feasibility_count_task
+from cohort.tasks import count_cohort, create_cohort, cancel_previous_count_jobs, feasibility_study_count
 from cohort.tests.tests_view_dated_measure import DatedMeasuresTests
 
 
@@ -114,9 +114,9 @@ class TasksTests(DatedMeasuresTests):
         response.status_code = status.HTTP_200_OK
         response._content = self.count_cohort_success_resp_content
         mock_action.return_value = response
-        count_cohort_task(auth_headers=self.auth_headers,
-                          json_query=self.json_query,
-                          dm_uuid=self.user1_req1_snap1_initial_dm.uuid)
+        count_cohort(auth_headers=self.auth_headers,
+                     json_query=self.json_query,
+                     dm_id=self.user1_req1_snap1_initial_dm.uuid)
 
         new_dm = DatedMeasure.objects.filter(pk=self.user1_req1_snap1_initial_dm.uuid,
                                              request_job_id=self.test_job_id).first()
@@ -149,9 +149,9 @@ class TasksTests(DatedMeasuresTests):
         response.status_code = status.HTTP_200_OK
         response._content = self.count_cohort_success_resp_content
         mock_action.return_value = response
-        count_cohort_task(auth_headers=self.auth_headers,
-                          json_query=self.json_query,
-                          dm_uuid=self.user1_req1_snap1_initial_global_dm.uuid)
+        count_cohort(auth_headers=self.auth_headers,
+                     json_query=self.json_query,
+                     dm_id=self.user1_req1_snap1_initial_global_dm.uuid)
 
         new_dm = DatedMeasure.objects.filter(pk=self.user1_req1_snap1_initial_global_dm.uuid,
                                              request_job_id=self.test_job_id).first()
@@ -160,9 +160,9 @@ class TasksTests(DatedMeasuresTests):
     @mock.patch.object(CohortCount, 'action')
     def test_failed_count_cohort_task(self, mock_action):
         mock_action.return_value = None
-        count_cohort_task(auth_headers=self.auth_headers,
-                          json_query="{}",
-                          dm_uuid=self.user1_req1_snap1_initial_dm.uuid)
+        count_cohort(auth_headers=self.auth_headers,
+                     json_query="{}",
+                     dm_id=self.user1_req1_snap1_initial_dm.uuid)
         new_dm = DatedMeasure.objects.filter(pk=self.user1_req1_snap1_initial_dm.uuid,
                                              request_job_status=JobStatus.failed).first()
         self.assertIsNotNone(new_dm)
@@ -173,9 +173,9 @@ class TasksTests(DatedMeasuresTests):
         response.status_code = status.HTTP_200_OK
         response._content = self.create_cohort_success_resp_content
         mock_action.return_value = response
-        create_cohort_task(auth_headers=self.auth_headers,
-                           json_query=self.json_query,
-                           cohort_uuid=self.small_cohort.uuid)
+        create_cohort(auth_headers=self.auth_headers,
+                      json_query=self.json_query,
+                      cohort_id=self.small_cohort.uuid)
 
         new_cr = CohortResult.objects.filter(pk=self.small_cohort.pk,
                                              dated_measure=self.user1_req1_snap1_dm1,
@@ -190,7 +190,7 @@ class TasksTests(DatedMeasuresTests):
         response.status_code = status.HTTP_200_OK
         response._content = self.create_cohort_success_resp_content
         mock_action.return_value = response
-        create_cohort_task(self.auth_headers, self.json_query, self.large_cohort.uuid)
+        create_cohort(self.auth_headers, self.json_query, self.large_cohort.uuid)
 
         new_cr = CohortResult.objects.filter(pk=self.large_cohort.pk,
                                              dated_measure=self.user1_req1_snap1_dm2,
@@ -202,9 +202,9 @@ class TasksTests(DatedMeasuresTests):
     @mock.patch.object(CohortCreate, 'action')
     def test_failed_create_cohort_task(self, mock_action):
         mock_action.return_value = None
-        create_cohort_task(auth_headers=self.auth_headers,
-                           json_query="{}",
-                           cohort_uuid=self.small_cohort.uuid)
+        create_cohort(auth_headers=self.auth_headers,
+                      json_query="{}",
+                      cohort_id=self.small_cohort.uuid)
 
         new_cr = CohortResult.objects.filter(pk=self.small_cohort.pk,
                                              dated_measure=self.user1_req1_snap1_dm1,
@@ -218,10 +218,10 @@ class TasksTests(DatedMeasuresTests):
         response.status_code = status.HTTP_200_OK
         response._content = self.count_cohort_success_resp_content
         mock_action.return_value = response
-        feasibility_count_task(fs_uuid=self.user1_feasibility_study.uuid,
-                               json_query=self.json_query,
-                               auth_headers=self.auth_headers
-                               )
+        feasibility_study_count(fs_id=self.user1_feasibility_study.uuid,
+                                json_query=self.json_query,
+                                auth_headers=self.auth_headers
+                                )
         new_fs = FeasibilityStudy.objects.filter(pk=self.user1_feasibility_study.uuid,
                                                  request_job_id=self.test_job_id).first()
         self.assertIsNotNone(new_fs)

@@ -159,7 +159,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                             status=status.HTTP_400_BAD_REQUEST)
         cohort = self.get_object()
         try:
-            cohort_service.handle_patch_data(cohort=cohort, data=request.data)
+            cohort_service.handle_patch_cohort(cohort=cohort, data=request.data)
         except ValueError as ve:
             return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
         response = super(CohortResultViewSet, self).partial_update(request, *args, **kwargs)
@@ -178,3 +178,5 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         cohorts_rights = cohort_rights_service.get_user_rights_on_cohorts(group_ids=request.query_params.get('group_id'),
                                                                           user=request.user)
         return Response(data=cohorts_rights, status=status.HTTP_200_OK)
+
+

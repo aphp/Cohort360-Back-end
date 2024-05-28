@@ -78,17 +78,17 @@ def post_to_job_server(json_query: str, uuid: str, cohort_cls: AbstractCohortReq
     return job_server_resp
 
 
-def post_count_cohort(auth_headers: dict, json_query: str, dm_uuid: str, global_estimate: bool = False) -> None:
+def post_count_cohort(dm_id: str, json_query: str, auth_headers: dict, global_estimate: bool = False) -> None:
     count_cls, logger = global_estimate and (CohortCountAll, log_count_all_task) or (CohortCount, log_count_task)
     count_request = count_cls(auth_headers=auth_headers, sjs_client=SjsClient())
-    post_to_job_server(json_query, dm_uuid, count_request, logger)
+    post_to_job_server(json_query, dm_id, count_request, logger)
 
 
-def post_create_cohort(auth_headers: dict, json_query: str, cr_uuid: str) -> None:
+def post_create_cohort(cr_id: str, json_query: str, auth_headers: dict) -> None:
     cohort_request = CohortCreate(auth_headers=auth_headers, sjs_client=SjsClient())
-    post_to_job_server(json_query, cr_uuid, cohort_request, log_create_task)
+    post_to_job_server(json_query, cr_id, cohort_request, log_create_task)
 
 
-def post_count_for_feasibility(auth_headers: dict, json_query: str, fs_uuid: str) -> JobServerResponse:
+def post_count_for_feasibility(fs_id: str, json_query: str, auth_headers: dict) -> JobServerResponse:
     count_request = CohortCountFeasibility(auth_headers=auth_headers, sjs_client=SjsClient())
-    return post_to_job_server(json_query, fs_uuid, count_request, log_feasibility_study_task)
+    return post_to_job_server(json_query, fs_id, count_request, log_feasibility_study_task)

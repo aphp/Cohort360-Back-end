@@ -9,11 +9,11 @@ class CohortOperatorsConfig(AppConfig):
         settings.COHORT_OPERATORS = [
             {
                 "TYPE": "count",
-                "OPERATOR_CLASS": "cohort_operators.cohort_counter.CohortCounter"
+                "OPERATOR_CLASS": "cohort_operators.job_server_operators.CohortCountOperator"
             },
             {
                 "TYPE": "create",
-                "OPERATOR_CLASS": "cohort_operators.cohort_creator.CohortCreator"
+                "OPERATOR_CLASS": "cohort_operators.job_server_operators.CohortCreateOperator"
             }
         ]
         settings.JOB_SERVER_API_CONF = {}

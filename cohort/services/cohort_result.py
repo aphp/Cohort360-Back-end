@@ -4,7 +4,7 @@ from django.db import transaction
 
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult, FhirFilter, DatedMeasure, RequestQuerySnapshot
-from cohort.services.cohort_managers import CohortCountManager, CohortCreationManager
+from cohort.services.cohort_managers import CohortCounter, CohortCreator
 from cohort.services.ws_event_manager import ws_send_to_client
 
 
@@ -50,7 +50,7 @@ class CohortResultService:
                                                     dated_measure_id=new_dm,
                                                     request_query_snapshot=new_rqs)
         with transaction.atomic():
-            CohortCreationManager().handle_cohort_creation(cohort_subset, request)
+            CohortCreator().handle_cohort_creation(cohort_subset, request)
         return cohort_subset
 
     @staticmethod
@@ -65,16 +65,16 @@ class CohortResultService:
     @staticmethod
     def proceed_with_cohort_creation(request, cohort: CohortResult):
         if request.data.pop("global_estimate", False):
-            CohortCountManager().handle_global_count(cohort, request)
-        CohortCreationManager().handle_cohort_creation(cohort, request)
+            CohortCounter().handle_global_count(cohort, request)
+        CohortCreator().handle_cohort_creation(cohort, request)
 
     @staticmethod
-    def handle_patch_data(cohort: CohortResult, data: dict) -> None:
-        CohortCreationManager().handle_patch_data(cohort, data)
+    def handle_patch_cohort(cohort: CohortResult, data: dict) -> None:
+        CohortCreator().handle_patch_cohort(cohort, data)
 
     @staticmethod
     def handle_cohort_post_update(cohort: CohortResult, data) -> None:
-        CohortCreationManager().handle_cohort_post_update(cohort, data)
+        CohortCreator().handle_cohort_post_update(cohort, data)
 
     @staticmethod
     def ws_send_to_client(cohort: CohortResult) -> None:

@@ -13,9 +13,8 @@ from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagin
 from cohort.models import DatedMeasure
 from cohort.permissions import SJSorETLCallbackPermission
 from cohort.serializers import DatedMeasureSerializer
-from cohort.services.dated_measure import dated_measure_service, JOB_STATUS, MINIMUM, MAXIMUM, COUNT
-from cohort.services.misc import is_sjs_user
-from cohort.services.decorators import await_celery_task
+from cohort.services.dated_measure import dated_measure_service
+from cohort.services.misc import is_sjs_user, await_celery_task
 from cohort.services.ws_event_manager import ws_send_to_client
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
@@ -73,21 +72,21 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                                                                                   dm=response.data.serializer.instance))
         return response
 
-    @swagger_auto_schema(operation_summary="Called by Job Server to update DM's `measure` and other fields",
+    @swagger_auto_schema(operation_summary="Called by JobServer to update DM's `measure` and other fields",
                          request_body=openapi.Schema(
                              type=openapi.TYPE_OBJECT,
-                             properties={JOB_STATUS: openapi.Schema(type=openapi.TYPE_STRING, description="For Job Server callback"),
-                                         MINIMUM: openapi.Schema(type=openapi.TYPE_STRING, description="For Job Server callback"),
-                                         MAXIMUM: openapi.Schema(type=openapi.TYPE_STRING, description="For Job Server callback"),
-                                         COUNT: openapi.Schema(type=openapi.TYPE_STRING, description="For Job Server callback")},
-                             required=[JOB_STATUS, MINIMUM, MAXIMUM, COUNT]),
+                             properties={"request_job_status": openapi.Schema(type=openapi.TYPE_STRING, description="For JobServer callback"),
+                                         "minimum": openapi.Schema(type=openapi.TYPE_STRING, description="For JobServer callback"),
+                                         "maximum": openapi.Schema(type=openapi.TYPE_STRING, description="For JobServer callback"),
+                                         "count": openapi.Schema(type=openapi.TYPE_STRING, description="For JobServer callback")},
+                             required=["request_job_status", "minimum", "maximum", "count"]),
                          responses={'200': openapi.Response("DatedMeasure updated successfully", DatedMeasureSerializer()),
                                     '400': openapi.Response("Bad Request")})
     @await_celery_task
     def partial_update(self, request, *args, **kwargs):
+        dm = self.get_object()
         try:
-            dm = self.get_object()
-            dated_measure_service.process_patch_data(dm=dm, data=request.data)
+            dated_measure_service.handle_patch_data(dm=dm, data=request.data)
         except ValueError as ve:
             return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
         response = super(DatedMeasureViewSet, self).partial_update(request, *args, **kwargs)
