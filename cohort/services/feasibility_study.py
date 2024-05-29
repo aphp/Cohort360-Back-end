@@ -5,6 +5,7 @@ import zipfile
 from io import BytesIO
 from typing import Tuple, List
 
+from celery import chain
 from django.db.models import QuerySet
 from django.template.loader import get_template
 
@@ -12,13 +13,13 @@ from accesses.models import Perimeter
 from admin_cohort.settings import FRONT_URL
 from admin_cohort.types import JobStatus
 from cohort.models import FeasibilityStudy
+from cohort.services.base_service import CommonService
 
-from cohort.services.cohort_managers import CohortCounter
-from cohort.tasks import send_email_feasibility_report_error, send_email_feasibility_report_ready
+from cohort.services.utils import get_authorization_header, ServerError
+from cohort.tasks import feasibility_study_count, send_feasibility_study_notification, send_email_feasibility_report_error, \
+                         send_email_feasibility_report_ready
 
-env = os.environ
-
-REPORTING_PERIMETER_TYPES = env.get("REPORTING_PERIMETER_TYPES").split(",")
+REPORTING_PERIMETER_TYPES = os.environ.get("REPORTING_PERIMETER_TYPES").split(",")
 
 FRONT_REQUEST_URL = f"{FRONT_URL}/cohort/new"
 
@@ -34,15 +35,23 @@ _logger = logging.getLogger('info')
 _logger_err = logging.getLogger('django.request')
 
 
-class FeasibilityStudyService:
+class FeasibilityStudyService(CommonService):
+    job_type = "count"
 
-    @staticmethod
-    def process_feasibility_study(fs: FeasibilityStudy, request) -> None:
-        CohortCounter().handle_feasibility_study_count(fs, request)
-
-    def handle_patch_data(self, fs: FeasibilityStudy, data: dict) -> None:
+    def handle_feasibility_study_count(self, fs: FeasibilityStudy, request) -> None:
         try:
-            job_status, counts_per_perimeter = CohortCounter().handle_patch_feasibility_study(fs, data)
+            chain(*(feasibility_study_count.s(fs_id=fs.uuid,
+                                              json_qury=fs.request_query_snapshot.serialized_query,
+                                              auth_headers=get_authorization_header(request),
+                                              operator=self.operator),
+                    send_feasibility_study_notification.s(fs.uuid)))()
+        except Exception as e:
+            fs.delete()
+            raise ServerError("Could not launch feasibility request") from e
+
+    def handle_patch_feasibility_study(self, fs: FeasibilityStudy, data: dict) -> None:
+        try:
+            job_status, counts_per_perimeter = self.operator().handle_patch_feasibility_study(fs, data)
         except ValueError as ve:
             send_email_feasibility_report_error(fs_id=fs.uuid)
             raise ve

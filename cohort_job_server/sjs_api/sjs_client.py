@@ -9,14 +9,14 @@ import requests
 from requests import Response
 
 if TYPE_CHECKING:
-    from cohort_operators.sjs_api import CohortQuery, SparkJobObject
+    from cohort_job_server.sjs_api import CohortQuery, SparkJobObject
 
 SJS_URL = os.environ.get("SJS_URL")
 
 _logger = logging.getLogger('info')
 
 
-class SjsClient:
+class SJSClient:
     APP_NAME = "omop-spark-job"
 
     # todo: remove this dependency by refactoring the SJS scala project and removing those class paths requirements

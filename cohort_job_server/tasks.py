@@ -4,7 +4,7 @@ from smtplib import SMTPException
 from celery import shared_task
 
 from cohort.models import CohortResult
-from cohort_operators.emails import send_email_notif_large_cohort_ready
+from cohort_job_server.emails import send_email_notif_large_cohort_ready
 
 
 _logger = logging.getLogger("info")

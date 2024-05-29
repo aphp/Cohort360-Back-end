@@ -4,33 +4,28 @@ from typing import Tuple
 from django.utils import timezone
 
 from admin_cohort.types import JobStatus
-from cohort_operators.sjs_api.status_mapper import sjs_status_mapper
-from cohort_operators.job_server import post_count_cohort, post_count_for_feasibility, cancel_job
-from cohort_operators.misc import _logger, JOB_STATUS, COUNT, MINIMUM, MAXIMUM, EXTRA, ERR_MESSAGE
-
+from cohort_job_server.base_operator import BaseCohortOperator
+from cohort_job_server.sjs_api import CohortCount, CohortCountAll, FeasibilityCount, sjs_status_mapper
+from cohort_job_server.misc import _logger, log_count_task, log_count_all_task, log_feasibility_study_task, \
+                                    JOB_STATUS, COUNT, MINIMUM, MAXIMUM, EXTRA, ERR_MESSAGE
 
 _logger_err = logging.getLogger('django.request')
 
 
-class CohortCounter:
+class CohortCounter(BaseCohortOperator):
 
-    @staticmethod
-    def launch_count(dm_id: str, json_query: str, auth_headers: dict, global_estimate=False) -> None:
-        post_count_cohort(dm_id=dm_id,
-                          json_query=json_query,
-                          auth_headers=auth_headers,
-                          global_estimate=global_estimate)
+    def launch_count(self, dm_id: str, json_query: str, auth_headers: dict, global_estimate=False) -> None:
+        count_cls, logger = global_estimate and (CohortCountAll, log_count_all_task) or (CohortCount, log_count_task)
+        count_request = count_cls(auth_headers=auth_headers)
+        self.sjs_requester.post_to_job_server(json_query, dm_id, count_request, logger)
 
-    @staticmethod
-    def launch_feasibility_study_count(fs_id: str, json_query: str, auth_headers: dict) -> bool:
-        resp = post_count_for_feasibility(fs_id=fs_id,
-                                          json_query=json_query,
-                                          auth_headers=auth_headers)
-        return resp.success
+    def launch_feasibility_study_count(self, fs_id: str, json_query: str, auth_headers: dict) -> bool:
+        count_request = FeasibilityCount(auth_headers=auth_headers)
+        response = self.sjs_requester.post_to_job_server(json_query, fs_id, count_request, log_feasibility_study_task)
+        return response.success
 
-    @staticmethod
-    def cancel_job(job_id: str) -> None:
-        cancel_job(job_id=job_id)
+    def cancel_job(self, job_id: str) -> None:
+        self.sjs_requester.cancel_job(job_id=job_id)
 
     @staticmethod
     def handle_patch_dated_measure(dm, data) -> None:

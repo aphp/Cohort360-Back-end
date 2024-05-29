@@ -6,7 +6,7 @@ from typing import Callable
 from django.core.cache import cache
 from rest_framework.request import Request
 
-from admin_cohort.settings import SJS_USERNAME, ETL_USERNAME
+from admin_cohort.middleware.request_trace_id_middleware import add_trace_id
 from cohort.models import FeasibilityStudy
 
 
@@ -15,16 +15,6 @@ _logger = logging.getLogger('django.request')
 
 class ServerError(Exception):
     pass
-
-
-def is_sjs_or_etl_user(request: Request):
-    return request.method in ("GET", "PATCH") and \
-           request.user.is_authenticated and \
-           request.user.username in [SJS_USERNAME, ETL_USERNAME]
-
-
-def is_sjs_user(request: Request):
-    return is_sjs_or_etl_user(request=request)
 
 
 def await_celery_task(func):
@@ -70,3 +60,11 @@ def send_email_notification(notification: Callable, **kwargs) -> None:
         notification(**kwargs)
     except (ValueError, SMTPException) as e:
         _logger.exception(f"FeasibilityStudy[{kwargs.get('fs_id')}] Couldn't send email notification: {e}")
+
+
+def get_authorization_header(request: Request) -> dict:
+    headers = {"Authorization": f"Bearer {request.META.get('HTTP_AUTHORIZATION')}",
+               "authorizationMethod": request.META.get('HTTP_AUTHORIZATIONMETHOD')
+               }
+    headers = add_trace_id(headers)
+    return headers

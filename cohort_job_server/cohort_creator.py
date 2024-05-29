@@ -1,20 +1,22 @@
+from django.conf import settings
 from django.utils import timezone
 
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult
-from cohort_operators.job_server import post_create_cohort
-from cohort_operators.sjs_api.status_mapper import sjs_status_mapper
-from cohort_operators.tasks import notify_large_cohort_ready
-from cohort_operators.misc import _logger, JOB_STATUS, GROUP_ID, GROUP_COUNT
+from cohort_job_server.base_operator import BaseCohortOperator
+from cohort_job_server.sjs_api import sjs_status_mapper, CohortCreate
+from cohort_job_server.tasks import notify_large_cohort_ready
+from cohort_job_server.misc import _logger, JOB_STATUS, GROUP_ID, GROUP_COUNT, log_create_task
 
 
-class CohortCreator:
+class CohortCreator(BaseCohortOperator):
+    def __init__(self):
+        super().__init__()
+        self.applicative_users += [settings.ETL_USERNAME]
 
-    @staticmethod
-    def launch_cohort_creation(cohort_id: str, json_query: str, auth_headers: dict) -> None:
-        post_create_cohort(cr_id=cohort_id,
-                           json_query=json_query,
-                           auth_headers=auth_headers)
+    def launch_cohort_creation(self, cohort_id: str, json_query: str, auth_headers: dict) -> None:
+        create_request = CohortCreate(auth_headers=auth_headers)
+        self.sjs_requester.post_to_job_server(json_query, cohort_id, create_request, log_create_task)
 
     @staticmethod
     def handle_patch_cohort(cohort: CohortResult, data: dict) -> None:

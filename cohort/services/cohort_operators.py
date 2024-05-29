@@ -1,9 +1,20 @@
 from typing import Tuple
 
+from rest_framework.request import Request
+
 from admin_cohort.types import JobStatus
 
 
-class DefaultCohortCountOperator:
+class DefaultCohortOperator:
+
+    def __init__(self):
+        self.applicative_users = []
+
+    def get_special_permissions(self, request: Request):
+        return None
+
+
+class DefaultCohortCounter(DefaultCohortOperator):
 
     @staticmethod
     def launch_count(*args, **kwargs) -> None:
@@ -22,7 +33,7 @@ class DefaultCohortCountOperator:
         return JobStatus.finished, {}
 
 
-class DefaultCohortCreateOperator:
+class DefaultCohortCreator(DefaultCohortOperator):
 
     @staticmethod
     def launch_cohort_creation(*args, **kwargs) -> None:

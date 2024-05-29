@@ -14,10 +14,8 @@ from admin_cohort.tools import join_qs
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from cohort.services.cohort_result import cohort_service
 from cohort.models import CohortResult
-from cohort.permissions import SJSorETLCallbackPermission
 from cohort.serializers import CohortResultSerializer, CohortResultSerializerFullDatedMeasure
 from cohort.services.cohort_rights import cohort_rights_service
-from cohort.services.misc import is_sjs_or_etl_user
 from cohort.views.shared import UserObjectsRestrictedViewSet
 from exports.services.export import export_service
 
@@ -94,14 +92,15 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                             'dated_measure', 'dated_measure_id']
 
     def get_permissions(self):
-        if is_sjs_or_etl_user(request=self.request):
-            return [SJSorETLCallbackPermission()]
+        special_permissions = cohort_service.get_special_permissions(self.request)
+        if special_permissions:
+            return special_permissions
         if self.action == self.get_active_jobs.__name__:
             return [AllowAny()]
         return super(CohortResultViewSet, self).get_permissions()
 
     def get_queryset(self):
-        if is_sjs_or_etl_user(request=self.request):
+        if cohort_service.allow_use_full_queryset(request=self.request):
             return self.queryset
         return super(CohortResultViewSet, self).get_queryset()\
                                                .filter(is_subset=False)
@@ -137,8 +136,8 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
-        transaction.on_commit(lambda: cohort_service.proceed_with_cohort_creation(request=request,
-                                                                                  cohort=response.data.serializer.instance))
+        transaction.on_commit(lambda: cohort_service.handle_cohort_creation(request=request,
+                                                                            cohort=response.data.serializer.instance))
         return response
 
     @swagger_auto_schema(operation_summary="Used by Front to update cohort metadata and JobServer to update cohort status,"

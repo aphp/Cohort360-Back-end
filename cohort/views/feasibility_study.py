@@ -13,10 +13,8 @@ from rest_framework.response import Response
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from cohort.models import FeasibilityStudy
-from cohort.permissions import SJSorETLCallbackPermission
 from cohort.serializers import FeasibilityStudySerializer
 from cohort.services.feasibility_study import feasibility_study_service, JOB_STATUS, COUNT, EXTRA
-from cohort.services.misc import is_sjs_user
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
 _logger = logging.getLogger('info')
@@ -41,12 +39,13 @@ class FeasibilityStudyViewSet(UserObjectsRestrictedViewSet):
     pagination_class = NegativeLimitOffsetPagination
 
     def get_permissions(self):
-        if is_sjs_user(request=self.request):
-            return [SJSorETLCallbackPermission()]
+        special_permissions = feasibility_study_service.get_special_permissions(self.request)
+        if special_permissions:
+            return special_permissions
         return super(FeasibilityStudyViewSet, self).get_permissions()
 
     def get_queryset(self):
-        if is_sjs_user(request=self.request):
+        if feasibility_study_service.allow_use_full_queryset(request=self.request):
             return self.queryset
         return super(FeasibilityStudyViewSet, self).get_queryset()
 
@@ -63,15 +62,15 @@ class FeasibilityStudyViewSet(UserObjectsRestrictedViewSet):
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
-        transaction.on_commit(lambda: feasibility_study_service.process_feasibility_study(request=request,
-                                                                                          fs=response.data.serializer.instance))
+        transaction.on_commit(lambda: feasibility_study_service.handle_feasibility_study_count(request=request,
+                                                                                               fs=response.data.serializer.instance))
         return response
 
-    @swagger_auto_schema(operation_summary="Called by SJS with detailed counts",
+    @swagger_auto_schema(operation_summary="Called by ServerJob with detailed counts",
                          request_body=openapi.Schema(
                              type=openapi.TYPE_OBJECT,
                              properties={
-                                 JOB_STATUS: openapi.Schema(type=openapi.TYPE_STRING, description="SJS job status"),
+                                 JOB_STATUS: openapi.Schema(type=openapi.TYPE_STRING, description="ServerJob job status"),
                                  COUNT: openapi.Schema(type=openapi.TYPE_STRING, description="Total patient count"),
                                  EXTRA: openapi.Schema(type=openapi.TYPE_STRING,
                                                        description="Detailed patient counts")},
@@ -81,8 +80,8 @@ class FeasibilityStudyViewSet(UserObjectsRestrictedViewSet):
                                     '400': openapi.Response("Bad Request")})
     def partial_update(self, request, *args, **kwargs):
         try:
-            feasibility_study_service.handle_patch_data(fs=self.get_object(),
-                                                        data=request.data)
+            feasibility_study_service.handle_patch_feasibility_study(fs=self.get_object(),
+                                                                     data=request.data)
         except ValueError as ve:
             return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
         response = super(FeasibilityStudyViewSet, self).partial_update(request, *args, **kwargs)

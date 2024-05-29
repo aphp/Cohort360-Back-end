@@ -1,4 +1,4 @@
-from cohort_operators.sjs_api.status_mapper import status_mapper
+from cohort_job_server.sjs_api.status_mapper import status_mapper
 
 
 class SJSResponse:
