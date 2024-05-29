@@ -87,7 +87,7 @@ role_data_reader_nomi_data = {**ALL_FALSY_RIGHTS,
                               }
 
 role_data_reader_full_access_data = {**ALL_FALSY_RIGHTS,
-                                     "name": "DATA NOMI READER",
+                                     "name": "DATA NOMI READER FULL ACCESS",
                                      "right_read_patient_nominative": True,
                                      "right_read_patient_pseudonymized": True,
                                      "right_search_patients_by_ipp": True,

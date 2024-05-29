@@ -264,7 +264,8 @@ class PerimeterViewTests(AccessesAppTestsBase):
         case = self.base_case.clone(user=self.user_z,
                                     params={"cohort_ids": cohort_ids, "mode": "min"},
                                     to_find={"allow_read_patient_data_nomi": True,
-                                             "allow_lookup_opposed_patients": False})
+                                             "allow_lookup_opposed_patients": False,
+                                             "allow_read_patient_without_perimeter_limit": False})
         self.check_list_case_with_mock(case)
 
     def test_read_patient_data_rights_case_3(self):
@@ -317,10 +318,12 @@ class PerimeterViewTests(AccessesAppTestsBase):
         case_1 = self.base_case.clone(user=self.user_z,
                                       params={"cohort_ids": cohort_ids, "mode": "max"},
                                       to_find={"allow_read_patient_data_nomi": False,
-                                               "allow_lookup_opposed_patients": False})
+                                               "allow_lookup_opposed_patients": False,
+                                               "allow_read_patient_without_perimeter_limit": False})
         case_2 = case_1.clone(params={"cohort_ids": cohort_ids, "mode": "min"},
                               to_find={"allow_read_patient_data_nomi": False,
-                                       "allow_lookup_opposed_patients": False})
+                                       "allow_lookup_opposed_patients": False,
+                                       "allow_read_patient_without_perimeter_limit": False})
         self.check_list_case_with_mock(case_1)
         self.check_list_case_with_mock(case_2)
 
@@ -349,7 +352,7 @@ class PerimeterViewTests(AccessesAppTestsBase):
                                     to_find={"allow_read_patient_data_nomi": True,
                                              "allow_lookup_opposed_patients": True,
                                              "allow_read_patient_without_perimeter_limit": True})
-        self.check_list_case_with_mock(case)
+        self.check_list_case_with_mock(case, check_mock_was_called=False)
 
     def test_read_patient_data_rights_case_8(self):
         perimeters = [self.p1, self.p4]
@@ -362,7 +365,7 @@ class PerimeterViewTests(AccessesAppTestsBase):
                                     to_find={"allow_read_patient_data_nomi": True,
                                              "allow_lookup_opposed_patients": True,
                                              "allow_read_patient_without_perimeter_limit": True})
-        self.check_list_case_with_mock(case)
+        self.check_list_case_with_mock(case, check_mock_was_called=False)
 
     def test_read_patient_data_rights_missing_access_on_some_target_perimeters_1(self):
         perimeters = [self.p1, self.p2]

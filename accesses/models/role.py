@@ -92,7 +92,7 @@ class Role(BaseModel):
 
     @staticmethod
     def q_allow_unlimited_patients_search() -> Q:
-        return Q(right_search_patients_unlimited=True)
+        return Q(role__right_search_patients_unlimited=True)
 
     @staticmethod
     def q_allow_read_search_opposed_patient_data() -> Q:
