@@ -9,7 +9,7 @@ class BaseCohortOperator:
 
     def __init__(self):
         self.sjs_requester = SJSRequester()
-        self.applicative_users = [settings.SJS_USERNAME]
+        self.applicative_users = settings.api_usernames
 
     def get_special_permissions(self, request: Request):
         if request.user.is_authenticated and request.user.username in self.applicative_users:

@@ -1,14 +1,10 @@
-import logging
 from smtplib import SMTPException
 
 from celery import shared_task
 
 from cohort.models import CohortResult
 from cohort_job_server.emails import send_email_notif_large_cohort_ready
-
-
-_logger = logging.getLogger("info")
-_logger_err = logging.getLogger("django.request")
+from cohort_job_server.utils import _logger, _logger_err
 
 
 @shared_task

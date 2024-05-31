@@ -7,6 +7,7 @@ from typing import Union, Tuple, Optional, Callable, Dict, List
 import environ
 import jwt
 import requests
+from django.conf import settings
 from django.contrib.auth import logout
 from jwt import InvalidTokenError
 from jwt.algorithms import RSAAlgorithm
@@ -17,8 +18,6 @@ from rest_framework_simplejwt.authentication import AUTH_HEADER_TYPE_BYTES
 from rest_framework_simplejwt.exceptions import InvalidToken
 
 from admin_cohort.models import User
-from admin_cohort.settings import JWT_AUTH_MODE, OIDC_AUTH_MODE, ETL_USERNAME, SJS_USERNAME, ROLLOUT_USERNAME, \
-    ACCESS_TOKEN_COOKIE
 from admin_cohort.types import ServerError, LoginError, OIDCAuthTokens, JWTAuthTokens, AuthTokens
 
 env = environ.Env()
@@ -189,13 +188,11 @@ jwt_auth = JWTAuth()
 
 
 class AuthService:
-    authenticators = {OIDC_AUTH_MODE: oidc_auth,
-                      JWT_AUTH_MODE: jwt_auth
+    authenticators = {settings.OIDC_AUTH_MODE: oidc_auth,
+                      settings.JWT_AUTH_MODE: jwt_auth
                       }
-    applicative_users = {env("ETL_TOKEN"): ETL_USERNAME,
-                         env("SJS_TOKEN"): SJS_USERNAME,
-                         env("ROLLOUT_TOKEN"): ROLLOUT_USERNAME
-                         }
+    applicative_users = {env("ROLLOUT_TOKEN"): settings.ROLLOUT_USERNAME,
+                         **getattr(settings, "applicative_users", {})}
 
     def __init__(self):
         self.post_auth_hooks: List[Callable[[User, str, Dict[str, str]], Optional[User]]] = []
@@ -250,7 +247,7 @@ class AuthService:
         if token in self.applicative_users:
             applicative_user = User.objects.get(username=self.applicative_users[token])
             return applicative_user, token
-        return self.authenticate_token(token=token, auth_method=auth_method or JWT_AUTH_MODE, headers=request.headers)
+        return self.authenticate_token(token=token, auth_method=auth_method or settings.JWT_AUTH_MODE, headers=request.headers)
 
     def authenticate_ws_request(self, token: str, auth_method: str, headers: Dict[str, str]) -> Union[User, None]:
         res = self.authenticate_token(token=token, auth_method=auth_method, headers=headers)
@@ -266,7 +263,7 @@ class AuthService:
     def get_auth_data(self, request) -> Tuple[str, str]:
         auth_token, auth_method = self.get_token_from_headers(request)
         if not auth_token:
-            auth_token = request.COOKIES.get(ACCESS_TOKEN_COOKIE)
+            auth_token = request.COOKIES.get(settings.ACCESS_TOKEN_COOKIE)
         return auth_token, auth_method
 
     def get_token_from_headers(self, request) -> Tuple[Union[str, None], Union[str, None]]:

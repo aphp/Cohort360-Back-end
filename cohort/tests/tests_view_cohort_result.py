@@ -1,6 +1,5 @@
 import random
 from datetime import timedelta
-from smtplib import SMTPException
 from typing import List, Any
 from unittest import mock
 from unittest.mock import MagicMock
@@ -199,8 +198,8 @@ class CohortCreateCase(CreateCase):
 
 class CohortsCreateTests(CohortsTests):
     @mock.patch('cohort.services.cohort_result.get_authorization_header')
-    @mock.patch('cohort.services.cohort_result.create_cohort_task.delay')
-    @mock.patch('cohort.services.cohort_result.count_cohort_task.apply_async')
+    @mock.patch('cohort.services.cohort_result.create_cohort.apply_async')
+    @mock.patch('cohort.services.dated_measure.count_cohort.apply_async')
     def check_create_case_with_mock(self, case: CohortCreateCase, mock_count_task: MagicMock, mock_create_task: MagicMock,
                                     mock_header: MagicMock, other_view: any, view_kwargs: dict):
         mock_header.return_value = None
@@ -383,13 +382,16 @@ class CohortsUpdateTests(CohortsTests):
         self.basic_err_case = self.basic_case.clone(status=status.HTTP_400_BAD_REQUEST,
                                                     success=False)
 
-    @mock.patch('cohort.views.cohort_result.ws_send_to_client')
-    def test_update_cohort_as_owner(self, mock_ws_send_to_client):
+    @mock.patch('cohort.services.cohort_result.ws_send_to_client')
+    @mock.patch('cohort.services.cohort_operators.DefaultCohortCreator.handle_cohort_post_update')
+    @mock.patch('cohort.services.cohort_operators.DefaultCohortCreator.handle_patch_cohort')
+    def test_update_cohort_as_owner(self, mock_patch_handler, mock_post_update, mock_ws_send_to_client):
+        mock_patch_handler.return_value = None
+        mock_post_update.return_value = None
         mock_ws_send_to_client.return_value = None
-        # As a user, I can patch a CR I own
         data_to_update = dict(name="new_name",
                               description="new_desc",
-                              request_job_status=JobStatus.finished,
+                              request_job_status=JobStatus.failed,
                               request_job_fail_msg="test_fail_msg",
                               # read_only
                               create_task_id="test_task_id",
@@ -399,75 +401,48 @@ class CohortsUpdateTests(CohortsTests):
                               deleted=timezone.now() + timedelta(hours=1)
                               )
         self.check_patch_case(self.basic_case.clone(data_to_update=data_to_update))
+        mock_patch_handler.assert_called_once()
+        mock_post_update.assert_called_once()
+        mock_ws_send_to_client.assert_called_once()
 
-    @mock.patch('cohort.views.cohort_result.ws_send_to_client')
+    @mock.patch('cohort.services.cohort_result.ws_send_to_client')
     def test_error_update_cohort_as_not_owner(self, mock_ws_send_to_client):
         mock_ws_send_to_client.return_value = None
-        # As a user, I cannot update another user's cohort result
-        case = self.basic_err_case.clone(data_to_update=dict(name="new_name"),
+        case = self.basic_err_case.clone(data_to_update=dict(name="new name"),
                                          user=self.user2,
                                          status=status.HTTP_404_NOT_FOUND)
         self.check_patch_case(case)
 
-    @mock.patch('cohort.views.cohort_result.ws_send_to_client')
+    @mock.patch('cohort.services.cohort_result.ws_send_to_client')
     def test_error_update_cohort_forbidden_fields(self, mock_ws_send_to_client):
         mock_ws_send_to_client.return_value = None
-        user1_req1_snap1_dm2: DatedMeasure = DatedMeasure.objects.create(owner=self.user1,
-                                                                         request_query_snapshot=self.user1_req1_snap1,
-                                                                         measure=2,
-                                                                         fhir_datetime=timezone.now())
+        dm: DatedMeasure = DatedMeasure.objects.create(owner=self.user1, request_query_snapshot=self.user1_req1_snap1)
         cases = [self.basic_err_case.clone(data_to_update={k: v})
                  for k, v in dict(owner=self.user2.pk,
                                   request_query_snapshot=self.user1_req1_branch1_snap2.pk,
-                                  dated_measure=user1_req1_snap1_dm2.pk).items()]
+                                  dated_measure=dm.pk).items()]
         [self.check_patch_case(case) for case in cases]
 
-    @mock.patch('cohort.views.cohort_result.ws_send_to_client')
-    def test_update_cohort_by_sjs_callback_status_finished(self, mock_ws_send_to_client):
+    @mock.patch('cohort.services.cohort_result.ws_send_to_client')
+    @mock.patch('cohort.services.cohort_operators.DefaultCohortCreator.handle_cohort_post_update')
+    @mock.patch('cohort.services.cohort_operators.DefaultCohortCreator.handle_patch_cohort')
+    def test_patch_cohort_with_status_finished(self, mock_patch_handler, mock_post_update, mock_ws_send_to_client):
+        mock_patch_handler.return_value = None
+        mock_post_update.return_value = None
         mock_ws_send_to_client.return_value = None
-        new_cohort: CohortResult = self.model_objects.create(**self.basic_data)
-        data = {'request_job_status': 'finished',
-                'group.id': '123456',
-                'group.count': 10500}
+        resp_data = self.check_patch_case(case=self.basic_case.clone(data_to_update={'request_job_status': 'finished'}),
+                                          return_response_data=True)
+        self.assertEqual(resp_data.get("request_job_status"), JobStatus.finished.value)
+        mock_patch_handler.assert_called_once()
+        mock_post_update.assert_called_once()
+        mock_ws_send_to_client.assert_called_once()
 
-        request = self.factory.patch(self.objects_url, data=data, format='json')
-        force_authenticate(request, new_cohort.owner)
-        response = self.__class__.update_view(request, **{self.model._meta.pk.name: new_cohort.uuid})
-        response.render()
-
-        self.assertEqual(response.data.get("request_job_status"), JobStatus.finished.value)
-        self.assertEqual(response.data.get("group_id"), data['group.id'])
-        self.assertEqual(response.data.get("result_size"), data['group.count'])
-
-    @mock.patch('cohort.views.cohort_result.ws_send_to_client')
-    def test_update_cohort_by_sjs_callback_status_failed(self, mock_ws_send_to_client):
+    @mock.patch('cohort.services.cohort_result.ws_send_to_client')
+    @mock.patch('cohort.services.cohort_operators.DefaultCohortCreator.handle_patch_cohort')
+    def test_error_patch_cohort_with_invalid_status(self, mock_patch_handler, mock_ws_send_to_client):
+        mock_patch_handler.side_effect = ValueError('Wrong status value')
         mock_ws_send_to_client.return_value = None
-        new_cohort: CohortResult = self.model_objects.create(**self.basic_data)
-        data = {'request_job_status': 'error',
-                'group.id': '',
-                'group.count': 10500}
-
-        request = self.factory.patch(self.objects_url, data=data, format='json')
-        force_authenticate(request, new_cohort.owner)
-        response = self.__class__.update_view(request, **{self.model._meta.pk.name: new_cohort.uuid})
-        response.render()
-
-        self.assertEqual(response.data.get("request_job_status"), JobStatus.failed.value)
-        self.assertIsNotNone(response.data.get("request_job_fail_msg"))
-        self.assertIsNotNone(response.data.get("request_job_duration"))
-
-    @mock.patch('cohort.views.cohort_result.ws_send_to_client')
-    def test_error_update_cohort_by_sjs_callback_invalid_status(self, mock_ws_send_to_client):
-        mock_ws_send_to_client.return_value = None
-        invalid_status = 'INVALID_STATUS'
-        case = self.basic_err_case.clone(data_to_update={'request_job_status': invalid_status})
+        case = self.basic_err_case.clone(data_to_update={'request_job_status': 'invalid_status'})
         self.check_patch_case(case)
-
-    @mock.patch('cohort.views.cohort_result.ws_send_to_client')
-    @mock.patch('cohort.services.cohort_result.send_email_notif_about_large_cohort')
-    def test_update_cohort_status_by_etl_callback(self, mock_send_email_notif: MagicMock, mock_ws_send_to_client):
-        case = self.basic_case.clone(data_to_update={'request_job_status': 'finished'})
-        mock_send_email_notif.side_effect = SMTPException("SMTP server error")
-        mock_ws_send_to_client.return_value = None
-        self.check_patch_case(case)
-        mock_send_email_notif.assert_called()
+        mock_patch_handler.assert_called_once()
+        mock_ws_send_to_client.assert_called_once()

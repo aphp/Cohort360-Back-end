@@ -6,7 +6,8 @@ from requests import Response
 
 from accesses.models import Perimeter
 from cohort.models import DatedMeasure
-from cohort_job_server.sjs_api import BaseCohortRequest, Mode, SourcePopulation
+from cohort_job_server.sjs_api.cohort_requests.base_cohort_request import BaseCohortRequest, Mode
+from cohort_job_server.sjs_api import SourcePopulation
 
 if TYPE_CHECKING:
     from cohort_job_server.sjs_api import CohortQuery

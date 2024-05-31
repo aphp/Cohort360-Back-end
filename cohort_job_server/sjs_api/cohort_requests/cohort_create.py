@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from requests import Response
 
-from cohort_job_server.sjs_api import BaseCohortRequest, Mode
+from cohort_job_server.sjs_api.cohort_requests.base_cohort_request import BaseCohortRequest, Mode
 from cohort.models import CohortResult
 
 if TYPE_CHECKING:

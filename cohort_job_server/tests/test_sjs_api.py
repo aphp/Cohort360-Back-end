@@ -2,16 +2,16 @@ import json
 from pathlib import Path
 from unittest import mock
 
+from django.test import TestCase
+
 from admin_cohort.models import User
-from cohort.job_server_api.cohort_requests.abstract_cohort_request import is_cohort_request_pseudo_read
-from cohort.job_server_api.enums import ResourceType
-from cohort.job_server_api.exceptions import FhirException
-from cohort.job_server_api.query_formatter import QueryFormatter
-from cohort.job_server_api.schemas import FhirParameters, FhirParameter, CohortQuery
-from cohort.tests.cohort_app_tests import CohortAppTests
+from cohort_job_server.sjs_api import QueryFormatter, BaseCohortRequest
+from cohort_job_server.sjs_api.enums import ResourceType
+from cohort_job_server.sjs_api.exceptions import FhirException
+from cohort_job_server.sjs_api.schemas import FhirParameters, FhirParameter, CohortQuery
 
 
-class FhirResponseMapperTest(CohortAppTests):
+class FhirResponseMapperTest(TestCase):
     def test_map_parameters_to_string_fq_valid(self):
         parameters = FhirParameters(
             resourceType=ResourceType.PROCEDURE,
@@ -31,7 +31,7 @@ class FhirResponseMapperTest(CohortAppTests):
             parameters.to_dict()
 
 
-class CohortQueryTest(CohortAppTests):
+class CohortQueryTest(TestCase):
 
     def test_transform_json_to_cohort_query(self):
         with open(Path(__file__).resolve().parent.joinpath("resources/crb_complex_request.json"), "r") as f:
@@ -40,7 +40,7 @@ class CohortQueryTest(CohortAppTests):
         self.assertEquals(len(json_data["request"]["criteria"]), len(cohort_query.criteria.criteria))
 
 
-class TestQueryFormatter(CohortAppTests):
+class TestQueryFormatter(TestCase):
     def setUp(self):
         def load_query(filename: str) -> CohortQuery:
             with open(Path(__file__).resolve().parent.joinpath(f"resources/{filename}"), "r") as f:
@@ -60,7 +60,7 @@ class TestQueryFormatter(CohortAppTests):
             ]
         )
 
-    @mock.patch("cohort.job_server_api.query_formatter.query_fhir")
+    @mock.patch("cohort_job_server.sjs_api.query_formatter.query_fhir")
     def test_format_to_fhir_simple_query(self, query_fhir):
         query_fhir.return_value = self.mocked_query_fhir_result
         res = self.query_formatter.format_to_fhir(self.cohort_query_simple, False)
@@ -70,7 +70,8 @@ class TestQueryFormatter(CohortAppTests):
         self.assertEquals(self.fq_value_string, res_criteria.filter_solr, )
         self.assertEquals("docstatus=final&type:not=doc-impor&empty=false&patient-active=true&_text=ok",
                           res_criteria.filter_fhir)
-    @mock.patch("cohort.job_server_api.query_formatter.query_fhir")
+
+    @mock.patch("cohort_job_server.sjs_api.query_formatter.query_fhir")
     def test_format_to_fhir_simple_query_pseudo(self, query_fhir):
         query_fhir.return_value = self.mocked_query_fhir_result
         res = self.query_formatter.format_to_fhir(self.cohort_query_simple, True)
@@ -81,7 +82,7 @@ class TestQueryFormatter(CohortAppTests):
         self.assertEquals("docstatus=final&type:not=doc-impor&empty=false&patient-active=true&_text=ok",
                           res_criteria.filter_fhir)
 
-    @mock.patch("cohort.job_server_api.query_formatter.query_fhir")
+    @mock.patch("cohort_job_server.sjs_api.query_formatter.query_fhir")
     def test_format_to_fhir_complex_query(self, query_fhir):
         query_fhir.return_value = self.mocked_query_fhir_result
         res = self.query_formatter.format_to_fhir(self.cohort_query_complex, False)
@@ -96,5 +97,5 @@ class TestQueryFormatter(CohortAppTests):
                                     lastname='USER',
                                     email='test.user@aphp.fr',
                                     username='1111111')
-        read_in_pseudo = is_cohort_request_pseudo_read(username=user1.username, source_population=[])
+        read_in_pseudo = BaseCohortRequest.is_cohort_request_pseudo_read(username=user1.username, source_population=[])
         self.assertTrue(read_in_pseudo)

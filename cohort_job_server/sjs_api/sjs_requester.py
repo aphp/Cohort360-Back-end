@@ -9,7 +9,7 @@ from admin_cohort.settings import COHORT_LIMIT
 from admin_cohort.types import JobStatus, MissingDataError
 from cohort.models import CohortResult
 from cohort_job_server.sjs_api import BaseCohortRequest, CohortQuery, SJSClient, SJSResponse, sjs_status_mapper
-from cohort_job_server.misc import _logger_err
+from cohort_job_server.utils import _logger_err
 
 
 LoggerType = Type[Callable[..., None]]

@@ -1,11 +1,11 @@
-from .base_cohort_request import BaseCohortRequest
 from .cohort_count import CohortCount
 from .cohort_count_all import CohortCountAll
 from .cohort_create import CohortCreate
 from .feasibility_count import FeasibilityCount
+from .base_cohort_request import BaseCohortRequest
 
-__all__ = ["BaseCohortRequest",
-           "CohortCount",
+__all__ = ["CohortCount",
            "CohortCountAll",
            "CohortCreate",
-           "FeasibilityCount"]
+           "FeasibilityCount",
+           "BaseCohortRequest"]

@@ -1,11 +1,12 @@
 import json
+from typing import Tuple
 
 from django.db import transaction
 
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult, FhirFilter, DatedMeasure, RequestQuerySnapshot
 from cohort.services.base_service import CommonService
-from cohort.services.dated_measure import dated_measure_service
+from cohort.services.dated_measure import dm_service
 from cohort.services.utils import get_authorization_header, ServerError
 from cohort.services.ws_event_manager import ws_send_to_client
 from cohort.tasks import create_cohort
@@ -68,7 +69,7 @@ class CohortResultService(CommonService):
 
     def handle_cohort_creation(self, cohort: CohortResult, request) -> None:
         if request.data.pop("global_estimate", False):
-            dated_measure_service.handle_global_count(cohort, request)
+            dm_service.handle_global_count(cohort, request)
         try:
             create_cohort.s(cohort_id=cohort.pk,
                             json_query=cohort.request_query_snapshot.serialized_query,
@@ -80,14 +81,25 @@ class CohortResultService(CommonService):
             cohort.delete()
             raise ServerError("Could not launch cohort creation") from e
 
-    def handle_patch_cohort(self, cohort: CohortResult, data: dict) -> None:
-        self.operator().handle_patch_cohort(cohort, data)
+    def handle_patch_cohort(self, cohort: CohortResult, data: dict) -> Tuple[bool, None | Exception]:
+        success, exception = True, None
+        try:
+            self.operator().handle_patch_cohort(cohort, data)
+        except ValueError as ve:
+            self.mark_cohort_as_failed(cohort=cohort, reason=str(ve))
+            success, exception = False, ve
+        return success, exception
 
     def handle_cohort_post_update(self, cohort: CohortResult, data: dict) -> None:
         self.operator().handle_cohort_post_update(cohort, data)
 
-    @staticmethod
-    def ws_send_to_client(cohort: CohortResult) -> None:
+    def mark_cohort_as_failed(self, cohort: CohortResult, reason: str) -> None:
+        cohort.request_job_status = JobStatus.failed
+        cohort.request_job_fail_msg = reason
+        cohort.save()
+        self.ws_send_to_client(cohort=cohort, extra_info={"error": f"Cohort failed: {reason}"})
+
+    def ws_push_to_client(self, cohort: CohortResult) -> None:
         cohort.refresh_from_db()
         global_dm = cohort.dated_measure_global
         extra_info = {'group_id': cohort.group_id}  # todo: [front] rename `fhir_group_id` to `group_id`
@@ -95,6 +107,10 @@ class CohortResultService(CommonService):
             extra_info['global'] = {'measure_min': global_dm.measure_min,
                                     'measure_max': global_dm.measure_max
                                     }
+        self.ws_send_to_client(cohort=cohort, extra_info=extra_info)
+
+    @staticmethod
+    def ws_send_to_client(cohort: CohortResult, extra_info: dict) -> None:
         ws_send_to_client(instance=cohort, job_name='create', extra_info=extra_info)
 
 

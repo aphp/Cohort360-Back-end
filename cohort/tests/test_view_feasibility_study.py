@@ -6,6 +6,7 @@ from rest_framework import status
 
 from accesses.models import Perimeter
 from admin_cohort.tests.tests_tools import PatchCase, FileDownloadCase
+from admin_cohort.types import JobStatus
 from cohort.models import RequestQuerySnapshot, Request, Folder, FeasibilityStudy
 from cohort.services.feasibility_study import feasibility_study_service
 from cohort.tests.cohort_app_tests import CohortAppTests
@@ -36,13 +37,16 @@ class FeasibilityStudyViewTests(CohortAppTests):
         self.basic_data = dict(request_query_snapshot_id=self.rqs.pk,
                                owner=self.user1)
 
-    @mock.patch('cohort.services.feasibility_study.FeasibilityStudyService.send_email_feasibility_report_ready')
+    @mock.patch('cohort.services.feasibility_study.send_email_feasibility_report_ready.apply_async')
     @mock.patch('cohort.services.feasibility_study.FeasibilityStudyService.build_feasibility_report')
-    def test_successfully_patch_feasibility_study(self, mock_build_report, mock_send_email_report_ready):
-        mock_build_report.return_value = {"1111": 1111}, "<html><body><h1>Some HTML</h1></body></html>"
-        mock_send_email_report_ready.return_value = None
+    @mock.patch('cohort.services.cohort_operators.DefaultCohortCounter.handle_patch_feasibility_study')
+    def test_successfully_patch_feasibility_study(self, mock_patch_handler, mock_build_report, mock_send_email_report_ready):
         extra = {group_id: count for (group_id, count) in [("1", "10"), ("2", "10"), ("3", "10"),
                                                            ("4", "15"), ("5", "15"), ("6", "25")]}
+        mock_patch_handler.return_value = JobStatus.finished, extra
+        mock_build_report.return_value = {"1111": 1111}, "<html><body><h1>Some HTML</h1></body></html>"
+        mock_send_email_report_ready.return_value = None
+
         patch_data = {"request_job_status": "finished",
                       "count": 25,
                       "extra": extra
@@ -53,28 +57,25 @@ class FeasibilityStudyViewTests(CohortAppTests):
                          status=status.HTTP_200_OK,
                          success=True)
         response_data = self.check_patch_case(case, check_fields_updated=False, return_response_data=True)
+        mock_patch_handler.assert_called()
         mock_build_report.assert_called()
         mock_send_email_report_ready.assert_called()
         self.assertIsNotNone(response_data.get('report_json_content'))
         self.assertIsNotNone(response_data.get('report_file'))
 
-    @mock.patch('cohort.services.feasibility_study.FeasibilityStudyService.send_email_feasibility_report_error')
-    def test_error_patch_feasibility_study(self, mock_send_email_report_error):
+    @mock.patch('cohort.services.feasibility_study.send_email_feasibility_report_error.apply_async')
+    @mock.patch('cohort.services.cohort_operators.DefaultCohortCounter.handle_patch_feasibility_study')
+    def test_error_patch_feasibility_study(self, mock_patch_handler, mock_send_email_report_error):
+        mock_patch_handler.side_effect = ValueError("Wrong value for status")
         mock_send_email_report_error.return_value = None
-        patch_data = {"request_job_status": "finished",
-                      "count": 1111,
-                      "extra": {"1111": 1111}
-                      }
-        base_case = PatchCase(initial_data=self.basic_data,
-                              data_to_update=patch_data,
-                              user=self.user1,
-                              status=status.HTTP_400_BAD_REQUEST,
-                              success=False)
-        case_status_not_finished = base_case.clone(data_to_update={**patch_data, "request_job_status": "not_finished"})
-        case_missing_extra = base_case.clone(data_to_update={**patch_data, "extra": {}})
-        for case in (case_status_not_finished, case_missing_extra):
-            self.check_patch_case(case)
-            mock_send_email_report_error.assert_called()
+        case = PatchCase(initial_data=self.basic_data,
+                         data_to_update={},
+                         user=self.user1,
+                         status=status.HTTP_400_BAD_REQUEST,
+                         success=False)
+        self.check_patch_case(case)
+        mock_patch_handler.assert_called()
+        mock_send_email_report_error.assert_called()
 
     def test_download_report(self):
         html_report = "<html><body><p>some content</p></body></html>"
@@ -98,25 +99,25 @@ class FeasibilityStudyViewTests(CohortAppTests):
 
 
 class TestFeasibilityStudiesService(TestCase):
-    @staticmethod
-    def create_perimeters_tree():
-        basic_data = [
-            {'id': 8312002244, 'name': 'APHP', 'type_source_value': 'AP-HP', 'cohort_id': '1', 'local_id': '8312002244', 'parent_id': None},
-            {'id': 8312002245, 'name': 'GHU-01', 'type_source_value': 'GHU', 'cohort_id': '2', 'local_id': '8312002245', 'parent_id': 8312002244},
-            {'id': 8312002246, 'name': 'Hop-01', 'type_source_value': 'Hôpital', 'cohort_id': '3', 'local_id': '8312002246', 'parent_id': 8312002245},
-            {'id': 8312002247, 'name': 'Pole/DMU-01', 'type_source_value': 'Pôle/DMU', 'cohort_id': '4', 'local_id': '8312002247',
-             'parent_id': 8312002246},
-            {'id': 8312002248, 'name': 'UF-01', 'type_source_value': 'Unité Fonctionnelle (UF)', 'cohort_id': '5', 'local_id': '8312002248',
-             'parent_id': 8312002247},
-            {'id': 8312002249, 'name': 'UC-01', 'type_source_value': 'Unité de consultation (UC)', 'cohort_id': '6', 'local_id': '8312002249',
-             'parent_id': 8312002248}]
-        for d in basic_data:
-            Perimeter.objects.create(**d)
 
     def setUp(self):
         super().setUp()
         self.create_perimeters_tree()
         self.counts_per_perimeter = {cohort_id: count for (cohort_id, count) in [("1", "25"), ("2", "10"), ("3", "10"), ("4", "15"), ("5", "15")]}
+
+    @staticmethod
+    def create_perimeters_tree():
+        basic_data = [
+            {'id': 1, 'name': 'APHP', 'type_source_value': 'AP-HP', 'cohort_id': '1', 'local_id': '1', 'parent_id': None, 'level': 1},
+            {'id': 2, 'name': 'GHU-01', 'type_source_value': 'GHU', 'cohort_id': '2', 'local_id': '2', 'parent_id': 1, 'level': 2},
+            {'id': 3, 'name': 'Hop-01', 'type_source_value': 'Hôpital', 'cohort_id': '3', 'local_id': '3', 'parent_id': 2, 'level': 3},
+            {'id': 4, 'name': 'Pole/DMU-01', 'type_source_value': 'Pôle/DMU', 'cohort_id': '4', 'local_id': '4', 'parent_id': 3, 'level': 4},
+            {'id': 5, 'name': 'UF-01', 'type_source_value': 'Unité Fonctionnelle (UF)', 'cohort_id': '5', 'local_id': '5', 'parent_id': 4,
+             'level': 5},
+            {'id': 6, 'name': 'UC-01', 'type_source_value': 'Unité de consultation (UC)', 'cohort_id': '6', 'local_id': '6', 'parent_id': 5,
+             'level': 6}]
+        for d in basic_data:
+            Perimeter.objects.create(**d)
 
     def test_build_feasibility_report(self):
         json_content, html_content = feasibility_study_service.build_feasibility_report(counts_per_perimeter=self.counts_per_perimeter)

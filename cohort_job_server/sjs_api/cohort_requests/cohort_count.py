@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from requests import Response
 
 from cohort.models import DatedMeasure
-from cohort_job_server.sjs_api import BaseCohortRequest, Mode
+from cohort_job_server.sjs_api.cohort_requests.base_cohort_request import BaseCohortRequest, Mode
 
 if TYPE_CHECKING:
     from cohort_job_server.sjs_api import CohortQuery

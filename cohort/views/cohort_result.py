@@ -97,12 +97,12 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             return special_permissions
         if self.action == self.get_active_jobs.__name__:
             return [AllowAny()]
-        return super(CohortResultViewSet, self).get_permissions()
+        return super().get_permissions()
 
     def get_queryset(self):
         if cohort_service.allow_use_full_queryset(request=self.request):
             return self.queryset
-        return super(CohortResultViewSet, self).get_queryset()\
+        return super().get_queryset()\
                                                .filter(is_subset=False)
 
     def get_serializer_class(self):
@@ -120,7 +120,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
 
     @cache_response()
     def list(self, request, *args, **kwargs):
-        return super(CohortResultViewSet, self).list(request, *args, **kwargs)
+        return super().list(request, *args, **kwargs)
 
     @swagger_auto_schema(operation_summary="Create a CohortResult",
                          request_body=openapi.Schema(
@@ -158,16 +158,15 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             return Response(data=f"The payload contains non-updatable fields `{request.data}`",
                             status=status.HTTP_400_BAD_REQUEST)
         cohort = self.get_object()
-        try:
-            cohort_service.handle_patch_cohort(cohort=cohort, data=request.data)
-        except ValueError as ve:
-            return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
-        response = super(CohortResultViewSet, self).partial_update(request, *args, **kwargs)
-        cohort_service.ws_send_to_client(cohort=cohort)
-        if status.is_success(response.status_code):
-            cohort_service.handle_cohort_post_update()
+        success, error = cohort_service.handle_patch_cohort(cohort=cohort, data=request.data)
+        if success:
+            response = super().partial_update(request, *args, **kwargs)
+            cohort_service.ws_push_to_client(cohort=cohort)
+            cohort_service.handle_cohort_post_update(cohort=cohort, data=request.data)
             if cohort.export_table.exists():
                 export_service.check_all_cohort_subsets_created(export=cohort.export_table.first().export)
+        else:
+            response = Response(data=f"{error}", status=status.HTTP_400_BAD_REQUEST)
         return response
 
     @swagger_auto_schema(method='get',

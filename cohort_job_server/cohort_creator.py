@@ -1,4 +1,3 @@
-from django.conf import settings
 from django.utils import timezone
 
 from admin_cohort.types import JobStatus
@@ -6,13 +5,10 @@ from cohort.models import CohortResult
 from cohort_job_server.base_operator import BaseCohortOperator
 from cohort_job_server.sjs_api import sjs_status_mapper, CohortCreate
 from cohort_job_server.tasks import notify_large_cohort_ready
-from cohort_job_server.misc import _logger, JOB_STATUS, GROUP_ID, GROUP_COUNT, log_create_task
+from cohort_job_server.utils import _logger, JOB_STATUS, GROUP_ID, GROUP_COUNT, log_create_task
 
 
 class CohortCreator(BaseCohortOperator):
-    def __init__(self):
-        super().__init__()
-        self.applicative_users += [settings.ETL_USERNAME]
 
     def launch_cohort_creation(self, cohort_id: str, json_query: str, auth_headers: dict) -> None:
         create_request = CohortCreate(auth_headers=auth_headers)
@@ -38,11 +34,11 @@ class CohortCreator(BaseCohortOperator):
 
     @staticmethod
     def handle_cohort_post_update(cohort: CohortResult, data: dict) -> None:
-        job_server_data_keys = (JOB_STATUS, GROUP_ID, GROUP_COUNT)
-        is_update_from_job_server = all(key in data for key in job_server_data_keys)
+        sjs_data_keys = (JOB_STATUS, GROUP_ID, GROUP_COUNT)
+        is_update_from_sjs = all(key in data for key in sjs_data_keys)
         is_update_from_etl = JOB_STATUS in data and len(data) == 1
 
-        if is_update_from_job_server:
+        if is_update_from_sjs:
             _logger.info(f"Cohort[{cohort.uuid}] successfully updated from Job Server")
         if is_update_from_etl:
             notify_large_cohort_ready(cohort=cohort)

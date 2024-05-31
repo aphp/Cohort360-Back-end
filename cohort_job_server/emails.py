@@ -1,12 +1,9 @@
-import logging
-
 from django.conf import settings
 
 from admin_cohort.emails import EmailNotification
 from admin_cohort.models import User
 from admin_cohort.settings import FRONT_URL
-
-_logger = logging.getLogger("info")
+from cohort_job_server.utils import _logger
 
 
 def send_email_notif_large_cohort_ready(cohort_name: str, cohort_id: str, cohort_owner: User) -> None:

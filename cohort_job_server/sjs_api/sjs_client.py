@@ -2,16 +2,14 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 from typing import TYPE_CHECKING
 
 import requests
+from django.conf import settings
 from requests import Response
 
 if TYPE_CHECKING:
     from cohort_job_server.sjs_api import CohortQuery, SparkJobObject
-
-SJS_URL = os.environ.get("SJS_URL")
 
 _logger = logging.getLogger('info')
 
@@ -24,6 +22,9 @@ class SJSClient:
     CREATE_CLASSPATH = "fr.aphp.id.eds.requester.CreateQuery"
     CONTEXT = "shared"
 
+    def __init__(self):
+        self.api_url = f"{settings.SJS_URL}/jobs"
+
     def count(self, input_payload: str) -> Response:
         _logger.info(f"Count query payload: {input_payload}")
         params = {
@@ -31,7 +32,7 @@ class SJSClient:
             'classPath': self.COUNT_CLASSPATH,
             'context': self.CONTEXT
         }
-        return requests.post(f"{SJS_URL}/jobs", params=params, data=input_payload)
+        return requests.post(self.api_url, params=params, data=input_payload)
 
     def create(self, input_payload: str) -> Response:
         params = {
@@ -40,10 +41,10 @@ class SJSClient:
             'context': self.CONTEXT,
             'sync': 'false'
         }
-        return requests.post(f"{SJS_URL}/jobs", params=params, data=input_payload)
+        return requests.post(self.api_url, params=params, data=input_payload)
 
     def delete(self, job_id: str) -> Response:
-        return requests.delete(f"{SJS_URL}/jobs/{job_id}")
+        return requests.delete(f"{self.api_url}/{job_id}")
 
 
 def replace_pattern(text: str, replacements: list[tuple[str, str]]) -> str:

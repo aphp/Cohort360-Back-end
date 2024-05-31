@@ -30,10 +30,10 @@ def count_cohort(dm_id: str, json_query: str, auth_headers: dict, operator: type
     dm.count_task_id = current_task.request.id or ""
     dm.request_job_status = JobStatus.pending
     dm.save()
-    operator().launch_count(dm_id=dm_id,
-                            json_query=json_query,
-                            auth_headers=auth_headers,
-                            global_estimate=global_estimate)
+    operator().launch_dated_measure_count(dm_id=dm_id,
+                                          json_query=json_query,
+                                          auth_headers=auth_headers,
+                                          global_estimate=global_estimate)
 
 
 @shared_task

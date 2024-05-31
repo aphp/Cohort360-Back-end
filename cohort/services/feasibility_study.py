@@ -53,14 +53,14 @@ class FeasibilityStudyService(CommonService):
         try:
             job_status, counts_per_perimeter = self.operator().handle_patch_feasibility_study(fs, data)
         except ValueError as ve:
-            send_email_feasibility_report_error(fs_id=fs.uuid)
+            send_email_feasibility_report_error.s(fs_id=fs.uuid).apply_async()
             raise ve
         else:
             if job_status == JobStatus.finished:
                 self.persist_feasibility_report(fs=fs, counts_per_perimeter=counts_per_perimeter)
-                send_email_feasibility_report_ready(fs_id=fs.uuid)
+                send_email_feasibility_report_ready.s(fs_id=fs.uuid).apply_async()
             elif job_status == JobStatus.failed:
-                send_email_feasibility_report_error(fs_id=fs.uuid)
+                send_email_feasibility_report_error.s(fs_id=fs.uuid).apply_async()
 
     @staticmethod
     def get_file_name(fs: FeasibilityStudy) -> str:

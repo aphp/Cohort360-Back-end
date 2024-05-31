@@ -12,9 +12,8 @@ from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from cohort.models import DatedMeasure
 from cohort.serializers import DatedMeasureSerializer
-from cohort.services.dated_measure import dated_measure_service
+from cohort.services.dated_measure import dm_service
 from cohort.services.utils import await_celery_task
-from cohort.services.ws_event_manager import ws_send_to_client
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
 _logger = logging.getLogger('info')
@@ -45,19 +44,19 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     pagination_class = NegativeLimitOffsetPagination
 
     def get_permissions(self):
-        special_permissions = dated_measure_service.get_special_permissions(self.request)
+        special_permissions = dm_service.get_special_permissions(self.request)
         if special_permissions:
             return special_permissions
-        return super(DatedMeasureViewSet, self).get_permissions()
+        return super().get_permissions()
 
     def get_queryset(self):
-        if dated_measure_service.allow_use_full_queryset(request=self.request):
+        if dm_service.allow_use_full_queryset(request=self.request):
             return self.queryset
-        return super(DatedMeasureViewSet, self).get_queryset()
+        return super().get_queryset()
 
     @cache_response()
     def list(self, request, *args, **kwargs):
-        return super(DatedMeasureViewSet, self).list(request, *args, **kwargs)
+        return super().list(request, *args, **kwargs)
 
     @swagger_auto_schema(request_body=openapi.Schema(
                              type=openapi.TYPE_OBJECT,
@@ -68,8 +67,8 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
-        transaction.on_commit(lambda: dated_measure_service.handle_count(request=request,
-                                                                         dm=response.data.serializer.instance))
+        transaction.on_commit(lambda: dm_service.handle_count(request=request,
+                                                              dm=response.data.serializer.instance))
         return response
 
     @swagger_auto_schema(operation_summary="Called by JobServer to update DM's `measure` and other fields",
@@ -85,11 +84,10 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     @await_celery_task
     def partial_update(self, request, *args, **kwargs):
         dm = self.get_object()
-        try:
-            dated_measure_service.handle_patch_dated_measure(dm=dm, data=request.data)
-        except ValueError as ve:
-            return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
-        response = super(DatedMeasureViewSet, self).partial_update(request, *args, **kwargs)
-        dm.refresh_from_db()
-        ws_send_to_client(instance=dm, job_name='count', extra_info={"measure": dm.measure})
+        success, error = dm_service.handle_patch_dated_measure(dm=dm, data=request.data)
+        if success:
+            response = super().partial_update(request, *args, **kwargs)
+            dm_service.ws_push_to_client(dm=dm)
+        else:
+            response = Response(data=f"{error}", status=status.HTTP_400_BAD_REQUEST)
         return response

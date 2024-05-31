@@ -6,7 +6,6 @@ from unittest.mock import MagicMock
 
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.test import force_authenticate
 
 from admin_cohort.tests.tests_tools import random_str, ListCase, RetrieveCase, CaseRetrieveFilter, CreateCase, DeleteCase, PatchCase
 from admin_cohort.types import JobStatus
@@ -168,8 +167,8 @@ class DatedMeasuresCreateTests(DatedMeasuresTests):
                                                       owner=self.user1)
 
     @mock.patch('cohort.services.dated_measure.get_authorization_header')
-    @mock.patch('cohort.services.dated_measure.cancel_previous_count_jobs.delay')
-    @mock.patch('cohort.services.dated_measure.count_cohort_task.apply_async')
+    @mock.patch('cohort.services.dated_measure.cancel_previous_count_jobs.apply_async')
+    @mock.patch('cohort.services.dated_measure.count_cohort.apply_async')
     def check_create_case_with_mock(self, case: DMCreateCase, mock_count_task: MagicMock, mock_cancel_task: MagicMock, mock_header: MagicMock,
                                     other_view: any, view_kwargs: dict):
         mock_header.return_value = None
@@ -238,12 +237,6 @@ class DatedMeasuresCreateTests(DatedMeasuresTests):
                                      retrieve_filter=DMCaseRetrieveFilter(request_query_snapshot__pk=self.user1_req_running_dms_snap1.pk))
         self.check_create_case(case)
 
-    # def test_error_create_on_cancel_running_dms(self):
-    #     case = self.basic_err_case.clone(data={'request_query_snapshot_id': self.user1_req_running_dms_snap1.pk},
-    #                                      status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-    #                                      cancel_task_raises_exception=True)
-    #     self.check_create_case(case)
-
 
 class DMDeleteCase(DeleteCase):
     def __init__(self, with_cohort: bool = False, **kwargs):
@@ -254,73 +247,49 @@ class DMDeleteCase(DeleteCase):
 class DMUpdateTests(DatedMeasuresTests):
     def setUp(self):
         super(DMUpdateTests, self).setUp()
-        self.user1_req1_snap1_dm: DatedMeasure = DatedMeasure.objects.create(
-                                                                        owner=self.user1,
-                                                                        request_query_snapshot=self.user1_req1_snap1,
-                                                                        measure=1,
-                                                                        fhir_datetime=timezone.now())
         self.basic_data = dict(request_query_snapshot_id=self.user1_req1_snap1.pk,
                                mode=DATED_MEASURE_MODE_CHOICES[0][0],
                                owner=self.user1)
-        self.data_global_estimate_mode = self.basic_data.copy()
-        self.data_global_estimate_mode.update({"mode": GLOBAL_DM_MODE})
-
         self.basic_case = PatchCase(initial_data=self.basic_data,
                                     status=status.HTTP_200_OK,
                                     success=True,
                                     user=self.user1,
                                     data_to_update={})
-
         self.basic_err_case = self.basic_case.clone(status=status.HTTP_400_BAD_REQUEST,
                                                     success=False)
 
-    @mock.patch('cohort.views.dated_measure.ws_send_to_client')
-    def test_update_dm_by_sjs_callback_status_finished(self, mock_ws_send_to_client):
+    @mock.patch('cohort.services.dated_measure.ws_send_to_client')
+    @mock.patch('cohort.services.cohort_operators.DefaultCohortCounter.handle_patch_dated_measure')
+    def check_dm_patch_case(self, mock_patch_handler, mock_ws_send_to_client, case: dict):
+        mock_patch_handler.return_value = None
         mock_ws_send_to_client.return_value = None
-        dm: DatedMeasure = self.model_objects.create(**self.basic_data)
-        data = {'request_job_status': 'finished',
-                'count': 10500
-                }
-        request = self.factory.patch(self.objects_url, data=data, format='json')
-        force_authenticate(request, dm.owner)
-        response = self.__class__.update_view(request, **{self.model._meta.pk.name: dm.uuid})
-        response.render()
-        self.assertEqual(response.data.get("request_job_status"), JobStatus.finished.value)
-        self.assertEqual(response.data.get("measure"), data['count'])
+        resp_data = self.check_patch_case(case=case["patch_case"],
+                                          return_response_data=True)
+        self.assertEqual(resp_data.get("request_job_status"), JobStatus.finished.value)
+        mock_patch_handler.assert_called_once() if case["mock_patch_handler_called"] else mock_patch_handler.assert_not_called()
+        mock_ws_send_to_client.assert_called_once() if case["mock_ws_send_to_client_called"] else mock_ws_send_to_client.assert_not_called()
 
-    @mock.patch('cohort.views.dated_measure.ws_send_to_client')
-    def test_update_dm_with_global_estimate_by_sjs_callback_status_finished(self, mock_ws_send_to_client):
-        mock_ws_send_to_client.return_value = None
-        dm_global: DatedMeasure = self.model_objects.create(**self.data_global_estimate_mode)
-        data = {'request_job_status': 'finished',
-                'minimum': 10,
-                'maximum': 50}
-        request = self.factory.patch(self.objects_url, data=data, format='json')
-        force_authenticate(request, dm_global.owner)
-        response = self.__class__.update_view(request, **{self.model._meta.pk.name: dm_global.uuid})
-        response.render()
-        self.assertEqual(response.data.get("request_job_status"), JobStatus.finished.value)
-        self.assertEqual(response.data.get("measure_min"), data['minimum'])
-        self.assertEqual(response.data.get("measure_max"), data['maximum'])
+    def test_patch_dm_with_status_finished(self):
+        normal_dm_case = {"patch_case": self.basic_case.clone(data_to_update={'request_job_status': 'finished'}),
+                          "mock_patch_handler_called": True,
+                          "mock_ws_send_to_client_called": True
+                          }
+        self.check_dm_patch_case(case=normal_dm_case)
 
-    @mock.patch('cohort.views.dated_measure.ws_send_to_client')
-    def test_update_dm_by_sjs_callback_status_failed(self, mock_ws_send_to_client):
-        mock_ws_send_to_client.return_value = None
-        dm: DatedMeasure = self.model_objects.create(**self.basic_data)
-        data = {'request_job_status': 'error',
-                'message': 'Error on count job'
-                }
-        request = self.factory.patch(self.objects_url, data=data, format='json')
-        force_authenticate(request, dm.owner)
-        response = self.__class__.update_view(request, **{self.model._meta.pk.name: dm.uuid})
-        response.render()
-        self.assertEqual(response.data.get("request_job_status"), JobStatus.failed.value)
-        self.assertIsNotNone(response.data.get("request_job_fail_msg"))
-        self.assertIsNotNone(response.data.get("request_job_duration"))
+    def test_patch_global_dm_with_status_finished(self):
+        global_dm_case = {"patch_case": self.basic_case.clone(initial_data={**self.basic_data, "mode": GLOBAL_DM_MODE},
+                                                              data_to_update={'request_job_status': 'finished'}),
+                          "mock_patch_handler_called": True,
+                          "mock_ws_send_to_client_called": False
+                          }
+        self.check_dm_patch_case(case=global_dm_case)
 
-    @mock.patch('cohort.views.dated_measure.ws_send_to_client')
-    def test_error_update_dm_by_sjs_callback_invalid_status(self, mock_ws_send_to_client):
+    @mock.patch('cohort.services.dated_measure.ws_send_to_client')
+    @mock.patch('cohort.services.cohort_operators.DefaultCohortCounter.handle_patch_dated_measure')
+    def test_error_patch_dm_with_invalid_status(self, mock_patch_handler, mock_ws_send_to_client):
+        mock_patch_handler.side_effect = ValueError('Wrong status value')
         mock_ws_send_to_client.return_value = None
-        invalid_status = 'invalid_status'
-        case = self.basic_err_case.clone(data_to_update={'request_job_status': invalid_status})
+        case = self.basic_err_case.clone(data_to_update={'request_job_status': 'invalid_status'})
         self.check_patch_case(case)
+        mock_patch_handler.assert_called_once()
+        mock_ws_send_to_client.assert_called_once()
