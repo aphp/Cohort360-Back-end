@@ -16,7 +16,6 @@ from cohort.serializers import DatedMeasureSerializer
 from cohort.services.dated_measure import dated_measure_service, JOB_STATUS, MINIMUM, MAXIMUM, COUNT
 from cohort.services.misc import is_sjs_user
 from cohort.services.decorators import await_celery_task
-from cohort.services.ws_event_manager import ws_send_to_client
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
 _logger = logging.getLogger('info')
@@ -85,12 +84,11 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                                     '400': openapi.Response("Bad Request")})
     @await_celery_task
     def partial_update(self, request, *args, **kwargs):
-        try:
-            dm = self.get_object()
-            dated_measure_service.process_patch_data(dm=dm, data=request.data)
-        except ValueError as ve:
-            return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
-        response = super(DatedMeasureViewSet, self).partial_update(request, *args, **kwargs)
-        dm.refresh_from_db()
-        ws_send_to_client(_object=dm, job_name='count', extra_info={"measure": dm.measure})
+        dm = self.get_object()
+        success, error = dated_measure_service.process_patch_data(dm=dm, data=request.data)
+        if success:
+            response = super().partial_update(request, *args, **kwargs)
+            dated_measure_service.ws_push_to_client(dm=dm)
+        else:
+            response = Response(data=f"{error}", status=status.HTTP_400_BAD_REQUEST)
         return response

@@ -1,6 +1,7 @@
 import json
 import logging
 from smtplib import SMTPException
+from typing import Tuple
 
 from django.utils import timezone
 from django.core.exceptions import ValidationError
@@ -12,6 +13,7 @@ from cohort.models.dated_measure import GLOBAL_DM_MODE
 from cohort.job_server_api import job_server_status_mapper
 from cohort.services.misc import get_authorization_header
 from cohort.services.emails import send_email_notif_about_large_cohort
+from cohort.services.ws_event_manager import ws_send_to_client
 from cohort.tasks import count_cohort_task, create_cohort_task
 
 JOB_STATUS = "request_job_status"
@@ -108,8 +110,7 @@ class CohortResultService:
             cohort.delete()
             raise ServerError("INTERNAL ERROR: Could not launch cohort creation") from e
 
-    @staticmethod
-    def process_patch_data(cohort: CohortResult, data: dict) -> tuple[bool, bool]:
+    def process_patch_data(self, cohort: CohortResult, data: dict) -> Tuple[bool, bool]:
         _logger.info(f"Received data for cohort patch: {data}")
         sjs_data_keys = (JOB_STATUS, GROUP_ID, GROUP_COUNT)
         is_update_from_sjs = all([key in data for key in sjs_data_keys])
@@ -130,6 +131,26 @@ class CohortResultService:
             cohort.dated_measure.measure = data.pop(GROUP_COUNT)
             cohort.dated_measure.save()
         return is_update_from_sjs, is_update_from_etl
+
+    def mark_cohort_as_failed(self, cohort: CohortResult, reason: str) -> None:
+        cohort.request_job_status = JobStatus.failed
+        cohort.request_job_fail_msg = reason
+        cohort.save()
+        self.ws_send_to_client(cohort=cohort, extra_info={"error": f"Cohort failed: {reason}"})
+
+    def ws_push_to_client(self, cohort: CohortResult) -> None:
+        cohort.refresh_from_db()
+        global_dm = cohort.dated_measure_global
+        extra_info = {'fhir_group_id': cohort.fhir_group_id}
+        if global_dm:
+            extra_info['global'] = {'measure_min': global_dm.measure_min,
+                                    'measure_max': global_dm.measure_max
+                                    }
+        self.ws_send_to_client(cohort=cohort, extra_info=extra_info)
+
+    @staticmethod
+    def ws_send_to_client(cohort: CohortResult, extra_info: dict) -> None:
+        ws_send_to_client(instance=cohort, job_name='create', extra_info=extra_info)
 
     @staticmethod
     def send_email_notification(cohort: CohortResult, is_update_from_sjs: bool, is_update_from_etl: bool) -> None:
