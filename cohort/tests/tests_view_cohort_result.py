@@ -382,7 +382,7 @@ class CohortsUpdateTests(CohortsTests):
         self.basic_err_case = self.basic_case.clone(status=status.HTTP_400_BAD_REQUEST,
                                                     success=False)
 
-    @mock.patch('cohort.services.cohort_result.ws_send_to_client')
+    @mock.patch('cohort.services.cohort_result.ws_send')
     @mock.patch('cohort.services.cohort_operators.DefaultCohortCreator.handle_cohort_post_update')
     @mock.patch('cohort.services.cohort_operators.DefaultCohortCreator.handle_patch_cohort')
     def test_update_cohort_as_owner(self, mock_patch_handler, mock_post_update, mock_ws_send_to_client):
@@ -405,7 +405,7 @@ class CohortsUpdateTests(CohortsTests):
         mock_post_update.assert_called_once()
         mock_ws_send_to_client.assert_called_once()
 
-    @mock.patch('cohort.services.cohort_result.ws_send_to_client')
+    @mock.patch('cohort.services.cohort_result.ws_send')
     def test_error_update_cohort_as_not_owner(self, mock_ws_send_to_client):
         mock_ws_send_to_client.return_value = None
         case = self.basic_err_case.clone(data_to_update=dict(name="new name"),
@@ -413,7 +413,7 @@ class CohortsUpdateTests(CohortsTests):
                                          status=status.HTTP_404_NOT_FOUND)
         self.check_patch_case(case)
 
-    @mock.patch('cohort.services.cohort_result.ws_send_to_client')
+    @mock.patch('cohort.services.cohort_result.ws_send')
     def test_error_update_cohort_forbidden_fields(self, mock_ws_send_to_client):
         mock_ws_send_to_client.return_value = None
         dm: DatedMeasure = DatedMeasure.objects.create(owner=self.user1, request_query_snapshot=self.user1_req1_snap1)
@@ -423,7 +423,7 @@ class CohortsUpdateTests(CohortsTests):
                                   dated_measure=dm.pk).items()]
         [self.check_patch_case(case) for case in cases]
 
-    @mock.patch('cohort.services.cohort_result.ws_send_to_client')
+    @mock.patch('cohort.services.cohort_result.ws_send')
     @mock.patch('cohort.services.cohort_operators.DefaultCohortCreator.handle_cohort_post_update')
     @mock.patch('cohort.services.cohort_operators.DefaultCohortCreator.handle_patch_cohort')
     def test_patch_cohort_with_status_finished(self, mock_patch_handler, mock_post_update, mock_ws_send_to_client):
@@ -437,7 +437,7 @@ class CohortsUpdateTests(CohortsTests):
         mock_post_update.assert_called_once()
         mock_ws_send_to_client.assert_called_once()
 
-    @mock.patch('cohort.services.cohort_result.ws_send_to_client')
+    @mock.patch('cohort.services.cohort_result.ws_send')
     @mock.patch('cohort.services.cohort_operators.DefaultCohortCreator.handle_patch_cohort')
     def test_error_patch_cohort_with_invalid_status(self, mock_patch_handler, mock_ws_send_to_client):
         mock_patch_handler.side_effect = ValueError('Wrong status value')

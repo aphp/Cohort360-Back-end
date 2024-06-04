@@ -84,10 +84,12 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     @await_celery_task
     def partial_update(self, request, *args, **kwargs):
         dm = self.get_object()
-        success, error = dm_service.handle_patch_dated_measure(dm=dm, data=request.data)
-        if success:
-            response = super().partial_update(request, *args, **kwargs)
-            dm_service.ws_push_to_client(dm=dm)
+        try:
+            dm_service.handle_patch_dated_measure(dm=dm, data=request.data)
+        except ValueError as ve:
+            dm_service.mark_dm_as_failed(dm=dm, reason=str(ve))
+            response = Response(data=str(ve), status=status.HTTP_400_BAD_REQUEST)
         else:
-            response = Response(data=f"{error}", status=status.HTTP_400_BAD_REQUEST)
+            response = super().partial_update(request, *args, **kwargs)
+        dm_service.ws_send_to_client(dm=dm)
         return response
