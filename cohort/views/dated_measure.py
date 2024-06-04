@@ -13,7 +13,7 @@ from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagin
 from cohort.models import DatedMeasure
 from cohort.permissions import SJSorETLCallbackPermission
 from cohort.serializers import DatedMeasureSerializer
-from cohort.services.dated_measure import dated_measure_service, JOB_STATUS, MINIMUM, MAXIMUM, COUNT
+from cohort.services.dated_measure import dm_service, JOB_STATUS, MINIMUM, MAXIMUM, COUNT
 from cohort.services.misc import is_sjs_user
 from cohort.services.decorators import await_celery_task
 from cohort.views.shared import UserObjectsRestrictedViewSet
@@ -68,8 +68,8 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
-        transaction.on_commit(lambda: dated_measure_service.process_dated_measure(dm_uuid=response.data.get("uuid"),
-                                                                                  request=request))
+        transaction.on_commit(lambda: dm_service.process_dated_measure(dm_uuid=response.data.get("uuid"),
+                                                                       request=request))
         return response
 
     @swagger_auto_schema(operation_summary="Called by SJS to update DM's `measure` and other fields",
@@ -85,10 +85,12 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     @await_celery_task
     def partial_update(self, request, *args, **kwargs):
         dm = self.get_object()
-        success, error = dated_measure_service.process_patch_data(dm=dm, data=request.data)
-        if success:
-            response = super().partial_update(request, *args, **kwargs)
-            dated_measure_service.ws_push_to_client(dm=dm)
+        try:
+            dm_service.process_patch_data(dm=dm, data=request.data)
+        except ValueError as ve:
+            dm_service.mark_dm_as_failed(dm=dm, reason=str(ve))
+            response = Response(data=str(ve), status=status.HTTP_400_BAD_REQUEST)
         else:
-            response = Response(data=f"{error}", status=status.HTTP_400_BAD_REQUEST)
+            response = super().partial_update(request, *args, **kwargs)
+        dm_service.ws_send_to_client(dm=dm)
         return response

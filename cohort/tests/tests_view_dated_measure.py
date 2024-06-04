@@ -274,7 +274,7 @@ class DMUpdateTests(DatedMeasuresTests):
         self.basic_err_case = self.basic_case.clone(status=status.HTTP_400_BAD_REQUEST,
                                                     success=False)
 
-    @mock.patch('cohort.services.dated_measure.ws_send_to_client')
+    @mock.patch('cohort.services.dated_measure.ws_send')
     def test_update_dm_by_sjs_callback_status_finished(self, mock_ws_send_to_client):
         mock_ws_send_to_client.return_value = None
         dm: DatedMeasure = self.model_objects.create(**self.basic_data)
@@ -288,7 +288,7 @@ class DMUpdateTests(DatedMeasuresTests):
         self.assertEqual(response.data.get("request_job_status"), JobStatus.finished.value)
         self.assertEqual(response.data.get("measure"), data['count'])
 
-    @mock.patch('cohort.services.dated_measure.ws_send_to_client')
+    @mock.patch('cohort.services.dated_measure.ws_send')
     def test_update_dm_with_global_estimate_by_sjs_callback_status_finished(self, mock_ws_send_to_client):
         mock_ws_send_to_client.return_value = None
         dm_global: DatedMeasure = self.model_objects.create(**self.data_global_estimate_mode)
@@ -303,7 +303,7 @@ class DMUpdateTests(DatedMeasuresTests):
         self.assertEqual(response.data.get("measure_min"), data['minimum'])
         self.assertEqual(response.data.get("measure_max"), data['maximum'])
 
-    @mock.patch('cohort.services.dated_measure.ws_send_to_client')
+    @mock.patch('cohort.services.dated_measure.ws_send')
     def test_update_dm_by_sjs_callback_status_failed(self, mock_ws_send_to_client):
         mock_ws_send_to_client.return_value = None
         dm: DatedMeasure = self.model_objects.create(**self.basic_data)
@@ -318,7 +318,7 @@ class DMUpdateTests(DatedMeasuresTests):
         self.assertIsNotNone(response.data.get("request_job_fail_msg"))
         self.assertIsNotNone(response.data.get("request_job_duration"))
 
-    @mock.patch('cohort.services.dated_measure.ws_send_to_client')
+    @mock.patch('cohort.services.dated_measure.ws_send')
     def test_error_update_dm_by_sjs_callback_invalid_status(self, mock_ws_send_to_client):
         mock_ws_send_to_client.return_value = None
         invalid_status = 'invalid_status'

@@ -76,7 +76,7 @@ class WebsocketManager(AsyncJsonWebsocketConsumer):
             return
 
 
-def ws_send_to_client(instance, job_name: ws_info_job_name, extra_info: dict):
+def ws_send(instance, job_name: ws_info_job_name, extra_info: dict):
     websocket_infos = WebSocketInfos(status=instance.request_job_status,
                                      client_id=str(instance.owner_id),
                                      uuid=str(instance.uuid),

@@ -177,7 +177,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                 cohort_service.send_email_notification(cohort=cohort,
                                                        is_update_from_sjs=is_update_from_sjs,
                                                        is_update_from_etl=is_update_from_etl)
-        cohort_service.ws_push_to_client(cohort=cohort)
+        cohort_service.ws_send_to_client(cohort=cohort)
         return response
 
     @swagger_auto_schema(method='get',
