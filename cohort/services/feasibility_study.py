@@ -153,7 +153,7 @@ class FeasibilityStudyService:
 
         for p in perimeters:
             p_id = p.cohort_id
-            patients_count = bound_number(n=counts_per_perimeter.get(p_id, 0))
+            patients_count = bound_number(n=int(counts_per_perimeter.get(p_id, 0)))
             json_content[p_id] = patients_count
             html_content += f"""<li class="item">
                                 <input type="checkbox" id="p{p_id}">
