@@ -5,15 +5,15 @@ from cohort.models import CohortResult
 from cohort_job_server.base_operator import BaseCohortOperator
 from cohort_job_server.sjs_api import sjs_status_mapper, CohortCreate
 from cohort_job_server.tasks import notify_large_cohort_ready
-from cohort_job_server.utils import _logger, JOB_STATUS, GROUP_ID, GROUP_COUNT
+from cohort_job_server.utils import _logger, JOB_STATUS, GROUP_ID, GROUP_COUNT, ERR_MESSAGE
 
 
 class CohortCreator(BaseCohortOperator):
 
     def launch_cohort_creation(self, cohort_id: str, json_query: str, auth_headers: dict) -> None:
-        self.sjs_requester.post_to_sjs(CohortCreate(instance_id=cohort_id,
-                                                    json_query=json_query,
-                                                    auth_headers=auth_headers))
+        self.sjs_requester.launch_request(CohortCreate(instance_id=cohort_id,
+                                                       json_query=json_query,
+                                                       auth_headers=auth_headers))
 
     @staticmethod
     def handle_patch_cohort(cohort: CohortResult, data: dict) -> None:
@@ -25,7 +25,7 @@ class CohortCreator(BaseCohortOperator):
             if job_status in (JobStatus.finished, JobStatus.failed):
                 data["request_job_duration"] = str(timezone.now() - cohort.created_at)
                 if job_status == JobStatus.failed:
-                    data["request_job_fail_msg"] = "Received a failed status from SJS"
+                    data["request_job_fail_msg"] = data.pop(ERR_MESSAGE, None)
             data['request_job_status'] = job_status
         if GROUP_ID in data:
             data["group_id"] = data.pop(GROUP_ID)
@@ -40,6 +40,6 @@ class CohortCreator(BaseCohortOperator):
         is_update_from_etl = JOB_STATUS in data and len(data) == 1
 
         if is_update_from_sjs:
-            _logger.info(f"Cohort[{cohort.uuid}] successfully updated from Job Server")
+            _logger.info(f"Cohort[{cohort.uuid}] successfully updated from SJS")
         if is_update_from_etl:
-            notify_large_cohort_ready(cohort=cohort)
+            notify_large_cohort_ready.s(cohort_id=cohort.uuid).apply_async()

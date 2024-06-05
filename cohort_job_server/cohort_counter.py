@@ -15,14 +15,14 @@ class CohortCounter(BaseCohortOperator):
 
     def launch_dated_measure_count(self, dm_id: str, json_query: str, auth_headers: dict, global_estimate=False) -> None:
         count_cls = global_estimate and CohortCountAll or CohortCount
-        self.sjs_requester.post_to_sjs(count_cls(instance_id=dm_id,
-                                                 json_query=json_query,
-                                                 auth_headers=auth_headers))
+        self.sjs_requester.launch_request(count_cls(instance_id=dm_id,
+                                                    json_query=json_query,
+                                                    auth_headers=auth_headers))
 
     def launch_feasibility_study_count(self, fs_id: str, json_query: str, auth_headers: dict) -> bool:
-        response = self.sjs_requester.post_to_sjs(FeasibilityCount(instance_id=fs_id,
-                                                                   json_query=json_query,
-                                                                   auth_headers=auth_headers))
+        response = self.sjs_requester.launch_request(FeasibilityCount(instance_id=fs_id,
+                                                                      json_query=json_query,
+                                                                      auth_headers=auth_headers))
         return response.success
 
     def cancel_job(self, job_id: str) -> JobStatus:

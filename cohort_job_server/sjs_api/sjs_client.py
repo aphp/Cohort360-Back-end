@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from typing import TYPE_CHECKING
 
 import requests
-from django.conf import settings
 from requests import Response
 
 if TYPE_CHECKING:
@@ -23,7 +23,7 @@ class SJSClient:
     CONTEXT = "shared"
 
     def __init__(self):
-        self.api_url = f"{settings.SJS_URL}/jobs"
+        self.api_url = f"{os.environ.get('SJS_URL')}/jobs"
 
     def count(self, input_payload: str) -> Response:
         _logger.info(f"Count query payload: {input_payload}")

@@ -1,12 +1,12 @@
 import json
 from typing import Type, Callable
 
+from django.conf import settings
 from django.db.models import Model
 from pydantic import ValidationError
 from requests import HTTPError
 from rest_framework import status
 
-from admin_cohort.settings import COHORT_LIMIT
 from admin_cohort.types import JobStatus, MissingDataError
 from cohort.models import CohortResult
 from cohort_job_server.sjs_api import BaseCohortRequest, CohortQuery, SJSClient, SJSResponse, sjs_status_mapper
@@ -18,7 +18,7 @@ LoggerType = Type[Callable[..., None]]
 
 class SJSRequester:
 
-    def post_to_sjs(self, cohort_request: BaseCohortRequest) -> SJSResponse:
+    def launch_request(self, cohort_request: BaseCohortRequest) -> SJSResponse:
         _logger = cohort_request.log
         instance_id = cohort_request.instance_id
         json_query = cohort_request.json_query
@@ -40,19 +40,19 @@ class SJSRequester:
     @staticmethod
     def update_request_instance(instance_model: Model, instance_id: str, response: SJSResponse) -> None:
         instance = instance_model.objects.get(pk=instance_id)
+        job_status = response.job_status
         if response.success:
             instance.request_job_id = response.job_id
             if instance_model is CohortResult:
                 count = instance.dated_measure.measure
-                instance.request_job_status = count >= COHORT_LIMIT and JobStatus.long_pending or JobStatus.pending
+                job_status = count >= settings.COHORT_LIMIT and JobStatus.long_pending or JobStatus.pending
         else:
-            instance.request_job_status = response.job_status
             instance.request_job_fail_msg = response.err_msg
+        instance.request_job_status = job_status
         instance.save()
 
     @staticmethod
     def cancel_job(job_id: str) -> JobStatus:
-        assert job_id is not None, "Missing `job_id`"
         response = SJSClient().delete(job_id)
         result = response.json()
         if response.status_code == status.HTTP_403_FORBIDDEN:

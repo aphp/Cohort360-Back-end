@@ -21,8 +21,7 @@ class CohortJobServerConfig(AppConfig):
         env = os.environ
         sjs_username = env.get('SJS_USERNAME', 'SPARK_JOB_SERVER')
         etl_username = env.get('ETL_USERNAME', 'SOLR_ETL')
-        settings.api_usernames = [sjs_username, etl_username]
-        settings.SJS_URL = env.get('SJS_URL')
-        settings.applicative_users = {env.get("SJS_TOKEN"): sjs_username,
+        settings.API_USERNAMES = [sjs_username, etl_username]
+        settings.APPLICATIVE_USERS = {env.get("SJS_TOKEN"): sjs_username,
                                       env.get("ETL_TOKEN"): etl_username
                                       }
