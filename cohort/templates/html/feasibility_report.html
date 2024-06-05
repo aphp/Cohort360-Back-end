@@ -34,6 +34,10 @@
             font-size: 25px;
             background: transparent !important;
         }
+        span.note-alert {
+            color: red;
+            font-weight: bold;
+        }
         div.metadata {
             margin: 10px 0 10px 20px;
             font-size: 13px;
@@ -123,8 +127,6 @@
         }
         div.label-count span {
             padding: 2px 4px;
-        }
-        div.label-count span:not([data-key='0']) {
             background: #eae9e9;
             border-radius: 5px;
             font-weight: bolder;
@@ -136,8 +138,10 @@
         <div class="top-container">
             <div class="note">
                 <span class="note-warn">⚠️</span>
-                Les résultats correspondent aux patients qui répondent aux critères d'inclusion. Un même patient peut être comptabilisé plusieurs fois
-                s'il est passé dans différentes structures de l'AP-HP.
+                <span class="note-alert">
+                    Les résultats correspondent au nombre de patients uniques répondant aux critères étant passés par la structure au moins une fois.
+                    Un même patient peut être comptabilisé plusieurs fois s'il est passé dans différentes structures de l'AP-HP.
+                </span>
                 <br><br>
                 Les Diagnostics et les Actes sont codés au niveau UF. Les GHM, Documents, Médicaments et Biologies sont codés au niveau Hôpital.
                 Ils ne ressortent donc pas aux niveaux inférieurs.

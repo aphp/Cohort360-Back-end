@@ -7,6 +7,6 @@ Nous vous confirmons la réception de votre demande de rapport concernant votre 
 Un lien de téléchargement vous sera envoyé par email lorsqu'il sera disponible.
 Un délai de 24h peut s'appliquer en fonction du volume des données.
 
-Pour toute question, contactez le support Cohort360 à dsi-id-recherche-support-cohort360@aphp.fr
+Pour toute question, contactez le support Cohort360 à l'adresse {{ contact_email_address }}
 
 {% endblock %}

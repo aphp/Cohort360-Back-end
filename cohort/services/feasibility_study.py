@@ -38,6 +38,17 @@ _logger = logging.getLogger('info')
 _logger_err = logging.getLogger('django.request')
 
 
+def bound_number(n: int) -> str:
+    limit_10 = 10
+    if 0 < n < limit_10:
+        return f"< {limit_10}"
+    elif n >= limit_10:
+        bound = 10 * (n // 10)
+        return f"{bound}-{bound+10}"
+    else:
+        return str(n)
+
+
 class FeasibilityStudyService:
 
     @staticmethod
@@ -143,13 +154,13 @@ class FeasibilityStudyService:
 
         for p in perimeters:
             p_id = p.cohort_id
-            patients_count = counts_per_perimeter.get(p_id, 0)
+            patients_count = bound_number(n=int(counts_per_perimeter.get(p_id, 0)))
             json_content[p_id] = patients_count
             html_content += f"""<li class="item">
                                 <input type="checkbox" id="p{p_id}">
                                 <div class="label-count">
                                     <label for="p{p_id}">{p.name}</label>
-                                    <span id="count_p{p_id}" data-key="{patients_count}">{patients_count}</span>
+                                    <span id="count_p{p_id}">{patients_count}</span>
                                 </div>
                              """
             children = p.children.filter(type_source_value__in=REPORTING_PERIMETER_TYPES)
