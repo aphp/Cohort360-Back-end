@@ -14,30 +14,30 @@ _logger = logging.getLogger('django.request')
 
 
 @shared_task
-def create_cohort(cohort_id: str, json_query: str, auth_headers: dict, operator: type) -> None:
+def create_cohort(cohort_id: str, json_query: str, auth_headers: dict, cohort_creator: type) -> None:
     cr = CohortResult.objects.get(uuid=cohort_id)
     cr.create_task_id = current_task.request.id or ""
     cr.save()
-    operator().launch_cohort_creation(cr_uuid=cohort_id,
-                                      json_query=json_query,
-                                      auth_headers=auth_headers)
+    cohort_creator().launch_cohort_creation(cr_uuid=cohort_id,
+                                            json_query=json_query,
+                                            auth_headers=auth_headers)
 
 
 @shared_task
 @locked_instance_task
-def count_cohort(dm_id: str, json_query: str, auth_headers: dict, operator: type, global_estimate=False) -> None:
+def count_cohort(dm_id: str, json_query: str, auth_headers: dict, cohort_counter: type, global_estimate=False) -> None:
     dm = DatedMeasure.objects.get(uuid=dm_id)
     dm.count_task_id = current_task.request.id or ""
     dm.request_job_status = JobStatus.pending
     dm.save()
-    operator().launch_dated_measure_count(dm_id=dm_id,
-                                          json_query=json_query,
-                                          auth_headers=auth_headers,
-                                          global_estimate=global_estimate)
+    cohort_counter().launch_dated_measure_count(dm_id=dm_id,
+                                                json_query=json_query,
+                                                auth_headers=auth_headers,
+                                                global_estimate=global_estimate)
 
 
 @shared_task
-def cancel_previous_count_jobs(dm_id: str, operator: type):
+def cancel_previous_count_jobs(dm_id: str, cohort_counter: type):
     dm = DatedMeasure.objects.get(pk=dm_id)
     rqs = dm.request_query_snapshot
     running_dms = rqs.dated_measures.exclude(uuid=dm.uuid)\
@@ -50,7 +50,7 @@ def cancel_previous_count_jobs(dm_id: str, operator: type):
         job_status = dm.request_job_status
         try:
             if job_status == JobStatus.started.value:
-                new_status = operator().cancel_job(job_id=dm.request_job_id)
+                new_status = cohort_counter().cancel_job(job_id=dm.request_job_id)
                 dm.request_job_status = new_status
             else:
                 celery_app.control.revoke(dm.count_task_id)
@@ -65,13 +65,13 @@ def cancel_previous_count_jobs(dm_id: str, operator: type):
 
 
 @shared_task
-def feasibility_study_count(fs_id: str, json_query: str, auth_headers: dict, operator: type) -> bool:
+def feasibility_study_count(fs_id: str, json_query: str, auth_headers: dict, cohort_counter: type) -> bool:
     fs = FeasibilityStudy.objects.get(uuid=fs_id)
     fs.count_task_id = current_task.request.id or ""
     fs.save()
-    return operator().launch_feasibility_study_count(fs_id=fs_id,
-                                                     json_query=json_query,
-                                                     auth_headers=auth_headers)
+    return cohort_counter().launch_feasibility_study_count(fs_id=fs_id,
+                                                           json_query=json_query,
+                                                           auth_headers=auth_headers)
 
 
 @shared_task

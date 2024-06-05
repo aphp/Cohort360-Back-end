@@ -84,8 +84,7 @@ class Criteria(BaseModel):
 
 
 class CohortQuery(BaseModel):
-    cohort_uuid: UUID = Field(None, alias='cohortUuid')
-    cohort_name: str = Field(None, alias='cohortName')
+    instance_id: UUID = Field(None, alias='instance_id')
     source_population: SourcePopulation = Field(alias="sourcePopulation")
     criteria_type: CriteriaType = Field(None, alias="_type")
     criteria: Criteria = Field(None, alias="request")

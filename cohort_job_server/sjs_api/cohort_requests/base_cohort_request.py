@@ -1,8 +1,7 @@
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, List
-
-from requests import Response
 
 from accesses.models import Perimeter
 from accesses.services.accesses import accesses_service
@@ -15,12 +14,16 @@ from cohort_job_server.sjs_api import Mode, SJSClient, QueryFormatter, SparkJobO
 if TYPE_CHECKING:
     from cohort_job_server.sjs_api import CohortQuery
 
+_celery_logger = logging.getLogger("celery.app")
+
 
 class BaseCohortRequest:
     model = None
 
-    def __init__(self, mode: Mode, auth_headers: dict):
+    def __init__(self, mode: Mode, instance_id: str, json_query: str, auth_headers: dict):
         self.mode = mode
+        self.instance_id = instance_id
+        self.json_query = json_query
         self.sjs_client = SJSClient()
         self.auth_headers = auth_headers
 
@@ -46,7 +49,7 @@ class BaseCohortRequest:
         sjs_request = QueryFormatter(self.auth_headers).format_to_fhir(cohort_query, is_pseudo)
         cohort_query.criteria = sjs_request
 
-        callback_path = self.mode == Mode.COUNT_WITH_DETAILS and f"/cohort/feasibility-studies/{cohort_query.cohort_uuid}/" or None
+        callback_path = self.mode == Mode.COUNT_WITH_DETAILS and f"/cohort/feasibility-studies/{cohort_query.instance_id}/" or None
         spark_job_request = SparkJobObject(cohort_definition_name="Created from Django",
                                            cohort_definition_syntax=cohort_query,
                                            mode=self.mode,
@@ -54,6 +57,9 @@ class BaseCohortRequest:
                                            callbackPath=callback_path)
         return format_spark_job_request_for_sjs(spark_job_request)
 
-    def launch(self, cohort_query: CohortQuery) -> Response:
+    def log(self, msg: str) -> None:
+        _celery_logger.info(f"Task {self.model}[{self.instance_id}] {msg}")
+
+    def launch(self, cohort_query: CohortQuery):
         """Perform an action (count, countAll, create) based on the cohort_query"""
-        pass
+        self.log(msg=f"Sending request to SJS: {cohort_query}")

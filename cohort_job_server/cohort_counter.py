@@ -6,8 +6,7 @@ from django.utils import timezone
 from admin_cohort.types import JobStatus
 from cohort_job_server.base_operator import BaseCohortOperator
 from cohort_job_server.sjs_api import CohortCount, CohortCountAll, FeasibilityCount, sjs_status_mapper
-from cohort_job_server.utils import _logger, log_count_task, log_count_all_task, log_feasibility_study_task, \
-                                    JOB_STATUS, COUNT, MINIMUM, MAXIMUM, EXTRA, ERR_MESSAGE
+from cohort_job_server.utils import _logger, JOB_STATUS, COUNT, MINIMUM, MAXIMUM, EXTRA, ERR_MESSAGE
 
 _logger_err = logging.getLogger('django.request')
 
@@ -15,13 +14,15 @@ _logger_err = logging.getLogger('django.request')
 class CohortCounter(BaseCohortOperator):
 
     def launch_dated_measure_count(self, dm_id: str, json_query: str, auth_headers: dict, global_estimate=False) -> None:
-        count_cls, logger = global_estimate and (CohortCountAll, log_count_all_task) or (CohortCount, log_count_task)
-        count_request = count_cls(auth_headers=auth_headers)
-        self.sjs_requester.post_to_job_server(json_query, dm_id, count_request, logger)
+        count_cls = global_estimate and CohortCountAll or CohortCount
+        self.sjs_requester.post_to_sjs(count_cls(instance_id=dm_id,
+                                                 json_query=json_query,
+                                                 auth_headers=auth_headers))
 
     def launch_feasibility_study_count(self, fs_id: str, json_query: str, auth_headers: dict) -> bool:
-        count_request = FeasibilityCount(auth_headers=auth_headers)
-        response = self.sjs_requester.post_to_job_server(json_query, fs_id, count_request, log_feasibility_study_task)
+        response = self.sjs_requester.post_to_sjs(FeasibilityCount(instance_id=fs_id,
+                                                                   json_query=json_query,
+                                                                   auth_headers=auth_headers))
         return response.success
 
     def cancel_job(self, job_id: str) -> JobStatus:

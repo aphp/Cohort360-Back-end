@@ -5,14 +5,15 @@ from cohort.models import CohortResult
 from cohort_job_server.base_operator import BaseCohortOperator
 from cohort_job_server.sjs_api import sjs_status_mapper, CohortCreate
 from cohort_job_server.tasks import notify_large_cohort_ready
-from cohort_job_server.utils import _logger, JOB_STATUS, GROUP_ID, GROUP_COUNT, log_create_task
+from cohort_job_server.utils import _logger, JOB_STATUS, GROUP_ID, GROUP_COUNT
 
 
 class CohortCreator(BaseCohortOperator):
 
     def launch_cohort_creation(self, cohort_id: str, json_query: str, auth_headers: dict) -> None:
-        create_request = CohortCreate(auth_headers=auth_headers)
-        self.sjs_requester.post_to_job_server(json_query, cohort_id, create_request, log_create_task)
+        self.sjs_requester.post_to_sjs(CohortCreate(instance_id=cohort_id,
+                                                    json_query=json_query,
+                                                    auth_headers=auth_headers))
 
     @staticmethod
     def handle_patch_cohort(cohort: CohortResult, data: dict) -> None:

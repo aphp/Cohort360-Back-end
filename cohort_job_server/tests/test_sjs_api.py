@@ -34,7 +34,7 @@ class FhirResponseMapperTest(TestCase):
 class CohortQueryTest(TestCase):
 
     def test_transform_json_to_cohort_query(self):
-        with open(Path(__file__).resolve().parent.joinpath("resources/crb_complex_request.json"), "r") as f:
+        with open(Path(__file__).resolve().parent.joinpath("resources/complex_request.json"), "r") as f:
             json_data = json.load(f)
         cohort_query = CohortQuery(**json_data)
         self.assertEquals(len(json_data["request"]["criteria"]), len(cohort_query.criteria.criteria))
@@ -48,8 +48,8 @@ class TestQueryFormatter(TestCase):
 
         self.auth_headers = {'Authorization': 'Bearer xxx.token.xxx', 'authorizationMethod': 'JWT', 'X-Trace-Id': '12a'}
         self.query_formatter = QueryFormatter(self.auth_headers)
-        self.cohort_query_complex = load_query("crb_complex_request.json")
-        self.cohort_query_simple = load_query("crb_simple_request.json")
+        self.cohort_query_complex = load_query("complex_request.json")
+        self.cohort_query_simple = load_query("simple_request.json")
         self.fq_value_string = 'fq=active:true&fq=gender:male'
         self.mocked_query_fhir_result = FhirParameters(
             resourceType=ResourceType.PATIENT,

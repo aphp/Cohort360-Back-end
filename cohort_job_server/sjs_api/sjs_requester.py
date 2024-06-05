@@ -1,6 +1,7 @@
 import json
 from typing import Type, Callable
 
+from django.db.models import Model
 from pydantic import ValidationError
 from requests import HTTPError
 from rest_framework import status
@@ -16,32 +17,38 @@ LoggerType = Type[Callable[..., None]]
 
 
 class SJSRequester:
-    @staticmethod
-    def post_to_job_server(json_query: str, instance_id: str, cohort_request: BaseCohortRequest, logger: LoggerType) -> SJSResponse:
+
+    def post_to_sjs(self, cohort_request: BaseCohortRequest) -> SJSResponse:
+        _logger = cohort_request.log
+        instance_id = cohort_request.instance_id
+        json_query = cohort_request.json_query
         try:
-            logger(instance_id, f"Step 1: Converting the json query: {json_query}")
-            cohort_query = CohortQuery(cohortUuid=instance_id, **json.loads(json_query))
-            logger(instance_id, f"Step 2: Sending request to Job Server: {cohort_query}")
+            _logger(msg=f"Converting the json query: {json_query}")
+            cohort_query = CohortQuery(instance_id=instance_id, **json.loads(json_query))
             response = cohort_request.launch(cohort_query)
         except (TypeError, ValueError, ValidationError, HTTPError) as e:
-            _logger_err.error(f"Error sending request to Job Server: {e}")
-            job_server_resp = SJSResponse(success=False, err_msg=str(e), status="ERROR")
+            _logger_err.error(f"Error sending request to SJS: {e}")
+            response_data = dict(success=False, err_msg=str(e), status="ERROR")
         else:
-            job_server_resp = SJSResponse(success=True, **response.json())
-        logger(instance_id, f"Step 3: Received Job Server response {job_server_resp.__dict__}")
-        obj_model = cohort_request.model
-        instance = obj_model.objects.get(pk=instance_id)
-        if job_server_resp.success:
-            instance.request_job_id = job_server_resp.job_id
-            if obj_model is CohortResult:
+            response_data = dict(success=True, **response.json())
+        response = SJSResponse(**response_data)
+        _logger(msg=f"Received SJS response {response.__dict__}")
+        self.update_request_instance(cohort_request.model, instance_id, response)
+        _logger(msg=f"Done: {response.success and f'{cohort_request.model.__name__} updated' or response.err_msg}")
+        return response
+
+    @staticmethod
+    def update_request_instance(instance_model: Model, instance_id: str, response: SJSResponse) -> None:
+        instance = instance_model.objects.get(pk=instance_id)
+        if response.success:
+            instance.request_job_id = response.job_id
+            if instance_model is CohortResult:
                 count = instance.dated_measure.measure
                 instance.request_job_status = count >= COHORT_LIMIT and JobStatus.long_pending or JobStatus.pending
         else:
-            instance.request_job_status = job_server_resp.job_status
-            instance.request_job_fail_msg = job_server_resp.err_msg
+            instance.request_job_status = response.job_status
+            instance.request_job_fail_msg = response.err_msg
         instance.save()
-        logger(instance_id, f"Done: {job_server_resp.success and f'{obj_model.__name__} updated' or job_server_resp.err_msg}")
-        return job_server_resp
 
     @staticmethod
     def cancel_job(job_id: str) -> JobStatus:

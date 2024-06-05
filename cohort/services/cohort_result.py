@@ -73,7 +73,7 @@ class CohortResultService(CommonService):
             create_cohort.s(cohort_id=cohort.pk,
                             json_query=cohort.request_query_snapshot.serialized_query,
                             auth_headers=get_authorization_header(request),
-                            operator=self.operator) \
+                            cohort_creator=self.operator) \
                          .apply_async()
 
         except Exception as e:
