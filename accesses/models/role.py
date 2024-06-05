@@ -3,7 +3,7 @@ from __future__ import annotations
 from django.db import models
 from django.db.models import Q, UniqueConstraint
 
-from accesses.services.shared import all_rights
+from accesses.models.right import Right
 from admin_cohort.models import BaseModel
 from admin_cohort.tools import join_qs
 
@@ -41,6 +41,7 @@ class Role(BaseModel):
     right_read_patient_nominative = models.BooleanField(default=False, null=False)
     right_read_patient_pseudonymized = models.BooleanField(default=False, null=False)
     right_search_patients_by_ipp = models.BooleanField(default=False, null=False)
+    right_search_patients_unlimited = models.BooleanField(default=False, null=False)
     right_search_opposed_patients = models.BooleanField(default=False, null=False)
 
     class Meta:
@@ -90,7 +91,11 @@ class Role(BaseModel):
         return Q(role__right_search_patients_by_ipp=True)
 
     @staticmethod
-    def q_allow_read_research_opposed_patient_data() -> Q:
+    def q_allow_unlimited_patients_search() -> Q:
+        return Q(role__right_search_patients_unlimited=True)
+
+    @staticmethod
+    def q_allow_read_search_opposed_patient_data() -> Q:
         return Q(role__right_search_opposed_patients=True)
 
     @staticmethod
@@ -114,22 +119,24 @@ class Role(BaseModel):
     @staticmethod
     def q_allow_manage_accesses_on_same_level() -> Q:
         return join_qs([Q(**{f'role__{right.name}': True})
-                        for right in all_rights if right.allow_edit_accesses_on_same_level])
+                        for right in Right.objects.filter(allow_edit_accesses_on_same_level=True)])
 
     @staticmethod
     def q_allow_manage_accesses_on_inf_levels() -> Q:
         return join_qs([Q(**{f'role__{right.name}': True})
-                        for right in all_rights if right.allow_edit_accesses_on_inf_levels])
+                        for right in Right.objects.filter(allow_edit_accesses_on_inf_levels=True)])
 
     @staticmethod
     def q_allow_read_accesses_on_same_level() -> Q:
-        return join_qs([Q(**{f'role__{right.name}': True}) for right in all_rights
-                        if right.allow_read_accesses_on_same_level or right.allow_edit_accesses_on_same_level])
+        return join_qs([Q(**{f'role__{right.name}': True})
+                        for right in Right.objects.filter(Q(allow_read_accesses_on_same_level=True)
+                                                          | Q(allow_edit_accesses_on_same_level=True))])
 
     @staticmethod
     def q_allow_read_accesses_on_inf_levels() -> Q:
-        return join_qs([Q(**{f'role__{right.name}': True}) for right in all_rights
-                        if right.allow_read_accesses_on_inf_levels or right.allow_edit_accesses_on_inf_levels])
+        return join_qs([Q(**{f'role__{right.name}': True})
+                        for right in Right.objects.filter(Q(allow_read_accesses_on_inf_levels=True)
+                                                          | Q(allow_edit_accesses_on_inf_levels=True))])
 
     @staticmethod
     def q_allow_manage_export_accesses() -> Q:
@@ -139,4 +146,4 @@ class Role(BaseModel):
     @staticmethod
     def q_impact_inferior_levels() -> Q:
         return join_qs([Q(**{f"role__{right.name}": True})
-                        for right in all_rights if right.impact_inferior_levels])
+                        for right in Right.objects.filter(impact_inferior_levels=True)])

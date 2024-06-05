@@ -37,7 +37,7 @@ class RequestLogTests(BaseTests):
                                                     parent=None,
                                                     type_source_value=PERIMETERS_TYPES[0],
                                                     source_value="APHP"))
-        self.user, self.profile = new_user_and_profile(firstname="User", lastname="USERSON", email="u.userson@aphp.fr")
+        self.user, self.profile = new_user_and_profile()
         self.user_role = Role.objects.create(**dict([(f, True) for f in self.all_rights]), name='FullAdmin')
         self.user_access = Access.objects.create(perimeter=self.aphp,
                                                  role=self.user_role,

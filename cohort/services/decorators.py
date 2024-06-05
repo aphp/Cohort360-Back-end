@@ -33,6 +33,5 @@ def await_celery_task(func):
         lock = retrieve_lock(lock_id=dm_id)
         while lock is not None:
             lock = retrieve_lock(lock_id=dm_id)
-        else:
-            return func(*args, **kwargs)
+        return func(*args, **kwargs)
     return wrapper

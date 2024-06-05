@@ -1,5 +1,7 @@
+import json
 import logging
 from smtplib import SMTPException
+from typing import Tuple
 
 from django.utils import timezone
 from django.core.exceptions import ValidationError
@@ -8,9 +10,11 @@ from django.db import transaction
 from admin_cohort.types import JobStatus, ServerError
 from cohort.models import CohortResult, DatedMeasure, RequestQuerySnapshot, FhirFilter
 from cohort.models.dated_measure import GLOBAL_DM_MODE
-from cohort.services.conf_cohort_job_api import fhir_to_job_status, get_authorization_header
+from cohort.job_server_api import job_server_status_mapper
+from cohort.services.misc import get_authorization_header
 from cohort.services.emails import send_email_notif_about_large_cohort
-from cohort.tasks import get_count_task, create_cohort_task
+from cohort.services.ws_event_manager import ws_send
+from cohort.tasks import count_cohort_task, create_cohort_task
 
 JOB_STATUS = "request_job_status"
 GROUP_ID = "group.id"
@@ -23,29 +27,36 @@ _logger_err = logging.getLogger('django.request')
 class CohortResultService:
 
     @staticmethod
-    def build_query(cohort_source_id: str, cohort_uuid: str, fhir_filter_id: str) -> str:
+    def build_query(cohort_source_id: str, fhir_filter_id: str) -> str:
         fhir_filter = FhirFilter.objects.get(pk=fhir_filter_id)
         query = {"_type": "request",
                  "resourceType": fhir_filter.fhir_resource,
-                 "cohortUuid": cohort_uuid,
-                 "request": {"_id": 1,
+                 "sourcePopulation": {"caresiteCohortList": [cohort_source_id]},
+                 "request": {"_id": 0,
                              "_type": "basicResource",
-                             "filterFhir": fhir_filter.filter,
-                             # "filterSolr": "fq=gender:f&fq=deceased:false&fq=active:true",    todo: rempli par le CRB
                              "isInclusive": True,
+                             "filterFhir": fhir_filter.filter,
                              "resourceType": fhir_filter.fhir_resource
-                             },
-                 "sourcePopulation": {"caresiteCohortList": [cohort_source_id]}
+                             }
                  }
-        return str(query)
+        return json.dumps(query)
 
     @staticmethod
     def create_cohort_subset(http_request, owner_id: str, table_name: str, source_cohort: CohortResult, fhir_filter_id: str) -> CohortResult:
-        cohort_subset = CohortResult.objects.create(name=f"{table_name}_{source_cohort.fhir_group_id}",
-                                                    owner_id=owner_id)
+
+        def copy_dated_measure(dm: DatedMeasure) -> DatedMeasure:
+            return DatedMeasure.objects.create(mode=dm.mode,
+                                               owner=dm.owner,
+                                               request_query_snapshot=dm.request_query_snapshot,
+                                               measure=dm.measure)
+
+        new_dm = copy_dated_measure(source_cohort.dated_measure)
+        cohort_subset = CohortResult.objects.create(is_subset=True,
+                                                    name=f"{table_name}_{source_cohort.fhir_group_id}",
+                                                    owner_id=owner_id,
+                                                    dated_measure=new_dm)
         with transaction.atomic():
             query = CohortResultService.build_query(cohort_source_id=source_cohort.fhir_group_id,
-                                                    cohort_uuid=cohort_subset.uuid,
                                                     fhir_filter_id=fhir_filter_id)
             try:
                 auth_headers = get_authorization_header(request=http_request)
@@ -83,9 +94,9 @@ class CohortResultService:
         if cohort.dated_measure_global:
             dm_global = cohort.dated_measure_global
             try:
-                get_count_task.s(auth_headers=auth_headers,
-                                 json_query=cohort.request_query_snapshot.serialized_query,
-                                 dm_uuid=dm_global.uuid)\
+                count_cohort_task.s(auth_headers=auth_headers,
+                                    json_query=cohort.request_query_snapshot.serialized_query,
+                                    dm_uuid=dm_global.uuid)\
                               .apply_async()
             except Exception as e:
                 dm_global.request_job_fail_msg = f"ERROR: Could not launch cohort global count: {e}"
@@ -100,14 +111,14 @@ class CohortResultService:
             raise ServerError("INTERNAL ERROR: Could not launch cohort creation") from e
 
     @staticmethod
-    def process_patch_data(cohort: CohortResult, data: dict) -> tuple[bool, bool]:
+    def process_patch_data(cohort: CohortResult, data: dict) -> Tuple[bool, bool]:
         _logger.info(f"Received data for cohort patch: {data}")
         sjs_data_keys = (JOB_STATUS, GROUP_ID, GROUP_COUNT)
         is_update_from_sjs = all([key in data for key in sjs_data_keys])
         is_update_from_etl = JOB_STATUS in data and len(data) == 1
 
         if JOB_STATUS in data:
-            job_status = fhir_to_job_status().get(data[JOB_STATUS].upper())
+            job_status = job_server_status_mapper(data[JOB_STATUS])
             if not job_status:
                 raise ValueError(f"Bad Request: Invalid job status: {data.get(JOB_STATUS)}")
             if job_status in (JobStatus.finished, JobStatus.failed):
@@ -121,6 +132,23 @@ class CohortResultService:
             cohort.dated_measure.measure = data.pop(GROUP_COUNT)
             cohort.dated_measure.save()
         return is_update_from_sjs, is_update_from_etl
+
+    @staticmethod
+    def mark_cohort_as_failed(cohort: CohortResult, reason: str) -> None:
+        cohort.request_job_status = JobStatus.failed
+        cohort.request_job_fail_msg = reason
+        cohort.save()
+
+    @staticmethod
+    def ws_send_to_client(cohort: CohortResult) -> None:
+        cohort.refresh_from_db()
+        extra_info = {'request_job_status': cohort.request_job_status,
+                      'fhir_group_id': cohort.fhir_group_id}
+        global_dm = cohort.dated_measure_global
+        if global_dm:
+            extra_info['global'] = {'measure_min': global_dm.measure_min,
+                                    'measure_max': global_dm.measure_max}
+        ws_send(instance=cohort, job_name='create', extra_info=extra_info)
 
     @staticmethod
     def send_email_notification(cohort: CohortResult, is_update_from_sjs: bool, is_update_from_etl: bool) -> None:

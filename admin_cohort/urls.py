@@ -39,5 +39,4 @@ urlpatterns = [re_path(r'^auth/oidc/login', OIDCLoginView.as_view(), name='oidc-
                path("accesses/", include(("accesses.urls", "accesses"), namespace="accesses")),
                path("cohort/", include(("cohort.urls", "cohort"), namespace="cohort")),
                path("exports/", include(("exports.urls", "exports"), namespace="exports")),
-               path("workspaces/", include(("workspaces.urls", "workspaces"), namespace="workspaces"))
                ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

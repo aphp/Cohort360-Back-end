@@ -14,9 +14,10 @@ from accesses.models import Perimeter
 from admin_cohort.settings import FRONT_URL
 from admin_cohort.types import JobStatus, ServerError
 from cohort.models import FeasibilityStudy
-from cohort.services.conf_cohort_job_api import fhir_to_job_status, get_authorization_header
+from cohort.job_server_api import job_server_status_mapper
+from cohort.services.misc import get_authorization_header
 from cohort.services.emails import send_email_notif_feasibility_report_ready, send_email_notif_error_feasibility_report
-from cohort.tasks import get_feasibility_count_task, send_email_notification_task
+from cohort.tasks import feasibility_count_task, send_email_notification_task
 
 env = os.environ
 
@@ -55,10 +56,10 @@ class FeasibilityStudyService:
         fs = FeasibilityStudy.objects.get(pk=fs_uuid)
         try:
             auth_headers = get_authorization_header(request)
-            chain(*(get_feasibility_count_task.s(fs_uuid,
-                                                 fs.request_query_snapshot.serialized_query,
-                                                 auth_headers),
-                  send_email_notification_task.s(fs_uuid)))()
+            chain(*(feasibility_count_task.s(fs_uuid,
+                                             fs.request_query_snapshot.serialized_query,
+                                             auth_headers),
+                    send_email_notification_task.s(fs_uuid)))()
         except Exception as e:
             fs.delete()
             raise ServerError("INTERNAL ERROR: Could not launch feasibility request") from e
@@ -66,7 +67,7 @@ class FeasibilityStudyService:
     def process_patch_data(self, fs: FeasibilityStudy, data: dict) -> None:
         _logger.info(f"Received data to patch FeasibilityStudy: {data}")
         job_status = data.get(JOB_STATUS, "")
-        job_status = fhir_to_job_status().get(job_status.upper())
+        job_status = job_server_status_mapper(job_status)
 
         try:
             if not job_status:

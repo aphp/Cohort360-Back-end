@@ -25,6 +25,7 @@ class WebSocketInfos(BaseModel):
 class WebSocketObject(BaseModel):
     type: str
 
+
 class HandshakeStatus(WebSocketObject):
     status: str
     details: str = ""
@@ -33,8 +34,8 @@ class HandshakeStatus(WebSocketObject):
 class WebsocketManager(AsyncJsonWebsocketConsumer):
 
     @sync_to_async
-    def authenticate_ws_request(self, token, auth_method):
-        return auth_service.authenticate_ws_request(token, auth_method)
+    def authenticate_ws_request(self, token, auth_method, headers):
+        return auth_service.authenticate_ws_request(token, auth_method, headers)
 
     async def connect(self):
         await self.accept()
@@ -52,7 +53,8 @@ class WebsocketManager(AsyncJsonWebsocketConsumer):
     async def receive_json(self, content, **kwargs):
         try:
             client = await self.authenticate_ws_request(token=content['token'],
-                                                        auth_method=content['auth_method'])
+                                                        auth_method=content['auth_method'],
+                                                        headers=content.get('headers') or {})
             client_id = client.username
             await self.send_json(HandshakeStatus(type='handshake', status='accepted').model_dump())
         except KeyError:
@@ -61,7 +63,8 @@ class WebsocketManager(AsyncJsonWebsocketConsumer):
                                                  details='Could not understand the JSON object, "token" key missing').model_dump())
             return
         except Exception:
-            await self.send_json(HandshakeStatus(type='handshake', status='forbidden', details='Bad token').model_dump())
+            await self.send_json(
+                HandshakeStatus(type='handshake', status='forbidden', details='Bad token').model_dump())
             await self.close()
             return
         await self.channel_layer.group_add(f"{client_id}", self.channel_name)
@@ -73,10 +76,10 @@ class WebsocketManager(AsyncJsonWebsocketConsumer):
             return
 
 
-def ws_send_to_client(_object, job_name: ws_info_job_name, extra_info: dict):
-    websocket_infos = WebSocketInfos(status=_object.request_job_status,
-                                     client_id=str(_object.owner_id),
-                                     uuid=str(_object.uuid),
+def ws_send(instance, job_name: ws_info_job_name, extra_info: dict):
+    websocket_infos = WebSocketInfos(status=instance.request_job_status,
+                                     client_id=str(instance.owner_id),
+                                     uuid=str(instance.uuid),
                                      type='status',
                                      job_name=job_name,
                                      extra_info=extra_info)

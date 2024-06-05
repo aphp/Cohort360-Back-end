@@ -1,7 +1,7 @@
 from rest_framework import permissions
 from rest_framework.permissions import OR as drf_OR
 
-from accesses.permissions import can_user_read_users, can_user_read_logs
+from accesses.permissions import can_user_read_users, can_user_read_logs, can_user_manage_users
 from accesses.services.accesses import accesses_service
 from admin_cohort.models import User
 from admin_cohort.settings import ETL_USERNAME, ROLLOUT_USERNAME
@@ -52,8 +52,8 @@ class UsersPermission(permissions.BasePermission):
     def has_permission(self, request, view):
         if not user_is_authenticated(request.user):
             return False
-        return request.method in permissions.SAFE_METHODS \
-            and (view.detail or can_user_read_users(request.user))
+        return request.method == "GET" and (view.detail or can_user_read_users(request.user)) \
+            or (request.method == "PATCH" and can_user_manage_users(request.user))
 
     def has_object_permission(self, request, view, obj):
         return request.user.pk == obj.pk or can_user_read_users(request.user)

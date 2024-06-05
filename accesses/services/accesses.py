@@ -102,7 +102,11 @@ class AccessesService:
 
     def can_user_read_opposed_patient_data(self, user: User) -> bool:
         user_accesses = self.get_user_valid_accesses(user=user)
-        return user_accesses.filter(Role.q_allow_read_research_opposed_patient_data()).exists()
+        return user_accesses.filter(Role.q_allow_read_search_opposed_patient_data()).exists()
+
+    def is_user_allowed_unlimited_patients_read(self, user: User) -> bool:
+        user_accesses = self.get_user_valid_accesses(user=user)
+        return user_accesses.filter(Role.q_allow_unlimited_patients_search()).exists()
 
     def get_user_data_accesses(self, user: User) -> QuerySet:
         return self.get_user_valid_accesses(user).filter(join_qs([Q(role__right_read_patient_nominative=True),
@@ -420,11 +424,6 @@ class AccessesService:
     @staticmethod
     def check_access_dates(new_start_datetime: datetime = None, new_end_datetime: datetime = None,
                            old_start_datetime: datetime = None, old_end_datetime: datetime = None) -> None:
-        try:
-            old_start_datetime = old_start_datetime and timezone.get_current_timezone().localize(old_start_datetime)
-            old_end_datetime = old_end_datetime and timezone.get_current_timezone().localize(old_end_datetime)
-        except ValueError:
-            pass
         now = timezone.now()
 
         if old_start_datetime and new_start_datetime \

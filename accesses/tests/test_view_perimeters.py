@@ -249,7 +249,9 @@ class PerimeterViewTests(AccessesAppTestsBase):
         case = self.base_case.clone(user=self.user_z,
                                     params={"cohort_ids": cohort_ids, "mode": "min"},
                                     to_find={"allow_read_patient_data_nomi": True,
-                                             "allow_lookup_opposed_patients": False})
+                                             "allow_lookup_opposed_patients": False,
+                                             "allow_read_patient_without_perimeter_limit": False
+                                             })
         self.check_list_case_with_mock(case)
 
     def test_read_patient_data_rights_case_2(self):
@@ -262,7 +264,8 @@ class PerimeterViewTests(AccessesAppTestsBase):
         case = self.base_case.clone(user=self.user_z,
                                     params={"cohort_ids": cohort_ids, "mode": "min"},
                                     to_find={"allow_read_patient_data_nomi": True,
-                                             "allow_lookup_opposed_patients": False})
+                                             "allow_lookup_opposed_patients": False,
+                                             "allow_read_patient_without_perimeter_limit": False})
         self.check_list_case_with_mock(case)
 
     def test_read_patient_data_rights_case_3(self):
@@ -275,10 +278,12 @@ class PerimeterViewTests(AccessesAppTestsBase):
         case_1 = self.base_case.clone(user=self.user_z,
                                       params={"cohort_ids": cohort_ids, "mode": "max"},
                                       to_find={"allow_read_patient_data_nomi": True,
-                                               "allow_lookup_opposed_patients": False})
+                                               "allow_lookup_opposed_patients": False,
+                                               "allow_read_patient_without_perimeter_limit": False})
         case_2 = case_1.clone(params={"cohort_ids": cohort_ids, "mode": "min"},
                               to_find={"allow_read_patient_data_nomi": False,
-                                       "allow_lookup_opposed_patients": False})
+                                       "allow_lookup_opposed_patients": False,
+                                       "allow_read_patient_without_perimeter_limit": False})
         self.check_list_case_with_mock(case_1)
         self.check_list_case_with_mock(case_2)
 
@@ -292,12 +297,14 @@ class PerimeterViewTests(AccessesAppTestsBase):
 
         cohort_ids = ",".join([self.aphp.cohort_id, self.p1.cohort_id, self.p4.cohort_id, self.p10.cohort_id])
         case_1 = self.base_case.clone(user=self.user_z,
-                                    params={"cohort_ids": cohort_ids, "mode": "min"},
-                                    to_find={"allow_read_patient_data_nomi": False,
-                                             "allow_lookup_opposed_patients": True})
+                                      params={"cohort_ids": cohort_ids, "mode": "min"},
+                                      to_find={"allow_read_patient_data_nomi": False,
+                                               "allow_lookup_opposed_patients": True,
+                                               "allow_read_patient_without_perimeter_limit": False})
         case_2 = case_1.clone(params={"cohort_ids": cohort_ids, "mode": "max"},
                               to_find={"allow_read_patient_data_nomi": True,
-                                       "allow_lookup_opposed_patients": True})
+                                       "allow_lookup_opposed_patients": True,
+                                       "allow_read_patient_without_perimeter_limit": False})
         self.check_list_case_with_mock(case_1)
         self.check_list_case_with_mock(case_2)
 
@@ -311,10 +318,12 @@ class PerimeterViewTests(AccessesAppTestsBase):
         case_1 = self.base_case.clone(user=self.user_z,
                                       params={"cohort_ids": cohort_ids, "mode": "max"},
                                       to_find={"allow_read_patient_data_nomi": False,
-                                               "allow_lookup_opposed_patients": False})
+                                               "allow_lookup_opposed_patients": False,
+                                               "allow_read_patient_without_perimeter_limit": False})
         case_2 = case_1.clone(params={"cohort_ids": cohort_ids, "mode": "min"},
                               to_find={"allow_read_patient_data_nomi": False,
-                                       "allow_lookup_opposed_patients": False})
+                                       "allow_lookup_opposed_patients": False,
+                                       "allow_read_patient_without_perimeter_limit": False})
         self.check_list_case_with_mock(case_1)
         self.check_list_case_with_mock(case_2)
 
@@ -328,8 +337,35 @@ class PerimeterViewTests(AccessesAppTestsBase):
         case = self.base_case.clone(user=self.user_t,
                                     params={"cohort_ids": cohort_ids, "mode": "min"},
                                     to_find={"allow_read_patient_data_nomi": False,
-                                             "allow_lookup_opposed_patients": False})
+                                             "allow_lookup_opposed_patients": False,
+                                             "allow_read_patient_without_perimeter_limit": False})
         self.check_list_case_with_mock(case)
+
+    def test_read_patient_data_rights_case_7(self):
+        perimeters = [self.p1, self.p4]
+        roles = [self.role_data_reader_full_access]
+        self.make_accesses_for_user(self.profile_t, perimeters, roles)
+
+        cohort_ids = ",".join([self.p6.cohort_id, self.p12.cohort_id])
+        case = self.base_case.clone(user=self.user_t,
+                                    params={"cohort_ids": cohort_ids, "mode": "min"},
+                                    to_find={"allow_read_patient_data_nomi": True,
+                                             "allow_lookup_opposed_patients": True,
+                                             "allow_read_patient_without_perimeter_limit": True})
+        self.check_list_case_with_mock(case, check_mock_was_called=False)
+
+    def test_read_patient_data_rights_case_8(self):
+        perimeters = [self.p1, self.p4]
+        roles = [self.role_data_reader_full_access]
+        self.make_accesses_for_user(self.profile_t, perimeters, roles)
+
+        cohort_ids = ",".join([self.p6.cohort_id, self.p12.cohort_id])
+        case = self.base_case.clone(user=self.user_t,
+                                    params={"cohort_ids": cohort_ids, "mode": "max"},
+                                    to_find={"allow_read_patient_data_nomi": True,
+                                             "allow_lookup_opposed_patients": True,
+                                             "allow_read_patient_without_perimeter_limit": True})
+        self.check_list_case_with_mock(case, check_mock_was_called=False)
 
     def test_read_patient_data_rights_missing_access_on_some_target_perimeters_1(self):
         perimeters = [self.p1, self.p2]
@@ -341,11 +377,13 @@ class PerimeterViewTests(AccessesAppTestsBase):
         case1 = self.base_case.clone(user=self.user_t,
                                      params={"cohort_ids": cohort_ids, "mode": "max"},
                                      to_find={"allow_read_patient_data_nomi": False,
-                                              "allow_lookup_opposed_patients": True})
+                                              "allow_lookup_opposed_patients": True,
+                                              "allow_read_patient_without_perimeter_limit": False})
         case2 = self.base_case.clone(user=self.user_t,
                                      params={"cohort_ids": cohort_ids, "mode": "min"},
                                      to_find={"allow_read_patient_data_nomi": False,
-                                              "allow_lookup_opposed_patients": True})
+                                              "allow_lookup_opposed_patients": True,
+                                              "allow_read_patient_without_perimeter_limit": False})
         for case in (case1, case2):
             self.check_list_case_with_mock(case)
 
@@ -359,11 +397,13 @@ class PerimeterViewTests(AccessesAppTestsBase):
         case1 = self.base_case.clone(user=self.user_t,
                                      params={"cohort_ids": cohort_ids, "mode": "max"},
                                      to_find={"allow_read_patient_data_nomi": True,
-                                              "allow_lookup_opposed_patients": True})
+                                              "allow_lookup_opposed_patients": True,
+                                              "allow_read_patient_without_perimeter_limit": False})
         case2 = self.base_case.clone(user=self.user_t,
                                      params={"cohort_ids": cohort_ids, "mode": "min"},
                                      to_find={"allow_read_patient_data_nomi": False,
-                                              "allow_lookup_opposed_patients": True})
+                                              "allow_lookup_opposed_patients": True,
+                                              "allow_read_patient_without_perimeter_limit": False})
         for case in (case1, case2):
             self.check_list_case_with_mock(case)
 
@@ -382,7 +422,7 @@ class PerimeterViewTests(AccessesAppTestsBase):
         self.check_list_case_with_mock(case)
 
     def test_read_patient_data_rights_without_read_mode(self):
-        self.user_w, self.profile_w = new_user_and_profile(email="user_w@aphp.fr")
+        self.user_w, self.profile_w = new_user_and_profile()
         self.create_new_access_for_user(profile=self.profile_w, role=self.role_data_reader_nomi, perimeter=self.aphp)
         case = self.base_case.clone(title="missing mode param",
                                     user=self.user_w,
@@ -392,7 +432,7 @@ class PerimeterViewTests(AccessesAppTestsBase):
         self.check_list_case_with_mock(case, check_mock_was_called=False)
 
     def test_read_patient_data_rights_with_wrong_read_mode(self):
-        self.user_u, self.profile_u = new_user_and_profile(email="user_u@aphp.fr")
+        self.user_u, self.profile_u = new_user_and_profile()
         self.create_new_access_for_user(profile=self.profile_u, role=self.role_data_reader_nomi, perimeter=self.aphp)
         case = self.base_case.clone(title="wrong value for mode param",
                                     user=self.user_u,

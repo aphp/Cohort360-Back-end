@@ -2,7 +2,7 @@ from django.db import models
 from django.db.models import CASCADE
 
 from exports.models import ExportsBaseModel, Export
-from exports.types import StatType
+from exports.enums import StatType
 
 STAT_TYPES = [(type.value, type.value) for type in StatType]
 

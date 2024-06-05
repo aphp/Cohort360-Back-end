@@ -18,7 +18,6 @@ from cohort.permissions import SJSorETLCallbackPermission
 from cohort.serializers import CohortResultSerializer, CohortResultSerializerFullDatedMeasure
 from cohort.services.cohort_rights import cohort_rights_service
 from cohort.services.misc import is_sjs_or_etl_user
-from cohort.services.ws_event_manager import ws_send_to_client
 from cohort.views.shared import UserObjectsRestrictedViewSet
 from exports.services.export import export_service
 
@@ -104,7 +103,8 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     def get_queryset(self):
         if is_sjs_or_etl_user(request=self.request):
             return self.queryset
-        return super(CohortResultViewSet, self).get_queryset()
+        return super(CohortResultViewSet, self).get_queryset()\
+                                               .filter(is_subset=False)
 
     def get_serializer_class(self):
         if self.request.method in ["POST", "PUT", "PATCH"] \
@@ -167,22 +167,17 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             is_update_from_sjs, is_update_from_etl = cohort_service.process_patch_data(cohort=cohort,
                                                                                        data=request.data)
         except ValueError as ve:
-            return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
-        response = super(CohortResultViewSet, self).partial_update(request, *args, **kwargs)
-        cohort.refresh_from_db()
-        global_dm = cohort.dated_measure_global
-        extra_info = {'fhir_group_id': cohort.fhir_group_id}
-        if global_dm:
-            extra_info['global'] = {'measure_min': global_dm.measure_min,
-                                    'measure_max': global_dm.measure_max
-                                    }
-        ws_send_to_client(_object=cohort, job_name='create', extra_info=extra_info)
-        if status.is_success(response.status_code):
-            if is_update_from_sjs and cohort.export_table.exists():
-                export_service.check_all_cohort_subsets_created(export=cohort.export_table.export)
-            cohort_service.send_email_notification(cohort=cohort,
-                                                   is_update_from_sjs=is_update_from_sjs,
-                                                   is_update_from_etl=is_update_from_etl)
+            cohort_service.mark_cohort_as_failed(cohort=cohort, reason=str(ve))
+            response = Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
+        else:
+            response = super(CohortResultViewSet, self).partial_update(request, *args, **kwargs)
+            if status.is_success(response.status_code):
+                if is_update_from_sjs and cohort.export_table.exists():
+                    export_service.check_all_cohort_subsets_created(export=cohort.export_table.first().export)
+                cohort_service.send_email_notification(cohort=cohort,
+                                                       is_update_from_sjs=is_update_from_sjs,
+                                                       is_update_from_etl=is_update_from_etl)
+        cohort_service.ws_send_to_client(cohort=cohort)
         return response
 
     @swagger_auto_schema(method='get',
