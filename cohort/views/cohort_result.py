@@ -181,5 +181,3 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         cohorts_rights = cohort_rights_service.get_user_rights_on_cohorts(group_ids=request.query_params.get('group_id'),
                                                                           user=request.user)
         return Response(data=cohorts_rights, status=status.HTTP_200_OK)
-
-

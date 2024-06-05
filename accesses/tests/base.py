@@ -52,8 +52,7 @@ PERIMETERS_DATA = [
     {'id': 13, 'name': 'P13', 'source_value': 'P13', 'short_name': 'P13', 'local_id': 'Local P13', 'type_source_value': 'Pôle/DMU',
      'parent_id': 10, 'level': 4, 'above_levels_ids': '10,2,9999', 'cohort_id': '13'},
     {'id': 14, 'name': 'P14', 'source_value': 'P14', 'short_name': 'P14', 'local_id': 'Local P14', 'type_source_value': 'Pôle/DMU',
-     'parent_id': 10, 'level': 4, 'above_levels_ids': '10,4,1', 'cohort_id': '14'}
-    ]
+     'parent_id': 10, 'level': 4, 'above_levels_ids': '10,4,1', 'cohort_id': '14'}]
 
 ALL_RIGHTS = [f.name for f in Role._meta.fields if f.name.startswith('right_')]
 
@@ -86,6 +85,15 @@ role_data_reader_nomi_data = {**ALL_FALSY_RIGHTS,
                               "name": "DATA NOMI READER",
                               "right_read_patient_nominative": True,
                               }
+
+role_data_reader_full_access_data = {**ALL_FALSY_RIGHTS,
+                                     "name": "DATA NOMI READER FULL ACCESS",
+                                     "right_read_patient_nominative": True,
+                                     "right_read_patient_pseudonymized": True,
+                                     "right_search_patients_by_ipp": True,
+                                     "right_search_patients_unlimited": True,
+                                     "right_search_opposed_patients": True
+                                     }
 role_data_reader_pseudo_data = {**ALL_FALSY_RIGHTS,
                                 "name": "DATA PSEUDO READER",
                                 "right_read_patient_pseudonymized": True,
@@ -176,8 +184,10 @@ class AccessesAppTestsBase(ViewSetTests):
         self.role_data_accesses_manager = Role.objects.create(**role_data_accesses_manager_data)
         self.role_data_reader_nomi = Role.objects.create(**role_data_reader_nomi_data)
         self.role_data_reader_pseudo = Role.objects.create(**role_data_reader_pseudo_data)
+        self.role_data_reader_full_access = Role.objects.create(**role_data_reader_full_access_data)
         self.role_data_reader_nomi_pseudo = Role.objects.create(**role_data_reader_nomi_pseudo_data)
-        self.role_data_reader_nomi_csv_exporter_nomi = Role.objects.create(**role_data_reader_nomi_csv_exporter_nomi_data)
+        self.role_data_reader_nomi_csv_exporter_nomi = Role.objects.create(
+            **role_data_reader_nomi_csv_exporter_nomi_data)
         self.role_jupyter_exporter_pseudo = Role.objects.create(**role_jupyter_exporter_pseudo_data)
         self.role_search_by_ipp_and_search_opposed = Role.objects.create(**role_search_by_ipp_and_search_opposed_data)
         self.role_export_accesses_manager = Role.objects.create(**role_export_accesses_manager_data)

@@ -158,12 +158,13 @@ class PerimetersService:
                                                                 right_read_patient_pseudonymized=read_pseudo,
                                                                 right_search_patients_by_ipp=allow_search_by_ipp,
                                                                 right_read_opposed_patients_data=allow_read_opposed_patient))
-        return perimeter_read_right_list
+        return sorted(perimeter_read_right_list,
+                      key=lambda x: (x.perimeter.full_path, x.perimeter.id))
 
     def get_data_read_rights_on_perimeters(self, user: User, is_request_filtered: bool, filtered_perimeters: QuerySet):
         user_accesses = accesses_service.get_user_valid_accesses(user=user)
         allow_search_by_ipp = user_accesses.filter(Role.q_allow_search_patients_by_ipp()).exists()
-        allow_read_opposed_patient = user_accesses.filter(Role.q_allow_read_research_opposed_patient_data()).exists()
+        allow_read_opposed_patient = user_accesses.filter(Role.q_allow_read_search_opposed_patient_data()).exists()
 
         read_patient_nominative_accesses = user_accesses.filter(Role.q_allow_read_patient_data_nominative())
         read_patient_pseudo_accesses = user_accesses.filter(Role.q_allow_read_patient_data_pseudo() |

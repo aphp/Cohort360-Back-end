@@ -36,8 +36,8 @@ def export_succeeded(export_type: str, **kwargs):
                }
     return dict(subject=subject,
                 to=kwargs.get('recipient_email'),
-                html_template=f"html/{export_type}export_succeeded.html",
-                txt_template=f"txt/{export_type}export_succeeded.txt",
+                html_template=f"html/{export_type}_export_succeeded.html",
+                txt_template=f"txt/{export_type}_export_succeeded.txt",
                 context=context)
 
 
