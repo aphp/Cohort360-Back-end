@@ -1,11 +1,17 @@
+from django.http import Http404
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
+from rest_framework import status
+from rest_framework.decorators import action
+from rest_framework.response import Response
 
 from admin_cohort.models import User
 from admin_cohort.permissions import UsersPermission
-from admin_cohort.serializers import UserSerializer
+from admin_cohort.serializers import UserSerializer, UserCheckSerializer
+from admin_cohort.services.users import users_service
 from admin_cohort.tools.cache import cache_response
+from admin_cohort.types import ServerError, MissingDataError
 from admin_cohort.views import BaseViewSet
 
 
@@ -64,3 +70,21 @@ class UserViewSet(BaseViewSet):
                                                                  "email": openapi.Schema(type=openapi.TYPE_STRING)}))
     def partial_update(self, request, *args, **kwargs):
         return super().partial_update(request, *args, **kwargs)
+
+    @swagger_auto_schema(responses={'200': openapi.Response("Profile found", UserCheckSerializer()),
+                                    '204': openapi.Response("No user found matching the given username"),
+                                    '400': openapi.Response("Bad request"),
+                                    '500': openapi.Response("Server error")})
+    @action(detail=False, methods=['get'], url_path="check")
+    def check_existing_user(self, request, *args, **kwargs):
+        try:
+            res = self.get_object()
+        except Http404:
+            res = users_service.check_existing_user(username=request.data.get("username"))
+            return Response(data=UserCheckSerializer(res).data, status=status.HTTP_200_OK)
+        except ValueError as e:
+            return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except ServerError as e:
+            return Response(data={"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except MissingDataError as e:
+            return Response(data={"error": f"User not found - {e}"}, status=status.HTTP_204_NO_CONTENT)

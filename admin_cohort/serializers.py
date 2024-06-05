@@ -59,6 +59,15 @@ class UserSerializer(serializers.ModelSerializer):
                   "display_name"]
 
 
+class UserCheckSerializer(serializers.Serializer):
+    firstname = serializers.CharField(read_only=True)
+    lastname = serializers.CharField(read_only=True)
+    email = serializers.CharField(read_only=True)
+    username = serializers.CharField(read_only=True)
+    user = UserSerializer(read_only=True)
+    # manual_profile = ProfileSerializer(read_only=True)
+
+
 class ReleaseNoteSerializer(serializers.ModelSerializer):
 
     class Meta:

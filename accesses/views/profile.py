@@ -106,13 +106,11 @@ class ProfileViewSet(RequestLogMixin, BaseViewSet):
         instance.entry_deleted_by = self.request.user.username
         return super(ProfileViewSet, self).perform_destroy(instance)
 
-    @swagger_auto_schema(request_body=openapi.Schema(type=openapi.TYPE_OBJECT,
-                                                     properties={"username": openapi.Schema(type=openapi.TYPE_STRING)}),
-                         responses={'200': openapi.Response("Profile found", ProfileCheckSerializer()),
+    @swagger_auto_schema(responses={'200': openapi.Response("Profile found", ProfileCheckSerializer()),
                                     '204': openapi.Response("No user found matching the given username"),
                                     '400': openapi.Response("Bad request"),
                                     '500': openapi.Response("Server error")})
-    @action(detail=False, methods=['post'], url_path="check")
+    @action(detail=False, methods=['get'], url_path="check")
     def check_existing_profile(self, request, *args, **kwargs):
         try:
             res = profiles_service.check_existing_profile(username=request.data.get("username"))
