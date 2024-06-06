@@ -39,10 +39,9 @@ _logger_err = logging.getLogger('django.request')
 
 def bound_number(n: int) -> str:
     limit_10 = 10
-    limit_100 = 100
     if 0 < n < limit_10:
         return f"< {limit_10}"
-    elif limit_10 <= n < limit_100:
+    elif n >= limit_10:
         bound = 10 * (n // 10)
         return f"{bound}-{bound+10}"
     else:
