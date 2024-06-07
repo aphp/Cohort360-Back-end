@@ -6,6 +6,7 @@ from .request_query_snapshot import RequestQuerySnapshot
 from .dated_measure import DatedMeasure
 from .cohort_result import CohortResult
 from .feasibility_study import FeasibilityStudy
+from .request_refresh_schedule import RequestRefreshSchedule
 
 __all__ = ["CohortBaseModel",
            "Folder",
@@ -14,4 +15,5 @@ __all__ = ["CohortBaseModel",
            "DatedMeasure",
            "CohortResult",
            "FhirFilter",
-           "FeasibilityStudy"]
+           "FeasibilityStudy",
+           "RequestRefreshSchedule"]
