@@ -229,12 +229,20 @@ class TestFhirFilterAPI(CohortAppTests):
             )
 
     def test_null_filter(self):
-
-        with pytest.raises(IntegrityError):
+        with pytest.raises(AttributeError):
             FhirFilter.objects.create(
                 fhir_resource="Resource 1", name="name of filter", owner=User.objects.first(),
                 filter=None, fhir_version='1.0.0'
             )
+
+    def test_strip_filter(self):
+        valid_filter = "AA=BB"
+        user_input = f"=&=={valid_filter}=&&="
+        f = FhirFilter.objects.create(fhir_resource="Resource 1",
+                                      name="name of filter",
+                                      owner=User.objects.first(),
+                                      filter=user_input, fhir_version='1.0.0')
+        self.assertEqual(f.filter, valid_filter)
 
     def test_null_version(self):
         with pytest.raises(IntegrityError):
