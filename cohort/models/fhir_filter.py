@@ -18,3 +18,7 @@ class FhirFilter(CohortBaseModel):
         constraints = [UniqueConstraint(name='unique_name_fhir_resource_owner',
                                         fields=['name', 'fhir_resource', 'owner'],
                                         condition=Q(deleted__isnull=True))]
+
+    def save(self, *args, **kwargs):
+        self.filter = self.filter.strip('&=')
+        super().save(*args, **kwargs)
