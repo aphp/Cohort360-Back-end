@@ -114,6 +114,8 @@ class QueryFormatter:
         if filter_fhir:
             params = filter_fhir.split("&")
             for param in params:
+                if not param:
+                    continue
                 key, value = param.split("=")
                 # because the filter_fhir we received has its value already urlencoded
                 decoded_value = urllib.parse.unquote(value)
