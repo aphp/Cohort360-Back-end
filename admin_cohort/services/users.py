@@ -1,58 +1,71 @@
+import os
 import re
 from typing import Optional
 
 import requests
-from environ import environ
+from django.http import Http404
 from rest_framework import status
 
-from admin_cohort.models import User
-from admin_cohort.types import PersonIdentity, ServerError, MissingDataError
+from accesses.models import Profile
+from admin_cohort.types import PersonIdentity, ServerError
 
-env = environ.Env()
+env = os.environ
 
-ID_CHECKER_URL = env("ID_CHECKER_URL")
-ID_CHECKER_TOKEN_HEADER = env("ID_CHECKER_TOKEN_HEADER")
-ID_CHECKER_TOKEN = env("ID_CHECKER_TOKEN")
+ID_CHECKER_URL = env.get("ID_CHECKER_URL")
+ID_CHECKER_TOKEN_HEADER = env.get("ID_CHECKER_TOKEN_HEADER")
+ID_CHECKER_TOKEN = env.get("ID_CHECKER_TOKEN")
 ID_CHECKER_SERVER_HEADERS = {ID_CHECKER_TOKEN_HEADER: ID_CHECKER_TOKEN}
-USERNAME_REGEX = env("USERNAME_REGEX")
+USERNAME_REGEX = env.get("USERNAME_REGEX")
 
 
 class UsersService:
 
+    def validate_user_data(self, data: dict):
+        self.verify_user_identity(username=data.get("username"))
+        self.check_fields_against_regex(data=data)
+
     @staticmethod
-    def verify_identity(id_aph: str) -> Optional[PersonIdentity]:
+    def verify_user_identity(username: str) -> Optional[PersonIdentity]:
         response = requests.post(url=ID_CHECKER_URL,
-                                 data={'username': id_aph},
+                                 data={'username': username},
                                  headers=ID_CHECKER_SERVER_HEADERS)
-        if status.is_server_error(response.status_code):
-            raise ServerError(f"Error {response.status_code} from ID-CHECKER server ({ID_CHECKER_URL}): {response.text}")
+        if response.status_code == status.HTTP_404_NOT_FOUND:
+            raise Http404
         if response.status_code != status.HTTP_200_OK:
-            raise ServerError(f"Internal error: {response.text}")
+            raise ServerError(f"Error from ID-CHECKER server: {response.text}")
+        res = response.json().get('data', {}).get('attributes', {})
+        try:
+            return PersonIdentity(firstname=res['givenName'],
+                                  lastname=res['sn'],
+                                  username=res['cn'],
+                                  email=res['mail'])
+        except KeyError as ke:
+            raise ServerError(f"Missing field in ID-CHECKER response {res} - {ke}")
 
-        res: dict = response.json().get('data', {}).get('attributes', {})
-        for expected in ['givenName', 'sn', 'cn', 'mail']:
-            if expected not in res:
-                raise MissingDataError(f"ID-CHECKER server response is missing {expected} ({response.content})")
-        return PersonIdentity(firstname=res.get('givenName'),
-                              lastname=res.get('sn'),
-                              user_id=res.get('cn'),
-                              email=res.get('mail'))
+    @staticmethod
+    def check_fields_against_regex(data: dict) -> None:
+        firstname = data.get("firstname")
+        lastname = data.get("lastname")
+        email = data.get("email")
 
-    def check_existing_user(self, username: str):
+        assert all(f and isinstance(f, str) for f in (firstname, lastname, email)), "Basic info fields must be strings"
+
+        name_regex = re.compile(r"^[A-Za-zÀ-ÖØ-öø-ÿ\-' ]*$")
+        email_regex = re.compile(r"^[A-Za-z0-9\-. @_]*$")
+
+        if firstname and lastname and not name_regex.match(f"{firstname + lastname}"):
+            raise ValueError("Nom/Prénom invalide. Doit comporter uniquement des lettres et des caractères ' et - ")
+        if email and not email_regex.match(email):
+            raise ValueError(f"Adresse email invalide: {email}. Doit comporter uniquement des lettres, chiffres et caractères @_-.")
+
+    @staticmethod
+    def create_initial_profile(data: dict) -> None:
+        Profile.objects.create(user_id=data.get("username"), is_active=True)
+
+    def check_user_existence(self, username: str) -> Optional[PersonIdentity]:
         if not (username and re.compile(USERNAME_REGEX).match(username)):
-            raise ValueError("The given username format is not allowed")
-        person = self.verify_identity(username)
-        user = User.objects.filter(username=person.user_id).first()
-        # manual_profile = Profile.objects.filter(Profile.q_is_valid()
-        #                                         & Q(source=MANUAL_SOURCE)
-        #                                         & Q(user_id=person.user_id)).first()
-        return {"firstname": person.firstname,
-                "lastname": person.lastname,
-                "email": person.email,
-                "username": username,
-                "user": user,
-                # "manual_profile": manual_profile
-                }
+            raise ValueError("Invalid username format")
+        return self.verify_user_identity(username=username)
 
 
 users_service = UsersService()

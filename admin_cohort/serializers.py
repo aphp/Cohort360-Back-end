@@ -60,12 +60,12 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class UserCheckSerializer(serializers.Serializer):
+    username = serializers.CharField(read_only=True)
     firstname = serializers.CharField(read_only=True)
     lastname = serializers.CharField(read_only=True)
     email = serializers.CharField(read_only=True)
-    username = serializers.CharField(read_only=True)
-    user = UserSerializer(read_only=True)
-    # manual_profile = ProfileSerializer(read_only=True)
+    already_exists = serializers.BooleanField(read_only=True)
+    found = serializers.BooleanField(read_only=True)
 
 
 class ReleaseNoteSerializer(serializers.ModelSerializer):

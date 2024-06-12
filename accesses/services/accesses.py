@@ -5,7 +5,7 @@ from django.db.models import QuerySet, Q, Prefetch, F, Value
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
-from ..models import Perimeter, Role, Access, Profile
+from ..models import Perimeter, Role, Access
 from ..services.shared import DataRight
 from admin_cohort.models import User
 from admin_cohort.settings import ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS, PERIMETERS_TYPES, MANUAL_SOURCE, MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS
@@ -22,7 +22,7 @@ class AccessesService:
 
     def get_user_valid_accesses(self, user: User) -> QuerySet:
         return Access.objects.filter(self.q_access_is_valid()
-                                     & Profile.q_is_valid(prefix="profile")
+                                     & Q(profile__is_active=True)
                                      & Q(profile__source=MANUAL_SOURCE)
                                      & Q(profile__user=user))
 
