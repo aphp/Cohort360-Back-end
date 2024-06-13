@@ -9,7 +9,7 @@ from rest_framework import status
 from admin_cohort.types import JobStatus
 from exports import ExportTypes
 from exports.exceptions import BadRequestError, FilesNoLongerAvailable
-from exports.models import Export
+from exports.models import Export, ExportTable
 from exports.services.export_operators import ExportDownloader
 from exports.tests.test_view_export_request import ExportsTests
 
@@ -30,6 +30,9 @@ class TestExportDownloader(ExportsTests):
                                              target_location="target_location",
                                              is_user_notified=True,
                                              nominative=True)
+        ExportTable.objects.create(export=self.export1,
+                                   name="person",
+                                   cohort_result_source=self.user1_cohort)
 
     def test_successfully_download_export(self):
         self.mock_storage_provider.get_file_size.return_value = 11111
