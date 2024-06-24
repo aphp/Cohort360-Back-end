@@ -30,20 +30,7 @@ class ResourceType(StrEnum):
     DOCUMENT_REFERENCE = "DocumentReference"
     IMAGING_STUDY = "ImagingStudy"
     QUESTIONNAIRE_REPONSE = "QuestionnaireResponse"
-    PATIENT_APHP = "patientAphp"
-    CLAIM_APHP = "claimAphp"
-    COMPOSITION_APHP = "compositionAphp"
-    PROCEDURE_APHP = "procedureAphp"
-    OBSERVATION_APHP = "observationAphp"
-    ENCOUNTER_APHP = "encounterAphp"
-    MEDICATION_REQUEST_APHP = "medicationRequestAphp"
-    MEDICATION_ADMINISTRATION_APHP = "medicationAdministrationAphp"
-    DOCUMENT_REFERENCE_APHP = "documentReferenceAphp"
-    CONDITION_APHP = "conditionAphp"
-    IMAGING_STUDY_APHP = "imagingStudyAphp"
-    QUESTIONNAIRE_RESPONSE_APHP = "questionnaireResponseAphp"
     IPP_LIST = "IPPList"
-    PARAMETERS = "parameters"
 
     @classmethod
     def _missing_(cls, value: str):
