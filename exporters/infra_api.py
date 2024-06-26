@@ -21,6 +21,11 @@ class InfraAPI:
     def __init__(self):
         api_conf = settings.EXPORT_API_CONF
         self.url = api_conf.get('API_URL')
+        self.export_endpoints = {
+            ExportTypes.CSV: api_conf.get('CSV_EXPORT_ENDPOINT'),
+            ExportTypes.XLSX: api_conf.get('XLSX_EXPORT_ENDPOINT'),
+            ExportTypes.HIVE: api_conf.get('HIVE_EXPORT_ENDPOINT')
+        }
         self.csv_export_endpoint = api_conf.get('CSV_EXPORT_ENDPOINT')
         self.hive_export_endpoint = api_conf.get('HIVE_EXPORT_ENDPOINT')
         self.export_task_status_endpoint = api_conf.get('EXPORT_TASK_STATUS_ENDPOINT')
@@ -35,7 +40,7 @@ class InfraAPI:
     def launch_export(self, params: dict) -> str:
         export_type = params.pop('export_type')
         params["environment"] = self.target_environment
-        endpoint = export_type == ExportTypes.CSV.value and self.csv_export_endpoint or self.hive_export_endpoint
+        endpoint = self.export_endpoints.get(ExportTypes(export_type))
         response = requests.post(url=f"{self.url}{endpoint}",
                                  params=params,
                                  headers={'auth-token': self.bigdata_token})

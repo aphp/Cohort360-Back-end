@@ -3,6 +3,7 @@ from enum import Enum
 
 class ExportTypes(Enum):
     CSV = "csv"
+    XLSX = "xlsx"
     HIVE = "hive"
 
     @staticmethod
