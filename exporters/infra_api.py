@@ -36,9 +36,11 @@ class InfraAPI:
         export_type = params.pop('export_type')
         params["environment"] = self.target_environment
         endpoint = export_type == ExportTypes.CSV.value and self.csv_export_endpoint or self.hive_export_endpoint
+        _logger.info(f"Launching export to {self.url}{endpoint} with params: {params}")
         response = requests.post(url=f"{self.url}{endpoint}",
                                  params=params,
                                  headers={'auth-token': self.bigdata_token})
+        response.raise_for_status()
         return response.json().get('task_id')
 
     def get_job_status(self, job_id: str, service: Services) -> JobStatus:
