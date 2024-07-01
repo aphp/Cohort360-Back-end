@@ -69,6 +69,7 @@ deploy-job:
   stage: deploy
   script:
     - export VERSION=$(cat ./admin_cohort/__init__.py | grep __version__ | head -1 | awk -F'=' '{ print $2 }' | sed "s/[' ]//g")
+    - sed -i "s|^FROM python|FROM harbor.eds.aphp.fr/cohort360/python|g" Dockerfile
     - mkdir -p /kaniko/.docker
     - |-
       KANIKOCFG="{ "\"auths\":{\"${CI_REGISTRY}\":{\"username\":\"${BOT_NAME}\",\"password\":\"${BOT_TOKEN}\"}}" }"
