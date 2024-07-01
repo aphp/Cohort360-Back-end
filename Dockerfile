@@ -1,4 +1,4 @@
-FROM harbor.eds.aphp.fr/cohort360/python:3.11.4-slim-buster AS builder
+FROM python:3.11.4-slim-buster AS builder
 WORKDIR /app
 
 ENV VIRTUAL_ENV=/app/venv
@@ -6,7 +6,7 @@ RUN apt-get update -y && apt-get install -y gcc libkrb5-dev && rm -rf /var/lib/a
 COPY requirements.txt .
 RUN pip install uv && uv venv $VIRTUAL_ENV && uv pip install --no-cache -r requirements.txt
 
-FROM harbor.eds.aphp.fr/cohort360/python:3.11.4-slim-buster AS final
+FROM python:3.11.4-slim-buster AS final
 WORKDIR /app
 
 ENV VIRTUAL_ENV=/app/venv \
