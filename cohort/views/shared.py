@@ -17,7 +17,7 @@ class UserObjectsRestrictedViewSet(RequestLogMixin, viewsets.ModelViewSet):
         return self.__class__.queryset.filter(owner=self.request.user)
 
     def create(self, request, *args, **kwargs):
-        if type(request.data) == QueryDict:
+        if type(request.data) is QueryDict:
             request.data._mutable = True
         request.data['owner'] = request.data.get('owner', request.user.pk)
         return super(UserObjectsRestrictedViewSet, self).create(request, *args, **kwargs)
