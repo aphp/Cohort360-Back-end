@@ -34,7 +34,7 @@ class UserViewSet(BaseViewSet):
     filterset_class = UserFilter
     search_fields = UserFilter.Meta.fields
     permission_classes = (UsersPermission,)
-    http_method_names = ["get", "patch"]
+    http_method_names = ["post", "get", "patch"]
 
     def get_serializer_context(self):
         return {'request': self.request}
