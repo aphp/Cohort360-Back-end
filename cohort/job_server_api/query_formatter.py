@@ -62,10 +62,9 @@ class QueryFormatter:
                                                                           is_pseudo)
                 _logger.info(f"filterFhirEnriched {filter_fhir_enriched}")
 
-                solr_filter, resource_type = self.get_mapping_criteria_filter_fhir_to_solr(criteria.filter_fhir,
-                                                                                           criteria.resource_type)
+                solr_filter = self.get_mapping_criteria_filter_fhir_to_solr(criteria.filter_fhir,
+                                                                            criteria.resource_type)
                 criteria.filter_solr = solr_filter
-                criteria.resource_type = resource_type
                 return criteria
 
             for sub_criteria in criteria.criteria:
@@ -76,7 +75,7 @@ class QueryFormatter:
 
     def get_mapping_criteria_filter_fhir_to_solr(
             self, filter_fhir: str, original_resource_type: ResourceType
-    ) -> tuple[str, ResourceType]:
+    ) -> str:
 
         ipp_list_filter = None
         resource_type = original_resource_type
@@ -88,10 +87,9 @@ class QueryFormatter:
             resource_type = ResourceType.PATIENT
 
         fhir_resources_filters = self.call_fhir_resource(resource_type, filter_fhir)
-        final_resource_type = original_resource_type if is_ipp_list else fhir_resources_filters['collection']
         full_query = fhir_resources_filters['fq']
         _logger.info(f"FQ: {full_query}")
-        return self.merge_fq(full_query, ipp_list_filter), final_resource_type
+        return self.merge_fq(full_query, ipp_list_filter)
 
     def is_ipp_list(self, resource_type, filter_fhir) -> bool:
         return (
