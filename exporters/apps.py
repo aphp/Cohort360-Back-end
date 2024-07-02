@@ -21,7 +21,7 @@ class ExportersConfig(AppConfig):
             },
             {
                 "TYPE": ExportTypes.XLSX.value,
-                "EXPORTER_CLASS": "exporters.csv_exporter.XLSXExporter"
+                "EXPORTER_CLASS": "exporters.xlsx_exporter.XLSXExporter"
             },
             {
                 "TYPE": ExportTypes.HIVE.value,
