@@ -100,6 +100,7 @@ class SparkJobObject:
     mode: Mode
     owner_entity_id: str
     callbackPath: Optional[str] = Field(None, alias='callbackPath')
+    resolver: Optional[str] = Field(None, alias='resolver')
 
 
 class FhirParameter(BaseModel):

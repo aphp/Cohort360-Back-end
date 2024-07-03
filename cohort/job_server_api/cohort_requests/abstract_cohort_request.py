@@ -54,7 +54,8 @@ class AbstractCohortRequest(ABC):
                                            cohort_definition_syntax=cohort_query,
                                            mode=self.mode,
                                            owner_entity_id=self.__headers_to_owner_entity(),
-                                           callbackPath=callback_path)
+                                           callbackPath=callback_path,
+                                           resolver="fhir")
         return format_spark_job_request_for_sjs(spark_job_request)
 
     @abstractmethod
