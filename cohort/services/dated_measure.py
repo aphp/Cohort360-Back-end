@@ -1,64 +1,45 @@
-import logging
-
-from django.utils import timezone
-
-from admin_cohort.types import JobStatus, ServerError
-from cohort.models import DatedMeasure
+from admin_cohort.types import JobStatus
+from cohort.models import DatedMeasure, CohortResult
 from cohort.models.dated_measure import GLOBAL_DM_MODE
-from cohort.job_server_api import job_server_status_mapper
-from cohort.services.misc import get_authorization_header
+from cohort.services.base_service import CommonService
+from cohort.services.utils import get_authorization_header, ServerError
 from cohort.services.ws_event_manager import ws_send
-from cohort.tasks import count_cohort_task, cancel_previous_count_jobs
-
-JOB_STATUS = "request_job_status"
-COUNT = "count"
-MAXIMUM = "maximum"
-MINIMUM = "minimum"
-ERR_MESSAGE = "message"
+from cohort.tasks import cancel_previous_count_jobs, count_cohort
 
 
-_logger = logging.getLogger('info')
-_logger_err = logging.getLogger('django.request')
+class DatedMeasureService(CommonService):
+    job_type = "count"
 
-
-class DatedMeasureService:
-
-    @staticmethod
-    def process_dated_measure(dm_uuid: str, request):
-        dm = DatedMeasure.objects.get(pk=dm_uuid)
-        cancel_previous_count_jobs.delay(dm_uuid)
+    def handle_count(self, dm: DatedMeasure, request) -> None:
+        cancel_previous_count_jobs.s(dm_id=dm.uuid, operator=self.operator).apply_async()
         try:
-            auth_headers = get_authorization_header(request)
-            count_cohort_task.s(auth_headers=auth_headers,
-                                json_query=dm.request_query_snapshot.serialized_query,
-                                dm_uuid=dm_uuid)\
-                             .apply_async()
+            count_cohort.s(dm_id=dm.uuid,
+                           json_query=dm.request_query_snapshot.serialized_query,
+                           auth_headers=get_authorization_header(request),
+                           operator=self.operator) \
+                        .apply_async()
         except Exception as e:
             dm.delete()
-            raise ServerError("INTERNAL ERROR: Could not launch count request") from e
+            raise ServerError("Could not launch count request") from e
 
-    @staticmethod
-    def process_patch_data(dm: DatedMeasure, data: dict) -> None:
-        _logger.info(f"DatedMeasure [{dm.uuid}] Received patch data: {data}")
-        job_status = job_server_status_mapper(data.get(JOB_STATUS))
-        if not job_status:
-            raise ValueError(f"Bad Request: Invalid job status: {data.get(JOB_STATUS)}")
-        job_duration = str(timezone.now() - dm.created_at)
+    def handle_global_count(self, cohort: CohortResult, request) -> None:
+        dm_global = DatedMeasure.objects.create(mode=GLOBAL_DM_MODE,
+                                                owner=request.user,
+                                                request_query_snapshot_id=request.data.get("request_query_snapshot"))
+        try:
+            count_cohort.s(dm_id=dm_global.uuid,
+                           json_query=dm_global.request_query_snapshot.serialized_query,
+                           auth_headers=get_authorization_header(request),
+                           operator=self.operator,
+                           global_estimate=True) \
+                        .apply_async()
+        except Exception as e:
+            raise ServerError("Could not launch count request") from e
+        cohort.dated_measure_global = dm_global
+        cohort.save()
 
-        if job_status == JobStatus.finished:
-            if dm.mode == GLOBAL_DM_MODE:
-                data.update({"measure_min": data.pop(MINIMUM, None),
-                             "measure_max": data.pop(MAXIMUM, None)
-                             })
-            else:
-                data["measure"] = data.pop(COUNT, None)
-            _logger.info(f"DatedMeasure [{dm.uuid}] successfully updated from SJS")
-        else:
-            data["request_job_fail_msg"] = data.pop(ERR_MESSAGE, None)
-            _logger_err.exception(f"DatedMeasure [{dm.uuid}] - Error on SJS callback")
-        data.update({"request_job_status": job_status,
-                     "request_job_duration": job_duration
-                     })
+    def handle_patch_dated_measure(self, dm, data) -> None:
+        self.operator().handle_patch_dated_measure(dm, data)
 
     @staticmethod
     def mark_dm_as_failed(dm: DatedMeasure, reason: str) -> None:

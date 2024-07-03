@@ -8,12 +8,12 @@ from typing import TYPE_CHECKING
 import requests
 
 from admin_cohort.settings import CRB_TEST_FHIR_QUERIES
-from cohort.job_server_api.enums import CriteriaType, ResourceType
-from cohort.job_server_api.exceptions import FhirException
-from cohort.job_server_api.schemas import FhirParameters
+from cohort_job_server.sjs_api.enums import CriteriaType, ResourceType
+from cohort_job_server.sjs_api.exceptions import FhirException
+from cohort_job_server.sjs_api.schemas import FhirParameters
 
 if TYPE_CHECKING:
-    from cohort.job_server_api.schemas import CohortQuery, Criteria, SourcePopulation
+    from cohort_job_server.sjs_api.schemas import CohortQuery, Criteria, SourcePopulation
 
 env = os.environ
 FHIR_URL = env.get("FHIR_URL")

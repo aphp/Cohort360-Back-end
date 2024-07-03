@@ -31,9 +31,9 @@ class AnnexeCohortResultSerializer(serializers.ModelSerializer):
     class Meta:
         model = CohortResult
         fields = ('uuid', 'owner', 'name', 'description', 'dated_measure',
-                  'created_at', 'request_job_status', 'fhir_group_id')
+                  'created_at', 'request_job_status', 'group_id')
         read_only_fields = ('owner', 'name', 'description', 'dated_measure',
-                            'created_at', 'request_job_status', 'fhir_group_id')
+                            'created_at', 'request_job_status', 'group_id')
 
 
 class DatalabSerializer(serializers.ModelSerializer):

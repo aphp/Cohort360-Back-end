@@ -11,11 +11,9 @@ from rest_framework_extensions.mixins import NestedViewSetMixin
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from cohort.models import DatedMeasure
-from cohort.permissions import SJSorETLCallbackPermission
 from cohort.serializers import DatedMeasureSerializer
-from cohort.services.dated_measure import dm_service, JOB_STATUS, MINIMUM, MAXIMUM, COUNT
-from cohort.services.misc import is_sjs_user
-from cohort.services.decorators import await_celery_task
+from cohort.services.dated_measure import dm_service
+from cohort.services.utils import await_celery_task
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
 _logger = logging.getLogger('info')
@@ -46,18 +44,19 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     pagination_class = NegativeLimitOffsetPagination
 
     def get_permissions(self):
-        if is_sjs_user(request=self.request):
-            return [SJSorETLCallbackPermission()]
-        return super(DatedMeasureViewSet, self).get_permissions()
+        special_permissions = dm_service.get_special_permissions(self.request)
+        if special_permissions:
+            return special_permissions
+        return super().get_permissions()
 
     def get_queryset(self):
-        if is_sjs_user(request=self.request):
+        if dm_service.allow_use_full_queryset(request=self.request):
             return self.queryset
-        return super(DatedMeasureViewSet, self).get_queryset()
+        return super().get_queryset()
 
     @cache_response()
     def list(self, request, *args, **kwargs):
-        return super(DatedMeasureViewSet, self).list(request, *args, **kwargs)
+        return super().list(request, *args, **kwargs)
 
     @swagger_auto_schema(request_body=openapi.Schema(
                              type=openapi.TYPE_OBJECT,
@@ -68,25 +67,25 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
-        transaction.on_commit(lambda: dm_service.process_dated_measure(dm_uuid=response.data.get("uuid"),
-                                                                       request=request))
+        transaction.on_commit(lambda: dm_service.handle_count(request=request,
+                                                              dm=response.data.serializer.instance))
         return response
 
-    @swagger_auto_schema(operation_summary="Called by SJS to update DM's `measure` and other fields",
+    @swagger_auto_schema(operation_summary="Called by JobServer to update DM's `measure` and other fields",
                          request_body=openapi.Schema(
                              type=openapi.TYPE_OBJECT,
-                             properties={JOB_STATUS: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback"),
-                                         MINIMUM: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback"),
-                                         MAXIMUM: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback"),
-                                         COUNT: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback")},
-                             required=[JOB_STATUS, MINIMUM, MAXIMUM, COUNT]),
+                             properties={"request_job_status": openapi.Schema(type=openapi.TYPE_STRING, description="For JobServer callback"),
+                                         "minimum": openapi.Schema(type=openapi.TYPE_STRING, description="For JobServer callback"),
+                                         "maximum": openapi.Schema(type=openapi.TYPE_STRING, description="For JobServer callback"),
+                                         "count": openapi.Schema(type=openapi.TYPE_STRING, description="For JobServer callback")},
+                             required=["request_job_status", "minimum", "maximum", "count"]),
                          responses={'200': openapi.Response("DatedMeasure updated successfully", DatedMeasureSerializer()),
                                     '400': openapi.Response("Bad Request")})
     @await_celery_task
     def partial_update(self, request, *args, **kwargs):
         dm = self.get_object()
         try:
-            dm_service.process_patch_data(dm=dm, data=request.data)
+            dm_service.handle_patch_dated_measure(dm=dm, data=request.data)
         except ValueError as ve:
             dm_service.mark_dm_as_failed(dm=dm, reason=str(ve))
             response = Response(data=str(ve), status=status.HTTP_400_BAD_REQUEST)

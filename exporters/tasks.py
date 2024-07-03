@@ -21,7 +21,7 @@ def get_export_by_id(export_id: str | int) -> Export:
 
 def get_cohort_id(export: Export) -> int | str:
     if export.output_format == ExportTypes.CSV.value:
-        return export.export_tables.first().cohort_result_source.fhir_group_id
+        return export.export_tables.first().cohort_result_source.group_id
     return '--'
 
 

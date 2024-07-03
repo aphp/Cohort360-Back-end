@@ -27,12 +27,12 @@ class DatedMeasure(CohortBaseModel, JobModel):
     mode = models.CharField(max_length=20, choices=DATED_MEASURE_MODE_CHOICES, default=SNAPSHOT_DM_MODE, null=True)
 
     @property
-    def count_outdated(self):
+    def count_outdated(self) -> bool:
         delta = timedelta(hours=LAST_COUNT_VALIDITY)
         return timezone.now() - self.created_at > delta
 
     @property
-    def cohort_limit(self):
+    def cohort_limit(self) -> int:
         return COHORT_LIMIT
 
     @property

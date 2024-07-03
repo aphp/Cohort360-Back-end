@@ -20,7 +20,7 @@ class CohortResult(CohortBaseModel, JobModel):
     description = models.TextField(blank=True, null=True)
     favorite = models.BooleanField(default=False)
     request_query_snapshot = models.ForeignKey(RequestQuerySnapshot, on_delete=models.CASCADE, related_name='cohort_results', null=True)
-    fhir_group_id = models.CharField(max_length=64, blank=True)
+    group_id = models.CharField(max_length=64, blank=True)
     dated_measure = models.ForeignKey(DatedMeasure, related_name="cohorts", on_delete=models.CASCADE, null=True)
     dated_measure_global = models.ForeignKey(DatedMeasure, related_name="global_cohorts", null=True, on_delete=models.SET_NULL)
     create_task_id = models.TextField(blank=True)

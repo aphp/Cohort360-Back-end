@@ -1,10 +1,10 @@
+from django.conf import settings
 from rest_framework import permissions
 from rest_framework.permissions import OR as drf_OR
 
 from accesses.permissions import can_user_read_users, can_user_read_logs, can_user_manage_users
 from accesses.services.accesses import accesses_service
 from admin_cohort.models import User
-from admin_cohort.settings import ETL_USERNAME, ROLLOUT_USERNAME
 
 
 def user_is_authenticated(user):
@@ -17,7 +17,8 @@ class MaintenancesPermission(permissions.BasePermission):
             return True
         user = request.user
         return user_is_authenticated(user) and (accesses_service.user_is_full_admin(user) or
-                                                user.username in (ROLLOUT_USERNAME, ETL_USERNAME))
+                                                user.username == settings.ROLLOUT_USERNAME or
+                                                user.username in getattr(settings, "applicative_users", []))
 
 
 class LogsPermission(permissions.BasePermission):

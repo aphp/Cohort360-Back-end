@@ -38,14 +38,14 @@ class CohortRights:
 
 class CohortRightsService:
 
-    def get_user_rights_on_cohorts(self, fhir_group_ids: str, user: User) -> List[dict]:
-        fhir_group_ids = [i.strip() for i in fhir_group_ids.split(",") if i]
-        if not CohortResult.objects.filter(fhir_group_id__in=fhir_group_ids).exists():
-            raise Http404("No cohorts found. The provided `fhir_group_id`s are not valid")
+    def get_user_rights_on_cohorts(self, group_ids: str, user: User) -> List[dict]:
+        group_ids = [i.strip() for i in group_ids.split(",") if i]
+        if not CohortResult.objects.filter(group_id__in=group_ids).exists():
+            raise Http404("No cohorts found. The provided `group_id`s are not valid")
         user_accesses = accesses_service.get_user_valid_accesses(user=user)
         if not user_accesses:
             raise Http404(f"The user `{user}` has no valid accesses")
-        cohort_perimeters = self.get_cohort_perimeters(cohort_ids=fhir_group_ids)
+        cohort_perimeters = self.get_cohort_perimeters(cohort_ids=group_ids)
         accesses_per_right = self.get_accesses_per_right(user_accesses=user_accesses)
         cohort_rights = []
 

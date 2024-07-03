@@ -141,7 +141,7 @@ class ExportCleaner:
 
             notification_data = dict(recipient_name=export.owner.display_name,
                                      recipient_email=export.owner.email,
-                                     cohort_id=export.export_tables.first().cohort_result_source.fhir_group_id)
+                                     cohort_id=export.export_tables.first().cohort_result_source.group_id)
             push_email_notification(base_notification=exported_files_deleted, **notification_data)
             export.clean_datetime = timezone.now()
             export.save()

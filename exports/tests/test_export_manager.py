@@ -51,7 +51,7 @@ class TestExportManager(ExportsTests):
     def test_validate(self):
         export_data = dict(output_format="plain",
                            nominative=True,
-                           cohort_id=self.user1_cohort.fhir_group_id,
+                           cohort_id=self.user1_cohort.group_id,
                            motivation='motivation',
                            tables=[{"omop_table_name": "table1"}]
                            )

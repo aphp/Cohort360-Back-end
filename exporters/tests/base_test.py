@@ -29,17 +29,17 @@ class ExportersTestBase(TestCase):
                                                   owner=self.csv_exporter_user,
                                                   request_query_snapshot=self.rqs,
                                                   request_job_status=JobStatus.finished,
-                                                  fhir_group_id="11111")
+                                                  group_id="11111")
         self.cohort2 = CohortResult.objects.create(name="Second Cohort",
                                                    owner=self.csv_exporter_user,
                                                    request_query_snapshot=self.rqs,
                                                    request_job_status=JobStatus.finished,
-                                                   fhir_group_id="22222")
+                                                   group_id="22222")
         self.cohort3 = CohortResult.objects.create(name="Third Cohort",
                                                    owner=self.second_csv_exporter_user,
                                                    request_query_snapshot=self.rqs,
                                                    request_job_status=JobStatus.finished,
-                                                   fhir_group_id="33333")
+                                                   group_id="33333")
         self.infrastructure_provider = InfrastructureProvider.objects.create(name="Main")
         self.datalab = Datalab.objects.create(name='user1', infrastructure_provider=self.infrastructure_provider)
 

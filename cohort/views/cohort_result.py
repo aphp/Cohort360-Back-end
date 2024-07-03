@@ -12,12 +12,10 @@ from rest_framework_extensions.mixins import NestedViewSetMixin
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools import join_qs
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
-from cohort.services.cohort_result import cohort_service, JOB_STATUS, GROUP_ID, GROUP_COUNT
+from cohort.services.cohort_result import cohort_service
 from cohort.models import CohortResult
-from cohort.permissions import SJSorETLCallbackPermission
 from cohort.serializers import CohortResultSerializer, CohortResultSerializerFullDatedMeasure
 from cohort.services.cohort_rights import cohort_rights_service
-from cohort.services.misc import is_sjs_or_etl_user
 from cohort.views.shared import UserObjectsRestrictedViewSet
 from exports.services.export import export_service
 
@@ -46,7 +44,7 @@ class CohortFilter(filters.FilterSet):
     type = filters.AllValuesMultipleFilter()
     perimeter_id = filters.CharFilter(method="perimeter_filter")
     perimeters_ids = filters.CharFilter(method="perimeters_filter")
-    fhir_group_id = filters.CharFilter(method="multi_value_filter", field_name="fhir_group_id")
+    group_id = filters.CharFilter(method="multi_value_filter", field_name="group_id")
     status = filters.CharFilter(method="multi_value_filter", field_name="request_job_status")
 
     ordering = OrderingFilter(fields=('-created_at',
@@ -66,7 +64,7 @@ class CohortFilter(filters.FilterSet):
                   'min_fhir_datetime',
                   'max_fhir_datetime',
                   'favorite',
-                  'fhir_group_id',
+                  'group_id',
                   'create_task_id',
                   'request_query_snapshot',
                   'request_query_snapshot__request',
@@ -94,16 +92,17 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                             'dated_measure', 'dated_measure_id']
 
     def get_permissions(self):
-        if is_sjs_or_etl_user(request=self.request):
-            return [SJSorETLCallbackPermission()]
-        if self.action == 'get_active_jobs':
+        special_permissions = cohort_service.get_special_permissions(self.request)
+        if special_permissions:
+            return special_permissions
+        if self.action == self.get_active_jobs.__name__:
             return [AllowAny()]
-        return super(CohortResultViewSet, self).get_permissions()
+        return super().get_permissions()
 
     def get_queryset(self):
-        if is_sjs_or_etl_user(request=self.request):
+        if cohort_service.allow_use_full_queryset(request=self.request):
             return self.queryset
-        return super(CohortResultViewSet, self).get_queryset()\
+        return super().get_queryset()\
                                                .filter(is_subset=False)
 
     def get_serializer_class(self):
@@ -121,7 +120,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
 
     @cache_response()
     def list(self, request, *args, **kwargs):
-        return super(CohortResultViewSet, self).list(request, *args, **kwargs)
+        return super().list(request, *args, **kwargs)
 
     @swagger_auto_schema(operation_summary="Create a CohortResult",
                          request_body=openapi.Schema(
@@ -136,47 +135,39 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                                     '400': openapi.Response("Bad Request")})
     @transaction.atomic
     def create(self, request, *args, **kwargs):
-        cohort_service.process_creation_data(data=request.data)
         response = super().create(request, *args, **kwargs)
-        transaction.on_commit(lambda: cohort_service.process_cohort_creation(request=request,
-                                                                             cohort_uuid=response.data.get("uuid")))
+        transaction.on_commit(lambda: cohort_service.handle_cohort_creation(request=request,
+                                                                            cohort=response.data.serializer.instance))
         return response
 
-    @swagger_auto_schema(operation_summary="Used by Front to update cohort's name, description and favorite."
-                                           "By SJS to update cohort's request_job_status, request_job_duration and "
-                                           "fhir_group_id. Also update count on DM."
-                                           "By ETL to update request_job_status on delayed large cohorts",
+    @swagger_auto_schema(operation_summary="Used by Front to update cohort metadata and JobServer to update cohort status,"
+                                           "count and group_id and by ETL to update status on delayed large cohorts",
                          request_body=openapi.Schema(
                              type=openapi.TYPE_OBJECT,
-                             properties={JOB_STATUS: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS and ETL callback"),
-                                         GROUP_ID: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback"),
-                                         GROUP_COUNT: openapi.Schema(type=openapi.TYPE_STRING, description="For SJS callback"),
+                             properties={"request_job_status": openapi.Schema(type=openapi.TYPE_STRING, description="For JobServer and ETL callback"),
+                                         "group.id": openapi.Schema(type=openapi.TYPE_STRING, description="For JobServer callback"),
+                                         "group.count": openapi.Schema(type=openapi.TYPE_STRING, description="For JobServer callback"),
                                          "name": openapi.Schema(type=openapi.TYPE_STRING),
                                          "description": openapi.Schema(type=openapi.TYPE_STRING),
                                          "favorite": openapi.Schema(type=openapi.TYPE_STRING)},
-                             required=[JOB_STATUS, GROUP_ID, GROUP_COUNT]),
+                             required=["request_job_status", "group.id", "group.count"]),
                          responses={'200': openapi.Response("Cohort updated successfully"),
                                     '400': openapi.Response("Bad Request")})
     def partial_update(self, request, *args, **kwargs):
-        for field in self.non_updatable_fields:
-            if field in request.data:
-                return Response(data=f"`{field}` field cannot be updated",
-                                status=status.HTTP_400_BAD_REQUEST)
+        if any(field in self.non_updatable_fields for field in request.data):
+            return Response(data=f"The payload contains non-updatable fields `{request.data}`",
+                            status=status.HTTP_400_BAD_REQUEST)
         cohort = self.get_object()
         try:
-            is_update_from_sjs, is_update_from_etl = cohort_service.process_patch_data(cohort=cohort,
-                                                                                       data=request.data)
+            cohort_service.handle_patch_cohort(cohort=cohort, data=request.data)
         except ValueError as ve:
             cohort_service.mark_cohort_as_failed(cohort=cohort, reason=str(ve))
-            response = Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
+            response = Response(data=str(ve), status=status.HTTP_400_BAD_REQUEST)
         else:
-            response = super(CohortResultViewSet, self).partial_update(request, *args, **kwargs)
-            if status.is_success(response.status_code):
-                if is_update_from_sjs and cohort.export_table.exists():
-                    export_service.check_all_cohort_subsets_created(export=cohort.export_table.first().export)
-                cohort_service.send_email_notification(cohort=cohort,
-                                                       is_update_from_sjs=is_update_from_sjs,
-                                                       is_update_from_etl=is_update_from_etl)
+            response = super().partial_update(request, *args, **kwargs)
+            cohort_service.handle_cohort_post_update(cohort=cohort, data=request.data)
+            if cohort.export_table.exists():
+                export_service.check_all_cohort_subsets_created(export=cohort.export_table.first().export)
         cohort_service.ws_send_to_client(cohort=cohort)
         return response
 
@@ -184,9 +175,9 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                          operation_summary="Returns a dict of rights (booleans) for each cohort based on user accesses."
                                            "Rights are computed by checking user accesses against every perimeter the cohort is built upon",
                          responses={'200': openapi.Response("Cohorts rights found"),
-                                    '404': openapi.Response("No cohorts found matching the given fhir_group_ids or user has no valid accesses")})
+                                    '404': openapi.Response("No cohorts found matching the given group_ids or user has no valid accesses")})
     @action(detail=False, methods=['get'], url_path="cohort-rights")
     def get_rights_on_cohorts(self, request, *args, **kwargs):
-        cohorts_rights = cohort_rights_service.get_user_rights_on_cohorts(fhir_group_ids=request.query_params.get('fhir_group_id'),
+        cohorts_rights = cohort_rights_service.get_user_rights_on_cohorts(group_ids=request.query_params.get('group_id'),
                                                                           user=request.user)
         return Response(data=cohorts_rights, status=status.HTTP_200_OK)

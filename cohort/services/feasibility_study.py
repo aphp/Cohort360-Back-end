@@ -3,7 +3,6 @@ import logging
 import os
 import zipfile
 from io import BytesIO
-from smtplib import SMTPException
 from typing import Tuple, List
 
 from celery import chain
@@ -12,17 +11,15 @@ from django.template.loader import get_template
 
 from accesses.models import Perimeter
 from admin_cohort.settings import FRONT_URL
-from admin_cohort.types import JobStatus, ServerError
+from admin_cohort.types import JobStatus
 from cohort.models import FeasibilityStudy
-from cohort.job_server_api import job_server_status_mapper
-from cohort.services.misc import get_authorization_header
-from cohort.services.emails import send_email_notif_feasibility_report_ready, send_email_notif_error_feasibility_report
-from cohort.tasks import feasibility_count_task, send_email_notification_task
+from cohort.services.base_service import CommonService
 
-env = os.environ
+from cohort.services.utils import get_authorization_header, ServerError
+from cohort.tasks import feasibility_study_count, send_feasibility_study_notification, send_email_feasibility_report_error, \
+                         send_email_feasibility_report_ready
 
-APHP_ID = int(env.get("TOP_HIERARCHY_CARE_SITE_ID"))
-REPORTING_PERIMETER_TYPES = env.get("REPORTING_PERIMETER_TYPES").split(",")
+REPORTING_PERIMETER_TYPES = os.environ.get("REPORTING_PERIMETER_TYPES").split(",")
 
 FRONT_REQUEST_URL = f"{FRONT_URL}/cohort/new"
 
@@ -49,62 +46,32 @@ def bound_number(n: int) -> str:
         return str(n)
 
 
-class FeasibilityStudyService:
+class FeasibilityStudyService(CommonService):
+    job_type = "count"
 
-    @staticmethod
-    def process_feasibility_study_request(fs_uuid: str, request):
-        fs = FeasibilityStudy.objects.get(pk=fs_uuid)
+    def handle_feasibility_study_count(self, fs: FeasibilityStudy, request) -> None:
         try:
-            auth_headers = get_authorization_header(request)
-            chain(*(feasibility_count_task.s(fs_uuid,
-                                             fs.request_query_snapshot.serialized_query,
-                                             auth_headers),
-                    send_email_notification_task.s(fs_uuid)))()
+            chain(*(feasibility_study_count.s(fs_id=fs.uuid,
+                                              json_qury=fs.request_query_snapshot.serialized_query,
+                                              auth_headers=get_authorization_header(request),
+                                              operator=self.operator),
+                    send_feasibility_study_notification.s(fs.uuid)))()
         except Exception as e:
             fs.delete()
-            raise ServerError("INTERNAL ERROR: Could not launch feasibility request") from e
+            raise ServerError("Could not launch feasibility request") from e
 
-    def process_patch_data(self, fs: FeasibilityStudy, data: dict) -> None:
-        _logger.info(f"Received data to patch FeasibilityStudy: {data}")
-        job_status = data.get(JOB_STATUS, "")
-        job_status = job_server_status_mapper(job_status)
-
+    def handle_patch_feasibility_study(self, fs: FeasibilityStudy, data: dict) -> None:
         try:
-            if not job_status:
-                raise ValueError(f"Bad Request: Invalid job status: {data.get(JOB_STATUS)}")
-            if job_status == JobStatus.finished:
-                data["total_count"] = int(data.pop(COUNT, 0))
-                counts_per_perimeter = data.pop(EXTRA, {})
-                if not counts_per_perimeter:
-                    raise ValueError(f"Bad Request: Payload missing `{EXTRA}` key")
-                self.persist_feasibility_report(fs=fs, counts_per_perimeter=counts_per_perimeter)
-                self.send_email_feasibility_report_ready(fs=fs)
-            else:
-                data["request_job_fail_msg"] = data.pop(ERR_MESSAGE, None)
-                self.send_email_feasibility_report_error(fs=fs)
-                _logger_err.exception(f"FeasibilityStudy [{fs.uuid}] - Error on SJS callback")
+            job_status, counts_per_perimeter = self.operator().handle_patch_feasibility_study(fs, data)
         except ValueError as ve:
-            self.send_email_feasibility_report_error(fs=fs)
-            _logger_err.exception(f"FeasibilityStudy [{fs.uuid}] - Error on SJS callback - {ve}")
+            send_email_feasibility_report_error.s(fs_id=fs.uuid).apply_async()
             raise ve
-        data[JOB_STATUS] = job_status
-
-    @staticmethod
-    def send_email_feasibility_report_ready(fs: FeasibilityStudy) -> None:
-        try:
-            send_email_notif_feasibility_report_ready(request_name=fs.request_query_snapshot.request.name,
-                                                      owner=fs.owner,
-                                                      fs_uuid=fs.uuid)
-        except (ValueError, SMTPException) as e:
-            _logger_err.exception(f"""FeasibilityStudy [{fs.uuid}] - Couldn't send "feasibility report ready" email to user: {e}""")
-
-    @staticmethod
-    def send_email_feasibility_report_error(fs: FeasibilityStudy) -> None:
-        try:
-            send_email_notif_error_feasibility_report(request_name=fs.request_query_snapshot.request.name,
-                                                      owner=fs.owner)
-        except (ValueError, SMTPException) as e:
-            _logger_err.exception(f"""FeasibilityStudy [{fs.uuid}] - Couldn't send "feasibility report error" email to user: {e}""")
+        else:
+            if job_status == JobStatus.finished:
+                self.persist_feasibility_report(fs=fs, counts_per_perimeter=counts_per_perimeter)
+                send_email_feasibility_report_ready.s(fs_id=fs.uuid).apply_async()
+            elif job_status == JobStatus.failed:
+                send_email_feasibility_report_error.s(fs_id=fs.uuid).apply_async()
 
     @staticmethod
     def get_file_name(fs: FeasibilityStudy) -> str:
@@ -144,7 +111,7 @@ class FeasibilityStudyService:
         return zipped_bytes
 
     def build_feasibility_report(self, counts_per_perimeter: dict) -> Tuple[dict, str]:
-        root_perimeter = Perimeter.objects.filter(id=APHP_ID)
+        root_perimeter = Perimeter.objects.filter(parent__isnull=True, level=1)
         return self.generate_report_content(perimeters=root_perimeter,
                                             counts_per_perimeter=counts_per_perimeter)
 

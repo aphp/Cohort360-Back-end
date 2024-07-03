@@ -15,7 +15,7 @@ class TestCSVExporter(ExportersTestBase):
 
     def test_error_validate_export_not_owned_cohort(self):
         export_data = dict(output_format=ExportTypes.CSV.value,
-                           cohort_id=self.cohort3.fhir_group_id,
+                           cohort_id=self.cohort3.group_id,
                            nominative=True,
                            motivation='motivation',
                            tables=[{"omop_table_name": "table1"}])
@@ -24,7 +24,7 @@ class TestCSVExporter(ExportersTestBase):
 
     def test_error_validate_export_not_nominative(self):
         export_data = dict(output_format=ExportTypes.CSV.value,
-                           cohort_id=self.cohort.fhir_group_id,
+                           cohort_id=self.cohort.group_id,
                            nominative=False,
                            motivation='motivation',
                            tables=[{"omop_table_name": "table1"}])
