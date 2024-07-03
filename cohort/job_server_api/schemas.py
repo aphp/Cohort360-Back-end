@@ -108,7 +108,7 @@ class FhirParameter(BaseModel):
 
 
 class FhirParameters(BaseModel):
-    resource: ResourceType = Field(alias="resourceType")
+    resource: str = Field(alias="resourceType")
     params: list[FhirParameter] = Field(default_factory=list, alias="parameter")
 
     def to_dict(self):
