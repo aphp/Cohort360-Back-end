@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name='export',
-            name='use_one_table',
+            name='group_tables',
             field=models.BooleanField(default=False),
         ),
         migrations.AlterField(

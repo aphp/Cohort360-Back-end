@@ -25,7 +25,7 @@ class Export(ExportsBaseModel, JobModel):
     is_user_notified = models.BooleanField(null=False, default=False)
     datalab = models.ForeignKey(to=Datalab, related_name="exports", on_delete=CASCADE, null=True)
     shift_dates = models.BooleanField(null=False, default=False)
-    use_one_table = models.BooleanField(null=False, default=False)
+    group_tables = models.BooleanField(null=False, default=False)
     motivation = models.TextField(null=True, blank=True)
     clean_datetime = models.DateTimeField(null=True)
 
