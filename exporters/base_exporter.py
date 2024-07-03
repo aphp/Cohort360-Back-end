@@ -115,7 +115,6 @@ class BaseExporter:
         params.update({"export_type": self.type,
                        "tables": self.build_tables_input(export),
                        "no_date_shift": export.nominative or not export.shift_dates,
-                       "overwrite": False,
                        "user_for_pseudo": not export.nominative and export.datalab.name or None
                        })
         return self.export_api.launch_export(params=params)

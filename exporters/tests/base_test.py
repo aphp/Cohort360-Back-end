@@ -52,6 +52,10 @@ class ExportersTestBase(TestCase):
         self.csv_export_table = ExportTable.objects.create(export=self.csv_export,
                                                            name="person",
                                                            cohort_result_source=self.cohort)
+        self.xlsx_export = Export.objects.create(**export_vals, output_format=ExportTypes.XLSX.value, group_tables=True)
+        self.xlsx_export_table = ExportTable.objects.create(export=self.xlsx_export,
+                                                            name="person",
+                                                            cohort_result_source=self.cohort)
         self.hive_export = Export.objects.create(**export_vals,
                                                  output_format=ExportTypes.HIVE.value,
                                                  datalab=self.datalab)
