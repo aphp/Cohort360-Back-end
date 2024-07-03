@@ -143,7 +143,9 @@ class CohortResultService:
     def ws_send_to_client(cohort: CohortResult) -> None:
         cohort.refresh_from_db()
         extra_info = {'request_job_status': cohort.request_job_status,
-                      'fhir_group_id': cohort.fhir_group_id}
+                      'fhir_group_id': cohort.fhir_group_id,
+                      'request_job_fail_msg': cohort.request_job_fail_msg
+                      }
         global_dm = cohort.dated_measure_global
         if global_dm:
             extra_info['global'] = {'measure_min': global_dm.measure_min,
