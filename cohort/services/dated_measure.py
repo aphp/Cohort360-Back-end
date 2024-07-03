@@ -51,7 +51,9 @@ class DatedMeasureService(CommonService):
     def ws_send_to_client(dm: DatedMeasure) -> None:
         dm.refresh_from_db()
         if not dm.is_global:
-            ws_send(instance=dm, job_name='count', extra_info={"measure": dm.measure})
+            ws_send(instance=dm, job_name='count', extra_info={"request_job_status": dm.request_job_status,
+                                                               "request_job_fail_msg": dm.request_job_fail_msg,
+                                                               "measure": dm.measure})
 
 
 dm_service = DatedMeasureService()

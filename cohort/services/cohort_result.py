@@ -94,7 +94,9 @@ class CohortResultService(CommonService):
         cohort.refresh_from_db()
         global_dm = cohort.dated_measure_global
         extra_info = {'request_job_status': cohort.request_job_status,
-                      'group_id': cohort.group_id}  # todo: [front] rename `fhir_group_id` to `group_id`
+                      'group_id': cohort.group_id,  # todo: [front] rename `fhir_group_id` to `group_id`
+                      'request_job_fail_msg': cohort.request_job_fail_msg
+                      }
         if global_dm:
             extra_info['global'] = {'measure_min': global_dm.measure_min,
                                     'measure_max': global_dm.measure_max

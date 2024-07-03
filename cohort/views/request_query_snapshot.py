@@ -73,7 +73,7 @@ class RequestQuerySnapshotViewSet(NestedViewSetMixin, UserObjectsRestrictedViewS
 class NestedRqsViewSet(RequestQuerySnapshotViewSet):
 
     def create(self, request, *args, **kwargs):
-        if type(request.data) == QueryDict:
+        if type(request.data) is QueryDict:
             request.data._mutable = True
 
         if 'request_id' in kwargs:
