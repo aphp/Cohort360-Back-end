@@ -399,7 +399,7 @@ class FhirFilterSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data["owner"] = self.context.get('request').user
-        return super(FhirFilterSerializer, self).create(validated_data)
+        return super().create(validated_data)
 
 
 class FhirFilterCreateSerializer(serializers.ModelSerializer):

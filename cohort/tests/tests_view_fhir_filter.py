@@ -14,7 +14,7 @@ from cohort.tests.cohort_app_tests import CohortAppTests
 from cohort.views.fhir_filter import FhirFilterViewSet
 
 
-class TestFhirFilterAPI(CohortAppTests):
+class TestFhirFilters(CohortAppTests):
     list_view = FhirFilterViewSet.as_view({'get': 'list'})
     post_view = FhirFilterViewSet.as_view({'post': 'create'})
     patch_view = FhirFilterViewSet.as_view({'patch': 'partial_update'})
