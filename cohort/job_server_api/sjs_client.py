@@ -68,4 +68,6 @@ def format_spark_job_request_for_sjs(spark_job_request: SparkJobObject) -> str:
                         f"input.cohortUuid = {spark_job_request.cohort_definition_syntax.cohort_uuid}")
     if callback_path:
         request_input += f",input.callbackPath = {callback_path}"
+    if spark_job_request.resolver:
+        request_input += f",input.resolver = {spark_job_request.resolver}"
     return request_input
