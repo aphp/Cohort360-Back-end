@@ -20,6 +20,10 @@ class ExportersConfig(AppConfig):
                 "EXPORTER_CLASS": "exporters.csv_exporter.CSVExporter"
             },
             {
+                "TYPE": ExportTypes.XLSX.value,
+                "EXPORTER_CLASS": "exporters.xlsx_exporter.XLSXExporter"
+            },
+            {
                 "TYPE": ExportTypes.HIVE.value,
                 "EXPORTER_CLASS": "exporters.hive_exporter.HiveExporter"
             }

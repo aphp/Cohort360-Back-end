@@ -78,6 +78,7 @@ class ExportSerializer(serializers.ModelSerializer):
                   "datalab",
                   "nominative",
                   "shift_dates",
+                  "group_tables",
                   "export_tables",
                   "motivation",
                   "owner",

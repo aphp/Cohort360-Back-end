@@ -101,7 +101,7 @@ class ExportDownloader:
             file_path = f"{export.target_full_path}.zip"
             response = StreamingHttpResponse(streaming_content=self.stream_file(file_path))
             file_size = self.get_file_size(file_name=file_path)
-            file_name = f"export_{export.motivation}.zip"
+            file_name = f"export_{export.export_tables.first().cohort_result_source.fhir_group_id}.zip"
             response['Content-Type'] = 'application/zip'
             response['Content-Length'] = file_size
             response['Content-Disposition'] = f"attachment; filename={file_name}"
