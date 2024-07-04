@@ -43,19 +43,14 @@ class FoldersGetTests(FoldersTests):
         self.name_pattern = "aAa"
 
         self.folders: List[Folder] = Folder.objects.bulk_create([
-            Folder(
-                name=random_str(10, random.random() > .5 and self.name_pattern),
-                owner=random.choice([self.user1, self.user2]),
-            ) for i in range(0, nb_base)
-        ])
+            Folder(name=random_str(10, random.random() > .5 and self.name_pattern),
+                   owner=self.user1 if i % 2 else self.user2)
+            for i in range(0, nb_base)])
+
         for f in self.folders[:nb_base]:
             self.folders += Folder.objects.bulk_create([
-                Folder(
-                    name=random_str(10,
-                                    random.random() > .5 and self.name_pattern),
-                    owner=f.owner,
-                )
-            ])
+                Folder(name=random_str(10, random.random() > .5 and self.name_pattern),
+                       owner=f.owner)])
 
     def test_list(self):
         # As a user, I can list the folders I own
