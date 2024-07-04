@@ -54,7 +54,7 @@ class FeasibilityStudyService(CommonService):
             chain(*(feasibility_study_count.s(fs_id=fs.uuid,
                                               json_qury=fs.request_query_snapshot.serialized_query,
                                               auth_headers=get_authorization_header(request),
-                                              operator=self.operator),
+                                              cohort_counter_cls=self.operator_cls),
                     send_feasibility_study_notification.s(fs.uuid)))()
         except Exception as e:
             fs.delete()
@@ -62,7 +62,7 @@ class FeasibilityStudyService(CommonService):
 
     def handle_patch_feasibility_study(self, fs: FeasibilityStudy, data: dict) -> None:
         try:
-            job_status, counts_per_perimeter = self.operator().handle_patch_feasibility_study(fs, data)
+            job_status, counts_per_perimeter = self.operator.handle_patch_feasibility_study(fs, data)
         except ValueError as ve:
             send_email_feasibility_report_error.s(fs_id=fs.uuid).apply_async()
             raise ve

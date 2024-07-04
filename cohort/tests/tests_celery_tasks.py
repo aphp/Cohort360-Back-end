@@ -71,21 +71,21 @@ class TasksTests(TestCase):
                                                        owner=self.user1)
         self.user1_feasibility_study = FeasibilityStudy.objects.create(owner=self.user1,
                                                                        request_query_snapshot=self.req_snapshot)
-        self.cohort_count_operator = DefaultCohortCounter
-        self.cohort_create_operator = DefaultCohortCreator
+        self.cohort_counter_cls = f"{DefaultCohortCounter.__module__}.{DefaultCohortCounter.__qualname__}"
+        self.cohort_creator_cls = f"{DefaultCohortCreator.__module__}.{DefaultCohortCreator.__qualname__}"
 
     def test_count_cohort_task(self):
         with self.assertRaises(NotImplementedError):
             count_cohort(dm_id=self.dm1.uuid,
                          json_query=self.json_query,
-                         operator=self.cohort_count_operator,
+                         cohort_counter_cls=self.cohort_counter_cls,
                          auth_headers=self.auth_headers)
 
     def test_count_cohort_task_with_global_mode(self):
         with self.assertRaises(NotImplementedError):
             count_cohort(dm_id=self.global_dm.uuid,
                          json_query=self.json_query,
-                         operator=self.cohort_count_operator,
+                         cohort_counter_cls=self.cohort_counter_cls,
                          auth_headers=self.auth_headers,
                          global_estimate=True)
 
@@ -93,13 +93,13 @@ class TasksTests(TestCase):
         with self.assertRaises(NotImplementedError):
             create_cohort(cohort_id=self.cohort.uuid,
                           json_query=self.json_query,
-                          operator=self.cohort_create_operator,
+                          cohort_creator_cls=self.cohort_creator_cls,
                           auth_headers=self.auth_headers)
 
     def test_feasibility_study_count_task(self):
         success = feasibility_study_count(fs_id=self.user1_feasibility_study.uuid,
                                           json_query=self.json_query,
-                                          operator=self.cohort_count_operator,
+                                          cohort_counter_cls=self.cohort_counter_cls,
                                           auth_headers=self.auth_headers)
         self.assertTrue(success)
 
@@ -135,7 +135,7 @@ class TasksTests(TestCase):
     def test_cancel_previous_count_jobs_task(self, mock_celery_revoke):
         mock_celery_revoke.return_value = None
         cancel_previous_count_jobs(dm_id=self.new_dm.uuid,
-                                   operator=self.cohort_count_operator)
+                                   cohort_counter_cls=self.cohort_counter_cls)
         cancelled_dms = DatedMeasure.objects.exclude(uuid=self.new_dm.uuid)\
                                             .filter(request_query_snapshot=self.req_snapshot2)
 
@@ -146,7 +146,7 @@ class TasksTests(TestCase):
     def test_error_cancel_previous_count_jobs_task(self, mock_cancel_job):
         mock_cancel_job.side_effect = Exception("Error cancelling running DMs")
         cancel_previous_count_jobs(dm_id=self.dm2.uuid,
-                                   operator=self.cohort_count_operator)
+                                   cohort_counter_cls=self.cohort_counter_cls)
         failed_dm = DatedMeasure.objects.exclude(uuid=self.dm2.uuid)\
                                         .filter(request_query_snapshot=self.req_snapshot3)\
                                         .first()

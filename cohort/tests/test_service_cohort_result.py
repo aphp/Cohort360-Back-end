@@ -1,6 +1,6 @@
 from unittest import mock
 
-from django.http import HttpRequest
+from requests import Request as HttpRequest
 from django.test import TestCase
 
 from admin_cohort.tests.tests_tools import new_random_user
@@ -33,11 +33,11 @@ class TestCohortResultService(TestCase):
         self.cohort_result_service = CohortResultService()
 
     @mock.patch('cohort.services.cohort_result.get_authorization_header')
-    @mock.patch('cohort.services.cohort_result.create_cohort_task.delay')
+    @mock.patch('cohort.services.cohort_result.create_cohort.apply_async')
     def test_create_cohort_subset(self, mock_get_auth_headers, mock_celery_task):
         mock_get_auth_headers.return_value = {"authorization": "token"}
         mock_celery_task.return_value = None
-        cohort_subset = self.cohort_result_service.create_cohort_subset(http_request=HttpRequest(),
+        cohort_subset = self.cohort_result_service.create_cohort_subset(request=HttpRequest(data={}),
                                                                         owner_id=self.user1.pk,
                                                                         table_name="Table_01",
                                                                         source_cohort=self.source_cohort,

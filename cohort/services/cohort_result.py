@@ -48,7 +48,7 @@ class CohortResultService(CommonService):
         cohort_subset = CohortResult.objects.create(is_subset=True,
                                                     name=f"{table_name}_{source_cohort.group_id}",
                                                     owner_id=owner_id,
-                                                    dated_measure_id=new_dm,
+                                                    dated_measure=new_dm,
                                                     request_query_snapshot=new_rqs)
         with transaction.atomic():
             self.handle_cohort_creation(cohort_subset, request)
@@ -70,7 +70,7 @@ class CohortResultService(CommonService):
             create_cohort.s(cohort_id=cohort.pk,
                             json_query=cohort.request_query_snapshot.serialized_query,
                             auth_headers=get_authorization_header(request),
-                            cohort_creator=self.operator) \
+                            cohort_creator_cls=self.operator_cls) \
                          .apply_async()
 
         except Exception as e:
@@ -78,10 +78,10 @@ class CohortResultService(CommonService):
             raise ServerError("Could not launch cohort creation") from e
 
     def handle_patch_cohort(self, cohort: CohortResult, data: dict) -> None:
-        self.operator().handle_patch_cohort(cohort, data)
+        self.operator.handle_patch_cohort(cohort, data)
 
     def handle_cohort_post_update(self, cohort: CohortResult, data: dict) -> None:
-        self.operator().handle_cohort_post_update(cohort, data)
+        self.operator.handle_cohort_post_update(cohort, data)
 
     @staticmethod
     def mark_cohort_as_failed(cohort: CohortResult, reason: str) -> None:

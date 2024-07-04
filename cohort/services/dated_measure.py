@@ -11,12 +11,12 @@ class DatedMeasureService(CommonService):
     job_type = "count"
 
     def handle_count(self, dm: DatedMeasure, request) -> None:
-        cancel_previous_count_jobs.s(dm_id=dm.uuid, operator=self.operator).apply_async()
+        cancel_previous_count_jobs.s(dm_id=dm.uuid, cohort_counter_cls=self.operator_cls).apply_async()
         try:
             count_cohort.s(dm_id=dm.uuid,
                            json_query=dm.request_query_snapshot.serialized_query,
                            auth_headers=get_authorization_header(request),
-                           operator=self.operator) \
+                           cohort_counter_cls=self.operator_cls) \
                         .apply_async()
         except Exception as e:
             dm.delete()
@@ -30,7 +30,7 @@ class DatedMeasureService(CommonService):
             count_cohort.s(dm_id=dm_global.uuid,
                            json_query=dm_global.request_query_snapshot.serialized_query,
                            auth_headers=get_authorization_header(request),
-                           operator=self.operator,
+                           cohort_counter_cls=self.operator_cls,
                            global_estimate=True) \
                         .apply_async()
         except Exception as e:
@@ -39,7 +39,7 @@ class DatedMeasureService(CommonService):
         cohort.save()
 
     def handle_patch_dated_measure(self, dm, data) -> None:
-        self.operator().handle_patch_dated_measure(dm, data)
+        self.operator.handle_patch_dated_measure(dm, data)
 
     @staticmethod
     def mark_dm_as_failed(dm: DatedMeasure, reason: str) -> None:

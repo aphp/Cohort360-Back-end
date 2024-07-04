@@ -104,9 +104,9 @@ class BaseExporter:
             raise ValueError(f"Missing {required_table_name} table from export")
 
         linked_cohort = required_table.cohort_result_subset or required_table.cohort_result_source
-        required_table = f"{required_table_name}:{linked_cohort.fhir_group_id}:{required_table.respect_table_relationships}"
+        required_table = f"{required_table_name}:{linked_cohort.group_id}:{required_table.respect_table_relationships}"
         other_tables = ",".join(
-            map(lambda t: f"{t.name}:{t.cohort_result_subset and t.cohort_result_subset.fhir_group_id or ''}:{t.respect_table_relationships}",
+            map(lambda t: f"{t.name}:{t.cohort_result_subset and t.cohort_result_subset.group_id or ''}:{t.respect_table_relationships}",
                 export.export_tables.exclude(name=required_table_name)))
         return f"{required_table},{other_tables}"
 
