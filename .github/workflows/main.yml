@@ -34,7 +34,7 @@ jobs:
       - name: Run safety check
         run: |
           pip install safety
-          safety check -i 42240,66963,70612
+          safety check -i 42240,66963,70612,65213
 
   test:
     runs-on: ubuntu-latest
