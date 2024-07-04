@@ -23,7 +23,7 @@ def send_email_notif_about_shared_request(request_name: str, owner: User, recipi
     email_notif.push()
 
 
-def send_email_notif_feasibility_report_requested(request_name: str, owner: User, **kwargs) -> None:
+def send_email_notif_feasibility_report_requested(request_name: str, owner: User) -> None:
     subject = "Votre demande de rapport"
     context = {**BASE_CONTEXT,
                "recipient_name": owner.display_name,
@@ -53,7 +53,7 @@ def send_email_notif_feasibility_report_ready(request_name: str, owner: User, fs
     email_notif.push()
 
 
-def send_email_notif_error_feasibility_report(request_name: str, owner: User, **kwargs) -> None:
+def send_email_notif_error_feasibility_report(request_name: str, owner: User) -> None:
     subject = "Votre demande de rapport a échoué"
     context = {**BASE_CONTEXT,
                "recipient_name": owner.display_name,

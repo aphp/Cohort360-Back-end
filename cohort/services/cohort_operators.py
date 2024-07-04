@@ -3,6 +3,7 @@ from typing import Tuple
 from rest_framework.request import Request
 
 from admin_cohort.types import JobStatus
+from cohort.permissions import IsOwnerPermission
 
 
 class DefaultCohortOperator:
@@ -11,7 +12,8 @@ class DefaultCohortOperator:
         self.applicative_users = []
 
     def get_special_permissions(self, request: Request):
-        return None
+        if request.user.username not in self.applicative_users:
+            return [IsOwnerPermission()]
 
 
 class DefaultCohortCounter(DefaultCohortOperator):
