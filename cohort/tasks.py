@@ -20,7 +20,7 @@ def create_cohort(cohort_id: str, json_query: str, auth_headers: dict, cohort_cr
     cr.create_task_id = current_task.request.id or ""
     cr.save()
     cohort_creator = load_operator(cohort_creator_cls)
-    cohort_creator.launch_cohort_creation(cr_uuid=cohort_id,
+    cohort_creator.launch_cohort_creation(cohort_id=cohort_id,
                                           json_query=json_query,
                                           auth_headers=auth_headers)
 
