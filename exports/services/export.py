@@ -44,11 +44,11 @@ class ExportService:
             for table_name in export_table.get("table_ids"):
                 if self.allow_create_sub_cohort_for_table(table_name=table_name) and cohort_source and fhir_filter_id:
                     requires_cohort_subsets = True
-                    cohort_subset = cohort_service.create_cohort_subset(owner_id=export.owner_id,
+                    cohort_subset = cohort_service.create_cohort_subset(request=kwargs.get("http_request"),
+                                                                        owner_id=export.owner_id,
                                                                         table_name=table_name,
                                                                         fhir_filter_id=fhir_filter_id,
-                                                                        source_cohort=cohort_source,
-                                                                        http_request=kwargs.get("http_request"))
+                                                                        source_cohort=cohort_source)
                 else:
                     cohort_subset = None
 
