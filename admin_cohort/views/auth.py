@@ -9,7 +9,7 @@ from django.views import View
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
 from requests import RequestException
-from rest_framework import status
+from rest_framework import status, viewsets
 from rest_framework_simplejwt.exceptions import InvalidToken
 
 from admin_cohort.services.auth import auth_service
@@ -31,7 +31,6 @@ def get_response_data(user: User, auth_tokens: AuthTokens):
 
 
 class ExemptedAuthView(View):
-    http_method_names = ["post"]
     logging_methods = ['POST']
 
     @method_decorator(csrf_exempt)
@@ -44,7 +43,8 @@ class ExemptedAuthView(View):
         return handler(request, *args, **kwargs)
 
 
-class OIDCLoginView(RequestLogMixin, ExemptedAuthView):
+class OIDCLoginView(RequestLogMixin, viewsets.ViewSet):
+    logging_methods = ['POST']
 
     def post(self, request, *args, **kwargs):
         auth_code = json.loads(request.body).get("auth_code")
@@ -101,6 +101,7 @@ class LogoutView(ExemptedAuthView, views.LogoutView):
 
 
 class TokenRefreshView(ExemptedAuthView):
+    http_method_names = ["post"]
 
     def post(self, request, *args, **kwargs):
         try:
