@@ -35,7 +35,7 @@ class RequestViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
 class NestedRequestViewSet(RequestViewSet):
 
     def create(self, request, *args, **kwargs):
-        if type(request.data) == QueryDict:
+        if type(request.data) is QueryDict:
             request.data._mutable = True
         if 'parent_folder' in kwargs:
             request.data["parent_folder"] = kwargs['parent_folder']
