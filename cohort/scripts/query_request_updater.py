@@ -57,7 +57,9 @@ class QueryRequestUpdater:
                  filter_names_to_skip: Dict[str, List[str]],
                  filter_values_mapping: Dict[str, Dict[str, Dict[str, Union[str, Callable[[str], str]]]]],
                  static_required_filters: Dict[str, List[str]],
-                 resource_name_mapping: Dict[str, str]
+                 resource_name_mapping: Dict[str, str],
+                 post_process_basic_resource: Optional[Callable[[Any], bool]] = lambda x: False,
+                 post_process_group_resource: Optional[Callable[[Any], bool]] = lambda x: False,
                  ):
         self.version_name = version_name
         self.previous_version_name = previous_version_name
@@ -66,6 +68,8 @@ class QueryRequestUpdater:
         self.filter_values_mapping = filter_values_mapping
         self.static_required_filters = static_required_filters
         self.resource_name_mapping = resource_name_mapping
+        self.post_process_basic_resource = post_process_basic_resource
+        self.post_process_group_resource = post_process_group_resource
 
     def map_resource_name(self, resource_name: str) -> Tuple[str, bool]:
         if resource_name in self.resource_name_mapping:
@@ -140,10 +144,11 @@ class QueryRequestUpdater:
             return self.process_resource(query, "fhirFilter")
 
     def process_basic_resource(self, resource: Any) -> bool:
-        return self.process_resource(resource, "filterFhir")
+        return self.post_process_basic_resource(self.process_resource(resource, "filterFhir"))
 
     def process_group_resource(self, resource: Any, has_changed: List[bool]) -> bool:
-        return reduce(lambda x, y: x or y, has_changed, False)
+        group_changed = self.post_process_group_resource(resource)
+        return reduce(lambda x, y: x or y, has_changed, group_changed)
 
     T = TypeVar('T')
 
