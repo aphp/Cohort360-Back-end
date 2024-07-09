@@ -116,6 +116,7 @@ class RequestSerializer(BaseSerializer):
     query_snapshots = ReducedRequestQuerySnapshotSerializer(read_only=True, many=True)
     shared_by = UserSerializer(read_only=True)
     parent_folder = PrimaryKeyRelatedFieldWithOwner(queryset=Folder.objects.all())
+    updated_at = serializers.CharField(read_only=True)
 
     class Meta:
         model = Request
