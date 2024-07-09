@@ -1,15 +1,15 @@
 import logging
 
-from celery import shared_task, current_task
+from celery import shared_task, current_task, chain
+from django.utils import timezone
 
 from admin_cohort import celery_app
 from admin_cohort.types import JobStatus
-from cohort.models import CohortResult, DatedMeasure, FeasibilityStudy
+from cohort.models import CohortResult, DatedMeasure, FeasibilityStudy, Request, RequestRefreshSchedule
 from cohort.services.base_service import load_operator
 from cohort.services.emails import send_email_notif_feasibility_report_requested, send_email_notif_error_feasibility_report, \
-    send_email_notif_feasibility_report_ready
-from cohort.services.utils import locked_instance_task, get_feasibility_study_by_id, send_email_notification
-
+    send_email_notif_feasibility_report_ready, send_email_notif_count_request_refreshed
+from cohort.services.utils import locked_instance_task, get_feasibility_study_by_id, send_email_notification, ServerError
 
 _logger = logging.getLogger('django.request')
 
@@ -108,3 +108,38 @@ def send_email_feasibility_report_error(fs_id: str) -> None:
                             request_name=fs.request_query_snapshot.request.name,
                             owner=fs.owner,
                             fs_id=fs_id)
+
+
+@shared_task
+def send_email_count_request_refreshed(request_id: str) -> None:
+    request = Request.objects.get(pk=request_id)
+    send_email_notification(notification=send_email_notif_count_request_refreshed,
+                            request_name=request.name,
+                            owner=request.owner)
+
+
+@shared_task
+def update_refresh_schedule(refresh_schedule_id: str) -> None:
+    schedule = RequestRefreshSchedule.objects.get(pk=refresh_schedule_id)
+    schedule.last_refresh = timezone.now()
+    schedule.save()
+    if schedule.notify_owner:
+        # wait till the count is updated from SJS
+        # update schedule's info from DM patch controller
+        send_email_count_request_refreshed.s(request_id=schedule.request_id).apply_async()
+
+
+@shared_task
+def refresh_count_request(dm_id: str, json_query: str, auth_headers: str, operator_cls: str, refresh_schedule_id: str):
+    dm = DatedMeasure.objects.get(pk=dm_id)
+    request_id = dm.request_query_snapshot.request.uuid
+    _logger.info(f"Refreshing Request [{request_id}]")
+    try:
+        chain(*(count_cohort.s(dm_id=dm_id,
+                               json_query=json_query,
+                               auth_headers=auth_headers,
+                               cohort_counter_cls=operator_cls),
+                update_refresh_schedule.s(refresh_schedule_id=refresh_schedule_id)))()
+    except Exception as e:
+        raise ServerError("Could not launch count request") from e
+

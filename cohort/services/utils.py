@@ -1,5 +1,6 @@
 import functools
 import logging
+from enum import StrEnum
 from smtplib import SMTPException
 from typing import Callable
 
@@ -68,3 +69,17 @@ def get_authorization_header(request: Request) -> dict:
                }
     headers = add_trace_id(headers)
     return headers
+
+
+def get_authorization_header_for_refresh_request() -> dict:
+    headers = {"Authorization": "Bearer Some-Token-To-configure-On-SJS",    # todo: add this conf variable
+               "authorizationMethod": "JWT/OIDC does not matter"
+               }
+    headers = add_trace_id(headers)
+    return headers
+
+
+class RefreshFrequency(StrEnum):
+    DAILY = 'daily'
+    EVER_OTHER_DAY = 'ever_other_day'
+    WEEKLY = 'weekly'

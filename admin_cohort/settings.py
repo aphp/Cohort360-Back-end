@@ -106,6 +106,7 @@ INSTALLED_APPS = ['django.contrib.admin',
                   'rest_framework_tracking',
                   'safedelete',
                   'channels',
+                  'django_celery_beat',
                   'admin_cohort'] + INCLUDED_APPS
 
 MIDDLEWARE = ['admin_cohort.middleware.influxdb_middleware.InfluxDBMiddleware',
@@ -210,6 +211,7 @@ CELERY_ACCEPT_CONTENT = ['application/json']
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_TASK_ALWAYS_EAGER = False
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
 if env('LOCAL_TASKS', default=''):
     CELERY_BEAT_SCHEDULE = {task_name: {'task': task,
