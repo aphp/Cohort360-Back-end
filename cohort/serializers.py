@@ -121,7 +121,7 @@ class RequestSerializer(BaseSerializer):
     class Meta:
         model = Request
         fields = "__all__"
-        read_only_fields = ["query_snapshots", 'shared_by']
+        read_only_fields = ['shared_by']
 
     def to_representation(self, instance):
         res = super().to_representation(instance)
