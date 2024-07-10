@@ -25,7 +25,7 @@ class RequestQuerySnapshotFilter(filters.FilterSet):
 
 
 class RequestQuerySnapshotViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
-    queryset = RequestQuerySnapshot.objects.all()
+    queryset = RequestQuerySnapshot.objects.exclude(cohort_results__is_subset=True)
     serializer_class = RequestQuerySnapshotSerializer
     http_method_names = ['get', 'post']
     lookup_field = "uuid"
