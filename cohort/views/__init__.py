@@ -5,6 +5,7 @@ from .folder import FolderViewSet
 from .request import RequestViewSet, NestedRequestViewSet
 from .request_query_snapshot import RequestQuerySnapshotViewSet, NestedRqsViewSet
 from .feasibility_study import FeasibilityStudyViewSet
+from .request_refresh_schedule import RequestRefreshScheduleViewSet
 
 __all__ = ["CohortResultViewSet",
            "DatedMeasureViewSet",
@@ -14,4 +15,5 @@ __all__ = ["CohortResultViewSet",
            "RequestQuerySnapshotViewSet",
            "NestedRqsViewSet",
            "FhirFilterViewSet",
-           "FeasibilityStudyViewSet"]
+           "FeasibilityStudyViewSet",
+           "RequestRefreshScheduleViewSet"]

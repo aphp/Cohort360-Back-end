@@ -1,7 +1,7 @@
 from django.utils.timezone import now
 from django_celery_beat.models import CrontabSchedule, PeriodicTask
 
-from cohort.models import RequestRefreshSchedule, DatedMeasure, RequestQuerySnapshot
+from cohort.models import RequestRefreshSchedule, DatedMeasure
 from cohort.services.base_service import CommonService
 from cohort.services.utils import RefreshFrequency, get_authorization_header_for_refresh_request
 from cohort.tasks import refresh_count_request
@@ -19,8 +19,9 @@ class RequestRefreshScheduleService(CommonService):
         crontab_schedule = self.create_crontab_schedule(refresh_schedule)
         count_request = refresh_schedule.request
         last_rqs = count_request.query_snapshots.last()
-        dm_id = self.copy_dated_measure(dm=last_rqs.dated_measures.last(), rqs=last_rqs).uuid
-        json_query = last_rqs.json_query
+        dm_id = DatedMeasure.objects.create(owner=last_rqs.owner,
+                                            request_query_snapshot=last_rqs).uuid
+        json_query = last_rqs.serialized_query
         auth_headers = get_authorization_header_for_refresh_request()
         task_args = [dm_id, json_query, auth_headers, self.operator_cls]
         task = f"{refresh_count_request.__module__}.{refresh_count_request.__name__}"
@@ -51,13 +52,6 @@ class RequestRefreshScheduleService(CommonService):
                                               day_of_week='*',
                                               day_of_month=FREQUENCIES.get(refresh_schedule.refresh_frequency, '*'),
                                               month_of_year='*')
-
-    @staticmethod
-    def copy_dated_measure(dm: DatedMeasure, rqs: RequestQuerySnapshot) -> DatedMeasure:
-        return DatedMeasure.objects.create(mode=dm.mode,
-                                           owner=dm.owner,
-                                           request_query_snapshot=rqs,
-                                           measure=dm.measure)
 
 
 requests_refresher_service = RequestRefreshScheduleService()

@@ -62,7 +62,7 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                              type=openapi.TYPE_OBJECT,
                              properties={"request_query_snapshot_id": openapi.Schema(type=openapi.TYPE_STRING)},
                              required=["request_query_snapshot_id"]),
-                         responses={'200': openapi.Response("DatedMeasure created", DatedMeasureSerializer()),
+                         responses={'201': openapi.Response("DatedMeasure created", DatedMeasureSerializer()),
                                     '400': openapi.Response("Bad Request")})
     @transaction.atomic
     def create(self, request, *args, **kwargs):
