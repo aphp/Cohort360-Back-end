@@ -1,6 +1,6 @@
 import logging
 
-from celery import shared_task, current_task, chain
+from celery import shared_task, current_task
 from django.utils import timezone
 
 from admin_cohort import celery_app
@@ -130,16 +130,16 @@ def update_refresh_schedule(refresh_schedule_id: str) -> None:
 
 
 @shared_task
-def refresh_count_request(dm_id: str, json_query: str, auth_headers: str, operator_cls: str, refresh_schedule_id: str):
+def refresh_count_request(dm_id: str, json_query: str, auth_headers: str, operator_cls: str):
     dm = DatedMeasure.objects.get(pk=dm_id)
     request_id = dm.request_query_snapshot.request.uuid
     _logger.info(f"Refreshing Request [{request_id}]")
     try:
-        chain(*(count_cohort.s(dm_id=dm_id,
-                               json_query=json_query,
-                               auth_headers=auth_headers,
-                               cohort_counter_cls=operator_cls),
-                update_refresh_schedule.s(refresh_schedule_id=refresh_schedule_id)))()
+        count_cohort.s(dm_id=dm_id,
+                       json_query=json_query,
+                       auth_headers=auth_headers,
+                       cohort_counter_cls=operator_cls)\
+                    .apply_async()
     except Exception as e:
         raise ServerError("Could not launch count request") from e
 

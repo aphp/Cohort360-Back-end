@@ -92,4 +92,5 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         else:
             response = super().partial_update(request, *args, **kwargs)
         dm_service.ws_send_to_client(dm=dm)
+        dm_service.update_refresh_schedule(dm=dm)
         return response

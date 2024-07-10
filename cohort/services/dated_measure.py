@@ -2,6 +2,7 @@ from admin_cohort.types import JobStatus
 from cohort.models import DatedMeasure, CohortResult
 from cohort.models.dated_measure import GLOBAL_DM_MODE
 from cohort.services.base_service import CommonService
+from cohort.services.request_refresh_schedule import requests_refresher_service
 from cohort.services.utils import get_authorization_header, ServerError
 from cohort.services.ws_event_manager import ws_send
 from cohort.tasks import cancel_previous_count_jobs, count_cohort
@@ -54,6 +55,10 @@ class DatedMeasureService(CommonService):
             ws_send(instance=dm, job_name='count', extra_info={"request_job_status": dm.request_job_status,
                                                                "request_job_fail_msg": dm.request_job_fail_msg,
                                                                "measure": dm.measure})
+
+    @staticmethod
+    def update_refresh_schedule(dm: DatedMeasure) -> None:
+        requests_refresher_service.update_refreshing_metadata(dm=dm)
 
 
 dm_service = DatedMeasureService()

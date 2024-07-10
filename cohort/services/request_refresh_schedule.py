@@ -1,3 +1,4 @@
+from django.utils.timezone import now
 from django_celery_beat.models import CrontabSchedule, PeriodicTask
 
 from cohort.models import RequestRefreshSchedule, DatedMeasure, RequestQuerySnapshot
@@ -11,7 +12,7 @@ FREQUENCIES = {RefreshFrequency.DAILY.value: '*',
                }
 
 
-class RequestsService(CommonService):
+class RequestRefreshScheduleService(CommonService):
     job_type = "count"
 
     def create_refresh_schedule(self, refresh_schedule: RequestRefreshSchedule) -> None:
@@ -21,17 +22,27 @@ class RequestsService(CommonService):
         dm_id = self.copy_dated_measure(dm=last_rqs.dated_measures.last(), rqs=last_rqs).uuid
         json_query = last_rqs.json_query
         auth_headers = get_authorization_header_for_refresh_request()
-        task_args = [dm_id, json_query, auth_headers, self.operator_cls, refresh_schedule.uuid]
+        task_args = [dm_id, json_query, auth_headers, self.operator_cls]
         task = f"{refresh_count_request.__module__}.{refresh_count_request.__name__}"
         PeriodicTask.objects.create(name=count_request.uuid,
                                     crontab=crontab_schedule,
                                     task=task,
                                     args=str(task_args))
 
-    def update_refresh_schedule(self, refresh_schedule: RequestRefreshSchedule) -> None:
+    def reset_schedule_crontab(self, refresh_schedule: RequestRefreshSchedule) -> None:
         periodic_task = PeriodicTask.objects.get(name=refresh_schedule.request.uuid)
         periodic_task.crontab = self.create_crontab_schedule(refresh_schedule)
         periodic_task.save()
+
+    @staticmethod
+    def update_refreshing_metadata(dm: DatedMeasure) -> None:
+        request = dm.request_query_snapshot.request
+        refresh_schedule = request.refresh_schedules.all()
+        if refresh_schedule:
+            refresh_schedule.update(last_refresh=now(),
+                                    last_refresh_succeeded=True,
+                                    last_refresh_count=dm.measure,
+                                    last_refresh_error_msg=dm.request_job_fail_msg)
 
     @staticmethod
     def create_crontab_schedule(refresh_schedule: RequestRefreshSchedule):
@@ -49,4 +60,4 @@ class RequestsService(CommonService):
                                            measure=dm.measure)
 
 
-requests_service = RequestsService()
+requests_refresher_service = RequestRefreshScheduleService()

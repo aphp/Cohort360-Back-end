@@ -13,8 +13,8 @@ class RequestRefreshSchedule(CohortBaseModel):
     refresh_time = models.TimeField()
     refresh_frequency = models.CharField(choices=REFRESH_FREQUENCIES)
     last_refresh = models.DateTimeField()
-    last_refresh_success = models.BooleanField()
-    last_refresh_count = models.CharField()
+    last_refresh_succeeded = models.BooleanField()
+    last_refresh_count = models.IntegerField()
     last_refresh_error_msg = models.CharField()
     notify_owner = models.BooleanField(default=False)
 

@@ -2,7 +2,7 @@ from django_filters import rest_framework as filters, OrderingFilter
 
 from cohort.models import RequestRefreshSchedule
 from cohort.serializers import RequestRefreshScheduleSerializer
-from cohort.services.request import requests_service
+from cohort.services.request_refresh_schedule import requests_refresher_service
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
 
@@ -25,10 +25,10 @@ class RequestRefreshScheduleViewSet(UserObjectsRestrictedViewSet):
 
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
-        requests_service.create_refresh_schedule(refresh_schedule=request.data.serializer.instance)
+        requests_refresher_service.create_refresh_schedule(refresh_schedule=request.data.serializer.instance)
         return response
 
     def partial_update(self, request, *args, **kwargs):
         response = super().partial_update(request, *args, **kwargs)
-        requests_service.update_refresh_schedule(refresh_schedule=self.get_object())
+        requests_refresher_service.reset_schedule_crontab(refresh_schedule=self.get_object())
         return response
