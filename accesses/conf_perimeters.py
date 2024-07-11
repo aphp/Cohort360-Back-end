@@ -85,18 +85,6 @@ class FactRelationShip(models.Model):
         """
 
 
-class Provider(models.Model):
-    provider_id = models.CharField(primary_key=True, max_length=25)
-    provider_source_value = models.TextField()
-    valid_start_datetime = models.DateTimeField()
-    valid_end_datetime = models.DateTimeField()
-    objects = OmopModelManager()
-
-    class Meta:
-        managed = False
-        db_table = 'provider'
-
-
 class CareSite(models.Model):
     care_site_id = models.BigIntegerField(primary_key=True)
     care_site_source_value = models.TextField(blank=True, null=True)

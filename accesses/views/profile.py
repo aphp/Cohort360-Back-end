@@ -1,29 +1,15 @@
-import logging
-
-import environ
 from django.db.models import QuerySet, F, Func, Value
 from django_filters import rest_framework as filters
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework import status
-from rest_framework.decorators import action
-from rest_framework.response import Response
 
 from admin_cohort.permissions import IsAuthenticated, can_user_read_users
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools.request_log_mixin import RequestLogMixin
-from admin_cohort.types import MissingDataError, ServerError
 from admin_cohort.views import BaseViewSet
-from ..models import Profile
-from ..permissions import ProfilesPermission
-from ..serializers import ProfileSerializer, ReducedProfileSerializer, ProfileCheckSerializer
-from ..services.profiles import profiles_service
-
-env = environ.Env()
-
-_logger = logging.getLogger("django.request")
-
-USERNAME_REGEX = env("USERNAME_REGEX")
+from accesses.models import Profile
+from accesses.permissions import ProfilesPermission
+from accesses.serializers import ProfileSerializer, ReducedProfileSerializer
 
 
 class ProfileFilter(filters.FilterSet):
@@ -52,8 +38,8 @@ class ProfileFilter(filters.FilterSet):
 class ProfileViewSet(RequestLogMixin, BaseViewSet):
     queryset = Profile.objects.filter(delete_datetime__isnull=True).all()
     lookup_field = "id"
-    http_method_names = ['get', 'post', 'delete']
-    logging_methods = ['POST', 'DELETE']
+    http_method_names = ['get', 'delete']
+    logging_methods = ['DELETE']
     permission_classes = (IsAuthenticated, ProfilesPermission)
     swagger_tags = ['Accesses - profiles']
     filterset_class = ProfileFilter
@@ -93,33 +79,6 @@ class ProfileViewSet(RequestLogMixin, BaseViewSet):
     def list(self, request, *args, **kwargs):
         return super(ProfileViewSet, self).list(request, *args, **kwargs)
 
-    @swagger_auto_schema(request_body=openapi.Schema(type=openapi.TYPE_OBJECT,
-                                                     properties={"user_id": openapi.Schema(type=openapi.TYPE_STRING),
-                                                                 "firstname": openapi.Schema(type=openapi.TYPE_STRING),
-                                                                 "lastname": openapi.Schema(type=openapi.TYPE_STRING),
-                                                                 "email": openapi.Schema(type=openapi.TYPE_STRING)}))
-    def create(self, request, *args, **kwargs):
-        profiles_service.process_creation_data(data=request.data)
-        return super(ProfileViewSet, self).create(request, *args, **kwargs)
-
     def perform_destroy(self, instance):
         instance.entry_deleted_by = self.request.user.username
         return super(ProfileViewSet, self).perform_destroy(instance)
-
-    @swagger_auto_schema(request_body=openapi.Schema(type=openapi.TYPE_OBJECT,
-                                                     properties={"username": openapi.Schema(type=openapi.TYPE_STRING)}),
-                         responses={'200': openapi.Response("Profile found", ProfileCheckSerializer()),
-                                    '204': openapi.Response("No user found matching the given username"),
-                                    '400': openapi.Response("Bad request"),
-                                    '500': openapi.Response("Server error")})
-    @action(detail=False, methods=['post'], url_path="check")
-    def check_existing_profile(self, request, *args, **kwargs):
-        try:
-            res = profiles_service.check_existing_profile(username=request.data.get("username"))
-            return Response(data=ProfileCheckSerializer(res).data, status=status.HTTP_200_OK)
-        except ValueError as e:
-            return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        except ServerError as e:
-            return Response(data={"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        except MissingDataError as e:
-            return Response(data={"error": f"User not found - {e}"}, status=status.HTTP_204_NO_CONTENT)

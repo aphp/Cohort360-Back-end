@@ -54,7 +54,7 @@ class UsersPermission(permissions.BasePermission):
         if not user_is_authenticated(request.user):
             return False
         return request.method == "GET" and (view.detail or can_user_read_users(request.user)) \
-            or (request.method == "PATCH" and can_user_manage_users(request.user))
+            or (request.method in ("POST", "PATCH") and can_user_manage_users(request.user))
 
     def has_object_permission(self, request, view, obj):
         return request.user.pk == obj.pk or can_user_read_users(request.user)
