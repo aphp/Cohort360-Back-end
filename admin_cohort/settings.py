@@ -150,16 +150,7 @@ DATABASES = {'default': {'ENGINE': 'django.db.backends.postgresql',
                          'HOST': env("DB_AUTH_HOST"),
                          'PORT': env("DB_AUTH_PORT"),
                          'TEST': {'NAME': 'test_portail'}
-                         },
-             'omop': {'ENGINE': 'django.db.backends.postgresql',
-                      'NAME': env("DB_OMOP_NAME"),
-                      'USER': env("DB_OMOP_USER"),
-                      'PASSWORD': env("DB_OMOP_PASSWORD"),
-                      'HOST': env("DB_OMOP_HOST"),
-                      'PORT': env("DB_OMOP_PORT"),
-                      'DISABLE_SERVER_SIDE_CURSORS': True,
-                      'OPTIONS': {'options': f"-c search_path={env('DB_OMOP_SCHEMA')},public"}
-                      }
+                         }
              }
 
 LANGUAGE_CODE = 'en-us'

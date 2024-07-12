@@ -76,15 +76,8 @@ Here is a list of major frameworks used here.
 
 ## Deployment on local infrastructure
 
-The following files contains AP-HP-specific code. You'll need to write your own implementation of the methods and
-replace
-them in your CI/CD pipeline.
+coming soon
 
-1. [conf_perimeters](accesses/conf_perimeters.py)
-2. [conf_auth](admin_cohort/auth/utils.py)
-3. [conf_cohort_job_api](cohort/services/job_server.py)
-4. [conf_exports](exports/conf_exports.py)
-5. [conf_workspaces](workspaces/conf_workspaces.py)
 
 <!-- CONTRIBUTING -->
 ## Contributing

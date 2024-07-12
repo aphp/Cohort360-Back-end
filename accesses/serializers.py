@@ -1,33 +1,13 @@
 import logging
 
-from django.db.models import Max, Q
-from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
 
 from admin_cohort.serializers import BaseSerializer, UserSerializer
-from .conf_perimeters import Provider
-from .models import Role, Access, Profile, Perimeter, Right
-from .services.roles import roles_service
+from accesses.models import Role, Access, Profile, Perimeter, Right
+from accesses.services.roles import roles_service
 
 _logger = logging.getLogger('django.request')
-
-
-def get_provider_id(user_id: str) -> int:
-    """
-    get provider_id from OMOP DB for users issued from ORBIS.
-    TODO: check si doit changer avec l'issue de modification du profile id
-          par le provider_source_value (id aph du user)
-    """
-    p: Provider = Provider.objects.filter(Q(provider_source_value=user_id)
-                                          & (Q(valid_start_datetime__lte=timezone.now())
-                                             | Q(valid_start_datetime__isnull=True))
-                                          & (Q(valid_end_datetime__gte=timezone.now())
-                                             | Q(valid_end_datetime__isnull=True))).first()
-    if p:
-        return p.provider_id
-    from accesses.models import Profile
-    return Profile.objects.aggregate(Max("provider_id"))['provider_id__max'] + 1
 
 
 class RightSerializer(ModelSerializer):

@@ -4,13 +4,13 @@ import logging
 import os
 from typing import List, Union
 
-from django.db import models
 from django.db.models import Q, QuerySet
 from django.db.models.query import RawQuerySet
 from django.utils import timezone
 
 from accesses.models import Perimeter, Access
 from accesses.services.accesses import accesses_service
+from accesses_perimeters.models import Concept, CareSite
 from admin_cohort import settings
 from admin_cohort.tools.cache import invalidate_cache
 
@@ -40,78 +40,6 @@ _logger = logging.getLogger("info")
 _logger_err = logging.getLogger("django.request")
 
 env = os.environ
-
-DOMAIN_CONCEPT_ID = env.get("DOMAIN_CONCEPT_COHORT")  # 1147323
-RELATIONSHIP_CONCEPT_ID = env.get("FACT_RELATIONSHIP_CONCEPT_COHORT")  # 44818821
-
-
-class OmopModelManager(models.Manager):
-    def get_queryset(self):
-        q = super(OmopModelManager, self).get_queryset()
-        q._db = "omop"
-        return q
-
-
-class Concept(models.Model):
-    concept_id = models.IntegerField(primary_key=True)
-    concept_name = models.TextField(blank=True, null=True)
-    objects = OmopModelManager()
-
-    class Meta:
-        managed = False
-        db_table = 'concept'
-
-
-class FactRelationShip(models.Model):
-    row_id = models.BigIntegerField(primary_key=True)
-    fact_id_1 = models.BigIntegerField()
-    fact_id_2 = models.BigIntegerField()
-    objects = OmopModelManager()
-
-    class Meta:
-        managed = False
-        db_table = 'fact_relationship'
-
-    @staticmethod
-    def psql_query_get_cohort_population_source(cohorts_ids: List[str]) -> str:
-        return f"""
-        SELECT row_id, fact_id_1, fact_id_2
-        FROM omop.fact_relationship
-        WHERE delete_datetime IS NULL
-        AND domain_concept_id_1 = {DOMAIN_CONCEPT_ID}
-        AND domain_concept_id_2 = {DOMAIN_CONCEPT_ID}
-        AND relationship_concept_id = {RELATIONSHIP_CONCEPT_ID}
-        AND fact_id_1 IN ({",".join(cohorts_ids)})
-        """
-
-
-class Provider(models.Model):
-    provider_id = models.CharField(primary_key=True, max_length=25)
-    provider_source_value = models.TextField()
-    valid_start_datetime = models.DateTimeField()
-    valid_end_datetime = models.DateTimeField()
-    objects = OmopModelManager()
-
-    class Meta:
-        managed = False
-        db_table = 'provider'
-
-
-class CareSite(models.Model):
-    care_site_id = models.BigIntegerField(primary_key=True)
-    care_site_source_value = models.TextField(blank=True, null=True)
-    care_site_name = models.TextField(blank=True, null=True)
-    care_site_short_name = models.TextField(blank=True, null=True)
-    care_site_type_source_value = models.TextField(blank=True, null=True)
-    care_site_parent_id = models.BigIntegerField(null=True)
-    cohort_id = models.BigIntegerField(null=True)
-    cohort_size = models.BigIntegerField(null=True)
-    delete_datetime = models.DateTimeField(null=True)
-    objects = OmopModelManager()
-
-    class Meta:
-        managed = False
-        db_table = 'care_site'
 
 
 class RelationPerimeter:
