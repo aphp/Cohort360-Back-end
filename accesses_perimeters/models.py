@@ -12,6 +12,8 @@ env = os.environ
 DOMAIN_CONCEPT_ID = env.get("DOMAIN_CONCEPT_COHORT")  # 1147323
 RELATIONSHIP_CONCEPT_ID = env.get("FACT_RELATIONSHIP_CONCEPT_COHORT")  # 44818821
 
+APP_LABEL = 'accesses_perimeters'
+
 
 class OmopModelManager(models.Manager):
     def get_queryset(self):
@@ -26,6 +28,7 @@ class Concept(models.Model):
     objects = OmopModelManager()
 
     class Meta:
+        app_label = APP_LABEL
         managed = False
         db_table = 'concept'
 
@@ -37,6 +40,7 @@ class FactRelationship(models.Model):
     objects = OmopModelManager()
 
     class Meta:
+        app_label = APP_LABEL
         managed = False
         db_table = 'fact_relationship'
 
@@ -66,5 +70,6 @@ class CareSite(models.Model):
     objects = OmopModelManager()
 
     class Meta:
+        app_label = APP_LABEL
         managed = False
         db_table = 'care_site'

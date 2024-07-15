@@ -4,6 +4,7 @@ from typing import Set, List
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
+from django.db import IntegrityError
 from django.db.models import QuerySet, Q
 from django.utils.module_loading import import_string
 
@@ -94,7 +95,10 @@ class PerimetersService:
             return Perimeter.objects.filter(id__in=top_same_level_perimeters_ids.union(top_inf_levels_perimeters_ids))
 
     def get_target_perimeters(self, cohort_ids: str, owner: User) -> QuerySet:
-        cohort_ids = self.retrieve_virtual_cohorts_ids(cohort_ids.split(","), owner) or cohort_ids
+        cohort_ids = cohort_ids.split(",")
+        if any(cid not in owner.user_cohorts.values_list('group_id', flat=True) for cid in cohort_ids):
+            raise IntegrityError(f"One or multiple cohorts with given IDs do not belong to user '{owner.display_name}'")
+        cohort_ids = self.retrieve_virtual_cohorts_ids(cohort_ids, owner) or cohort_ids
         return Perimeter.objects.filter(cohort_id__in=cohort_ids)
 
     @staticmethod
