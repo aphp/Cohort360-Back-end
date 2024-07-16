@@ -43,11 +43,12 @@ class ExportService:
             launch_export_task.delay(export.pk)
 
     @staticmethod
-    def force_generate_fhir_filter(export_id: str, table_name: str) -> str:
+    def force_generate_fhir_filter(export: Export, table_name: str) -> str:
         resource, _filter = RESOURCE_FILTERS[table_name]
         return FhirFilter.objects.create(fhir_resource=resource,
                                          filter=_filter,
-                                         name=f'{export_id}_{table_name}_(auto generated)').uuid
+                                         name=f'{str(export.uuid)[:10]}_{table_name}_(auto generated)',
+                                         owner=export.owner).uuid
 
     def create_tables(self, export: Export, tables: List[dict], **kwargs) -> bool:
         requires_cohort_subsets = False
@@ -57,7 +58,7 @@ class ExportService:
             cohort_source = cohort_source_id and CohortResult.objects.get(pk=cohort_source_id) or None
             for table_name in export_table.get("table_ids"):
                 if not fhir_filter_id and table_name in TABLES_REQUIRING_SUB_COHORTS:
-                    fhir_filter_id = self.force_generate_fhir_filter(export_id=export.uuid,
+                    fhir_filter_id = self.force_generate_fhir_filter(export=export,
                                                                      table_name=table_name)
 
                 if table_name not in EXCLUDED_TABLES and cohort_source and fhir_filter_id:
