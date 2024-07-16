@@ -3,7 +3,7 @@ import sys
 import urllib.parse
 from typing import Any
 
-from cohort.scripts.patch_requests_v144 import NEW_VERSION as PREV_VERSION
+from cohort.scripts.patch_requests_v145 import NEW_VERSION as PREV_VERSION
 from cohort.scripts.query_request_updater import RESOURCE_DEFAULT, QueryRequestUpdater
 
 LOGGER = logging.getLogger("info")
@@ -45,38 +45,64 @@ RESOURCE_DATE_MAPPING = {
     "Encounter": "period-start"
 }
 
+RESOURCE_ENCOUNTER_DATE_MAPPING = {
+    "Condition": "encounter.period-start",
+    "Procedure": "encounter.period-start",
+    "Claim": "encounter.period-start",
+    "DocumentReference": "encounter.period-start",
+    "MedicationRequest": "encounter.period-start",
+    "MedicationAdministration": "context.period-start",
+    "ImagingStudy": "encounter.period-start",
+    "Observation": "encounter.period-start",
+    "QuestionnaireResponse": "encounter.period-start",
+    "Encounter": "encounter.period-start"
+}
+
+
+def add_null_filter(allow_null, date_field_name, filter_value):
+    if allow_null:
+        filter_param_value = "({}) or not ({} eq \"*\")".format(filter_value, date_field_name)
+        return "_filter={}".format(urllib.parse.quote(filter_param_value))
+    return filter_value
+
+
+def update_filter(date_range, query, date_field):
+    allow_null_date = "dateIsNotNull" not in date_range or date_range["dateIsNotNull"]
+    filters = []
+    if "minDate" in date_range:
+        filters.append("{}{}{}".format(date_field, " gt " if allow_null_date else "=gt",
+                                       date_range["minDate"]))
+    if "maxDate" in date_range:
+        filters.append("{}{}{}".format(date_field, " lt " if allow_null_date else "=lt",
+                                       date_range["maxDate"]))
+    if filters:
+        query["filterFhir"] = query.get("filterFhir", "")
+        has_already_filter = query["filterFhir"].strip() != ""
+        join = "&" if has_already_filter else ""
+        query["filterFhir"] += join + add_null_filter(allow_null_date, date_field,
+                                                      " and ".join(
+                                                          filters) if allow_null_date else "&".join(
+                                                          filters))
+
 
 def replace_date_options_with_filter(query: Any) -> bool:
-    def add_null_filter(allow_null, filter_value):
-        if allow_null:
-            filter_param_value = "({}) or not (date eq \"*\")".format(filter_value)
-            return "_filter={}".format(urllib.parse.quote(filter_param_value))
-        return filter_value
-
     resource = query["resourceType"]
+    has_changed = False
     if "dateRangeList" in query:
         if resource not in RESOURCE_DATE_MAPPING:
             logging.error(f"Resource {resource} does not have a date field")
-            return False
-        date_range_option = query["dateRangeList"]
-        allow_null_date = "dateIsNotNull" not in date_range_option or date_range_option["dateIsNotNull"]
-        filters = []
-        if "minDate" in date_range_option:
-            filters.append("{}{}{}".format(RESOURCE_DATE_MAPPING[resource], " gt " if allow_null_date else "=gt",
-                                           query["dateRangeList"]["minDate"]))
-        if "maxDate" in date_range_option:
-            filters.append("{}{}{}".format(RESOURCE_DATE_MAPPING[resource], " lt " if allow_null_date else "=lt",
-                                           query["dateRangeList"]["maxDate"]))
-        if filters:
-            query["filterFhir"] = query.get("filterFhir", "")
-            has_already_filter = query["filterFhir"].strip() != ""
-            join = "&" if has_already_filter else ""
-            query["filterFhir"] += join + add_null_filter(allow_null_date,
-                                                          " and ".join(
-                                                              filters) if allow_null_date else "&".join(
-                                                              filters))
-            return True
-    return False
+        else:
+            date_range_option = query["dateRangeList"]
+            for date_range in date_range_option:
+                update_filter(date_range, query, RESOURCE_DATE_MAPPING[resource])
+                has_changed = True
+    if "encounterDateRange" in query:
+        if resource not in RESOURCE_ENCOUNTER_DATE_MAPPING:
+            logging.error(f"Resource {resource} does not have a date field")
+        else:
+            update_filter(query["encounterDateRange"], query, RESOURCE_ENCOUNTER_DATE_MAPPING[resource])
+            has_changed = True
+    return has_changed
 
 
 updater_v150 = QueryRequestUpdater(
