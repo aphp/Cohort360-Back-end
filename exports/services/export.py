@@ -1,5 +1,6 @@
 import logging
 from typing import List
+from urllib.parse import quote_plus
 
 from django.http import StreamingHttpResponse
 from rest_framework.exceptions import ValidationError
@@ -13,6 +14,14 @@ from exports.tasks import launch_export_task
 
 _logger = logging.getLogger('info')
 
+
+def get_encoded_doc_ref_filter() -> str:
+    filter_values = {"type:not": "https://terminology.eds.aphp.fr/aphp-orbis-document-textuel-hospitalier|doc-impor",
+                     "contenttype": "text/plain"
+                     }
+    return "&".join([f"{key}={quote_plus(val)}" for key, val in filter_values.items()])
+
+
 EXCLUDED_TABLES = ('imaging_series',
                    'questionnaire__item',
                    'questionnaireresponse__item',
@@ -20,11 +29,8 @@ EXCLUDED_TABLES = ('imaging_series',
 
 TABLES_REQUIRING_SUB_COHORTS = ('measurement', 'note')
 
-RESOURCE_FILTERS = {TABLES_REQUIRING_SUB_COHORTS[0]: ("Observation",
-                                                      "value-quantity=ge0,le0"),
-                    TABLES_REQUIRING_SUB_COHORTS[1]: ("DocumentReference",
-                                                      "type:not=https://terminology.eds.aphp.fr/aphp-orbis-document-textuel-hospitalier|doc-impor"
-                                                      "&contenttype=text/plain")
+RESOURCE_FILTERS = {TABLES_REQUIRING_SUB_COHORTS[0]: ("Observation", "value-quantity=ge0,le0"),
+                    TABLES_REQUIRING_SUB_COHORTS[1]: ("DocumentReference", get_encoded_doc_ref_filter())
                     }
 
 
