@@ -26,8 +26,6 @@ class InfraAPI:
             ExportTypes.XLSX: api_conf.get('XLSX_EXPORT_ENDPOINT'),
             ExportTypes.HIVE: api_conf.get('HIVE_EXPORT_ENDPOINT')
         }
-        self.csv_export_endpoint = api_conf.get('CSV_EXPORT_ENDPOINT')
-        self.hive_export_endpoint = api_conf.get('HIVE_EXPORT_ENDPOINT')
         self.export_task_status_endpoint = api_conf.get('EXPORT_TASK_STATUS_ENDPOINT')
         self.hadoop_task_status_endpoint = api_conf.get('HADOOP_TASK_STATUS_ENDPOINT')
         self.create_db_endpoint = api_conf.get('CREATE_DB_ENDPOINT')
