@@ -1,4 +1,3 @@
-import inspect
 from functools import reduce
 from typing import Set, List
 
@@ -98,24 +97,22 @@ class PerimetersService:
         cohort_ids = cohort_ids.split(",")
         if any(cid not in owner.user_cohorts.values_list('group_id', flat=True) for cid in cohort_ids):
             raise IntegrityError(f"One or multiple cohorts with given IDs do not belong to user '{owner.display_name}'")
-        cohort_ids = self.retrieve_virtual_cohorts_ids(cohort_ids, owner) or cohort_ids
+        cohort_ids = self.retrieve_virtual_cohorts_ids(cohort_ids=cohort_ids,
+                                                       group_by_cohort_id=False) or cohort_ids
         return Perimeter.objects.filter(cohort_id__in=cohort_ids)
 
     @staticmethod
-    def retrieve_virtual_cohorts_ids(*args):
+    def retrieve_virtual_cohorts_ids(*args, **kwargs):
         if getattr(settings, "USE_PERIMETERS_FACT_RELATIONSHIPS", False):
             perimeters_retriever_path = getattr(settings, "PERIMETERS_RETRIEVER_PATH", None)
             perimeters_retriever_cls = import_string(perimeters_retriever_path)
             if not perimeters_retriever_cls:
                 raise ImproperlyConfigured(f"No Perimeters Retriever defined at '{perimeters_retriever_path}'")
-            funcs = inspect.getmembers(perimeters_retriever_cls, inspect.isfunction)
-            for func in map(lambda f: f[1], funcs):
-                try:
-                    res = func(*args)
-                except TypeError:
-                    continue
-                return res
-            raise ImproperlyConfigured("Perimeters Retriever does not define a matching function")
+
+            try:
+                return perimeters_retriever_cls.get_virtual_cohorts(*args, **kwargs)
+            except AttributeError:
+                raise NotImplementedError("Perimeters Retriever does not define the 'get_virtual_cohorts' function")
         return None
 
     @staticmethod

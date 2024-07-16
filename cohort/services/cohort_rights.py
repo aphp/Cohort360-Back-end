@@ -56,9 +56,10 @@ class CohortRightsService:
 
     @staticmethod
     def get_cohort_perimeters(cohort_ids: List[str]) -> dict[str, QuerySet[Perimeter]]:
-        virtual_cohorts_map = perimeters_service.retrieve_virtual_cohorts_ids(cohort_ids) or {}
+        virtual_cohorts = perimeters_service.retrieve_virtual_cohorts_ids(cohort_ids=cohort_ids,
+                                                                          group_by_cohort_id=True) or {}
         return {cohort_id: Perimeter.objects.filter(cohort_id__in=virtual_cohort_ids)
-                for cohort_id, virtual_cohort_ids in virtual_cohorts_map.items()}
+                for cohort_id, virtual_cohort_ids in virtual_cohorts.items()}
 
     @staticmethod
     def get_accesses_per_right(user_accesses: QuerySet) -> dict[str, QuerySet]:

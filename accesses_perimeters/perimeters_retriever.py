@@ -13,12 +13,12 @@ def get_fact_relationships(cohorts_ids: List[str]) -> QuerySet[FactRelationship]
 class PerimetersRetriever:
 
     @staticmethod
-    def get_cohorts_combined_perimeters(cohorts_ids: List[str]) -> List[int]:
-        return get_fact_relationships(cohorts_ids).values_list("fact_id_2", flat=True)
-
-    @staticmethod
-    def get_perimeters_per_cohort(cohorts_ids: List[str]) -> dict[str, List[int]]:
-        cohort_perimeters = defaultdict(list)
-        for fact in get_fact_relationships(cohorts_ids):
-            cohort_perimeters[fact.fact_id_1].append(fact.fact_id_2)
-        return cohort_perimeters
+    def get_virtual_cohorts(cohorts_ids: List[str], group_by_cohort_id: bool) -> dict[str, List[int]] | QuerySet[List[int]]:
+        fact_relationships = get_fact_relationships(cohorts_ids)
+        if group_by_cohort_id:
+            cohort_perimeters = defaultdict(list)
+            for fact in fact_relationships:
+                cohort_perimeters[fact.fact_id_1].append(fact.fact_id_2)
+            return cohort_perimeters
+        else:
+            return fact_relationships.values_list("fact_id_2", flat=True)
