@@ -84,9 +84,8 @@ class UserViewSet(BaseViewSet):
         return super().partial_update(request, *args, **kwargs)
 
     @swagger_auto_schema(responses={'200': openapi.Response("User found", UserCheckSerializer()),
-                                    '204': openapi.Response("No user found matching the given username"),
-                                    '400': openapi.Response("Bad request"),
-                                    '500': openapi.Response("Server error")})
+                                    '404': openapi.Response("User not found"),
+                                    '400': openapi.Response("Bad request")})
     @action(detail=True, methods=['get'], url_path="check")
     def check_user_existence(self, request, *args, **kwargs):
         exists, found = False, False
@@ -98,12 +97,10 @@ class UserViewSet(BaseViewSet):
             try:
                 user = users_service.check_user_existence(username=username)
                 found = True
-            except ValueError as e:
+            except (ValueError, ServerError) as e:
                 return Response(data={"message": str(e)}, status=status.HTTP_400_BAD_REQUEST)
             except Http404:
                 return Response(data={"message": "User not found"}, status=status.HTTP_404_NOT_FOUND)
-            except ServerError as e:
-                return Response(data={"message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         res = {"username": user.username,
                "firstname": user.firstname,
                "lastname": user.lastname,
