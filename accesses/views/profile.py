@@ -117,9 +117,7 @@ class ProfileViewSet(RequestLogMixin, BaseViewSet):
         try:
             res = profiles_service.check_existing_profile(username=request.data.get("username"))
             return Response(data=ProfileCheckSerializer(res).data, status=status.HTTP_200_OK)
-        except ValueError as e:
+        except (ValueError, ServerError) as e:
             return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        except ServerError as e:
-            return Response(data={"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except MissingDataError as e:
             return Response(data={"error": f"User not found - {e}"}, status=status.HTTP_204_NO_CONTENT)
