@@ -9,6 +9,7 @@ from cohort.models import CohortBaseModel
 class FhirFilter(CohortBaseModel):
     fhir_resource = models.CharField(max_length=255)
     fhir_version = models.CharField(max_length=50)
+    query_version = models.CharField(max_length=50, default='v1.4.4')
     name = models.CharField(max_length=50, validators=[MinLengthValidator(2)])
     filter = models.TextField()
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='fhir_filters')
