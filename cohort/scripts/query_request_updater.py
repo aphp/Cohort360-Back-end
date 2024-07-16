@@ -7,7 +7,7 @@ from typing import List, Tuple, TypeVar, Callable, Any, Optional, Dict, Union
 
 from django.db.backends.base.base import BaseDatabaseWrapper
 
-from cohort.models import RequestQuerySnapshot
+from cohort.models import RequestQuerySnapshot, FhirFilter
 
 LOGGER = logging.getLogger("info")
 
@@ -256,7 +256,26 @@ class QueryRequestUpdater:
             with open(debug_path / "after", "w") as fh:
                 json.dump([json.loads(c["after"]) for c in changed_queries], fh, indent=2)
 
-    def update_old_query_snapshots(self, dry_run: bool = True, debug: bool = True):
+    def update_old_query_snapshots(self, dry_run: bool = True, debug: bool = True, with_filters: bool = True):
         LOGGER.info(f"Will update requests to version {self.version_name}. Dry run : {dry_run}")
         all_rqs: List[RequestQuerySnapshot] = RequestQuerySnapshot.objects.all()
         self.do_update_old_query_snapshots(all_rqs, lambda r: r.save(), dry_run, debug)
+        if with_filters:
+            self.update_old_filters(dry_run, debug)
+
+    def save_filter(self, f: RequestQuerySnapshot, filters: List[FhirFilter]):
+        for resource_filter in filters:
+            if resource_filter.uuid == f.title:
+                query = json.loads(f.serialized_query)
+                resource_filter.query_version = query.get("version", self.version_name)
+                resource_filter.filter = ["fhirFilter"]
+                resource_filter.save()
+                return
+
+    def update_old_filters(self, dry_run: bool = True, debug: bool = True):
+        LOGGER.info(f"Will update filters to version {self.version_name}. Dry run : {dry_run}")
+        all_filters: List[FhirFilter] = FhirFilter.objects.all()
+        self.do_update_old_query_snapshots([RequestQuerySnapshot(
+            title=f.uuid,
+            serialized_query=json.dumps({"version": f.query_version, "_type": "resource", "fhirFilter": f.filter})) for
+            f in all_filters], lambda r: self.save_filter(r, all_filters), dry_run, debug)
