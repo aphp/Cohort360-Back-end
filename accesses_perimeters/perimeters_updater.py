@@ -304,9 +304,7 @@ def close_accesses(perimeters_to_delete: QuerySet):
 
 
 def get_perimeters_to_delete(all_perimeters: QuerySet, all_valid_care_sites: RawQuerySet):
-    deleted_care_sites = CareSite.objects.raw("SELECT DISTINCT care_site_id, delete_datetime "
-                                              "FROM omop.care_site "
-                                              "WHERE delete_datetime IS NOT NULL")
+    deleted_care_sites = CareSite.objects.raw(CareSite.sql_get_deleted_care_sites())
     deleted_care_sites_ids = (cs.care_site_id for cs in deleted_care_sites)
     valid_care_sites_ids = (cs.care_site_id for cs in all_valid_care_sites)
 
@@ -352,7 +350,6 @@ def perimeters_data_model_objects_update():
         return
     _logger.info(f"2. Fetch {len(all_valid_care_sites)} care sites from OMOP DB")
 
-    # ! "even_deleted=True" to take also delete_datetime non null
     all_perimeters = Perimeter.objects.all(even_deleted=True)
     _logger.info(f"3. All perimeters: {len(all_perimeters)}")
 
