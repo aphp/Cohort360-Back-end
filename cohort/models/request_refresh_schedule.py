@@ -13,7 +13,7 @@ class RequestRefreshSchedule(CohortBaseModel):
     request = models.ForeignKey(Request, on_delete=models.CASCADE, related_name='refresh_schedules')
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='refresh_schedules')
     refresh_time = models.TimeField()
-    refresh_frequency = models.CharField(choices=REFRESH_FREQUENCIES)
+    refresh_frequency = models.CharField(choices=REFRESH_FREQUENCIES, default=RefreshFrequency.WEEKLY.value)
     last_refresh = models.DateTimeField(null=True)
     last_refresh_succeeded = models.BooleanField(null=True)
     last_refresh_count = models.IntegerField(null=True)

@@ -34,7 +34,8 @@ class RequestRefreshScheduleViewSet(UserObjectsRestrictedViewSet):
                    '400': openapi.Response("Bad Request")})
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
-        requests_refresher_service.create_refresh_schedule(refresh_schedule=response.data.serializer.instance)
+        requests_refresher_service.create_refresh_schedule(http_request=request,
+                                                           refresh_schedule=response.data.serializer.instance)
         return response
 
     @swagger_auto_schema(request_body=openapi.Schema(
