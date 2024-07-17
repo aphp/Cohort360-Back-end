@@ -116,11 +116,12 @@ class RequestSerializer(BaseSerializer):
     query_snapshots = ReducedRequestQuerySnapshotSerializer(read_only=True, many=True)
     shared_by = UserSerializer(read_only=True)
     parent_folder = PrimaryKeyRelatedFieldWithOwner(queryset=Folder.objects.all())
+    updated_at = serializers.CharField(read_only=True)
 
     class Meta:
         model = Request
         fields = "__all__"
-        read_only_fields = ["query_snapshots", 'shared_by']
+        read_only_fields = ['shared_by']
 
     def to_representation(self, instance):
         res = super().to_representation(instance)

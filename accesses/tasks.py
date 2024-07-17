@@ -1,30 +1,25 @@
 from collections import Counter
 
-
 from accesses.accesses_alerts import send_access_expiry_alerts
 from accesses.conf_perimeters import perimeters_data_model_objects_update
 from accesses.models import Perimeter, Access, Role
 from accesses.services.accesses import accesses_service
 from admin_cohort import celery_app
 from admin_cohort.settings import ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS, ACCESS_EXPIRY_SECOND_ALERT_IN_DAYS
-from admin_cohort.tools.celery_periodic_task_helper import ensure_single_task
 
 
 @celery_app.task()
-@ensure_single_task("check_expiring_accesses")
 def check_expiring_accesses():
     send_access_expiry_alerts(days=ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS)
     send_access_expiry_alerts(days=ACCESS_EXPIRY_SECOND_ALERT_IN_DAYS)
 
 
 @celery_app.task()
-@ensure_single_task("perimeters_daily_update")
 def perimeters_daily_update():
     perimeters_data_model_objects_update()
 
 
 @celery_app.task()
-@ensure_single_task("count_users_on_perimeters")
 def count_users_on_perimeters():
     count_allowed_users()
     count_allowed_users_in_inferior_levels()

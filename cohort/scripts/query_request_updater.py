@@ -7,7 +7,7 @@ from typing import List, Tuple, TypeVar, Callable, Any, Optional, Dict, Union
 
 from django.db.backends.base.base import BaseDatabaseWrapper
 
-from cohort.models import RequestQuerySnapshot
+from cohort.models import RequestQuerySnapshot, FhirFilter
 
 LOGGER = logging.getLogger("info")
 
@@ -57,7 +57,9 @@ class QueryRequestUpdater:
                  filter_names_to_skip: Dict[str, List[str]],
                  filter_values_mapping: Dict[str, Dict[str, Dict[str, Union[str, Callable[[str], str]]]]],
                  static_required_filters: Dict[str, List[str]],
-                 resource_name_mapping: Dict[str, str]
+                 resource_name_mapping: Dict[str, str],
+                 post_process_basic_resource: Optional[Callable[[Any], bool]] = lambda x: False,
+                 post_process_group_resource: Optional[Callable[[Any], bool]] = lambda x: False,
                  ):
         self.version_name = version_name
         self.previous_version_name = previous_version_name
@@ -66,6 +68,8 @@ class QueryRequestUpdater:
         self.filter_values_mapping = filter_values_mapping
         self.static_required_filters = static_required_filters
         self.resource_name_mapping = resource_name_mapping
+        self.post_process_basic_resource = post_process_basic_resource
+        self.post_process_group_resource = post_process_group_resource
 
     def map_resource_name(self, resource_name: str) -> Tuple[str, bool]:
         if resource_name in self.resource_name_mapping:
@@ -140,10 +144,11 @@ class QueryRequestUpdater:
             return self.process_resource(query, "fhirFilter")
 
     def process_basic_resource(self, resource: Any) -> bool:
-        return self.process_resource(resource, "filterFhir")
+        return self.post_process_basic_resource(self.process_resource(resource, "filterFhir"))
 
     def process_group_resource(self, resource: Any, has_changed: List[bool]) -> bool:
-        return reduce(lambda x, y: x or y, has_changed, False)
+        group_changed = self.post_process_group_resource(resource)
+        return reduce(lambda x, y: x or y, has_changed, group_changed)
 
     T = TypeVar('T')
 
@@ -251,7 +256,26 @@ class QueryRequestUpdater:
             with open(debug_path / "after", "w") as fh:
                 json.dump([json.loads(c["after"]) for c in changed_queries], fh, indent=2)
 
-    def update_old_query_snapshots(self, dry_run: bool = True, debug: bool = True):
+    def update_old_query_snapshots(self, dry_run: bool = True, debug: bool = True, with_filters: bool = True):
         LOGGER.info(f"Will update requests to version {self.version_name}. Dry run : {dry_run}")
         all_rqs: List[RequestQuerySnapshot] = RequestQuerySnapshot.objects.all()
         self.do_update_old_query_snapshots(all_rqs, lambda r: r.save(), dry_run, debug)
+        if with_filters:
+            self.update_old_filters(dry_run, debug)
+
+    def save_filter(self, f: RequestQuerySnapshot, filters: List[FhirFilter]):
+        for resource_filter in filters:
+            if resource_filter.uuid == f.title:
+                query = json.loads(f.serialized_query)
+                resource_filter.query_version = query.get("version", self.version_name)
+                resource_filter.filter = ["fhirFilter"]
+                resource_filter.save()
+                return
+
+    def update_old_filters(self, dry_run: bool = True, debug: bool = True):
+        LOGGER.info(f"Will update filters to version {self.version_name}. Dry run : {dry_run}")
+        all_filters: List[FhirFilter] = FhirFilter.objects.all()
+        self.do_update_old_query_snapshots([RequestQuerySnapshot(
+            title=f.uuid,
+            serialized_query=json.dumps({"version": f.query_version, "_type": "resource", "fhirFilter": f.filter})) for
+            f in all_filters], lambda r: self.save_filter(r, all_filters), dry_run, debug)

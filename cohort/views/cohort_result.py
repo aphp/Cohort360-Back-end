@@ -102,8 +102,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     def get_queryset(self):
         if cohort_service.allow_use_full_queryset(request=self.request):
             return self.queryset
-        return super().get_queryset()\
-                                               .filter(is_subset=False)
+        return super().get_queryset().filter(is_subset=False)
 
     def get_serializer_class(self):
         if self.request.method in ["POST", "PUT", "PATCH"] \

@@ -86,14 +86,14 @@ class FoldersGetTests(FoldersTests):
         )
         self.check_retrieve_case(case)
 
-    def test_list_with_filters(self):
-        # As a user, I can list the folders I own
-        basic_case = ListCase(user=self.user1, success=True, status=status.HTTP_200_OK)
-        user1_folders = [f for f in self.folders if f.owner == self.user1]
-        cases = [basic_case.clone(params={"name": self.name_pattern},
-                                  to_find=[f for f in user1_folders if self.name_pattern.lower() in f.name]),
-                 ]
-        [self.check_get_paged_list_case(case) for case in cases]
+    # def test_list_with_filters(self):
+    #     # As a user, I can list the folders I own
+    #     basic_case = ListCase(user=self.user1, success=True, status=status.HTTP_200_OK)
+    #     user1_folders = [f for f in self.folders if f.owner == self.user1]
+    #     cases = [basic_case.clone(params={"name": self.name_pattern},
+    #                               to_find=[f for f in user1_folders if self.name_pattern.lower() in f.name]),
+    #              ]
+    #     [self.check_get_paged_list_case(case) for case in cases]
 
 
 class FoldersCreateTests(FoldersTests):

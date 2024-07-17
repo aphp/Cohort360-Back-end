@@ -33,6 +33,7 @@ class ExportersConfig(AppConfig):
             "API_URL": env.get('EXPORT_API_URL'),
             "CSV_EXPORT_ENDPOINT": env.get('CSV_EXPORT_ENDPOINT'),
             "HIVE_EXPORT_ENDPOINT": env.get('HIVE_EXPORT_ENDPOINT'),
+            "XLSX_EXPORT_ENDPOINT": env.get('XLSX_EXPORT_ENDPOINT'),
             "EXPORT_TASK_STATUS_ENDPOINT": env.get('EXPORT_TASK_STATUS_ENDPOINT'),
             "HADOOP_TASK_STATUS_ENDPOINT": env.get('HADOOP_TASK_STATUS_ENDPOINT'),
             "CREATE_DB_ENDPOINT": env.get('CREATE_DB_ENDPOINT'),

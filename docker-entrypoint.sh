@@ -16,7 +16,7 @@ kinit $KERBEROS_USER -k -t akouachi.keytab
 crontab -l | { cat; echo "0 0 * * */1 /usr/bin/kinit akouachi@EDS.APHP.FR -k -t /app/akouachi.keytab"; } | crontab -
 cron
 
-celery -A admin_cohort worker -B --loglevel=INFO --logfile=/app/log/celery.log &
+celery -A admin_cohort worker --loglevel=INFO --logfile=/app/log/celery.log &
 sleep 5
 
 python setup_logging.py &
