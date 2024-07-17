@@ -11,10 +11,15 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('cohort', '0013_rename_fhir_group_id_cohortresult_group_id'),
+        ('cohort', '0014_fhirfilter_query_version'),
     ]
 
     operations = [
+        migrations.AddField(
+            model_name='requestquerysnapshot',
+            name='translated_query',
+            field=models.TextField(null=True),
+        ),
         migrations.CreateModel(
             name='RequestRefreshSchedule',
             fields=[
@@ -24,7 +29,7 @@ class Migration(migrations.Migration):
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('modified_at', models.DateTimeField(auto_now=True)),
                 ('refresh_time', models.TimeField()),
-                ('refresh_frequency', models.CharField(choices=[('daily', 'daily'), ('ever_other_day', 'ever_other_day'), ('weekly', 'weekly')])),
+                ('refresh_frequency', models.CharField(choices=[('daily', 'daily'), ('every_other_day', 'every_other_day'), ('weekly', 'weekly')])),
                 ('last_refresh', models.DateTimeField(null=True)),
                 ('last_refresh_succeeded', models.BooleanField(null=True)),
                 ('last_refresh_count', models.IntegerField(null=True)),

@@ -7,7 +7,7 @@ from cohort.services.utils import RefreshFrequency, get_authorization_header
 from cohort.tasks import refresh_count_request, send_email_count_request_refreshed
 
 FREQUENCIES = {RefreshFrequency.DAILY.value: '*',
-               RefreshFrequency.EVER_OTHER_DAY.value: '*/2',
+               RefreshFrequency.EVERY_OTHER_DAY.value: '*/2',
                RefreshFrequency.WEEKLY.value: '*/7'
                }
 

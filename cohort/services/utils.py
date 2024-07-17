@@ -73,5 +73,5 @@ def get_authorization_header(request: Request) -> dict:
 
 class RefreshFrequency(StrEnum):
     DAILY = 'daily'
-    EVER_OTHER_DAY = 'ever_other_day'
+    EVERY_OTHER_DAY = 'every_other_day'
     WEEKLY = 'weekly'
