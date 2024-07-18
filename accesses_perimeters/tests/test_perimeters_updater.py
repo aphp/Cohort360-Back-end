@@ -60,5 +60,5 @@ class PerimetersUpdaterTests(TestCase):
             self.assertEqual(count_existing_care_sites, len(care_sites_data[1]))
             perimeters_data_model_objects_update()
 
-        count_created_perimeters = Perimeter.objects.all(even_deleted=True).count()
+        count_created_perimeters = Perimeter.objects.count()
         self.assertEqual(count_created_perimeters, len(care_sites_data[1]))

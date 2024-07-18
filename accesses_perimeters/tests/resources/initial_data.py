@@ -40,23 +40,3 @@ fact_rels_data = [['row_id', 'fact_id_1', 'fact_id_2', 'domain_concept_id_1', 'd
                    (8, 8, 2, 1, 1, 2),
                    (9, 7, 4, 1, 1, 2),
                    (10, 9, 4, 1, 1, 2)]]
-
-perimeters_data = [['id', 'name', 'short_name', 'source_value', 'local_id', 'type_source_value', 'parent_id',
-                    'level', 'above_levels_ids', 'inferior_levels_ids', 'cohort_id', 'delete_datetime'],
-                   [(999999, 'APHP', 'APHP', 'AP-HP', 'Local APHP', 'AP-HP', None, 1, '', '0,1,2', '999999', None),
-                    (0, 'P0', 'P0', 'P0', 'Local P0', 'Groupe hospitalier (GH)', 999999, 2, '999999', '3,4,5', '0', None),
-                    (1, 'P1', 'P1', 'P1', 'Local P1', 'Groupe hospitalier (GH)', 999999, 2, '999999', '6,7', '1', None),
-                    (2, 'P2', 'P2', 'P2', 'Local P2', 'Groupe hospitalier (GH)', 999999, 2, '999999', '8,9,10', '2', None),
-                    (3, 'P3', 'P3', 'P3', 'Local P3', 'Hôpital', 0, 3, '0,999999', '', '3', None),
-                    (4, 'P4', 'P4', 'P4', 'Local P4', 'Hôpital', 0, 3, '0,999999', '11,12', '4', None),
-                    (5, 'P5', 'P5', 'P5', 'Local P5', 'Hôpital', 0, 3, '0,999999', '', '5', None),
-                    (6, 'P6', 'P6', 'P6', 'Local P6', 'Hôpital', 1, 3, '1,999999', '', '6', None),
-                    (7, 'P7', 'P7', 'P7', 'Local P7', 'Hôpital', 1, 3, '1,999999', '', '7', None),
-                    (8, 'P8', 'P8', 'P8', 'Local P8', 'Hôpital', 2, 3, '2,999999', '', '8', None),
-                    (9, 'P9', 'P9', 'P9', 'Local P9', 'Hôpital', 2, 3, '2,999999', '', '9', None),
-                    (10, 'P10', 'P10', 'P10', 'Local P10', 'Hôpital', 2, 3, '2,999999', '13,14', '10', None),
-                    (11, 'P11', 'P11', 'P11', 'Local P11', 'Pôle/DMU', 4, 4, '4,0,999999', '', '11', None),
-                    (12, 'P12', 'P12', 'P12', 'Local P12', 'Pôle/DMU', 4, 4, '4,0,999999', '', '12', None),
-                    (13, 'P13', 'P13', 'P13', 'Local P13', 'Pôle/DMU', 10, 4, '10,2,999999', '', '13', '2024-07-07 07:07:07'),
-                    (14, 'P14', 'P14', 'P14', 'Local P14', 'Pôle/DMU', 10, 4, '10,4,1', '', '14', '2024-07-07 07:07:07')]
-                   ]
