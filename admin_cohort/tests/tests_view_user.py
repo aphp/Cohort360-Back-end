@@ -1,3 +1,6 @@
+from unittest import mock
+from unittest.mock import MagicMock
+
 from rest_framework import status
 from rest_framework.test import force_authenticate
 
@@ -53,9 +56,9 @@ class UserTests(BaseTests):
         self.user1 = User.objects.create(username="1111111", firstname="User 01", lastname="USER01", email="user01@aphp.fr")
         self.user2 = User.objects.create(username="2222222", firstname="User 02", lastname="USER02", email="user02@aphp.fr")
 
-        self.admin_profile = Profile.objects.create(source=MANUAL_SOURCE, user=self.admin_user, manual_is_active=True)
-        self.profile1 = Profile.objects.create(source=MANUAL_SOURCE, user=self.user1, manual_is_active=True)
-        self.profile2 = Profile.objects.create(source=MANUAL_SOURCE, user=self.user2, manual_is_active=True)
+        self.admin_profile = Profile.objects.create(source=MANUAL_SOURCE, user=self.admin_user, is_active=True)
+        self.profile1 = Profile.objects.create(source=MANUAL_SOURCE, user=self.user1, is_active=True)
+        self.profile2 = Profile.objects.create(source=MANUAL_SOURCE, user=self.user2, is_active=True)
 
         self.admin_access = Access.objects.create(perimeter_id=self.aphp.id,
                                                   role=self.role_full_admin,
@@ -104,13 +107,21 @@ class UserTestsAsAdmin(UserTests):
             self.assertIn(i, user_found_ids, msg=msg)
         self.assertEqual(len(user_found_ids), len(users_to_find), msg=msg)
 
-    def test_create_user_permission_denied(self):
-        data = dict(username="000000", firstname="New", lastname="USER", email="new.user@aphp.fr")
+    @mock.patch('admin_cohort.services.users.requests')
+    def test_create_user(self, mock_requests: MagicMock):
+        mock_response = MagicMock()
+        mock_response.status_code = status.HTTP_200_OK
+        mock_response.json.return_value = {'data': {'attributes': {'givenName': 'New',
+                                                                   'sn': 'USER',
+                                                                   'cn': '999999',
+                                                                   'mail': 'new.user@aphp.fr'}}}
+        mock_requests.post.return_value =mock_response
+        data = dict(username="999999", firstname="New", lastname="USER", email="new.user@aphp.fr")
         request = self.factory.post(USERS_URL, data, format='json')
         force_authenticate(request, self.admin_user)
         response = UserViewSet.as_view({'post': 'create'})(request)
         response.render()
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN, response.content)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     def test_update_user_success(self):
         patch_data = dict(email="updated.email.address@aphp.fr")

@@ -3,7 +3,7 @@ import logging
 from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
 
-from admin_cohort.serializers import BaseSerializer, UserSerializer
+from admin_cohort.serializers import BaseSerializer
 from accesses.models import Role, Access, Profile, Perimeter, Right
 from accesses.services.roles import roles_service
 
@@ -57,19 +57,16 @@ class UsersInRoleSerializer(serializers.Serializer):
 
 
 class ReducedProfileSerializer(serializers.ModelSerializer):
-    is_valid = serializers.BooleanField(read_only=True)
     username = serializers.CharField(read_only=True, source='user_id')
     provider_id = serializers.CharField(required=False, source="user_id")
     firstname = serializers.CharField(required=False, source="user.firstname")
     lastname = serializers.CharField(required=False, source="user.lastname")
     email = serializers.CharField(required=False, source="user.email")
 
-
     class Meta:
         model = Profile
         fields = ["id",
                   "provider_id",
-                  "is_valid",
                   "username",
                   "email",
                   "firstname",
@@ -78,11 +75,7 @@ class ReducedProfileSerializer(serializers.ModelSerializer):
 
 
 class ProfileSerializer(BaseSerializer):
-    is_valid = serializers.BooleanField(read_only=True)
     is_active = serializers.BooleanField(required=False, default=True)
-    actual_is_active = serializers.BooleanField(read_only=True)
-    actual_valid_start_datetime = serializers.DateTimeField(read_only=True)
-    actual_valid_end_datetime = serializers.DateTimeField(read_only=True)
     user_id = serializers.CharField(required=False)
     firstname = serializers.CharField(read_only=True, source="user.firstname")
     lastname = serializers.CharField(read_only=True, source="user.lastname")
@@ -95,27 +88,8 @@ class ProfileSerializer(BaseSerializer):
         fields = '__all__'
         read_only_fields = ["id",
                             "source",
-                            "is_valid",
-                            "actual_is_active",
-                            "actual_valid_start_datetime",
-                            "actual_valid_end_datetime"
+                            "is_active",
                             ]
-        extra_kwargs = {'valid_start_datetime': {'write_only': True},
-                        'valid_end_datetime': {'write_only': True},
-                        'is_active': {'write_only': True},
-                        'manual_valid_start_datetime': {'write_only': True},
-                        'manual_valid_end_datetime': {'write_only': True},
-                        'manual_is_active': {'write_only': True}
-                        }
-
-
-class ProfileCheckSerializer(serializers.Serializer):
-    firstname = serializers.CharField(read_only=True)
-    lastname = serializers.CharField(read_only=True)
-    email = serializers.CharField(read_only=True)
-    username = serializers.CharField(read_only=True)
-    user = UserSerializer(read_only=True)
-    manual_profile = ProfileSerializer(read_only=True)
 
 
 class PerimeterSerializer(serializers.ModelSerializer):
