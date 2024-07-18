@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accesses', '0015_add_full_data_access_right'),
+        ('accesses', '0016_delete_provider_remove_fields_from_profile'),
     ]
 
     operations = [
@@ -18,8 +18,5 @@ class Migration(migrations.Migration):
         ),
         migrations.DeleteModel(
             name='FactRelationShip',
-        ),
-        migrations.DeleteModel(
-            name='Provider',
-        ),
+        )
     ]
