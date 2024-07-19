@@ -97,7 +97,7 @@ class PerimetersService:
         cohort_ids = cohort_ids.split(",")
         if any(cid not in owner.user_cohorts.values_list('group_id', flat=True) for cid in cohort_ids):
             raise IntegrityError(f"One or multiple cohorts with given IDs do not belong to user '{owner.display_name}'")
-        cohort_ids = self.retrieve_virtual_cohorts_ids(cohort_ids=cohort_ids,
+        cohort_ids = self.retrieve_virtual_cohorts_ids(cohorts_ids=cohort_ids,
                                                        group_by_cohort_id=False) or cohort_ids
         return Perimeter.objects.filter(cohort_id__in=cohort_ids)
 

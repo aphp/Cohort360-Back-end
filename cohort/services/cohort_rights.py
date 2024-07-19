@@ -44,7 +44,7 @@ class CohortRightsService:
         user_accesses = accesses_service.get_user_valid_accesses(user=user)
         if not user_accesses:
             raise Http404(f"The user `{user}` has no valid accesses")
-        cohort_perimeters = self.get_cohort_perimeters(cohort_ids=group_ids)
+        cohort_perimeters = self.get_cohort_perimeters(cohorts_ids=group_ids)
         accesses_per_right = self.get_accesses_per_right(user_accesses=user_accesses)
         cohort_rights = []
 
@@ -55,8 +55,8 @@ class CohortRightsService:
         return cohort_rights
 
     @staticmethod
-    def get_cohort_perimeters(cohort_ids: List[str]) -> dict[str, QuerySet[Perimeter]]:
-        virtual_cohorts = perimeters_service.retrieve_virtual_cohorts_ids(cohort_ids=cohort_ids,
+    def get_cohort_perimeters(cohorts_ids: List[str]) -> dict[str, QuerySet[Perimeter]]:
+        virtual_cohorts = perimeters_service.retrieve_virtual_cohorts_ids(cohorts_ids=cohorts_ids,
                                                                           group_by_cohort_id=True) or {}
         return {cohort_id: Perimeter.objects.filter(cohort_id__in=virtual_cohort_ids)
                 for cohort_id, virtual_cohort_ids in virtual_cohorts.items()}
