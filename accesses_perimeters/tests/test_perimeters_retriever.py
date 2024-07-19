@@ -3,8 +3,8 @@ from unittest import mock
 from django.db import connection
 from django.test import TestCase
 
-from accesses_perimeters.models import FactRelationship, DOMAIN_CONCEPT_ID, RELATIONSHIP_CONCEPT_ID
-from accesses_perimeters.perimeters_retriever import PerimetersRetriever
+from accesses_perimeters.models import FactRelationship
+from accesses_perimeters.perimeters_retriever import PerimetersRetriever, DOMAIN_CONCEPT_ID, RELATIONSHIP_CONCEPT_ID
 
 
 class PerimetersRetrieverTests(TestCase):

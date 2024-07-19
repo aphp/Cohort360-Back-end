@@ -43,7 +43,6 @@ class PerimetersUpdaterTests(TestCase):
             q = psql_query_care_site_relationship(top_care_site_id=int(env.get("TOP_HIERARCHY_CARE_SITE_ID")))
 
         self.edited_sql_query = q.replace('omop.', '')
-        print(self.edited_sql_query)
         self.edited_sql_care_site = CareSite.sql_get_deleted_care_sites().replace('omop.', '')
 
     @mock.patch.object(CareSite, 'sql_get_deleted_care_sites')

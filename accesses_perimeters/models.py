@@ -1,16 +1,9 @@
 from __future__ import annotations
 
-import os
-from typing import List
 
 from django.conf import settings
 from django.db import models
 
-
-env = os.environ
-
-DOMAIN_CONCEPT_ID = env.get("DOMAIN_CONCEPT_COHORT")  # 1147323
-RELATIONSHIP_CONCEPT_ID = env.get("FACT_RELATIONSHIP_CONCEPT_COHORT")  # 44818821
 
 APP_LABEL = 'accesses_perimeters'
 
@@ -47,18 +40,6 @@ class FactRelationship(models.Model):
         app_label = APP_LABEL
         managed = False
         db_table = 'fact_relationship'
-
-    @staticmethod
-    def sql_get_cohort_source_populations(cohorts_ids: List[str]) -> str:
-        return f"""
-        SELECT row_id, fact_id_1, fact_id_2
-        FROM omop.fact_relationship
-        WHERE delete_datetime IS NULL
-        AND domain_concept_id_1 = {DOMAIN_CONCEPT_ID}
-        AND domain_concept_id_2 = {DOMAIN_CONCEPT_ID}
-        AND relationship_concept_id = {RELATIONSHIP_CONCEPT_ID}
-        AND fact_id_1 IN ({",".join(cohorts_ids)})
-        """
 
 
 class CareSite(models.Model):
