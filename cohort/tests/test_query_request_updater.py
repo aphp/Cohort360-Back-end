@@ -2,6 +2,7 @@ import dataclasses
 import json
 
 from admin_cohort.tests.tests_tools import BaseTests
+from cohort.scripts.patch_requests_v145 import return_filter_if_not_exist
 from cohort.scripts.query_request_updater import QueryRequestUpdater
 
 
@@ -26,7 +27,11 @@ class TestQueryRequestUpdater(BaseTests):
             }
         }
         static_required_filters = {
-            "SomeResourceB": ["SomeRequiredFilter=SomeValue"]
+            "SomeResourceB": ["SomeRequiredFilter=SomeValue"],
+            "SomeResourceD": [
+                lambda filters: return_filter_if_not_exist(filters, "SomeFilterA", "ge0,le0"),
+                lambda filters: return_filter_if_not_exist(filters, "SomeFilterB", "ge0,le0")
+            ]
         }
         resource_name_mapping = {
             "SomeResourceB": "SomeResourceC"
@@ -49,6 +54,10 @@ class TestQueryRequestUpdater(BaseTests):
                 {"version": "1", "_type": "resource", "fhirFilter": "SomeFilterA=SomeValueA",
                  "resourceType": "SomeResourceC"}
             )),
+            Request(json.dumps(
+                {"version": "1", "_type": "resource", "fhirFilter": "SomeFilterA=ExistingValue",
+                 "resourceType": "SomeResourceD"}
+            )),
         ]
 
         updater = QueryRequestUpdater(
@@ -64,7 +73,7 @@ class TestQueryRequestUpdater(BaseTests):
         saved = []
         updater.do_update_old_query_snapshots(queries, lambda r: saved.append(r.serialized_query), dry_run=False,
                                               debug=False)
-        self.assertEquals(len(saved), 3)
+        self.assertEquals(len(saved), 4)
 
         expected = [
             json.dumps({"version": "turbo2000", "_type": "request", "request": {"criteria": [
@@ -73,11 +82,16 @@ class TestQueryRequestUpdater(BaseTests):
             json.dumps({"version": "turbo2000", "_type": "InnerJoin",
                         "child": [{"fhirFilter": "SomeRequiredFilter=SomeValue", "resourceType": "SomeResourceC"}]}),
             json.dumps({"version": "turbo2000", "_type": "resource", "fhirFilter": "SomeFilterA=SomeValueB",
-                        "resourceType": "SomeResourceC"})
+                        "resourceType": "SomeResourceC"}),
+            json.dumps({"version": "turbo2000", "_type": "resource",
+                        "fhirFilter": "SomeFilterA=ExistingValue&SomeFilterB=ge0,le0",
+                        "resourceType": "SomeResourceD"}
+                       )
         ]
         self.assertEquals(expected[0], saved[0])
         self.assertEquals(expected[1], saved[1])
         self.assertEquals(expected[2], saved[2])
+        self.assertEquals(expected[3], saved[3])
 
 
 @dataclasses.dataclass
