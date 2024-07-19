@@ -1,13 +1,12 @@
 from dataclasses import dataclass
-from collections import defaultdict
 from typing import List
 
 from django.db.models import QuerySet
 from django.http import Http404
 
-from accesses.conf_perimeters import FactRelationShip
 from accesses.models import Role, Perimeter
 from accesses.services.accesses import accesses_service
+from accesses.services.perimeters import perimeters_service
 from admin_cohort.models import User
 from cohort.models import CohortResult
 
@@ -56,16 +55,11 @@ class CohortRightsService:
         return cohort_rights
 
     @staticmethod
-    def get_cohort_perimeters(cohort_ids: List[str]) -> dict[str, List[Perimeter]]:
-        fact_relationships = FactRelationShip.objects.raw(raw_query=FactRelationShip.psql_query_get_cohort_population_source(cohort_ids))
-        cohort_perimeters = defaultdict(list)
-        for fact in fact_relationships:
-            try:
-                perimeter = Perimeter.objects.get(cohort_id=fact.fact_id_2)
-            except Perimeter.DoesNotExist:
-                continue
-            cohort_perimeters[fact.fact_id_1].append(perimeter)
-        return cohort_perimeters
+    def get_cohort_perimeters(cohort_ids: List[str]) -> dict[str, QuerySet[Perimeter]]:
+        virtual_cohorts = perimeters_service.retrieve_virtual_cohorts_ids(cohort_ids=cohort_ids,
+                                                                          group_by_cohort_id=True) or {}
+        return {cohort_id: Perimeter.objects.filter(cohort_id__in=virtual_cohort_ids)
+                for cohort_id, virtual_cohort_ids in virtual_cohorts.items()}
 
     @staticmethod
     def get_accesses_per_right(user_accesses: QuerySet) -> dict[str, QuerySet]:
@@ -78,7 +72,7 @@ class CohortRightsService:
                 EXPORT_JUPYTER_PSEUDO: user_accesses.filter(Role.q_allow_export_jupyter_pseudo())}
 
     @staticmethod
-    def get_rights_on_perimeters(accesses_per_right: dict, perimeters: List[Perimeter]) -> dict[str, bool]:
+    def get_rights_on_perimeters(accesses_per_right: dict, perimeters: QuerySet[Perimeter]) -> dict[str, bool]:
         rights = all_true_rights()
         for perimeter in perimeters:
             perimeter_and_above = [perimeter.id] + perimeter.above_levels
