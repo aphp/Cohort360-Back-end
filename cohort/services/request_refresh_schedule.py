@@ -46,8 +46,9 @@ class RequestRefreshScheduleService(CommonService):
     @staticmethod
     def update_refresh_scheduler(dm: DatedMeasure) -> None:
         request = dm.request_query_snapshot.request
-        refresh_schedule = request.refresh_schedules.all()  # single-record queryset
+        refresh_schedule = request.refresh_schedules.all()
         if refresh_schedule:
+            assert refresh_schedule.count() == 1, "Multiple refresh schedules found"
             refresh_schedule.update(last_refresh=now(),
                                     last_refresh_succeeded=True,
                                     last_refresh_count=dm.measure,

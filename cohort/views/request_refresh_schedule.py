@@ -20,7 +20,7 @@ class RequestRefreshScheduleViewSet(UserObjectsRestrictedViewSet):
     queryset = RequestRefreshSchedule.objects.all()
     lookup_field = "uuid"
     serializer_class = RequestRefreshScheduleSerializer
-    http_method_names = ['get', 'post', 'patch']
+    http_method_names = ['get', 'post', 'patch', 'delete']
     filterset_class = RequestRefreshScheduleFilter
     swagger_tags = ['Cohort - request-refresh-schedule']
 
