@@ -11,11 +11,6 @@ from cohort.models import CohortBaseModel, Request
 
 class RequestQuerySnapshotManager(models.Manager):
 
-    def __init__(self, queryset_class=None):
-        super(RequestQuerySnapshotManager, self).__init__()
-        if queryset_class:
-            self._queryset_class = queryset_class
-
     def get_queryset(self):
         queryset = self._queryset_class(self.model, using=self._db)
         return queryset.exclude(cohort_results__is_subset=True)
