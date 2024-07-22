@@ -1,11 +1,7 @@
 from functools import reduce
 from typing import Set, List
 
-from django.conf import settings
-from django.core.exceptions import ImproperlyConfigured
-from django.db import IntegrityError
 from django.db.models import QuerySet, Q
-from django.utils.module_loading import import_string
 
 from accesses.models import Perimeter, Role
 from accesses.services.accesses import accesses_service
@@ -93,27 +89,9 @@ class PerimetersService:
                                                                                    top_same_level_perimeters_ids=top_same_level_perimeters_ids)
             return Perimeter.objects.filter(id__in=top_same_level_perimeters_ids.union(top_inf_levels_perimeters_ids))
 
-    def get_target_perimeters(self, cohort_ids: str, owner: User) -> QuerySet:
-        cohort_ids = cohort_ids.split(",")
-        if any(cid not in owner.user_cohorts.values_list('group_id', flat=True) for cid in cohort_ids):
-            raise IntegrityError(f"One or multiple cohorts with given IDs do not belong to user '{owner.display_name}'")
-        cohort_ids = self.retrieve_virtual_cohorts_ids(cohorts_ids=cohort_ids,
-                                                       group_by_cohort_id=False) or cohort_ids
-        return Perimeter.objects.filter(cohort_id__in=cohort_ids)
-
     @staticmethod
-    def retrieve_virtual_cohorts_ids(*args, **kwargs):
-        if getattr(settings, "USE_PERIMETERS_FACT_RELATIONSHIPS", False):
-            perimeters_retriever_path = getattr(settings, "PERIMETERS_RETRIEVER_PATH", None)
-            perimeters_retriever_cls = import_string(perimeters_retriever_path)
-            if not perimeters_retriever_cls:
-                raise ImproperlyConfigured(f"No Perimeters Retriever defined at '{perimeters_retriever_path}'")
-
-            try:
-                return perimeters_retriever_cls.get_virtual_cohorts(*args, **kwargs)
-            except AttributeError:
-                raise NotImplementedError("Perimeters Retriever does not define the 'get_virtual_cohorts' function")
-        return None
+    def get_target_perimeters(cohort_ids: str) -> QuerySet:
+        return Perimeter.objects.filter(cohort_id__in=cohort_ids.split(","))
 
     @staticmethod
     def get_top_perimeters_with_read_nomi_right(read_nomi_perimeters_ids: List[int]) -> List[int]:

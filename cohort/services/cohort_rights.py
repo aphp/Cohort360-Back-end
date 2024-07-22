@@ -1,12 +1,15 @@
 from dataclasses import dataclass
 from typing import List
 
+from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
+from django.db import IntegrityError
 from django.db.models import QuerySet
 from django.http import Http404
+from django.utils.module_loading import import_string
 
 from accesses.models import Role, Perimeter
 from accesses.services.accesses import accesses_service
-from accesses.services.perimeters import perimeters_service
 from admin_cohort.models import User
 from cohort.models import CohortResult
 
@@ -44,7 +47,7 @@ class CohortRightsService:
         user_accesses = accesses_service.get_user_valid_accesses(user=user)
         if not user_accesses:
             raise Http404(f"The user `{user}` has no valid accesses")
-        cohort_perimeters = self.get_cohort_perimeters(cohorts_ids=group_ids)
+        cohort_perimeters = self.get_cohort_perimeters(cohorts_ids=group_ids, owner=user)
         accesses_per_right = self.get_accesses_per_right(user_accesses=user_accesses)
         cohort_rights = []
 
@@ -54,12 +57,26 @@ class CohortRightsService:
             cohort_rights.append(CohortRights(cohort_id, rights).__dict__)
         return cohort_rights
 
-    @staticmethod
-    def get_cohort_perimeters(cohorts_ids: List[str]) -> dict[str, QuerySet[Perimeter]]:
-        virtual_cohorts = perimeters_service.retrieve_virtual_cohorts_ids(cohorts_ids=cohorts_ids,
-                                                                          group_by_cohort_id=True) or {}
+    def get_cohort_perimeters(self, cohorts_ids: List[str], owner: User) -> dict[str, QuerySet[Perimeter]]:
+        if any(cid not in owner.user_cohorts.values_list('group_id', flat=True) for cid in cohorts_ids):
+            raise IntegrityError(f"One or multiple cohorts with given IDs do not belong to user '{owner.display_name}'")
+        virtual_cohorts = self.retrieve_virtual_cohorts_ids(cohorts_ids=cohorts_ids) or {}
         return {cohort_id: Perimeter.objects.filter(cohort_id__in=virtual_cohort_ids)
                 for cohort_id, virtual_cohort_ids in virtual_cohorts.items()}
+
+    @staticmethod
+    def retrieve_virtual_cohorts_ids(*args, **kwargs):
+        if getattr(settings, "USE_PERIMETERS_FACT_RELATIONSHIPS", False):
+            perimeters_retriever_path = getattr(settings, "PERIMETERS_RETRIEVER_PATH", None)
+            perimeters_retriever_cls = import_string(perimeters_retriever_path)
+            if not perimeters_retriever_cls:
+                raise ImproperlyConfigured(f"No Perimeters Retriever defined at '{perimeters_retriever_path}'")
+
+            try:
+                return perimeters_retriever_cls.get_virtual_cohorts(*args, **kwargs)
+            except AttributeError:
+                raise NotImplementedError("Perimeters Retriever does not define the 'get_virtual_cohorts' function")
+        return None
 
     @staticmethod
     def get_accesses_per_right(user_accesses: QuerySet) -> dict[str, QuerySet]:
