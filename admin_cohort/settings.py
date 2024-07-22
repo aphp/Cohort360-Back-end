@@ -8,6 +8,10 @@ import pytz
 from celery.schedules import crontab
 
 
+__title__ = 'Portail/Cohort360 API'
+__version__ = '3.23.0-SNAPSHOT'
+__author__ = 'Assistance Publique - Hopitaux de Paris, Département I&D'
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 env = environ.Env()
@@ -100,9 +104,8 @@ INSTALLED_APPS = ['django.contrib.admin',
                   'django_extensions',
                   'corsheaders',
                   'django_filters',
-                  'drf_yasg',
                   'rest_framework',
-                  'rest_framework_swagger',
+                  'drf_spectacular',
                   'rest_framework_tracking',
                   'safedelete',
                   'channels',
@@ -165,7 +168,7 @@ STATIC_ROOT = BASE_DIR / 'static'
 REST_FRAMEWORK = {'DEFAULT_PERMISSION_CLASSES': ('admin_cohort.permissions.IsAuthenticated',),
                   'DEFAULT_AUTHENTICATION_CLASSES': ['admin_cohort.auth.auth_class.Authentication'],
                   'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-                  'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema',
+                  'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
                   'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend',
                                               'rest_framework.filters.SearchFilter'],
                   'PAGE_SIZE': 20
@@ -173,11 +176,12 @@ REST_FRAMEWORK = {'DEFAULT_PERMISSION_CLASSES': ('admin_cohort.permissions.IsAut
 
 PAGINATION_MAX_LIMIT = 30_000
 
-SWAGGER_SETTINGS = {'LOGOUT_URL': '/auth/logout/',
-                    'LOGIN_URL': '/auth/login/',
-                    'DEFAULT_AUTHENTICATION_CLASSES': ('rest_framework.authentication.TokenAuthentication',),
-                    'DEFAULT_AUTO_SCHEMA_CLASS': 'admin_cohort.views.CustomAutoSchema'
-                    }
+
+SPECTACULAR_SETTINGS = {'TITLE': 'Your Project API',
+                        'DESCRIPTION': 'Your project description',
+                        'VERSION': '1.0.0',
+                        'SERVE_INCLUDE_SCHEMA': False,
+                        }
 
 APPEND_SLASH = False
 
