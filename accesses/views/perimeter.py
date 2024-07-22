@@ -9,15 +9,15 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
-from admin_cohort.tools.cache import cache_response
-from admin_cohort.permissions import IsAuthenticatedReadOnly
-from admin_cohort.tools import join_qs
-from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
-from admin_cohort.views import BaseViewSet
-from accesses.services.accesses import accesses_service
-from accesses.services.perimeters import perimeters_service
 from accesses.models import Perimeter
 from accesses.serializers import PerimeterSerializer, PerimeterLiteSerializer, ReadRightPerimeter
+from accesses.services.accesses import accesses_service
+from accesses.services.perimeters import perimeters_service
+from admin_cohort.permissions import IsAuthenticatedReadOnly
+from admin_cohort.tools import join_qs
+from admin_cohort.tools.cache import cache_response
+from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
+from admin_cohort.views import BaseViewSet
 
 MAX, MIN = 'max', 'min'
 
@@ -100,6 +100,7 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
         data_reading_rights = perimeters_service.get_data_read_rights_on_perimeters(user=request.user,
                                                                                     is_request_filtered=bool(request.query_params),
                                                                                     filtered_perimeters=filtered_perimeters)
+
         page = self.paginate_queryset(data_reading_rights)
         if page:
             serializer = ReadRightPerimeter(page, many=True)

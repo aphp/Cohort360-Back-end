@@ -17,9 +17,11 @@ from exports.models import Export
 from exports.services.storage_provider import HDFSStorageProvider
 
 
-STORAGE_PROVIDERS = os.environ.get("STORAGE_PROVIDERS").split(',')
-
 _logger = logging.getLogger('django.request')
+
+STORAGE_PROVIDERS = os.environ.get("STORAGE_PROVIDERS", "").split(',')
+if not STORAGE_PROVIDERS:
+    _logger.warning("No storage provider is configured!")
 
 
 def load_available_exporters() -> dict:

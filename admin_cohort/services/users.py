@@ -15,13 +15,14 @@ ID_CHECKER_URL = env.get("ID_CHECKER_URL")
 ID_CHECKER_TOKEN_HEADER = env.get("ID_CHECKER_TOKEN_HEADER")
 ID_CHECKER_TOKEN = env.get("ID_CHECKER_TOKEN")
 ID_CHECKER_SERVER_HEADERS = {ID_CHECKER_TOKEN_HEADER: ID_CHECKER_TOKEN}
-USERNAME_REGEX = env.get("USERNAME_REGEX")
+USERNAME_REGEX = env.get("USERNAME_REGEX", "(.*)")
 
 
 class UsersService:
 
     def validate_user_data(self, data: dict):
-        self.verify_user_identity(username=data.get("username"))
+        if ID_CHECKER_URL is not None:
+            self.verify_user_identity(username=data.get("username"))
         self.check_fields_against_regex(data=data)
 
     @staticmethod
