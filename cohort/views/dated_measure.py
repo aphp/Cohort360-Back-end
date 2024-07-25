@@ -2,8 +2,6 @@ import logging
 
 from django.db import transaction
 from django_filters import rest_framework as filters, OrderingFilter
-from drf_yasg import openapi
-from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
@@ -58,12 +56,6 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
-    @swagger_auto_schema(request_body=openapi.Schema(
-                             type=openapi.TYPE_OBJECT,
-                             properties={"request_query_snapshot_id": openapi.Schema(type=openapi.TYPE_STRING)},
-                             required=["request_query_snapshot_id"]),
-                         responses={'200': openapi.Response("DatedMeasure created", DatedMeasureSerializer()),
-                                    '400': openapi.Response("Bad Request")})
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
@@ -71,16 +63,6 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                                                               dm=response.data.serializer.instance))
         return response
 
-    @swagger_auto_schema(operation_summary="Called by JobServer to update DM's `measure` and other fields",
-                         request_body=openapi.Schema(
-                             type=openapi.TYPE_OBJECT,
-                             properties={"request_job_status": openapi.Schema(type=openapi.TYPE_STRING, description="For JobServer callback"),
-                                         "minimum": openapi.Schema(type=openapi.TYPE_STRING, description="For JobServer callback"),
-                                         "maximum": openapi.Schema(type=openapi.TYPE_STRING, description="For JobServer callback"),
-                                         "count": openapi.Schema(type=openapi.TYPE_STRING, description="For JobServer callback")},
-                             required=["request_job_status", "minimum", "maximum", "count"]),
-                         responses={'200': openapi.Response("DatedMeasure updated successfully", DatedMeasureSerializer()),
-                                    '400': openapi.Response("Bad Request")})
     @await_celery_task
     def partial_update(self, request, *args, **kwargs):
         dm = self.get_object()

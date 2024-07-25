@@ -1,8 +1,6 @@
 from django.db import IntegrityError
 from django_filters import OrderingFilter
 from django_filters import rest_framework as filters
-from drf_yasg import openapi
-from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -68,15 +66,6 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
         self.perform_destroy(role)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @swagger_auto_schema(method='get',
-                         operation_summary="Get the list of users who have that role",
-                         manual_parameters=[openapi.Parameter(name="order", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING,
-                                                              description=f"Ordering of the results (prepend with '-' to reverse order)."
-                                                                          f"Ordering fields are {','.join(USERS_ORDERING_FIELDS)}"),
-                                            openapi.Parameter(name="filter_by_name", description="Filter by name",
-                                                              in_=openapi.IN_QUERY, type=openapi.TYPE_STRING)],
-                         responses={200: openapi.Response('Users having this role', UsersInRoleSerializer),
-                                    204: openapi.Response('No content')})
     @action(url_path="users", detail=True, methods=['get'], permission_classes=permission_classes+[UsersPermission])
     def users_within_role(self, request, *args, **kwargs):
         role = self.get_object()
@@ -116,10 +105,6 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
             return self.get_paginated_response(serializer.data)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @swagger_auto_schema(method='get',
-                         operation_summary="Get roles that the user can assign to a user on the provided perimeter",
-                         manual_parameters=[openapi.Parameter(name="perimeter_id", in_=openapi.IN_QUERY,
-                                                              description="Required", type=openapi.TYPE_INTEGER)])
     @action(url_path="assignable", detail=False, methods=['get'])
     @cache_response()
     def get_assignable_roles(self, request, *args, **kwargs):

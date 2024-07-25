@@ -8,9 +8,12 @@ import pytz
 from celery.schedules import crontab
 
 
-__title__ = 'Portail/Cohort360 API'
-__version__ = '3.23.0-SNAPSHOT'
-__author__ = 'Assistance Publique - Hopitaux de Paris, Département I&D'
+TITLE = "Portail/Cohort360 API"
+VERSION = "3.23.0-SNAPSHOT"
+AUTHOR = "Assistance Publique - Hopitaux de Paris, Département I&D"
+DESCRIPTION_MD = f"""Supports the official **Cohort360** web app and **Portail**  
+                     Built by **{AUTHOR}**
+                  """
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -177,10 +180,18 @@ REST_FRAMEWORK = {'DEFAULT_PERMISSION_CLASSES': ('admin_cohort.permissions.IsAut
 PAGINATION_MAX_LIMIT = 30_000
 
 
-SPECTACULAR_SETTINGS = {'TITLE': 'Your Project API',
-                        'DESCRIPTION': 'Your project description',
-                        'VERSION': '1.0.0',
-                        'SERVE_INCLUDE_SCHEMA': False,
+SPECTACULAR_SETTINGS = {"TITLE": TITLE,
+                        "DESCRIPTION": DESCRIPTION_MD,
+                        "VERSION": VERSION,
+                        "SERVE_INCLUDE_SCHEMA": False,
+                        "OAUTH2_FLOWS": ["authorizationCode"],
+                        "OAUTH2_AUTHORIZATION_URL": "http://localhost:9090/auth/realms/AP-HP/protocol/openid-connect/auth",
+                        "OAUTH2_TOKEN_URL": "http://localhost:9090/auth/realms/AP-HP/protocol/openid-connect/token",
+                        "OAUTH2_REFRESH_URL": None,
+                        "SWAGGER_UI_OAUTH2_CONFIG": {
+                                "clientId": env("OIDC_CLIENT_ID"),
+                                "clientSecret": env("OIDC_CLIENT_SECRET"),
+                            },
                         }
 
 APPEND_SLASH = False
@@ -285,16 +296,3 @@ CHANNEL_LAYERS = {
         },
     },
 }
-
-
-# todo: replace `INFRA_API_URL`  by `EXPORT_API_URL`
-#       replace `EXPORT_OMOP_ENVIRONMENT`  by `EXPORT_ENVIRONMENT`
-#       replace `DAYS_TO_DELETE_CSV_FILES`  by  `DAYS_TO_KEEP_EXPORTED_FILES`
-#       replace `HDFS_SERVERS`  by  `STORAGE_PROVIDERS`
-#       update task name: delete_exported_csv_files                                 /!\ in prod only
-#    +  add `CSV_EXPORT_ENDPOINT`
-#    +  add `HIVE_EXPORT_ENDPOINT`
-#    +  add `EXPORT_TASK_STATUS_ENDPOINT`
-#    +  add `HADOOP_TASK_STATUS_ENDPOINT`
-#    +  add `CREATE_DB_ENDPOINT`
-#    +  add `ALTER_DB_ENDPOINT`

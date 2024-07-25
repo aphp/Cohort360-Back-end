@@ -1,8 +1,6 @@
 from django.db import transaction
 from django.db.models import Q, F
 from django_filters import rest_framework as filters, OrderingFilter
-from drf_yasg import openapi
-from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
@@ -121,17 +119,6 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
-    @swagger_auto_schema(operation_summary="Create a CohortResult",
-                         request_body=openapi.Schema(
-                             type=openapi.TYPE_OBJECT,
-                             properties={"dated_measure_id": openapi.Schema(type=openapi.TYPE_STRING),
-                                         "request_query_snapshot_id": openapi.Schema(type=openapi.TYPE_STRING),
-                                         "request_id": openapi.Schema(type=openapi.TYPE_STRING),
-                                         "name": openapi.Schema(type=openapi.TYPE_STRING),
-                                         "description": openapi.Schema(type=openapi.TYPE_STRING),
-                                         "global_estimate": openapi.Schema(type=openapi.TYPE_BOOLEAN, default=True)}),
-                         responses={'201': openapi.Response("CohortResult created successfully"),
-                                    '400': openapi.Response("Bad Request")})
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
@@ -139,19 +126,6 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                                                                             cohort=response.data.serializer.instance))
         return response
 
-    @swagger_auto_schema(operation_summary="Used by Front to update cohort metadata and JobServer to update cohort status,"
-                                           "count and group_id and by ETL to update status on delayed large cohorts",
-                         request_body=openapi.Schema(
-                             type=openapi.TYPE_OBJECT,
-                             properties={"request_job_status": openapi.Schema(type=openapi.TYPE_STRING, description="For JobServer and ETL callback"),
-                                         "group.id": openapi.Schema(type=openapi.TYPE_STRING, description="For JobServer callback"),
-                                         "group.count": openapi.Schema(type=openapi.TYPE_STRING, description="For JobServer callback"),
-                                         "name": openapi.Schema(type=openapi.TYPE_STRING),
-                                         "description": openapi.Schema(type=openapi.TYPE_STRING),
-                                         "favorite": openapi.Schema(type=openapi.TYPE_STRING)},
-                             required=["request_job_status", "group.id", "group.count"]),
-                         responses={'200': openapi.Response("Cohort updated successfully"),
-                                    '400': openapi.Response("Bad Request")})
     def partial_update(self, request, *args, **kwargs):
         if any(field in self.non_updatable_fields for field in request.data):
             return Response(data=f"The payload contains non-updatable fields `{request.data}`",
@@ -170,11 +144,6 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         cohort_service.ws_send_to_client(cohort=cohort)
         return response
 
-    @swagger_auto_schema(method='get',
-                         operation_summary="Returns a dict of rights (booleans) for each cohort based on user accesses."
-                                           "Rights are computed by checking user accesses against every perimeter the cohort is built upon",
-                         responses={'200': openapi.Response("Cohorts rights found"),
-                                    '404': openapi.Response("No cohorts found matching the given group_ids or user has no valid accesses")})
     @action(detail=False, methods=['get'], url_path="cohort-rights")
     def get_rights_on_cohorts(self, request, *args, **kwargs):
         cohorts_rights = cohort_rights_service.get_user_rights_on_cohorts(group_ids=request.query_params.get('group_id'),

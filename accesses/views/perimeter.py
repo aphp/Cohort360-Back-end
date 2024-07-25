@@ -2,8 +2,6 @@ from functools import reduce
 
 from django.db.models import Q
 from django_filters import rest_framework as filters, OrderingFilter
-from drf_yasg import openapi
-from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -64,20 +62,10 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
                      "type_source_value",
                      "source_value"]
 
-    @swagger_auto_schema(manual_parameters=
-                         list(map(lambda x: openapi.Parameter(name=x[0], description=x[1], type=x[2],
-                                                              pattern=x[3] if len(x) == 4 else None, in_=openapi.IN_QUERY),
-                                  [["ordering", "'field' or '-field': name, type_source_value, source_value", openapi.TYPE_STRING],
-                                   ["search", "Based on: name, type_source_value, source_value", openapi.TYPE_STRING]])))
     @cache_response()
     def list(self, request, *args, **kwargs):
         return super(PerimeterViewSet, self).list(request, *args, **kwargs)
 
-    @swagger_auto_schema(operation_summary="Get the top hierarchy perimeters on which the user has at least "
-                                           "one role that allows to give accesses."
-                                           "-Same level rights give access to a perimeter and its lower levels."
-                                           "-Inferior level rights give only access to children of a perimeter.",
-                         responses={'200': openapi.Response("Manageable perimeters", PerimeterLiteSerializer())})
     @action(detail=False, methods=['get'], url_path="manageable")
     @cache_response()
     def get_manageable_perimeters(self, request, *args, **kwargs):
@@ -91,8 +79,6 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
         return Response(data=PerimeterLiteSerializer(manageable_perimeters, many=True).data,
                         status=status.HTTP_200_OK)
 
-    @swagger_auto_schema(operation_summary="Return a patient-data-reading-rights summary on target perimeters.",
-                         responses={'200': openapi.Response("Rights per perimeter", ReadRightPerimeter())})
     @action(detail=False, methods=['get'], url_path="patient-data/rights")
     @cache_response()
     def get_data_read_rights_on_perimeters(self, request, *args, **kwargs):
@@ -106,9 +92,6 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
             return self.get_paginated_response(serializer.data)
         return Response(data={}, status=status.HTTP_200_OK)
 
-    @swagger_auto_schema(operation_summary="Return if the user has the right to read patient data in nomi or pseudo "
-                                           "mode on at least one perimeter, and if allowed to read opposed patients data",
-                         responses={'200': openapi.Response("Return 2 booleans describing user's data rights")})
     @action(detail=False, methods=['get'], url_path="patient-data/read")
     @cache_response()
     def check_read_patient_data_rights(self, request, *args, **kwargs):

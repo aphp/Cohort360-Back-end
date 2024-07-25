@@ -1,5 +1,3 @@
-from drf_yasg import openapi
-from drf_yasg.utils import swagger_auto_schema
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -20,12 +18,6 @@ class MaintenancePhaseViewSet(viewsets.ModelViewSet):
     permission_classes = (MaintenancesPermission,)
     serializer_class = MaintenancePhaseSerializer
 
-    @swagger_auto_schema(operation_description=("Returns next maintenance if exists. Next maintenance is "
-                                                "either: "
-                                                "\n- the one currently active. If several, the one with the biggest end_datetime"
-                                                "\n- if no currently active, the one with smallest start_datetime bigger than now"),
-                         responses={200: openapi.Response('There is a coming or current maintenance. '
-                                                          'The response can be null otherwise.', MaintenancePhaseSerializer)})
     @action(methods=['get'], detail=False, url_path='next')
     def next(self, request, *args, **kwargs):
         q = maintenance_service.get_next_maintenance()

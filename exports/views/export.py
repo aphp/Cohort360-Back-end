@@ -1,8 +1,6 @@
 from django.db import transaction
 from django.db.models import Q
 from django_filters import rest_framework as filters, OrderingFilter
-from drf_yasg import openapi
-from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -62,8 +60,6 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
     def should_log(self, request, response):
         return super().should_log(request, response) or self.action == self.download.__name__
 
-    @swagger_auto_schema(responses={'200': openapi.Response("List of exports", ExportsListSerializer()),
-                                    '204': openapi.Response("HTTP_204 if no export found")})
     @cache_response()
     def list(self, request, *args, **kwargs):
         q = self.filter_queryset(self.queryset)
@@ -73,21 +69,6 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
             return self.get_paginated_response(serializer.data)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @swagger_auto_schema(
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={'output_format': openapi.Schema(type=openapi.TYPE_STRING),
-                        'datalab': openapi.Schema(type=openapi.TYPE_STRING),
-                        'nominative': openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Defaults to False"),
-                        'shift_dates': openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Defaults to False"),
-                        'export_tables': openapi.Schema(
-                            type=openapi.TYPE_ARRAY,
-                            items=openapi.Schema(type=openapi.TYPE_OBJECT,
-                                                 properties={'table_ids': openapi.Schema(type=openapi.TYPE_ARRAY,
-                                                                                         items=openapi.Schema(type=openapi.TYPE_STRING)),
-                                                             'respect_table_relationships': openapi.Schema(type=openapi.TYPE_BOOLEAN),
-                                                             'fhir_filter': openapi.Schema(type=openapi.TYPE_STRING),
-                                                             'cohort_result_source': openapi.Schema(type=openapi.TYPE_STRING)}))}))
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         try:

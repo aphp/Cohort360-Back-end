@@ -1,6 +1,4 @@
 from django_filters import rest_framework as filters, OrderingFilter
-from drf_yasg import openapi
-from drf_yasg.utils import swagger_auto_schema
 
 from exports.models import Datalab
 from exports.permissions import ManageDatalabsPermission, ReadDatalabsPermission
@@ -32,8 +30,5 @@ class DatalabViewSet(ExportsBaseViewSet):
             return [ManageDatalabsPermission()]
         return [ReadDatalabsPermission()]
 
-    @swagger_auto_schema(manual_parameters=list(map(lambda x: openapi.Parameter(in_=openapi.IN_QUERY, name=x[0], description=x[1], type=x[2]),
-                                                    [["search", f"Search within multiple fields: {','.join(search_fields)}", openapi.TYPE_STRING],
-                                                     ["ordering", "`name` or `created_at`. Prepend '-' for desc order", openapi.TYPE_STRING]])))
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)

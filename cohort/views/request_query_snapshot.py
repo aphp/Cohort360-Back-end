@@ -1,7 +1,5 @@
 from django.http import QueryDict
 from django_filters import rest_framework as filters, OrderingFilter
-from drf_yasg import openapi
-from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -47,16 +45,6 @@ class RequestQuerySnapshotViewSet(NestedViewSetMixin, UserObjectsRestrictedViewS
             return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
         return super().create(request, *args, **kwargs)
 
-    @swagger_auto_schema(method='post',
-                         operation_summary="Share a Snapshot with users by creating a new Request in their Shared Folder",
-                         request_body=openapi.Schema(type=openapi.TYPE_OBJECT,
-                                                     properties={"recipients": openapi.Schema(type=openapi.TYPE_STRING,
-                                                                                              description="Comma separated users IDs"),
-                                                                 "name": openapi.Schema(type=openapi.TYPE_STRING, description="Optional"),
-                                                                 "notify_by_email": openapi.Schema(type=openapi.TYPE_BOOLEAN, default=False)}),
-                         responses={'201': openapi.Response("New requests created for users", RequestQuerySnapshotSerializer(many=True)),
-                                    '400': openapi.Response("One or many recipient's not found"),
-                                    '404': openapi.Response("RequestQuerySnapshot not found (possibly not owned)")})
     @action(detail=True, methods=['post'], permission_classes=(IsOwnerPermission,), url_path="share")
     def share(self, request, *args, **kwargs):
         try:

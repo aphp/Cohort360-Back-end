@@ -2,21 +2,12 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import include, path, re_path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
-from drf_yasg import openapi
-from drf_yasg.views import get_schema_view
-from rest_framework import routers, permissions
+from rest_framework import routers
 from rest_framework.routers import SimpleRouter
 from rest_framework_extensions.routers import NestedRouterMixin
 
 from admin_cohort.views import OIDCLoginView, UserViewSet, RequestLogViewSet, MaintenancePhaseViewSet, CacheViewSet, ReleaseNotesViewSet, \
     JWTLoginView, TokenRefreshView, LogoutView
-
-schema_view = get_schema_view(info=openapi.Info(title=settings.__title__,
-                                                default_version=f'v{settings.__version__}',
-                                                description="Portail and Cohort360 API",
-                                                terms_of_service=""),
-                              public=True,
-                              permission_classes=[permissions.AllowAny])
 
 
 class NestedDefaultRouter(NestedRouterMixin, routers.DefaultRouter):
@@ -38,7 +29,9 @@ urlpatterns = [re_path(r'^auth/oidc/login', OIDCLoginView.as_view({'post': 'post
                path("accesses/", include(("accesses.urls", "accesses"), namespace="accesses")),
                path("cohort/", include(("cohort.urls", "cohort"), namespace="cohort")),
                path("exports/", include(("exports.urls", "exports"), namespace="exports")),
+
                re_path(r"^schema", SpectacularAPIView.as_view(), name='schema'),
                re_path(r"^docs", SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
                re_path(r"^redoc/$", SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
+
                ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

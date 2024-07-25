@@ -4,8 +4,6 @@ from io import BytesIO
 from django.db import transaction
 from django.http import FileResponse
 from django_filters import rest_framework as filters, OrderingFilter
-from drf_yasg import openapi
-from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -14,7 +12,7 @@ from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from cohort.models import FeasibilityStudy
 from cohort.serializers import FeasibilityStudySerializer
-from cohort.services.feasibility_study import feasibility_study_service, JOB_STATUS, COUNT, EXTRA
+from cohort.services.feasibility_study import feasibility_study_service
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
 _logger = logging.getLogger('info')
@@ -53,12 +51,6 @@ class FeasibilityStudyViewSet(UserObjectsRestrictedViewSet):
     def list(self, request, *args, **kwargs):
         return super(FeasibilityStudyViewSet, self).list(request, *args, **kwargs)
 
-    @swagger_auto_schema(request_body=openapi.Schema(
-        type=openapi.TYPE_OBJECT,
-        properties={"request_query_snapshot_id": openapi.Schema(type=openapi.TYPE_STRING)},
-        required=["request_query_snapshot_id"]),
-        responses={'200': openapi.Response("FeasibilityStudy created", FeasibilityStudySerializer()),
-                   '400': openapi.Response("Bad Request")})
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
@@ -66,18 +58,6 @@ class FeasibilityStudyViewSet(UserObjectsRestrictedViewSet):
                                                                                                fs=response.data.serializer.instance))
         return response
 
-    @swagger_auto_schema(operation_summary="Called by ServerJob with detailed counts",
-                         request_body=openapi.Schema(
-                             type=openapi.TYPE_OBJECT,
-                             properties={
-                                 JOB_STATUS: openapi.Schema(type=openapi.TYPE_STRING, description="ServerJob job status"),
-                                 COUNT: openapi.Schema(type=openapi.TYPE_STRING, description="Total patient count"),
-                                 EXTRA: openapi.Schema(type=openapi.TYPE_STRING,
-                                                       description="Detailed patient counts")},
-                             required=[JOB_STATUS, COUNT, EXTRA]),
-                         responses={'200': openapi.Response("FeasibilityStudy updated successfully",
-                                                            FeasibilityStudySerializer()),
-                                    '400': openapi.Response("Bad Request")})
     def partial_update(self, request, *args, **kwargs):
         try:
             feasibility_study_service.handle_patch_feasibility_study(fs=self.get_object(),

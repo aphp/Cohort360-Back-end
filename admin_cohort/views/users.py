@@ -1,7 +1,5 @@
 from django.http import Http404
 from django_filters import rest_framework as filters, OrderingFilter
-from drf_yasg import openapi
-from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -46,46 +44,19 @@ class UserViewSet(BaseViewSet):
             return super().get_queryset()
         return User.objects.filter(profiles__source='Manual').distinct()
 
-    @swagger_auto_schema(operation_summary="Create a User and an initial Profile",
-                         request_body=openapi.Schema(
-                             type=openapi.TYPE_OBJECT,
-                             properties={"username": openapi.Schema(type=openapi.TYPE_STRING),
-                                         "firstname": openapi.Schema(type=openapi.TYPE_STRING),
-                                         "lastname": openapi.Schema(type=openapi.TYPE_STRING),
-                                         "email": openapi.Schema(type=openapi.TYPE_STRING)}),
-                         responses={'201': openapi.Response("User created successfully"),
-                                    '400': openapi.Response("Bad Request")})
     def create(self, request, *args, **kwargs):
         users_service.validate_user_data(data=request.data)
         response = super().create(request, *args, **kwargs)
         users_service.create_initial_profile(data=request.data)
         return response
 
-    @swagger_auto_schema(manual_parameters=list(map(lambda x: openapi.Parameter(name=x[0], in_=openapi.IN_QUERY,
-                                                                                description=x[1], type=x[2],
-                                                                                pattern=x[3] if len(x) == 4 else None),
-                                                    [["manual_only", "If True, only return users with a `manual` profile", openapi.TYPE_BOOLEAN],
-                                                     ["firstname", "Filter type", openapi.TYPE_STRING],
-                                                     ["lastname", "Filter type", openapi.TYPE_STRING],
-                                                     ["username", "Filter type", openapi.TYPE_STRING],
-                                                     ["email", "Filter type", openapi.TYPE_STRING],
-                                                     ["ordering", f"Sort by one of {search_fields}", openapi.TYPE_STRING],
-                                                     ["search", f"Search in multiple fields {search_fields}", openapi.TYPE_STRING],
-                                                     ["page", "A page number within the paginated result set.", openapi.TYPE_INTEGER]])))
     @cache_response()
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
-    @swagger_auto_schema(request_body=openapi.Schema(type=openapi.TYPE_OBJECT,
-                                                     properties={"firstname": openapi.Schema(type=openapi.TYPE_STRING),
-                                                                 "lastname": openapi.Schema(type=openapi.TYPE_STRING),
-                                                                 "email": openapi.Schema(type=openapi.TYPE_STRING)}))
     def partial_update(self, request, *args, **kwargs):
         return super().partial_update(request, *args, **kwargs)
 
-    @swagger_auto_schema(responses={'200': openapi.Response("User found", UserCheckSerializer()),
-                                    '404': openapi.Response("User not found"),
-                                    '400': openapi.Response("Bad request")})
     @action(detail=True, methods=['get'], url_path="check")
     def check_user_existence(self, request, *args, **kwargs):
         exists, found = False, False
