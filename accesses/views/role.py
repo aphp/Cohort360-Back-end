@@ -1,6 +1,7 @@
 from django.db import IntegrityError
 from django_filters import OrderingFilter
 from django_filters import rest_framework as filters
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -43,6 +44,9 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
     def list(self, request, *args, **kwargs):
         return super(RoleViewSet, self).list(request, *args, **kwargs)
 
+    @extend_schema(
+        request=RoleSerializer,
+        responses={201: RoleSerializer})
     def create(self, request, *args, **kwargs):
         try:
             roles_service.check_role_has_inconsistent_rights(data=request.data.copy())

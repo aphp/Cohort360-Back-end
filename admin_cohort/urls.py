@@ -7,7 +7,9 @@ from rest_framework.routers import SimpleRouter
 from rest_framework_extensions.routers import NestedRouterMixin
 
 from admin_cohort.views import OIDCLoginView, UserViewSet, RequestLogViewSet, MaintenancePhaseViewSet, CacheViewSet, ReleaseNotesViewSet, \
-    JWTLoginView, TokenRefreshView, LogoutView
+    JWTLoginView, TokenRefreshView, LogoutView, NotFoundView
+
+# from admin_cohort.tools.openapi_auth_extension import OIDCAuthScheme
 
 
 class NestedDefaultRouter(NestedRouterMixin, routers.DefaultRouter):
@@ -20,7 +22,10 @@ router.register(r'users', UserViewSet, basename="users")
 router.register(r'logs', RequestLogViewSet, basename="logs")
 router.register(r'release-notes', ReleaseNotesViewSet, basename="release_notes")
 
-urlpatterns = [re_path(r'^auth/oidc/login', OIDCLoginView.as_view({'post': 'post'}), name='oidc-login'),
+urlpatterns = [re_path(r'^$', NotFoundView.as_view(), name="not-found"),
+               re_path(r'^auth/oidc/login', OIDCLoginView.as_view({'post': 'post'}), name="oidc-login"),
+               re_path(r'^auth/oidc/swagger-authorize', OIDCLoginView.as_view({'get': 'get'}), name="oidc-authorize"),
+
                re_path(r'^auth/login/$', JWTLoginView.as_view(), name='jwt-login'),
                re_path(r'^auth/logout/$', LogoutView.as_view(), name='logout'),
                re_path(r'^auth/refresh/$', TokenRefreshView.as_view(), name='token-refresh'),

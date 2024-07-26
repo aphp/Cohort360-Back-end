@@ -42,7 +42,7 @@ class RoleSerializer(BaseSerializer):
         fields = "__all__"
         read_only_fields = ['id']
 
-    def get_help_text(self, role):
+    def get_help_text(self, role) -> str:
         return roles_service.get_help_text(role=role)
 
 
@@ -162,7 +162,6 @@ class AccessSerializer(BaseSerializer):
                   "actual_end_datetime",
                   "start_datetime",
                   "end_datetime",
-                  "care_site_id",
                   "role_id",
                   "perimeter",
                   "perimeter_id",

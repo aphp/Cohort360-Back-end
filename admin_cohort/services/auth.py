@@ -79,6 +79,7 @@ class OIDCAuth(Auth):
     server_aphp_url = env("OIDC_SERVER_APHP_URL")
     audience = env("OIDC_AUDIENCES").split(';')
     redirect_uri = env("OIDC_REDIRECT_URI")
+    swagger_redirect_uri = env("OIDC_SWAGGER_REDIRECT_URI")
     grant_type = env("OIDC_GRANT_TYPE")
     refresh_grant_type = "refresh_token"
     server_master_url = env("OIDC_SERVER_MASTER_URL")
@@ -103,12 +104,13 @@ class OIDCAuth(Auth):
     def logout_url(self):
         return f"{self.server_root_url}/logout"
 
-    def get_tokens(self, code: str) -> AuthTokens:
+    def get_tokens(self, code: str, for_swagger: bool = False) -> AuthTokens:
         data = {**self.client_identity,
-                "redirect_uri": self.redirect_uri,
+                "redirect_uri": for_swagger and self.swagger_redirect_uri or self.redirect_uri,
                 "grant_type": self.grant_type,
                 "code": code
                 }
+        print(f"*************************  redirect_uri: {for_swagger=} {data.get('redirect_uri')}")
         return super().get_tokens(url=self.token_url, data=data)
 
     def refresh_token(self, token: str):

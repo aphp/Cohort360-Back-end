@@ -168,7 +168,7 @@ USE_DEPRECATED_PYTZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'static'
 
-REST_FRAMEWORK = {'DEFAULT_PERMISSION_CLASSES': ('admin_cohort.permissions.IsAuthenticated',),
+REST_FRAMEWORK = {'DEFAULT_PERMISSION_CLASSES': ['admin_cohort.permissions.IsAuthenticated'],
                   'DEFAULT_AUTHENTICATION_CLASSES': ['admin_cohort.auth.auth_class.Authentication'],
                   'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
                   'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
@@ -184,15 +184,24 @@ SPECTACULAR_SETTINGS = {"TITLE": TITLE,
                         "DESCRIPTION": DESCRIPTION_MD,
                         "VERSION": VERSION,
                         "SERVE_INCLUDE_SCHEMA": False,
-                        "OAUTH2_FLOWS": ["authorizationCode"],
-                        "OAUTH2_AUTHORIZATION_URL": "http://localhost:9090/auth/realms/AP-HP/protocol/openid-connect/auth",
-                        "OAUTH2_TOKEN_URL": "http://localhost:9090/auth/realms/AP-HP/protocol/openid-connect/token",
-                        "OAUTH2_REFRESH_URL": None,
-                        "SWAGGER_UI_OAUTH2_CONFIG": {
-                                "clientId": env("OIDC_CLIENT_ID"),
-                                "clientSecret": env("OIDC_CLIENT_SECRET"),
+                        "SERVE_PUBLIC": False,
+                        "COMPONENT_SPLIT_REQUEST": True,
+                        "SWAGGER_UI_SETTINGS": {
+                            'deepLinking': True,
+                            'withCredentials': True,
+                            'persistAuthorization': True,
+                            "oauth2RedirectUrl": f'{env("OIDC_SWAGGER_REDIRECT_URI")}',
                             },
+                        "SWAGGER_UI_OAUTH2_CONFIG": {
+                            "clientId": env("OIDC_CLIENT_ID"),
+                            "clientSecret": env("OIDC_CLIENT_SECRET"),
+                            "realm": "AP-HP",
+                            "appName": "Keycloak",
+                            "useBasicAuthenticationWithAccessCodeGrant": True
                         }
+                        }
+
+SWAGGER_SETTINGS = {"DOC_EXPANSION": False}
 
 APPEND_SLASH = False
 

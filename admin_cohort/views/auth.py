@@ -1,4 +1,3 @@
-import json
 import logging
 
 from django.contrib.auth import authenticate, login
@@ -43,22 +42,30 @@ class ExemptedAuthView(View):
         return handler(request, *args, **kwargs)
 
 
-class OIDCLoginView(RequestLogMixin, viewsets.ViewSet):
+class OIDCLoginView(RequestLogMixin, viewsets.GenericViewSet):
     logging_methods = ['POST']
 
     def post(self, request, *args, **kwargs):
-        auth_code = json.loads(request.body).get("auth_code")
+        # todo: ask front to change auth_code to code
+        auth_code = request.query_params.get("auth_code",
+                                             request.query_params.get("code"))
         if not auth_code:
             return JsonResponse(data={"error": "OIDC Authorization Code not provided"},
                                 status=status.HTTP_400_BAD_REQUEST)
         try:
-            user = authenticate(request=request, code=auth_code)
+            user = authenticate(request=request, code=auth_code, for_swagger=kwargs.get("for_swagger", False))
         except User.DoesNotExist:
             return JsonResponse(data={"error": "User not found in database"},
                                 status=status.HTTP_401_UNAUTHORIZED)
         data = get_response_data(user=user, auth_tokens=request.auth_tokens)
         login(request=request, user=user)
         return JsonResponse(data=data, status=status.HTTP_200_OK)
+
+    def get(self, request, *args, **kwargs):
+        kwargs = {**kwargs, "for_swagger": True}
+        resp = self.post(request, *args, **kwargs)
+        return resp
+        # return HttpResponseRedirect('/docs')
 
 
 class JWTLoginView(JWTLoginRequestLogMixin, ExemptedAuthView, views.LoginView):
@@ -109,3 +116,11 @@ class TokenRefreshView(ExemptedAuthView):
             return JsonResponse(data=auth_tokens, status=status.HTTP_200_OK)
         except (KeyError, InvalidToken, RequestException) as e:
             return JsonResponse(data={"error": f"{e}"}, status=status.HTTP_401_UNAUTHORIZED)
+
+
+class NotFoundView(View):
+    http_method_names = ["get", "post"]
+
+    @method_decorator(csrf_exempt)
+    def dispatch(self, request, *args, **kwargs):
+        return JsonResponse(data={"error": "Page Not Found"}, status=status.HTTP_404_NOT_FOUND)
