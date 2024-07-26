@@ -27,4 +27,5 @@ class Request(CohortBaseModel):
 
     @property
     def updated_at(self):
-        return self.query_snapshots.latest("modified_at").modified_at
+        return max(self.modified_at,
+                   self.query_snapshots.latest("modified_at").modified_at)

@@ -135,7 +135,7 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
             return Response(data=data, status=status.HTTP_200_OK)
 
         if cohort_ids:
-            target_perimeters = perimeters_service.get_target_perimeters(cohort_ids=cohort_ids, owner=user)
+            target_perimeters = perimeters_service.get_target_perimeters(cohort_ids=cohort_ids)
         target_perimeters = self.filter_queryset(target_perimeters)
 
         if not target_perimeters:

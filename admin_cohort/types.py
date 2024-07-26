@@ -16,10 +16,10 @@ class MissingDataError(Exception):
 
 
 class PersonIdentity:
-    def __init__(self, firstname, lastname, user_id, email):
+    def __init__(self, firstname, lastname, username, email):
         self.firstname = firstname
         self.lastname = lastname
-        self.user_id = user_id
+        self.username = username
         self.email = email
 
 

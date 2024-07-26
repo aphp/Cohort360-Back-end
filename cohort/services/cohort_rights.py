@@ -1,11 +1,13 @@
 from dataclasses import dataclass
-from collections import defaultdict
 from typing import List
 
+from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
+from django.db import IntegrityError
 from django.db.models import QuerySet
 from django.http import Http404
+from django.utils.module_loading import import_string
 
-from accesses.conf_perimeters import FactRelationShip
 from accesses.models import Role, Perimeter
 from accesses.services.accesses import accesses_service
 from admin_cohort.models import User
@@ -45,7 +47,7 @@ class CohortRightsService:
         user_accesses = accesses_service.get_user_valid_accesses(user=user)
         if not user_accesses:
             raise Http404(f"The user `{user}` has no valid accesses")
-        cohort_perimeters = self.get_cohort_perimeters(cohort_ids=group_ids)
+        cohort_perimeters = self.get_cohort_perimeters(cohorts_ids=group_ids, owner=user)
         accesses_per_right = self.get_accesses_per_right(user_accesses=user_accesses)
         cohort_rights = []
 
@@ -55,17 +57,26 @@ class CohortRightsService:
             cohort_rights.append(CohortRights(cohort_id, rights).__dict__)
         return cohort_rights
 
+    def get_cohort_perimeters(self, cohorts_ids: List[str], owner: User) -> dict[str, QuerySet[Perimeter]]:
+        if any(cid not in owner.user_cohorts.values_list('group_id', flat=True) for cid in cohorts_ids):
+            raise IntegrityError(f"One or multiple cohorts with given IDs do not belong to user '{owner.display_name}'")
+        virtual_cohorts = self.retrieve_virtual_cohorts_ids(cohorts_ids=cohorts_ids) or {}
+        return {cohort_id: Perimeter.objects.filter(cohort_id__in=virtual_cohort_ids)
+                for cohort_id, virtual_cohort_ids in virtual_cohorts.items()}
+
     @staticmethod
-    def get_cohort_perimeters(cohort_ids: List[str]) -> dict[str, List[Perimeter]]:
-        fact_relationships = FactRelationShip.objects.raw(raw_query=FactRelationShip.psql_query_get_cohort_population_source(cohort_ids))
-        cohort_perimeters = defaultdict(list)
-        for fact in fact_relationships:
+    def retrieve_virtual_cohorts_ids(*args, **kwargs):
+        if getattr(settings, "USE_PERIMETERS_FACT_RELATIONSHIPS", False):
+            perimeters_retriever_path = getattr(settings, "PERIMETERS_RETRIEVER_PATH", None)
+            perimeters_retriever_cls = import_string(perimeters_retriever_path)
+            if not perimeters_retriever_cls:
+                raise ImproperlyConfigured(f"No Perimeters Retriever defined at '{perimeters_retriever_path}'")
+
             try:
-                perimeter = Perimeter.objects.get(cohort_id=fact.fact_id_2)
-            except Perimeter.DoesNotExist:
-                continue
-            cohort_perimeters[fact.fact_id_1].append(perimeter)
-        return cohort_perimeters
+                return perimeters_retriever_cls.get_virtual_cohorts(*args, **kwargs)
+            except AttributeError:
+                raise NotImplementedError("Perimeters Retriever does not define the 'get_virtual_cohorts' function")
+        return None
 
     @staticmethod
     def get_accesses_per_right(user_accesses: QuerySet) -> dict[str, QuerySet]:
@@ -78,7 +89,7 @@ class CohortRightsService:
                 EXPORT_JUPYTER_PSEUDO: user_accesses.filter(Role.q_allow_export_jupyter_pseudo())}
 
     @staticmethod
-    def get_rights_on_perimeters(accesses_per_right: dict, perimeters: List[Perimeter]) -> dict[str, bool]:
+    def get_rights_on_perimeters(accesses_per_right: dict, perimeters: QuerySet[Perimeter]) -> dict[str, bool]:
         rights = all_true_rights()
         for perimeter in perimeters:
             perimeter_and_above = [perimeter.id] + perimeter.above_levels
