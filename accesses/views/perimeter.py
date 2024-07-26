@@ -112,6 +112,14 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
     @action(detail=False, methods=['get'], url_path="patient-data/read")
     @cache_response()
     def check_read_patient_data_rights(self, request, *args, **kwargs):
+        """
+        mode=min:
+            * all perimeters must be accessible otherwise return HTTP404
+            * all perimeters must be accessible in nominative mode else: allow_read_patient_data_nomi = False
+        mode=max:
+            * at least one perimeter must be accessible otherwise return HTTP404
+            * at least one perimeter must be accessible in nominative mode else: allow_read_patient_data_nomi = False
+        """
         user = request.user
         cohort_ids = request.query_params.get("cohort_ids")
         read_mode = request.query_params.get('mode')
