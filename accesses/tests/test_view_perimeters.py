@@ -374,11 +374,17 @@ class PerimeterViewTests(AccessesAppTestsBase):
         self.make_accesses_for_user(self.profile_t, perimeters, roles)
 
         cohort_ids = ",".join([self.p1.cohort_id, self.p5.cohort_id])
-        case = self.base_case.clone(user=self.user_t,
-                                    params={"cohort_ids": cohort_ids, "mode": "min"},
-                                    success=False,
-                                    status=status.HTTP_404_NOT_FOUND)
-        self.check_list_case_with_mock(case)
+        case_with_mode_min = self.base_case.clone(user=self.user_t,
+                                                  params={"cohort_ids": cohort_ids, "mode": "min"},
+                                                  success=False,
+                                                  status=status.HTTP_404_NOT_FOUND)
+        case_with_mode_max = self.base_case.clone(user=self.user_t,
+                                                  params={"cohort_ids": cohort_ids, "mode": "max"},
+                                                  to_find={"allow_read_patient_data_nomi": False,
+                                                           "allow_lookup_opposed_patients": True,
+                                                           "allow_read_patient_without_perimeter_limit": False})
+        for case in (case_with_mode_min, case_with_mode_max):
+            self.check_list_case_with_mock(case)
 
     def test_read_patient_data_rights_with_user_having_no_data_rights(self):
         perimeters = [self.aphp, self.p2]
