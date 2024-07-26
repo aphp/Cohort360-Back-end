@@ -133,7 +133,9 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
         if not target_perimeters:
             return Response(data={"error": "None of the target perimeters was found"}, status=status.HTTP_404_NOT_FOUND)
 
-        if not accesses_service.user_has_data_reading_accesses_on_target_perimeters(user=user, target_perimeters=target_perimeters):
+        if not accesses_service.user_has_data_reading_accesses_on_target_perimeters(user=user,
+                                                                                    target_perimeters=target_perimeters,
+                                                                                    read_mode=read_mode):
             return Response(data={"error": "User has no data reading accesses"}, status=status.HTTP_404_NOT_FOUND)
 
         if read_mode == MAX:
