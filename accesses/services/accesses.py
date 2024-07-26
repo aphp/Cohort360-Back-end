@@ -1,5 +1,5 @@
 from datetime import date, timedelta, datetime
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Literal
 
 from django.db.models import QuerySet, Q, Prefetch, F, Value
 from django.utils import timezone
@@ -74,14 +74,25 @@ class AccessesService:
                          & Role.q_impact_inferior_levels())
         return self.filter_accesses_for_user(user=user, accesses=accesses.filter(Q(sql_is_valid=True) & q))
 
-    def user_has_data_reading_accesses_on_target_perimeters(self, user: User, target_perimeters: QuerySet) -> bool:
-        user_data_accesses = self.get_user_valid_accesses(user=user).filter(Role.q_allow_read_patient_data_nominative()
-                                                                            | Role.q_allow_read_patient_data_pseudo())
+    def user_has_data_reading_accesses_on_target_perimeters(self, user: User,
+                                                            target_perimeters: QuerySet,
+                                                            read_mode: Literal["max", "min"]) -> bool:
+        user_data_accesses = self.get_user_valid_accesses(user=user)\
+                                 .filter(Role.q_allow_read_patient_data_nominative()
+                                         | Role.q_allow_read_patient_data_pseudo())
+        has_access = False
         for perimeter in target_perimeters:
             perimeter_and_parents_ids = [perimeter.id] + perimeter.above_levels
-            if not user_data_accesses.filter(perimeter_id__in=perimeter_and_parents_ids).exists():
-                return False
-        return True
+            can_access_perimeter = user_data_accesses.filter(perimeter_id__in=perimeter_and_parents_ids).exists()
+
+            if read_mode == "max":
+                if can_access_perimeter:
+                    return True
+            else:
+                if not can_access_perimeter:
+                    return False
+                has_access = True
+        return has_access
 
     def get_nominative_perimeters(self, user: User) -> List[int]:
         return self.get_user_valid_accesses(user=user)\
