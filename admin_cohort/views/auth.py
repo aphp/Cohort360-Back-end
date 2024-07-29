@@ -54,7 +54,7 @@ class OIDCLoginView(RequestLogMixin, viewsets.GenericViewSet):
             return JsonResponse(data={"error": "OIDC Authorization Code not provided"},
                                 status=status.HTTP_400_BAD_REQUEST)
         try:
-            user = authenticate(request=request, code=auth_code, for_swagger=kwargs.get("for_swagger", False))
+            user = authenticate(request=request, code=auth_code)
         except User.DoesNotExist:
             return JsonResponse(data={"error": "User not found in database"},
                                 status=status.HTTP_401_UNAUTHORIZED)

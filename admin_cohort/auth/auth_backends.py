@@ -23,8 +23,8 @@ class JWTAuthBackend(BaseAuthBackend):
 
 class OIDCAuthBackend(BaseAuthBackend):
 
-    def authenticate(self, request, code, for_swagger):
-        auth_tokens = auth_service.get_tokens(code=code, for_swagger=for_swagger)
+    def authenticate(self, request, code):
+        auth_tokens = auth_service.get_tokens(code=code)
         self.set_auth_tokens(request, auth_tokens)
         username = auth_service.retrieve_username(token=auth_tokens.access_token, auth_method=OIDC_AUTH_MODE)
         return self.get_user(username)

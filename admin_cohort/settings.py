@@ -126,7 +126,8 @@ MIDDLEWARE = ['admin_cohort.middleware.influxdb_middleware.InfluxDBMiddleware',
               'admin_cohort.middleware.maintenance_middleware.MaintenanceModeMiddleware',
               'admin_cohort.middleware.request_trace_id_middleware.RequestTraceIdMiddleware',
               'admin_cohort.middleware.jwt_session_middleware.JWTSessionMiddleware',
-              'admin_cohort.middleware.swagger_headers_middleware.SwaggerHeadersMiddleware']
+              'admin_cohort.middleware.swagger_headers_middleware.SwaggerHeadersMiddleware'
+              ]
 
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
@@ -189,18 +190,16 @@ SPECTACULAR_SETTINGS = {"TITLE": TITLE,
                         "SWAGGER_UI_SETTINGS": {
                             'withCredentials': True,
                             'persistAuthorization': True,
-                            "oauth2RedirectUrl": f'{env("OIDC_SWAGGER_REDIRECT_URI")}',
+                            "oauth2RedirectUrl": f"{env('OIDC_SWAGGER_REDIRECT_URI')}",
                             },
                         "SWAGGER_UI_OAUTH2_CONFIG": {
                             "clientId": env("OIDC_CLIENT_ID"),
                             "clientSecret": env("OIDC_CLIENT_SECRET"),
-                            "realm": "AP-HP",
-                            "appName": "Keycloak",
+                            "realm": env("OIDC_SERVER_APHP_URL").split("realms/")[-1],
+                            "appName": TITLE,
                             "useBasicAuthenticationWithAccessCodeGrant": True,
                             },
                         }
-
-SWAGGER_SETTINGS = {"DOC_EXPANSION": False}
 
 APPEND_SLASH = False
 

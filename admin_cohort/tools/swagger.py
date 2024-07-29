@@ -1,6 +1,7 @@
 import inspect
 import os
 
+from django.conf import settings
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from drf_spectacular.utils import extend_schema_view, extend_schema
 
@@ -8,17 +9,19 @@ env = os.environ
 
 
 class SwaggerOIDCAuthScheme(OpenApiAuthenticationExtension):
-    target_class = 'admin_cohort.auth.auth_class.Authentication'
-    name = 'OIDC Auth'
+    target_class = settings.REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"][0]
+    name = "OIDC Auth"
     match_subclasses = True
     priority = 10
 
     def get_security_definition(self, auto_schema):
+        oidc_server_url = env.get('OIDC_SERVER_APHP_URL')
         return {"type": "oauth2",
                 "flows": {
                     "authorizationCode": {
-                        "authorizationUrl": "http://localhost:9090/auth/realms/AP-HP/protocol/openid-connect/auth",
-                        "tokenUrl": "http://localhost:9090/auth/realms/AP-HP/protocol/openid-connect/token",
+                        "authorizationUrl": f"{oidc_server_url}/protocol/openid-connect/auth",
+                        "tokenUrl": f"{oidc_server_url}/protocol/openid-connect/token",
+                        "refreshUrl": f"{oidc_server_url}/protocol/openid-connect/token",
                         "scopes": {}
                      }
                    }
