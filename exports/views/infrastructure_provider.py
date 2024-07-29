@@ -3,7 +3,7 @@ from django_filters import rest_framework as filters, OrderingFilter
 from exports.models import InfrastructureProvider
 from exports.permissions import ManageDatalabsPermission, ReadDatalabsPermission
 from exports.serializers import InfrastructureProviderSerializer
-from exports.views.base_viewset import ExportsBaseViewSet
+from exports.views import ExportsBaseViewSet
 
 
 class InfrastructureProviderFilter(filters.FilterSet):

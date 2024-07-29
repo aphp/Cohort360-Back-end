@@ -3,7 +3,7 @@ from django_filters import rest_framework as filters, OrderingFilter
 from exports.models import Datalab
 from exports.permissions import ManageDatalabsPermission, ReadDatalabsPermission
 from exports.serializers import DatalabSerializer
-from exports.views.base_viewset import ExportsBaseViewSet
+from exports.views import ExportsBaseViewSet
 
 
 class DatalabFilter(filters.FilterSet):

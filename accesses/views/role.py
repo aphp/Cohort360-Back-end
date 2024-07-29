@@ -10,10 +10,10 @@ from accesses.models import Role
 from accesses.permissions import RolesPermission
 from accesses.serializers import RoleSerializer, UsersInRoleSerializer
 from accesses.services.roles import roles_service
+from accesses.views import BaseViewSet
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.permissions import IsAuthenticated, UsersPermission
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
-from admin_cohort.views import BaseViewSet
 from admin_cohort.tools.request_log_mixin import RequestLogMixin
 
 
@@ -40,19 +40,13 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
     permission_classes = [IsAuthenticated, RolesPermission]
     pagination_class = NegativeLimitOffsetPagination
 
-    @extend_schema(tags=swagger_tags,
-                   responses={status.HTTP_200_OK: RoleSerializer})
-    def retrieve(self, request, *args, **kwargs):
-        return super().retrieve(request, *args, **kwargs)
-
-    @extend_schema(tags=swagger_tags,
+    @extend_schema(parameters=[],
                    responses={status.HTTP_200_OK: RoleSerializer})
     @cache_response()
     def list(self, request, *args, **kwargs):
         return super(RoleViewSet, self).list(request, *args, **kwargs)
 
-    @extend_schema(tags=swagger_tags,
-                   request=RoleSerializer,
+    @extend_schema(request=RoleSerializer,
                    responses={status.HTTP_201_CREATED: RoleSerializer})
     def create(self, request, *args, **kwargs):
         try:
@@ -61,7 +55,7 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
             return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return super(RoleViewSet, self).create(request, *args, **kwargs)
 
-    @extend_schema(tags=swagger_tags,
+    @extend_schema(request=RoleSerializer,
                    responses={status.HTTP_200_OK: RoleSerializer})
     def partial_update(self, request, *args, **kwargs):
         try:
@@ -70,8 +64,7 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
             return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return super(RoleViewSet, self).partial_update(request, *args, **kwargs)
 
-    @extend_schema(tags=swagger_tags,
-                   responses={status.HTTP_204_NO_CONTENT: None})
+    @extend_schema(responses={status.HTTP_204_NO_CONTENT: None})
     def destroy(self, request, *args, **kwargs):
         role = self.get_object()
         if role.right_full_admin:
@@ -81,8 +74,7 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
         self.perform_destroy(role)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @extend_schema(tags=swagger_tags,
-                   responses={status.HTTP_200_OK: UsersInRoleSerializer})
+    @extend_schema(responses={status.HTTP_200_OK: UsersInRoleSerializer})
     @action(url_path="users", detail=True, methods=['get'], permission_classes=permission_classes+[UsersPermission])
     def users_within_role(self, request, *args, **kwargs):
         role = self.get_object()
@@ -122,8 +114,7 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
             return self.get_paginated_response(serializer.data)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @extend_schema(tags=swagger_tags,
-                   responses={status.HTTP_200_OK: RoleSerializer})
+    @extend_schema(responses={status.HTTP_200_OK: RoleSerializer})
     @action(url_path="assignable", detail=False, methods=['get'])
     @cache_response()
     def get_assignable_roles(self, request, *args, **kwargs):

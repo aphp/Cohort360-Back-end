@@ -53,19 +53,11 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             return self.queryset
         return super().get_queryset()
 
-    @extend_schema(tags=swagger_tags,
-                   responses={status.HTTP_200_OK: DatedMeasureSerializer})
-    def retrieve(self, request, *args, **kwargs):
-        return super().retrieve(request, *args, **kwargs)
-
-    @extend_schema(tags=swagger_tags,
-                   responses={status.HTTP_200_OK: DatedMeasureSerializer})
     @cache_response()
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
-    @extend_schema(tags=swagger_tags,
-                   request=DatedMeasureCreateSerializer,
+    @extend_schema(request=DatedMeasureCreateSerializer,
                    responses={status.HTTP_201_CREATED: DatedMeasureSerializer})
     @transaction.atomic
     def create(self, request, *args, **kwargs):
@@ -74,8 +66,7 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                                                               dm=response.data.serializer.instance))
         return response
 
-    @extend_schema(tags=swagger_tags,
-                   request=DatedMeasurePatchSerializer,
+    @extend_schema(request=DatedMeasurePatchSerializer,
                    responses={status.HTTP_200_OK: DatedMeasureSerializer})
     @await_celery_task
     def partial_update(self, request, *args, **kwargs):

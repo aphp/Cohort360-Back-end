@@ -14,7 +14,7 @@ from exports.models import Export
 from exports.permissions import ExportPermission
 from exports.serializers import ExportSerializer, ExportsListSerializer
 from exports.services.export import export_service
-from exports.views.base_viewset import ExportsBaseViewSet
+from exports.views import ExportsBaseViewSet
 
 
 class ExportFilter(filters.FilterSet):

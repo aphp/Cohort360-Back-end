@@ -11,11 +11,11 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from accesses.services.accesses import accesses_service
+from accesses.views import BaseViewSet
 from admin_cohort.permissions import IsAuthenticated
 from admin_cohort.settings import ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools.request_log_mixin import RequestLogMixin
-from admin_cohort.views import BaseViewSet
 from accesses.models import Access
 from accesses.permissions import AccessesPermission
 from accesses.serializers import AccessSerializer, DataRightSerializer, ExpiringAccessesSerializer
@@ -68,13 +68,7 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
                                                        default=Value(False), output_field=BooleanField()))
         return queryset
 
-    @extend_schema(tags=swagger_tags,
-                   responses={status.HTTP_200_OK: AccessSerializer})
-    def retrieve(self, request, *args, **kwargs):
-        return super().retrieve(request, *args, **kwargs)
-
-    @extend_schema(tags=swagger_tags,
-                   responses={status.HTTP_200_OK: AccessSerializer},
+    @extend_schema(responses={status.HTTP_200_OK: AccessSerializer},
                    parameters=[OpenApiParameter(name="include_parents", type=bool)] +
                               [OpenApiParameter(name=f, type=datetime) for f in ("start_datetime", "end_datetime")] +
                               [OpenApiParameter(name=f, type=str) for f in ("perimeter_id", "role_id", "profile_id", "source")] +
@@ -99,7 +93,7 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
         serializer = self.get_serializer(accesses, many=True)
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
-    @extend_schema(tags=swagger_tags,
+    @extend_schema(request=AccessSerializer,
                    responses={status.HTTP_201_CREATED: AccessSerializer})
     def create(self, request, *args, **kwargs):
         try:
@@ -108,7 +102,7 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
             return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return super().create(request, *args, **kwargs)
 
-    @extend_schema(tags=swagger_tags,
+    @extend_schema(request=AccessSerializer,
                    responses={status.HTTP_200_OK: AccessSerializer})
     def partial_update(self, request, *args, **kwargs):
         try:
@@ -117,7 +111,7 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
             return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return super().partial_update(request, *args, **kwargs)
 
-    @extend_schema(tags=swagger_tags,
+    @extend_schema(request=AccessSerializer,
                    responses={status.HTTP_200_OK: AccessSerializer})
     @action(url_path="close", detail=True, methods=['patch'])
     def close(self, request, *args, **kwargs):
@@ -129,8 +123,7 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
         request.data.update({'end_datetime': now})
         return super().partial_update(request, *args, **kwargs)
 
-    @extend_schema(tags=swagger_tags,
-                   responses={status.HTTP_204_NO_CONTENT: None})
+    @extend_schema(responses={status.HTTP_204_NO_CONTENT: None})
     def destroy(self, request, *args, **kwargs):
         access = self.get_object()
         if access.start_datetime and access.start_datetime < timezone.now():
@@ -139,8 +132,7 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
         self.perform_destroy(access)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @extend_schema(tags=swagger_tags,
-                   responses={status.HTTP_200_OK: AccessSerializer})
+    @extend_schema(responses={status.HTTP_200_OK: AccessSerializer})
     @action(url_path="my-accesses", methods=['get'], detail=False)
     @cache_response()
     def get_my_accesses(self, request, *args, **kwargs):
@@ -155,8 +147,7 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
         return Response(data=self.get_serializer(accesses, many=True).data,
                         status=status.HTTP_200_OK)
 
-    @extend_schema(tags=swagger_tags,
-                   responses={status.HTTP_200_OK: AccessSerializer})
+    @extend_schema(responses={status.HTTP_200_OK: AccessSerializer})
     @action(methods=['get'], url_path="my-data-rights", detail=False)
     @cache_response()
     def get_my_data_reading_rights(self, request, *args, **kwargs):

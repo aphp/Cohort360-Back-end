@@ -163,7 +163,7 @@ class CohortRightsSerializer(serializers.Serializer):
     rights = serializers.DictField(read_only=True, allow_null=True)
 
 
-class ReducedRequestQuerySnapshotSerializer(BaseSerializer):
+class RQSReducedSerializer(BaseSerializer):
     cohort_results = ReducedCohortResultSerializer(many=True, read_only=True)
 
     class Meta:
@@ -176,7 +176,7 @@ class ReducedRequestQuerySnapshotSerializer(BaseSerializer):
                   "version"]
 
 
-class RequestQuerySnapshotSerializer(BaseSerializer):
+class RQSSerializer(BaseSerializer):
     owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
     request = PrimaryKeyRelatedFieldWithOwner(queryset=Request.objects.all(), required=False)
     previous_snapshot = PrimaryKeyRelatedFieldWithOwner(required=False, queryset=RequestQuerySnapshot.objects.all())
@@ -192,14 +192,14 @@ class RequestQuerySnapshotSerializer(BaseSerializer):
                             "shared_by"]
 
 
-class RequestQuerySnapshotCreateSerializer(serializers.ModelSerializer):
+class RQSCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = RequestQuerySnapshot
         fields = ["request",
                   "serialized_query"]
 
 
-class RequestQuerySnapshotShareSerializer(serializers.Serializer):
+class RQSShareSerializer(serializers.Serializer):
     name = serializers.CharField(required=True)
     recipients = serializers.CharField(required=True)
     notify_by_email = serializers.BooleanField(required=False)
@@ -213,7 +213,7 @@ class RequestQuerySnapshotShareSerializer(serializers.Serializer):
 
 class RequestSerializer(BaseSerializer):
     owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
-    query_snapshots = ReducedRequestQuerySnapshotSerializer(read_only=True, many=True)
+    query_snapshots = RQSReducedSerializer(read_only=True, many=True)
     shared_by = UserSerializer(read_only=True)
     parent_folder = PrimaryKeyRelatedFieldWithOwner(queryset=Folder.objects.all())
     updated_at = serializers.CharField(read_only=True)

@@ -1,7 +1,7 @@
 from django.http import Http404
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_spectacular.utils import extend_schema, OpenApiParameter
-from rest_framework import status
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -11,7 +11,6 @@ from admin_cohort.serializers import UserSerializer, UserCheckSerializer, UserPa
 from admin_cohort.services.users import users_service
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.types import ServerError
-from admin_cohort.views import BaseViewSet
 
 
 class UserFilter(filters.FilterSet):
@@ -26,7 +25,7 @@ class UserFilter(filters.FilterSet):
         fields = ['firstname', "lastname", "username", "email"]
 
 
-class UserViewSet(BaseViewSet):
+class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     lookup_field = "username"

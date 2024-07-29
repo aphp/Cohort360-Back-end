@@ -3,12 +3,14 @@ from rest_framework import viewsets
 from rest_framework.relations import RelatedField
 
 from admin_cohort.tools.request_log_mixin import RequestLogMixin
+from admin_cohort.tools.swagger import SchemaMeta
 from cohort.permissions import IsOwnerPermission
 
 
-class UserObjectsRestrictedViewSet(RequestLogMixin, viewsets.ModelViewSet):
+class UserObjectsRestrictedViewSet(RequestLogMixin, viewsets.ModelViewSet, metaclass=SchemaMeta):
     permission_classes = (IsOwnerPermission,)
     logging_methods = ['POST', 'PATCH', 'DELETE']
+    swagger_tags = []
 
     def get_serializer_context(self):
         return {'request': self.request}
@@ -20,12 +22,12 @@ class UserObjectsRestrictedViewSet(RequestLogMixin, viewsets.ModelViewSet):
         if type(request.data) is QueryDict:
             request.data._mutable = True
         request.data['owner'] = request.data.get('owner', request.user.pk)
-        return super(UserObjectsRestrictedViewSet, self).create(request, *args, **kwargs)
+        return super().create(request, *args, **kwargs)
 
     # todo : remove when front is ready
     #  (front should not post with '_id' fields)
     def initial(self, request, *args, **kwargs):
-        super(UserObjectsRestrictedViewSet, self).initial(request, *args, **kwargs)
+        super().initial(request, *args, **kwargs)
         s = self.get_serializer_class()()
         primary_key_fields = [f.field_name for f in s._writable_fields if isinstance(f, RelatedField)]
 

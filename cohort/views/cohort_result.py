@@ -83,7 +83,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     serializer_class = CohortResultSerializer
     http_method_names = ['get', 'post', 'patch', 'delete']
     lookup_field = "uuid"
-    swagger_tags = ['Cohorts']
+    swagger_tags = ["Cohorts"]
     pagination_class = NegativeLimitOffsetPagination
     filterset_class = CohortFilter
     search_fields = ('$name', '$description')
@@ -112,26 +112,11 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             return CohortResultSerializerFullDatedMeasure
         return self.serializer_class
 
-    @extend_schema(tags=swagger_tags,
-                   responses={status.HTTP_200_OK: None})
-    @action(methods=['get'], detail=False, url_path='jobs/active')
-    def get_active_jobs(self, request, *args, **kwargs):
-        return Response(data={"jobs_count": cohort_service.count_active_jobs()},
-                        status=status.HTTP_200_OK)
-
-    @extend_schema(tags=swagger_tags,
-                   responses={status.HTTP_200_OK: CohortResultSerializer})
-    def retrieve(self, request, *args, **kwargs):
-        return super().retrieve(request, *args, **kwargs)
-
-    @extend_schema(tags=swagger_tags,
-                   responses={status.HTTP_200_OK: CohortResultSerializer})
     @cache_response()
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
-    @extend_schema(tags=swagger_tags,
-                   request=CohortResultCreateSerializer,
+    @extend_schema(request=CohortResultCreateSerializer,
                    responses={status.HTTP_201_CREATED: CohortResultSerializer})
     @transaction.atomic
     def create(self, request, *args, **kwargs):
@@ -140,8 +125,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                                                                             cohort=response.data.serializer.instance))
         return response
 
-    @extend_schema(tags=swagger_tags,
-                   request=CohortResultPatchSerializer,
+    @extend_schema(request=CohortResultPatchSerializer,
                    responses={status.HTTP_200_OK: CohortResultSerializer})
     def partial_update(self, request, *args, **kwargs):
         if any(field in self.non_updatable_fields for field in request.data):
@@ -161,13 +145,12 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         cohort_service.ws_send_to_client(cohort=cohort)
         return response
 
-    @extend_schema(tags=swagger_tags,
-                   responses={status.HTTP_204_NO_CONTENT: None})
-    def destroy(self, request, *args, **kwargs):
-        return super().destroy(request, *args, **kwargs)
+    @action(methods=['get'], detail=False, url_path='jobs/active')
+    def get_active_jobs(self, request, *args, **kwargs):
+        return Response(data={"jobs_count": cohort_service.count_active_jobs()},
+                        status=status.HTTP_200_OK)
 
-    @extend_schema(tags=swagger_tags,
-                   responses={status.HTTP_200_OK: CohortRightsSerializer})
+    @extend_schema(responses={status.HTTP_200_OK: CohortRightsSerializer})
     @action(detail=False, methods=['get'], url_path="cohort-rights")
     def get_rights_on_cohorts(self, request, *args, **kwargs):
         cohorts_rights = cohort_rights_service.get_user_rights_on_cohorts(group_ids=request.query_params.get('group_id'),

@@ -8,11 +8,11 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
+from accesses.views import BaseViewSet
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.permissions import IsAuthenticatedReadOnly
 from admin_cohort.tools import join_qs
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
-from admin_cohort.views import BaseViewSet
 from accesses.services.accesses import accesses_service
 from accesses.services.perimeters import perimeters_service
 from accesses.models import Perimeter
@@ -63,19 +63,12 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
                      "type_source_value",
                      "source_value"]
 
-    @extend_schema(tags=swagger_tags,
-                   responses={status.HTTP_200_OK: PerimeterSerializer})
-    def retrieve(self, request, *args, **kwargs):
-        return super().retrieve(request, *args, **kwargs)
-
-    @extend_schema(tags=swagger_tags,
-                   responses={status.HTTP_200_OK: PerimeterSerializer})
+    @extend_schema(responses={status.HTTP_200_OK: PerimeterSerializer})
     @cache_response()
     def list(self, request, *args, **kwargs):
         return super(PerimeterViewSet, self).list(request, *args, **kwargs)
 
-    @extend_schema(tags=swagger_tags,
-                   responses={status.HTTP_200_OK: PerimeterLiteSerializer})
+    @extend_schema(responses={status.HTTP_200_OK: PerimeterLiteSerializer})
     @action(detail=False, methods=['get'], url_path="manageable")
     @cache_response()
     def get_manageable_perimeters(self, request, *args, **kwargs):
@@ -89,8 +82,7 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
         return Response(data=PerimeterLiteSerializer(manageable_perimeters, many=True).data,
                         status=status.HTTP_200_OK)
 
-    @extend_schema(tags=swagger_tags,
-                   responses={status.HTTP_200_OK: ReadRightPerimeter})
+    @extend_schema(responses={status.HTTP_200_OK: ReadRightPerimeter})
     @action(detail=False, methods=['get'], url_path="patient-data/rights")
     @cache_response()
     def get_data_read_rights_on_perimeters(self, request, *args, **kwargs):
@@ -104,8 +96,7 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
             return self.get_paginated_response(serializer.data)
         return Response(data={}, status=status.HTTP_200_OK)
 
-    @extend_schema(tags=swagger_tags,
-                   responses={status.HTTP_200_OK: RightReadPatientDataSerializer,
+    @extend_schema(responses={status.HTTP_200_OK: RightReadPatientDataSerializer,
                               status.HTTP_400_BAD_REQUEST: None})
     @action(detail=False, methods=['get'], url_path="patient-data/read")
     @cache_response()

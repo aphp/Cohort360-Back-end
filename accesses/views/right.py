@@ -5,10 +5,10 @@ from rest_framework.response import Response
 from accesses.models import Right
 from accesses.serializers import RightSerializer
 from accesses.services.rights import rights_service
+from accesses.views import BaseViewSet
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.permissions import IsAuthenticated
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
-from admin_cohort.views import BaseViewSet
 
 
 class RightsViewSet(BaseViewSet):
@@ -20,13 +20,7 @@ class RightsViewSet(BaseViewSet):
     permission_classes = [IsAuthenticated]
     pagination_class = NegativeLimitOffsetPagination
 
-    @extend_schema(tags=swagger_tags,
-                   responses={status.HTTP_200_OK: RightSerializer})
-    def retrieve(self, request, *args, **kwargs):
-        return super().retrieve(request, *args, **kwargs)
-
-    @extend_schema(tags=swagger_tags,
-                   responses={status.HTTP_200_OK: RightSerializer})
+    @extend_schema(responses={status.HTTP_200_OK: RightSerializer})
     @cache_response()
     def list(self, request, *args, **kwargs):
         return Response(data=rights_service.list_rights(), status=status.HTTP_200_OK)
