@@ -35,18 +35,25 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
     lookup_field = "id"
     http_method_names = ['get', 'post', 'patch', 'delete']
     logging_methods = ['POST', 'PATCH', 'DELETE']
-    swagger_tags = ['Accesses - roles']
+    swagger_tags = ['Roles']
     filterset_class = RoleFilter
     permission_classes = [IsAuthenticated, RolesPermission]
     pagination_class = NegativeLimitOffsetPagination
 
+    @extend_schema(tags=swagger_tags,
+                   responses={status.HTTP_200_OK: RoleSerializer})
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
+
+    @extend_schema(tags=swagger_tags,
+                   responses={status.HTTP_200_OK: RoleSerializer})
     @cache_response()
     def list(self, request, *args, **kwargs):
         return super(RoleViewSet, self).list(request, *args, **kwargs)
 
-    @extend_schema(
-        request=RoleSerializer,
-        responses={201: RoleSerializer})
+    @extend_schema(tags=swagger_tags,
+                   request=RoleSerializer,
+                   responses={status.HTTP_201_CREATED: RoleSerializer})
     def create(self, request, *args, **kwargs):
         try:
             roles_service.check_role_has_inconsistent_rights(data=request.data.copy())
@@ -54,6 +61,8 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
             return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return super(RoleViewSet, self).create(request, *args, **kwargs)
 
+    @extend_schema(tags=swagger_tags,
+                   responses={status.HTTP_200_OK: RoleSerializer})
     def partial_update(self, request, *args, **kwargs):
         try:
             roles_service.check_role_has_inconsistent_rights(data=request.data.copy())
@@ -61,6 +70,8 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
             return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return super(RoleViewSet, self).partial_update(request, *args, **kwargs)
 
+    @extend_schema(tags=swagger_tags,
+                   responses={status.HTTP_204_NO_CONTENT: None})
     def destroy(self, request, *args, **kwargs):
         role = self.get_object()
         if role.right_full_admin:
@@ -70,6 +81,8 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
         self.perform_destroy(role)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    @extend_schema(tags=swagger_tags,
+                   responses={status.HTTP_200_OK: UsersInRoleSerializer})
     @action(url_path="users", detail=True, methods=['get'], permission_classes=permission_classes+[UsersPermission])
     def users_within_role(self, request, *args, **kwargs):
         role = self.get_object()
@@ -109,6 +122,8 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
             return self.get_paginated_response(serializer.data)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    @extend_schema(tags=swagger_tags,
+                   responses={status.HTTP_200_OK: RoleSerializer})
     @action(url_path="assignable", detail=False, methods=['get'])
     @cache_response()
     def get_assignable_roles(self, request, *args, **kwargs):

@@ -125,7 +125,8 @@ MIDDLEWARE = ['admin_cohort.middleware.influxdb_middleware.InfluxDBMiddleware',
               'django.middleware.clickjacking.XFrameOptionsMiddleware',
               'admin_cohort.middleware.maintenance_middleware.MaintenanceModeMiddleware',
               'admin_cohort.middleware.request_trace_id_middleware.RequestTraceIdMiddleware',
-              'admin_cohort.middleware.jwt_session_middleware.JWTSessionMiddleware']
+              'admin_cohort.middleware.jwt_session_middleware.JWTSessionMiddleware',
+              'admin_cohort.middleware.swagger_headers_middleware.SwaggerHeadersMiddleware']
 
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
@@ -179,15 +180,13 @@ REST_FRAMEWORK = {'DEFAULT_PERMISSION_CLASSES': ['admin_cohort.permissions.IsAut
 
 PAGINATION_MAX_LIMIT = 30_000
 
-
 SPECTACULAR_SETTINGS = {"TITLE": TITLE,
                         "DESCRIPTION": DESCRIPTION_MD,
                         "VERSION": VERSION,
                         "SERVE_INCLUDE_SCHEMA": False,
-                        "SERVE_PUBLIC": False,
                         "COMPONENT_SPLIT_REQUEST": True,
+                        "SORT_OPERATION_PARAMETERS": False,
                         "SWAGGER_UI_SETTINGS": {
-                            'deepLinking': True,
                             'withCredentials': True,
                             'persistAuthorization': True,
                             "oauth2RedirectUrl": f'{env("OIDC_SWAGGER_REDIRECT_URI")}',
@@ -197,8 +196,8 @@ SPECTACULAR_SETTINGS = {"TITLE": TITLE,
                             "clientSecret": env("OIDC_CLIENT_SECRET"),
                             "realm": "AP-HP",
                             "appName": "Keycloak",
-                            "useBasicAuthenticationWithAccessCodeGrant": True
-                        }
+                            "useBasicAuthenticationWithAccessCodeGrant": True,
+                            },
                         }
 
 SWAGGER_SETTINGS = {"DOC_EXPANSION": False}

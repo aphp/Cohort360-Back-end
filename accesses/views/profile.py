@@ -1,5 +1,7 @@
 from django.db.models import QuerySet, F, Func, Value
 from django_filters import rest_framework as filters
+from drf_spectacular.utils import extend_schema
+from rest_framework import status
 
 from admin_cohort.permissions import IsAuthenticated, can_user_read_users
 from admin_cohort.tools.cache import cache_response
@@ -39,7 +41,7 @@ class ProfileViewSet(RequestLogMixin, BaseViewSet):
     http_method_names = ['get', 'delete']
     logging_methods = ['DELETE']
     permission_classes = (IsAuthenticated, ProfilesPermission)
-    swagger_tags = ['Accesses - profiles']
+    swagger_tags = ['Profiles']
     filterset_class = ProfileFilter
     search_fields = ["lastname", "firstname", "email", "user_id"]
 
@@ -55,10 +57,22 @@ class ProfileViewSet(RequestLogMixin, BaseViewSet):
             return ReducedProfileSerializer
         return ProfileSerializer
 
+    @extend_schema(tags=swagger_tags,
+                   responses={status.HTTP_200_OK: ProfileSerializer})
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
+
+    @extend_schema(tags=swagger_tags,
+                   responses={status.HTTP_200_OK: ProfileSerializer})
     @cache_response()
     def list(self, request, *args, **kwargs):
-        return super(ProfileViewSet, self).list(request, *args, **kwargs)
+        return super().list(request, *args, **kwargs)
+
+    @extend_schema(tags=swagger_tags,
+                   responses={status.HTTP_204_NO_CONTENT: None})
+    def destroy(self, request, *args, **kwargs):
+        return super().destroy(request, *args, **kwargs)
 
     def perform_destroy(self, instance):
         instance.entry_deleted_by = self.request.user.username
-        return super(ProfileViewSet, self).perform_destroy(instance)
+        return super().perform_destroy(instance)

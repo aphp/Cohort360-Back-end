@@ -4,6 +4,7 @@ from io import BytesIO
 from django.db import transaction
 from django.http import FileResponse
 from django_filters import rest_framework as filters, OrderingFilter
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -11,7 +12,7 @@ from rest_framework.response import Response
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from cohort.models import FeasibilityStudy
-from cohort.serializers import FeasibilityStudySerializer
+from cohort.serializers import FeasibilityStudySerializer, FeasibilityStudyCreateSerializer, FeasibilityStudyPatchSerializer
 from cohort.services.feasibility_study import feasibility_study_service
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
@@ -32,7 +33,7 @@ class FeasibilityStudyViewSet(UserObjectsRestrictedViewSet):
     serializer_class = FeasibilityStudySerializer
     http_method_names = ['get', 'post', 'patch']
     lookup_field = "uuid"
-    swagger_tags = ['Cohort - feasibility-studies']
+    swagger_tags = ['Feasibility Studies']
     filterset_class = FeasibilityStudyFilter
     pagination_class = NegativeLimitOffsetPagination
 
@@ -47,10 +48,20 @@ class FeasibilityStudyViewSet(UserObjectsRestrictedViewSet):
             return self.queryset
         return super(FeasibilityStudyViewSet, self).get_queryset()
 
+    @extend_schema(tags=swagger_tags,
+                   responses={status.HTTP_200_OK: FeasibilityStudySerializer})
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
+
+    @extend_schema(tags=swagger_tags,
+                   responses={status.HTTP_200_OK: FeasibilityStudySerializer})
     @cache_response()
     def list(self, request, *args, **kwargs):
         return super(FeasibilityStudyViewSet, self).list(request, *args, **kwargs)
 
+    @extend_schema(tags=swagger_tags,
+                   request=FeasibilityStudyCreateSerializer,
+                   responses={status.HTTP_201_CREATED: FeasibilityStudySerializer})
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
@@ -58,6 +69,9 @@ class FeasibilityStudyViewSet(UserObjectsRestrictedViewSet):
                                                                                                fs=response.data.serializer.instance))
         return response
 
+    @extend_schema(tags=swagger_tags,
+                   request=FeasibilityStudyPatchSerializer,
+                   responses={status.HTTP_200_OK: FeasibilityStudySerializer})
     def partial_update(self, request, *args, **kwargs):
         try:
             feasibility_study_service.handle_patch_feasibility_study(fs=self.get_object(),
@@ -67,6 +81,8 @@ class FeasibilityStudyViewSet(UserObjectsRestrictedViewSet):
         response = super(FeasibilityStudyViewSet, self).partial_update(request, *args, **kwargs)
         return response
 
+    @extend_schema(tags=swagger_tags,
+                   responses={status.HTTP_200_OK: None})
     @action(detail=True, methods=['get'], url_path='download')
     def download_report(self, request, *args, **kwargs):
         fs = self.get_object()

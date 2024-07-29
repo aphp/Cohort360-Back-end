@@ -7,6 +7,7 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
+from drf_spectacular.utils import extend_schema
 from requests import RequestException
 from rest_framework import status, viewsets
 from rest_framework_simplejwt.exceptions import InvalidToken
@@ -43,12 +44,12 @@ class ExemptedAuthView(View):
 
 
 class OIDCLoginView(RequestLogMixin, viewsets.GenericViewSet):
+    http_method_names = ["post"]
     logging_methods = ['POST']
 
+    @extend_schema(exclude=True)
     def post(self, request, *args, **kwargs):
-        # todo: ask front to change auth_code to code
-        auth_code = request.query_params.get("auth_code",
-                                             request.query_params.get("code"))
+        auth_code = request.query_params.get("auth_code")
         if not auth_code:
             return JsonResponse(data={"error": "OIDC Authorization Code not provided"},
                                 status=status.HTTP_400_BAD_REQUEST)
@@ -61,17 +62,10 @@ class OIDCLoginView(RequestLogMixin, viewsets.GenericViewSet):
         login(request=request, user=user)
         return JsonResponse(data=data, status=status.HTTP_200_OK)
 
-    def get(self, request, *args, **kwargs):
-        kwargs = {**kwargs, "for_swagger": True}
-        resp = self.post(request, *args, **kwargs)
-        return resp
-        # return HttpResponseRedirect('/docs')
-
 
 class JWTLoginView(JWTLoginRequestLogMixin, ExemptedAuthView, views.LoginView):
     form_class = AuthForm
-    template_name = "login.html"
-    http_method_names = ["get", "post"]
+    http_method_names = ["post"]
 
     @method_decorator(csrf_exempt)
     @method_decorator(never_cache)

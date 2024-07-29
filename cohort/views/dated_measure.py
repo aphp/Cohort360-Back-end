@@ -2,6 +2,7 @@ import logging
 
 from django.db import transaction
 from django_filters import rest_framework as filters, OrderingFilter
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
@@ -9,7 +10,7 @@ from rest_framework_extensions.mixins import NestedViewSetMixin
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from cohort.models import DatedMeasure
-from cohort.serializers import DatedMeasureSerializer
+from cohort.serializers import DatedMeasureSerializer, DatedMeasureCreateSerializer, DatedMeasurePatchSerializer
 from cohort.services.dated_measure import dm_service
 from cohort.services.utils import await_celery_task
 from cohort.views.shared import UserObjectsRestrictedViewSet
@@ -37,7 +38,7 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     serializer_class = DatedMeasureSerializer
     http_method_names = ['get', 'post', 'patch']
     lookup_field = "uuid"
-    swagger_tags = ['Cohort - dated-measures']
+    swagger_tags = ['Dated Measures']
     filterset_class = DatedMeasureFilter
     pagination_class = NegativeLimitOffsetPagination
 
@@ -52,10 +53,20 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             return self.queryset
         return super().get_queryset()
 
+    @extend_schema(tags=swagger_tags,
+                   responses={status.HTTP_200_OK: DatedMeasureSerializer})
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
+
+    @extend_schema(tags=swagger_tags,
+                   responses={status.HTTP_200_OK: DatedMeasureSerializer})
     @cache_response()
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
+    @extend_schema(tags=swagger_tags,
+                   request=DatedMeasureCreateSerializer,
+                   responses={status.HTTP_201_CREATED: DatedMeasureSerializer})
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
@@ -63,6 +74,9 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                                                               dm=response.data.serializer.instance))
         return response
 
+    @extend_schema(tags=swagger_tags,
+                   request=DatedMeasurePatchSerializer,
+                   responses={status.HTTP_200_OK: DatedMeasureSerializer})
     @await_celery_task
     def partial_update(self, request, *args, **kwargs):
         dm = self.get_object()

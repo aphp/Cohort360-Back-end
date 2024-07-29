@@ -1,12 +1,13 @@
 from django.http import Http404
 from django_filters import rest_framework as filters, OrderingFilter
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from admin_cohort.models import User
 from admin_cohort.permissions import UsersPermission
-from admin_cohort.serializers import UserSerializer, UserCheckSerializer
+from admin_cohort.serializers import UserSerializer, UserCheckSerializer, UserPatchSerializer, UserCreateSerializer
 from admin_cohort.services.users import users_service
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.types import ServerError
@@ -33,6 +34,7 @@ class UserViewSet(BaseViewSet):
     search_fields = UserFilter.Meta.fields
     permission_classes = (UsersPermission,)
     http_method_names = ["post", "get", "patch"]
+    swagger_tags = ["Users"]
 
     def get_serializer_context(self):
         return {'request': self.request}
@@ -44,19 +46,33 @@ class UserViewSet(BaseViewSet):
             return super().get_queryset()
         return User.objects.filter(profiles__source='Manual').distinct()
 
+    @extend_schema(tags=swagger_tags, responses=UserSerializer)
+    def retrieve(self, request, *args, **kwargs):
+        super().retrieve(request, *args, **kwargs)
+
+    @extend_schema(tags=swagger_tags,
+                   request=UserPatchSerializer,
+                   responses=UserCreateSerializer)
     def create(self, request, *args, **kwargs):
         users_service.validate_user_data(data=request.data)
         response = super().create(request, *args, **kwargs)
         users_service.create_initial_profile(data=request.data)
         return response
 
+    @extend_schema(tags=swagger_tags,
+                   parameters=[OpenApiParameter(name='username', type=str),])
     @cache_response()
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
+    @extend_schema(tags=swagger_tags,
+                   request=UserPatchSerializer,
+                   responses=UserSerializer)
     def partial_update(self, request, *args, **kwargs):
         return super().partial_update(request, *args, **kwargs)
 
+    @extend_schema(tags=swagger_tags,
+                   responses=UserCheckSerializer)
     @action(detail=True, methods=['get'], url_path="check")
     def check_user_existence(self, request, *args, **kwargs):
         exists, found = False, False

@@ -1,6 +1,7 @@
 from django.db import transaction
 from django.db.models import Q, F
 from django_filters import rest_framework as filters, OrderingFilter
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
@@ -12,7 +13,8 @@ from admin_cohort.tools import join_qs
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from cohort.services.cohort_result import cohort_service
 from cohort.models import CohortResult
-from cohort.serializers import CohortResultSerializer, CohortResultSerializerFullDatedMeasure
+from cohort.serializers import CohortResultSerializer, CohortResultSerializerFullDatedMeasure, CohortResultCreateSerializer, \
+    CohortResultPatchSerializer, CohortRightsSerializer
 from cohort.services.cohort_rights import cohort_rights_service
 from cohort.views.shared import UserObjectsRestrictedViewSet
 from exports.services.export import export_service
@@ -81,7 +83,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     serializer_class = CohortResultSerializer
     http_method_names = ['get', 'post', 'patch', 'delete']
     lookup_field = "uuid"
-    swagger_tags = ['Cohort - cohorts']
+    swagger_tags = ['Cohorts']
     pagination_class = NegativeLimitOffsetPagination
     filterset_class = CohortFilter
     search_fields = ('$name', '$description')
@@ -110,15 +112,27 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             return CohortResultSerializerFullDatedMeasure
         return self.serializer_class
 
+    @extend_schema(tags=swagger_tags,
+                   responses={status.HTTP_200_OK: None})
     @action(methods=['get'], detail=False, url_path='jobs/active')
     def get_active_jobs(self, request, *args, **kwargs):
         return Response(data={"jobs_count": cohort_service.count_active_jobs()},
                         status=status.HTTP_200_OK)
 
+    @extend_schema(tags=swagger_tags,
+                   responses={status.HTTP_200_OK: CohortResultSerializer})
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
+
+    @extend_schema(tags=swagger_tags,
+                   responses={status.HTTP_200_OK: CohortResultSerializer})
     @cache_response()
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
+    @extend_schema(tags=swagger_tags,
+                   request=CohortResultCreateSerializer,
+                   responses={status.HTTP_201_CREATED: CohortResultSerializer})
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
@@ -126,6 +140,9 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                                                                             cohort=response.data.serializer.instance))
         return response
 
+    @extend_schema(tags=swagger_tags,
+                   request=CohortResultPatchSerializer,
+                   responses={status.HTTP_200_OK: CohortResultSerializer})
     def partial_update(self, request, *args, **kwargs):
         if any(field in self.non_updatable_fields for field in request.data):
             return Response(data=f"The payload contains non-updatable fields `{request.data}`",
@@ -144,8 +161,16 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         cohort_service.ws_send_to_client(cohort=cohort)
         return response
 
+    @extend_schema(tags=swagger_tags,
+                   responses={status.HTTP_204_NO_CONTENT: None})
+    def destroy(self, request, *args, **kwargs):
+        return super().destroy(request, *args, **kwargs)
+
+    @extend_schema(tags=swagger_tags,
+                   responses={status.HTTP_200_OK: CohortRightsSerializer})
     @action(detail=False, methods=['get'], url_path="cohort-rights")
     def get_rights_on_cohorts(self, request, *args, **kwargs):
         cohorts_rights = cohort_rights_service.get_user_rights_on_cohorts(group_ids=request.query_params.get('group_id'),
                                                                           user=request.user)
-        return Response(data=cohorts_rights, status=status.HTTP_200_OK)
+        return Response(data=CohortRightsSerializer(data=cohorts_rights, many=True).data,
+                        status=status.HTTP_200_OK)

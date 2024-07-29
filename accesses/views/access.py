@@ -1,9 +1,11 @@
 import json
+from datetime import datetime
 
 from django.db.models import BooleanField, When, Case, Value, QuerySet
 from django.utils import timezone
 from django_filters import OrderingFilter
 from django_filters import rest_framework as filters
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -42,7 +44,7 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
     permission_classes = [IsAuthenticated, AccessesPermission]
     http_method_names = ['get', 'post', 'patch', 'delete']
     logging_methods = ['POST', 'PATCH', 'DELETE']
-    swagger_tags = ['Accesses - accesses']
+    swagger_tags = ['Accesses']
     search_fields = ["profile__firstname",
                      "profile__lastname",
                      "profile__email",
@@ -60,12 +62,25 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
         return self.serializer_class
 
     def get_queryset(self) -> QuerySet:
-        queryset = super(AccessViewSet, self).get_queryset()
+        queryset = super().get_queryset()
         now = timezone.now()
         queryset = queryset.annotate(sql_is_valid=Case(When(start_datetime__lte=now, end_datetime__gte=now, then=Value(True)),
                                                        default=Value(False), output_field=BooleanField()))
         return queryset
 
+    @extend_schema(tags=swagger_tags,
+                   responses={status.HTTP_200_OK: AccessSerializer})
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
+
+    @extend_schema(tags=swagger_tags,
+                   responses={status.HTTP_200_OK: AccessSerializer},
+                   parameters=[OpenApiParameter(name="include_parents", type=bool)] +
+                              [OpenApiParameter(name=f, type=datetime) for f in ("start_datetime", "end_datetime")] +
+                              [OpenApiParameter(name=f, type=str) for f in ("perimeter_id", "role_id", "profile_id", "source")] +
+                              [OpenApiParameter(name=f, exclude=True)
+                               for f in ("insert_datetime", "update_datetime", "delete_datetime", "created_by", "updated_by",
+                                         "perimeter", "role", "profile")])
     @cache_response()
     def list(self, request, *args, **kwargs):
         accesses = self.filter_queryset(self.get_queryset())
@@ -84,20 +99,26 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
         serializer = self.get_serializer(accesses, many=True)
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
+    @extend_schema(tags=swagger_tags,
+                   responses={status.HTTP_201_CREATED: AccessSerializer})
     def create(self, request, *args, **kwargs):
         try:
             accesses_service.process_create_data(data=request.data)
         except ValueError as e:
             return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        return super(AccessViewSet, self).create(request, *args, **kwargs)
+        return super().create(request, *args, **kwargs)
 
+    @extend_schema(tags=swagger_tags,
+                   responses={status.HTTP_200_OK: AccessSerializer})
     def partial_update(self, request, *args, **kwargs):
         try:
             accesses_service.process_patch_data(access=self.get_object(), data=request.data)
         except ValueError as e:
             return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        return super(AccessViewSet, self).partial_update(request, *args, **kwargs)
+        return super().partial_update(request, *args, **kwargs)
 
+    @extend_schema(tags=swagger_tags,
+                   responses={status.HTTP_200_OK: AccessSerializer})
     @action(url_path="close", detail=True, methods=['patch'])
     def close(self, request, *args, **kwargs):
         now = timezone.now()
@@ -106,8 +127,10 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
         except ValueError as e:
             return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         request.data.update({'end_datetime': now})
-        return super(AccessViewSet, self).partial_update(request, *args, **kwargs)
+        return super().partial_update(request, *args, **kwargs)
 
+    @extend_schema(tags=swagger_tags,
+                   responses={status.HTTP_204_NO_CONTENT: None})
     def destroy(self, request, *args, **kwargs):
         access = self.get_object()
         if access.start_datetime and access.start_datetime < timezone.now():
@@ -116,6 +139,8 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
         self.perform_destroy(access)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    @extend_schema(tags=swagger_tags,
+                   responses={status.HTTP_200_OK: AccessSerializer})
     @action(url_path="my-accesses", methods=['get'], detail=False)
     @cache_response()
     def get_my_accesses(self, request, *args, **kwargs):
@@ -130,6 +155,8 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
         return Response(data=self.get_serializer(accesses, many=True).data,
                         status=status.HTTP_200_OK)
 
+    @extend_schema(tags=swagger_tags,
+                   responses={status.HTTP_200_OK: AccessSerializer})
     @action(methods=['get'], url_path="my-data-rights", detail=False)
     @cache_response()
     def get_my_data_reading_rights(self, request, *args, **kwargs):

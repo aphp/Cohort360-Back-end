@@ -12,6 +12,7 @@ class ReleaseNotesViewSet(viewsets.ModelViewSet):
     http_method_names = ["post", "get", "patch"]
     search_fields = ["title", "message"]
     permission_classes = [IsAuthenticated]
+    swagger_tags = ["Release Notes"]
 
     def get_queryset(self) -> QuerySet:
         return super(ReleaseNotesViewSet, self).get_queryset()\
