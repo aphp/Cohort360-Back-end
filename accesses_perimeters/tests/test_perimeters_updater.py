@@ -3,13 +3,44 @@ from unittest import mock
 
 from django.db import connection
 from django.test import TestCase
+from django.db import models
 
 from accesses.models import Perimeter
-from accesses_perimeters.models import Concept, CareSite, ListCohortDef, FactRelationship
+from accesses_perimeters.models import Concept, CareSite, OmopModelManager, APP_LABEL
 from accesses_perimeters.perimeters_updater import perimeters_data_model_objects_update, psql_query_care_site_relationship
 from accesses_perimeters.tests.resources.initial_data import care_sites_data, concepts_data, fact_rels_data, lists_data
 
 env = os.environ
+
+
+class FactRelationship(models.Model):
+    row_id = models.BigIntegerField(primary_key=True)
+    fact_id_1 = models.BigIntegerField()
+    fact_id_2 = models.BigIntegerField()
+    domain_concept_id_1 = models.BigIntegerField()
+    domain_concept_id_2 = models.BigIntegerField()
+    relationship_concept_id = models.BigIntegerField()
+    delete_datetime = models.DateTimeField(null=True)
+    objects = OmopModelManager()
+
+    class Meta:
+        app_label = APP_LABEL
+        managed = False
+        db_table = 'fact_relationship'
+
+
+class ListCohortDef(models.Model):
+    id = models.BigIntegerField(primary_key=True)
+    source_type = models.CharField(blank=True, null=True, db_column='source__type')
+    size = models.BigIntegerField(null=True, db_column='_size')
+    source_reference_id = models.CharField(null=True, db_column='_sourcereferenceid')
+    delete_datetime = models.DateTimeField(null=True)
+    objects = OmopModelManager()
+
+    class Meta:
+        app_label = APP_LABEL
+        managed = False
+        db_table = 'list'
 
 
 class PerimetersUpdaterTests(TestCase):

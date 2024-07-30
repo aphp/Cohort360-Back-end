@@ -1,12 +1,9 @@
 from dataclasses import dataclass
 from typing import List
 
-from django.conf import settings
-from django.core.exceptions import ImproperlyConfigured
 from django.db import IntegrityError
 from django.db.models import QuerySet
 from django.http import Http404
-from django.utils.module_loading import import_string
 
 from accesses.models import Role, Perimeter
 from accesses.services.accesses import accesses_service
@@ -60,23 +57,14 @@ class CohortRightsService:
     def get_cohort_perimeters(self, cohorts_ids: List[str], owner: User) -> dict[str, QuerySet[Perimeter]]:
         if any(cid not in owner.user_cohorts.values_list('group_id', flat=True) for cid in cohorts_ids):
             raise IntegrityError(f"One or multiple cohorts with given IDs do not belong to user '{owner.display_name}'")
-        virtual_cohorts = self.retrieve_virtual_cohorts_ids(cohorts_ids=cohorts_ids) or {}
+        virtual_cohorts = self.retrieve_virtual_cohorts_ids_from_snapshot(cohorts_ids=cohorts_ids) or {}
         return {cohort_id: Perimeter.objects.filter(cohort_id__in=virtual_cohort_ids)
                 for cohort_id, virtual_cohort_ids in virtual_cohorts.items()}
 
     @staticmethod
-    def retrieve_virtual_cohorts_ids(*args, **kwargs):
-        if getattr(settings, "USE_PERIMETERS_FACT_RELATIONSHIPS", False):
-            perimeters_retriever_path = getattr(settings, "PERIMETERS_RETRIEVER_PATH", None)
-            perimeters_retriever_cls = import_string(perimeters_retriever_path)
-            if not perimeters_retriever_cls:
-                raise ImproperlyConfigured(f"No Perimeters Retriever defined at '{perimeters_retriever_path}'")
-
-            try:
-                return perimeters_retriever_cls.get_virtual_cohorts(*args, **kwargs)
-            except AttributeError:
-                raise NotImplementedError("Perimeters Retriever does not define the 'get_virtual_cohorts' function")
-        return None
+    def retrieve_virtual_cohorts_ids_from_snapshot(cohorts_ids: List[str]) -> dict[str, List[int]]:
+        cohorts = CohortResult.objects.filter(group_id__in=cohorts_ids)
+        return {cohort.group_id: cohort.request_query_snapshot.perimeters_ids for cohort in cohorts}
 
     @staticmethod
     def get_accesses_per_right(user_accesses: QuerySet) -> dict[str, QuerySet]:
