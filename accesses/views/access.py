@@ -1,10 +1,10 @@
 import json
-from datetime import datetime
 
 from django.db.models import BooleanField, When, Case, Value, QuerySet
 from django.utils import timezone
 from django_filters import OrderingFilter
 from django_filters import rest_framework as filters
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework import status
 from rest_framework.decorators import action
@@ -22,7 +22,6 @@ from accesses.serializers import AccessSerializer, DataRightSerializer, Expiring
 
 
 class AccessFilter(filters.FilterSet):
-    profile_id = filters.CharFilter(field_name="profile_id")
     ordering = OrderingFilter(fields=('start_datetime',
                                       'end_datetime',
                                       'created_by',
@@ -33,7 +32,12 @@ class AccessFilter(filters.FilterSet):
 
     class Meta:
         model = Access
-        fields = "__all__"
+        fields = ("source",
+                  "perimeter_id",
+                  "role_id",
+                  "profile_id",
+                  "start_datetime",
+                  "end_datetime")
 
 
 class AccessViewSet(RequestLogMixin, BaseViewSet):
@@ -45,14 +49,15 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
     http_method_names = ['get', 'post', 'patch', 'delete']
     logging_methods = ['POST', 'PATCH', 'DELETE']
     swagger_tags = ['Accesses']
-    search_fields = ["profile__firstname",
-                     "profile__lastname",
-                     "profile__email",
+    search_fields = ["profile__user__firstname",
+                     "profile__user__lastname",
+                     "profile__user__email",
                      "profile__user_id",
                      "perimeter__name"]
 
     def get_permissions(self):
-        if self.action in ("get_my_accesses", "get_my_data_reading_rights"):
+        if self.action in (self.get_my_accesses.__name__,
+                           self.get_my_data_reading_rights.__name__):
             return [IsAuthenticated()]
         return super().get_permissions()
 
@@ -69,12 +74,7 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
         return queryset
 
     @extend_schema(responses={status.HTTP_200_OK: AccessSerializer},
-                   parameters=[OpenApiParameter(name="include_parents", type=bool)] +
-                              [OpenApiParameter(name=f, type=datetime) for f in ("start_datetime", "end_datetime")] +
-                              [OpenApiParameter(name=f, type=str) for f in ("perimeter_id", "role_id", "profile_id", "source")] +
-                              [OpenApiParameter(name=f, exclude=True)
-                               for f in ("insert_datetime", "update_datetime", "delete_datetime", "created_by", "updated_by",
-                                         "perimeter", "role", "profile")])
+                   parameters=[OpenApiParameter("include_parents", OpenApiTypes.BOOL)])
     @cache_response()
     def list(self, request, *args, **kwargs):
         accesses = self.filter_queryset(self.get_queryset())
@@ -132,7 +132,7 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
         self.perform_destroy(access)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @extend_schema(responses={status.HTTP_200_OK: AccessSerializer})
+    @extend_schema(responses={status.HTTP_200_OK: AccessSerializer(many=True)})
     @action(url_path="my-accesses", methods=['get'], detail=False)
     @cache_response()
     def get_my_accesses(self, request, *args, **kwargs):
@@ -147,7 +147,7 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
         return Response(data=self.get_serializer(accesses, many=True).data,
                         status=status.HTTP_200_OK)
 
-    @extend_schema(responses={status.HTTP_200_OK: AccessSerializer})
+    @extend_schema(responses={status.HTTP_200_OK: AccessSerializer(many=True)})
     @action(methods=['get'], url_path="my-data-rights", detail=False)
     @cache_response()
     def get_my_data_reading_rights(self, request, *args, **kwargs):

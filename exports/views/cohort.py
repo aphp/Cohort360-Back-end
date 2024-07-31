@@ -1,26 +1,22 @@
-from django_filters import rest_framework as filters, OrderingFilter
+from drf_spectacular.utils import extend_schema, extend_schema_view
+from rest_framework import status
 
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult
 from cohort.permissions import IsOwnerPermission
-from exports.serializers import AnnexeCohortResultSerializer
+from exports.serializers import ExportsCohortResultSerializer
 from exports.views import ExportsBaseViewSet
 
 
-class CohortFilter(filters.FilterSet):
-    ordering = OrderingFilter(fields=('name', 'created_at'))
-
-    class Meta:
-        model = CohortResult
-        fields = ('owner_id',)
-
-
+@extend_schema_view(
+    retrieve=extend_schema(exclude=True),
+    list=extend_schema(responses={status.HTTP_200_OK: ExportsCohortResultSerializer(many=True)}),
+)
 class CohortViewSet(ExportsBaseViewSet):
     queryset = CohortResult.objects.filter(request_job_status=JobStatus.finished,
                                            is_subset=False)
     http_method_names = ["get"]
     permission_classes = [IsOwnerPermission]
-    serializer_class = AnnexeCohortResultSerializer
-    filterset_class = CohortFilter
-    search_fields = ('$name', '$description')
+    serializer_class = ExportsCohortResultSerializer
+    filterset_fields = ("owner_id",)
     swagger_tags = ['Exports - cohorts']

@@ -30,11 +30,11 @@ class PerimeterFilter(filters.FilterSet):
         return queryset
 
     name = filters.CharFilter(lookup_expr='icontains')
+    type_source_value = filters.CharFilter(method="multi_value_filter", field_name="type_source_value")
     source_value = filters.CharFilter(lookup_expr='icontains')
     cohort_id = filters.CharFilter(method="multi_value_filter", field_name="cohort_id")
-    local_id = filters.CharFilter(method="multi_value_filter", field_name="local_id")
     parent_id = filters.CharFilter(method="multi_value_filter", field_name="parent_id")
-    type_source_value = filters.CharFilter(method="multi_value_filter", field_name="type_source_value")
+    local_id = filters.CharFilter(method="multi_value_filter", field_name="local_id")
     ordering = OrderingFilter(fields=(('name', 'care_site_name'),
                                       ('type_source_value', 'care_site_type_source_value'),
                                       ('source_value', 'care_site_source_value')))
@@ -46,8 +46,7 @@ class PerimeterFilter(filters.FilterSet):
                   "source_value",
                   "cohort_id",
                   "parent_id",
-                  "local_id",
-                  "id")
+                  "local_id")
 
 
 class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
@@ -63,12 +62,12 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
                      "type_source_value",
                      "source_value"]
 
-    @extend_schema(responses={status.HTTP_200_OK: PerimeterSerializer})
+    @extend_schema(responses={status.HTTP_200_OK: PerimeterSerializer(many=True)})
     @cache_response()
     def list(self, request, *args, **kwargs):
         return super(PerimeterViewSet, self).list(request, *args, **kwargs)
 
-    @extend_schema(responses={status.HTTP_200_OK: PerimeterLiteSerializer})
+    @extend_schema(responses={status.HTTP_200_OK: PerimeterLiteSerializer(many=True)})
     @action(detail=False, methods=['get'], url_path="manageable")
     @cache_response()
     def get_manageable_perimeters(self, request, *args, **kwargs):
@@ -113,6 +112,7 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
                                                               "allow_lookup_opposed_patients": True,
                                                               "allow_read_patient_without_perimeter_limit": True
                                                               })
+            serializer.is_valid()
             return Response(data=serializer.data, status=status.HTTP_200_OK)
 
         if cohort_ids:

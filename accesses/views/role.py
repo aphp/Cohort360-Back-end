@@ -23,7 +23,7 @@ class RoleFilter(filters.FilterSet):
 
     class Meta:
         model = Role
-        fields = "__all__"
+        fields = ["name"] + [f.name for f in Role._meta.fields if f.name.startswith("right_")]
 
 
 USERS_ORDERING_FIELDS = ["lastname", "firstname", "perimeter", "start_datetime", "end_datetime"]
@@ -40,8 +40,7 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
     permission_classes = [IsAuthenticated, RolesPermission]
     pagination_class = NegativeLimitOffsetPagination
 
-    @extend_schema(parameters=[],
-                   responses={status.HTTP_200_OK: RoleSerializer})
+    @extend_schema(responses={status.HTTP_200_OK: RoleSerializer(many=True)})
     @cache_response()
     def list(self, request, *args, **kwargs):
         return super(RoleViewSet, self).list(request, *args, **kwargs)
@@ -74,7 +73,7 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
         self.perform_destroy(role)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @extend_schema(responses={status.HTTP_200_OK: UsersInRoleSerializer})
+    @extend_schema(responses={status.HTTP_200_OK: UsersInRoleSerializer(many=True)})
     @action(url_path="users", detail=True, methods=['get'], permission_classes=permission_classes+[UsersPermission])
     def users_within_role(self, request, *args, **kwargs):
         role = self.get_object()
@@ -114,7 +113,7 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
             return self.get_paginated_response(serializer.data)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @extend_schema(responses={status.HTTP_200_OK: RoleSerializer})
+    @extend_schema(responses={status.HTTP_200_OK: RoleSerializer(many=True)})
     @action(url_path="assignable", detail=False, methods=['get'])
     @cache_response()
     def get_assignable_roles(self, request, *args, **kwargs):

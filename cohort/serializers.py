@@ -243,7 +243,6 @@ class RequestCreateSerializer(serializers.ModelSerializer):
 
 class RequestPatchSerializer(RequestCreateSerializer):
     name = serializers.CharField(required=False)
-    description = serializers.CharField(required=False)
     parent_folder = PrimaryKeyRelatedFieldWithOwner(required=False, queryset=Folder.objects.all())
 
 

@@ -21,7 +21,6 @@ class SwaggerOIDCAuthScheme(OpenApiAuthenticationExtension):
                     "authorizationCode": {
                         "authorizationUrl": f"{oidc_server_url}/protocol/openid-connect/auth",
                         "tokenUrl": f"{oidc_server_url}/protocol/openid-connect/token",
-                        "refreshUrl": f"{oidc_server_url}/protocol/openid-connect/token",
                         "scopes": {}
                      }
                    }

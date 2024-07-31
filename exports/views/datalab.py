@@ -7,14 +7,14 @@ from exports.views import ExportsBaseViewSet
 
 
 class DatalabFilter(filters.FilterSet):
+    infra_provider = filters.CharFilter(field_name='infrastructure_provider__name', lookup_expr='icontains')
     ordering = OrderingFilter(fields=('created_at',
                                       'name'))
 
     class Meta:
         model = Datalab
         fields = ('name',
-                  'infrastructure_provider',
-                  'created_at')
+                  'infra_provider',)
 
 
 class DatalabViewSet(ExportsBaseViewSet):
@@ -29,6 +29,3 @@ class DatalabViewSet(ExportsBaseViewSet):
         if self.request.method in ("POST", "PATCH"):
             return [ManageDatalabsPermission()]
         return [ReadDatalabsPermission()]
-
-    def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)

@@ -15,12 +15,19 @@ class RightsViewSet(BaseViewSet):
     queryset = Right.objects.filter(delete_datetime__isnull=True).all()
     serializer_class = RightSerializer
     lookup_field = "id"
-    http_method_names = ['get']
-    swagger_tags = ['Rights']
     permission_classes = [IsAuthenticated]
     pagination_class = NegativeLimitOffsetPagination
+    http_method_names = ["get"]
+    filterset_fields = ["name",
+                        "label",
+                        "is_global",
+                        "allow_read_accesses_on_same_level",
+                        "allow_read_accesses_on_inf_levels",
+                        "allow_edit_accesses_on_same_level",
+                        "allow_edit_accesses_on_inf_levels"]
+    swagger_tags = ["Rights"]
 
-    @extend_schema(responses={status.HTTP_200_OK: RightSerializer})
+    @extend_schema(responses={status.HTTP_200_OK: RightSerializer(many=True)})
     @cache_response()
     def list(self, request, *args, **kwargs):
         return Response(data=rights_service.list_rights(), status=status.HTTP_200_OK)

@@ -5,42 +5,17 @@ from cohort.models import CohortResult
 from exports.models import Datalab, InfrastructureProvider, ExportTable, ExportResultStat, Export
 
 
-class ExportsListSerializer(serializers.ModelSerializer):
-    owner = serializers.SlugRelatedField(read_only=True, slug_field="display_name")
-    cohort_id = serializers.CharField(read_only=True)
-    cohort_name = serializers.CharField(read_only=True)
-    patients_count = serializers.IntegerField(read_only=True)
-    target_datalab = serializers.CharField(read_only=True)
-
-    class Meta:
-        model = Export
-        fields = ("owner",
-                  "output_format",  # todo: /!\ split pages in Portail for CSV/Hive exports
-                  "cohort_id",
-                  "cohort_name",
-                  "patients_count",
-                  "created_at",     # todo:  was: `insert_datetime`
-                  "request_job_status",
-                  "target_datalab",
-                  "target_name")
-
-
-class AnnexeCohortResultSerializer(serializers.ModelSerializer):
-    dated_measure = serializers.SlugRelatedField(read_only=True, slug_field='measure')
+class ExportsCohortResultSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CohortResult
-        fields = ('uuid', 'owner', 'name', 'description', 'dated_measure',
-                  'created_at', 'request_job_status', 'group_id')
-        read_only_fields = ('owner', 'name', 'description', 'dated_measure',
-                            'created_at', 'request_job_status', 'group_id')
+        fields = ['uuid', 'owner', 'name']
 
 
 class DatalabSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Datalab
-        fields = "__all__"
+        exclude = ["created_at", "modified_at", "deleted", "deleted_by_cascade"]
 
 
 class InfrastructureProviderSerializer(serializers.ModelSerializer):
@@ -69,27 +44,42 @@ class ExportTableSerializer(serializers.ModelSerializer):
 
 
 class ExportSerializer(serializers.ModelSerializer):
-    export_tables = ExportTableSerializer(many=True, write_only=True, required=False)
+    export_tables = ExportTableSerializer(many=True)
 
     class Meta:
         model = Export
-        fields = ["uuid",
-                  "output_format",
-                  "datalab",
-                  "nominative",
-                  "shift_dates",
-                  "group_tables",
-                  "export_tables",
-                  "motivation",
-                  "owner",
-                  "target_name",
-                  "target_location",
-                  "request_job_id",
-                  "request_job_status",
-                  "request_job_fail_msg"]
         read_only_fields = ["uuid",
+                            "owner",
+                            "target_name",
+                            "target_location",
                             "request_job_id",
                             "request_job_status",
                             "request_job_fail_msg"]
-        extra_kwargs = {'owner': {'required': False},
-                        'motivation': {'required': False}}
+        fields = read_only_fields + ["output_format",
+                                     "datalab",
+                                     "nominative",
+                                     "shift_dates",
+                                     "group_tables",
+                                     "export_tables",
+                                     "motivation"]
+        extra_kwargs = {'motivation': {'required': False}}
+
+
+class ExportsListSerializer(serializers.ModelSerializer):
+    owner = serializers.SlugRelatedField(read_only=True, slug_field="display_name")
+    cohort_id = serializers.CharField(read_only=True)
+    cohort_name = serializers.CharField(read_only=True)
+    patients_count = serializers.IntegerField(read_only=True)
+    target_datalab = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = Export
+        fields = ("owner",
+                  "output_format",  # todo: /!\ split pages in Portail for CSV/Hive exports
+                  "cohort_id",
+                  "cohort_name",
+                  "patients_count",
+                  "created_at",     # todo:  was: `insert_datetime`
+                  "request_job_status",
+                  "target_datalab",
+                  "target_name")

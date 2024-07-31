@@ -10,6 +10,8 @@ from admin_cohort.permissions import CachePermission
 class CacheViewSet(APIView):
     http_method_names = ["get", "delete"]
     permission_classes = (CachePermission,)
+    serializer_class = None
+    queryset = None
     swagger_tags = ["Cache"]
 
     @extend_schema(tags=swagger_tags,
