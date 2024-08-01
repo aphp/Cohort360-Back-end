@@ -7,17 +7,17 @@ from exports.views import ExportsBaseViewSet
 
 class ExportResultStatFilter(filters.FilterSet):
     name = filters.DateTimeFilter(field_name="name", lookup_expr='icontains')
-    export_name = filters.CharFilter(field_name="export__name", lookup_expr="icontains")
+    export_target_name = filters.CharFilter(field_name="export__target_name", lookup_expr="icontains")
     ordering = OrderingFilter(fields=("name",
                                       "type",
                                       "value",
-                                      ("export__name", "export")))
+                                      ("export__target_name", "export")))
 
     class Meta:
         model = ExportResultStat
         fields = ("name",
                   "export",
-                  "export_name",
+                  "export_target_name",
                   "type")
 
 

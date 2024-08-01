@@ -1,4 +1,5 @@
 from django_filters import rest_framework as filters
+from drf_spectacular.utils import extend_schema_view, extend_schema
 
 from cohort.models import FhirFilter
 from cohort.permissions import IsOwnerPermission
@@ -11,9 +12,10 @@ class FhirFilterFilter(filters.FilterSet):
 
     class Meta:
         model = FhirFilter
-        fields = ('fhir_resource', 'owner_id', 'created_at')
+        fields = ('fhir_resource', 'owner_id')
 
 
+@extend_schema_view(retrieve=extend_schema(exclude=True))
 class FhirFilterViewSet(ExportsBaseViewSet):
     queryset = FhirFilter.objects.all()
     serializer_class = FhirFilterSerializer
@@ -21,5 +23,5 @@ class FhirFilterViewSet(ExportsBaseViewSet):
     permission_classes = [IsOwnerPermission]
     swagger_tags = ['Exports - FHIR Filters']
     filterset_class = FhirFilterFilter
-    search_fields = ('$name', '$fhir_resource')
+    search_fields = ('$name', '$fhir_resource', '$filter')
 
