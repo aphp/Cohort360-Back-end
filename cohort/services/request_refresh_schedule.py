@@ -17,16 +17,15 @@ class RequestRefreshScheduleService(CommonService):
 
     def create_refresh_schedule(self, http_request, refresh_schedule: RequestRefreshSchedule) -> None:
         crontab_schedule = self.create_crontab_schedule(refresh_schedule)
-        req = refresh_schedule.request
-        last_rqs = req.query_snapshots.last()
-        dm_id = DatedMeasure.objects.create(owner=last_rqs.owner,
-                                            request_query_snapshot=last_rqs).uuid
-        self.translate_snapshot_query(rqs=last_rqs,
+        snapshot = refresh_schedule.request_snapshot
+        dm_id = DatedMeasure.objects.create(owner=snapshot.owner,
+                                            request_query_snapshot=snapshot).uuid
+        self.translate_snapshot_query(rqs=snapshot,
                                       dm_id=dm_id,
                                       auth_headers=get_authorization_header(http_request))
-        task_args = [dm_id, last_rqs.translated_query, req.uuid, self.operator_cls]
+        task_args = [dm_id, snapshot.translated_query, self.operator_cls]
         task = f"{refresh_count_request.__module__}.{refresh_count_request.__name__}"
-        PeriodicTask.objects.create(name=req.uuid,
+        PeriodicTask.objects.create(name=snapshot.uuid,
                                     crontab=crontab_schedule,
                                     task=task,
                                     args=str(task_args))
@@ -39,14 +38,13 @@ class RequestRefreshScheduleService(CommonService):
         rqs.save()
 
     def reset_schedule_crontab(self, refresh_schedule: RequestRefreshSchedule) -> None:
-        periodic_task = PeriodicTask.objects.get(name=refresh_schedule.request.uuid)
+        periodic_task = PeriodicTask.objects.get(name=refresh_schedule.request_snapshot.uuid)
         periodic_task.crontab = self.create_crontab_schedule(refresh_schedule)
         periodic_task.save()
 
     @staticmethod
     def update_refresh_scheduler(dm: DatedMeasure) -> None:
-        request = dm.request_query_snapshot.request
-        refresh_schedule = request.refresh_schedules.all()
+        refresh_schedule = dm.request_query_snapshot.refresh_schedules.all()
         if refresh_schedule:
             assert refresh_schedule.count() == 1, "Multiple refresh schedules found"
             refresh_schedule.update(last_refresh=now(),
@@ -55,7 +53,7 @@ class RequestRefreshScheduleService(CommonService):
                                     last_refresh_error_msg=dm.request_job_fail_msg)
             refresh_schedule = refresh_schedule.last()
             if refresh_schedule.notify_owner:
-                send_email_count_request_refreshed.s(request_id=refresh_schedule.request_id)\
+                send_email_count_request_refreshed.s(snapshot_id=refresh_schedule.request_snapshot_id)\
                                                   .apply_async()
 
     @staticmethod

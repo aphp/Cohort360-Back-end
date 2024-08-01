@@ -15,8 +15,8 @@ from cohort.views import RequestRefreshScheduleViewSet
 
 class RequestRefreshScheduleRetrieveFilter(CaseRetrieveFilter):
 
-    def __init__(self, request_id: str, exclude: dict = None):
-        self.request_id = request_id
+    def __init__(self, request_snapshot_id: str, exclude: dict = None):
+        self.request_snapshot_id = request_snapshot_id
         super().__init__(exclude=exclude)
 
 
@@ -43,7 +43,7 @@ class RequestRefreshScheduleViewTests(CohortAppTests):
         self.dm = DatedMeasure.objects.create(owner=self.user1,
                                               request_query_snapshot=self.rqs)
 
-        self.basic_data = {"request_id": self.request.uuid,
+        self.basic_data = {"request_snapshot_id": self.rqs.uuid,
                            "owner_id": self.user1.username,
                            "refresh_time": "11:45:00",
                            "refresh_frequency": RefreshFrequency.WEEKLY.value,
@@ -71,27 +71,27 @@ class RequestRefreshScheduleViewTests(CohortAppTests):
     def test_successfully_creating_refresh_schedule(self, mock_translate_query, mock_get_auth_headers):
         mock_translate_query.return_value = None
         mock_get_auth_headers.return_value = None
-        request_id = self.basic_data["request_id"]
+        request_snapshot_id = self.basic_data["request_snapshot_id"]
         case = CreateCase(data=self.basic_data,
-                          retrieve_filter=RequestRefreshScheduleRetrieveFilter(request_id=request_id),
+                          retrieve_filter=RequestRefreshScheduleRetrieveFilter(request_snapshot_id=request_snapshot_id),
                           user=self.user1,
                           status=status.HTTP_201_CREATED,
                           success=True)
         self.check_create_case(case)
         mock_translate_query.assert_called_once()
         mock_get_auth_headers.assert_called_once()
-        periodic_task = PeriodicTask.objects.get(name=request_id)
+        periodic_task = PeriodicTask.objects.get(name=request_snapshot_id)
         self.assertIsNotNone(periodic_task)
         self.assertIsNotNone(periodic_task.crontab)
 
     def test_successfully_patch_refresh_schedule(self):
-        request_id = self.basic_data["request_id"]
+        request_snapshot_id = self.basic_data["request_snapshot_id"]
         initial_crontab = CrontabSchedule.objects.create(minute="10",
                                                          hour="12",
                                                          day_of_week='*',
                                                          day_of_month="*/7",   # weekly
                                                          month_of_year='*')
-        PeriodicTask.objects.create(name=request_id,
+        PeriodicTask.objects.create(name=request_snapshot_id,
                                     crontab=initial_crontab)
         data_to_update = {"refresh_time": datetime.time(hour=9, minute=45, second=0),
                           "refresh_frequency": RefreshFrequency.EVERY_OTHER_DAY.value
@@ -105,7 +105,7 @@ class RequestRefreshScheduleViewTests(CohortAppTests):
         self.assertEqual(resp_data.get("refresh_time"),
                          data_to_update["refresh_time"].strftime(format="%H:%M:%S"))
         self.assertEqual(resp_data.get("refresh_frequency"), data_to_update["refresh_frequency"])
-        updated_crontab = PeriodicTask.objects.get(name=request_id).crontab
+        updated_crontab = PeriodicTask.objects.get(name=request_snapshot_id).crontab
         self.assertEqual(f"{int(updated_crontab.hour) >=10 and updated_crontab.hour or '0'+updated_crontab.hour}:{updated_crontab.minute}:00",
                          data_to_update["refresh_time"].strftime(format="%H:%M:%S"))
         self.assertEqual(updated_crontab.day_of_month, FREQUENCIES.get(data_to_update["refresh_frequency"], '*'))

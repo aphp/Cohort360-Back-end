@@ -13,7 +13,7 @@ class RequestRefreshScheduleFilter(filters.FilterSet):
 
     class Meta:
         model = RequestRefreshSchedule
-        fields = ('request',)
+        fields = ('request_snapshot',)
 
 
 class RequestRefreshScheduleViewSet(UserObjectsRestrictedViewSet):
@@ -22,14 +22,14 @@ class RequestRefreshScheduleViewSet(UserObjectsRestrictedViewSet):
     serializer_class = RequestRefreshScheduleSerializer
     http_method_names = ['get', 'post', 'patch', 'delete']
     filterset_class = RequestRefreshScheduleFilter
-    swagger_tags = ['Cohort - request-refresh-schedule']
+    swagger_tags = ['Cohort - Refresh Schedules']
 
     @swagger_auto_schema(request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
-        properties={"request_id": openapi.Schema(type=openapi.TYPE_STRING),
+        properties={"request_snapshot_id": openapi.Schema(type=openapi.TYPE_STRING),
                     "refresh_time": openapi.Schema(type=openapi.TYPE_STRING),
                     "refresh_frequency": openapi.Schema(type=openapi.TYPE_STRING)},
-        required=["request_id", "refresh_time", "refresh_frequency"]),
+        required=["request_snapshot_id", "refresh_time", "refresh_frequency"]),
         responses={'201': openapi.Response("Refresh Schedule created", RequestRefreshScheduleSerializer()),
                    '400': openapi.Response("Bad Request")})
     def create(self, request, *args, **kwargs):

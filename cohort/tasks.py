@@ -4,7 +4,7 @@ from celery import shared_task, current_task
 
 from admin_cohort import celery_app
 from admin_cohort.types import JobStatus
-from cohort.models import CohortResult, DatedMeasure, FeasibilityStudy, Request
+from cohort.models import CohortResult, DatedMeasure, FeasibilityStudy, RequestQuerySnapshot
 from cohort.services.base_service import load_operator
 from cohort.services.emails import send_email_notif_feasibility_report_requested, send_email_notif_error_feasibility_report, \
     send_email_notif_feasibility_report_ready, send_email_notif_count_request_refreshed
@@ -110,18 +110,18 @@ def send_email_feasibility_report_error(fs_id: str) -> None:
 
 
 @shared_task
-def send_email_count_request_refreshed(request_id: str) -> None:
-    request = Request.objects.get(pk=request_id)
+def send_email_count_request_refreshed(snapshot_id: str) -> None:
+    snapshot = RequestQuerySnapshot.objects.get(pk=snapshot_id)
     send_email_notification(notification=send_email_notif_count_request_refreshed,
-                            request_name=request.name,
-                            owner=request.owner)
+                            request_name=f"{snapshot.request.name} (version {snapshot.version})",
+                            owner=snapshot.owner)
 
 
 @shared_task
-def refresh_count_request(dm_id: str, translated_query: str, request_id: str, cohort_counter_cls: str):
-    _logger.info(f"Request Refreshing [{request_id}]")
+def refresh_count_request(dm_id: str, translated_query: str, cohort_counter_cls: str):
+    dm = DatedMeasure.objects.get(uuid=dm_id)
+    _logger.info(f"Request Snapshot Refreshing [{dm.request_query_snapshot.uuid}]")
     try:
-        dm = DatedMeasure.objects.get(uuid=dm_id)
         dm.count_task_id = current_task.request.id or ""
         dm.request_job_status = JobStatus.pending
         dm.save()

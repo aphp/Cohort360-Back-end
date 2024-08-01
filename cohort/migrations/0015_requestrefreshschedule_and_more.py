@@ -35,12 +35,12 @@ class Migration(migrations.Migration):
                 ('last_refresh_count', models.IntegerField(null=True)),
                 ('last_refresh_error_msg', models.CharField(null=True)),
                 ('notify_owner', models.BooleanField(default=False)),
-                ('request', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='refresh_schedules', to='cohort.request')),
+                ('request_snapshot', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='refresh_schedules', to='cohort.requestquerysnapshot')),
                 ('owner', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='refresh_schedules', to=settings.AUTH_USER_MODEL)),
             ],
         ),
         migrations.AddConstraint(
             model_name='requestrefreshschedule',
-            constraint=models.UniqueConstraint(condition=models.Q(('deleted__isnull', True)), fields=('request',), name='unique_request_refresh_schedule'),
+            constraint=models.UniqueConstraint(condition=models.Q(('deleted__isnull', True)), fields=('request_snapshot',), name='unique_request_snapshot_refresh_schedule'),
         ),
     ]
