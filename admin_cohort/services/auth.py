@@ -33,7 +33,7 @@ class Auth(ABC):
     def __init__(self):
         assert self.USERNAME_LOOKUP is not None, "`USERNAME_LOOKUP` attribute is not defined"
         assert self.tokens_class is not None, "`tokens_class` attribute is not defined"
-        self.algorithms = env("JWT_ALGORITHMS")
+        self.algorithms = env("JWT_ALGORITHMS", default="RS256,HS256")
 
     def get_tokens(self, **kwargs) -> AuthTokens:
         response = requests.post(**kwargs)
@@ -136,15 +136,8 @@ class OIDCAuth(Auth):
     def recognised_issuers(self):
         return [c.issuer for c in self.oidc_configs] + self.oidc_extra_allowed_servers
 
-    def get_tokens(self, code: str) -> AuthTokens:
-        """
-        given a code, we do not know its provenance; Cohort360 or Portail!
-        to support both, maybe we need to concat the code + redirect_uri in the frontend side before calling /login
-            the payload to /login would be: {"auth_code": "some-code1234;https://redirect.uri"}
-        Backend side, we extract the code and redirect_uri and proceed with authentication
-        """
-        code, redirect_uri = code.split(";")
-        oidc_conf = self.get_oidc_config(redirect_uri)
+    def get_tokens(self, code: str, redirect_uri: Optional[str] = None) -> AuthTokens:
+        oidc_conf = self.get_oidc_config(redirect_uri=redirect_uri)
         data = {**oidc_conf.client_identity,
                 "redirect_uri": oidc_conf.redirect_uri,
                 "grant_type": self.grant_type,
@@ -197,10 +190,13 @@ class OIDCAuth(Auth):
 class JWTAuth(Auth):
     USERNAME_LOOKUP = "username"
     tokens_class = JWTAuthTokens
-    server_url = env("JWT_SERVER_URL")
-    server_headers = {"X-User-App": env("JWT_APP_NAME")}
-    signing_key = env("JWT_SIGNING_KEY")
     leeway = 15
+
+    def __init__(self):
+        super().__init__()
+        self.server_url = env("JWT_SERVER_URL")
+        self.server_headers = {"X-User-App": env("JWT_APP_NAME")}
+        self.signing_key = env("JWT_SIGNING_KEY")
 
     @property
     def token_url(self):
@@ -229,13 +225,9 @@ class JWTAuth(Auth):
         pass
 
 
-oidc_auth = OIDCAuth()
-jwt_auth = JWTAuth()
-
-
 class AuthService:
-    authenticators = {settings.OIDC_AUTH_MODE: oidc_auth,
-                      settings.JWT_AUTH_MODE: jwt_auth
+    authenticators = {settings.OIDC_AUTH_MODE: OIDCAuth(),
+                      **({settings.JWT_AUTH_MODE: JWTAuth()} if settings.ENABLE_JWT else {})
                       }
     applicative_users = {env("ROLLOUT_TOKEN"): settings.ROLLOUT_USERNAME,
                          **getattr(settings, "APPLICATIVE_USERS", {})}
@@ -274,7 +266,8 @@ class AuthService:
         authenticator.logout_user(request.body, access_token)
         logout(request)
 
-    def authenticate_token(self, token: str, auth_method: str, headers: Dict[str, str]) -> Union[Tuple[User, str], None]:
+    def authenticate_token(self, token: str, auth_method: str, headers: Dict[str, str]) -> Union[
+        Tuple[User, str], None]:
         assert auth_method is not None, "Missing `auth_method` parameter"
         if token is None:
             return None
@@ -285,7 +278,8 @@ class AuthService:
             for post_auth_hook in self.post_auth_hooks:
                 user = post_auth_hook(user, token, headers)
             return user, token
-        except (InvalidTokenError, ValueError, User.DoesNotExist):
+        except (InvalidTokenError, ValueError, User.DoesNotExist) as e:
+            _logger.error(f"Error authenticating token: {e}")
             return None
 
     def authenticate_http_request(self, request) -> Union[Tuple[User, str], None]:
@@ -293,7 +287,8 @@ class AuthService:
         if token in self.applicative_users:
             applicative_user = User.objects.get(username=self.applicative_users[token])
             return applicative_user, token
-        return self.authenticate_token(token=token, auth_method=auth_method or settings.JWT_AUTH_MODE, headers=request.headers)
+        return self.authenticate_token(token=token, auth_method=auth_method or settings.JWT_AUTH_MODE,
+                                       headers=request.headers)
 
     def authenticate_ws_request(self, token: str, auth_method: str, headers: Dict[str, str]) -> Union[User, None]:
         res = self.authenticate_token(token=token, auth_method=auth_method, headers=headers)
