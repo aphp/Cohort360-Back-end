@@ -36,7 +36,6 @@ class Auth(ABC):
         self.algorithms = env("JWT_ALGORITHMS")
 
     def get_tokens(self, **kwargs) -> AuthTokens:
-        kwargs = {**kwargs, "cookies": {'NSC_TMAS': '7a236e04ef369eabf0032dda51a38b42'}}
         response = requests.post(**kwargs)
         if response.status_code == status.HTTP_200_OK:
             return self.tokens_class(**response.json())
