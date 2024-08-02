@@ -2,6 +2,7 @@ import inspect
 import json
 import logging
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import Union, Tuple, Optional, Callable, Dict, List
 
 import environ
@@ -35,6 +36,7 @@ class Auth(ABC):
         self.algorithms = env("JWT_ALGORITHMS")
 
     def get_tokens(self, **kwargs) -> AuthTokens:
+        kwargs = {**kwargs, "cookies": {'NSC_TMAS': '7a236e04ef369eabf0032dda51a38b42'}}
         response = requests.post(**kwargs)
         if response.status_code == status.HTTP_200_OK:
             return self.tokens_class(**response.json())
@@ -73,6 +75,33 @@ class Auth(ABC):
         return token_payload.get(self.USERNAME_LOOKUP)
 
 
+@dataclass
+class OIDCAuthConfig:
+    issuer: str
+    client_id: str
+    client_secret: str
+    redirect_uri: str
+    audience: List[str]
+
+    @property
+    def client_identity(self) -> dict[str, str]:
+        return {"client_id": self.client_id,
+                "client_secret": self.client_secret
+                }
+
+    @property
+    def oidc_url(self):
+        return f"{self.issuer}/protocol/openid-connect"
+
+    @property
+    def token_url(self):
+        return f"{self.oidc_url}/token"
+
+    @property
+    def logout_url(self):
+        return f"{self.oidc_url}/logout"
+
+
 class OIDCAuth(Auth):
     USERNAME_LOOKUP = "preferred_username"
     tokens_class = OIDCAuthTokens
@@ -82,67 +111,59 @@ class OIDCAuth(Auth):
         self.oidc_extra_allowed_servers = env("OIDC_EXTRA_SERVER_URLS", default="").split(",")
         self.grant_type = env("OIDC_GRANT_TYPE")
         self.refresh_grant_type = "refresh_token"
-        self.oidc_auth_servers = env("OIDC_AUTH_SERVERS").split(";")
-        self.audience = env("OIDC_CLIENT_AUDIENCES").split(';')
-        self.redirect_uris = env("OIDC_REDIRECT_URIS").split(";")
-        self.oidc_configs = {
-            oidc_auth_server: {"client_id": env("OIDC_CLIENT_IDS").split(";")[i],
-                               "client_secret": env("OIDC_CLIENT_SECRETS").split(";")[i],
-                               "oidc_auth_server": self.oidc_auth_servers[i],
-                               "audiences": self.audience[i].split(","),
-                               "redirect_uri": self.redirect_uris[i]
-                               }
-            for i, oidc_auth_server in enumerate(self.oidc_auth_servers)
-        }
+        self.oidc_configs = [OIDCAuthConfig(issuer=auth_config[0],
+                                            client_id=auth_config[1],
+                                            client_secret=auth_config[2],
+                                            redirect_uri=auth_config[3],
+                                            audience=auth_config[4].split(","))
+                             for auth_config in map(lambda c: c.split(";"),
+                                                    env("OIDC_AUTH_CONFIGS", default="").split("::"))
+                             ]
 
-    def get_issuer_from_redirect_uri(self, redirect_uri: str) -> Optional[str]:
-        for issuer, config in self.oidc_configs.items():
-            if config["redirect_uri"] == redirect_uri:
-                return issuer
-        raise ValueError(f"Unrecognised redirect_uri: `{redirect_uri}`")
-
-    def get_oidc_config(self, issuer: Optional[str] = None):
-        return self.oidc_configs[issuer or self.oidc_auth_servers[0]]
-
-    def client_identity(self, issuer: Optional[str] = None):
-        oidc_config = self.get_oidc_config(issuer)
-        return {"client_id": oidc_config["client_id"],
-                "client_secret": oidc_config["client_secret"]
-                }
+    def get_oidc_config(self, issuer: Optional[str] = None, redirect_uri: Optional[str] = None):
+        if not self.oidc_configs:
+            raise ValueError("No OIDC auth config was provided")
+        if issuer and redirect_uri:
+            raise ValueError("Provide one of `issuer` or `redirect_uri`, not both!")
+        if issuer:
+            attr, val = "issuer", issuer
+        elif redirect_uri:
+            attr, val = "redirect_uri", redirect_uri
+        else:
+            return self.oidc_configs[0]
+        return next((conf for conf in self.oidc_configs if getattr(conf, attr, None) == val))
 
     @property
     def recognised_issuers(self):
-        return self.oidc_auth_servers + self.oidc_extra_allowed_servers
+        return [c.issuer for c in self.oidc_configs] + self.oidc_extra_allowed_servers
 
-    def get_oidc_url(self, issuer: Optional[str] = None):
-        oidc_config = self.get_oidc_config(issuer)
-        return f"{oidc_config['oidc_auth_server']}/protocol/openid-connect"
-
-    def token_url(self, issuer: Optional[str] = None):
-        return f"{self.get_oidc_url(issuer)}/token"
-
-    def logout_url(self, issuer: Optional[str] = None):
-        return f"{self.get_oidc_url(issuer)}/logout"
-
-    def get_tokens(self, code: str, redirect_uri: Optional[str] = None) -> AuthTokens:
-        the_redirect_uri = redirect_uri or self.redirect_uris[0]
-        issuer = self.get_issuer_from_redirect_uri(the_redirect_uri)
-        data = {**self.client_identity(issuer),
-                "redirect_uri": the_redirect_uri,
+    def get_tokens(self, code: str) -> AuthTokens:
+        """
+        given a code, we do not know its provenance; Cohort360 or Portail!
+        to support both, maybe we need to concat the code + redirect_uri in the frontend side before calling /login
+            the payload to /login would be: {"auth_code": "some-code1234;https://redirect.uri"}
+        Backend side, we extract the code and redirect_uri and proceed with authentication
+        """
+        code, redirect_uri = code.split(";")
+        oidc_conf = self.get_oidc_config(redirect_uri)
+        data = {**oidc_conf.client_identity,
+                "redirect_uri": oidc_conf.redirect_uri,
                 "grant_type": self.grant_type,
                 "code": code
                 }
-        return super().get_tokens(url=self.token_url(issuer), data=data)
+        return super().get_tokens(url=oidc_conf.token_url, data=data)
 
     def refresh_token(self, token: str):
         issuer = self.decode_token(token=token, verify_signature=False).get("iss")
-        data = {**self.client_identity(issuer),
+        oidc_conf = self.get_oidc_config(issuer)
+        data = {**oidc_conf.client_identity,
                 "grant_type": self.refresh_grant_type,
                 "refresh_token": token}
-        return super().refresh_token(url=self.token_url(issuer), data=data)
+        return super().refresh_token(url=oidc_conf.token_url, data=data)
 
     def authenticate(self, token: str) -> str:
         issuer = self.decode_token(token=token, verify_signature=False).get("iss")
+        oidc_conf = self.get_oidc_config(issuer)
         assert issuer in self.recognised_issuers, f"Unrecognised issuer: `{issuer}`"
         issuer_certs_url = f"{issuer}/protocol/openid-connect/certs"
         response = requests.get(url=issuer_certs_url)
@@ -156,7 +177,7 @@ class OIDCAuth(Auth):
             public_keys[kid] = RSAAlgorithm.from_jwk(json.dumps(jwk))
         kid = jwt.get_unverified_header(token)['kid']
         key = public_keys.get(kid)
-        decoded = self.decode_token(token=token, key=key, issuer=issuer, audience=self.get_oidc_config(issuer)["audiences"])
+        decoded = self.decode_token(token=token, key=key, issuer=issuer, audience=oidc_conf.audience)
         return super().retrieve_username(token_payload=decoded)
 
     def logout_user(self, payload: bytes, access_token: str):
@@ -165,8 +186,9 @@ class OIDCAuth(Auth):
         except json.JSONDecodeError as e:
             raise RequestException(f"Logout request missing `refresh_token` - {e}")
         issuer = self.decode_token(token=refresh_token, verify_signature=False).get("iss")
-        response = requests.post(url=self.logout_url(issuer),
-                                 data={**self.client_identity(issuer),
+        oidc_conf = self.get_oidc_config(issuer)
+        response = requests.post(url=oidc_conf.logout_url,
+                                 data={**oidc_conf.client_identity,
                                        "refresh_token": refresh_token},
                                  headers={"Authorization": f"Bearer {access_token}"})
         if response.status_code != status.HTTP_204_NO_CONTENT:
