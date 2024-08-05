@@ -49,7 +49,7 @@ class OIDCLoginView(RequestLogMixin, viewsets.GenericViewSet):
 
     @extend_schema(exclude=True)
     def post(self, request, *args, **kwargs):
-        auth_code = request.query_params.get("auth_code")
+        auth_code = request.data.get("auth_code")
         if not auth_code:
             return JsonResponse(data={"error": "OIDC Authorization Code not provided"},
                                 status=status.HTTP_400_BAD_REQUEST)

@@ -13,7 +13,6 @@ from accesses.services.roles import roles_service
 from accesses.views import BaseViewSet
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.permissions import IsAuthenticated, UsersPermission
-from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from admin_cohort.tools.request_log_mixin import RequestLogMixin
 
 
@@ -38,7 +37,6 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
     swagger_tags = ['Roles']
     filterset_class = RoleFilter
     permission_classes = [IsAuthenticated, RolesPermission]
-    pagination_class = NegativeLimitOffsetPagination
 
     @extend_schema(responses={status.HTTP_200_OK: RoleSerializer(many=True)})
     @cache_response()

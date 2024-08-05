@@ -23,7 +23,8 @@ class MaintenancePhaseViewSet(viewsets.ModelViewSet):
     queryset = MaintenancePhase.objects.all()
     serializer_class = MaintenancePhaseSerializer
     lookup_field = "id"
-    search_fields = ["subject"]
+    search_fields = ["$subject"]
+    filterset_fields = ["subject", "start_datetime", "end_datetime"]
     http_method_names = ["get", "delete", "post", "patch"]
     permission_classes = (MaintenancesPermission,)
 
