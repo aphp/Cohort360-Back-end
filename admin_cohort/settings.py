@@ -128,6 +128,8 @@ DJANGO_CPROFILE_MIDDLEWARE_REQUIRE_STAFF = False
 AUTHENTICATION_BACKENDS = ['admin_cohort.auth.auth_backends.JWTAuthBackend',
                            'admin_cohort.auth.auth_backends.OIDCAuthBackend']
 
+ENABLE_JWT = env("ENABLE_JWT", default=False)
+
 ROOT_URLCONF = 'admin_cohort.urls'
 
 TEMPLATES = [{'BACKEND': 'django.template.backends.django.DjangoTemplates',

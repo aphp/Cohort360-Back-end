@@ -79,6 +79,7 @@ class OIDCAuthConfig:
     issuer: str
     client_id: str
     client_secret: str
+    grant_type: str
     redirect_uri: str
     audience: List[str]
 
@@ -101,6 +102,24 @@ class OIDCAuthConfig:
         return f"{self.oidc_url}/logout"
 
 
+def build_oidc_configs() -> List[OIDCAuthConfig]:
+    configs = []
+    i = 1
+    while True:
+        issuer = env(f"OIDC_AUTH_SERVER_{i}", default=None)
+        if issuer is not None:
+            configs.append(OIDCAuthConfig(issuer=issuer,
+                                          client_id=env(f"OIDC_CLIENT_ID_{i}"),
+                                          client_secret=env(f"OIDC_CLIENT_SECRET_{i}"),
+                                          grant_type=env(f"OIDC_GRANT_TYPE_{i}"),
+                                          redirect_uri=env(f"OIDC_REDIRECT_URI_{i}"),
+                                          audience=env(f"OIDC_CLIENT_AUDIENCE_{i}").split(",")))
+            i += 1
+        else:
+            break
+    return configs
+
+
 class OIDCAuth(Auth):
     USERNAME_LOOKUP = "preferred_username"
     tokens_class = OIDCAuthTokens
@@ -108,16 +127,8 @@ class OIDCAuth(Auth):
     def __init__(self):
         super().__init__()
         self.oidc_extra_allowed_servers = env("OIDC_EXTRA_SERVER_URLS", default="").split(",")
-        self.grant_type = env("OIDC_GRANT_TYPE")
         self.refresh_grant_type = "refresh_token"
-        self.oidc_configs = [OIDCAuthConfig(issuer=auth_config[0],
-                                            client_id=auth_config[1],
-                                            client_secret=auth_config[2],
-                                            redirect_uri=auth_config[3],
-                                            audience=auth_config[4].split(","))
-                             for auth_config in map(lambda c: c.split(";"),
-                                                    env("OIDC_AUTH_CONFIGS", default="").split("::"))
-                             ]
+        self.oidc_configs = build_oidc_configs()
 
     def get_oidc_config(self, issuer: Optional[str] = None, redirect_uri: Optional[str] = None):
         if not self.oidc_configs:
@@ -140,7 +151,7 @@ class OIDCAuth(Auth):
         oidc_conf = self.get_oidc_config(redirect_uri=redirect_uri)
         data = {**oidc_conf.client_identity,
                 "redirect_uri": oidc_conf.redirect_uri,
-                "grant_type": self.grant_type,
+                "grant_type": oidc_conf.grant_type,
                 "code": code
                 }
         return super().get_tokens(url=oidc_conf.token_url, data=data)
