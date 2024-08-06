@@ -26,22 +26,6 @@ class Concept(models.Model):
         db_table = 'concept'
 
 
-class FactRelationship(models.Model):
-    row_id = models.BigIntegerField(primary_key=True)
-    fact_id_1 = models.BigIntegerField()
-    fact_id_2 = models.BigIntegerField()
-    domain_concept_id_1 = models.BigIntegerField()
-    domain_concept_id_2 = models.BigIntegerField()
-    relationship_concept_id = models.BigIntegerField()
-    delete_datetime = models.DateTimeField(null=True)
-    objects = OmopModelManager()
-
-    class Meta:
-        app_label = APP_LABEL
-        managed = False
-        db_table = 'fact_relationship'
-
-
 class CareSite(models.Model):
     care_site_id = models.BigIntegerField(primary_key=True)
     care_site_source_value = models.TextField(blank=True, null=True)
@@ -64,17 +48,3 @@ class CareSite(models.Model):
         return """SELECT DISTINCT care_site_id, delete_datetime 
                   FROM omop.care_site WHERE delete_datetime IS NOT NULL
                """
-
-
-class ListCohortDef(models.Model):
-    id = models.BigIntegerField(primary_key=True)
-    source_type = models.CharField(blank=True, null=True, db_column='source__type')
-    size = models.BigIntegerField(null=True, db_column='_size')
-    source_reference_id = models.CharField(null=True, db_column='_sourcereferenceid')
-    delete_datetime = models.DateTimeField(null=True)
-    objects = OmopModelManager()
-
-    class Meta:
-        app_label = APP_LABEL
-        managed = False
-        db_table = 'list'
