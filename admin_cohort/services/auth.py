@@ -130,16 +130,17 @@ class OIDCAuth(Auth):
         self.refresh_grant_type = "refresh_token"
         self.oidc_configs = build_oidc_configs()
 
-    def get_oidc_config(self, issuer: Optional[str] = None, redirect_uri: Optional[str] = None):
+    def get_oidc_config(self, client_id: Optional[str] = None, redirect_uri: Optional[str] = None):
         if not self.oidc_configs:
             raise ValueError("No OIDC auth config was provided")
-        if issuer and redirect_uri:
+        if client_id and redirect_uri:
             raise ValueError("Provide one of `issuer` or `redirect_uri`, not both!")
-        if issuer:
-            attr, val = "issuer", issuer
+        if client_id:
+            attr, val = "client_id", client_id
         elif redirect_uri:
             attr, val = "redirect_uri", redirect_uri
         else:
+            _logger.warning("No `client_id` or `redirect_uri` provided, using first OIDC config")
             return self.oidc_configs[0]
         return next((conf for conf in self.oidc_configs if getattr(conf, attr, None) == val))
 
@@ -157,16 +158,18 @@ class OIDCAuth(Auth):
         return super().get_tokens(url=oidc_conf.token_url, data=data)
 
     def refresh_token(self, token: str):
-        issuer = self.decode_token(token=token, verify_signature=False).get("iss")
-        oidc_conf = self.get_oidc_config(issuer)
+        client_id = self.decode_token(token=token, verify_signature=False).get("azp")
+        oidc_conf = self.get_oidc_config(client_id)
         data = {**oidc_conf.client_identity,
                 "grant_type": self.refresh_grant_type,
                 "refresh_token": token}
         return super().refresh_token(url=oidc_conf.token_url, data=data)
 
     def authenticate(self, token: str) -> str:
-        issuer = self.decode_token(token=token, verify_signature=False).get("iss")
-        oidc_conf = self.get_oidc_config(issuer)
+        decoded_token = self.decode_token(token=token, verify_signature=False)
+        issuer = decoded_token.get("iss")
+        client_id = decoded_token.get("azp")
+        oidc_conf = self.get_oidc_config(client_id)
         assert issuer in self.recognised_issuers, f"Unrecognised issuer: `{issuer}`"
         issuer_certs_url = f"{issuer}/protocol/openid-connect/certs"
         response = requests.get(url=issuer_certs_url)
@@ -188,8 +191,8 @@ class OIDCAuth(Auth):
             refresh_token = json.loads(payload).get("refresh_token")
         except json.JSONDecodeError as e:
             raise RequestException(f"Logout request missing `refresh_token` - {e}")
-        issuer = self.decode_token(token=refresh_token, verify_signature=False).get("iss")
-        oidc_conf = self.get_oidc_config(issuer)
+        client_id = self.decode_token(token=refresh_token, verify_signature=False).get("azp")
+        oidc_conf = self.get_oidc_config(client_id)
         response = requests.post(url=oidc_conf.logout_url,
                                  data={**oidc_conf.client_identity,
                                        "refresh_token": refresh_token},
