@@ -2,11 +2,13 @@ import inspect
 import json
 import logging
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import Union, Tuple, Optional, Callable, Dict, List
 
 import environ
 import jwt
 import requests
+from django.conf import settings
 from django.contrib.auth import logout
 from jwt import InvalidTokenError
 from jwt.algorithms import RSAAlgorithm
@@ -17,8 +19,6 @@ from rest_framework_simplejwt.authentication import AUTH_HEADER_TYPE_BYTES
 from rest_framework_simplejwt.exceptions import InvalidToken
 
 from admin_cohort.models import User
-from admin_cohort.settings import JWT_AUTH_MODE, OIDC_AUTH_MODE, ETL_USERNAME, SJS_USERNAME, ROLLOUT_USERNAME, \
-    ACCESS_TOKEN_COOKIE
 from admin_cohort.types import ServerError, LoginError, OIDCAuthTokens, JWTAuthTokens, AuthTokens
 
 env = environ.Env()
@@ -33,7 +33,7 @@ class Auth(ABC):
     def __init__(self):
         assert self.USERNAME_LOOKUP is not None, "`USERNAME_LOOKUP` attribute is not defined"
         assert self.tokens_class is not None, "`tokens_class` attribute is not defined"
-        self.algorithms = env("JWT_ALGORITHMS")
+        self.algorithms = env("JWT_ALGORITHMS", default="RS256,HS256")
 
     def get_tokens(self, **kwargs) -> AuthTokens:
         response = requests.post(**kwargs)
@@ -74,52 +74,99 @@ class Auth(ABC):
         return token_payload.get(self.USERNAME_LOOKUP)
 
 
-class OIDCAuth(Auth):
-    USERNAME_LOOKUP = "preferred_username"
-    tokens_class = OIDCAuthTokens
-    server_aphp_url = env("OIDC_SERVER_APHP_URL")
-    audience = env("OIDC_AUDIENCES").split(';')
-    redirect_uri = env("OIDC_REDIRECT_URI")
-    grant_type = env("OIDC_GRANT_TYPE")
-    refresh_grant_type = "refresh_token"
-    server_master_url = env("OIDC_SERVER_MASTER_URL")
-    server_root_url = f"{server_aphp_url}/protocol/openid-connect"
+@dataclass
+class OIDCAuthConfig:
+    issuer: str
+    client_id: str
+    client_secret: str
+    grant_type: str
+    redirect_uri: str
+    audience: List[str]
 
     @property
-    def client_identity(self):
-        return {"client_id": env("OIDC_CLIENT_ID"),
-                "client_secret": env("OIDC_CLIENT_SECRET")
+    def client_identity(self) -> dict[str, str]:
+        return {"client_id": self.client_id,
+                "client_secret": self.client_secret
                 }
 
     @property
-    def recognised_issuers(self):
-        return [self.server_aphp_url,
-                self.server_master_url]
+    def oidc_url(self):
+        return f"{self.issuer}/protocol/openid-connect"
 
     @property
     def token_url(self):
-        return f"{self.server_root_url}/token"
+        return f"{self.oidc_url}/token"
 
     @property
     def logout_url(self):
-        return f"{self.server_root_url}/logout"
+        return f"{self.oidc_url}/logout"
 
-    def get_tokens(self, code: str) -> AuthTokens:
-        data = {**self.client_identity,
-                "redirect_uri": self.redirect_uri,
-                "grant_type": self.grant_type,
+
+def build_oidc_configs() -> List[OIDCAuthConfig]:
+    configs = []
+    i = 1
+    while True:
+        issuer = env(f"OIDC_AUTH_SERVER_{i}", default=None)
+        if issuer is not None:
+            configs.append(OIDCAuthConfig(issuer=issuer,
+                                          client_id=env(f"OIDC_CLIENT_ID_{i}"),
+                                          client_secret=env(f"OIDC_CLIENT_SECRET_{i}"),
+                                          grant_type=env(f"OIDC_GRANT_TYPE_{i}"),
+                                          redirect_uri=env(f"OIDC_REDIRECT_URI_{i}"),
+                                          audience=env(f"OIDC_CLIENT_AUDIENCE_{i}").split(",")))
+            i += 1
+        else:
+            break
+    return configs
+
+
+class OIDCAuth(Auth):
+    USERNAME_LOOKUP = "preferred_username"
+    tokens_class = OIDCAuthTokens
+
+    def __init__(self):
+        super().__init__()
+        self.oidc_extra_allowed_servers = env("OIDC_EXTRA_SERVER_URLS", default="").split(",")
+        self.refresh_grant_type = "refresh_token"
+        self.oidc_configs = build_oidc_configs()
+
+    def get_oidc_config(self, issuer: Optional[str] = None, redirect_uri: Optional[str] = None):
+        if not self.oidc_configs:
+            raise ValueError("No OIDC auth config was provided")
+        if issuer and redirect_uri:
+            raise ValueError("Provide one of `issuer` or `redirect_uri`, not both!")
+        if issuer:
+            attr, val = "issuer", issuer
+        elif redirect_uri:
+            attr, val = "redirect_uri", redirect_uri
+        else:
+            return self.oidc_configs[0]
+        return next((conf for conf in self.oidc_configs if getattr(conf, attr, None) == val))
+
+    @property
+    def recognised_issuers(self):
+        return [c.issuer for c in self.oidc_configs] + self.oidc_extra_allowed_servers
+
+    def get_tokens(self, code: str, redirect_uri: Optional[str] = None) -> AuthTokens:
+        oidc_conf = self.get_oidc_config(redirect_uri=redirect_uri)
+        data = {**oidc_conf.client_identity,
+                "redirect_uri": oidc_conf.redirect_uri,
+                "grant_type": oidc_conf.grant_type,
                 "code": code
                 }
-        return super().get_tokens(url=self.token_url, data=data)
+        return super().get_tokens(url=oidc_conf.token_url, data=data)
 
     def refresh_token(self, token: str):
-        data = {**self.client_identity,
+        issuer = self.decode_token(token=token, verify_signature=False).get("iss")
+        oidc_conf = self.get_oidc_config(issuer)
+        data = {**oidc_conf.client_identity,
                 "grant_type": self.refresh_grant_type,
                 "refresh_token": token}
-        return super().refresh_token(url=self.token_url, data=data)
+        return super().refresh_token(url=oidc_conf.token_url, data=data)
 
     def authenticate(self, token: str) -> str:
         issuer = self.decode_token(token=token, verify_signature=False).get("iss")
+        oidc_conf = self.get_oidc_config(issuer)
         assert issuer in self.recognised_issuers, f"Unrecognised issuer: `{issuer}`"
         issuer_certs_url = f"{issuer}/protocol/openid-connect/certs"
         response = requests.get(url=issuer_certs_url)
@@ -133,7 +180,7 @@ class OIDCAuth(Auth):
             public_keys[kid] = RSAAlgorithm.from_jwk(json.dumps(jwk))
         kid = jwt.get_unverified_header(token)['kid']
         key = public_keys.get(kid)
-        decoded = self.decode_token(token=token, key=key, issuer=issuer, audience=self.audience)
+        decoded = self.decode_token(token=token, key=key, issuer=issuer, audience=oidc_conf.audience)
         return super().retrieve_username(token_payload=decoded)
 
     def logout_user(self, payload: bytes, access_token: str):
@@ -141,8 +188,10 @@ class OIDCAuth(Auth):
             refresh_token = json.loads(payload).get("refresh_token")
         except json.JSONDecodeError as e:
             raise RequestException(f"Logout request missing `refresh_token` - {e}")
-        response = requests.post(url=self.logout_url,
-                                 data={**self.client_identity,
+        issuer = self.decode_token(token=refresh_token, verify_signature=False).get("iss")
+        oidc_conf = self.get_oidc_config(issuer)
+        response = requests.post(url=oidc_conf.logout_url,
+                                 data={**oidc_conf.client_identity,
                                        "refresh_token": refresh_token},
                                  headers={"Authorization": f"Bearer {access_token}"})
         if response.status_code != status.HTTP_204_NO_CONTENT:
@@ -152,10 +201,13 @@ class OIDCAuth(Auth):
 class JWTAuth(Auth):
     USERNAME_LOOKUP = "username"
     tokens_class = JWTAuthTokens
-    server_url = env("JWT_SERVER_URL")
-    server_headers = {"X-User-App": env("JWT_APP_NAME")}
-    signing_key = env("JWT_SIGNING_KEY")
     leeway = 15
+
+    def __init__(self):
+        super().__init__()
+        self.server_url = env("JWT_SERVER_URL")
+        self.server_headers = {"X-User-App": env("JWT_APP_NAME")}
+        self.signing_key = env("JWT_SIGNING_KEY")
 
     @property
     def token_url(self):
@@ -184,18 +236,12 @@ class JWTAuth(Auth):
         pass
 
 
-oidc_auth = OIDCAuth()
-jwt_auth = JWTAuth()
-
-
 class AuthService:
-    authenticators = {OIDC_AUTH_MODE: oidc_auth,
-                      JWT_AUTH_MODE: jwt_auth
+    authenticators = {settings.OIDC_AUTH_MODE: OIDCAuth(),
+                      **({settings.JWT_AUTH_MODE: JWTAuth()} if settings.ENABLE_JWT else {})
                       }
-    applicative_users = {env("ETL_TOKEN"): ETL_USERNAME,
-                         env("SJS_TOKEN"): SJS_USERNAME,
-                         env("ROLLOUT_TOKEN"): ROLLOUT_USERNAME
-                         }
+    applicative_users = {env("ROLLOUT_TOKEN"): settings.ROLLOUT_USERNAME,
+                         **getattr(settings, "APPLICATIVE_USERS", {})}
 
     def __init__(self):
         self.post_auth_hooks: List[Callable[[User, str, Dict[str, str]], Optional[User]]] = []
@@ -231,7 +277,8 @@ class AuthService:
         authenticator.logout_user(request.body, access_token)
         logout(request)
 
-    def authenticate_token(self, token: str, auth_method: str, headers: Dict[str, str]) -> Union[Tuple[User, str], None]:
+    def authenticate_token(self, token: str, auth_method: str, headers: Dict[str, str]) -> Union[
+        Tuple[User, str], None]:
         assert auth_method is not None, "Missing `auth_method` parameter"
         if token is None:
             return None
@@ -242,7 +289,8 @@ class AuthService:
             for post_auth_hook in self.post_auth_hooks:
                 user = post_auth_hook(user, token, headers)
             return user, token
-        except (InvalidTokenError, ValueError, User.DoesNotExist):
+        except (InvalidTokenError, ValueError, User.DoesNotExist) as e:
+            _logger.error(f"Error authenticating token: {e}")
             return None
 
     def authenticate_http_request(self, request) -> Union[Tuple[User, str], None]:
@@ -250,7 +298,8 @@ class AuthService:
         if token in self.applicative_users:
             applicative_user = User.objects.get(username=self.applicative_users[token])
             return applicative_user, token
-        return self.authenticate_token(token=token, auth_method=auth_method or JWT_AUTH_MODE, headers=request.headers)
+        return self.authenticate_token(token=token, auth_method=auth_method or settings.JWT_AUTH_MODE,
+                                       headers=request.headers)
 
     def authenticate_ws_request(self, token: str, auth_method: str, headers: Dict[str, str]) -> Union[User, None]:
         res = self.authenticate_token(token=token, auth_method=auth_method, headers=headers)
@@ -266,7 +315,7 @@ class AuthService:
     def get_auth_data(self, request) -> Tuple[str, str]:
         auth_token, auth_method = self.get_token_from_headers(request)
         if not auth_token:
-            auth_token = request.COOKIES.get(ACCESS_TOKEN_COOKIE)
+            auth_token = request.COOKIES.get(settings.ACCESS_TOKEN_COOKIE)
         return auth_token, auth_method
 
     def get_token_from_headers(self, request) -> Tuple[Union[str, None], Union[str, None]]:
