@@ -301,7 +301,7 @@ class AuthService:
         if token in self.applicative_users:
             applicative_user = User.objects.get(username=self.applicative_users[token])
             return applicative_user, token
-        return self.authenticate_token(token=token, auth_method=auth_method or settings.JWT_AUTH_MODE,
+        return self.authenticate_token(token=token, auth_method=auth_method or settings.OIDC_AUTH_MODE,
                                        headers=request.headers)
 
     def authenticate_ws_request(self, token: str, auth_method: str, headers: Dict[str, str]) -> Union[User, None]:
