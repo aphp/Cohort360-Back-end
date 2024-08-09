@@ -263,7 +263,7 @@ CACHES = {
         "LOCATION": CELERY_BROKER_URL
     }
 }
-if env("DISABLE_CACHE"):
+if not env.bool("ENABLE_CACHE"):
     CACHES = {'default': {'BACKEND': 'admin_cohort.tools.cache.CustomDummyCache'}}
 
 REST_FRAMEWORK_EXTENSIONS = {"DEFAULT_PARENT_LOOKUP_KWARG_NAME_PREFIX": "",
