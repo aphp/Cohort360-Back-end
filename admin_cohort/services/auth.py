@@ -81,7 +81,6 @@ class OIDCAuthConfig:
     client_secret: str
     grant_type: str
     redirect_uri: str
-    audience: List[str]
 
     @property
     def client_identity(self) -> dict[str, str]:
@@ -112,8 +111,7 @@ def build_oidc_configs() -> List[OIDCAuthConfig]:
                                           client_id=env(f"OIDC_CLIENT_ID_{i}"),
                                           client_secret=env(f"OIDC_CLIENT_SECRET_{i}"),
                                           grant_type=env(f"OIDC_GRANT_TYPE_{i}"),
-                                          redirect_uri=env(f"OIDC_REDIRECT_URI_{i}"),
-                                          audience=env(f"OIDC_CLIENT_AUDIENCE_{i}").split(",")))
+                                          redirect_uri=env(f"OIDC_REDIRECT_URI_{i}")))
             i += 1
         else:
             break
@@ -127,6 +125,7 @@ class OIDCAuth(Auth):
     def __init__(self):
         super().__init__()
         self.oidc_extra_allowed_servers = env("OIDC_EXTRA_SERVER_URLS", default="").split(",")
+        self.audience = env("OIDC_AUDIENCE").split(',')
         self.refresh_grant_type = "refresh_token"
         self.oidc_configs = build_oidc_configs()
 
@@ -168,8 +167,6 @@ class OIDCAuth(Auth):
     def authenticate(self, token: str) -> str:
         decoded_token = self.decode_token(token=token, verify_signature=False)
         issuer = decoded_token.get("iss")
-        client_id = decoded_token.get("azp")
-        oidc_conf = self.get_oidc_config(client_id)
         assert issuer in self.recognised_issuers, f"Unrecognised issuer: `{issuer}`"
         issuer_certs_url = f"{issuer}/protocol/openid-connect/certs"
         response = requests.get(url=issuer_certs_url)
@@ -183,7 +180,7 @@ class OIDCAuth(Auth):
             public_keys[kid] = RSAAlgorithm.from_jwk(json.dumps(jwk))
         kid = jwt.get_unverified_header(token)['kid']
         key = public_keys.get(kid)
-        decoded = self.decode_token(token=token, key=key, issuer=issuer, audience=oidc_conf.audience)
+        decoded = self.decode_token(token=token, key=key, issuer=issuer, audience=self.audience)
         return super().retrieve_username(token_payload=decoded)
 
     def logout_user(self, payload: bytes, access_token: str):
