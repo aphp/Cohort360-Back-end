@@ -13,6 +13,7 @@ from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagin
 from cohort.models import DatedMeasure
 from cohort.serializers import DatedMeasureSerializer
 from cohort.services.dated_measure import dm_service
+from cohort.services.request_refresh_schedule import requests_refresher_service
 from cohort.services.utils import await_celery_task
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
@@ -62,7 +63,7 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                              type=openapi.TYPE_OBJECT,
                              properties={"request_query_snapshot_id": openapi.Schema(type=openapi.TYPE_STRING)},
                              required=["request_query_snapshot_id"]),
-                         responses={'200': openapi.Response("DatedMeasure created", DatedMeasureSerializer()),
+                         responses={'201': openapi.Response("DatedMeasure created", DatedMeasureSerializer()),
                                     '400': openapi.Response("Bad Request")})
     @transaction.atomic
     def create(self, request, *args, **kwargs):
@@ -92,4 +93,5 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         else:
             response = super().partial_update(request, *args, **kwargs)
         dm_service.ws_send_to_client(dm=dm)
+        requests_refresher_service.update_refresh_scheduler(dm=dm)
         return response

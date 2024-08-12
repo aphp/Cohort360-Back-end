@@ -1,5 +1,6 @@
 import functools
 import logging
+from enum import StrEnum
 from smtplib import SMTPException
 from typing import Callable
 
@@ -68,3 +69,9 @@ def get_authorization_header(request: Request) -> dict:
                }
     headers = add_trace_id(headers)
     return headers
+
+
+class RefreshFrequency(StrEnum):
+    DAILY = 'daily'
+    EVERY_OTHER_DAY = 'every_other_day'
+    WEEKLY = 'weekly'
