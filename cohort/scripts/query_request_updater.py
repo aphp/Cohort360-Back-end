@@ -56,7 +56,7 @@ class QueryRequestUpdater:
                  filter_mapping: Dict[str, Dict[str, str]],
                  filter_names_to_skip: Dict[str, List[str]],
                  filter_values_mapping: Dict[str, Dict[str, Dict[str, Union[str, Callable[[str], str]]]]],
-                 static_required_filters: Dict[str, List[str]],
+                 static_required_filters: Dict[str, List[Union[str, Callable[[List[str]], Optional[str]]]]],
                  resource_name_mapping: Dict[str, str],
                  post_process_basic_resource: Optional[Callable[[Any], bool]] = lambda x: False,
                  post_process_group_resource: Optional[Callable[[Any], bool]] = lambda x: False,
@@ -100,7 +100,12 @@ class QueryRequestUpdater:
         has_changed = False
         if resource in self.static_required_filters:
             for static_filter in self.static_required_filters[resource]:
-                if static_filter not in filters:
+                if callable(static_filter):
+                    new_filter = static_filter([*filters])
+                    if new_filter:
+                        has_changed = True
+                        filters.append(new_filter)
+                elif static_filter not in filters:
                     has_changed = True
                     filters.append(static_filter)
         return has_changed

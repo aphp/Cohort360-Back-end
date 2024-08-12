@@ -7,6 +7,8 @@ from django.conf import settings
 class CohortJobServerConfig(AppConfig):
     name = 'cohort_job_server'
 
+    USE_SOLR = getattr(settings, 'USE_SOLR', os.environ.get("USE_SOLR", "False").lower()) == "true"
+
     def ready(self):
         settings.COHORT_OPERATORS = [
             {

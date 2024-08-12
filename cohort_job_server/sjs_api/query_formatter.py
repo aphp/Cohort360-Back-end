@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 import requests
 
 from admin_cohort.settings import CRB_TEST_FHIR_QUERIES
+from cohort_job_server.apps import CohortJobServerConfig
 from cohort_job_server.sjs_api.enums import CriteriaType, ResourceType
 from cohort_job_server.sjs_api.exceptions import FhirException
 from cohort_job_server.sjs_api.schemas import FhirParameters
@@ -17,7 +18,8 @@ if TYPE_CHECKING:
 
 env = os.environ
 FHIR_URL = env.get("FHIR_URL")
-META_SECURITY_PSEUDED = env.get("META_SECURITY_PSEUDED")
+META_SECURITY_PSEUDED = env.get("META_SECURITY_PSEUDED",
+                                "meta.security=http://terminology.hl7.org/CodeSystem/v3-ObservationValue|PSEUDED")
 
 _logger = logging.getLogger("info")
 
@@ -62,9 +64,10 @@ class QueryFormatter:
                                                                           is_pseudo)
                 _logger.info(f"filterFhirEnriched {filter_fhir_enriched}")
 
-                solr_filter = self.get_mapping_criteria_filter_fhir_to_solr(criteria.filter_fhir,
-                                                                            criteria.resource_type)
-                criteria.filter_solr = solr_filter
+                if CohortJobServerConfig.USE_SOLR:
+                    solr_filter = self.get_mapping_criteria_filter_fhir_to_solr(criteria.filter_fhir,
+                                                                                criteria.resource_type)
+                    criteria.filter_solr = solr_filter
                 return criteria
 
             for sub_criteria in criteria.criteria:

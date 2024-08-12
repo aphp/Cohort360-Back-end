@@ -4,8 +4,8 @@ from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
 
 from admin_cohort.serializers import BaseSerializer
-from .models import Role, Access, Profile, Perimeter, Right
-from .services.roles import roles_service
+from accesses.models import Role, Access, Profile, Perimeter, Right
+from accesses.services.roles import roles_service
 
 _logger = logging.getLogger('django.request')
 

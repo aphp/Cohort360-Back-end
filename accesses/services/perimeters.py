@@ -2,9 +2,7 @@ from functools import reduce
 from typing import Set, List
 
 from django.db.models import QuerySet, Q
-from django.http import Http404
 
-from accesses.conf_perimeters import FactRelationShip
 from accesses.models import Perimeter, Role
 from accesses.services.accesses import accesses_service
 from accesses.services.shared import PerimeterReadRight
@@ -39,9 +37,9 @@ class PerimetersService:
         return top_perimeters_ids
 
     @staticmethod
-    def get_top_perimeter_ids_inf_levels(inf_levels_perimeters_ids: List[int],
-                                         all_perimeters_ids: List[int],
-                                         top_same_level_perimeters_ids: Set[int]) -> Set[int]:
+    def get_top_perimeters_ids_inf_levels(inf_levels_perimeters_ids: List[int],
+                                          all_perimeters_ids: List[int],
+                                          top_same_level_perimeters_ids: Set[int]) -> Set[int]:
         """
         Get the highest perimeters on which are defined accesses allowing to manage other accesses on inf levels ONLY.
         --> The manageable perimeters will be their direct children (because accesses here allow to manage on inf levels ONLY).
@@ -86,30 +84,17 @@ class PerimetersService:
 
             top_same_level_perimeters_ids = self.get_top_perimeters_ids_same_level(same_level_perimeters_ids=same_level_perimeters_ids,
                                                                                    all_perimeters_ids=all_perimeters_ids)
-            top_inf_levels_perimeters_ids = self.get_top_perimeter_ids_inf_levels(inf_levels_perimeters_ids=inf_levels_perimeters_ids,
-                                                                                  all_perimeters_ids=all_perimeters_ids,
-                                                                                  top_same_level_perimeters_ids=top_same_level_perimeters_ids)
+            top_inf_levels_perimeters_ids = self.get_top_perimeters_ids_inf_levels(inf_levels_perimeters_ids=inf_levels_perimeters_ids,
+                                                                                   all_perimeters_ids=all_perimeters_ids,
+                                                                                   top_same_level_perimeters_ids=top_same_level_perimeters_ids)
             return Perimeter.objects.filter(id__in=top_same_level_perimeters_ids.union(top_inf_levels_perimeters_ids))
 
     @staticmethod
-    def get_list_cohort_id_care_site(cohorts_ids: List[str], owner: User):
-        fact_relationships = FactRelationShip.objects.raw(FactRelationShip.psql_query_get_cohort_population_source(cohorts_ids))
-        cohort_pop_source = cohorts_ids.copy()
-        for fact in fact_relationships:
-            if not owner.user_cohorts.filter(group_id=fact.fact_id_1).exists():
-                raise Http404(f"The cohort with id={fact.fact_id_1} does not belong to user '{owner.display_name}'")
-            if fact.fact_id_1 in cohort_pop_source:
-                cohort_pop_source.remove(fact.fact_id_1)
-            cohort_pop_source.append(fact.fact_id_2)
-        return cohort_pop_source
-
-    def get_target_perimeters(self, cohort_ids: str, owner: User) -> QuerySet:
-        virtual_cohort_ids = self.get_list_cohort_id_care_site(cohorts_ids=[cohort_id for cohort_id in cohort_ids.split(",")],
-                                                               owner=owner)
-        return Perimeter.objects.filter(cohort_id__in=virtual_cohort_ids)
+    def get_target_perimeters(cohort_ids: str) -> QuerySet:
+        return Perimeter.objects.filter(cohort_id__in=cohort_ids.split(","))
 
     @staticmethod
-    def get_top_perimeters_with_right_read_nomi(read_nomi_perimeters_ids: List[int]) -> List[int]:
+    def get_top_perimeters_with_read_nomi_right(read_nomi_perimeters_ids: List[int]) -> List[int]:
         """ for each perimeter with nominative read right, remove it if any of its parents has nomi access """
         for perimeter in Perimeter.objects.filter(id__in=read_nomi_perimeters_ids):
             if any(parent_id in read_nomi_perimeters_ids for parent_id in perimeter.above_levels):
@@ -120,7 +105,7 @@ class PerimetersService:
         return read_nomi_perimeters_ids
 
     @staticmethod
-    def get_top_perimeters_with_right_read_pseudo(top_read_nomi_perimeters_ids: List[int],
+    def get_top_perimeters_with_read_pseudo_right(top_read_nomi_perimeters_ids: List[int],
                                                   read_pseudo_perimeters_ids: List[int]) -> List[int]:
         """ for each perimeter with pseudo read right, remove it if it has nomi access too
             or if any of its parents has nomi or pseudo access
@@ -173,8 +158,8 @@ class PerimetersService:
         read_nomi_perimeters_ids = [access.perimeter_id for access in read_patient_nominative_accesses]
         read_pseudo_perimeters_ids = [access.perimeter_id for access in read_patient_pseudo_accesses]
 
-        top_read_nomi_perimeters_ids = self.get_top_perimeters_with_right_read_nomi(read_nomi_perimeters_ids=read_nomi_perimeters_ids)
-        top_read_pseudo_perimeters_ids = self.get_top_perimeters_with_right_read_pseudo(top_read_nomi_perimeters_ids=top_read_nomi_perimeters_ids,
+        top_read_nomi_perimeters_ids = self.get_top_perimeters_with_read_nomi_right(read_nomi_perimeters_ids=read_nomi_perimeters_ids)
+        top_read_pseudo_perimeters_ids = self.get_top_perimeters_with_read_pseudo_right(top_read_nomi_perimeters_ids=top_read_nomi_perimeters_ids,
                                                                                         read_pseudo_perimeters_ids=read_pseudo_perimeters_ids)
 
         if is_request_filtered:

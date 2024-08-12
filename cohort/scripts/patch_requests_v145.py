@@ -1,5 +1,6 @@
 import logging
 import sys
+from typing import List, Optional
 
 from cohort.scripts.patch_requests_v144 import NEW_VERSION as PREV_VERSION
 from cohort.scripts.query_request_updater import RESOURCE_DEFAULT, QueryRequestUpdater
@@ -24,9 +25,17 @@ code_mapping_cache = {
 FILTER_VALUE_MAPPING = {
 }
 
+
+def return_filter_if_not_exist(filters: List[str], filter_name: str, filter_value: str) -> Optional[str]:
+    filter_names = [f.split("=")[0] for f in filters]
+    if filter_name not in filter_names:
+        return f"{filter_name}={filter_value}"
+    return None
+
+
 STATIC_REQUIRED_FILTERS = {
     "Observation": [
-        "value-quantity=ge0,le0"
+        lambda filters: return_filter_if_not_exist(filters, "value-quantity", "ge0,le0")
     ]
 }
 

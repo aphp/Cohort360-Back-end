@@ -7,7 +7,6 @@ import environ
 import pytz
 from celery.schedules import crontab
 
-
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 env = environ.Env()
@@ -53,34 +52,35 @@ logging.captureWarnings(True)
 LOGGING = dict(version=1,
                disable_existing_loggers=False,
                loggers={
-                    'info': {
+                   'info': {
                        'level': "INFO",
                        'handlers': ['info_handler'] + (DEBUG and ['console'] or []),
                        'propagate': False
-                    },
-                    'django.request': {
+                   },
+                   'django.request': {
                        'level': "ERROR",
-                       'handlers': ['error_handler'] + (DEBUG and ['console'] or []) + (NOTIFY_ADMINS and ['mail_admins'] or []),
+                       'handlers': ['error_handler'] + (DEBUG and ['console'] or []) + (
+                               NOTIFY_ADMINS and ['mail_admins'] or []),
                        'propagate': False
-                    }
+                   }
                },
                handlers={
                    'console': {
                        'level': "INFO",
                        'class': "logging.StreamHandler"
-                    },
+                   },
                    'info_handler': {
                        'level': "INFO",
                        'class': "admin_cohort.tools.logging.CustomSocketHandler",
                        'host': "localhost",
                        'port': DEFAULT_TCP_LOGGING_PORT,
-                    },
+                   },
                    'error_handler': {
                        'level': "ERROR",
                        'class': "admin_cohort.tools.logging.CustomSocketHandler",
                        'host': "localhost",
                        'port': DEFAULT_TCP_LOGGING_PORT,
-                    },
+                   },
                    'mail_admins': {
                        'level': "ERROR",
                        'class': "django.utils.log.AdminEmailHandler",
@@ -89,7 +89,9 @@ LOGGING = dict(version=1,
                })
 
 # Application definition
-INCLUDED_APPS = env('INCLUDED_APPS').split(",")
+INCLUDED_APPS = env('INCLUDED_APPS', default='accesses,cohort_job_server,cohort,exports').split(",")
+INFLUXDB_DISABLED = int(env("INFLUXDB_DISABLED")) == 1
+ENABLE_JWT = env("ENABLE_JWT", default=False)
 
 INSTALLED_APPS = ['django.contrib.admin',
                   'django.contrib.auth',
@@ -109,18 +111,21 @@ INSTALLED_APPS = ['django.contrib.admin',
                   'django_celery_beat',
                   'admin_cohort'] + INCLUDED_APPS
 
-MIDDLEWARE = ['admin_cohort.middleware.influxdb_middleware.InfluxDBMiddleware',
-              'django.middleware.security.SecurityMiddleware',
-              'django.contrib.sessions.middleware.SessionMiddleware',
-              'corsheaders.middleware.CorsMiddleware',
-              'django.middleware.common.CommonMiddleware',
-              'django.middleware.csrf.CsrfViewMiddleware',
-              'django.contrib.auth.middleware.AuthenticationMiddleware',
-              'django.contrib.messages.middleware.MessageMiddleware',
-              'django.middleware.clickjacking.XFrameOptionsMiddleware',
-              'admin_cohort.middleware.maintenance_middleware.MaintenanceModeMiddleware',
-              'admin_cohort.middleware.request_trace_id_middleware.RequestTraceIdMiddleware',
-              'admin_cohort.middleware.jwt_session_middleware.JWTSessionMiddleware']
+MIDDLEWARE = [
+    'django.middleware.security.SecurityMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'admin_cohort.middleware.maintenance_middleware.MaintenanceModeMiddleware',
+    'admin_cohort.middleware.request_trace_id_middleware.RequestTraceIdMiddleware',
+    'admin_cohort.middleware.jwt_session_middleware.JWTSessionMiddleware']
+MIDDLEWARE = (([
+                   'admin_cohort.middleware.influxdb_middleware.InfluxDBMiddleware'] if not INFLUXDB_DISABLED else []) +
+              MIDDLEWARE)
 
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
@@ -151,16 +156,7 @@ DATABASES = {'default': {'ENGINE': 'django.db.backends.postgresql',
                          'HOST': env("DB_AUTH_HOST"),
                          'PORT': env("DB_AUTH_PORT"),
                          'TEST': {'NAME': 'test_portail'}
-                         },
-             'omop': {'ENGINE': 'django.db.backends.postgresql',
-                      'NAME': env("DB_OMOP_NAME"),
-                      'USER': env("DB_OMOP_USER"),
-                      'PASSWORD': env("DB_OMOP_PASSWORD"),
-                      'HOST': env("DB_OMOP_HOST"),
-                      'PORT': env("DB_OMOP_PORT"),
-                      'DISABLE_SERVER_SIDE_CURSORS': True,
-                      'OPTIONS': {'options': f"-c search_path={env('DB_OMOP_SCHEMA')},public"}
-                      }
+                         }
              }
 
 LANGUAGE_CODE = 'en-us'
@@ -197,12 +193,9 @@ AUTH_USER_MODEL = 'admin_cohort.User'
 EMAIL_USE_TLS = env("EMAIL_USE_TLS").lower() == "true"
 EMAIL_HOST = env("EMAIL_HOST")
 EMAIL_PORT = env("EMAIL_PORT")
-EMAIL_BACK_HOST_URL = env("EMAIL_BACK_HOST_URL")
 EMAIL_SUPPORT_CONTACT = env("EMAIL_SUPPORT_CONTACT")
 EMAIL_SENDER_ADDRESS = env("EMAIL_SENDER_ADDRESS")
 EMAIL_REGEX_CHECK = env("EMAIL_REGEX_CHECK", default=r"^[\w.+-]+@[\w-]+\.[\w]+$")
-
-DAYS_TO_KEEP_EXPORTED_FILES = int(env("DAYS_TO_KEEP_EXPORTED_FILES", default=7))
 
 # Celery
 CELERY_BROKER_URL = env("CELERY_BROKER_URL")
@@ -213,11 +206,16 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_TASK_ALWAYS_EAGER = False
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
-if env('LOCAL_TASKS', default=''):
+DEFAULT_LOCAL_TASKS = """
+count_users_on_perimeters,accesses.tasks.count_users_on_perimeters,5,30;
+check_expiring_accesses,accesses.tasks.check_expiring_accesses,6,0
+"""
+LOCAL_TASKS = env('LOCAL_TASKS', default=DEFAULT_LOCAL_TASKS)
+if LOCAL_TASKS:
     CELERY_BEAT_SCHEDULE = {task_name: {'task': task,
                                         'schedule': crontab(hour=hour, minute=minute)}
                             for (task_name, task, hour, minute) in [task.strip().split(',')
-                            for task in env('LOCAL_TASKS').split(';')]
+                                                                    for task in LOCAL_TASKS.split(';')]
                             }
 
 # CONSTANTS
@@ -242,17 +240,16 @@ DEFAULT_EXCEPTION_REPORTER_FILTER = 'admin_cohort.tools.except_report_filter.Cus
 SENSITIVE_PARAMS = env('SENSITIVE_PARAMS').split(",")
 
 # COHORTS +20k
-LAST_COUNT_VALIDITY = int(env("LAST_COUNT_VALIDITY", default=24))    # in hours
+LAST_COUNT_VALIDITY = int(env("LAST_COUNT_VALIDITY", default=24))  # in hours
 COHORT_LIMIT = int(env("COHORT_LIMIT", default=20_000))
 
 ROLLOUT_USERNAME = env("ROLLOUT_USERNAME", default="ROLLOUT_PIPELINE")
 
 # InfluxDB
-INFLUXDB_DISABLED = int(env("INFLUXDB_DISABLED")) == 1
-INFLUXDB_TOKEN = env("INFLUXDB_DJANGO_TOKEN")
-INFLUXDB_URL = env("INFLUXDB_URL")
-INFLUXDB_ORG = env("INFLUXDB_ORG")
-INFLUXDB_BUCKET = env("INFLUXDB_BUCKET")
+INFLUXDB_TOKEN = env("INFLUXDB_DJANGO_TOKEN", default="" if INFLUXDB_DISABLED else environ.Env.NOTSET)
+INFLUXDB_URL = env("INFLUXDB_URL", default="" if INFLUXDB_DISABLED else environ.Env.NOTSET)
+INFLUXDB_ORG = env("INFLUXDB_ORG", default="" if INFLUXDB_DISABLED else environ.Env.NOTSET)
+INFLUXDB_BUCKET = env("INFLUXDB_BUCKET", default="" if INFLUXDB_DISABLED else environ.Env.NOTSET)
 
 # CACHE
 CACHES = {
@@ -261,7 +258,7 @@ CACHES = {
         "LOCATION": CELERY_BROKER_URL
     }
 }
-if env("DISABLE_CACHE"):
+if not env.bool("ENABLE_CACHE"):
     CACHES = {'default': {'BACKEND': 'admin_cohort.tools.cache.CustomDummyCache'}}
 
 REST_FRAMEWORK_EXTENSIONS = {"DEFAULT_PARENT_LOOKUP_KWARG_NAME_PREFIX": "",
@@ -274,10 +271,14 @@ REST_FRAMEWORK_EXTENSIONS = {"DEFAULT_PARENT_LOOKUP_KWARG_NAME_PREFIX": "",
 # ACCESSES
 ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS = int(env("ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS", default=30))
 ACCESS_EXPIRY_SECOND_ALERT_IN_DAYS = int(env("ACCESS_EXPIRY_SECOND_ALERT_IN_DAYS", default=2))
-MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS = int(env("ACCESS_MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS", default=2*365))
+MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS = int(env("ACCESS_MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS", default=2 * 365))
 
-# CRB
+# COHORT_JOB_SERVER
 CRB_TEST_FHIR_QUERIES = bool(env("CRB_TEST_FHIR_QUERIES", default=False))
+USE_SOLR = bool(env("USE_SOLR", default=False))
+
+# EXPORTS
+DAYS_TO_KEEP_EXPORTED_FILES = int(env("DAYS_TO_KEEP_EXPORTED_FILES", default=7))
 
 # WebSockets
 WEBSOCKET_MANAGER = {"module": "cohort.services.ws_event_manager",
@@ -292,7 +293,6 @@ CHANNEL_LAYERS = {
         },
     },
 }
-
 
 # todo: replace `INFRA_API_URL`  by `EXPORT_API_URL`
 #       replace `EXPORT_OMOP_ENVIRONMENT`  by `EXPORT_ENVIRONMENT`
