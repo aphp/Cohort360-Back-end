@@ -141,7 +141,7 @@ jobs:
 
       - name: Retrieve version
         run: |
-          VERSION=$(cat ./admin_cohort/__init__.py | grep __version__ | head -1 | awk -F'=' '{ print $2 }' | sed "s/[' ]//g")
+          VERSION=$(head -n 20 ./admin_cohort/settings.py | grep VERSION | head -1 | awk -F'=' '{ print $2 }' | sed "s/[' ]//g")
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Set up Docker Buildx
