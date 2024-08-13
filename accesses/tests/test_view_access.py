@@ -376,11 +376,7 @@ class AccessViewTests(AccessesAppTestsBase):
             for case in (case_1, case_2):
                 self.check_get_paged_list_case(case=case)
 
-        def test_list_accesses_on_p_as_user_y_is_xxx_on_p():
-            ...
-
         test_list_accesses_on_p2_as_user_y_is_full_admin_on_aphp()
-        test_list_accesses_on_p_as_user_y_is_xxx_on_p()
 
     def test_successfully_get_my_accesses(self):
         self.create_new_access_for_user(profile=self.profile_y, role=self.role_data_accesses_manager, perimeter=self.p7)

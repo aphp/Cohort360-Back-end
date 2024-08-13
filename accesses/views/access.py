@@ -83,7 +83,7 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
                                                                  accesses=accesses)
         if request.query_params.get("perimeter_id"):
             accesses = accesses_service.get_accesses_on_perimeter(user=request.user,
-                                                                  accesses=accesses,
+                                                                  accesses=self.get_queryset(),
                                                                   perimeter_id=request.query_params.get("perimeter_id"),
                                                                   include_parents=json.loads(request.query_params.get("include_parents", "false")))
         page = self.paginate_queryset([a for a in accesses])

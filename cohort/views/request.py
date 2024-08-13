@@ -22,6 +22,9 @@ class RequestViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     queryset = Request.objects.all()
     serializer_class = RequestSerializer
     http_method_names = ["get", "post", "patch", "delete"]
+    filterset_fields = ('favorite',
+                        'parent_folder',
+                        'shared_by')
     search_fields = ("$name", "$description",)
     swagger_tags = ["Requests"]
 

@@ -167,12 +167,6 @@ class RqsGetTests(RqsTests):
                          if rqs.shared_by == self.user2],
             ),
             basic_case.clone(
-                params=dict(search=self.str_pattern),
-                to_find=[rqs for rqs in user1_rqss
-                         if self.str_pattern.lower()
-                         in rqs.serialized_query.lower()],
-            ),
-            basic_case.clone(
                 params=dict(previous_snapshot=prev_rqs.pk),
                 to_find=list(prev_rqs.next_snapshots.all()),
             ),

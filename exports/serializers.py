@@ -26,7 +26,7 @@ class InfrastructureProviderSerializer(serializers.ModelSerializer):
 
 
 class ExportResultStatSerializer(serializers.ModelSerializer):
-    export = serializers.SlugRelatedField(read_only=True, slug_field='target_name')
+    export_target = serializers.CharField(read_only=True, source='export.target_name')
 
     class Meta:
         model = ExportResultStat

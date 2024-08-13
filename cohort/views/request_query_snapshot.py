@@ -20,6 +20,11 @@ class RequestQuerySnapshotViewSet(NestedViewSetMixin, UserObjectsRestrictedViewS
     serializer_class = RQSSerializer
     http_method_names = ['get', 'post']
     swagger_tags = ['Request Query Snapshots']
+    filterset_fields = ['request',
+                        'shared_by',
+                        'previous_snapshot',
+                        'request',
+                        'request__parent_folder']
 
     @extend_schema(request=RQSCreateSerializer, responses={status.HTTP_201_CREATED: RQSSerializer})
     def create(self, request, *args, **kwargs):
