@@ -65,3 +65,17 @@ def send_email_notif_error_feasibility_report(request_name: str, owner: User) ->
                                     txt_template="txt/feasibility_report_error.txt",
                                     context=context)
     email_notif.push()
+
+
+def send_email_notif_count_request_refreshed(request_name: str, owner: User) -> None:
+    subject = "Votre requête a été bien rafraichie"
+    context = {**BASE_CONTEXT,
+               "recipient_name": owner.display_name,
+               "request_name": request_name,
+               }
+    email_notif = EmailNotification(subject=subject,
+                                    to=owner.email,
+                                    html_template="html/count_request_refreshed.html",
+                                    txt_template="txt/count_request_refreshed.txt",
+                                    context=context)
+    email_notif.push()

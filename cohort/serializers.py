@@ -3,7 +3,7 @@ from rest_framework import serializers
 from admin_cohort.models import User
 from admin_cohort.serializers import BaseSerializer, UserSerializer
 from admin_cohort.types import MissingDataError
-from cohort.models import CohortResult, DatedMeasure, Folder, Request, RequestQuerySnapshot, FhirFilter, FeasibilityStudy
+from cohort.models import CohortResult, DatedMeasure, Folder, Request, RequestQuerySnapshot, FhirFilter, FeasibilityStudy, RequestRefreshSchedule
 
 
 class PrimaryKeyRelatedFieldWithOwner(serializers.PrimaryKeyRelatedField):
@@ -328,3 +328,12 @@ class FeasibilityStudyPatchSerializer(DatedMeasurePatchSerializer):
             data["group.count"] = data.pop("group_count")
         return super().to_internal_value(data)
 
+
+class RequestRefreshScheduleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RequestRefreshSchedule
+        fields = '__all__'
+        read_only_fields = ["last_refresh",
+                            "last_refresh_succeeded",
+                            "last_refresh_count",
+                            "last_refresh_error_msg"]

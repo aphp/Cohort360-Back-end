@@ -8,11 +8,11 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
-from accesses.views import BaseViewSet
-from admin_cohort.tools.cache import cache_response
 from admin_cohort.permissions import IsAuthenticatedReadOnly
 from admin_cohort.tools import join_qs
+from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
+from accesses.views import BaseViewSet
 from accesses.services.accesses import accesses_service
 from accesses.services.perimeters import perimeters_service
 from accesses.models import Perimeter
@@ -100,6 +100,14 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
     @action(detail=False, methods=['get'], url_path="patient-data/read")
     @cache_response()
     def check_read_patient_data_rights(self, request, *args, **kwargs):
+        """
+        mode=min:
+            * all perimeters must be accessible otherwise return HTTP404
+            * all perimeters must be accessible in nominative mode else: allow_read_patient_data_nomi = False
+        mode=max:
+            * at least one perimeter must be accessible otherwise return HTTP404
+            * at least one perimeter must be accessible in nominative mode else: allow_read_patient_data_nomi = False
+        """
         user = request.user
         cohort_ids = request.query_params.get("cohort_ids")
         read_mode = request.query_params.get('mode')
@@ -122,7 +130,9 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
         if not target_perimeters:
             return Response(data={"error": "None of the target perimeters was found"}, status=status.HTTP_404_NOT_FOUND)
 
-        if not accesses_service.user_has_data_reading_accesses(user=user):
+        if not accesses_service.user_has_data_reading_accesses_on_target_perimeters(user=user,
+                                                                                    target_perimeters=target_perimeters,
+                                                                                    read_mode=read_mode):
             return Response(data={"error": "User has no data reading accesses"}, status=status.HTTP_404_NOT_FOUND)
 
         if read_mode == MAX:

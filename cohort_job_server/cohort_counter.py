@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import Tuple
 
@@ -5,7 +6,7 @@ from django.utils import timezone
 
 from admin_cohort.types import JobStatus
 from cohort_job_server.base_operator import BaseCohortOperator
-from cohort_job_server.sjs_api import CohortCount, CohortCountAll, FeasibilityCount, sjs_status_mapper
+from cohort_job_server.sjs_api import CohortCount, CohortCountAll, FeasibilityCount, sjs_status_mapper, SJSClient, CohortQuery
 from cohort_job_server.utils import _logger, JOB_STATUS, COUNT, MINIMUM, MAXIMUM, EXTRA, ERR_MESSAGE
 
 _logger_err = logging.getLogger('django.request')
@@ -18,6 +19,18 @@ class CohortCounter(BaseCohortOperator):
         self.sjs_requester.launch_request(count_cls(instance_id=dm_id,
                                                     json_query=json_query,
                                                     auth_headers=auth_headers))
+
+    @staticmethod
+    def translate_query(dm_id: str, json_query: str, auth_headers: dict) -> str:
+        cohort_query = CohortQuery(instance_id=dm_id, **json.loads(json_query))
+        cohort_count = CohortCount(instance_id=dm_id,
+                                   json_query=json_query,
+                                   auth_headers=auth_headers)
+        return cohort_count.create_sjs_request(cohort_query=cohort_query)
+
+    @staticmethod
+    def refresh_dated_measure_count(translated_query: str) -> None:
+        SJSClient().count(input_payload=translated_query)
 
     def launch_feasibility_study_count(self, fs_id: str, json_query: str, auth_headers: dict) -> bool:
         response = self.sjs_requester.launch_request(FeasibilityCount(instance_id=fs_id,

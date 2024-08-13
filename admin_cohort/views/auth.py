@@ -50,11 +50,12 @@ class OIDCLoginView(RequestLogMixin, viewsets.GenericViewSet):
     @extend_schema(exclude=True)
     def post(self, request, *args, **kwargs):
         auth_code = request.data.get("auth_code")
+        redirect_uri = request.data.get("redirect_uri")
         if not auth_code:
             return JsonResponse(data={"error": "OIDC Authorization Code not provided"},
                                 status=status.HTTP_400_BAD_REQUEST)
         try:
-            user = authenticate(request=request, code=auth_code)
+            user = authenticate(request=request, code=auth_code, redirect_uri=redirect_uri)
         except User.DoesNotExist:
             return JsonResponse(data={"error": "User not found in database"},
                                 status=status.HTTP_401_UNAUTHORIZED)

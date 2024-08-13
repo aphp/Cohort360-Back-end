@@ -27,6 +27,22 @@ class DefaultCohortCounter(DefaultCohortOperator):
         raise NotImplementedError()
 
     @staticmethod
+    def translate_query(*args, **kwargs) -> None:
+        """
+        request an API to translate the count query and save it for future use
+        @return: None
+        """
+        raise NotImplementedError()
+
+    @staticmethod
+    def refresh_dated_measure_count(*args, **kwargs) -> None:
+        """
+        request an API to execute the count query
+        @return: None
+        """
+        raise NotImplementedError()
+
+    @staticmethod
     def launch_feasibility_study_count(*args, **kwargs) -> bool:
         """
         request an API to execute the count query

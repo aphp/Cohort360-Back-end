@@ -9,6 +9,7 @@ from rest_framework_extensions.mixins import NestedViewSetMixin
 from cohort.models import DatedMeasure
 from cohort.serializers import DatedMeasureSerializer, DatedMeasureCreateSerializer, DatedMeasurePatchSerializer
 from cohort.services.dated_measure import dm_service
+from cohort.services.request_refresh_schedule import requests_refresher_service
 from cohort.services.utils import await_celery_task
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
@@ -58,4 +59,5 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         else:
             response = super().partial_update(request, *args, **kwargs)
         dm_service.ws_send_to_client(dm=dm)
+        requests_refresher_service.update_refresh_scheduler(dm=dm)
         return response

@@ -5,6 +5,7 @@ from unittest import mock
 from django.test import TestCase
 
 from admin_cohort.models import User
+from cohort_job_server.apps import CohortJobServerConfig
 from cohort_job_server.sjs_api import QueryFormatter, BaseCohortRequest
 from cohort_job_server.sjs_api.enums import ResourceType
 from cohort_job_server.sjs_api.exceptions import FhirException
@@ -59,6 +60,7 @@ class TestQueryFormatter(TestCase):
                 FhirParameter(name="collection", valueString=ResourceType.PATIENT),
             ]
         )
+        CohortJobServerConfig.USE_SOLR = True
 
     @mock.patch("cohort_job_server.sjs_api.query_formatter.query_fhir")
     def test_format_to_fhir_simple_query(self, query_fhir):
