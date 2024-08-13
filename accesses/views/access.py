@@ -4,25 +4,24 @@ from django.db.models import BooleanField, When, Case, Value, QuerySet
 from django.utils import timezone
 from django_filters import OrderingFilter
 from django_filters import rest_framework as filters
-from drf_yasg import openapi
-from drf_yasg.utils import swagger_auto_schema
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from accesses.services.accesses import accesses_service
+from accesses.views import BaseViewSet
 from admin_cohort.permissions import IsAuthenticated
 from admin_cohort.settings import ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools.request_log_mixin import RequestLogMixin
-from admin_cohort.views import BaseViewSet
 from accesses.models import Access
 from accesses.permissions import AccessesPermission
 from accesses.serializers import AccessSerializer, DataRightSerializer, ExpiringAccessesSerializer
 
 
 class AccessFilter(filters.FilterSet):
-    profile_id = filters.CharFilter(field_name="profile_id")
     ordering = OrderingFilter(fields=('start_datetime',
                                       'end_datetime',
                                       'created_by',
@@ -33,7 +32,12 @@ class AccessFilter(filters.FilterSet):
 
     class Meta:
         model = Access
-        fields = "__all__"
+        fields = ("source",
+                  "perimeter_id",
+                  "role_id",
+                  "profile_id",
+                  "start_datetime",
+                  "end_datetime")
 
 
 class AccessViewSet(RequestLogMixin, BaseViewSet):
@@ -44,15 +48,16 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
     permission_classes = [IsAuthenticated, AccessesPermission]
     http_method_names = ['get', 'post', 'patch', 'delete']
     logging_methods = ['POST', 'PATCH', 'DELETE']
-    swagger_tags = ['Accesses - accesses']
-    search_fields = ["profile__firstname",
-                     "profile__lastname",
-                     "profile__email",
+    swagger_tags = ['Accesses']
+    search_fields = ["profile__user__firstname",
+                     "profile__user__lastname",
+                     "profile__user__email",
                      "profile__user_id",
                      "perimeter__name"]
 
     def get_permissions(self):
-        if self.action in ("get_my_accesses", "get_my_data_reading_rights"):
+        if self.action in (self.get_my_accesses.__name__,
+                           self.get_my_data_reading_rights.__name__):
             return [IsAuthenticated()]
         return super().get_permissions()
 
@@ -62,19 +67,14 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
         return self.serializer_class
 
     def get_queryset(self) -> QuerySet:
-        queryset = super(AccessViewSet, self).get_queryset()
+        queryset = super().get_queryset()
         now = timezone.now()
         queryset = queryset.annotate(sql_is_valid=Case(When(start_datetime__lte=now, end_datetime__gte=now, then=Value(True)),
                                                        default=Value(False), output_field=BooleanField()))
         return queryset
 
-    @swagger_auto_schema(manual_parameters=list(map(lambda x: openapi.Parameter(in_=openapi.IN_QUERY, name=x[0], description=x[1], type=x[2]),
-                                                    [["user_id", "Search type", openapi.TYPE_STRING],
-                                                     ["perimeter_id", "Filter type", openapi.TYPE_STRING],
-                                                     ["include_parents", "Filter type", openapi.TYPE_BOOLEAN],
-                                                     ["search", f"Will search in multiple fields: {','.join(search_fields)}", openapi.TYPE_STRING],
-                                                     ["ordering", "Order by role_name, start_datetime, end_datetime, is_valid. Prepend '-' for "
-                                                                  "descending order", openapi.TYPE_STRING]])))
+    @extend_schema(responses={status.HTTP_200_OK: AccessSerializer},
+                   parameters=[OpenApiParameter("include_parents", OpenApiTypes.BOOL)])
     @cache_response()
     def list(self, request, *args, **kwargs):
         accesses = self.filter_queryset(self.get_queryset())
@@ -83,7 +83,7 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
                                                                  accesses=accesses)
         if request.query_params.get("perimeter_id"):
             accesses = accesses_service.get_accesses_on_perimeter(user=request.user,
-                                                                  accesses=accesses,
+                                                                  accesses=self.get_queryset(),
                                                                   perimeter_id=request.query_params.get("perimeter_id"),
                                                                   include_parents=json.loads(request.query_params.get("include_parents", "false")))
         page = self.paginate_queryset([a for a in accesses])
@@ -93,45 +93,26 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
         serializer = self.get_serializer(accesses, many=True)
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
-    @swagger_auto_schema(request_body=openapi.Schema(
-        type=openapi.TYPE_OBJECT,
-        properties={"profile_id": openapi.Schema(type=openapi.TYPE_INTEGER),
-                    "perimeter_id": openapi.Schema(type=openapi.TYPE_INTEGER),
-                    "role_id": openapi.Schema(type=openapi.TYPE_INTEGER),
-                    "start_datetime": openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME,
-                                                     description="Doit être dans le futur.\nSi vide ou null, sera défini à now().\nDoit contenir "
-                                                                 "la timezone ou bien sera considéré comme UTC."),
-                    "end_datetime": openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME,
-                                                   description="Doit être dans le futur. \nSi vide ou null, sera défini à start_datetime +2 "
-                                                               "ans.\nDoit contenir la timezone ou bien sera considéré comme UTC.")},
-        required=['profile_id', 'perimeter_id', 'role_id']))
+    @extend_schema(request=AccessSerializer,
+                   responses={status.HTTP_201_CREATED: AccessSerializer})
     def create(self, request, *args, **kwargs):
         try:
             accesses_service.process_create_data(data=request.data)
         except ValueError as e:
             return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        return super(AccessViewSet, self).create(request, *args, **kwargs)
+        return super().create(request, *args, **kwargs)
 
-    @swagger_auto_schema(request_body=openapi.Schema(
-        type=openapi.TYPE_OBJECT,
-        properties={"start_datetime": openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME,
-                                                     description="Doit être dans le futur.\nNe peut pas être modifié "
-                                                                 "si start_datetime actuel est déja passé.\nSera mis à "
-                                                                 "now() si null.\nDoit contenir la timezone ou bien "
-                                                                 "sera considéré comme UTC."),
-                    "end_datetime": openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME,
-                                                   description="Doit être dans le futur.\nNe peut pas être modifié si "
-                                                               "end_datetime actuel est déja passé.\nNe peut pas être "
-                                                               "mise à null.\nDoit contenir la timezone ou bien sera "
-                                                               "considéré comme UTC.")}))
+    @extend_schema(request=AccessSerializer,
+                   responses={status.HTTP_200_OK: AccessSerializer})
     def partial_update(self, request, *args, **kwargs):
         try:
             accesses_service.process_patch_data(access=self.get_object(), data=request.data)
         except ValueError as e:
             return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        return super(AccessViewSet, self).partial_update(request, *args, **kwargs)
+        return super().partial_update(request, *args, **kwargs)
 
-    @swagger_auto_schema(method="PATCH", operation_summary="Will set end_datetime to now, to close the access.")
+    @extend_schema(request=AccessSerializer,
+                   responses={status.HTTP_200_OK: AccessSerializer})
     @action(url_path="close", detail=True, methods=['patch'])
     def close(self, request, *args, **kwargs):
         now = timezone.now()
@@ -140,8 +121,9 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
         except ValueError as e:
             return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         request.data.update({'end_datetime': now})
-        return super(AccessViewSet, self).partial_update(request, *args, **kwargs)
+        return super().partial_update(request, *args, **kwargs)
 
+    @extend_schema(responses={status.HTTP_204_NO_CONTENT: None})
     def destroy(self, request, *args, **kwargs):
         access = self.get_object()
         if access.start_datetime and access.start_datetime < timezone.now():
@@ -150,10 +132,7 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
         self.perform_destroy(access)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @swagger_auto_schema(operation_summary="Get the authenticated user's valid accesses.",
-                         manual_parameters=[openapi.Parameter(name="expiring", description="Filter accesses to expire soon",
-                                                              in_=openapi.IN_QUERY, type=openapi.TYPE_BOOLEAN)],
-                         responses={200: openapi.Response('All valid accesses or ones to expire soon', AccessSerializer)})
+    @extend_schema(responses={status.HTTP_200_OK: AccessSerializer(many=True)})
     @action(url_path="my-accesses", methods=['get'], detail=False)
     @cache_response()
     def get_my_accesses(self, request, *args, **kwargs):
@@ -168,12 +147,7 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
         return Response(data=self.get_serializer(accesses, many=True).data,
                         status=status.HTTP_200_OK)
 
-    @swagger_auto_schema(operation_description="Returns the list of rights allowing to read patients data on given perimeters.",
-                         manual_parameters=[i for i in map(lambda x: openapi.Parameter(in_=openapi.IN_QUERY, name=x[0], description=x[1],
-                                                                                       type=x[2], pattern=x[3] if len(x) == 4 else None),
-                                                           [["perimeters_ids", "Perimeters IDs on which compute data rights, separated by ','",
-                                                             openapi.TYPE_STRING]])],
-                         responses={200: openapi.Response('Data Reading Rights computed per perimeter', DataRightSerializer)})
+    @extend_schema(responses={status.HTTP_200_OK: AccessSerializer(many=True)})
     @action(methods=['get'], url_path="my-data-rights", detail=False)
     @cache_response()
     def get_my_data_reading_rights(self, request, *args, **kwargs):

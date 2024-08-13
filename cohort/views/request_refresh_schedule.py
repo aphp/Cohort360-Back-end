@@ -1,6 +1,6 @@
 from django_filters import rest_framework as filters, OrderingFilter
-from drf_yasg import openapi
-from drf_yasg.utils import swagger_auto_schema
+from drf_spectacular.utils import extend_schema
+from rest_framework import status
 
 from cohort.models import RequestRefreshSchedule
 from cohort.serializers import RequestRefreshScheduleSerializer
@@ -13,7 +13,9 @@ class RequestRefreshScheduleFilter(filters.FilterSet):
 
     class Meta:
         model = RequestRefreshSchedule
-        fields = ('request_snapshot',)
+        fields = ('request_snapshot_id',
+                  'refresh_time',
+                  'refresh_frequency')
 
 
 class RequestRefreshScheduleViewSet(UserObjectsRestrictedViewSet):
@@ -24,26 +26,14 @@ class RequestRefreshScheduleViewSet(UserObjectsRestrictedViewSet):
     filterset_class = RequestRefreshScheduleFilter
     swagger_tags = ['Cohort - Refresh Schedules']
 
-    @swagger_auto_schema(request_body=openapi.Schema(
-        type=openapi.TYPE_OBJECT,
-        properties={"request_snapshot_id": openapi.Schema(type=openapi.TYPE_STRING),
-                    "refresh_time": openapi.Schema(type=openapi.TYPE_STRING),
-                    "refresh_frequency": openapi.Schema(type=openapi.TYPE_STRING)},
-        required=["request_snapshot_id", "refresh_time", "refresh_frequency"]),
-        responses={'201': openapi.Response("Refresh Schedule created", RequestRefreshScheduleSerializer()),
-                   '400': openapi.Response("Bad Request")})
+    @extend_schema(responses={status.HTTP_201_CREATED: RequestRefreshScheduleSerializer})
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
         requests_refresher_service.create_refresh_schedule(http_request=request,
                                                            refresh_schedule=response.data.serializer.instance)
         return response
 
-    @swagger_auto_schema(request_body=openapi.Schema(
-                             type=openapi.TYPE_OBJECT,
-                             properties={"refresh_time": openapi.Schema(type=openapi.TYPE_STRING),
-                                         "refresh_frequency": openapi.Schema(type=openapi.TYPE_STRING)}),
-                         responses={'200': openapi.Response("Refresh Schedule updated", RequestRefreshScheduleSerializer()),
-                                    '400': openapi.Response("Bad Request")})
+    @extend_schema(responses={status.HTTP_200_OK: RequestRefreshScheduleSerializer})
     def partial_update(self, request, *args, **kwargs):
         response = super().partial_update(request, *args, **kwargs)
         requests_refresher_service.reset_schedule_crontab(refresh_schedule=self.get_object())

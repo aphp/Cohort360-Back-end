@@ -42,7 +42,7 @@ class RoleSerializer(BaseSerializer):
         fields = "__all__"
         read_only_fields = ['id']
 
-    def get_help_text(self, role):
+    def get_help_text(self, role) -> str:
         return roles_service.get_help_text(role=role)
 
 
@@ -162,7 +162,6 @@ class AccessSerializer(BaseSerializer):
                   "actual_end_datetime",
                   "start_datetime",
                   "end_datetime",
-                  "care_site_id",
                   "role_id",
                   "perimeter",
                   "perimeter_id",
@@ -219,3 +218,9 @@ class ReadRightPerimeter(serializers.Serializer):
     right_read_patient_pseudonymized = serializers.BooleanField(read_only=True, allow_null=True)
     right_search_patients_by_ipp = serializers.BooleanField(read_only=True, allow_null=True)
     right_read_opposed_patients_data = serializers.BooleanField(read_only=True, allow_null=True)
+
+
+class RightReadPatientDataSerializer(serializers.Serializer):
+    allow_read_patient_data_nomi = serializers.BooleanField(allow_null=True)
+    allow_lookup_opposed_patients = serializers.BooleanField(allow_null=True)
+    allow_read_patient_without_perimeter_limit = serializers.BooleanField(allow_null=True)

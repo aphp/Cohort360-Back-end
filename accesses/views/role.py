@@ -1,8 +1,7 @@
 from django.db import IntegrityError
 from django_filters import OrderingFilter
 from django_filters import rest_framework as filters
-from drf_yasg import openapi
-from drf_yasg.utils import swagger_auto_schema
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -11,9 +10,9 @@ from accesses.models import Role
 from accesses.permissions import RolesPermission
 from accesses.serializers import RoleSerializer, UsersInRoleSerializer
 from accesses.services.roles import roles_service
+from accesses.views import BaseViewSet
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.permissions import IsAuthenticated, UsersPermission
-from admin_cohort.views import BaseViewSet
 from admin_cohort.tools.request_log_mixin import RequestLogMixin
 
 
@@ -23,7 +22,7 @@ class RoleFilter(filters.FilterSet):
 
     class Meta:
         model = Role
-        fields = "__all__"
+        fields = ["name"] + [f.name for f in Role._meta.fields if f.name.startswith("right_")]
 
 
 USERS_ORDERING_FIELDS = ["lastname", "firstname", "perimeter", "start_datetime", "end_datetime"]
@@ -35,14 +34,17 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
     lookup_field = "id"
     http_method_names = ['get', 'post', 'patch', 'delete']
     logging_methods = ['POST', 'PATCH', 'DELETE']
-    swagger_tags = ['Accesses - roles']
+    swagger_tags = ['Roles']
     filterset_class = RoleFilter
     permission_classes = [IsAuthenticated, RolesPermission]
 
+    @extend_schema(responses={status.HTTP_200_OK: RoleSerializer(many=True)})
     @cache_response()
     def list(self, request, *args, **kwargs):
         return super(RoleViewSet, self).list(request, *args, **kwargs)
 
+    @extend_schema(request=RoleSerializer,
+                   responses={status.HTTP_201_CREATED: RoleSerializer})
     def create(self, request, *args, **kwargs):
         try:
             roles_service.check_role_has_inconsistent_rights(data=request.data.copy())
@@ -50,6 +52,8 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
             return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return super(RoleViewSet, self).create(request, *args, **kwargs)
 
+    @extend_schema(request=RoleSerializer,
+                   responses={status.HTTP_200_OK: RoleSerializer})
     def partial_update(self, request, *args, **kwargs):
         try:
             roles_service.check_role_has_inconsistent_rights(data=request.data.copy())
@@ -57,6 +61,7 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
             return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return super(RoleViewSet, self).partial_update(request, *args, **kwargs)
 
+    @extend_schema(responses={status.HTTP_204_NO_CONTENT: None})
     def destroy(self, request, *args, **kwargs):
         role = self.get_object()
         if role.right_full_admin:
@@ -66,15 +71,7 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
         self.perform_destroy(role)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @swagger_auto_schema(method='get',
-                         operation_summary="Get the list of users who have that role",
-                         manual_parameters=[openapi.Parameter(name="order", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING,
-                                                              description=f"Ordering of the results (prepend with '-' to reverse order)."
-                                                                          f"Ordering fields are {','.join(USERS_ORDERING_FIELDS)}"),
-                                            openapi.Parameter(name="filter_by_name", description="Filter by name",
-                                                              in_=openapi.IN_QUERY, type=openapi.TYPE_STRING)],
-                         responses={200: openapi.Response('Users having this role', UsersInRoleSerializer),
-                                    204: openapi.Response('No content')})
+    @extend_schema(responses={status.HTTP_200_OK: UsersInRoleSerializer(many=True)})
     @action(url_path="users", detail=True, methods=['get'], permission_classes=permission_classes+[UsersPermission])
     def users_within_role(self, request, *args, **kwargs):
         role = self.get_object()
@@ -114,10 +111,7 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
             return self.get_paginated_response(serializer.data)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @swagger_auto_schema(method='get',
-                         operation_summary="Get roles that the user can assign to a user on the provided perimeter",
-                         manual_parameters=[openapi.Parameter(name="perimeter_id", in_=openapi.IN_QUERY,
-                                                              description="Required", type=openapi.TYPE_INTEGER)])
+    @extend_schema(responses={status.HTTP_200_OK: RoleSerializer(many=True)})
     @action(url_path="assignable", detail=False, methods=['get'])
     @cache_response()
     def get_assignable_roles(self, request, *args, **kwargs):

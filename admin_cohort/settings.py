@@ -7,6 +7,14 @@ import environ
 import pytz
 from celery.schedules import crontab
 
+
+TITLE = "Portail/Cohort360 API"
+VERSION = "3.23.0-SNAPSHOT"
+AUTHOR = "Assistance Publique - Hopitaux de Paris, Département I&D"
+DESCRIPTION_MD = f"""Supports the official **Cohort360** web app and **Portail**  
+                     Built by **{AUTHOR}**
+                  """
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 env = environ.Env()
@@ -102,9 +110,8 @@ INSTALLED_APPS = ['django.contrib.admin',
                   'django_extensions',
                   'corsheaders',
                   'django_filters',
-                  'drf_yasg',
                   'rest_framework',
-                  'rest_framework_swagger',
+                  'drf_spectacular',
                   'rest_framework_tracking',
                   'safedelete',
                   'channels',
@@ -122,9 +129,10 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'admin_cohort.middleware.maintenance_middleware.MaintenanceModeMiddleware',
     'admin_cohort.middleware.request_trace_id_middleware.RequestTraceIdMiddleware',
-    'admin_cohort.middleware.jwt_session_middleware.JWTSessionMiddleware']
-MIDDLEWARE = (([
-                   'admin_cohort.middleware.influxdb_middleware.InfluxDBMiddleware'] if not INFLUXDB_DISABLED else []) +
+    'admin_cohort.middleware.jwt_session_middleware.JWTSessionMiddleware',
+    'admin_cohort.middleware.swagger_headers_middleware.SwaggerHeadersMiddleware'
+    ]
+MIDDLEWARE = ((['admin_cohort.middleware.influxdb_middleware.InfluxDBMiddleware'] if not INFLUXDB_DISABLED else []) +
               MIDDLEWARE)
 
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
@@ -168,10 +176,10 @@ USE_DEPRECATED_PYTZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'static'
 
-REST_FRAMEWORK = {'DEFAULT_PERMISSION_CLASSES': ('admin_cohort.permissions.IsAuthenticated',),
+REST_FRAMEWORK = {'DEFAULT_PERMISSION_CLASSES': ['admin_cohort.permissions.IsAuthenticated'],
                   'DEFAULT_AUTHENTICATION_CLASSES': ['admin_cohort.auth.auth_class.Authentication'],
                   'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-                  'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema',
+                  'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
                   'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend',
                                               'rest_framework.filters.SearchFilter'],
                   'PAGE_SIZE': 20
@@ -179,11 +187,26 @@ REST_FRAMEWORK = {'DEFAULT_PERMISSION_CLASSES': ('admin_cohort.permissions.IsAut
 
 PAGINATION_MAX_LIMIT = 30_000
 
-SWAGGER_SETTINGS = {'LOGOUT_URL': '/auth/logout/',
-                    'LOGIN_URL': '/auth/login/',
-                    'DEFAULT_AUTHENTICATION_CLASSES': ('rest_framework.authentication.TokenAuthentication',),
-                    'DEFAULT_AUTO_SCHEMA_CLASS': 'admin_cohort.views.CustomAutoSchema'
-                    }
+SPECTACULAR_SETTINGS = {"TITLE": TITLE,
+                        "DESCRIPTION": DESCRIPTION_MD,
+                        "VERSION": VERSION,
+                        "SERVE_INCLUDE_SCHEMA": False,
+                        "COMPONENT_SPLIT_REQUEST": True,
+                        "SORT_OPERATION_PARAMETERS": False,
+                        "SWAGGER_UI_SETTINGS": {
+                            "withCredentials": True,
+                            "persistAuthorization": True,
+                            "oauth2RedirectUrl": f"{env('OIDC_SWAGGER_REDIRECT_URL')}",
+                            },
+                        "SWAGGER_UI_OAUTH2_CONFIG": {
+                            "appName": TITLE,
+                            "issuer": env('OIDC_AUTH_SERVER_1', default=''),
+                            "realm": env('OIDC_AUTH_SERVER_1', default='').split("realms/")[-1],
+                            "clientId": env('OIDC_CLIENT_ID_1', default=''),
+                            "clientSecret": env('OIDC_CLIENT_SECRET_1', default=''),
+                            "useBasicAuthenticationWithAccessCodeGrant": True,
+                            },
+                        }
 
 APPEND_SLASH = False
 
@@ -293,15 +316,3 @@ CHANNEL_LAYERS = {
         },
     },
 }
-
-# todo: replace `INFRA_API_URL`  by `EXPORT_API_URL`
-#       replace `EXPORT_OMOP_ENVIRONMENT`  by `EXPORT_ENVIRONMENT`
-#       replace `DAYS_TO_DELETE_CSV_FILES`  by  `DAYS_TO_KEEP_EXPORTED_FILES`
-#       replace `HDFS_SERVERS`  by  `STORAGE_PROVIDERS`
-#       update task name: delete_exported_csv_files                                 /!\ in prod only
-#    +  add `CSV_EXPORT_ENDPOINT`
-#    +  add `HIVE_EXPORT_ENDPOINT`
-#    +  add `EXPORT_TASK_STATUS_ENDPOINT`
-#    +  add `HADOOP_TASK_STATUS_ENDPOINT`
-#    +  add `CREATE_DB_ENDPOINT`
-#    +  add `ALTER_DB_ENDPOINT`

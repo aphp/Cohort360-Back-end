@@ -1,41 +1,63 @@
 from django_filters import rest_framework as filters
-from drf_yasg import openapi
-from drf_yasg.utils import swagger_auto_schema
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from admin_cohort.permissions import IsAuthenticated
-from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
+from admin_cohort.tools.cache import cache_response
 from cohort.models import FhirFilter
-from cohort.serializers import FhirFilterSerializer
+from cohort.serializers import FhirFilterSerializer, FhirFilterCreateSerializer, FhirFilterPatchSerializer
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
 
 class FhirFilterFilter(filters.FilterSet):
+    fhir_filter = filters.CharFilter(field_name='filter', lookup_expr='icontains')
+    fhir_resource = filters.CharFilter(field_name='fhir_resource', lookup_expr='icontains')
+    name = filters.CharFilter(field_name='name', lookup_expr='icontains')
     ordering = filters.OrderingFilter(fields=('-created_at', 'modified_at'))
 
     class Meta:
         model = FhirFilter
-        fields = ('fhir_resource', 'name', 'owner', 'created_at', 'modified_at')
+        fields = ('name',
+                  'owner',
+                  'fhir_resource',
+                  'fhir_filter',
+                  'query_version')
 
 
 class FhirFilterViewSet(UserObjectsRestrictedViewSet):
     queryset = FhirFilter.objects.all()
     serializer_class = FhirFilterSerializer
-    pagination_class = NegativeLimitOffsetPagination
     filterset_class = FhirFilterFilter
-    lookup_field = "uuid"
     http_method_names = ["get", "post", "patch", "delete"]
     permission_classes = [IsAuthenticated]
-    swagger_tags = ["Cohort - fhir_filter"]
-    logging_methods = ['POST', 'PATCH', 'DELETE']
+    swagger_tags = ["FHIR Filters"]
 
-    @swagger_auto_schema(request_body=openapi.Schema(type=openapi.TYPE_OBJECT,
-                                                     properties={"uuids": openapi.Schema(type=openapi.TYPE_ARRAY,
-                                                                                         items=openapi.Schema(type=openapi.TYPE_STRING))}),
-                         responses={'204': openapi.Response("FhirFilters deleted"),
-                                    '500': openapi.Response("One or more IDs is not a valid UUID")})
+    @extend_schema(responses={status.HTTP_200_OK: FhirFilterSerializer})
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
+
+    @extend_schema(responses={status.HTTP_200_OK: FhirFilterSerializer(many=True)})
+    @cache_response()
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @extend_schema(request=FhirFilterCreateSerializer,
+                   responses={status.HTTP_201_CREATED: FhirFilterSerializer})
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)
+
+    @extend_schema(request=FhirFilterPatchSerializer,
+                   responses={status.HTTP_200_OK: FhirFilterSerializer})
+    def partial_update(self, request, *args, **kwargs):
+        return super().partial_update(request, *args, **kwargs)
+
+    @extend_schema(responses={status.HTTP_204_NO_CONTENT: None})
+    def destroy(self, request, *args, **kwargs):
+        return super().destroy(request, *args, **kwargs)
+
+    @extend_schema(responses={status.HTTP_204_NO_CONTENT: None})
     @action(methods=['delete'], detail=False)
     def delete_multiple(self, request):
         FhirFilter.objects.filter(uuid__in=request.data.get('uuids', [])).delete()

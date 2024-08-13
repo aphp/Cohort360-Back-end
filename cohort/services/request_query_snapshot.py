@@ -85,7 +85,7 @@ class RequestQuerySnapshotService:
         return snapshots
 
     @staticmethod
-    def share_snapshot(snapshot: RequestQuerySnapshot, request_name: str, recipients_ids: str, notify_by_email: bool):
+    def share_snapshot(snapshot: RequestQuerySnapshot, request_name: str, recipients_ids: str, notify_by_email: bool) -> None:
         if not recipients_ids:
             raise ValueError("No 'recipients' provided")
 
@@ -107,7 +107,7 @@ class RequestQuerySnapshotService:
 
         Folder.objects.bulk_create(folders_to_create)
         Request.objects.bulk_create(requests_by_owner.values())
-        shared_snapshots = RequestQuerySnapshot.objects.bulk_create(snapshots)
+        RequestQuerySnapshot.objects.bulk_create(snapshots)
 
         for model in (Folder, Request, RequestQuerySnapshot):
             invalidate_cache(model_name=model.__name__)
@@ -117,7 +117,6 @@ class RequestQuerySnapshotService:
                 send_email_notif_about_shared_request(request_name=request_name,
                                                       owner=snapshot.owner,
                                                       recipient=recipient)
-        return shared_snapshots
 
     @staticmethod
     def retrieve_perimeters(json_query: str) -> List[str]:

@@ -29,6 +29,37 @@ class CohortBaseSerializer(serializers.ModelSerializer):
     deleted = serializers.DateTimeField(read_only=True)
 
 
+class DatedMeasureCreateSerializer(serializers.ModelSerializer):
+    request = PrimaryKeyRelatedFieldWithOwner(required=True, queryset=Request.objects.all())
+    request_query_snapshot = PrimaryKeyRelatedFieldWithOwner(required=True, queryset=RequestQuerySnapshot.objects.all())
+
+    class Meta:
+        model = DatedMeasure
+        fields = ["request",
+                  "request_query_snapshot"]
+
+
+class DatedMeasurePatchSerializer(serializers.ModelSerializer):
+    request_job_status = serializers.CharField(required=False)
+    message = serializers.CharField(required=False)
+    group_count = serializers.CharField(required=False)
+    minimum = serializers.CharField(required=False)
+    maximum = serializers.CharField(required=False)
+
+    class Meta:
+        model = DatedMeasure
+        fields = ["request_job_status",
+                  "group_count",
+                  "message",
+                  "minimum",
+                  "maximum"]
+
+    def to_internal_value(self, data):
+        if "group_count" in data:
+            data["group.count"] = data.pop("group_count")
+        return super().to_internal_value(data)
+
+
 class DatedMeasureSerializer(BaseSerializer):
     owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
     request = serializers.UUIDField(read_only=True, required=False, source='request_query_snapshot__request__pk')
@@ -43,6 +74,51 @@ class DatedMeasureSerializer(BaseSerializer):
                             "request_job_id",
                             "mode",
                             "request"]
+
+
+class CohortResultCreateSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(required=True)
+    description = serializers.CharField(allow_blank=True, allow_null=True)
+    global_estimate = serializers.BooleanField(default=False)
+    request = PrimaryKeyRelatedFieldWithOwner(required=True, queryset=Request.objects.all())
+    request_query_snapshot = PrimaryKeyRelatedFieldWithOwner(required=True, queryset=RequestQuerySnapshot.objects.all())
+    dated_measure = PrimaryKeyRelatedFieldWithOwner(required=True, queryset=DatedMeasure.objects.all())
+
+    class Meta:
+        model = CohortResult
+        fields = ["name",
+                  "description",
+                  "global_estimate",
+                  "request",
+                  "request_query_snapshot",
+                  "dated_measure"]
+
+
+class CohortResultPatchSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(required=False)
+    description = serializers.CharField(required=False)
+    favorite = serializers.BooleanField(required=False)
+    request_job_status = serializers.CharField(required=False)
+    message = serializers.CharField(required=False)
+    group_id = serializers.CharField(required=False)
+    group_count = serializers.CharField(required=False)
+
+    class Meta:
+        model = CohortResult
+        fields = ["name",
+                  "description",
+                  "favorite",
+                  "request_job_status",
+                  "group_id",
+                  "group_count",
+                  "message"]
+
+    def to_internal_value(self, data):
+        for field in ("group_id", "group_count"):
+            if field in data:
+                dotted_field = field.replace("_", ".")
+                data[dotted_field] = data.pop(field)
+        return super().to_internal_value(data)
 
 
 class CohortResultSerializer(BaseSerializer):
@@ -82,7 +158,12 @@ class ReducedCohortResultSerializer(BaseSerializer):
                   "exportable"]
 
 
-class ReducedRequestQuerySnapshotSerializer(BaseSerializer):
+class CohortRightsSerializer(serializers.Serializer):
+    cohort_id = serializers.CharField(read_only=True, allow_null=False)
+    rights = serializers.DictField(read_only=True, allow_null=True)
+
+
+class RQSReducedSerializer(BaseSerializer):
     cohort_results = ReducedCohortResultSerializer(many=True, read_only=True)
 
     class Meta:
@@ -95,7 +176,7 @@ class ReducedRequestQuerySnapshotSerializer(BaseSerializer):
                   "version"]
 
 
-class RequestQuerySnapshotSerializer(BaseSerializer):
+class RQSSerializer(BaseSerializer):
     owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
     request = PrimaryKeyRelatedFieldWithOwner(queryset=Request.objects.all(), required=False)
     previous_snapshot = PrimaryKeyRelatedFieldWithOwner(required=False, queryset=RequestQuerySnapshot.objects.all())
@@ -111,9 +192,28 @@ class RequestQuerySnapshotSerializer(BaseSerializer):
                             "shared_by"]
 
 
+class RQSCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RequestQuerySnapshot
+        fields = ["request",
+                  "serialized_query"]
+
+
+class RQSShareSerializer(serializers.Serializer):
+    name = serializers.CharField(required=True)
+    recipients = serializers.CharField(required=True)
+    notify_by_email = serializers.BooleanField(required=False)
+
+    class Meta:
+        model = RequestQuerySnapshot
+        fields = ["name",
+                  "recipients",
+                  "notify_by_email"]
+
+
 class RequestSerializer(BaseSerializer):
     owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
-    query_snapshots = ReducedRequestQuerySnapshotSerializer(read_only=True, many=True)
+    query_snapshots = RQSReducedSerializer(read_only=True, many=True)
     shared_by = UserSerializer(read_only=True)
     parent_folder = PrimaryKeyRelatedFieldWithOwner(queryset=Folder.objects.all())
     updated_at = serializers.CharField(read_only=True)
@@ -131,6 +231,21 @@ class RequestSerializer(BaseSerializer):
         return res
 
 
+class RequestCreateSerializer(serializers.ModelSerializer):
+    description = serializers.CharField(required=False)
+
+    class Meta:
+        model = Request
+        fields = ["name",
+                  "description",
+                  "parent_folder"]
+
+
+class RequestPatchSerializer(RequestCreateSerializer):
+    name = serializers.CharField(required=False)
+    parent_folder = PrimaryKeyRelatedFieldWithOwner(required=False, queryset=Folder.objects.all())
+
+
 class FolderSerializer(BaseSerializer):
     owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
     requests = serializers.SlugRelatedField(slug_field='uuid', many=True, read_only=True)
@@ -140,9 +255,15 @@ class FolderSerializer(BaseSerializer):
         fields = "__all__"
 
 
-class CohortRightsSerializer(serializers.Serializer):
-    cohort_id = serializers.CharField(read_only=True, allow_null=False)
-    rights = serializers.DictField(read_only=True, allow_null=True)
+class FolderCreateSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Folder
+        fields = ["name"]
+
+
+class FolderPatchSerializer(FolderCreateSerializer):
+    ...
 
 
 class FhirFilterSerializer(BaseSerializer):
@@ -157,6 +278,20 @@ class FhirFilterSerializer(BaseSerializer):
         return super(FhirFilterSerializer, self).create(validated_data)
 
 
+class FhirFilterCreateSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = FhirFilter
+        fields = ["fhir_resource",
+                  "fhir_version",
+                  "filter",
+                  "name"]
+
+
+class FhirFilterPatchSerializer(FhirFilterCreateSerializer):
+    ...
+
+
 class FeasibilityStudySerializer(serializers.ModelSerializer):
     class Meta:
         model = FeasibilityStudy
@@ -168,6 +303,30 @@ class FeasibilityStudySerializer(serializers.ModelSerializer):
         exclude = ["request_job_duration",
                    "deleted",
                    "deleted_by_cascade"]
+
+
+class FeasibilityStudyCreateSerializer(serializers.ModelSerializer):
+    request_query_snapshot = PrimaryKeyRelatedFieldWithOwner(queryset=RequestQuerySnapshot.objects.all())
+
+    class Meta:
+        model = FeasibilityStudy
+        fields = ["request_query_snapshot"]
+
+
+class FeasibilityStudyPatchSerializer(DatedMeasurePatchSerializer):
+    extra = serializers.DictField(required=True)
+
+    class Meta:
+        model = FeasibilityStudy
+        fields = ["request_job_status",
+                  "group_count",
+                  "message",
+                  "extra"]
+
+    def to_internal_value(self, data):
+        if "group_count" in data:
+            data["group.count"] = data.pop("group_count")
+        return super().to_internal_value(data)
 
 
 class RequestRefreshScheduleSerializer(serializers.ModelSerializer):

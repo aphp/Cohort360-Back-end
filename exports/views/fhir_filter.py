@@ -1,12 +1,10 @@
 from django_filters import rest_framework as filters
-from drf_yasg import openapi
-from drf_yasg.utils import swagger_auto_schema
-from rest_framework import viewsets
+from drf_spectacular.utils import extend_schema_view, extend_schema
 
-from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from cohort.models import FhirFilter
 from cohort.permissions import IsOwnerPermission
 from cohort.serializers import FhirFilterSerializer
+from exports.views import ExportsBaseViewSet
 
 
 class FhirFilterFilter(filters.FilterSet):
@@ -14,19 +12,16 @@ class FhirFilterFilter(filters.FilterSet):
 
     class Meta:
         model = FhirFilter
-        fields = ('fhir_resource', 'owner_id', 'created_at')
+        fields = ('fhir_resource', 'owner_id')
 
 
-class FhirFilterViewSet(viewsets.ModelViewSet):
+@extend_schema_view(retrieve=extend_schema(exclude=True))
+class FhirFilterViewSet(ExportsBaseViewSet):
     queryset = FhirFilter.objects.all()
     serializer_class = FhirFilterSerializer
     http_method_names = ["get"]
     permission_classes = [IsOwnerPermission]
-    swagger_tags = ['Exports - fhir-filters']
+    swagger_tags = ['Exports - FHIR Filters']
     filterset_class = FhirFilterFilter
-    pagination_class = NegativeLimitOffsetPagination
-    search_fields = ('$name', '$fhir_resource')
+    search_fields = ('$name', '$fhir_resource', '$filter')
 
-    @swagger_auto_schema(manual_parameters=[openapi.Parameter(name="owner_id", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING)])
-    def list(self, request, *args, **kwargs):
-        return super(FhirFilterViewSet, self).list(request, *args, **kwargs)

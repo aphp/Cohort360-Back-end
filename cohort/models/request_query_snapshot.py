@@ -30,7 +30,7 @@ class RequestQuerySnapshot(CohortBaseModel):
     objects = RequestQuerySnapshotManager()
 
     @property
-    def has_linked_cohorts(self):
+    def has_linked_cohorts(self) -> bool:
         return self.cohort_results.exists()
 
     def save(self, *args, **kwargs):

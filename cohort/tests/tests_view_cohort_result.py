@@ -137,10 +137,9 @@ class CohortsGetTests(CohortsTests):
         req = rqs.request
         first_cr: CohortResult = self.user1.user_cohorts.first()
         example_measure = 10
-        example_datetime = timezone.now() - timedelta(days=2)
 
         cases = [
-            basic_case.clone(params=dict(request_job_status=JobStatus.pending.value),
+            basic_case.clone(params=dict(status=JobStatus.pending.value),
                              to_find=[cr for cr in crs if cr.request_job_status == JobStatus.pending]),
             basic_case.clone(params=dict(name=self.str_pattern),
                              to_find=[cr for cr in crs if self.str_pattern.lower() in cr.name.lower()]),
@@ -148,18 +147,10 @@ class CohortsGetTests(CohortsTests):
                              to_find=[cr for cr in crs if cr.dated_measure.measure >= example_measure]),
             basic_case.clone(params=dict(max_result_size=example_measure),
                              to_find=[cr for cr in crs if cr.dated_measure.measure <= example_measure]),
-            basic_case.clone(params=dict(min_fhir_datetime=example_datetime.isoformat()),
-                             to_find=[cr for cr in crs if cr.dated_measure.fhir_datetime >= example_datetime]),
-            basic_case.clone(params=dict(max_fhir_datetime=example_datetime.isoformat()),
-                             to_find=[cr for cr in crs if cr.dated_measure.fhir_datetime <= example_datetime]),
             basic_case.clone(params=dict(favorite=True),
                              to_find=[cr for cr in crs if cr.favorite]),
             basic_case.clone(params=dict(group_id=first_cr.group_id),
                              to_find=[first_cr]),
-            basic_case.clone(params=dict(request_query_snapshot=rqs.pk),
-                             to_find=list(rqs.cohort_results.all())),
-            basic_case.clone(params=dict(request_query_snapshot__request=req.pk),
-                             to_find=sum((list(rqs.cohort_results.all()) for rqs in req.query_snapshots.all()), [])),
             basic_case.clone(params=dict(request_id=req.pk),
                              to_find=sum((list(rqs.cohort_results.all()) for rqs in req.query_snapshots.all()), []))
         ]

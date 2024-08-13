@@ -59,6 +59,28 @@ class UserSerializer(serializers.ModelSerializer):
                   "display_name"]
 
 
+class UserCreateSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(required=True)
+    firstname = serializers.CharField(required=True)
+    lastname = serializers.CharField(required=True)
+    email = serializers.CharField(required=True)
+
+    class Meta:
+        model = User
+        fields = ["username",
+                  "firstname",
+                  "lastname",
+                  "email"]
+
+
+class UserPatchSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["firstname",
+                  "lastname",
+                  "email"]
+
+
 class UserCheckSerializer(serializers.Serializer):
     username = serializers.CharField(read_only=True)
     firstname = serializers.CharField(read_only=True)
@@ -69,7 +91,6 @@ class UserCheckSerializer(serializers.Serializer):
 
 
 class ReleaseNoteSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = ReleaseNote
         exclude = ("delete_datetime",)

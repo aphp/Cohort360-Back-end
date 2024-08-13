@@ -3,62 +3,44 @@ from io import BytesIO
 
 from django.db import transaction
 from django.http import FileResponse
-from django_filters import rest_framework as filters, OrderingFilter
-from drf_yasg import openapi
-from drf_yasg.utils import swagger_auto_schema
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from admin_cohort.tools.cache import cache_response
-from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from cohort.models import FeasibilityStudy
-from cohort.serializers import FeasibilityStudySerializer
-from cohort.services.feasibility_study import feasibility_study_service, JOB_STATUS, COUNT, EXTRA
+from cohort.serializers import FeasibilityStudySerializer, FeasibilityStudyCreateSerializer, FeasibilityStudyPatchSerializer
+from cohort.services.feasibility_study import feasibility_study_service
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
 _logger = logging.getLogger('info')
 _logger_err = logging.getLogger('django.request')
 
 
-class FeasibilityStudyFilter(filters.FilterSet):
-    ordering = OrderingFilter(fields=("-created_at",))
-
-    class Meta:
-        model = FeasibilityStudy
-        fields = ["created_at"]
-
-
+@extend_schema_view(
+    list=extend_schema(exclude=True),
+    retrieve=extend_schema(exclude=True)
+)
 class FeasibilityStudyViewSet(UserObjectsRestrictedViewSet):
     queryset = FeasibilityStudy.objects.all()
     serializer_class = FeasibilityStudySerializer
     http_method_names = ['get', 'post', 'patch']
-    lookup_field = "uuid"
-    swagger_tags = ['Cohort - feasibility-studies']
-    filterset_class = FeasibilityStudyFilter
-    pagination_class = NegativeLimitOffsetPagination
+    swagger_tags = ['Feasibility Studies']
 
     def get_permissions(self):
         special_permissions = feasibility_study_service.get_special_permissions(self.request)
         if special_permissions:
             return special_permissions
-        return super(FeasibilityStudyViewSet, self).get_permissions()
+        return super().get_permissions()
 
     def get_queryset(self):
         if feasibility_study_service.allow_use_full_queryset(request=self.request):
             return self.queryset
-        return super(FeasibilityStudyViewSet, self).get_queryset()
+        return super().get_queryset()
 
-    @cache_response()
-    def list(self, request, *args, **kwargs):
-        return super(FeasibilityStudyViewSet, self).list(request, *args, **kwargs)
-
-    @swagger_auto_schema(request_body=openapi.Schema(
-        type=openapi.TYPE_OBJECT,
-        properties={"request_query_snapshot_id": openapi.Schema(type=openapi.TYPE_STRING)},
-        required=["request_query_snapshot_id"]),
-        responses={'200': openapi.Response("FeasibilityStudy created", FeasibilityStudySerializer()),
-                   '400': openapi.Response("Bad Request")})
+    @extend_schema(request=FeasibilityStudyCreateSerializer,
+                   responses={status.HTTP_201_CREATED: FeasibilityStudySerializer})
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
@@ -66,27 +48,18 @@ class FeasibilityStudyViewSet(UserObjectsRestrictedViewSet):
                                                                                                fs=response.data.serializer.instance))
         return response
 
-    @swagger_auto_schema(operation_summary="Called by ServerJob with detailed counts",
-                         request_body=openapi.Schema(
-                             type=openapi.TYPE_OBJECT,
-                             properties={
-                                 JOB_STATUS: openapi.Schema(type=openapi.TYPE_STRING, description="ServerJob job status"),
-                                 COUNT: openapi.Schema(type=openapi.TYPE_STRING, description="Total patient count"),
-                                 EXTRA: openapi.Schema(type=openapi.TYPE_STRING,
-                                                       description="Detailed patient counts")},
-                             required=[JOB_STATUS, COUNT, EXTRA]),
-                         responses={'200': openapi.Response("FeasibilityStudy updated successfully",
-                                                            FeasibilityStudySerializer()),
-                                    '400': openapi.Response("Bad Request")})
+    @extend_schema(request=FeasibilityStudyPatchSerializer,
+                   responses={status.HTTP_200_OK: FeasibilityStudySerializer})
     def partial_update(self, request, *args, **kwargs):
         try:
             feasibility_study_service.handle_patch_feasibility_study(fs=self.get_object(),
                                                                      data=request.data)
         except ValueError as ve:
             return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
-        response = super(FeasibilityStudyViewSet, self).partial_update(request, *args, **kwargs)
+        response = super().partial_update(request, *args, **kwargs)
         return response
 
+    @extend_schema(responses={(status.HTTP_200_OK, "application/zip"): OpenApiTypes.BINARY})
     @action(detail=True, methods=['get'], url_path='download')
     def download_report(self, request, *args, **kwargs):
         fs = self.get_object()

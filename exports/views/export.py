@@ -1,8 +1,10 @@
+import json
+
 from django.db import transaction
 from django.db.models import Q
 from django_filters import rest_framework as filters, OrderingFilter
-from drf_yasg import openapi
-from drf_yasg.utils import swagger_auto_schema
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema, OpenApiParameter, PolymorphicProxySerializer
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -16,7 +18,7 @@ from exports.models import Export
 from exports.permissions import ExportPermission
 from exports.serializers import ExportSerializer, ExportsListSerializer
 from exports.services.export import export_service
-from exports.views.base_viewset import ExportsBaseViewSet
+from exports.views import ExportsBaseViewSet
 
 
 class ExportFilter(filters.FilterSet):
@@ -27,8 +29,15 @@ class ExportFilter(filters.FilterSet):
             return queryset.filter(join_qs([Q(**{field: v}) for v in sub_values]))
         return queryset
 
+    def owner_filter(self, queryset, field, value: str):
+        if value:
+            search_fields = ["username", "firstname", "lastname"]
+            return queryset.filter(join_qs([Q(**{f"{field}__{f}__icontains": value}) for f in search_fields]))
+        return queryset
+
     output_format = filters.CharFilter(method="multi_value_filter", field_name="output_format")
     status = filters.CharFilter(method="multi_value_filter", field_name="request_job_status")
+    owner = filters.CharFilter(method="owner_filter", field_name="owner")
     motivation = filters.DateTimeFilter(field_name="motivation", lookup_expr='icontains')
     ordering = OrderingFilter(fields=('created_at',
                                       'output_format',
@@ -47,7 +56,7 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
     serializer_class = ExportSerializer
     queryset = Export.objects.all()
     permission_classes = [ExportPermission]
-    swagger_tags = ['Exports - Exports']
+    swagger_tags = ['Exports']
     filterset_class = ExportFilter
     http_method_names = ['get', 'post']
     logging_methods = ['POST']
@@ -62,32 +71,23 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
     def should_log(self, request, response):
         return super().should_log(request, response) or self.action == self.download.__name__
 
-    @swagger_auto_schema(responses={'200': openapi.Response("List of exports", ExportsListSerializer()),
-                                    '204': openapi.Response("HTTP_204 if no export found")})
+    @extend_schema(parameters=[OpenApiParameter("return_full_objects", OpenApiTypes.BOOL)],
+                   responses={status.HTTP_200_OK: PolymorphicProxySerializer(
+                       component_name="", many=True, resource_type_field_name=None,
+                       serializers=[ExportSerializer, ExportsListSerializer])})
     @cache_response()
     def list(self, request, *args, **kwargs):
         q = self.filter_queryset(self.queryset)
         page = self.paginate_queryset(q)
+        return_full_objects = json.loads(request.query_params.get("return_full_objects", "false"))
+        serializer = ExportsListSerializer
+        if return_full_objects:
+            serializer = ExportSerializer
         if page:
-            serializer = ExportsListSerializer(page, many=True)
+            serializer = serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @swagger_auto_schema(
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={'output_format': openapi.Schema(type=openapi.TYPE_STRING),
-                        'datalab': openapi.Schema(type=openapi.TYPE_STRING),
-                        'nominative': openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Defaults to False"),
-                        'shift_dates': openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Defaults to False"),
-                        'export_tables': openapi.Schema(
-                            type=openapi.TYPE_ARRAY,
-                            items=openapi.Schema(type=openapi.TYPE_OBJECT,
-                                                 properties={'table_ids': openapi.Schema(type=openapi.TYPE_ARRAY,
-                                                                                         items=openapi.Schema(type=openapi.TYPE_STRING)),
-                                                             'respect_table_relationships': openapi.Schema(type=openapi.TYPE_BOOLEAN),
-                                                             'fhir_filter': openapi.Schema(type=openapi.TYPE_STRING),
-                                                             'cohort_result_source': openapi.Schema(type=openapi.TYPE_STRING)}))}))
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         try:
@@ -101,6 +101,7 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
                                                                          http_request=request))
         return response
 
+    @extend_schema(responses={(status.HTTP_200_OK, "application/zip"): OpenApiTypes.BINARY})
     @action(detail=True, methods=['get'], url_path="download")
     def download(self, request, *args, **kwargs):
         try:

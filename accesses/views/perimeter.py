@@ -2,22 +2,21 @@ from functools import reduce
 
 from django.db.models import Q
 from django_filters import rest_framework as filters, OrderingFilter
-from drf_yasg import openapi
-from drf_yasg.utils import swagger_auto_schema
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
-from accesses.models import Perimeter
-from accesses.serializers import PerimeterSerializer, PerimeterLiteSerializer, ReadRightPerimeter
-from accesses.services.accesses import accesses_service
-from accesses.services.perimeters import perimeters_service
 from admin_cohort.permissions import IsAuthenticatedReadOnly
 from admin_cohort.tools import join_qs
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
-from admin_cohort.views import BaseViewSet
+from accesses.views import BaseViewSet
+from accesses.services.accesses import accesses_service
+from accesses.services.perimeters import perimeters_service
+from accesses.models import Perimeter
+from accesses.serializers import PerimeterSerializer, PerimeterLiteSerializer, ReadRightPerimeter, RightReadPatientDataSerializer
 
 MAX, MIN = 'max', 'min'
 
@@ -31,11 +30,11 @@ class PerimeterFilter(filters.FilterSet):
         return queryset
 
     name = filters.CharFilter(lookup_expr='icontains')
+    type_source_value = filters.CharFilter(method="multi_value_filter", field_name="type_source_value")
     source_value = filters.CharFilter(lookup_expr='icontains')
     cohort_id = filters.CharFilter(method="multi_value_filter", field_name="cohort_id")
-    local_id = filters.CharFilter(method="multi_value_filter", field_name="local_id")
     parent_id = filters.CharFilter(method="multi_value_filter", field_name="parent_id")
-    type_source_value = filters.CharFilter(method="multi_value_filter", field_name="type_source_value")
+    local_id = filters.CharFilter(method="multi_value_filter", field_name="local_id")
     ordering = OrderingFilter(fields=(('name', 'care_site_name'),
                                       ('type_source_value', 'care_site_type_source_value'),
                                       ('source_value', 'care_site_source_value')))
@@ -47,8 +46,7 @@ class PerimeterFilter(filters.FilterSet):
                   "source_value",
                   "cohort_id",
                   "parent_id",
-                  "local_id",
-                  "id")
+                  "local_id")
 
 
 class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
@@ -58,26 +56,18 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
     http_method_names = ["get"]
     permission_classes = [IsAuthenticatedReadOnly]
     pagination_class = NegativeLimitOffsetPagination
-    swagger_tags = ['Accesses - perimeters']
+    swagger_tags = ['Perimeters']
     filterset_class = PerimeterFilter
     search_fields = ["name",
                      "type_source_value",
                      "source_value"]
 
-    @swagger_auto_schema(manual_parameters=
-                         list(map(lambda x: openapi.Parameter(name=x[0], description=x[1], type=x[2],
-                                                              pattern=x[3] if len(x) == 4 else None, in_=openapi.IN_QUERY),
-                                  [["ordering", "'field' or '-field': name, type_source_value, source_value", openapi.TYPE_STRING],
-                                   ["search", "Based on: name, type_source_value, source_value", openapi.TYPE_STRING]])))
+    @extend_schema(responses={status.HTTP_200_OK: PerimeterSerializer(many=True)})
     @cache_response()
     def list(self, request, *args, **kwargs):
         return super(PerimeterViewSet, self).list(request, *args, **kwargs)
 
-    @swagger_auto_schema(operation_summary="Get the top hierarchy perimeters on which the user has at least "
-                                           "one role that allows to give accesses."
-                                           "-Same level rights give access to a perimeter and its lower levels."
-                                           "-Inferior level rights give only access to children of a perimeter.",
-                         responses={'200': openapi.Response("Manageable perimeters", PerimeterLiteSerializer())})
+    @extend_schema(responses={status.HTTP_200_OK: PerimeterLiteSerializer(many=True)})
     @action(detail=False, methods=['get'], url_path="manageable")
     @cache_response()
     def get_manageable_perimeters(self, request, *args, **kwargs):
@@ -91,8 +81,7 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
         return Response(data=PerimeterLiteSerializer(manageable_perimeters, many=True).data,
                         status=status.HTTP_200_OK)
 
-    @swagger_auto_schema(operation_summary="Return a patient-data-reading-rights summary on target perimeters.",
-                         responses={'200': openapi.Response("Rights per perimeter", ReadRightPerimeter())})
+    @extend_schema(responses={status.HTTP_200_OK: ReadRightPerimeter})
     @action(detail=False, methods=['get'], url_path="patient-data/rights")
     @cache_response()
     def get_data_read_rights_on_perimeters(self, request, *args, **kwargs):
@@ -100,16 +89,14 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
         data_reading_rights = perimeters_service.get_data_read_rights_on_perimeters(user=request.user,
                                                                                     is_request_filtered=bool(request.query_params),
                                                                                     filtered_perimeters=filtered_perimeters)
-
         page = self.paginate_queryset(data_reading_rights)
         if page:
             serializer = ReadRightPerimeter(page, many=True)
             return self.get_paginated_response(serializer.data)
         return Response(data={}, status=status.HTTP_200_OK)
 
-    @swagger_auto_schema(operation_summary="Return if the user has the right to read patient data in nomi or pseudo "
-                                           "mode on at least one perimeter, and if allowed to read opposed patients data",
-                         responses={'200': openapi.Response("Return 2 booleans describing user's data rights")})
+    @extend_schema(responses={status.HTTP_200_OK: RightReadPatientDataSerializer,
+                              status.HTTP_400_BAD_REQUEST: None})
     @action(detail=False, methods=['get'], url_path="patient-data/read")
     @cache_response()
     def check_read_patient_data_rights(self, request, *args, **kwargs):
@@ -129,11 +116,12 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
                             status=status.HTTP_400_BAD_REQUEST)
         target_perimeters = self.queryset
         if accesses_service.is_user_allowed_unlimited_patients_read(user=user):
-            data = {"allow_read_patient_data_nomi": True,
-                    "allow_lookup_opposed_patients": True,
-                    "allow_read_patient_without_perimeter_limit": True
-                    }
-            return Response(data=data, status=status.HTTP_200_OK)
+            serializer = RightReadPatientDataSerializer(data={"allow_read_patient_data_nomi": True,
+                                                              "allow_lookup_opposed_patients": True,
+                                                              "allow_read_patient_without_perimeter_limit": True
+                                                              })
+            serializer.is_valid()
+            return Response(data=serializer.data, status=status.HTTP_200_OK)
 
         if cohort_ids:
             target_perimeters = perimeters_service.get_target_perimeters(cohort_ids=cohort_ids)
@@ -153,11 +141,13 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
         else:
             allow_read_patient_data_nomi = accesses_service.user_can_access_all_target_perimeters_in_nomi(user=user,
                                                                                                           target_perimeters=target_perimeters)
-        data = {"allow_read_patient_data_nomi": allow_read_patient_data_nomi,
-                "allow_lookup_opposed_patients": accesses_service.can_user_read_opposed_patient_data(user=user),
-                "allow_read_patient_without_perimeter_limit": False
-                }
-        return Response(data=data, status=status.HTTP_200_OK)
+        serializer = RightReadPatientDataSerializer(
+            data={"allow_read_patient_data_nomi": allow_read_patient_data_nomi,
+                  "allow_lookup_opposed_patients": accesses_service.can_user_read_opposed_patient_data(user=user),
+                  "allow_read_patient_without_perimeter_limit": False
+                  })
+        serializer.is_valid()
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
 
 
 class NestedPerimeterViewSet(PerimeterViewSet):

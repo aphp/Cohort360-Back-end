@@ -139,12 +139,6 @@ class RequestsGetTests(RequestsTests):
                 to_find=[f for f in user1_requests if f.favorite],
             ),
             basic_case.clone(
-                params=dict(data_type_of_query=REQUEST_DATA_TYPES[0][0]),
-                to_find=[f for f in user1_requests
-                         if (f.data_type_of_query ==
-                             REQUEST_DATA_TYPES[0][0])],
-            ),
-            basic_case.clone(
                 params=dict(shared_by=self.user2.pk),
                 to_find=[f for f in user1_requests
                          if f.shared_by == self.user2],

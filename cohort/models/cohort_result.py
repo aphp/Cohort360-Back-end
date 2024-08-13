@@ -28,10 +28,10 @@ class CohortResult(CohortBaseModel, JobModel):
     is_subset = models.BooleanField(default=False)
 
     @property
-    def result_size(self):
+    def result_size(self) -> int:
         return self.dated_measure.measure
 
     @property
-    def exportable(self):
+    def exportable(self) -> bool:
         cohort_size = self.result_size
         return cohort_size and cohort_size < COHORT_LIMIT or False

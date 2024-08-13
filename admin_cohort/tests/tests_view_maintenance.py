@@ -9,7 +9,7 @@ from rest_framework import status
 from accesses.models import Access, Role
 from admin_cohort.models import MaintenancePhase
 from admin_cohort.settings import ADMINS
-from admin_cohort.tests.tests_tools import random_str, new_user_and_profile, \
+from admin_cohort.tests.tests_tools import new_user_and_profile, \
     CaseRetrieveFilter, ViewSetTestsWithBasicPerims, ListCase, \
     CreateCase, DeleteCase, PatchCase, RetrieveCase
 from admin_cohort.views import MaintenancePhaseViewSet
@@ -73,15 +73,7 @@ class MaintenanceGetListTests(MaintenanceGetTests):
         super(MaintenanceGetListTests, self).setUp()
         self.name_pattern = "pat"
 
-        nb_mtnces = 500
-
-        mtnces_names = [
-            random_str(random.randint(3, 7)) for _ in range(nb_mtnces - 110)
-        ] + [
-            random_str(random.randint(0, 2))
-            + self.name_pattern
-            + random_str(random.randint(0, 2)) for _ in range(110)
-        ]
+        mtnces_names = [f"{self.name_pattern}_{i}" if i % 2 else f"maint_{i}" for i in range(20)]
 
         self.ref_now: datetime.datetime = timezone.now()
 
@@ -110,14 +102,6 @@ class MaintenanceGetListTests(MaintenanceGetTests):
         basic_case_dict = dict(success=True, status=status.HTTP_200_OK,
                                user=self.user_with_no_right)
         cases = [
-            ListCase(
-                # - subject
-                **basic_case_dict,
-                title=f"subject={self.name_pattern}",
-                to_find=[mtnce for mtnce in self.list_mtnces
-                         if self.name_pattern == mtnce.subject],
-                params=dict(subject=self.name_pattern)
-            ),
             ListCase(
                 # - start_datetime
                 **basic_case_dict,

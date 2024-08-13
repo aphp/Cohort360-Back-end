@@ -1,8 +1,7 @@
 from django.db import transaction
 from django.db.models import Q, F
 from django_filters import rest_framework as filters, OrderingFilter
-from drf_yasg import openapi
-from drf_yasg.utils import swagger_auto_schema
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
@@ -11,22 +10,16 @@ from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools import join_qs
-from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from cohort.services.cohort_result import cohort_service
 from cohort.models import CohortResult
-from cohort.serializers import CohortResultSerializer, CohortResultSerializerFullDatedMeasure
+from cohort.serializers import CohortResultSerializer, CohortResultSerializerFullDatedMeasure, CohortResultCreateSerializer, \
+    CohortResultPatchSerializer, CohortRightsSerializer
 from cohort.services.cohort_rights import cohort_rights_service
 from cohort.views.shared import UserObjectsRestrictedViewSet
 from exports.services.export import export_service
 
 
 class CohortFilter(filters.FilterSet):
-    # unused, untested
-    def perimeter_filter(self, queryset, field, value):
-        return queryset.filter(request_query_snapshot__perimeters_ids__contains=[value])
-
-    def perimeters_filter(self, queryset, field, value):
-        return queryset.filter(request_query_snapshot__perimeters_ids__contains=value.split(","))
 
     def multi_value_filter(self, queryset, field, value: str):
         if value:
@@ -37,13 +30,9 @@ class CohortFilter(filters.FilterSet):
     name = filters.CharFilter(field_name='name', lookup_expr="icontains")
     min_result_size = filters.NumberFilter(field_name='dated_measure__measure', lookup_expr='gte')
     max_result_size = filters.NumberFilter(field_name='dated_measure__measure', lookup_expr='lte')
-    # ?min_created_at=2015-04-23
-    min_fhir_datetime = filters.IsoDateTimeFilter(field_name='dated_measure__fhir_datetime', lookup_expr="gte")
-    max_fhir_datetime = filters.IsoDateTimeFilter(field_name='dated_measure__fhir_datetime', lookup_expr="lte")
+    min_fhir_datetime = filters.IsoDateTimeFilter(field_name='created_at', lookup_expr="gte")
+    max_fhir_datetime = filters.IsoDateTimeFilter(field_name='created_at', lookup_expr="lte")
     request_id = filters.CharFilter(field_name='request_query_snapshot__request__pk')
-    type = filters.AllValuesMultipleFilter()
-    perimeter_id = filters.CharFilter(method="perimeter_filter")
-    perimeters_ids = filters.CharFilter(method="perimeters_filter")
     group_id = filters.CharFilter(method="multi_value_filter", field_name="group_id")
     status = filters.CharFilter(method="multi_value_filter", field_name="request_job_status")
 
@@ -51,10 +40,7 @@ class CohortFilter(filters.FilterSet):
                                       'modified_at',
                                       'name',
                                       ('dated_measure__measure', 'result_size'),
-                                      ('dated_measure__fhir_datetime', 'fhir_datetime'),
-                                      'type',
-                                      'favorite',
-                                      'request_job_status'))
+                                      'favorite'))
 
     class Meta:
         model = CohortResult
@@ -65,16 +51,8 @@ class CohortFilter(filters.FilterSet):
                   'max_fhir_datetime',
                   'favorite',
                   'group_id',
-                  'create_task_id',
-                  'request_query_snapshot',
-                  'request_query_snapshot__request',
                   'request_id',
-                  'request_job_status',
-                  'status',
-                  # unused, untested
-                  'type',
-                  'perimeter_id',
-                  'perimeters_ids')
+                  'status')
 
 
 class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
@@ -82,9 +60,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                                    .annotate(request_id=F('request_query_snapshot__request__uuid')).all()
     serializer_class = CohortResultSerializer
     http_method_names = ['get', 'post', 'patch', 'delete']
-    lookup_field = "uuid"
-    swagger_tags = ['Cohort - cohorts']
-    pagination_class = NegativeLimitOffsetPagination
+    swagger_tags = ["Cohorts"]
     filterset_class = CohortFilter
     search_fields = ('$name', '$description')
     non_updatable_fields = ['owner', 'owner_id',
@@ -112,26 +88,12 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             return CohortResultSerializerFullDatedMeasure
         return self.serializer_class
 
-    @action(methods=['get'], detail=False, url_path='jobs/active')
-    def get_active_jobs(self, request, *args, **kwargs):
-        return Response(data={"jobs_count": cohort_service.count_active_jobs()},
-                        status=status.HTTP_200_OK)
-
     @cache_response()
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
-    @swagger_auto_schema(operation_summary="Create a CohortResult",
-                         request_body=openapi.Schema(
-                             type=openapi.TYPE_OBJECT,
-                             properties={"dated_measure_id": openapi.Schema(type=openapi.TYPE_STRING),
-                                         "request_query_snapshot_id": openapi.Schema(type=openapi.TYPE_STRING),
-                                         "request_id": openapi.Schema(type=openapi.TYPE_STRING),
-                                         "name": openapi.Schema(type=openapi.TYPE_STRING),
-                                         "description": openapi.Schema(type=openapi.TYPE_STRING),
-                                         "global_estimate": openapi.Schema(type=openapi.TYPE_BOOLEAN, default=True)}),
-                         responses={'201': openapi.Response("CohortResult created successfully"),
-                                    '400': openapi.Response("Bad Request")})
+    @extend_schema(request=CohortResultCreateSerializer,
+                   responses={status.HTTP_201_CREATED: CohortResultSerializer})
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
@@ -139,19 +101,8 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                                                                             cohort=response.data.serializer.instance))
         return response
 
-    @swagger_auto_schema(operation_summary="Used by Front to update cohort metadata and JobServer to update cohort status,"
-                                           "count and group_id and by ETL to update status on delayed large cohorts",
-                         request_body=openapi.Schema(
-                             type=openapi.TYPE_OBJECT,
-                             properties={"request_job_status": openapi.Schema(type=openapi.TYPE_STRING, description="For JobServer and ETL callback"),
-                                         "group.id": openapi.Schema(type=openapi.TYPE_STRING, description="For JobServer callback"),
-                                         "group.count": openapi.Schema(type=openapi.TYPE_STRING, description="For JobServer callback"),
-                                         "name": openapi.Schema(type=openapi.TYPE_STRING),
-                                         "description": openapi.Schema(type=openapi.TYPE_STRING),
-                                         "favorite": openapi.Schema(type=openapi.TYPE_STRING)},
-                             required=["request_job_status", "group.id", "group.count"]),
-                         responses={'200': openapi.Response("Cohort updated successfully"),
-                                    '400': openapi.Response("Bad Request")})
+    @extend_schema(request=CohortResultPatchSerializer,
+                   responses={status.HTTP_200_OK: CohortResultSerializer})
     def partial_update(self, request, *args, **kwargs):
         if any(field in self.non_updatable_fields for field in request.data):
             return Response(data=f"The payload contains non-updatable fields `{request.data}`",
@@ -170,13 +121,17 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         cohort_service.ws_send_to_client(cohort=cohort)
         return response
 
-    @swagger_auto_schema(method='get',
-                         operation_summary="Returns a dict of rights (booleans) for each cohort based on user accesses."
-                                           "Rights are computed by checking user accesses against every perimeter the cohort is built upon",
-                         responses={'200': openapi.Response("Cohorts rights found"),
-                                    '404': openapi.Response("No cohorts found matching the given group_ids or user has no valid accesses")})
+    @action(methods=['get'], detail=False, url_path='jobs/active')
+    def get_active_jobs(self, request, *args, **kwargs):
+        return Response(data={"jobs_count": cohort_service.count_active_jobs()},
+                        status=status.HTTP_200_OK)
+
+    @extend_schema(responses={status.HTTP_200_OK: CohortRightsSerializer(many=True)})
     @action(detail=False, methods=['get'], url_path="cohort-rights")
     def get_rights_on_cohorts(self, request, *args, **kwargs):
         cohorts_rights = cohort_rights_service.get_user_rights_on_cohorts(group_ids=request.query_params.get('group_id'),
                                                                           user=request.user)
-        return Response(data=cohorts_rights, status=status.HTTP_200_OK)
+        serializer = CohortRightsSerializer(data=cohorts_rights, many=True)
+        serializer.is_valid()
+        return Response(data=serializer.data,
+                        status=status.HTTP_200_OK)
