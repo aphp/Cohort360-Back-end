@@ -17,7 +17,7 @@ class FhirFilterFilter(filters.FilterSet):
 
 @extend_schema_view(retrieve=extend_schema(exclude=True))
 class FhirFilterViewSet(ExportsBaseViewSet):
-    queryset = FhirFilter.objects.all()
+    queryset = FhirFilter.objects.filter(auto_generated=False)
     serializer_class = FhirFilterSerializer
     http_method_names = ["get"]
     permission_classes = [IsOwnerPermission]
