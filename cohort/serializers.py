@@ -159,8 +159,8 @@ class ReducedCohortResultSerializer(BaseSerializer):
 
 
 class CohortRightsSerializer(serializers.Serializer):
-    cohort_id = serializers.CharField(read_only=True, allow_null=False)
-    rights = serializers.DictField(read_only=True, allow_null=True)
+    cohort_id = serializers.CharField(allow_null=False)
+    rights = serializers.DictField(allow_null=True)
 
 
 class RQSReducedSerializer(BaseSerializer):
