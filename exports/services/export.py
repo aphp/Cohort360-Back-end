@@ -51,9 +51,10 @@ class ExportService:
     @staticmethod
     def force_generate_fhir_filter(export: Export, table_name: str) -> str:
         resource, _filter = RESOURCE_FILTERS[table_name]
-        return FhirFilter.objects.create(fhir_resource=resource,
+        return FhirFilter.objects.create(auto_generated=True,
+                                         fhir_resource=resource,
                                          filter=_filter,
-                                         name=f'{str(export.uuid)[:10]}_{table_name}_(auto generated)',
+                                         name=f'{str(export.uuid)[:8]}_{table_name}_(auto generated)',
                                          owner=export.owner).uuid
 
     def create_tables(self, export: Export, tables: List[dict], **kwargs) -> bool:

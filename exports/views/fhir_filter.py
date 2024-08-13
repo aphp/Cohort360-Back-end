@@ -18,7 +18,7 @@ class FhirFilterFilter(filters.FilterSet):
 
 
 class FhirFilterViewSet(viewsets.ModelViewSet):
-    queryset = FhirFilter.objects.all()
+    queryset = FhirFilter.objects.filter(auto_generated=False)
     serializer_class = FhirFilterSerializer
     http_method_names = ["get"]
     permission_classes = [IsOwnerPermission]

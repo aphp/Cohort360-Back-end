@@ -21,7 +21,7 @@ class FhirFilterFilter(filters.FilterSet):
 
 
 class FhirFilterViewSet(UserObjectsRestrictedViewSet):
-    queryset = FhirFilter.objects.all()
+    queryset = FhirFilter.objects.filter(auto_generated=False)
     serializer_class = FhirFilterSerializer
     pagination_class = NegativeLimitOffsetPagination
     filterset_class = FhirFilterFilter
