@@ -530,7 +530,7 @@ class ViewSetTests(BaseTests):
         self.assertEqual(response.status_code, case.status)
         if case.success:
             self.assertEqual(case.expected_content_type, response.headers.get("Content-Type"), case.description)
-            self.assertTrue(response.block_size > 0, msg="Unexpected empty FileResponse")
+            self.assertTrue(response.block_size > 0, "Unexpected empty FileResponse")
 
 
 class ViewSetTestsWithBasicPerims(ViewSetTests, SimplePerimSetup):

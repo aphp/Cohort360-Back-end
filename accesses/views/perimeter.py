@@ -146,6 +146,7 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
                   "allow_lookup_opposed_patients": accesses_service.can_user_read_opposed_patient_data(user=user),
                   "allow_read_patient_without_perimeter_limit": False
                   })
+        serializer.is_valid()
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
 

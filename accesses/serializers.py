@@ -221,6 +221,6 @@ class ReadRightPerimeter(serializers.Serializer):
 
 
 class RightReadPatientDataSerializer(serializers.Serializer):
-    allow_read_patient_data_nomi = serializers.BooleanField(read_only=True, allow_null=True)
-    allow_lookup_opposed_patients = serializers.BooleanField(read_only=True, allow_null=True)
-    allow_read_patient_without_perimeter_limit = serializers.BooleanField(read_only=True, allow_null=True)
+    allow_read_patient_data_nomi = serializers.BooleanField(allow_null=True)
+    allow_lookup_opposed_patients = serializers.BooleanField(allow_null=True)
+    allow_read_patient_without_perimeter_limit = serializers.BooleanField(allow_null=True)

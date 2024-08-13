@@ -15,12 +15,12 @@ class SwaggerOIDCAuthScheme(OpenApiAuthenticationExtension):
     priority = 10
 
     def get_security_definition(self, auto_schema):
-        oidc_server_url = env.get('OIDC_SERVER_APHP_URL')
+        issuer = settings.SPECTACULAR_SETTINGS["SWAGGER_UI_OAUTH2_CONFIG"]["issuer"]
         return {"type": "oauth2",
                 "flows": {
                     "authorizationCode": {
-                        "authorizationUrl": f"{oidc_server_url}/protocol/openid-connect/auth",
-                        "tokenUrl": f"{oidc_server_url}/protocol/openid-connect/token",
+                        "authorizationUrl": f"{issuer}/protocol/openid-connect/auth",
+                        "tokenUrl": f"{issuer}/protocol/openid-connect/token",
                         "scopes": {}
                      }
                    }
