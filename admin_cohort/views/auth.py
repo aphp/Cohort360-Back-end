@@ -44,6 +44,7 @@ class ExemptedAuthView(View):
 
 
 class OIDCLoginView(RequestLogMixin, viewsets.GenericViewSet):
+    permission_classes = []
     http_method_names = ["post"]
     logging_methods = ['POST']
 
