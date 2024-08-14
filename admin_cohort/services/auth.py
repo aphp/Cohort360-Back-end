@@ -241,7 +241,9 @@ class AuthService:
                       **({settings.JWT_AUTH_MODE: JWTAuth()} if settings.ENABLE_JWT else {})
                       }
     applicative_users = {env("ROLLOUT_TOKEN"): settings.ROLLOUT_USERNAME,
-                         **getattr(settings, "APPLICATIVE_USERS", {})}
+                         env("SJS_TOKEN"): settings.SJS_USERNAME,
+                         env("ROLLOUT_TOKEN"): settings.ROLLOUT_USERNAME
+                         }
 
     def __init__(self):
         self.post_auth_hooks: List[Callable[[User, str, Dict[str, str]], Optional[User]]] = []
