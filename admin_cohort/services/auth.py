@@ -8,8 +8,10 @@ from typing import Union, Tuple, Optional, Callable, Dict, List
 import environ
 import jwt
 import requests
+from django.apps import apps
 from django.conf import settings
 from django.contrib.auth import logout
+from django.utils.module_loading import import_string
 from jwt import InvalidTokenError
 from jwt.algorithms import RSAAlgorithm
 from requests import RequestException
@@ -244,10 +246,20 @@ class AuthService:
                          **getattr(settings, "APPLICATIVE_USERS", {})}
 
     def __init__(self):
-        self.post_auth_hooks: List[Callable[[User, str, Dict[str, str]], Optional[User]]] = []
+        self.post_auth_hooks: List[Callable[[User, Dict[str, str]], Optional[User]]] = self.load_post_auth_hooks()
 
-    def add_post_authentication_hook(self, callback: Callable[[User, str, Dict[str, str]], Optional[User]]):
-        self.post_auth_hooks += [callback]
+    @staticmethod
+    def load_post_auth_hooks():
+        post_auth_hooks = []
+        for app in settings.INCLUDED_APPS:
+            hooks = getattr(apps.get_app_config(app), "POST_AUTH_HOOKS", list())
+            for hook_path in hooks:
+                hook = import_string(hook_path)
+                if hook:
+                    post_auth_hooks.append(hook)
+                else:
+                    _logger.warning(f"Improperly configured post authentication hook `{hook_path}`")
+        return post_auth_hooks
 
     def _get_authenticator(self, auth_method: str):
         try:
@@ -287,7 +299,7 @@ class AuthService:
             username = authenticator.authenticate(token=token)
             user = User.objects.get(username=username)
             for post_auth_hook in self.post_auth_hooks:
-                user = post_auth_hook(user, token, headers)
+                user = post_auth_hook(user, headers)
             return user, token
         except (InvalidTokenError, ValueError, User.DoesNotExist) as e:
             _logger.error(f"Error authenticating token: {e}")
