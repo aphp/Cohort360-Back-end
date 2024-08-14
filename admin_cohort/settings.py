@@ -7,7 +7,6 @@ import environ
 import pytz
 from celery.schedules import crontab
 
-
 TITLE = "Portail/Cohort360 API"
 VERSION = "3.24.0-SNAPSHOT"
 AUTHOR = "Assistance Publique - Hopitaux de Paris, Département I&D"
