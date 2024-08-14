@@ -242,7 +242,7 @@ class AuthService:
                       }
     applicative_users = {env("ROLLOUT_TOKEN"): settings.ROLLOUT_USERNAME,
                          env("SJS_TOKEN"): settings.SJS_USERNAME,
-                         env("ROLLOUT_TOKEN"): settings.ROLLOUT_USERNAME
+                         env("ETL_USERNAME"): settings.ETL_USERNAME
                          }
 
     def __init__(self):

@@ -44,6 +44,7 @@ class ExemptedAuthView(View):
 
 
 class OIDCLoginView(RequestLogMixin, viewsets.ViewSet):
+    permission_classes = []
     logging_methods = ['POST']
 
     def post(self, request, *args, **kwargs):
