@@ -2,7 +2,8 @@ from functools import reduce
 
 from django.db.models import Q
 from django_filters import rest_framework as filters, OrderingFilter
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -95,7 +96,10 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
             return self.get_paginated_response(serializer.data)
         return Response(data={}, status=status.HTTP_200_OK)
 
-    @extend_schema(responses={status.HTTP_200_OK: RightReadPatientDataSerializer,
+    @extend_schema(parameters=[OpenApiParameter("cohort_ids", OpenApiTypes.STR,
+                                                description="Comma separated list of perimeters cohort_id"),
+                               OpenApiParameter("mode", OpenApiTypes.STR, description="Values: min, max")],
+                   responses={status.HTTP_200_OK: RightReadPatientDataSerializer,
                               status.HTTP_400_BAD_REQUEST: None})
     @action(detail=False, methods=['get'], url_path="patient-data/read")
     @cache_response()

@@ -4,11 +4,10 @@ from rest_framework.permissions import OR as drf_OR
 
 from accesses.permissions import can_user_read_users, can_user_read_logs, can_user_manage_users
 from accesses.services.accesses import accesses_service
-from admin_cohort.models import User
 
 
 def user_is_authenticated(user):
-    return user and hasattr(user, User.USERNAME_FIELD)
+    return not user.is_anonymous
 
 
 class MaintenancesPermission(permissions.BasePermission):
