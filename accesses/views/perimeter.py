@@ -105,6 +105,7 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
     @cache_response()
     def check_read_patient_data_rights(self, request, *args, **kwargs):
         """
+        cohort_ids: comma separated IDs that may refer to `cohort.group_id` or `perimeter.cohort_id`
         mode=min:
             * all perimeters must be accessible otherwise return HTTP404
             * all perimeters must be accessible in nominative mode else: allow_read_patient_data_nomi = False

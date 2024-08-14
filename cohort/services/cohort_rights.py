@@ -62,7 +62,7 @@ class CohortRightsService:
                 for cohort_id, virtual_cohort_ids in virtual_cohorts.items()}
 
     @staticmethod
-    def retrieve_virtual_cohorts_ids_from_snapshot(cohorts_ids: List[str]) -> dict[str, List[int]]:
+    def retrieve_virtual_cohorts_ids_from_snapshot(cohorts_ids: List[str]) -> dict[str, List[str]]:
         cohorts = CohortResult.objects.filter(group_id__in=cohorts_ids)
         return {cohort.group_id: cohort.request_query_snapshot.perimeters_ids for cohort in cohorts}
 

@@ -9,6 +9,7 @@ from accesses.services.shared import PerimeterReadRight
 from admin_cohort.models import User
 from admin_cohort.settings import PERIMETERS_TYPES
 from admin_cohort.tools import join_qs
+from cohort.services.cohort_rights import cohort_rights_service
 
 
 class PerimetersService:
@@ -91,7 +92,12 @@ class PerimetersService:
 
     @staticmethod
     def get_target_perimeters(cohort_ids: str) -> QuerySet:
-        return Perimeter.objects.filter(cohort_id__in=cohort_ids.split(","))
+        cohorts_ids = cohort_ids.split(",")
+        virtual_cohorts_map = cohort_rights_service.retrieve_virtual_cohorts_ids_from_snapshot(cohorts_ids=cohorts_ids) or {}
+        virtual_cohorts = [i for v in virtual_cohorts_map.values()
+                             for i in v]
+        virtual_cohorts = virtual_cohorts + cohorts_ids
+        return Perimeter.objects.filter(cohort_id__in=virtual_cohorts)
 
     @staticmethod
     def get_top_perimeters_with_read_nomi_right(read_nomi_perimeters_ids: List[int]) -> List[int]:
