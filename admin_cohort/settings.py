@@ -202,7 +202,6 @@ SPECTACULAR_SETTINGS = {"TITLE": TITLE,
                             "issuer": env('OIDC_AUTH_SERVER_1', default=''),
                             "realm": env('OIDC_AUTH_SERVER_1', default='').split("realms/")[-1],
                             "clientId": env('OIDC_CLIENT_ID_1', default=''),
-                            "clientSecret": env('OIDC_CLIENT_SECRET_1', default=''),
                             "useBasicAuthenticationWithAccessCodeGrant": True,
                             },
                         }
