@@ -3,7 +3,6 @@ from typing import Type, Callable
 
 from django.conf import settings
 from django.db.models import Model
-from pydantic import ValidationError
 from requests import HTTPError
 from rest_framework import status
 
@@ -26,7 +25,7 @@ class SJSRequester:
             _logger(msg=f"Converting the json query: {json_query}")
             cohort_query = CohortQuery(instance_id=instance_id, **json.loads(json_query))
             response = cohort_request.launch(cohort_query)
-        except (TypeError, ValueError, ValidationError, HTTPError) as e:
+        except Exception as e:
             _logger_err.error(f"Error sending request to SJS: {e}")
             response_data = dict(success=False, err_msg=str(e), status="ERROR")
         else:

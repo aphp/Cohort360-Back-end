@@ -56,7 +56,7 @@ if [ "$WITH_KERBEROS" = true ]; then
   cron
 fi
 
-celery -A admin_cohort worker "$WITH_CELERY_BEAT" --loglevel=INFO --logfile=/app/log/celery.log &
+celery -A admin_cohort worker $WITH_CELERY_BEAT --loglevel=INFO --logfile=/app/log/celery.log &
 sleep 5
 
 python setup_logging.py &
