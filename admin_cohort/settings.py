@@ -8,7 +8,7 @@ import pytz
 from celery.schedules import crontab
 
 TITLE = "Portail/Cohort360 API"
-VERSION = "3.23.5"
+VERSION = "3.24.0-SNAPSHOT"
 AUTHOR = "Assistance Publique - Hopitaux de Paris, Département I&D"
 DESCRIPTION_MD = f"""Supports the official **Cohort360** web app and **Portail**  
                      Built by **{AUTHOR}**
@@ -202,7 +202,6 @@ SPECTACULAR_SETTINGS = {"TITLE": TITLE,
                             "issuer": env('OIDC_AUTH_SERVER_1', default=''),
                             "realm": env('OIDC_AUTH_SERVER_1', default='').split("realms/")[-1],
                             "clientId": env('OIDC_CLIENT_ID_1', default=''),
-                            "clientSecret": env('OIDC_CLIENT_SECRET_1', default=''),
                             "useBasicAuthenticationWithAccessCodeGrant": True,
                             },
                         }
