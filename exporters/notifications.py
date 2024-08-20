@@ -7,6 +7,7 @@ from exporters.enums import ExportTypes
 
 CSV = ExportTypes.CSV.value
 HIVE = ExportTypes.HIVE.value
+XLSX = ExportTypes.XLSX.value
 
 BASE_CONTEXT = {"contact_email_address": settings.EMAIL_SUPPORT_CONTACT}
 
@@ -56,28 +57,31 @@ def export_failed(**kwargs):
 
 
 def csv_export_received(**kwargs):
-    return export_received(action=f"Demande d'export `{kwargs.get('cohort_name', 'CSV')}` reçue",
-                           export_type="csv",
+    return export_received(action=f"Demande d'export `{kwargs.get('cohort_name', CSV)}` reçue",
+                           export_type=CSV,
                            **kwargs)
 
 
 def hive_export_received(**kwargs):
     return export_received(action="Demande reçue de transfert en environnement Jupyter",
-                           export_type="hive",
+                           export_type=HIVE,
                            **kwargs)
 
 
 def csv_export_succeeded(**kwargs):
-    return export_succeeded(export_type="csv", **kwargs)
+    return export_succeeded(export_type=CSV, **kwargs)
 
 
 def hive_export_succeeded(**kwargs):
-    return export_succeeded(export_type="hive", **kwargs)
+    return export_succeeded(export_type=HIVE, **kwargs)
 
 
 EXPORT_RECEIVED_NOTIFICATIONS = {CSV: csv_export_received,
-                                 HIVE: hive_export_received
+                                 HIVE: hive_export_received,
+                                 XLSX: csv_export_received     # XLSX and CSV use the same email template
                                  }
+
 EXPORT_SUCCEEDED_NOTIFICATIONS = {CSV: csv_export_succeeded,
-                                  HIVE: hive_export_succeeded
+                                  HIVE: hive_export_succeeded,
+                                  XLSX: csv_export_succeeded     # XLSX and CSV use the same email template
                                   }

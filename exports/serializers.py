@@ -49,8 +49,6 @@ class ExportSerializer(serializers.ModelSerializer):
     class Meta:
         model = Export
         read_only_fields = ["uuid",
-                            "target_name",
-                            "target_location",
                             "request_job_id",
                             "request_job_status",
                             "request_job_fail_msg"]
@@ -58,6 +56,8 @@ class ExportSerializer(serializers.ModelSerializer):
                                      "output_format",
                                      "datalab",
                                      "nominative",
+                                     "target_name",
+                                     "target_location",
                                      "shift_dates",
                                      "group_tables",
                                      "export_tables",
