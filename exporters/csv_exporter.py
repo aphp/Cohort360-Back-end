@@ -15,6 +15,7 @@ class CSVExporter(BaseExporter):
     def __init__(self):
         super().__init__()
         self.type = ExportTypes.CSV.value
+        self.file_extension = ".zip"
         self.target_location = os.environ.get('EXPORT_CSV_PATH')
 
     @staticmethod
@@ -31,9 +32,9 @@ class CSVExporter(BaseExporter):
         return source_cohorts_ids
 
     def validate(self, export_data: dict, **kwargs) -> None:
-        source_cohorts_ids = self.get_source_cohorts(export_data=export_data, owner=kwargs.get("owner"))
         if not export_data.get('nominative', False):
-            raise ValueError("CSV exports must be in `nominative` mode")
+            raise ValueError("Export must be in `nominative` mode")
+        source_cohorts_ids = self.get_source_cohorts(export_data=export_data, owner=kwargs.get("owner"))
         kwargs["source_cohorts_ids"] = source_cohorts_ids
         super().validate(export_data=export_data, **kwargs)
 
@@ -44,5 +45,6 @@ class CSVExporter(BaseExporter):
     def handle_export(self, export: Export, **kwargs) -> None:
         self.confirm_export_received(export=export)
         kwargs["params"] = {"export_in_one_table": export.group_tables,
-                            "file_path": f"{export.target_full_path}.zip"}
+                            "file_path": f"{export.target_full_path}{self.file_extension}"
+                            }
         super().handle_export(export=export, **kwargs)

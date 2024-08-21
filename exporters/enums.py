@@ -12,8 +12,10 @@ class ExportTypes(Enum):
 
     @property
     def allow_download(self) -> bool:
-        return self == ExportTypes.CSV
+        return self in (ExportTypes.CSV,
+                        ExportTypes.XLSX)
 
     @property
     def allow_to_clean(self) -> bool:
-        return self == ExportTypes.CSV
+        return self in (ExportTypes.CSV,
+                        ExportTypes.XLSX)

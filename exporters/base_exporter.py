@@ -23,6 +23,7 @@ class BaseExporter:
     def __init__(self):
         self.export_api = InfraAPI()
         self.type = None
+        self.file_extension = None
         self.target_location = None
 
     def validate(self, export_data: dict, **kwargs) -> None:
@@ -83,6 +84,8 @@ class BaseExporter:
         start_time = timezone.now()
         try:
             job_id = self.send_export(export=export, params=params)
+            if job_id is None:
+                raise RequestException(f"Got an invalid Job ID: `{job_id}`")
             export.request_job_status = JobStatus.pending
             export.request_job_id = job_id
             export.save()
@@ -127,7 +130,6 @@ class BaseExporter:
 
     def wait_for_job(self, job_id: str, service: InfraAPI.Services) -> JobStatus:
         errors_count = 0
-        error_msg = ""
         job_status = JobStatus.pending
 
         while errors_count < 5 and not job_status.is_end_state:
@@ -136,12 +138,11 @@ class BaseExporter:
             try:
                 job_status = self.export_api.get_job_status(job_id=job_id, service=service)
                 self.log_export_task("", f"Received status: {job_status}")
-            except RequestException as e:
+            except RequestException:
                 errors_count += 1
-                error_msg = str(e)
 
         if job_status != JobStatus.finished:
-            raise RequestException(f"Job `{job_id}` ended with status `{job_status}`, reason: {error_msg}")
+            raise RequestException(f"Job `{job_id}` ended with status `{job_status}`")
         return job_status
 
     @staticmethod
