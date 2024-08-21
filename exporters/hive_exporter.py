@@ -15,6 +15,7 @@ class HiveExporter(BaseExporter):
     def __init__(self):
         super().__init__()
         self.type = ExportTypes.HIVE.value
+        self.file_extension = ".db"
         self.target_location = os.environ.get('HIVE_DB_FOLDER')
         self.user = os.environ.get('HIVE_EXPORTER_USER')
 
@@ -38,9 +39,8 @@ class HiveExporter(BaseExporter):
         except RequestException as e:
             self.mark_export_as_failed(export=export, reason=f"Error while preparing DB for export: {e}")
 
-    @staticmethod
-    def get_db_location(export: Export) -> str:
-        return f"{export.target_full_path}.db"
+    def get_db_location(self, export: Export) -> str:
+        return f"{export.target_full_path}{self.file_extension}"
 
     def create_db(self, export: Export) -> None:
         db_location = self.get_db_location(export=export)
