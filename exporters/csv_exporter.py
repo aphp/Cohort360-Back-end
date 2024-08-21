@@ -31,9 +31,9 @@ class CSVExporter(BaseExporter):
         return source_cohorts_ids
 
     def validate(self, export_data: dict, **kwargs) -> None:
-        source_cohorts_ids = self.get_source_cohorts(export_data=export_data, owner=kwargs.get("owner"))
         if not export_data.get('nominative', False):
-            raise ValueError("CSV exports must be in `nominative` mode")
+            raise ValueError("Export must be in `nominative` mode")
+        source_cohorts_ids = self.get_source_cohorts(export_data=export_data, owner=kwargs.get("owner"))
         kwargs["source_cohorts_ids"] = source_cohorts_ids
         super().validate(export_data=export_data, **kwargs)
 
