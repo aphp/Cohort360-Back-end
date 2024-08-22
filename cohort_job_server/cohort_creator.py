@@ -1,3 +1,5 @@
+from typing import Optional
+
 from django.utils import timezone
 
 from admin_cohort.types import JobStatus
@@ -10,10 +12,16 @@ from cohort_job_server.utils import _logger, JOB_STATUS, GROUP_ID, GROUP_COUNT, 
 
 class CohortCreator(BaseCohortOperator):
 
-    def launch_cohort_creation(self, cohort_id: str, json_query: str, auth_headers: dict) -> None:
+    def launch_cohort_creation(self, cohort_id: Optional[str], json_query: str, auth_headers: dict, callback_path: Optional[str] = None,
+                               existing_cohort_id: Optional[int] = None,
+                               owner_username: Optional[str] = None) -> None:
         self.sjs_requester.launch_request(CohortCreate(instance_id=cohort_id,
                                                        json_query=json_query,
-                                                       auth_headers=auth_headers))
+                                                       auth_headers=auth_headers,
+                                                       callback_path=callback_path,
+                                                       owner_username=owner_username,
+                                                       existing_cohort_id=existing_cohort_id
+                                                       ))
 
     @staticmethod
     def handle_patch_cohort(cohort: CohortResult, data: dict) -> None:

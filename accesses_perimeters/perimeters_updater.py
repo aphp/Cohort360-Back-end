@@ -9,7 +9,7 @@ from django.db.models.query import RawQuerySet
 from django.utils import timezone
 
 from accesses.models import Perimeter, Access
-from accesses.services.accesses import accesses_service
+from accesses.services.accesses import AccessesService
 from accesses_perimeters.models import Concept, CareSite
 from admin_cohort import settings
 from admin_cohort.tools.cache import invalidate_cache
@@ -294,15 +294,6 @@ def delete_perimeters(perimeters: QuerySet, care_sites: RawQuerySet):
     return perimeters_to_delete
 
 
-def close_accesses(perimeters_to_delete: QuerySet):
-    perimeters_to_delete_ids = perimeters_to_delete.values_list("id", flat=True)
-    accesses_to_delete = Access.objects.filter(accesses_service.q_access_is_valid()
-                                               & (Q(perimeter_id__in=perimeters_to_delete_ids) | Q(perimeter_id__isnull=True)))
-    accesses_to_delete.update(end_datetime=timezone.now())
-    Access.objects.bulk_update(accesses_to_delete, ["end_datetime"])
-    _logger.info(f"{len(accesses_to_delete)} accesses have been closed: {accesses_to_delete}")
-
-
 def get_perimeters_to_delete(all_perimeters: QuerySet, all_valid_care_sites: RawQuerySet):
     deleted_care_sites = CareSite.objects.raw(CareSite.sql_get_deleted_care_sites())
     deleted_care_sites_ids = (cs.care_site_id for cs in deleted_care_sites)
@@ -367,7 +358,7 @@ def perimeters_data_model_objects_update():
     _logger.info("6. Deleting removed perimeters")
     perimeters_to_delete = delete_perimeters(perimeters=all_perimeters, care_sites=all_valid_care_sites)
     _logger.info("7. Closing linked accesses")
-    close_accesses(perimeters_to_delete)
+    AccessesService.close_accesses(perimeters_to_delete)
     _logger.info("End of perimeters updating. Invalidating cache for Perimeters and Accesses")
     invalidate_cache(model_name=Perimeter.__name__)
     invalidate_cache(model_name=Access.__name__)

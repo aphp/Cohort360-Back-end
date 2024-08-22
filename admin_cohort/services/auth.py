@@ -350,7 +350,8 @@ class AuthService:
             raise AuthenticationFailed(code='bad_authorization_header',
                                        detail='Authorization header must contain two space-delimited values')
         res = parts[1]
-        return res if not isinstance(res, bytes) else res.decode('utf-8')
+        token = res if not isinstance(res, bytes) else res.decode('utf-8')
+        return token
 
 
 auth_service = AuthService()

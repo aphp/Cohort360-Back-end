@@ -32,6 +32,7 @@ urlpatterns = [re_path(r'^$', NotFoundView.as_view(), name="not-found"),
                path("accesses/", include(("accesses.urls", "accesses"), namespace="accesses")),
                path("cohort/", include(("cohort.urls", "cohort"), namespace="cohort")),
                path("exports/", include(("exports.urls", "exports"), namespace="exports")),
+               path("fhir-perimeters/", include(("accesses_fhir_perimeters.urls", "accesses_fhir_perimeters"), namespace="accesses_fhir_perimeters")),
                path(f"{DOCS_ENDPOINT}", SpectacularSwaggerView.as_view(), name='swagger-ui'),
                re_path(r"^schema", SpectacularAPIView.as_view(), name='schema'),
                re_path(r"^redoc/$", SpectacularRedocView.as_view(), name='redoc')
