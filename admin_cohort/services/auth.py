@@ -351,8 +351,6 @@ class AuthService:
                                        detail='Authorization header must contain two space-delimited values')
         res = parts[1]
         token = res if not isinstance(res, bytes) else res.decode('utf-8')
-        if token == 'null':
-            return None
         return token
 
 
