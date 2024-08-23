@@ -17,7 +17,7 @@ class MaintenancesPermission(permissions.BasePermission):
         user = request.user
         return user_is_authenticated(user) and (accesses_service.user_is_full_admin(user) or
                                                 user.username == settings.ROLLOUT_USERNAME or
-                                                user.username in getattr(settings, "applicative_users", []))
+                                                user.username in list(getattr(settings, "APPLICATIVE_USERS", {}).values()))
 
 
 class LogsPermission(permissions.BasePermission):

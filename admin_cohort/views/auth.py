@@ -12,12 +12,12 @@ from requests import RequestException
 from rest_framework import status, viewsets
 from rest_framework_simplejwt.exceptions import InvalidToken
 
-from admin_cohort.services.auth import auth_service
 from admin_cohort.auth.auth_form import AuthForm
 from admin_cohort.models import User
 from admin_cohort.serializers import UserSerializer
-from admin_cohort.types import AuthTokens
+from admin_cohort.services.auth import auth_service
 from admin_cohort.tools.request_log_mixin import RequestLogMixin, JWTLoginRequestLogMixin
+from admin_cohort.types import AuthTokens
 
 _logger = logging.getLogger("django.request")
 

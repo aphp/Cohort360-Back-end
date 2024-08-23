@@ -84,7 +84,7 @@ class Criteria(BaseModel):
 
 
 class CohortQuery(BaseModel):
-    instance_id: UUID = Field(None, alias='instance_id')
+    instance_id: Optional[UUID] = Field(None, alias='instance_id')
     cohort_name: str = Field(None, alias='cohortName')
     source_population: SourcePopulation = Field(None, alias="sourcePopulation")
     resource_type: ResourceType = Field(None, alias="resourceType")
@@ -100,6 +100,7 @@ class SparkJobObject:
     mode: Mode
     owner_entity_id: str
     callbackPath: Optional[str] = Field(None, alias='callbackPath')
+    existingCohortId: Optional[int] = Field(None, alias='existingCohortId')
 
 
 class FhirParameter(BaseModel):

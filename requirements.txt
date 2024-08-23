@@ -34,6 +34,7 @@ docopt==0.6.2
 drf-api-tracking==1.8.0
 drf-extensions==0.7.1
 drf-spectacular==0.27.2
+fhirpy==2.0.0
 gssapi==1.8.2
 gunicorn==23.0.0
 hdfs==2.7.0

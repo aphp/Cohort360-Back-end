@@ -62,6 +62,7 @@ class QueryFormatter:
                 filter_fhir_enriched = add_security_params_to_filter_fhir(criteria,
                                                                           source_population,
                                                                           is_pseudo)
+
                 _logger.info(f"filterFhirEnriched {filter_fhir_enriched}")
 
                 if CohortJobServerConfig.USE_SOLR:

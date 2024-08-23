@@ -23,6 +23,7 @@ class BaseExporter:
     def __init__(self):
         self.export_api = InfraAPI()
         self.type = None
+        self.file_extension = None
         self.target_location = None
 
     def validate(self, export_data: dict, **kwargs) -> None:
