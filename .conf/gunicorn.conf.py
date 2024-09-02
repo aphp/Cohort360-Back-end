@@ -2,6 +2,7 @@ from logging.handlers import DEFAULT_TCP_LOGGING_PORT
 
 workers = 7
 threads = 10
+limit_request_line = 8190
 
 logconfig_dict = dict(
     version=1,
