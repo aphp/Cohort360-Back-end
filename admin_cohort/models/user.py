@@ -20,7 +20,7 @@ class User(AbstractBaseUser, BaseModel):
         return f"User {self})"
 
     @property
-    def display_name(self):
+    def display_name(self) -> str:
         deleted_suffix = self.delete_datetime and " (Supprimé)" or ""
         return f"{self}{deleted_suffix}"
 

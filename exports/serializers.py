@@ -62,7 +62,51 @@ class ExportSerializer(serializers.ModelSerializer):
                                      "group_tables",
                                      "export_tables",
                                      "motivation"]
-        extra_kwargs = {'motivation': {'required': False}}
+
+
+class ExportTableSerializerCreate(serializers.ModelSerializer):
+    table_ids = serializers.ListField(child=serializers.CharField())
+
+    class Meta:
+        model = ExportTable
+        fields = ["table_ids",
+                  "cohort_result_source",
+                  "fhir_filter",
+                  "respect_table_relationships"]
+
+
+class ExportTableSerializerCreateV2(serializers.ModelSerializer):
+    table_ids = serializers.ListField(child=serializers.CharField())
+    columns = serializers.ListField(child=serializers.CharField())
+
+    class Meta:
+        model = ExportTable
+        fields = ["table_ids",
+                  "columns",
+                  "fhir_filter",
+                  "respect_table_relationships"]
+
+
+class ExportCreateSerializer(serializers.ModelSerializer):
+    export_tables = ExportTableSerializerCreate(many=True)
+
+    class Meta:
+        model = Export
+        fields = ["motivation",
+                  "output_format",
+                  "datalab",
+                  "nominative",
+                  "shift_dates",
+                  "group_tables",
+                  "export_tables"]
+
+
+class ExportCreateSerializerV2(ExportCreateSerializer):
+    export_tables = ExportTableSerializerCreateV2(many=True)
+
+    class Meta:
+        model = Export
+        fields = ["cohort_source"] + ExportCreateSerializer.Meta.fields
 
 
 class ExportsListSerializer(serializers.ModelSerializer):
@@ -74,7 +118,7 @@ class ExportsListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Export
-        fields = ("owner",
+        fields = ["owner",
                   "output_format",  # todo: /!\ split pages in Portail for CSV/Hive exports
                   "cohort_id",
                   "cohort_name",
@@ -82,4 +126,4 @@ class ExportsListSerializer(serializers.ModelSerializer):
                   "created_at",     # todo:  was: `insert_datetime`
                   "request_job_status",
                   "target_datalab",
-                  "target_name")
+                  "target_name"]
