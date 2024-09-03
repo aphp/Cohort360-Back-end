@@ -4,8 +4,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from admin_cohort.models import MaintenancePhase
-from admin_cohort.services.maintenance import maintenance_service
 from admin_cohort.permissions import MaintenancesPermission
+from admin_cohort.services.maintenance import maintenance_service
 from admin_cohort.serializers import MaintenancePhaseSerializer
 
 extended_schema = extend_schema(tags=["Maintenance"])
