@@ -4,10 +4,11 @@ from django.db import transaction
 
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult, FhirFilter, DatedMeasure, RequestQuerySnapshot
+from cohort.serializers import WSJobStatus, JobName
 from cohort.services.base_service import CommonService
 from cohort.services.dated_measure import dm_service
 from cohort.services.utils import get_authorization_header, ServerError
-from cohort.services.ws_event_manager import ws_send
+from admin_cohort.services.ws_event_manager import WebsocketManager, WebSocketMessageType
 from cohort.tasks import create_cohort
 
 
@@ -60,8 +61,8 @@ class CohortResultService(CommonService):
                            JobStatus.validated,
                            JobStatus.started,
                            JobStatus.pending]
-        return CohortResult.objects.filter(request_job_status__in=active_statuses)\
-                                   .count()
+        return CohortResult.objects.filter(request_job_status__in=active_statuses) \
+            .count()
 
     def handle_cohort_creation(self, cohort: CohortResult, request) -> None:
         if request.data.pop("global_estimate", False):
@@ -71,7 +72,7 @@ class CohortResultService(CommonService):
                             json_query=cohort.request_query_snapshot.serialized_query,
                             auth_headers=get_authorization_header(request),
                             cohort_creator_cls=self.operator_cls) \
-                         .apply_async()
+                .apply_async()
 
         except Exception as e:
             cohort.delete()
@@ -101,7 +102,12 @@ class CohortResultService(CommonService):
             extra_info['global'] = {'measure_min': global_dm.measure_min,
                                     'measure_max': global_dm.measure_max
                                     }
-        ws_send(instance=cohort, job_name='create', extra_info=extra_info)
+
+        WebsocketManager.send_to_client(str(cohort.owner_id), WSJobStatus(type=WebSocketMessageType.JOB_STATUS,
+                                                                          status=cohort.request_job_status,
+                                                                          uuid=str(cohort.uuid),
+                                                                          job_name=JobName.CREATE,
+                                                                          extra_info=extra_info))
 
 
 cohort_service = CohortResultService()

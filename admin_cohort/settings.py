@@ -303,7 +303,7 @@ USE_SOLR = bool(env("USE_SOLR", default=False))
 DAYS_TO_KEEP_EXPORTED_FILES = int(env("DAYS_TO_KEEP_EXPORTED_FILES", default=7))
 
 # WebSockets
-WEBSOCKET_MANAGER = {"module": "cohort.services.ws_event_manager",
+WEBSOCKET_MANAGER = {"module": "admin_cohort.services.ws_event_manager",
                      "manager_class": "WebsocketManager"
                      }
 
