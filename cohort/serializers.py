@@ -1,8 +1,12 @@
+from enum import StrEnum
+from typing import Union
+
 from rest_framework import serializers
 
 from admin_cohort.models import User
 from admin_cohort.serializers import BaseSerializer, UserSerializer
-from admin_cohort.types import MissingDataError
+from admin_cohort.services.ws_event_manager import WebSocketMessage
+from admin_cohort.types import MissingDataError, JobStatus
 from cohort.models import CohortResult, DatedMeasure, Folder, Request, RequestQuerySnapshot, FhirFilter, FeasibilityStudy, RequestRefreshSchedule
 
 
@@ -337,3 +341,16 @@ class RequestRefreshScheduleSerializer(serializers.ModelSerializer):
                             "last_refresh_succeeded",
                             "last_refresh_count",
                             "last_refresh_error_msg"]
+
+
+class JobName(StrEnum):
+    COUNT = 'count'
+    CREATE = 'create'
+
+
+class WSJobStatus(WebSocketMessage):
+    status: Union[JobStatus, str]
+    uuid: str
+    job_name: JobName
+    extra_info: dict
+
