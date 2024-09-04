@@ -22,6 +22,7 @@ from rest_framework_simplejwt.exceptions import InvalidToken
 
 from admin_cohort.models import User
 from admin_cohort.types import ServerError, LoginError, OIDCAuthTokens, JWTAuthTokens, AuthTokens
+from cohort_job_server.apps import CohortJobServerConfig
 
 env = environ.Env()
 _logger = logging.getLogger('info')
@@ -242,8 +243,9 @@ class AuthService:
     authenticators = {settings.OIDC_AUTH_MODE: OIDCAuth(),
                       **({settings.JWT_AUTH_MODE: JWTAuth()} if settings.ENABLE_JWT else {})
                       }
-    applicative_users = {env("ROLLOUT_TOKEN"): settings.ROLLOUT_USERNAME,
-                         **getattr(settings, "APPLICATIVE_USERS", {})}
+    applicative_users = {env("ROLLOUT_TOKEN"): env("ROLLOUT_USERNAME", default="ROLLOUT_PIPELINE"),
+                         **CohortJobServerConfig.APPLICATIVE_USERS_TOKENS
+                         }
 
     def __init__(self):
         self.post_auth_hooks: List[Callable[[User, Dict[str, str]], Optional[User]]] = self.load_post_auth_hooks()

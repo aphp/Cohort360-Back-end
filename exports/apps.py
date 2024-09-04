@@ -5,11 +5,13 @@ from django.conf import settings
 class ExportsConfig(AppConfig):
     name = 'exports'
 
-    def ready(self):
-
-        settings.EXPORTERS = getattr(settings, "EXPORTERS", [
+    if "exporters" in settings.INCLUDED_APPS:
+        from exporters.apps import ExportersConfig
+        EXPORTERS = ExportersConfig.EXPORTERS
+    else:
+        EXPORTERS = [
             {
                 "TYPE": "plain",
                 "EXPORTER_CLASS": "exports.services.export_operators.DefaultExporter"
             }
-        ])
+        ]
