@@ -1,12 +1,19 @@
-from django.conf import settings
-from rest_framework import permissions
+from rest_framework.permissions import IsAuthenticated
+from cohort_job_server.apps import CohortJobServerConfig
+
+APPLICATIVE_USERS = CohortJobServerConfig.APPLICATIVE_USERS
 
 
-class SJSorETLCallbackPermission(permissions.BasePermission):
+class AuthenticatedApplicativeUserPermission(IsAuthenticated):
     def has_permission(self, request, view):
-        return request.user.is_authenticated and \
-            request.method in ("GET", "PATCH") and \
-            request.user.username in settings.APPLICATIVE_USERS.values()
+        return super().has_permission(request, view) and \
+            request.user.username in APPLICATIVE_USERS
+
+
+class SJSorETLCallbackPermission(AuthenticatedApplicativeUserPermission):
+    def has_permission(self, request, view):
+        return super().has_permission(request, view) and \
+            request.method in ("GET", "PATCH")
 
     def has_object_permission(self, request, view, obj):
         return self.has_permission(request, view)

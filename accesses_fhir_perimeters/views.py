@@ -7,7 +7,7 @@ from rest_framework.viewsets import GenericViewSet
 
 from accesses.models import Perimeter
 from accesses_fhir_perimeters.perimeters_updater import update_perimeter, perimeters_data_model_objects_update
-from admin_cohort.permissions import MaintenancesPermission
+from accesses_fhir_perimeters.permissions import FhirPerimeterResultPermission
 
 
 class FhirPerimeterResultSerializer(serializers.Serializer):
@@ -28,7 +28,7 @@ class FhirPerimeterResultSerializer(serializers.Serializer):
 
 class FhirPerimeterResult(GenericViewSet):
     swagger_tags = ['Fhir Perimeters - Cohort Result']
-    permission_classes = (MaintenancesPermission,)
+    permission_classes = (FhirPerimeterResultPermission,)
     http_method_names = ['put', 'patch']
     lookup_field = "id"
     queryset = Perimeter.objects.all()

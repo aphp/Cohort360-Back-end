@@ -3,11 +3,21 @@ from __future__ import annotations
 from typing import List
 
 from rest_framework import permissions
+from rest_framework.permissions import IsAuthenticated, SAFE_METHODS
 
 from accesses.models import Role
 from accesses.services.accesses import accesses_service
 from accesses.services.roles import roles_service
 from admin_cohort.models import User
+
+
+class IsAuthenticatedReadOnly(IsAuthenticated):
+    def has_permission(self, request, view):
+        authenticated = super().has_permission(request, view)
+        return authenticated and request.method in SAFE_METHODS
+
+    def has_object_permission(self, request, view, obj):
+        return self.has_permission(request=request, view=view)
 
 
 def get_bound_roles(user: User) -> List[Role]:
