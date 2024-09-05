@@ -28,3 +28,4 @@ class MaintenancePhase(BaseModel):
     @property
     def active(self):
         return self.start_datetime < timezone.now() < self.end_datetime
+
