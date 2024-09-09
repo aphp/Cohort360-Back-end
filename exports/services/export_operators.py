@@ -11,6 +11,7 @@ from requests import RequestException
 
 from admin_cohort.types import JobStatus
 from exports import ExportTypes
+from exports.apps import ExportsConfig
 from exports.emails import push_email_notification, exported_files_deleted
 from exports.exceptions import BadRequestError, FilesNoLongerAvailable, StorageProviderException
 from exports.models import Export
@@ -26,7 +27,7 @@ if not STORAGE_PROVIDERS:
 
 def load_available_exporters() -> dict:
     exporters = {}
-    for exporter_conf in settings.EXPORTERS:
+    for exporter_conf in ExportsConfig.EXPORTERS:
         try:
             export_type, cls_path = exporter_conf["TYPE"], exporter_conf["EXPORTER_CLASS"]
             export_type = ExportTypes(export_type).value

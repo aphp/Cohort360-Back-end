@@ -19,6 +19,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 env = environ.Env()
 environ.Env.read_env()
 
+NOTSET = environ.Env.NOTSET
+
 BACK_HOST = env("BACK_HOST")
 BACK_URL = f"https://{env('BACK_HOST')}"
 FRONT_URL = env("FRONT_URL")
@@ -29,7 +31,7 @@ SECRET_KEY = env("DJANGO_SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 # Debug will also send sensitive data with the response to an error
-DEBUG = int(env("DEBUG")) == 1
+DEBUG = env.int("DEBUG") == 1
 
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = [BACK_URL] + FRONT_URLS
@@ -52,7 +54,7 @@ SESSION_COOKIE_SECURE = not DEBUG
 ACCESS_TOKEN_COOKIE_SECURE = not DEBUG
 
 ADMINS = [a.split(',') for a in env("ADMINS").split(';')]
-NOTIFY_ADMINS = bool(env("NOTIFY_ADMINS", default=False))
+NOTIFY_ADMINS = env.bool("NOTIFY_ADMINS", default=False)
 
 logging.captureWarnings(True)
 
@@ -97,8 +99,8 @@ LOGGING = dict(version=1,
 
 # Application definition
 INCLUDED_APPS = env('INCLUDED_APPS', default='accesses,cohort_job_server,cohort,exports,accesses_fhir_perimeters').split(",")
-INFLUXDB_DISABLED = int(env("INFLUXDB_DISABLED")) == 1
-ENABLE_JWT = env("ENABLE_JWT", default=False)
+INFLUXDB_DISABLED = env.int("INFLUXDB_DISABLED") == 1
+ENABLE_JWT = env.bool("ENABLE_JWT", default=False)
 
 INSTALLED_APPS = ['django.contrib.admin',
                   'django.contrib.auth',
@@ -212,7 +214,7 @@ APPEND_SLASH = False
 AUTH_USER_MODEL = 'admin_cohort.User'
 
 # EMAILS
-EMAIL_USE_TLS = env("EMAIL_USE_TLS").lower() == "true"
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS")
 EMAIL_HOST = env("EMAIL_HOST")
 EMAIL_PORT = env("EMAIL_PORT")
 EMAIL_SUPPORT_CONTACT = env("EMAIL_SUPPORT_CONTACT")
@@ -269,16 +271,14 @@ DEFAULT_EXCEPTION_REPORTER_FILTER = 'admin_cohort.tools.except_report_filter.Cus
 SENSITIVE_PARAMS = env('SENSITIVE_PARAMS').split(",")
 
 # COHORTS +20k
-LAST_COUNT_VALIDITY = int(env("LAST_COUNT_VALIDITY", default=24))  # in hours
-COHORT_LIMIT = int(env("COHORT_LIMIT", default=20_000))
-
-ROLLOUT_USERNAME = env("ROLLOUT_USERNAME", default="ROLLOUT_PIPELINE")
+LAST_COUNT_VALIDITY = env.int("LAST_COUNT_VALIDITY", default=24)  # in hours
+COHORT_LIMIT = env.int("COHORT_LIMIT", default=20_000)
 
 # InfluxDB
-INFLUXDB_TOKEN = env("INFLUXDB_DJANGO_TOKEN", default="" if INFLUXDB_DISABLED else environ.Env.NOTSET)
-INFLUXDB_URL = env("INFLUXDB_URL", default="" if INFLUXDB_DISABLED else environ.Env.NOTSET)
-INFLUXDB_ORG = env("INFLUXDB_ORG", default="" if INFLUXDB_DISABLED else environ.Env.NOTSET)
-INFLUXDB_BUCKET = env("INFLUXDB_BUCKET", default="" if INFLUXDB_DISABLED else environ.Env.NOTSET)
+INFLUXDB_TOKEN = env("INFLUXDB_DJANGO_TOKEN", default="" if INFLUXDB_DISABLED else NOTSET)
+INFLUXDB_URL = env("INFLUXDB_URL", default="" if INFLUXDB_DISABLED else NOTSET)
+INFLUXDB_ORG = env("INFLUXDB_ORG", default="" if INFLUXDB_DISABLED else NOTSET)
+INFLUXDB_BUCKET = env("INFLUXDB_BUCKET", default="" if INFLUXDB_DISABLED else NOTSET)
 
 # CACHE
 CACHES = {
@@ -298,16 +298,16 @@ REST_FRAMEWORK_EXTENSIONS = {"DEFAULT_PARENT_LOOKUP_KWARG_NAME_PREFIX": "",
                              }
 
 # ACCESSES
-ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS = int(env("ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS", default=30))
-ACCESS_EXPIRY_SECOND_ALERT_IN_DAYS = int(env("ACCESS_EXPIRY_SECOND_ALERT_IN_DAYS", default=2))
-MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS = int(env("ACCESS_MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS", default=2 * 365))
+ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS = env.int("ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS", default=30)
+ACCESS_EXPIRY_SECOND_ALERT_IN_DAYS = env.int("ACCESS_EXPIRY_SECOND_ALERT_IN_DAYS", default=2)
+MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS = env.int("ACCESS_MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS", default=2 * 365)
 
 # COHORT_JOB_SERVER
-CRB_TEST_FHIR_QUERIES = bool(env("CRB_TEST_FHIR_QUERIES", default=False))
-USE_SOLR = bool(env("USE_SOLR", default=False))
+CRB_TEST_FHIR_QUERIES = env.bool("CRB_TEST_FHIR_QUERIES", default=False)
+USE_SOLR = env.bool("USE_SOLR", default=False)
 
 # EXPORTS
-DAYS_TO_KEEP_EXPORTED_FILES = int(env("DAYS_TO_KEEP_EXPORTED_FILES", default=7))
+DAYS_TO_KEEP_EXPORTED_FILES = env.int("DAYS_TO_KEEP_EXPORTED_FILES", default=7)
 
 # WebSockets
 WEBSOCKET_MANAGER = {"module": "admin_cohort.services.ws_event_manager",

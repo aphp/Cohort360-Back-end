@@ -23,8 +23,8 @@ class TestBaseExporter(ExportersTestBase):
             'BIGDATA_TOKEN': "bigdata-token",
             'HADOOP_TOKEN': "hadoop-token"
         }
-        with mock.patch('exporters.infra_api.settings') as mock_settings:
-            mock_settings.EXPORT_API_CONF = self.api_conf
+        with mock.patch('exporters.infra_api.ExportersConfig') as mock_exports_config:
+            mock_exports_config.EXPORT_API_CONF = self.api_conf
             self.exporter = BaseExporter()
 
     def test_validate_tables_data_all_tables_have_source_cohort(self):
