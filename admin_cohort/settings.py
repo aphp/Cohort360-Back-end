@@ -132,7 +132,7 @@ MIDDLEWARE = [
     'admin_cohort.middleware.request_trace_id_middleware.RequestTraceIdMiddleware',
     'admin_cohort.middleware.jwt_session_middleware.JWTSessionMiddleware',
     'admin_cohort.middleware.swagger_headers_middleware.SwaggerHeadersMiddleware'
-    ]
+]
 MIDDLEWARE = ((['admin_cohort.middleware.influxdb_middleware.InfluxDBMiddleware'] if not INFLUXDB_DISABLED else []) +
               MIDDLEWARE)
 
@@ -178,14 +178,14 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'static'
 
 REST_FRAMEWORK = {
-                  'DEFAULT_PERMISSION_CLASSES': ['admin_cohort.permissions.IsAuthenticated'],
-                  'DEFAULT_AUTHENTICATION_CLASSES': ['admin_cohort.auth.auth_class.Authentication'],
-                  'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-                  'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
-                  'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend',
-                                              'rest_framework.filters.SearchFilter'],
-                  'PAGE_SIZE': 20
-                  }
+    'DEFAULT_PERMISSION_CLASSES': ['admin_cohort.permissions.IsAuthenticated'],
+    'DEFAULT_AUTHENTICATION_CLASSES': ['admin_cohort.auth.auth_class.Authentication'],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend',
+                                'rest_framework.filters.SearchFilter'],
+    'PAGE_SIZE': 20
+}
 
 PAGINATION_MAX_LIMIT = 30_000
 
@@ -199,14 +199,14 @@ SPECTACULAR_SETTINGS = {"TITLE": TITLE,
                             "withCredentials": True,
                             "persistAuthorization": True,
                             "oauth2RedirectUrl": f"{env('OIDC_SWAGGER_REDIRECT_URL')}",
-                            },
+                        },
                         "SWAGGER_UI_OAUTH2_CONFIG": {
                             "appName": TITLE,
                             "issuer": env('OIDC_AUTH_SERVER_1', default=''),
                             "realm": env('OIDC_AUTH_SERVER_1', default='').split("realms/")[-1],
                             "clientId": env('OIDC_CLIENT_ID_1', default=''),
                             "useBasicAuthenticationWithAccessCodeGrant": True,
-                            },
+                        },
                         }
 
 APPEND_SLASH = False
@@ -234,13 +234,20 @@ DEFAULT_LOCAL_TASKS = """
 count_users_on_perimeters,accesses.tasks.count_users_on_perimeters,5,30;
 check_expiring_accesses,accesses.tasks.check_expiring_accesses,6,0
 """
+MAINTENANCE_PERIODIC_SCHEDULING_MINUTES = env("MAINTENANCE_PERIODIC_SCHEDULING", default=1)
 LOCAL_TASKS = env('LOCAL_TASKS', default=DEFAULT_LOCAL_TASKS)
 if LOCAL_TASKS:
-    CELERY_BEAT_SCHEDULE = {task_name: {'task': task,
-                                        'schedule': crontab(hour=hour, minute=minute)}
-                            for (task_name, task, hour, minute) in [task.strip().split(',')
-                                                                    for task in LOCAL_TASKS.split(';')]
-                            }
+    CELERY_BEAT_SCHEDULE = {'maintenance_notifier': {
+        'task': 'admin_cohort.tasks.maintenance_notifier_checker',
+        'schedule': crontab(minute=f'*/{MAINTENANCE_PERIODIC_SCHEDULING_MINUTES}')
+    },
+        **{task_name: {'task': task,
+                       'schedule': crontab(hour=hour,
+                                           minute=minute)}
+           for (task_name, task, hour, minute) in
+           [task.strip().split(',')
+            for task in LOCAL_TASKS.split(';')]
+           }}
 
 # CONSTANTS
 utc = pytz.UTC
@@ -303,7 +310,7 @@ USE_SOLR = env.bool("USE_SOLR", default=False)
 DAYS_TO_KEEP_EXPORTED_FILES = env.int("DAYS_TO_KEEP_EXPORTED_FILES", default=7)
 
 # WebSockets
-WEBSOCKET_MANAGER = {"module": "cohort.services.ws_event_manager",
+WEBSOCKET_MANAGER = {"module": "admin_cohort.services.ws_event_manager",
                      "manager_class": "WebsocketManager"
                      }
 

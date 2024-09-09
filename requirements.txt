@@ -16,7 +16,7 @@ coreapi==2.3.3
 coreschema==0.0.4
 coverage==7.2.1
 daphne==4.0.0
-cryptography==42.0.8
+cryptography==43.0.1
 decorator==5.1.1
 django-celery-beat==2.6.0
 Django==5.0.8
@@ -58,7 +58,7 @@ pycparser==2.21
 pycryptodomex==3.20.0
 pydantic==2.4.0
 PyJWT==2.6.0
-pyOpenSSL==24.1.0
+pyOpenSSL==24.2.1
 pyspnego==0.7.0
 python-json-logger==2.0.7
 pytest==7.4.0
