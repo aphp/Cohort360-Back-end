@@ -1,256 +1,639 @@
-#  (2024-01-18)
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+## [3.23.10] - 2024-09-02
+
+### 🐛 Bug Fixes
+
+- Increase Gunicron's request line limit
+- *(cohort)* USE_SOLR boolean matching
+
+## [3.23.9] - 2024-08-23
+
+### 🐛 Bug Fixes
+
+- *(exports)* File downloading
+
+## [3.23.8] - 2024-08-22
+
+### 🐛 Bug Fixes
+
+- *(exports)* Set file extension if grouped tables
+
+## [3.23.7] - 2024-08-21
+
+### 🐛 Bug Fixes
+
+- *(exports)* Dynamically set file extension
+
+## [3.23.6] - 2024-08-21
+
+### 🐛 Bug Fixes
+
+- Allow downloading XLSX exports
+
+## [3.23.5] - 2024-08-20
+
+### 🐛 Bug Fixes
+
+- *(exports)* Adjust serializers and enable XLSX notifs
+- Adjust CohortRights serializer (#407)
+- Hotfix 3.23.2, check user is not anonymous (#408)
+- Hotfix 3.23.3 to get perimeters from snapshots (#409)
+- Hotfix 3.23.4 impersonate users (#410)
+- *(swagger)* Remove clientSecret setting
+- *(static)* Remove old static files
+- *(celery)* Adjust run command
+
+### ⚙️ Miscellaneous Tasks
+
+- Set version 3.24.0-SNAPSHOT
+- Get project version from settings
+
+## [3.23.4] - 2024-08-14
+
+### 🐛 Bug Fixes
+
+- *(exports)* Adjust export serializer
+- Load post auth hooks
+
+## [3.23.3] - 2024-08-14
+
+### 🐛 Bug Fixes
+
+- Get perimeters from cohorts snapshots
+
+## [3.23.2] - 2024-08-14
+
+### 🐛 Bug Fixes
+
+- *(permissions)* Check request user is not anonymous
+
+## [3.23.1] - 2024-08-13
+
+### 🐛 Bug Fixes
+
+- *(cohort)* Adjust cohort rights serializer
+
+## [3.23.0] - 2024-08-13
+
+### 🚀 Features
+
+- Add encounterdaterangelist query patch (#388)
+- *(querymigration)* Add filter migration (#394)
+- *(exports)* Force create cohort subsets
+- *(queryupdater)* Add static filter conditions
+- *(auth)* [**breaking**] Allow multiple auth with multiple oidc issuers (#404)
+- Schedule requests refreshing (#397)
+- *(docs)* Add drf spectacular #1179 (#402)
+
+### 🐛 Bug Fixes
+
+- *(admin_cohort)* Track logins via OIDC
+- Hotfix 3.22.2 to flag snapshots of subcohorts (#390)
+- Hotfix 3.22.3 flag snapshots of subcohort (#391)
+- *(logging)* Stop error notifications
+- *(exports)* Encode filter's values
+- Hotfix 3.22.6 add export xlsx conf (#396)
+- *(accesses)* Remove deprecated tasks decorator
+- *(accesses)* Typo in argument name
+- *(accesses)* Use regular QuerySet instead of raw SQL
+- *(cohort)* Return the correct request update time
+- Hotfix 3.22.8 Check read rights with mode min max (#401)
+- *(roles)* Set page number pagination
+- *(entrypoint)* Kinit fails silently
+- *(auth)* Use client id instead of oidc issuer url to find config
+- *(OIDC)* Properly set audience
+- *(OIDC)* Add test env vars
+- Bump Gunicorn to 23.0.0
+- *(filters)* Ignore auto generated filters
+
+### 🚜 Refactor
+
+- Check users identity (#384)
+- *(celery)* Remove beats from docker entry point
+- *(accesses)* Add new accesses_perimeters app (#398)
+- *(accesses)* Filter perimeters directly without FactRelationship mapper
+- *(cohort)* Remove perimeters retriever (#403)
+- More configurable launch options and settings (#399)
+
+### 🧪 Testing
+
+- *(exports)* Add tests to exports service
+- *(accesses)* Remove redundant tests
+
+### ⚙️ Miscellaneous Tasks
+
+- Add ubuntu package update
+- Get image tag from settings
+- *(GH Actions)* Get image tag from settings 2
+- Set version 3.23.0
+
+### Build
+
+- Add latest tag to main docker builds
+
+## [3.22.0] - 2024-07-09
+
+### 🚀 Features
+
+- *(export)* Add xslx export
+- *(exports)* Xlsx exporter (#383)
+- *(patch)* Add patch for queries to v1.5.0 (#385)
+
+### 🐛 Bug Fixes
+
+- Hotfix 3.21.1 to secure saving/using FHIR filters (#375)
+- Hotfix 3.21.2 to exclude cohort subsets in exports nested view queryset (#376)
+- Hotfix 3.21.3 for hive exports (#377)
+- *(exports)* Hotfix 3.21.4 donwloaded file name (#378)
+- *(crb)* Allow all resource name type
+- *(WS)* Add failure reason to payload
+- *(deps)* Upgrade pyopenssl version
+- *(cohort)* Error on cohort creation
+- *(cohort)* Fix requests update datetime
+- *(cohort)* Set requests update datetime as latest modification of snapshots
+- *(exports)* Remove unrecognized argument
+
+### 🚜 Refactor
+
+- *(crb)* Remove solr collection mapping (#380)
+- Add cohort auxiliary app for OSS (#373)
+- *(cohort)* Fix tests and small bugs
+- *(cohort)* Fix code smells
+
+### 🎨 Styling
+
+- Upgrade linter
+
+### 🧪 Testing
+
+- *(folders)* Fix list with filters
+- *(cohort)* Disable Folders list with filters test
+
+### ⚙️ Miscellaneous Tasks
+
+- Add test and docker build in github ci (#382)
+- *(deps)* Fix libs versions and ignore unpatched ones
 
 
-### Bug Fixes
+## [3.21.0] - 2024-06-05
 
-* add env var for tests ([aa85c3e](https://github.com/aphp/Cohort360-Back-end/commit/aa85c3e26b7738d7bad6c8a855d9804d2732b90e))
-* adjust user permission to allow users to read their own data ([da347a2](https://github.com/aphp/Cohort360-Back-end/commit/da347a2c3936a9fb98a167bf8f4aa0d265bf9327))
-* **auth:** remove unnecessary logging on token refresh failure ([9a3cf0f](https://github.com/aphp/Cohort360-Back-end/commit/9a3cf0f83b8afdc05d4271b8567ce8a0486a019e))
-* **cohort:** count requests ([f156798](https://github.com/aphp/Cohort360-Back-end/commit/f15679875b5d2a21934eb73e064f619f909bcc98))
-* **cohort:** format cohort ids for rights checking ([7b44ac2](https://github.com/aphp/Cohort360-Back-end/commit/7b44ac2d6c524dd548a58d411b29c940b7305308))
-* **crb:** add right check in crb [#2401](https://github.com/aphp/Cohort360-Back-end/issues/2401) ([#297](https://github.com/aphp/Cohort360-Back-end/issues/297)) ([d87310a](https://github.com/aphp/Cohort360-Back-end/commit/d87310a78a675389ba60a31cc1d9698f50a23f28))
-* **CRB:** hotfix 3.16.14 crb rights check ([#300](https://github.com/aphp/Cohort360-Back-end/issues/300)) ([0f2ba21](https://github.com/aphp/Cohort360-Back-end/commit/0f2ba219ba915da8a39258de35a428b2243e7189))
-* **emailing for exports:** hotfix 3.16.3 ([#288](https://github.com/aphp/Cohort360-Back-end/issues/288)) ([168f8e4](https://github.com/aphp/Cohort360-Back-end/commit/168f8e4ccdf922442d7b1979bbec901e65991cad))
-* **exports new flow:** resolve conflicts after merge exports new flow v1 PR ([bf4d4a4](https://github.com/aphp/Cohort360-Back-end/commit/bf4d4a4dbb97612554356b800689281a921d701e))
-* **exports:** hotfix 3.17.3 ([#316](https://github.com/aphp/Cohort360-Back-end/issues/316)) ([2f62c09](https://github.com/aphp/Cohort360-Back-end/commit/2f62c09adb0cb3ad485ebec9c9ddd6bfd22ec2c5))
-* **exports:** hotfix 3.17.3 fix typo in attribute name ([#315](https://github.com/aphp/Cohort360-Back-end/issues/315)) ([b386e13](https://github.com/aphp/Cohort360-Back-end/commit/b386e13e8727efa5b68ea6fe5c1141d5552e5052))
-* **exports:** hotfix 3.17.4 to remove unused call to infra api ([#317](https://github.com/aphp/Cohort360-Back-end/issues/317)) ([c7bf565](https://github.com/aphp/Cohort360-Back-end/commit/c7bf565d9367ff0905c4ca96bb85ead684985f1a))
-* **exports:** hotfix 3.17.5 remove check user unix account ([#318](https://github.com/aphp/Cohort360-Back-end/issues/318)) ([ddbfa0a](https://github.com/aphp/Cohort360-Back-end/commit/ddbfa0abc31997732e1e5b2b2117b4528476bc8c))
-* **exports:** new statuses ([bfa0a2d](https://github.com/aphp/Cohort360-Back-end/commit/bfa0a2d91c34ee813ced2b05a048adfb51cace16))
-* **exports:** use new statuses from Infra API ([#309](https://github.com/aphp/Cohort360-Back-end/issues/309)) ([7998384](https://github.com/aphp/Cohort360-Back-end/commit/7998384e094f7e93d5f3fef7331a37fc56494ac0))
-* **feasibility studies:** add specific logger ([d1a9cc3](https://github.com/aphp/Cohort360-Back-end/commit/d1a9cc3f8679ec083e16ba9d646fb811df9fc5e6))
-* **feasibility studies:** format request input ([1346667](https://github.com/aphp/Cohort360-Back-end/commit/134666797a9126af2723a51548cab947b540d15f))
-* **feasibility studies:** properly chain tasks ([5cdfb70](https://github.com/aphp/Cohort360-Back-end/commit/5cdfb70232fa655313859766b8ab02786a19e30a))
-* **feasibility studies:** properly set callbackPath in the SJS payload ([8253492](https://github.com/aphp/Cohort360-Back-end/commit/8253492d8e589cf2faa5ac1c141484824aab7ccd))
-* **feasibility studies:** report download and notify on success and on error ([654df69](https://github.com/aphp/Cohort360-Back-end/commit/654df69257777426882ff59edcf7bb22059295c5))
-* **feasibility_studies:** fix error on creation ([170d29d](https://github.com/aphp/Cohort360-Back-end/commit/170d29d721b9223260a02f0364b25c6ea097d267))
-* **fhir filters:** add conditional unique constraint ([dcfb166](https://github.com/aphp/Cohort360-Back-end/commit/dcfb166c69219e0dd180ac8d9a79b63230d132c0))
-* **fhir filters:** allow to delete filters ([027740a](https://github.com/aphp/Cohort360-Back-end/commit/027740aa4a4a5918e2360a19de86ec3e7f84f018))
-* **fhir filters:** alter uniqueness rule and remove cache ([780686d](https://github.com/aphp/Cohort360-Back-end/commit/780686d7798fe0b407997c5f591b6f3687caa0e4))
-* **fhir filters:** fix serializer and tests ([4421dfb](https://github.com/aphp/Cohort360-Back-end/commit/4421dfb52f3e3dcc3ac43e0e967fcc4e99b5d24c))
-* **fhir filters:** get owner_id from request ([e4f4349](https://github.com/aphp/Cohort360-Back-end/commit/e4f43493a7a375b8cd01cfc5bad2da9f9caf4bb0))
-* **fhir filters:** linter ([3585afb](https://github.com/aphp/Cohort360-Back-end/commit/3585afb84b3ff7d1366c3c0d9194cbbbc0a86590))
-* **fhir filters:** make FhirFilter objects user restricted only ([4343127](https://github.com/aphp/Cohort360-Back-end/commit/4343127c6cadfc58be79bbd646a425e41e8c4049))
-* **fhir filters:** typo in tests ([36766f5](https://github.com/aphp/Cohort360-Back-end/commit/36766f5669596927c876c681aab0204031cd095b))
-* filter accesses on perimeters for user and deny deleting a used role ([587e8c5](https://github.com/aphp/Cohort360-Back-end/commit/587e8c584eff5248e3731e1101888a43b35d68f5))
-* get user data rights ([621177b](https://github.com/aphp/Cohort360-Back-end/commit/621177bafedf3ac41bd5c8de7f62e56aacb401d1))
-* get user data rights on perimeters ([84e9943](https://github.com/aphp/Cohort360-Back-end/commit/84e994387df7c9b83c342dcf6e1e3fc743a4e6ae))
-* hotfix 3.16.6 for queries updater ([#292](https://github.com/aphp/Cohort360-Back-end/issues/292)) ([07d4ae7](https://github.com/aphp/Cohort360-Back-end/commit/07d4ae7e3c8250a7fd8446539ba014de7b344ee3))
-* hotfix 3.16.7 for computing user rights ([#293](https://github.com/aphp/Cohort360-Back-end/issues/293)) ([bcf50af](https://github.com/aphp/Cohort360-Back-end/commit/bcf50afd884b14e30f3b0c3201093a4b317a139c))
-* hotfix 3.16.8 for Exports permissions ([#294](https://github.com/aphp/Cohort360-Back-end/issues/294)) ([fbed005](https://github.com/aphp/Cohort360-Back-end/commit/fbed005deb0e9748b02fdae7f7f1744e6ef79f3a))
-* hotfix 3.17.1 ([#310](https://github.com/aphp/Cohort360-Back-end/issues/310)) ([13d5d3b](https://github.com/aphp/Cohort360-Back-end/commit/13d5d3b920cecfc0212f7f28d8371cfabf031136))
-* hotfix 3.17.2 for right check regression for FHIR ([#313](https://github.com/aphp/Cohort360-Back-end/issues/313)) ([c6a6dfb](https://github.com/aphp/Cohort360-Back-end/commit/c6a6dfb0a978728f741c643ede6cf31e7bd37176))
-* improve exports v1 ([#308](https://github.com/aphp/Cohort360-Back-end/issues/308)) ([d04707f](https://github.com/aphp/Cohort360-Back-end/commit/d04707fb9ccdbfcdcf89b94b2343de242859ffc5))
-* log request data and params ([7f09e1a](https://github.com/aphp/Cohort360-Back-end/commit/7f09e1ac31158bff5b5c6fa59caaea1fd3252aea))
-* manage invalid token errors ([6ee96d7](https://github.com/aphp/Cohort360-Back-end/commit/6ee96d7ce35726827d640446ba832626dc87fcf5))
-* manage invalid token errors ([28e9902](https://github.com/aphp/Cohort360-Back-end/commit/28e9902d403cf9422a520ba87027e19d732ed5c3))
-* **migrationscript:** correct mapping script ([d171d5e](https://github.com/aphp/Cohort360-Back-end/commit/d171d5ec5f699ef30c9c848fb1d87b113e60d5ae))
-* parse fhir_group_ids to get cohort rights ([d565ca9](https://github.com/aphp/Cohort360-Back-end/commit/d565ca9efd3a6d46a87fafc6723c12993d81e486))
-* pass perimeters ids instead of queryset to check rights ([e8f15d1](https://github.com/aphp/Cohort360-Back-end/commit/e8f15d13c4a71c7cacee02645d11ee6a5ad5cbf5))
-* perimeters daily update task ([2ab5cb7](https://github.com/aphp/Cohort360-Back-end/commit/2ab5cb7d803c736ed6ba963e0d32fcde1dd76e6b))
-* **perimeters:** correct cohort_ids type ([#302](https://github.com/aphp/Cohort360-Back-end/issues/302)) ([4c12b5d](https://github.com/aphp/Cohort360-Back-end/commit/4c12b5dfaca8919bc3c53c0f994f4a2f5d19a2ad))
-* psycopg package name in requirements.txt ([323b85a](https://github.com/aphp/Cohort360-Back-end/commit/323b85a4418fa9e641f96640681b0438211e9ca1))
-* **querymigration:** fix code translation + add new v1.4.1 script ([#291](https://github.com/aphp/Cohort360-Back-end/issues/291)) ([3358889](https://github.com/aphp/Cohort360-Back-end/commit/3358889f0450caea6bf73ea353cf5022b3560160))
-* **queryupgrade:** fix sql + add previous version limit to upgrade + versions recap ([#287](https://github.com/aphp/Cohort360-Back-end/issues/287)) ([88f431e](https://github.com/aphp/Cohort360-Back-end/commit/88f431ec95448889edcae4835be9d2149b35867e))
-* raise raw exception on login error via OIDC ([06c9cca](https://github.com/aphp/Cohort360-Back-end/commit/06c9ccaae2bda91f22bd9e0f28e1f4f0d3f4647b))
-* raise specific exception ([fa78c9b](https://github.com/aphp/Cohort360-Back-end/commit/fa78c9b63f9932df379747b85e146e669eb794c3))
-* **release notes:** sort data in response, allow patch ([becd603](https://github.com/aphp/Cohort360-Back-end/commit/becd603e8f625fb22e15cfded2abe72eab8772a4))
-* remove unique rights combination constraint ([10e0bc5](https://github.com/aphp/Cohort360-Back-end/commit/10e0bc541abf932aadcb753454cbd06e0a4dd3cc))
-* **requests logs:** for FhirFilters ([fce53c9](https://github.com/aphp/Cohort360-Back-end/commit/fce53c9b3ad91705abd635d2ac9d34db30b13d48))
-* rm unused imports ([2f6da6e](https://github.com/aphp/Cohort360-Back-end/commit/2f6da6e7f367d020259c92a8288b3e5dc18443ee))
-* rqs version incrementing ([67ef4c8](https://github.com/aphp/Cohort360-Back-end/commit/67ef4c8e905b71a1ad79c2c5bf4d90f98d0c1e79))
-* set main to v3.17.0-SNAPSHOT ([8d58391](https://github.com/aphp/Cohort360-Back-end/commit/8d5839141e2385753d56f7cfc740fe65faaeda53))
-* spark job request with callback path ([#311](https://github.com/aphp/Cohort360-Back-end/issues/311)) ([7825a75](https://github.com/aphp/Cohort360-Back-end/commit/7825a7525863a0f714d7a999fb7c91280be18cb2))
-* update export email template ([e82a6e3](https://github.com/aphp/Cohort360-Back-end/commit/e82a6e37e727cfd02dd0588a13791cc413cff7a3))
+### 🚀 Features
 
+- *(setup)* Add project setup script (#337)
+- *(scriptMigration)* Add new migration script for Condition new codesystem
+- *(rights)* Persist rights in db and add new view (#340)
+- *(auth)* Add impersonating system (#360)
+- *(perimeter)* Add sort by name and id (#371)
+- *(pp)* Add full access data reader right (#369)
 
-### Features
+### 🐛 Bug Fixes
 
-* **accesses:** include link to accesses managers list in the email notification ([d99d406](https://github.com/aphp/Cohort360-Back-end/commit/d99d40600b7089447ef53effdd05c825df75f654))
-* add feasibility studies ([#305](https://github.com/aphp/Cohort360-Back-end/issues/305)) ([5dab6fb](https://github.com/aphp/Cohort360-Back-end/commit/5dab6fb78925907c2531f6a9e0431d6f66e990cc))
-* add new exports flow v1 ([#273](https://github.com/aphp/Cohort360-Back-end/issues/273)) ([5c5c318](https://github.com/aphp/Cohort360-Back-end/commit/5c5c318d0a5cb7de8d84249f7ba1552d49e8dd17))
-* **cohortrequester:** add upgrade script for atih code conversion ([#296](https://github.com/aphp/Cohort360-Back-end/issues/296)) ([1504b7a](https://github.com/aphp/Cohort360-Back-end/commit/1504b7a8e192717157f70eea3f13f1b223921d79))
-* **crb:** add new imagingStudy resource type ([#290](https://github.com/aphp/Cohort360-Back-end/issues/290)) ([640f8e4](https://github.com/aphp/Cohort360-Back-end/commit/640f8e4df84ca8dcc39e3bb8ab6680968b774992))
-* **Fhir filters:** delete multiple filters ([bd981cd](https://github.com/aphp/Cohort360-Back-end/commit/bd981cd6a0e3f6c7ecfdd510456ae3d64b3e074a))
-* **fhir filters:** get filters by user id and resource ([#307](https://github.com/aphp/Cohort360-Back-end/issues/307)) ([f7c0fef](https://github.com/aphp/Cohort360-Back-end/commit/f7c0fef34e444319469409d58c68a59afbfdef68))
-* log HTTP requests ([#282](https://github.com/aphp/Cohort360-Back-end/issues/282)) ([7e66f83](https://github.com/aphp/Cohort360-Back-end/commit/7e66f83a70f19e82e928f54293bd4617a03f9a7b))
-* upgrade Django ([#306](https://github.com/aphp/Cohort360-Back-end/issues/306)) ([ad0389c](https://github.com/aphp/Cohort360-Back-end/commit/ad0389cf93c76938a20719a18dc169ec56fc3173))
-* use token to activate maintenance for rollout ([#298](https://github.com/aphp/Cohort360-Back-end/issues/298)) ([7168448](https://github.com/aphp/Cohort360-Back-end/commit/71684488e5e2f7020fa4f24c62635bdd9c170970))
+- *(rollout)* Update token variable (#351)
+- *(pagination)* Increase page max limit to 30k
+- *(rollout)* Reset old token variable
+- *(rollout)* Reset old token variable
+- *(rollout)* Exclude long pending cohort jobs (#354)
+- *(ruff)* Upgrade ruff and update conf
+- *(exports)* Properly dump query
+- *(exports)* Stringify uuid object
+- *(accesses)* Rearrange migrations
+- *(Cohort)* Build query to create sub cohort
+- *(Cohort)* Add missing properties in cohort query
+- *(sub-cohorts)* Pass in missing DatedMeasure for sub cohort
+- *(sub-cohorts)* Properly get export associated to sub cohort
+- *(cohorts)* Exclude sub-cohorts from the view queryset
+- *(profiles)* Fix serializer's fields
+- *(cohorts)* Exclude sub-cohorts from the view queryset for ordinary users
+- *(WS)* Hotfix 3.20.2, complete cohort metadata (#361)
+- Permissions over Users View (#363)
+- *(exports-v1)* Control creating sub cohorts for tables
+- *(cohort)* Tag cohorts subsets
+- *(exporters)* Alter Export API auth tokens
+- *(exporters)* Add missing field to serializer and fix tasks
+- *(exports)* Manage instances of two exports models
+- *(exporters)* Raise error on export failure
+- *(exports)* Add migration to populate datalabs table
+- *(exports)* Migration to populate datalabs
+- Migrate old exports (#366)
+- *(exports)* Include exported tables in migration
+- *(exports)* Adjust filter fields
+- *(exports)* URLs conf
+- *(exports)* Fix migration, and remove workspaces env vars
+- *(exports)* Fix migration for exports without unix accounts
+- *(Exports)* Create sub cohort only when a filter is provided
+- *(cohort)* Duplicate DM for cohort subsets
+- *(Exports)* Properly format tables input in the export payload
+- *(Exports)* Properly format tables input in the export payload
+- *(Cohort)* Add resourceType to the cohort subset query
+- *(Cohort)* Add resourceType to CohortQuery schema
+- *(Cohort)* Disable 2 obsolete tests
+- *(Cohort, Exports)* Abort export if cohort subsets fail
+- *(Cohort, Exports)* Abort export if cohort subsets fail 2
+- *(Exports)* Properly inject resource type to create cohort subsets
+- *(Cohort)* Ensure DM associated to a cohort subset has a measure value
+- *(Cohort)* Add filterSolr to the cohort subset creation query
+- *(Cohort)* Remove suffixed resource type from the cohort subset creation query
+- *(exports)* Typo in template reference
+- *(cohort-WS)* Update frontend client when patching DM/CR fails
+- *(cohort-WS)* Add resource status to the payload
+- *(feasibility reports)* Hotfix 3.20.3 (#374)
 
+### 🚜 Refactor
 
+- Remove redundant fields from profile with user (#357)
+- Upgrade Django (#359)
+- *(exports)* Improve exports v1 #2592 (#362)
+- *(exports)* Add new exporters app (#353)
+- Standardize exports with new app (#364)
+- *(exports)* Remove old models (#367)
+- Remove workspaces app (#368)
+- Replace CRB with job server (#358)
 
-#  (2024-01-09)
+### 🎨 Styling
 
+- *(cohort)* Remove unused import
+- *(perimeters)* Reformat code
 
-### Bug Fixes
+### 🧪 Testing
 
-* add env var for tests ([aa85c3e](https://github.com/aphp/Cohort360-Back-end/commit/aa85c3e26b7738d7bad6c8a855d9804d2732b90e))
-* **exports:** new statuses ([bfa0a2d](https://github.com/aphp/Cohort360-Back-end/commit/bfa0a2d91c34ee813ced2b05a048adfb51cace16))
-* **exports:** use new statuses from Infra API ([#309](https://github.com/aphp/Cohort360-Back-end/issues/309)) ([7998384](https://github.com/aphp/Cohort360-Back-end/commit/7998384e094f7e93d5f3fef7331a37fc56494ac0))
-* filter accesses on perimeters for user and deny deleting a used role ([587e8c5](https://github.com/aphp/Cohort360-Back-end/commit/587e8c584eff5248e3731e1101888a43b35d68f5))
-* get user data rights ([621177b](https://github.com/aphp/Cohort360-Back-end/commit/621177bafedf3ac41bd5c8de7f62e56aacb401d1))
-* get user data rights on perimeters ([84e9943](https://github.com/aphp/Cohort360-Back-end/commit/84e994387df7c9b83c342dcf6e1e3fc743a4e6ae))
-* hotfix 3.17.1 ([#310](https://github.com/aphp/Cohort360-Back-end/issues/310)) ([13d5d3b](https://github.com/aphp/Cohort360-Back-end/commit/13d5d3b920cecfc0212f7f28d8371cfabf031136))
-* improve exports v1 ([#308](https://github.com/aphp/Cohort360-Back-end/issues/308)) ([d04707f](https://github.com/aphp/Cohort360-Back-end/commit/d04707fb9ccdbfcdcf89b94b2343de242859ffc5))
-* log request data and params ([7f09e1a](https://github.com/aphp/Cohort360-Back-end/commit/7f09e1ac31158bff5b5c6fa59caaea1fd3252aea))
-* parse fhir_group_ids to get cohort rights ([d565ca9](https://github.com/aphp/Cohort360-Back-end/commit/d565ca9efd3a6d46a87fafc6723c12993d81e486))
-* pass perimeters ids instead of queryset to check rights ([e8f15d1](https://github.com/aphp/Cohort360-Back-end/commit/e8f15d13c4a71c7cacee02645d11ee6a5ad5cbf5))
-* perimeters daily update task ([2ab5cb7](https://github.com/aphp/Cohort360-Back-end/commit/2ab5cb7d803c736ed6ba963e0d32fcde1dd76e6b))
-* **perimeters:** correct cohort_ids type ([#302](https://github.com/aphp/Cohort360-Back-end/issues/302)) ([4c12b5d](https://github.com/aphp/Cohort360-Back-end/commit/4c12b5dfaca8919bc3c53c0f994f4a2f5d19a2ad))
-* psycopg package name in requirements.txt ([323b85a](https://github.com/aphp/Cohort360-Back-end/commit/323b85a4418fa9e641f96640681b0438211e9ca1))
-* remove unique rights combination constraint ([10e0bc5](https://github.com/aphp/Cohort360-Back-end/commit/10e0bc541abf932aadcb753454cbd06e0a4dd3cc))
-* rm unused imports ([2f6da6e](https://github.com/aphp/Cohort360-Back-end/commit/2f6da6e7f367d020259c92a8288b3e5dc18443ee))
-* spark job request with callback path ([#311](https://github.com/aphp/Cohort360-Back-end/issues/311)) ([7825a75](https://github.com/aphp/Cohort360-Back-end/commit/7825a7525863a0f714d7a999fb7c91280be18cb2))
+- *(setup)* Add test for loading initial data
+- *(rights)* Remove the unexpected argument on function call
+- *(exports)* Isolate tests regarding the new exporters app (#365)
+- *(cohort)* Test cohort subsets creation
+- *(Exports)* Fix tests
+- *(Exports)* Add tests
+- *(accesses)* Fix tests
 
+### ⚙️ Miscellaneous Tasks
 
-### Features
+- Back to full pipeline
+- *(tests)* Test all
 
-* add feasibility studies ([#305](https://github.com/aphp/Cohort360-Back-end/issues/305)) ([5dab6fb](https://github.com/aphp/Cohort360-Back-end/commit/5dab6fb78925907c2531f6a9e0431d6f66e990cc))
-* **fhir filters:** get filters by user id and resource ([#307](https://github.com/aphp/Cohort360-Back-end/issues/307)) ([f7c0fef](https://github.com/aphp/Cohort360-Back-end/commit/f7c0fef34e444319469409d58c68a59afbfdef68))
-* upgrade Django ([#306](https://github.com/aphp/Cohort360-Back-end/issues/306)) ([ad0389c](https://github.com/aphp/Cohort360-Back-end/commit/ad0389cf93c76938a20719a18dc169ec56fc3173))
+## [3.20.0] - 2024-04-04
 
+### 🚀 Features
 
+- Add Websocket server (#325)
+- *(auth-ws)* Set auth for websockets (#331)
+- *(RQS-cohorts)* Add resulted cohorts to the RQS reduced serializer
+- *(feasibility-studies)* Add report metadata
+- Uv replaces pip (#332)
+- *(cache)* Use dummy cache when disabled
+- *(feasibility-studies)* Update report name
+- Add extra_infos to websocket payload (#338)
+- *(WS-cohort)* Add extra info for global DM
+- *(exports)* Set download URL to frontend (#349)
 
-## [3.16.15](https://github.com/aphp/Cohort360-Back-end/compare/3.16.0...3.16.15) (2023-12-12)
+### 🐛 Bug Fixes
 
+- Check read data rights (#329)
+- *(ws)* Add auth for WS and fix tests
+- Refresh object from DB to fix lag in Celery tasks (#333)
+- Nginx conf
+- *(confperimeters)* Add cast to caresite relationship query
+- *(cohort)* Pass auth_method for cohort request
+- *(auth)* Default to jwt auth method for Swagger
+- *(auth)* Return value for third party app users authentication
+- *(auth)* Return value for third party app users authentication
+- *(Celery)* Lock object inside Celery task
+- *(WS)* Authenticate request on handshake
+- *(feasibility studies)* Report template
+- *(crb)* Decode fhir filter values before querying fhir query translator
+- *(feasibility studies)* Change wording case
+- *(auth)* Url to refresh token
+- *(count-requests)* Lock instance and await for task before update
+- *(cache)* Disable caching nested RQSs
+- *(auth)* Raise error on invalid credentials
+- *(uv)* Activate venv
+- *(WS)* Stringify UUID object
+- Activate virtual env
+- *(Docker)* Activate uv's venv
+- *(Docker)* Activate uv's venv
+- *(Docker)* Activate uv's venv
+- *(WS)* Refresh objects from DB
+- *(accesses)* Fix sorting bug (#343)
+- *(exports)* Use new DataExporter spec (#344)
+- *(exports)* Use new DataExporter spec (#345)
+- *(exports)* Use DE new specification (#347)
+- *(maintenance)* Allow login via JWT server (#348)
+- *(WS)* Add cohort fhir_group_id
+- *(exports)* Ensure single cohort for CSV exports
+- *(exports)* Fix download URL
 
-### Bug Fixes
+### 🚜 Refactor
 
-* adjust user permission to allow users to read their own data ([da347a2](https://github.com/aphp/Cohort360-Back-end/commit/da347a2c3936a9fb98a167bf8f4aa0d265bf9327))
-* **cohort:** count requests ([f156798](https://github.com/aphp/Cohort360-Back-end/commit/f15679875b5d2a21934eb73e064f619f909bcc98))
-* **cohort:** format cohort ids for rights checking ([7b44ac2](https://github.com/aphp/Cohort360-Back-end/commit/7b44ac2d6c524dd548a58d411b29c940b7305308))
-* **crb:** add right check in crb [#2401](https://github.com/aphp/Cohort360-Back-end/issues/2401) ([#297](https://github.com/aphp/Cohort360-Back-end/issues/297)) ([d87310a](https://github.com/aphp/Cohort360-Back-end/commit/d87310a78a675389ba60a31cc1d9698f50a23f28))
-* **CRB:** hotfix 3.16.14 crb rights check ([#300](https://github.com/aphp/Cohort360-Back-end/issues/300)) ([0f2ba21](https://github.com/aphp/Cohort360-Back-end/commit/0f2ba219ba915da8a39258de35a428b2243e7189))
-* **emailing for exports:** hotfix 3.16.3 ([#288](https://github.com/aphp/Cohort360-Back-end/issues/288)) ([168f8e4](https://github.com/aphp/Cohort360-Back-end/commit/168f8e4ccdf922442d7b1979bbec901e65991cad))
-* **exports new flow:** resolve conflicts after merge exports new flow v1 PR ([bf4d4a4](https://github.com/aphp/Cohort360-Back-end/commit/bf4d4a4dbb97612554356b800689281a921d701e))
-* **fhir filters:** add conditional unique constraint ([dcfb166](https://github.com/aphp/Cohort360-Back-end/commit/dcfb166c69219e0dd180ac8d9a79b63230d132c0))
-* **fhir filters:** allow to delete filters ([027740a](https://github.com/aphp/Cohort360-Back-end/commit/027740aa4a4a5918e2360a19de86ec3e7f84f018))
-* **fhir filters:** alter uniqueness rule and remove cache ([780686d](https://github.com/aphp/Cohort360-Back-end/commit/780686d7798fe0b407997c5f591b6f3687caa0e4))
-* **fhir filters:** fix serializer and tests ([4421dfb](https://github.com/aphp/Cohort360-Back-end/commit/4421dfb52f3e3dcc3ac43e0e967fcc4e99b5d24c))
-* **fhir filters:** get owner_id from request ([e4f4349](https://github.com/aphp/Cohort360-Back-end/commit/e4f43493a7a375b8cd01cfc5bad2da9f9caf4bb0))
-* **fhir filters:** linter ([3585afb](https://github.com/aphp/Cohort360-Back-end/commit/3585afb84b3ff7d1366c3c0d9194cbbbc0a86590))
-* **fhir filters:** make FhirFilter objects user restricted only ([4343127](https://github.com/aphp/Cohort360-Back-end/commit/4343127c6cadfc58be79bbd646a425e41e8c4049))
-* **fhir filters:** typo in tests ([36766f5](https://github.com/aphp/Cohort360-Back-end/commit/36766f5669596927c876c681aab0204031cd095b))
-* hotfix 3.16.6 for queries updater ([#292](https://github.com/aphp/Cohort360-Back-end/issues/292)) ([07d4ae7](https://github.com/aphp/Cohort360-Back-end/commit/07d4ae7e3c8250a7fd8446539ba014de7b344ee3))
-* hotfix 3.16.7 for computing user rights ([#293](https://github.com/aphp/Cohort360-Back-end/issues/293)) ([bcf50af](https://github.com/aphp/Cohort360-Back-end/commit/bcf50afd884b14e30f3b0c3201093a4b317a139c))
-* hotfix 3.16.8 for Exports permissions ([#294](https://github.com/aphp/Cohort360-Back-end/issues/294)) ([fbed005](https://github.com/aphp/Cohort360-Back-end/commit/fbed005deb0e9748b02fdae7f7f1744e6ef79f3a))
-* manage invalid token errors ([6ee96d7](https://github.com/aphp/Cohort360-Back-end/commit/6ee96d7ce35726827d640446ba832626dc87fcf5))
-* manage invalid token errors ([28e9902](https://github.com/aphp/Cohort360-Back-end/commit/28e9902d403cf9422a520ba87027e19d732ed5c3))
-* **migrationscript:** correct mapping script ([d171d5e](https://github.com/aphp/Cohort360-Back-end/commit/d171d5ec5f699ef30c9c848fb1d87b113e60d5ae))
-* **querymigration:** fix code translation + add new v1.4.1 script ([#291](https://github.com/aphp/Cohort360-Back-end/issues/291)) ([3358889](https://github.com/aphp/Cohort360-Back-end/commit/3358889f0450caea6bf73ea353cf5022b3560160))
-* **queryupgrade:** fix sql + add previous version limit to upgrade + versions recap ([#287](https://github.com/aphp/Cohort360-Back-end/issues/287)) ([88f431e](https://github.com/aphp/Cohort360-Back-end/commit/88f431ec95448889edcae4835be9d2149b35867e))
-* raise specific exception ([fa78c9b](https://github.com/aphp/Cohort360-Back-end/commit/fa78c9b63f9932df379747b85e146e669eb794c3))
-* **release notes:** sort data in response, allow patch ([becd603](https://github.com/aphp/Cohort360-Back-end/commit/becd603e8f625fb22e15cfded2abe72eab8772a4))
-* **requests logs:** for FhirFilters ([fce53c9](https://github.com/aphp/Cohort360-Back-end/commit/fce53c9b3ad91705abd635d2ac9d34db30b13d48))
-* rqs version incrementing ([67ef4c8](https://github.com/aphp/Cohort360-Back-end/commit/67ef4c8e905b71a1ad79c2c5bf4d90f98d0c1e79))
-* set main to v3.17.0-SNAPSHOT ([8d58391](https://github.com/aphp/Cohort360-Back-end/commit/8d5839141e2385753d56f7cfc740fe65faaeda53))
-* update export email template ([e82a6e3](https://github.com/aphp/Cohort360-Back-end/commit/e82a6e37e727cfd02dd0588a13791cc413cff7a3))
+- Admin cohort app (#327)
+- *(ws)* Minor changes on ws payload
+- Send WebSocketInfos instead of smaller object (#339)
+- *(crb)* Set count to 0 when testing query filters
 
+### 🎨 Styling
 
-### Features
+- Move asgi.py to cohort_admin
+- *(WS)* Add logs
+- *(cohort)* Remove logs and make anchor safe
+- Remove useless import
 
-* add new exports flow v1 ([#273](https://github.com/aphp/Cohort360-Back-end/issues/273)) ([5c5c318](https://github.com/aphp/Cohort360-Back-end/commit/5c5c318d0a5cb7de8d84249f7ba1552d49e8dd17))
-* **cohortrequester:** add upgrade script for atih code conversion ([#296](https://github.com/aphp/Cohort360-Back-end/issues/296)) ([1504b7a](https://github.com/aphp/Cohort360-Back-end/commit/1504b7a8e192717157f70eea3f13f1b223921d79))
-* **crb:** add new imagingStudy resource type ([#290](https://github.com/aphp/Cohort360-Back-end/issues/290)) ([640f8e4](https://github.com/aphp/Cohort360-Back-end/commit/640f8e4df84ca8dcc39e3bb8ab6680968b774992))
-* **Fhir filters:** delete multiple filters ([bd981cd](https://github.com/aphp/Cohort360-Back-end/commit/bd981cd6a0e3f6c7ecfdd510456ae3d64b3e074a))
-* log HTTP requests ([#282](https://github.com/aphp/Cohort360-Back-end/issues/282)) ([7e66f83](https://github.com/aphp/Cohort360-Back-end/commit/7e66f83a70f19e82e928f54293bd4617a03f9a7b))
-* use token to activate maintenance for rollout ([#298](https://github.com/aphp/Cohort360-Back-end/issues/298)) ([7168448](https://github.com/aphp/Cohort360-Back-end/commit/71684488e5e2f7020fa4f24c62635bdd9c170970))
+### 🧪 Testing
 
+- *(auth)* Forbid auth without token
+- Remove mock of websocket for feasibility
 
+### Build
 
-# [3.16.0](https://github.com/aphp/Cohort360-Back-end/compare/3.15.0...3.16.0) (2023-10-13)
+- Add debug tools
+- Launch websocket in background before gunicorn
+- *(uv)* Introduce uv to Dockerfile (#341)
+- *(docker)* Fix docker-entrypoint
 
+## [3.19.0] - 2024-02-14
 
-### Bug Fixes
+### 🚀 Features
 
-*  review permissions and hide urls in the DRF api view ([#272](https://github.com/aphp/Cohort360-Back-end/issues/272)) ([957db3d](https://github.com/aphp/Cohort360-Back-end/commit/957db3d203c080b0d329eb5103f55250e29bc627))
-* add migration for old release notes ([18bc596](https://github.com/aphp/Cohort360-Back-end/commit/18bc596595419b04fa5ade4611a33b231c26e618))
-* alter release notes migration ([dc163b2](https://github.com/aphp/Cohort360-Back-end/commit/dc163b2c537b9c52898faf9736f9664dfa2009f4))
-* attach logo to email signature ([49cd711](https://github.com/aphp/Cohort360-Back-end/commit/49cd7118ed3eb192047da30b078b70c9a823de85))
-* count user on perimeters ([#269](https://github.com/aphp/Cohort360-Back-end/issues/269)) ([8b7eba6](https://github.com/aphp/Cohort360-Back-end/commit/8b7eba6dddf6139ef089f8514454dd9c89abfaf4))
-* count users on perimeters ([#268](https://github.com/aphp/Cohort360-Back-end/issues/268)) ([a159e8c](https://github.com/aphp/Cohort360-Back-end/commit/a159e8ccc2b6d248732c8f89c0750431da751543))
-* **crb:** correct sjs replacements ([7e02500](https://github.com/aphp/Cohort360-Back-end/commit/7e02500391eee77314967af5be9d92bebc60f1ae))
-* **crb:** ipp list resource name ([#283](https://github.com/aphp/Cohort360-Back-end/issues/283)) ([73e80dd](https://github.com/aphp/Cohort360-Back-end/commit/73e80dd23bec3968ba022e06dd354662825e2417))
-* **crb:** optional fields for temporal constraints ([826e811](https://github.com/aphp/Cohort360-Back-end/commit/826e8115dee8a9381a7d07d10b8d5d1b7278e26e))
-* **crb:** rename serialized model ([#280](https://github.com/aphp/Cohort360-Back-end/issues/280)) ([7e66012](https://github.com/aphp/Cohort360-Back-end/commit/7e660122cc762b3c63375dee0ce5aa3e3f9a791f))
-* exports bug fix and emails refactor ([#274](https://github.com/aphp/Cohort360-Back-end/issues/274)) ([2e54e06](https://github.com/aphp/Cohort360-Back-end/commit/2e54e065d2d347aefb6d66e876291f6552dd7c96))
-* extend try catch in crb process + add optional fields to query model ([78481a6](https://github.com/aphp/Cohort360-Back-end/commit/78481a64805459de760aaa934e7d23009e5b177c))
-* fix conflicts after merge ([f131fbe](https://github.com/aphp/Cohort360-Back-end/commit/f131fbec109c4fbff626d28c6348a4031f8e20b5))
-* fix migration dependency ([75fcd51](https://github.com/aphp/Cohort360-Back-end/commit/75fcd51e19c581b9bc88f56ca4bc2aae31cd13fc))
-* hotfix_3.15.3 accesses on perimeters ([#270](https://github.com/aphp/Cohort360-Back-end/issues/270)) ([6e82147](https://github.com/aphp/Cohort360-Back-end/commit/6e82147a8431bac7bff3e44f84f2d5d02c175a2a))
-* manage downloading old csv exports ([#277](https://github.com/aphp/Cohort360-Back-end/issues/277)) ([b791532](https://github.com/aphp/Cohort360-Back-end/commit/b791532d37e91d09b2fcfb58de18858bf323e327))
-* move patches to scripts ([054318f](https://github.com/aphp/Cohort360-Back-end/commit/054318f3801304d50c855f87b27bf8db68e3818a))
-* permissions for exports new  views ([#267](https://github.com/aphp/Cohort360-Back-end/issues/267)) ([605a3d5](https://github.com/aphp/Cohort360-Back-end/commit/605a3d53e7855c51e33a29082ce32f4ee5cb1fde))
-* **requestmigration:** add new param mappings ([#284](https://github.com/aphp/Cohort360-Back-end/issues/284)) ([cb636d2](https://github.com/aphp/Cohort360-Back-end/commit/cb636d2a4f77633fefd34b1c3a2c3035026d9dd9))
-* **serializedquery:** correct field mapping + add medication new mapping ([#281](https://github.com/aphp/Cohort360-Back-end/issues/281)) ([8ead2cf](https://github.com/aphp/Cohort360-Back-end/commit/8ead2cfcbc918f1c6ab596edee8836712aade7d5))
-* silently log JWT token errors ([f5aa02c](https://github.com/aphp/Cohort360-Back-end/commit/f5aa02ca3b5f8766c1dc1a21837f61c563c47ea3))
-* small changes after merge ([c7d4d28](https://github.com/aphp/Cohort360-Back-end/commit/c7d4d2878e52a3f611aedc67cb3f008eabd61b69))
-* upgrade to Django v4.1.11 ([208839c](https://github.com/aphp/Cohort360-Back-end/commit/208839c688b3c4fd3d02de0a4507c271e4988c40))
+- *(crb)* Add questionnaire response resource type
 
+### 🐛 Bug Fixes
 
-### Features
+- *(accesses)* Hotfix 3.17.6 to search among manageable perimeters (#319)
+- Hotfix 3.18.2, update emails for feasibility reports (#320)
+- Alter feasibility report HTML page title
+- *(feasibility study)* Limit reports generation at UFs (#322)
+- *(feasibility study)* Add env var for reporting perimeter types (#323)
+- *(crb)* Typo in questionnaire reponse enum
 
-* add console handler for logs in local env, dev and qua ([6b3b383](https://github.com/aphp/Cohort360-Back-end/commit/6b3b383b8bded6a1efcd38a190db0030a42249ca))
-* add views to manage cache ([#262](https://github.com/aphp/Cohort360-Back-end/issues/262)) ([3ba7691](https://github.com/aphp/Cohort360-Back-end/commit/3ba7691f17fa1aaf694175ff6fa48059a10ace82))
-* **cohort:** add cohort request builder service ([#263](https://github.com/aphp/Cohort360-Back-end/issues/263)) ([3aa7f25](https://github.com/aphp/Cohort360-Back-end/commit/3aa7f251bd54ad7e5442523413dbcbebcbe9a685))
-* **cohort:** add cohort request builder service ([#263](https://github.com/aphp/Cohort360-Back-end/issues/263)) ([d42c7ed](https://github.com/aphp/Cohort360-Back-end/commit/d42c7ed460a77946b6f8b3fb79c079c29378606a))
-* **cohort:** add new migration script for serialized queries in 1.4.0 ([#271](https://github.com/aphp/Cohort360-Back-end/issues/271)) ([a3f6678](https://github.com/aphp/Cohort360-Back-end/commit/a3f6678915df44c125aad55e93732783ff943ff2))
-* **crb:** add real fhir query test ([#285](https://github.com/aphp/Cohort360-Back-end/issues/285)) ([dd63f34](https://github.com/aphp/Cohort360-Back-end/commit/dd63f344973e826bd7292c75ddc24926a8e6fcf8))
-* **exports:** add new models ([#266](https://github.com/aphp/Cohort360-Back-end/issues/266)) ([1537781](https://github.com/aphp/Cohort360-Back-end/commit/153778171bd125583084e2eb80a06d93c5456429))
-* manage release notes and news ([#279](https://github.com/aphp/Cohort360-Back-end/issues/279)) ([3a0baff](https://github.com/aphp/Cohort360-Back-end/commit/3a0baff98c75302829f3264201eff750e211eb70))
+### 🚜 Refactor
 
+- Use new table List instead of cohort_definition (#303)
+- *(exports)* Externalize services (#321)
 
+## [3.18.0] - 2024-01-18
 
-# [3.15.0](https://github.com/aphp/Cohort360-Back-end/compare/3.14.1...3.15.0) (2023-09-05)
+### 🚀 Features
 
+- Upgrade Django (#306)
+- Add feasibility studies (#305)
+- *(fhir filters)* Get filters by user id and resource (#307)
+- *(accesses)* Include link to accesses managers list in the email notification
 
-### Bug Fixes
+### 🐛 Bug Fixes
 
-* change fields mapping with ID checker server ([#252](https://github.com/aphp/Cohort360-Back-end/issues/252)) ([ed47e26](https://github.com/aphp/Cohort360-Back-end/commit/ed47e26e5b8a52e7c53eb8112df3629aff285962))
+- Psycopg package name in requirements.txt
+- Rm unused imports
+- Add env var for tests
+- Improve exports v1 (#308)
+- *(exports)* Use new statuses from Infra API (#309)
+- Pass perimeters ids instead of queryset to check rights
+- Hotfix 3.17.1 (#310)
+- Spark job request with callback path (#311)
+- *(exports)* New statuses
+- Hotfix 3.17.2 for right check regression for FHIR (#313)
+- *(feasibility_studies)* Fix error on creation
+- *(feasibility studies)* Add specific logger
+- *(feasibility studies)* Format request input
+- *(feasibility studies)* Properly set callbackPath in the SJS payload
+- *(feasibility studies)* Report download and notify on success and on error
+- *(feasibility studies)* Properly chain tasks
+- *(auth)* Remove unnecessary logging on token refresh failure
+- Raise raw exception on login error via OIDC
+- *(exports)* Hotfix 3.17.3 fix typo in attribute name (#315)
+- *(exports)* Hotfix 3.17.3 (#316)
+- *(exports)* Hotfix 3.17.4 to remove unused call to infra api (#317)
+- *(exports)* Hotfix 3.17.5 remove check user unix account (#318)
 
+### 🚜 Refactor
 
+- Unify urls conf
 
-## [3.14.1](https://github.com/aphp/Cohort360-Back-end/compare/3.14.0...3.14.1) (2023-08-09)
+### 📚 Documentation
 
+- Add changelog (#312)
 
-### Bug Fixes
+### 🎨 Styling
 
-* add a null check before adding trace id to headers ([b38d80c](https://github.com/aphp/Cohort360-Back-end/commit/b38d80cd0779c705199e28885bcd3e5118514ea2))
-* add default values to variables in test env ([30c2d00](https://github.com/aphp/Cohort360-Back-end/commit/30c2d002e7222b36c91b9bae7d8b05acf7d50bbe))
-* add migration dependency ([08758f9](https://github.com/aphp/Cohort360-Back-end/commit/08758f92908f58d8f806bd568603026400d83513))
-* add missing dependency ([54a9eca](https://github.com/aphp/Cohort360-Back-end/commit/54a9ecaae15f06cce2fc6fd66cbdde58081fa82e))
-* adjust responses on checking profiles ([9d84825](https://github.com/aphp/Cohort360-Back-end/commit/9d84825f31ff2a7550d73afbdd77738a2d5d8fda))
-* **cache:** include request params and path in keys ([#229](https://github.com/aphp/Cohort360-Back-end/issues/229)) ([0d40407](https://github.com/aphp/Cohort360-Back-end/commit/0d40407a73958510f0471605ed9036087527e1cf))
-* **cache:** include request's path in cache key ([f76a24f](https://github.com/aphp/Cohort360-Back-end/commit/f76a24f55d3e301a8ad471fbf570c4272c4d5760))
-* **cache:** invalidate cache on request sharing ([29371db](https://github.com/aphp/Cohort360-Back-end/commit/29371dbc8b0a7fe77eb996b8cd1e6ba6179a98bb))
-* **exports:** enable limit on cohorts list for exports ([#220](https://github.com/aphp/Cohort360-Back-end/issues/220)) ([e7b5caf](https://github.com/aphp/Cohort360-Back-end/commit/e7b5cafd2be94ded71b485f7120b4f6c47e5a66c))
-* **exports:** properly pass InfraAPI auth token ([#216](https://github.com/aphp/Cohort360-Back-end/issues/216)) ([e2c763a](https://github.com/aphp/Cohort360-Back-end/commit/e2c763a46d0c186bf1b604c94854d60e9d45c5bb))
-* hotfix 3.13.7 notify admins about errors ([#236](https://github.com/aphp/Cohort360-Back-end/issues/236)) ([293b3be](https://github.com/aphp/Cohort360-Back-end/commit/293b3be96a3f6ee954d5007ce55ab37c2116cc2a))
-* hotfix 3.13.8 serve static files ([#242](https://github.com/aphp/Cohort360-Back-end/issues/242)) ([6ef7408](https://github.com/aphp/Cohort360-Back-end/commit/6ef74082834e2dd30f46d5067ef83dd6cc83eb32))
-* hotfix 3.13.9 decode jwt per issuer ([#245](https://github.com/aphp/Cohort360-Back-end/issues/245)) ([8252b7d](https://github.com/aphp/Cohort360-Back-end/commit/8252b7d546451ebf501083dc44ecc48bcd5559cc))
-* hotfix 3.14.1 add cohort name on email subject for export requests ([#247](https://github.com/aphp/Cohort360-Back-end/issues/247)) ([b178f82](https://github.com/aphp/Cohort360-Back-end/commit/b178f82bea3e1d58004ecad4a5ec9b52f2de9fc0))
-* hotfix 3.14.1 cohort name in export email subject ([#248](https://github.com/aphp/Cohort360-Back-end/issues/248)) ([a48022a](https://github.com/aphp/Cohort360-Back-end/commit/a48022ad7ea8e7e71c2649a9a55fd20fabdbc4c3))
-* hotfix 3.14.1 cohort name in export email subject ([#249](https://github.com/aphp/Cohort360-Back-end/issues/249)) ([124f9ba](https://github.com/aphp/Cohort360-Back-end/commit/124f9ba189e67b5e9662061229f95273119c7663))
-* hotfix 3.14.1 cohort name in export email subject ([#250](https://github.com/aphp/Cohort360-Back-end/issues/250)) ([3d2897b](https://github.com/aphp/Cohort360-Back-end/commit/3d2897b694b9d040c61ba2d31eb836fe5e62f2dd))
-* log instead of raise error on logout ([#231](https://github.com/aphp/Cohort360-Back-end/issues/231)) ([9951279](https://github.com/aphp/Cohort360-Back-end/commit/995127907795637c3a7b48296727aa2b8d65a445))
-* **migration:** fix dependency ([36fa73e](https://github.com/aphp/Cohort360-Back-end/commit/36fa73e650752e30822e76c2bbf89c4054d74b82))
-* **migration:** fix dependency ([619c0de](https://github.com/aphp/Cohort360-Back-end/commit/619c0de7a14e6ddc8d12d77676eb0d7cf7c905d2))
-* **migration:** run Python instead of SQL ([a564033](https://github.com/aphp/Cohort360-Back-end/commit/a564033fea5a99a432819bde1672a2e95a6d4dea))
-* portail patient OIDC auth ([#234](https://github.com/aphp/Cohort360-Back-end/issues/234)) ([8715bbc](https://github.com/aphp/Cohort360-Back-end/commit/8715bbc8179330ae46e357c62eac19761ab45aa0))
-* reset cache on request sharing ([#225](https://github.com/aphp/Cohort360-Back-end/issues/225)) ([8e0130f](https://github.com/aphp/Cohort360-Back-end/commit/8e0130f67ecac602d4519a72ae04013ada43192f))
-* set version 3.14.0-SNAPSHOT ([810dd69](https://github.com/aphp/Cohort360-Back-end/commit/810dd69d95f982df46bca2869e8afceecf18df6d))
+- Remove explicit auth backend. to be guessed on the fly
 
+### 🧪 Testing
 
-### Features
+- *(feasibility_studies)* Add tests
+- *(crb)* Fix tests
 
-* **Accesses:** add created_by and updated_by ([#223](https://github.com/aphp/Cohort360-Back-end/issues/223)) ([267d192](https://github.com/aphp/Cohort360-Back-end/commit/267d1920abeddd68ba54685537559ee3293d5ec2))
-* **access:** set default minimum access duration to 2 years ([937243b](https://github.com/aphp/Cohort360-Back-end/commit/937243b2a25c4e9ca9ece6ca8b45dfad51e32dd4))
-* add regex to manage service accounts usernames ([d802c1b](https://github.com/aphp/Cohort360-Back-end/commit/d802c1b5ad121c3882ccdb37a64a8e40897a153a))
-* **exports:** add export name to mail subject ([#213](https://github.com/aphp/Cohort360-Back-end/issues/213)) ([d22d747](https://github.com/aphp/Cohort360-Back-end/commit/d22d747fdbe0443ee360fab45c85e2f37a90751e))
-* **logging:** add trace id tag and set logging format to json ([#212](https://github.com/aphp/Cohort360-Back-end/issues/212)) ([9498d9b](https://github.com/aphp/Cohort360-Back-end/commit/9498d9b382b4b0273757a8b8ed13fbc27c527438))
-* **request:** add param to optionnaly notify user when sharing request ([d3ecf3f](https://github.com/aphp/Cohort360-Back-end/commit/d3ecf3f954235d35f9a5a4f33e6a98e49ad13005))
-* **requests:** send mail to receipients of shared requests ([#205](https://github.com/aphp/Cohort360-Back-end/issues/205)) ([e74d204](https://github.com/aphp/Cohort360-Back-end/commit/e74d204fe24d27540b7d421d898cf550b6ec34bd))
+### ⚙️ Miscellaneous Tasks
 
+- Multi-stage Dockerfile
+- Back to full pipeline again
+- Remove proxy args
+
+### Build
+
+- Set custom user for container
+- Set user root for container
+
+## [3.17.0] - 2023-12-20
+
+### 🐛 Bug Fixes
+
+- Parse fhir_group_ids to get cohort rights
+- Remove unique rights combination constraint
+- Get user data rights
+- Get user data rights on perimeters
+- *(perimeters)* Correct cohort_ids type (#302)
+- Filter accesses on perimeters for user and deny deleting a used role
+- Log request data and params
+- Perimeters daily update task
+
+### Lint
+
+- Rm unused imports
+
+## [3.16.15] - 2023-12-12
+
+### 🚀 Features
+
+- *(crb)* Add new imagingStudy resource type (#290)
+- Log HTTP requests (#282)
+- *(Fhir filters)* Delete multiple filters
+- Add new exports flow v1 (#273)
+- Use token to activate maintenance for rollout (#298)
+- *(cohortrequester)* Add upgrade script for atih code conversion (#296)
+
+### 🐛 Bug Fixes
+
+- *(queryupgrade)* Fix sql + add previous version limit to upgrade + versions recap (#287)
+- Manage invalid token errors
+- Manage invalid token errors
+- *(emailing for exports)* Hotfix 3.16.3 (#288)
+- Set main to v3.17.0-SNAPSHOT
+- Update export email template
+- Adjust user permission to allow users to read their own data
+- *(fhir filters)* Get owner_id from request
+- *(fhir filters)* Fix serializer and tests
+- *(fhir filters)* Make FhirFilter objects user restricted only
+- *(fhir filters)* Allow to delete filters
+- *(release notes)* Sort data in response, allow patch
+- *(querymigration)* Fix code translation + add new v1.4.1 script (#291)
+- Hotfix 3.16.6 for queries updater (#292)
+- *(requests logs)* For FhirFilters
+- Raise specific exception
+- *(cohort)* Count requests
+- *(cohort)* Format cohort ids for rights checking
+- *(fhir filters)* Alter uniqueness rule and remove cache
+- *(fhir filters)* Add conditional unique constraint
+- *(fhir filters)* Typo in tests
+- *(fhir filters)* Linter
+- Hotfix 3.16.7 for computing user rights (#293)
+- Hotfix 3.16.8 for Exports permissions (#294)
+- *(exports new flow)* Resolve conflicts after merge exports new flow v1 PR
+- Rqs version incrementing
+- *(migrationscript)* Correct mapping script
+- *(crb)* Add right check in crb #2401 (#297)
+- *(CRB)* Hotfix 3.16.14 crb rights check (#300)
+
+### 🚜 Refactor
+
+- Bring services to cohort app (#276)
+
+### 🧪 Testing
+
+- Fix test for queries updater
+- *(requests logs)* Improve coverage
+- *(exports new flow)* Improve coverage
+- *(exports new flow)* Improve coverage
+
+### Lint
+
+- Rm unused import
+
+## [3.16.0] - 2023-10-13
+
+### 🚀 Features
+
+- *(exports)* Add new models (#266)
+- Add views to manage cache (#262)
+- *(cohort)* Add new migration script for serialized queries in 1.4.0 (#271)
+- Manage release notes and news (#279)
+- *(cohort)* Add cohort request builder service (#263)
+- *(cohort)* Add cohort request builder service (#263)
+- Add console handler for logs in local env, dev and qua
+- *(crb)* Add real fhir query test (#285)
+
+### 🐛 Bug Fixes
+
+- Permissions for exports new  views (#267)
+- Count users on perimeters (#268)
+- Count user on perimeters (#269)
+- Fix conflicts after merge
+- Fix migration dependency
+- Hotfix_3.15.3 accesses on perimeters (#270)
+- Review permissions and hide urls in the DRF api view (#272)
+- Exports bug fix and emails refactor (#274)
+- Attach logo to email signature
+- Manage downloading old csv exports (#277)
+- Add migration for old release notes
+- Move patches to scripts
+- *(crb)* Rename serialized model (#280)
+- Small changes after merge
+- Alter release notes migration
+- Upgrade to Django v4.1.11
+- *(serializedquery)* Correct field mapping + add medication new mapping (#281)
+- Silently log JWT token errors
+- *(crb)* Ipp list resource name (#283)
+- Extend try catch in crb process + add optional fields to query model
+- *(crb)* Correct sjs replacements
+- *(crb)* Optional fields for temporal constraints
+- *(requestmigration)* Add new param mappings (#284)
+
+### 🚜 Refactor
+
+- Replace YarnReadOnlyViewsetMixin by allowed http methods on views
+- Email notification
+
+### 🎨 Styling
+
+- *(RQS queries updater)* Reformat code
+
+### 🧪 Testing
+
+- Fix tests
+- Fix tests regarding adjusted permissions
+- Fix tests after emails notification refacto
+- Add tests for email notifications
+- Add tests for email notifications
+- Fix sending emails tests
+
+### ⚙️ Miscellaneous Tasks
+
+- *(main)* Up to v3.16.0-SNAPSHOT
+- Remove feat_deploy_xxx and release_xxx from workflow rules
+- Multi-stage Dockerfile to optimize Docker image
+- Fix multi-stage Dockerfile
+- Remove multi-stage Dockerfile
+
+## [3.15.0] - 2023-09-05
+
+### ⚙️ Miscellaneous Tasks
+
+- Release 3.15.0 (#265)
+
+## [3.14.1] - 2023-08-09
+
+### 🐛 Bug Fixes
+
+- Hotfix 3.14.1 add cohort name on email subject for export requests (#247)
+- Hotfix 3.14.1 cohort name in export email subject (#248)
+- Hotfix 3.14.1 cohort name in export email subject (#249)
+- Hotfix 3.14.1 cohort name in export email subject (#250)
+
+## [3.14.0] - 2023-08-08
+
+### 🚀 Features
+
+- *(requests)* Send mail to receipients of shared requests (#205)
+- *(logging)* Add trace id tag and set logging format to json (#212)
+- *(exports)* Add export name to mail subject (#213)
+- *(access)* Set default minimum access duration to 2 years
+- *(request)* Add param to optionnaly notify user when sharing request
+- *(Accesses)* Add created_by and updated_by (#223)
+- Add regex to manage service accounts usernames
+
+### 🐛 Bug Fixes
+
+- Add a null check before adding trace id to headers
+- Add missing dependency
+- *(exports)* Properly pass InfraAPI auth token (#216)
+- Set version 3.14.0-SNAPSHOT
+- *(exports)* Enable limit on cohorts list for exports (#220)
+- Reset cache on request sharing (#225)
+- *(cache)* Invalidate cache on request sharing
+- Add migration dependency
+- *(migration)* Run Python instead of SQL
+- *(migration)* Fix dependency
+- *(migration)* Fix dependency
+- *(cache)* Include request's path in cache key
+- *(cache)* Include request params and path in keys (#229)
+- Add default values to variables in test env
+- Adjust responses on checking profiles
+- Log instead of raise error on logout (#231)
+- Portail patient OIDC auth (#234)
+- Hotfix 3.13.7 notify admins about errors (#236)
+- Hotfix 3.13.8 serve static files (#242)
+- Hotfix 3.13.9 decode jwt per issuer (#245)
+
+### 📚 Documentation
+
+- Fix missing column of accesses role
+- Fix missing column of accesses role; pseudonymised
+
+### ⚙️ Miscellaneous Tasks
+
+- Set dependency check to github pipeline instead of gitlab (#211)
+- Add fixed Dockerfile (#218)
+- Add workflow to gitlab-ci
+- Add workflow to gitlab-ci
+- Add workflow to gitlab-ci
+- Set back docker.io as images hub instead of Harbor
 
 
 ## [3.13.9](https://github.com/aphp/Cohort360-Back-end/compare/3.13.8...3.13.9) (2023-08-08)
