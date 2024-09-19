@@ -5,7 +5,7 @@ from django.conf import settings
 class ExportsConfig(AppConfig):
     name = 'exports'
 
-    if "exporters" in settings.INCLUDED_APPS:
+    if "exporters" in settings.INSTALLED_APPS:
         from exporters.apps import ExportersConfig
         EXPORTERS = ExportersConfig.EXPORTERS
     else:

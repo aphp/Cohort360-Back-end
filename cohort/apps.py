@@ -1,4 +1,5 @@
-from django.apps import AppConfig, apps
+from django.apps import AppConfig
+from django.conf import settings
 
 
 class CohortConfig(AppConfig):
@@ -14,8 +15,6 @@ class CohortConfig(AppConfig):
             "OPERATOR_CLASS": "cohort.services.cohort_operators.DefaultCohortCreator"
         }
     ]
-
-    def ready(self):
-        if apps.is_installed("cohort_job_server"):
-            from cohort_job_server.apps import CohortJobServerConfig
-            self.COHORT_OPERATORS = CohortJobServerConfig.COHORT_OPERATORS
+    if "cohort_job_server" in settings.INSTALLED_APPS:
+        from cohort_job_server.apps import CohortJobServerConfig
+        COHORT_OPERATORS = CohortJobServerConfig.COHORT_OPERATORS

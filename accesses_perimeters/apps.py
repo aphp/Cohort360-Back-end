@@ -12,8 +12,6 @@ class AccessesAuxConfig(AppConfig):
     def ready(self):
         env = os.environ
 
-        settings.USE_PERIMETERS_FACT_RELATIONSHIPS = True
-        settings.PERIMETERS_RETRIEVER_PATH = "accesses_perimeters.perimeters_retriever.PerimetersRetriever"
         settings.OMOP_DB_ALIAS = OMOP_DB_ALIAS
         settings.DATABASES[OMOP_DB_ALIAS] = {'ENGINE': 'django.db.backends.postgresql',
                                              'NAME': env.get("DB_OMOP_NAME"),
