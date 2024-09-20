@@ -7,6 +7,12 @@ from django.http import HttpRequest
 _request_trace_id: ContextVar[Optional[str]] = ContextVar(
     "_request_id", default=None
 )
+_current_user_id: ContextVar[Optional[str]] = ContextVar(
+    "_current_user_id", default=None
+)
+_current_impersonated_user: ContextVar[Optional[str]] = ContextVar(
+    "_current_impersonated_user", default=None
+)
 
 TRACE_ID_HEADER = "X-Trace-Id"
 
@@ -21,10 +27,26 @@ def get_trace_id() -> str:
     return _request_trace_id.get() or str(uuid.uuid4())
 
 
+def set_user_id(user_id: str) -> None:
+    _current_user_id.set(user_id)
+
+
+def get_user_id() -> str:
+    return _current_user_id.get()
+
+
+def set_impersonated_id(user_id: str) -> None:
+    _current_impersonated_user.set(user_id)
+
+
+def get_impersonated_id() -> str:
+    return _current_impersonated_user.get()
+
+
 class RequestContext:
     def __init__(
-        self,
-        request: HttpRequest,
+            self,
+            request: HttpRequest,
     ) -> None:
         self.trace_id_token: Optional[Token[Optional[Any]]] = None
         self.request = request

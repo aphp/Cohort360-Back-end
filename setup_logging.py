@@ -48,6 +48,8 @@ def configure_handlers() -> [logging.Handler]:
                               " - %(name)s"
                               " - %(filename)s"
                               " - %(trace_id)s"
+                              " - %(userId)s"
+                              " - %(impersonating)s"
                               " - %(threadName)s"
                               " - %(levelname)s"
                               " - %(message)s",

@@ -129,8 +129,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'admin_cohort.middleware.maintenance_middleware.MaintenanceModeMiddleware',
-    'admin_cohort.middleware.request_trace_id_middleware.RequestTraceIdMiddleware',
     'admin_cohort.middleware.jwt_session_middleware.JWTSessionMiddleware',
+    'admin_cohort.middleware.request_trace_id_middleware.RequestTraceIdMiddleware',
     'admin_cohort.middleware.swagger_headers_middleware.SwaggerHeadersMiddleware'
 ]
 MIDDLEWARE = ((['admin_cohort.middleware.influxdb_middleware.InfluxDBMiddleware'] if not INFLUXDB_DISABLED else []) +

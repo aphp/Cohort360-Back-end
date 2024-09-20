@@ -3,7 +3,7 @@ import struct
 import traceback
 from logging.handlers import SocketHandler
 
-from admin_cohort.middleware.request_trace_id_middleware import get_trace_id
+from admin_cohort.middleware.request_trace_id_middleware import get_trace_id, get_user_id, get_impersonated_id
 
 
 class CustomSocketHandler(SocketHandler):
@@ -20,6 +20,8 @@ class CustomSocketHandler(SocketHandler):
         d = dict(record.__dict__)
         d['msg'] = record.getMessage()
         d['trace_id'] = get_trace_id()
+        d['userId'] = get_user_id()
+        d['impersonating'] = get_impersonated_id()
         d['args'] = None
         d['exc_text'] = traceback.format_exception(*d['exc_info']) if d['exc_info'] else None
         # exc_info is not serializable

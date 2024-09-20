@@ -20,6 +20,7 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.authentication import AUTH_HEADER_TYPE_BYTES
 from rest_framework_simplejwt.exceptions import InvalidToken
 
+from admin_cohort.middleware.request_trace_id_middleware import set_user_id, set_impersonated_id
 from admin_cohort.models import User
 from admin_cohort.types import ServerError, LoginError, OIDCAuthTokens, JWTAuthTokens, AuthTokens
 from cohort_job_server.apps import CohortJobServerConfig
@@ -291,18 +292,18 @@ class AuthService:
         authenticator.logout_user(request.body, access_token)
         logout(request)
 
-    def authenticate_token(self, token: str, auth_method: str, headers: Dict[str, str]) -> Union[
-        Tuple[User, str], None]:
+    def authenticate_token(self, token: str, auth_method: str, headers: Dict[str, str]) -> Union[Tuple[User, str, User], None]:
         assert auth_method is not None, "Missing `auth_method` parameter"
         if token is None:
             return None
         try:
             authenticator = self._get_authenticator(auth_method)
             username = authenticator.authenticate(token=token)
-            user = User.objects.get(username=username)
+            original_user = User.objects.get(username=username)
+            user = original_user
             for post_auth_hook in self.post_auth_hooks:
-                user = post_auth_hook(user, headers)
-            return user, token
+                user = post_auth_hook(original_user, headers)
+            return user, token, original_user
         except (InvalidTokenError, ValueError, User.DoesNotExist) as e:
             _logger.error(f"Error authenticating token: {e}")
             return None
@@ -312,8 +313,13 @@ class AuthService:
         if token in self.applicative_users:
             applicative_user = User.objects.get(username=self.applicative_users[token])
             return applicative_user, token
-        return self.authenticate_token(token=token, auth_method=auth_method or settings.OIDC_AUTH_MODE,
+        user_info = self.authenticate_token(token=token, auth_method=auth_method or settings.OIDC_AUTH_MODE,
                                        headers=request.headers)
+        if user_info is not None:
+            set_user_id(user_info[2].provider_id)
+            set_impersonated_id(user_info[0].provider_id)
+            return user_info[0], user_info[1]
+        return None
 
     def authenticate_ws_request(self, token: str, auth_method: str, headers: Dict[str, str]) -> Union[User, None]:
         res = self.authenticate_token(token=token, auth_method=auth_method, headers=headers)
