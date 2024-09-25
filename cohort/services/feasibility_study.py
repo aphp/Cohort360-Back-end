@@ -52,7 +52,7 @@ class FeasibilityStudyService(CommonService):
     def handle_feasibility_study_count(self, fs: FeasibilityStudy, request) -> None:
         try:
             chain(*(feasibility_study_count.s(fs_id=fs.uuid,
-                                              json_qury=fs.request_query_snapshot.serialized_query,
+                                              json_query=fs.request_query_snapshot.serialized_query,
                                               auth_headers=get_authorization_header(request),
                                               cohort_counter_cls=self.operator_cls),
                     send_feasibility_study_notification.s(fs.uuid)))()
