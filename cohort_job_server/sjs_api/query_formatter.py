@@ -6,7 +6,9 @@ import urllib.parse
 from typing import TYPE_CHECKING
 
 import requests
+from django.conf import settings
 
+from admin_cohort.middleware.context_request_middleware import context_request
 from admin_cohort.settings import CRB_TEST_FHIR_QUERIES
 from cohort_job_server.apps import CohortJobServerConfig
 from cohort_job_server.sjs_api.enums import CriteriaType, ResourceType
@@ -35,6 +37,12 @@ def query_fhir(resource: str, params: dict[str, list[str]], auth_headers: dict) 
         response.raise_for_status()
 
     _logger.info(f"Attempting to query fhir with {url=} {params=}")
+
+    request = context_request.get()
+    trace_id_header = settings.TRACE_ID_HEADER
+    auth_headers[trace_id_header] = request.headers.get(trace_id_header,
+                                                        request.META.get(f"HTTP_{trace_id_header}"))
+
     response = requests.get(url, params=params, headers=auth_headers)
     response.raise_for_status()
     result = response.json()

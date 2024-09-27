@@ -53,6 +53,9 @@ CSRF_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_SECURE = not DEBUG
 ACCESS_TOKEN_COOKIE_SECURE = not DEBUG
 
+TRACE_ID_HEADER = "X-Trace-Id"
+IMPERSONATING_HEADER = "X-Impersonate"
+
 ADMINS = [a.split(',') for a in env("ADMINS").split(';')]
 NOTIFY_ADMINS = env.bool("NOTIFY_ADMINS", default=False)
 
@@ -73,22 +76,30 @@ LOGGING = dict(version=1,
                        'propagate': False
                    }
                },
+               filters={
+                   "request_headers_interceptor": {
+                       "()": "admin_cohort.tools.logging.RequestHeadersInterceptorFilter"
+                   },
+               },
                handlers={
                    'console': {
                        'level': "INFO",
-                       'class': "logging.StreamHandler"
+                       'class': "logging.StreamHandler",
+                       'filters': ["request_headers_interceptor"]
                    },
                    'info_handler': {
                        'level': "INFO",
                        'class': "admin_cohort.tools.logging.CustomSocketHandler",
                        'host': "localhost",
                        'port': DEFAULT_TCP_LOGGING_PORT,
+                       'filters': ["request_headers_interceptor"]
                    },
                    'error_handler': {
                        'level': "ERROR",
                        'class': "admin_cohort.tools.logging.CustomSocketHandler",
                        'host': "localhost",
                        'port': DEFAULT_TCP_LOGGING_PORT,
+                       'filters': ["request_headers_interceptor"]
                    },
                    'mail_admins': {
                        'level': "ERROR",
@@ -129,7 +140,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'admin_cohort.middleware.maintenance_middleware.MaintenanceModeMiddleware',
-    'admin_cohort.middleware.request_trace_id_middleware.RequestTraceIdMiddleware',
+    'admin_cohort.middleware.context_request_middleware.ContextRequestMiddleware',
     'admin_cohort.middleware.jwt_session_middleware.JWTSessionMiddleware',
     'admin_cohort.middleware.swagger_headers_middleware.SwaggerHeadersMiddleware'
 ]

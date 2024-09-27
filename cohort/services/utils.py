@@ -7,7 +7,6 @@ from typing import Callable
 from django.core.cache import cache
 from rest_framework.request import Request
 
-from admin_cohort.middleware.request_trace_id_middleware import add_trace_id
 from cohort.models import FeasibilityStudy
 
 
@@ -67,7 +66,6 @@ def get_authorization_header(request: Request) -> dict:
     headers = {"Authorization": f"Bearer {request.META.get('HTTP_AUTHORIZATION')}",
                "authorizationMethod": request.META.get('HTTP_AUTHORIZATIONMETHOD')
                }
-    headers = add_trace_id(headers)
     return headers
 
 
