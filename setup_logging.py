@@ -48,12 +48,15 @@ def configure_handlers() -> [logging.Handler]:
                               " - %(name)s"
                               " - %(filename)s"
                               " - %(trace_id)s"
+                              " - %(user_id)s"
+                              " - %(impersonating)s"
                               " - %(threadName)s"
                               " - %(levelname)s"
                               " - %(message)s",
                               rename_fields={
                                   "asctime": "timestamp",
                                   "trace_id": "traceId",
+                                  "user_id": "userId",
                                   "levelname": "level",
                                   "threadName": "thread",
                                   "filename": "logger"
