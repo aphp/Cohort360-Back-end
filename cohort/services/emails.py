@@ -1,8 +1,10 @@
 import logging
 
+from django.conf import settings
+
 from admin_cohort.emails import EmailNotification
 from admin_cohort.models import User
-from admin_cohort.settings import EMAIL_SUPPORT_CONTACT, BACK_URL
+from admin_cohort.settings import EMAIL_SUPPORT_CONTACT
 
 BASE_CONTEXT = {"contact_email_address": EMAIL_SUPPORT_CONTACT}
 _logger = logging.getLogger('info')
@@ -39,11 +41,10 @@ def send_email_notif_feasibility_report_requested(request_name: str, owner: User
 
 def send_email_notif_feasibility_report_ready(request_name: str, owner: User, fs_id: str) -> None:
     subject = "Votre rapport est prêt"
-    report_link = f"{BACK_URL}/auth/login/?next=/cohort/feasibility-studies/{fs_id}/download/"
     context = {**BASE_CONTEXT,
                "recipient_name": owner.display_name,
                "request_name": request_name,
-               "report_link": report_link
+               "download_url": f"{settings.FRONT_URL}/download/feasibility-studies/{fs_id}/",
                }
     email_notif = EmailNotification(subject=subject,
                                     to=owner.email,

@@ -60,8 +60,10 @@ class FeasibilityStudyViewTests(CohortAppTests):
         mock_patch_handler.assert_called()
         mock_build_report.assert_called()
         mock_send_email_report_ready.assert_called()
-        self.assertIsNotNone(response_data.get('report_json_content'))
-        self.assertIsNotNone(response_data.get('report_file'))
+        feasibility_study_id = response_data['uuid']
+        feasibility_study = FeasibilityStudy.objects.get(pk=feasibility_study_id)
+        self.assertIsNotNone(feasibility_study.report_json_content)
+        self.assertIsNotNone(feasibility_study.report_file)
 
     @mock.patch('cohort.services.feasibility_study.send_email_feasibility_report_error.apply_async')
     @mock.patch('cohort.services.cohort_operators.DefaultCohortCounter.handle_patch_feasibility_study')

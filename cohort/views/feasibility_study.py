@@ -4,7 +4,7 @@ from io import BytesIO
 from django.db import transaction
 from django.http import FileResponse
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema, extend_schema_view
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -18,10 +18,6 @@ _logger = logging.getLogger('info')
 _logger_err = logging.getLogger('django.request')
 
 
-@extend_schema_view(
-    list=extend_schema(exclude=True),
-    retrieve=extend_schema(exclude=True)
-)
 class FeasibilityStudyViewSet(UserObjectsRestrictedViewSet):
     queryset = FeasibilityStudy.objects.all()
     serializer_class = FeasibilityStudySerializer
@@ -38,6 +34,14 @@ class FeasibilityStudyViewSet(UserObjectsRestrictedViewSet):
         if feasibility_study_service.allow_use_full_queryset(request=self.request):
             return self.queryset
         return super().get_queryset()
+
+    @extend_schema(responses={status.HTTP_200_OK: FeasibilityStudySerializer(many=True)})
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @extend_schema(responses={status.HTTP_200_OK: FeasibilityStudySerializer})
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
 
     @extend_schema(request=FeasibilityStudyCreateSerializer,
                    responses={status.HTTP_201_CREATED: FeasibilityStudySerializer})
