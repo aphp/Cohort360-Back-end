@@ -31,7 +31,7 @@ def export_succeeded(export_type: str, **kwargs):
                "recipient_name": kwargs.get('recipient_name'),
                "cohort_id": kwargs.get('cohort_id'),
                "selected_tables": kwargs.get('selected_tables'),
-               "download_url": f"{settings.FRONT_URL}/exports/{kwargs.get('export_request_id')}/download/",
+               "download_url": f"{settings.FRONT_URL}/download/exports/{kwargs.get('export_request_id')}/",
                "database_name": kwargs.get('database_name'),
                "delete_date": (timezone.now().date() + timedelta(days=settings.DAYS_TO_KEEP_EXPORTED_FILES)).strftime("%d %B %Y")
                }

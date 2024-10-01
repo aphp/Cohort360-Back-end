@@ -4,7 +4,7 @@
 
 Votre rapport concernant la requête "{{ request_name }}" a été généré avec succès.
 
-{{ html_report }}
+Télécharger ici: {{ download_url }}
 
 Pour toute question, contactez le support Cohort360 à l'adresse {{ contact_email_address }}
 
