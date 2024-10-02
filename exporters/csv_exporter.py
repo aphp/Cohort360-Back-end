@@ -43,8 +43,7 @@ class CSVExporter(BaseExporter):
 
     def handle_export(self, export: Export, **kwargs) -> None:
         self.confirm_export_received(export=export)
-        file_path = f"{export.target_full_path}.{export.group_tables and export.output_format or 'zip'}"
         kwargs["params"] = {"export_in_one_table": export.group_tables,
-                            "file_path": file_path
+                            "file_path": f"{export.target_full_path}.zip"
                             }
         super().handle_export(export=export, **kwargs)
