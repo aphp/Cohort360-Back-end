@@ -8,6 +8,15 @@ from django.http import HttpRequest
 context_request: ContextVar[Optional[HttpRequest]] = ContextVar("context_request", default=None)
 
 
+def get_trace_id() -> str:
+    request = context_request.get()
+    if not request:
+        return str(uuid.uuid4())
+    trace_id_header = settings.TRACE_ID_HEADER
+    trace_id = request.headers.get(trace_id_header, request.META.get(f"HTTP_{trace_id_header}"))
+    return trace_id
+
+
 class ContextRequestHolder:
     def __init__(self, request: HttpRequest) -> None:
         self.request_token: Optional[Token[Optional[Any]]] = None
