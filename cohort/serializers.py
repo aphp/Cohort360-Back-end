@@ -297,9 +297,12 @@ class FhirFilterPatchSerializer(FhirFilterCreateSerializer):
 
 
 class FeasibilityStudySerializer(serializers.ModelSerializer):
+    owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
+
     class Meta:
         model = FeasibilityStudy
         fields = ["uuid",
+                  "owner",
                   "created_at",
                   "request_job_status",
                   "total_count",
@@ -312,6 +315,7 @@ class FeasibilityStudyCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = FeasibilityStudy
         fields = ["request_query_snapshot"]
+
 
 
 class FeasibilityStudyPatchSerializer(DatedMeasurePatchSerializer):
