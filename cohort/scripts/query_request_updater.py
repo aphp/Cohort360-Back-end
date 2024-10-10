@@ -149,7 +149,9 @@ class QueryRequestUpdater:
             return self.process_resource(query, "fhirFilter")
 
     def process_basic_resource(self, resource: Any) -> bool:
-        return self.post_process_basic_resource(self.process_resource(resource, "filterFhir"))
+        has_changed = self.process_resource(resource, "filterFhir")
+        post_process_changed = self.post_process_basic_resource(resource)
+        return post_process_changed or has_changed
 
     def process_group_resource(self, resource: Any, has_changed: List[bool]) -> bool:
         group_changed = self.post_process_group_resource(resource)
@@ -273,7 +275,7 @@ class QueryRequestUpdater:
             if resource_filter.uuid == f.title:
                 query = json.loads(f.serialized_query)
                 resource_filter.query_version = query.get("version", self.version_name)
-                resource_filter.filter = ["fhirFilter"]
+                resource_filter.filter = query["fhirFilter"]
                 resource_filter.save()
                 return
 
@@ -282,5 +284,6 @@ class QueryRequestUpdater:
         all_filters: List[FhirFilter] = FhirFilter.objects.all()
         self.do_update_old_query_snapshots([RequestQuerySnapshot(
             title=f.uuid,
-            serialized_query=json.dumps({"version": f.query_version, "_type": "resource", "fhirFilter": f.filter})) for
+            serialized_query=json.dumps({"version": f.query_version, "_type": "resource", "resourceType": f.fhir_resource, "fhirFilter": f.filter}))
+            for
             f in all_filters], lambda r: self.save_filter(r, all_filters), dry_run, debug)
