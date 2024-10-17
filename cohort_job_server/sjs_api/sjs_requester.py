@@ -32,7 +32,8 @@ class SJSRequester:
             response_data = dict(success=True, **response.json())
         response = SJSResponse(**response_data)
         _logger(msg=f"Received SJS response {response.__dict__}")
-        self.update_request_instance(cohort_request.model, instance_id, response)
+        if instance_id is not None and cohort_request.model is not None:
+            self.update_request_instance(cohort_request.model, instance_id, response)
         _logger(msg=f"Done: {response.success and f'{cohort_request.model.__name__} updated' or response.err_msg}")
         return response
 

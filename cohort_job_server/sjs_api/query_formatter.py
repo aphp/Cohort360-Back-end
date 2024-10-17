@@ -6,7 +6,9 @@ import urllib.parse
 from typing import TYPE_CHECKING
 
 import requests
+from django.conf import settings
 
+from admin_cohort.middleware.context_request_middleware import get_trace_id
 from admin_cohort.settings import CRB_TEST_FHIR_QUERIES
 from cohort_job_server.apps import CohortJobServerConfig
 from cohort_job_server.sjs_api.enums import CriteriaType, ResourceType
@@ -35,6 +37,9 @@ def query_fhir(resource: str, params: dict[str, list[str]], auth_headers: dict) 
         response.raise_for_status()
 
     _logger.info(f"Attempting to query fhir with {url=} {params=}")
+
+    auth_headers[settings.TRACE_ID_HEADER] = get_trace_id()
+
     response = requests.get(url, params=params, headers=auth_headers)
     response.raise_for_status()
     result = response.json()
@@ -62,6 +67,7 @@ class QueryFormatter:
                 filter_fhir_enriched = add_security_params_to_filter_fhir(criteria,
                                                                           source_population,
                                                                           is_pseudo)
+
                 _logger.info(f"filterFhirEnriched {filter_fhir_enriched}")
 
                 if CohortJobServerConfig.USE_SOLR:

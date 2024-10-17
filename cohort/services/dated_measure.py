@@ -1,9 +1,10 @@
 from admin_cohort.types import JobStatus
 from cohort.models import DatedMeasure, CohortResult
 from cohort.models.dated_measure import GLOBAL_DM_MODE
+from cohort.serializers import WSJobStatus, JobName
 from cohort.services.base_service import CommonService
 from cohort.services.utils import get_authorization_header, ServerError
-from cohort.services.ws_event_manager import ws_send
+from admin_cohort.services.ws_event_manager import WebsocketManager, WebSocketMessageType
 from cohort.tasks import cancel_previous_count_jobs, count_cohort
 
 
@@ -17,7 +18,7 @@ class DatedMeasureService(CommonService):
                            json_query=dm.request_query_snapshot.serialized_query,
                            auth_headers=get_authorization_header(request),
                            cohort_counter_cls=self.operator_cls) \
-                        .apply_async()
+                .apply_async()
         except Exception as e:
             dm.delete()
             raise ServerError("Could not launch count request") from e
@@ -32,7 +33,7 @@ class DatedMeasureService(CommonService):
                            auth_headers=get_authorization_header(request),
                            cohort_counter_cls=self.operator_cls,
                            global_estimate=True) \
-                        .apply_async()
+                .apply_async()
         except Exception as e:
             raise ServerError("Could not launch count request") from e
         cohort.dated_measure_global = dm_global
@@ -51,9 +52,13 @@ class DatedMeasureService(CommonService):
     def ws_send_to_client(dm: DatedMeasure) -> None:
         dm.refresh_from_db()
         if not dm.is_global:
-            ws_send(instance=dm, job_name='count', extra_info={"request_job_status": dm.request_job_status,
-                                                               "request_job_fail_msg": dm.request_job_fail_msg,
-                                                               "measure": dm.measure})
+            WebsocketManager.send_to_client(str(dm.owner_id), WSJobStatus(type=WebSocketMessageType.JOB_STATUS,
+                                                                          status=dm.request_job_status,
+                                                                          uuid=str(dm.uuid),
+                                                                          job_name=JobName.COUNT,
+                                                                          extra_info={"request_job_status": dm.request_job_status,
+                                                                                      "request_job_fail_msg": dm.request_job_fail_msg,
+                                                                                      "measure": dm.measure}))
 
 
 dm_service = DatedMeasureService()

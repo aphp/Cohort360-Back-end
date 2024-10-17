@@ -1,3 +1,4 @@
+import logging
 from datetime import date, timedelta, datetime
 from typing import List, Dict, Union, Literal
 
@@ -5,11 +6,13 @@ from django.db.models import QuerySet, Q, Prefetch, F, Value
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
-from ..models import Perimeter, Role, Access
-from ..services.shared import DataRight
 from admin_cohort.models import User
 from admin_cohort.settings import ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS, PERIMETERS_TYPES, MANUAL_SOURCE, MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS
 from admin_cohort.tools import join_qs
+from ..models import Perimeter, Role, Access
+from ..services.shared import DataRight
+
+_logger = logging.getLogger("info")
 
 
 class AccessesService:
@@ -459,6 +462,14 @@ class AccessesService:
 
         if new_start_datetime and new_end_datetime and new_end_datetime < new_start_datetime:
             raise ValueError("La date de fin ne peut pas précéder la date de début")
+
+    @staticmethod
+    def close_accesses(perimeters_to_delete: QuerySet):
+        perimeters_to_delete_ids = perimeters_to_delete.values_list("id", flat=True)
+        accesses_to_delete = Access.objects.filter(accesses_service.q_access_is_valid()
+                                                   & (Q(perimeter_id__in=perimeters_to_delete_ids) | Q(perimeter_id__isnull=True)))
+        accesses_to_delete.update(end_datetime=timezone.now())
+        _logger.info(f"{len(accesses_to_delete)} accesses have been closed: {accesses_to_delete}")
 
 
 accesses_service = AccessesService()

@@ -1,6 +1,9 @@
 from django.conf import settings
 from exports.enums import DefaultExportTypes
 
-default_app_config = 'exports.apps.ExportsConfig'
 
-ExportTypes = getattr(settings, "EXPORT_TYPES_CLASS", DefaultExportTypes)
+if "exporters" in settings.INCLUDED_APPS:
+    from exporters.apps import ExportersConfig
+    ExportTypes = ExportersConfig.EXPORT_TYPES_CLASS
+else:
+    ExportTypes = DefaultExportTypes

@@ -4,9 +4,10 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from admin_cohort.models import MaintenancePhase
+from admin_cohort.permissions import MaintenancesPermission, either
 from admin_cohort.services.maintenance import maintenance_service
-from admin_cohort.permissions import MaintenancesPermission
 from admin_cohort.serializers import MaintenancePhaseSerializer
+from cohort_job_server.permissions import AuthenticatedApplicativeUserPermission
 
 extended_schema = extend_schema(tags=["Maintenance"])
 
@@ -26,7 +27,10 @@ class MaintenancePhaseViewSet(viewsets.ModelViewSet):
     search_fields = ["$subject"]
     filterset_fields = ["subject", "start_datetime", "end_datetime"]
     http_method_names = ["get", "delete", "post", "patch"]
-    permission_classes = (MaintenancesPermission,)
+
+    def get_permissions(self):
+        return either(MaintenancesPermission(),
+                      AuthenticatedApplicativeUserPermission())
 
     @action(methods=['get'], detail=False, url_path='next')
     def next(self, request, *args, **kwargs):

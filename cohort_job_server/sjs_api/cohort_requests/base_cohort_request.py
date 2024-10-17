@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, List, Optional
 
 from accesses.models import Perimeter
 from accesses.services.accesses import accesses_service
@@ -20,14 +20,21 @@ _celery_logger = logging.getLogger("celery.app")
 class BaseCohortRequest:
     model = None
 
-    def __init__(self, mode: Mode, instance_id: str, json_query: str, auth_headers: dict):
+    def __init__(self, mode: Mode, instance_id: Optional[str], json_query: str, auth_headers: dict, callback_path: str = None,
+                 existing_cohort_id: int = None,
+                 owner_username: str = None):
         self.mode = mode
         self.instance_id = instance_id
         self.json_query = json_query
         self.sjs_client = SJSClient()
         self.auth_headers = auth_headers
+        self.callback_path = callback_path
+        self.owner_username = owner_username
+        self.existing_cohort_id = existing_cohort_id
 
     def __headers_to_owner_entity(self) -> str:
+        if self.owner_username:
+            return self.owner_username
         return auth_service.retrieve_username(token=self.auth_headers['Authorization'].replace('Bearer ', ''),
                                               auth_method=self.auth_headers['authorizationMethod'])
 
@@ -49,12 +56,15 @@ class BaseCohortRequest:
         sjs_request = QueryFormatter(self.auth_headers).format_to_fhir(cohort_query, is_pseudo)
         cohort_query.criteria = sjs_request
 
-        callback_path = self.mode == Mode.COUNT_WITH_DETAILS and f"/cohort/feasibility-studies/{cohort_query.instance_id}/" or None
+        callback_path = self.callback_path or (
+                self.mode == Mode.COUNT_WITH_DETAILS and f"/cohort/feasibility-studies/{cohort_query.instance_id}/" or None)
         spark_job_request = SparkJobObject(cohort_definition_name="Created from Django",
                                            cohort_definition_syntax=cohort_query,
                                            mode=self.mode,
                                            owner_entity_id=self.__headers_to_owner_entity(),
-                                           callbackPath=callback_path)
+                                           callbackPath=callback_path,
+                                           existingCohortId=self.existing_cohort_id
+                                           )
         return format_spark_job_request_for_sjs(spark_job_request)
 
     def log(self, msg: str) -> None:

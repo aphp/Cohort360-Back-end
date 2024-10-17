@@ -87,8 +87,7 @@ def send_feasibility_study_notification(feasibility_count_task_succeeded: bool, 
         notif = send_email_notif_error_feasibility_report
     send_email_notification(notification=notif,
                             request_name=fs.request_query_snapshot.request.name,
-                            owner=fs.owner,
-                            fs_id=fs.uuid)
+                            owner=fs.owner)
 
 
 @shared_task
@@ -105,8 +104,7 @@ def send_email_feasibility_report_error(fs_id: str) -> None:
     fs = get_feasibility_study_by_id(fs_id=fs_id)
     send_email_notification(notification=send_email_notif_error_feasibility_report,
                             request_name=fs.request_query_snapshot.request.name,
-                            owner=fs.owner,
-                            fs_id=fs_id)
+                            owner=fs.owner)
 
 
 @shared_task

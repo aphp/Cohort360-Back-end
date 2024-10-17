@@ -15,8 +15,8 @@ class CohortCounterTest(BaseTest):
     def setUp(self):
         super().setUp()
 
-        with mock.patch('cohort_job_server.base_operator.settings') as mock_settings:
-            mock_settings.API_USERNAMES = []
+        with mock.patch('cohort_job_server.base_operator.CohortJobServerConfig') as mock_app_conf:
+            mock_app_conf.API_USERNAMES = []
             self.cohort_counter = CohortCounter()
 
         self.count_cohort_success_resp_content = str.encode('{"status": "STARTED", "jobId": "%s"}' % self.test_job_id)
