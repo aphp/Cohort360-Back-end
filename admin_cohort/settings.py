@@ -8,7 +8,7 @@ import pytz
 from celery.schedules import crontab
 
 TITLE = "Portail/Cohort360 API"
-VERSION = "3.24.0-SNAPSHOT"
+VERSION = "3.23.16"
 AUTHOR = "Assistance Publique - Hopitaux de Paris, Département I&D"
 DESCRIPTION_MD = f"""Supports the official **Cohort360** web app and **Portail**  
                      Built by **{AUTHOR}**
