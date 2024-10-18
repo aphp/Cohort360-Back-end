@@ -65,31 +65,31 @@ class TestServiceExport(ExportsTests):
     @mock.patch("exports.services.export.cohort_service.create_cohort_subset")
     def test_create_cohort_subsets_when_create_tables(self, mock_create_cohort_subset):
         mock_create_cohort_subset.return_value = None
-        tables = [{'table_ids': ['person'],
+        tables = [{'table_name': 'person',
                    'cohort_result_source': self.main_cohort.uuid,
                    'fhir_filter': self.fhir_filter.uuid,
                    }]
-        requires_cohort_subsets = export_service.create_tables(export=self.second_export, tables=tables)
+        requires_cohort_subsets = export_service.create_tables(export=self.second_export, tables_data=tables)
         mock_create_cohort_subset.assert_called_once()
         self.assertTrue(requires_cohort_subsets)
 
     @mock.patch("exports.services.export.cohort_service.create_cohort_subset")
     def test_force_create_cohort_subsets_without_filter_when_create_tables(self, mock_create_cohort_subset):
         mock_create_cohort_subset.return_value = None
-        tables = [{'table_ids': [TABLES_REQUIRING_SUB_COHORTS[0]],
+        tables = [{'table_name': TABLES_REQUIRING_SUB_COHORTS[0],
                    'cohort_result_source': self.main_cohort.uuid
                    }]
-        requires_cohort_subsets = export_service.create_tables(export=self.second_export, tables=tables)
+        requires_cohort_subsets = export_service.create_tables(export=self.second_export, tables_data=tables)
         mock_create_cohort_subset.assert_called_once()
         self.assertTrue(requires_cohort_subsets)
 
     @mock.patch("exports.services.export.cohort_service.create_cohort_subset")
     def test_not_create_cohort_subsets_when_create_tables(self, mock_create_cohort_subset):
         mock_create_cohort_subset.return_value = None
-        tables = [{'table_ids': [EXCLUDED_TABLES[0]],
+        tables = [{'table_name': EXCLUDED_TABLES[0],
                    'cohort_result_source': self.main_cohort.uuid
                    }]
-        requires_cohort_subsets = export_service.create_tables(export=self.second_export, tables=tables)
+        requires_cohort_subsets = export_service.create_tables(export=self.second_export, tables_data=tables)
         mock_create_cohort_subset.assert_not_called()
         self.assertFalse(requires_cohort_subsets)
 

@@ -51,9 +51,9 @@ class TestExportManager(ExportsTests):
     def test_validate(self):
         export_data = dict(output_format="plain",
                            nominative=True,
-                           cohort_id=self.user1_cohort.group_id,
+                           cohort_result_source=self.user1_cohort.uuid,
                            motivation='motivation',
-                           tables=[{"omop_table_name": "table1"}]
+                           export_tables=[{"table_name": "table1"}]
                            )
         with self.assertRaises(NotImplementedError):
             self.export_manager.validate(export_data=export_data, owner=self.user1)

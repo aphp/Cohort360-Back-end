@@ -23,7 +23,6 @@ class Export(ExportsBaseModel, JobModel):
     data_version = models.CharField(null=True, max_length=20)
     nominative = models.BooleanField(null=False, default=False)
     is_user_notified = models.BooleanField(null=False, default=False)
-    cohort_source = models.ForeignKey(to=CohortResult, related_name="exports", on_delete=CASCADE, null=True)
     datalab = models.ForeignKey(to=Datalab, related_name="exports", on_delete=CASCADE, null=True)
     shift_dates = models.BooleanField(null=False, default=False)
     group_tables = models.BooleanField(null=False, default=False)

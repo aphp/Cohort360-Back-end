@@ -16,7 +16,7 @@ from admin_cohort.tools.request_log_mixin import RequestLogMixin
 from exports.exceptions import FilesNoLongerAvailable, BadRequestError, StorageProviderException
 from exports.models import Export
 from exports.permissions import ExportPermission
-from exports.serializers import ExportSerializer, ExportsListSerializer, ExportCreateSerializer, ExportCreateSerializerV2
+from exports.serializers import ExportSerializer, ExportsListSerializer, ExportCreateSerializer
 from exports.services.export import export_service
 from exports.views import ExportsBaseViewSet
 
@@ -99,25 +99,10 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
         tables = request.data.pop("export_tables", [])
         response = super().create(request, *args, **kwargs)
         transaction.on_commit(lambda: export_service.proceed_with_export(export=response.data.serializer.instance,
-                                                                         tables=tables,
+                                                                         tables_data=tables,
                                                                          http_request=request))
         return response
 
-    @extend_schema(request=ExportCreateSerializerV2,
-                   responses={status.HTTP_201_CREATED: ExportSerializer})
-    @transaction.atomic
-    @action(detail=False, methods=['post'], url_path="v2")
-    def create_fine_tuned_export(self, request, *args, **kwargs):
-        try:
-            export_service.validate_export_data(data=request.data, owner=request.user, version="v2")
-        except ValidationError as ve:
-            return Response(data=ve.detail, status=status.HTTP_400_BAD_REQUEST)
-        tables = request.data.pop("export_tables", [])
-        response = super().create(request, *args, **kwargs)
-        transaction.on_commit(lambda: export_service.proceed_with_export(export=response.data.serializer.instance,
-                                                                         tables=tables,
-                                                                         http_request=request))
-        return response
 
     @extend_schema(responses={(status.HTTP_200_OK, "application/zip"): OpenApiTypes.BINARY})
     @action(detail=True, methods=['get'], url_path="download")

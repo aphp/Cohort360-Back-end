@@ -1,5 +1,4 @@
 import os
-from typing import List
 
 from django.db.models import Q
 
@@ -17,27 +16,15 @@ class CSVExporter(BaseExporter):
         self.type = ExportTypes.CSV.value
         self.target_location = os.environ.get('EXPORT_CSV_PATH')
 
-    @staticmethod
-    def get_source_cohorts(export_data: dict, **kwargs) -> List[str]:
-        source_cohorts_ids = [t.get("cohort_result_source")
-                              for t in export_data.get("export_tables", []) if t.get("cohort_result_source")]
-        if len(set(source_cohorts_ids)) != 1:
-            raise ValueError("All export tables must have the same source cohort")
-        source_cohort_id = source_cohorts_ids[0]
-        if not CohortResult.objects.filter(Q(pk=source_cohort_id) &
-                                           Q(owner=kwargs.get("owner")))\
-                                   .exists():
-            raise ValueError(f"Missing cohort with id {source_cohort_id}")
-        return source_cohorts_ids
-
     def validate(self, export_data: dict, **kwargs) -> None:
         if not export_data.get('nominative', False):
             raise ValueError("Export must be in `nominative` mode")
-        if kwargs.get("version") == "v2":
-            source_cohorts_ids = [export_data.get("cohort_source")]
-        else:
-            source_cohorts_ids = self.get_source_cohorts(export_data=export_data, owner=kwargs.get("owner"))
-        kwargs["source_cohorts_ids"] = source_cohorts_ids
+        source_cohort_id = export_data.get("cohort_result_source")
+        if not CohortResult.objects.filter(Q(pk=source_cohort_id) &
+                                           Q(owner=kwargs.get("owner")))\
+                                   .exists():
+            raise ValueError(f"Missing cohort with ID {source_cohort_id}")
+        kwargs["source_cohorts_ids"] = [source_cohort_id]
         super().validate(export_data=export_data, **kwargs)
 
     def complete_data(self, export_data: dict, owner: User, **kwargs) -> None:

@@ -65,11 +65,13 @@ class ExportSerializer(serializers.ModelSerializer):
 
 
 class ExportTableSerializerCreate(serializers.ModelSerializer):
-    table_ids = serializers.ListField(child=serializers.CharField())
+    table_name = serializers.CharField()
+    columns = serializers.ListField(child=serializers.CharField())
 
     class Meta:
         model = ExportTable
-        fields = ["table_ids",
+        fields = ["table_name",
+                  "columns",
                   "cohort_result_source",
                   "fhir_filter",
                   "respect_table_relationships"]
@@ -87,26 +89,6 @@ class ExportCreateSerializer(serializers.ModelSerializer):
                   "shift_dates",
                   "group_tables",
                   "export_tables"]
-
-
-class ExportTableSerializerCreateV2(serializers.ModelSerializer):
-    table_name = serializers.CharField()
-    columns = serializers.ListField(child=serializers.CharField())
-
-    class Meta:
-        model = ExportTable
-        fields = ["table_name",
-                  "columns",
-                  "fhir_filter",
-                  "respect_table_relationships"]
-
-
-class ExportCreateSerializerV2(ExportCreateSerializer):
-    export_tables = ExportTableSerializerCreateV2(many=True)
-
-    class Meta:
-        model = Export
-        fields = ["cohort_source"] + ExportCreateSerializer.Meta.fields
 
 
 class ExportsListSerializer(serializers.ModelSerializer):
