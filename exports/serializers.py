@@ -76,12 +76,12 @@ class ExportTableSerializerCreate(serializers.ModelSerializer):
 
 
 class ExportTableSerializerCreateV2(serializers.ModelSerializer):
-    table_ids = serializers.ListField(child=serializers.CharField())
+    table_name = serializers.CharField()
     columns = serializers.ListField(child=serializers.CharField())
 
     class Meta:
         model = ExportTable
-        fields = ["table_ids",
+        fields = ["table_name",
                   "columns",
                   "fhir_filter",
                   "respect_table_relationships"]
