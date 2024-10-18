@@ -75,18 +75,6 @@ class ExportTableSerializerCreate(serializers.ModelSerializer):
                   "respect_table_relationships"]
 
 
-class ExportTableSerializerCreateV2(serializers.ModelSerializer):
-    table_name = serializers.CharField()
-    columns = serializers.ListField(child=serializers.CharField())
-
-    class Meta:
-        model = ExportTable
-        fields = ["table_name",
-                  "columns",
-                  "fhir_filter",
-                  "respect_table_relationships"]
-
-
 class ExportCreateSerializer(serializers.ModelSerializer):
     export_tables = ExportTableSerializerCreate(many=True)
 
@@ -99,6 +87,18 @@ class ExportCreateSerializer(serializers.ModelSerializer):
                   "shift_dates",
                   "group_tables",
                   "export_tables"]
+
+
+class ExportTableSerializerCreateV2(serializers.ModelSerializer):
+    table_name = serializers.CharField()
+    columns = serializers.ListField(child=serializers.CharField())
+
+    class Meta:
+        model = ExportTable
+        fields = ["table_name",
+                  "columns",
+                  "fhir_filter",
+                  "respect_table_relationships"]
 
 
 class ExportCreateSerializerV2(ExportCreateSerializer):

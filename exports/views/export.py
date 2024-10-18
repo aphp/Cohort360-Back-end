@@ -109,7 +109,7 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
     @action(detail=False, methods=['post'], url_path="v2")
     def create_fine_tuned_export(self, request, *args, **kwargs):
         try:
-            export_service.validate_export_data(data=request.data, owner=request.user)
+            export_service.validate_export_data(data=request.data, owner=request.user, version="v2")
         except ValidationError as ve:
             return Response(data=ve.detail, status=status.HTTP_400_BAD_REQUEST)
         tables = request.data.pop("export_tables", [])
