@@ -34,10 +34,6 @@ class BaseExporter:
         export_data['request_job_status'] = JobStatus.validated
         self.complete_data(export_data=export_data, owner=owner)
 
-    @staticmethod
-    def using_new_export_models(export_data: dict) -> bool:
-        # todo: 2b removed once starting to use new models
-        return "export_tables" in export_data
 
     def validate_tables_data(self, tables_data: List[dict]) -> bool:
         required_table = self.export_api.required_table
