@@ -27,10 +27,9 @@ EXCLUDED_TABLES = ('imaging_series',
                    'questionnaireresponse__item',
                    'questionnaireresponse__item__answer')
 
-TABLES_REQUIRING_SUB_COHORTS = ('measurement', 'note')
+TABLES_REQUIRING_SUB_COHORTS = ('note',)
 
-RESOURCE_FILTERS = {TABLES_REQUIRING_SUB_COHORTS[0]: ("Observation", "value-quantity=ge0,le0"),
-                    TABLES_REQUIRING_SUB_COHORTS[1]: ("DocumentReference", get_encoded_doc_ref_filter())
+RESOURCE_FILTERS = {TABLES_REQUIRING_SUB_COHORTS[0]: ("DocumentReference", get_encoded_doc_ref_filter())
                     }
 
 

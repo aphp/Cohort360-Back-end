@@ -11,6 +11,7 @@ from requests import RequestException
 
 from admin_cohort.types import JobStatus
 from exports import ExportTypes
+from exports.apps import ExportsConfig
 from exports.emails import push_email_notification, exported_files_deleted
 from exports.exceptions import BadRequestError, FilesNoLongerAvailable, StorageProviderException
 from exports.models import Export
@@ -26,7 +27,7 @@ if not STORAGE_PROVIDERS:
 
 def load_available_exporters() -> dict:
     exporters = {}
-    for exporter_conf in settings.EXPORTERS:
+    for exporter_conf in ExportsConfig.EXPORTERS:
         try:
             export_type, cls_path = exporter_conf["TYPE"], exporter_conf["EXPORTER_CLASS"]
             export_type = ExportTypes(export_type).value
@@ -100,16 +101,11 @@ class ExportDownloader:
         if not export.available_for_download():
             raise FilesNoLongerAvailable("The exported files are no longer available on the server.")
         try:
-            content_types = {"csv": "text/csv",
-                             "xlsx": "application/ms-excel",
-                             "zip": "application/zip"
-                             }
-            extension = export.group_tables and export.output_format or "zip"
-            file_path = f"{export.target_full_path}.{extension}"
+            file_path = f"{export.target_full_path}.zip"
             response = StreamingHttpResponse(streaming_content=self.stream_file(file_path))
             file_size = self.get_file_size(file_name=file_path)
-            download_file_name = f"export_{export.export_tables.first().cohort_result_source.group_id}.{extension}"
-            response["Content-Type"] = content_types.get(extension)
+            download_file_name = f"export_{export.export_tables.first().cohort_result_source.group_id}.zip"
+            response["Content-Type"] = "application/zip"
             response["Content-Length"] = file_size
             response["Content-Disposition"] = f"attachment; filename={download_file_name}"
             return response

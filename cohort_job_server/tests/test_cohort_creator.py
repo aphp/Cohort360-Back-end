@@ -16,8 +16,8 @@ class CohortCreatorTest(BaseTest):
     def setUp(self):
         super().setUp()
 
-        with mock.patch('cohort_job_server.base_operator.settings') as mock_settings:
-            mock_settings.API_USERNAMES = []
+        with mock.patch('cohort_job_server.base_operator.CohortJobServerConfig') as mock_app_conf:
+            mock_app_conf.API_USERNAMES = []
             self.cohort_creator = CohortCreator()
 
         self.small_count_value = settings.COHORT_LIMIT // 2

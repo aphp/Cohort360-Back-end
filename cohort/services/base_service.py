@@ -1,8 +1,9 @@
 from typing import Optional
 
-from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.utils.module_loading import import_string
+
+from cohort.apps import CohortConfig
 
 
 def load_operator(cls_path: str):
@@ -14,7 +15,7 @@ def load_operator(cls_path: str):
 
 
 def load_operator_cls(job_type: str) -> Optional[str]:
-    for operator_conf in settings.COHORT_OPERATORS:
+    for operator_conf in CohortConfig.COHORT_OPERATORS:
         try:
             operator_type, cls_path = operator_conf["TYPE"], operator_conf["OPERATOR_CLASS"]
         except KeyError:

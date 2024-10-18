@@ -2,11 +2,11 @@ import enum
 import logging
 
 import requests
-from django.conf import settings
 from requests import Response, RequestException
 from rest_framework import status
 
 from admin_cohort.types import JobStatus
+from exporters.apps import ExportersConfig
 from exporters.enums import ExportTypes
 
 _logger = logging.getLogger('django.request')
@@ -19,7 +19,7 @@ class InfraAPI:
         HADOOP = "hadoop"
 
     def __init__(self):
-        api_conf = settings.EXPORT_API_CONF
+        api_conf = ExportersConfig.EXPORT_API_CONF
         self.url = api_conf.get('API_URL')
         self.export_endpoints = {
             ExportTypes.CSV: api_conf.get('CSV_EXPORT_ENDPOINT'),

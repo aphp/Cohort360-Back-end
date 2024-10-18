@@ -77,8 +77,8 @@ def get_source_type(care_site: FhirOrganization, level: int) -> str:
     """
     if level == 1:
         return ROOT_PERIMETER_TYPE
-    if len(PERIMETERS_TYPES) > level:
-        return PERIMETERS_TYPES[level]
+    if len(PERIMETERS_TYPES) >= level:
+        return PERIMETERS_TYPES[level - 1]
     return get_source_type(care_site, level - 1)
 
 

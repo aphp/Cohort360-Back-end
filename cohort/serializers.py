@@ -1,8 +1,12 @@
+from enum import StrEnum
+from typing import Union
+
 from rest_framework import serializers
 
 from admin_cohort.models import User
 from admin_cohort.serializers import BaseSerializer, UserSerializer
-from admin_cohort.types import MissingDataError
+from admin_cohort.services.ws_event_manager import WebSocketMessage
+from admin_cohort.types import MissingDataError, JobStatus
 from cohort.models import CohortResult, DatedMeasure, Folder, Request, RequestQuerySnapshot, FhirFilter, FeasibilityStudy, RequestRefreshSchedule
 
 
@@ -293,16 +297,16 @@ class FhirFilterPatchSerializer(FhirFilterCreateSerializer):
 
 
 class FeasibilityStudySerializer(serializers.ModelSerializer):
+    owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
+
     class Meta:
         model = FeasibilityStudy
-        write_only_fields = ["request_query_snapshot"]
-        read_only_fields = ["request_job_id",
-                            "report_json_content",
-                            "report_file",
-                            "request_job_id"]
-        exclude = ["request_job_duration",
-                   "deleted",
-                   "deleted_by_cascade"]
+        fields = ["uuid",
+                  "owner",
+                  "created_at",
+                  "request_job_status",
+                  "total_count",
+                  "request_query_snapshot"]
 
 
 class FeasibilityStudyCreateSerializer(serializers.ModelSerializer):
@@ -311,6 +315,7 @@ class FeasibilityStudyCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = FeasibilityStudy
         fields = ["request_query_snapshot"]
+
 
 
 class FeasibilityStudyPatchSerializer(DatedMeasurePatchSerializer):
@@ -337,3 +342,16 @@ class RequestRefreshScheduleSerializer(serializers.ModelSerializer):
                             "last_refresh_succeeded",
                             "last_refresh_count",
                             "last_refresh_error_msg"]
+
+
+class JobName(StrEnum):
+    COUNT = 'count'
+    CREATE = 'create'
+
+
+class WSJobStatus(WebSocketMessage):
+    status: Union[JobStatus, str]
+    uuid: str
+    job_name: JobName
+    extra_info: dict
+
