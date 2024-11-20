@@ -169,10 +169,9 @@ class PerimetersService:
                                                                                         read_pseudo_perimeters_ids=read_pseudo_perimeters_ids)
 
         if is_request_filtered:
-            user_main_perimeters = Perimeter.objects.filter(id__in={a.perimeter_id for a in user_accesses})
-            all_user_perimeters = [user_main_perimeters] + [self.get_all_child_perimeters(p) for p in user_main_perimeters]
-            user_accessible_perimeters = reduce(lambda qs1, qs2: qs1 | qs2, all_user_perimeters)
-            target_perimeters = user_accessible_perimeters
+            perimeters_with_data_accesses = Perimeter.objects.filter(id__in=read_nomi_perimeters_ids + read_pseudo_perimeters_ids)
+            perimeters_and_children = [perimeters_with_data_accesses] + [self.get_all_child_perimeters(p) for p in perimeters_with_data_accesses]
+            target_perimeters = reduce(lambda qs1, qs2: qs1 | qs2, perimeters_and_children)
         else:
             target_perimeters = Perimeter.objects.filter(id__in=top_read_nomi_perimeters_ids + top_read_pseudo_perimeters_ids)
 

@@ -168,12 +168,6 @@ class PerimeterViewTests(AccessesAppTestsBase):
                                    to_find=expected_data_read_rights)
 
         def get_data_read_rights_on_perimeters_2():
-            data_read_rights_p1 = PerimeterReadRight(perimeter=self.p1,
-                                                     right_read_patient_nominative=False,
-                                                     right_read_patient_pseudonymized=False,
-                                                     right_search_patients_by_ipp=True,
-                                                     right_read_opposed_patients_data=True)
-
             data_read_rights_p5 = PerimeterReadRight(perimeter=self.p5,
                                                      right_read_patient_nominative=False,
                                                      right_read_patient_pseudonymized=True,
@@ -186,8 +180,7 @@ class PerimeterViewTests(AccessesAppTestsBase):
                                                      right_search_patients_by_ipp=True,
                                                      right_read_opposed_patients_data=True)
 
-            expected_data_read_rights = [data_read_rights_p1,
-                                         data_read_rights_p5,
+            expected_data_read_rights = [data_read_rights_p5,
                                          data_read_rights_p9]
 
             target_local_ids = [self.p1.local_id,
