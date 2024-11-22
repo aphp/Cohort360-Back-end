@@ -56,32 +56,32 @@ class ExportService:
                                          name=f'{str(export.uuid)[:8]}_{table_name}_(auto generated)',
                                          owner=export.owner).uuid
 
-    def create_tables(self, export: Export, tables: List[dict], **kwargs) -> bool:
+    def create_tables(self, export: Export, tables_data: List[dict], **kwargs) -> bool:
         requires_cohort_subsets = False
-        for export_table in tables:
-            fhir_filter_id = export_table.get("fhir_filter")
-            cohort_source_id = export_table.get("cohort_result_source")
+        for td in tables_data:
+            fhir_filter_id = td.get("fhir_filter")
+            cohort_source_id = td.get("cohort_result_source")
             cohort_source = cohort_source_id and CohortResult.objects.get(pk=cohort_source_id) or None
-            for table_name in export_table.get("table_ids"):
-                if not fhir_filter_id and table_name in TABLES_REQUIRING_SUB_COHORTS:
-                    fhir_filter_id = self.force_generate_fhir_filter(export=export,
-                                                                     table_name=table_name)
+            table_name = td.get("table_name")
+            if not fhir_filter_id and table_name in TABLES_REQUIRING_SUB_COHORTS:
+                fhir_filter_id = self.force_generate_fhir_filter(export=export,
+                                                                 table_name=table_name)
 
-                if table_name not in EXCLUDED_TABLES and cohort_source and fhir_filter_id:
-                    requires_cohort_subsets = True
-                    cohort_subset = cohort_service.create_cohort_subset(request=kwargs.get("http_request"),
-                                                                        owner_id=export.owner_id,
-                                                                        table_name=table_name,
-                                                                        fhir_filter_id=fhir_filter_id,
-                                                                        source_cohort=cohort_source)
-                else:
-                    cohort_subset = None
+            if table_name not in EXCLUDED_TABLES and cohort_source and fhir_filter_id:
+                requires_cohort_subsets = True
+                cohort_subset = cohort_service.create_cohort_subset(request=kwargs.get("http_request"),
+                                                                    owner_id=export.owner_id,
+                                                                    table_name=table_name,
+                                                                    fhir_filter_id=fhir_filter_id,
+                                                                    source_cohort=cohort_source)
+            else:
+                cohort_subset = None
 
-                ExportTable.objects.create(export=export,
-                                           name=table_name,
-                                           fhir_filter_id=fhir_filter_id,
-                                           cohort_result_source=cohort_source,
-                                           cohort_result_subset=cohort_subset)
+            ExportTable.objects.create(export=export,
+                                       name=table_name,
+                                       fhir_filter_id=fhir_filter_id,
+                                       cohort_result_source=cohort_source,
+                                       cohort_result_subset=cohort_subset)
         return requires_cohort_subsets
 
     @staticmethod

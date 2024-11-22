@@ -16,7 +16,7 @@ from admin_cohort.tools.request_log_mixin import RequestLogMixin
 from exports.exceptions import FilesNoLongerAvailable, BadRequestError, StorageProviderException
 from exports.models import Export
 from exports.permissions import ExportPermission
-from exports.serializers import ExportSerializer, ExportsListSerializer
+from exports.serializers import ExportSerializer, ExportsListSerializer, ExportCreateSerializer
 from exports.services.export import export_service
 from exports.views import ExportsBaseViewSet
 
@@ -88,6 +88,8 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
             return self.get_paginated_response(serializer.data)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    @extend_schema(request=ExportCreateSerializer,
+                   responses={status.HTTP_201_CREATED: ExportSerializer})
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         try:
@@ -97,9 +99,10 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
         tables = request.data.pop("export_tables", [])
         response = super().create(request, *args, **kwargs)
         transaction.on_commit(lambda: export_service.proceed_with_export(export=response.data.serializer.instance,
-                                                                         tables=tables,
+                                                                         tables_data=tables,
                                                                          http_request=request))
         return response
+
 
     @extend_schema(responses={(status.HTTP_200_OK, "application/zip"): OpenApiTypes.BINARY})
     @action(detail=True, methods=['get'], url_path="download")

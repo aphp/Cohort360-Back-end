@@ -15,19 +15,19 @@ class TestCSVExporter(ExportersTestBase):
 
     def test_error_validate_export_not_owned_cohort(self):
         export_data = dict(output_format=ExportTypes.CSV.value,
-                           cohort_id=self.cohort3.group_id,
+                           cohort_result_source=self.cohort3.uuid,
                            nominative=True,
                            motivation='motivation',
-                           tables=[{"omop_table_name": "table1"}])
+                           export_tables=[{"table_name": "table1"}])
         with self.assertRaises(ValueError):
             self.exporter.validate(export_data=export_data, owner=self.csv_exporter_user)
 
     def test_error_validate_export_not_nominative(self):
         export_data = dict(output_format=ExportTypes.CSV.value,
-                           cohort_id=self.cohort.group_id,
+                           cohort_result_source=self.cohort.uuid,
                            nominative=False,
                            motivation='motivation',
-                           tables=[{"omop_table_name": "table1"}])
+                           export_tables=[{"table_name": "table1"}])
         with self.assertRaises(ValueError):
             self.exporter.validate(export_data=export_data, owner=self.csv_exporter_user)
 
@@ -45,34 +45,24 @@ class TestCSVExporter(ExportersTestBase):
         self.assertIsNotNone(self.csv_export.request_job_id)
         self.assertIsNotNone(self.csv_export.request_job_duration)
 
-
-class TestCSVExporterWithOldModels(TestCSVExporter):
-
     def test_successfully_validate_export(self):
         export_data = dict(output_format=ExportTypes.CSV.value,
                            nominative=True,
                            motivation='motivation',
-                           export_tables=[{"table_ids": ["table1"], "cohort_result_source": self.cohort.pk}])
-        self.exporter.validate(export_data=export_data, owner=self.csv_exporter_user)
-
-
-class TestCSVExporterWithNewModels(TestCSVExporter):
-
-    def test_successfully_validate_export(self):
-        export_data = dict(output_format=ExportTypes.CSV.value,
-                           nominative=True,
-                           motivation='motivation',
-                           export_tables=[{"table_ids": ["table1"], "cohort_result_source": self.cohort.pk},
-                                          {"table_ids": ["person"], "cohort_result_source": self.cohort.pk}]
+                           cohort_result_source=self.cohort.pk,
+                           export_tables=[{"table_name": "table1"},
+                                          {"table_name": "person"}
+                                          ]
                            )
         self.exporter.validate(export_data=export_data, owner=self.csv_exporter_user)
 
-    def test_error_validate_export_with_multiple_source_cohorts(self):
+    def test_error_validate_export_without_source_cohort(self):
         export_data = dict(output_format=ExportTypes.CSV.value,
                            nominative=True,
                            motivation='motivation',
-                           export_tables=[{"table_ids": ["table1"], "cohort_result_source": self.cohort.pk},
-                                          {"table_ids": ["person"], "cohort_result_source": self.cohort2.pk}]
+                           export_tables=[{"table_name": "table1"},
+                                          {"table_name": "person"}
+                                          ]
                            )
         with self.assertRaises(ValueError):
             self.exporter.validate(export_data=export_data, owner=self.csv_exporter_user)
