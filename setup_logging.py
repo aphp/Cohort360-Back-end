@@ -4,7 +4,6 @@ import json
 import logging
 import socketserver
 import struct
-import sys
 from logging.handlers import DEFAULT_TCP_LOGGING_PORT
 from pathlib import Path
 
@@ -31,14 +30,12 @@ class CustomFileHandler(logging.FileHandler):
 
 
 def configure_handlers() -> [logging.Handler]:
-    stream_handler = logging.StreamHandler(stream=sys.stdout)
     dj_info_handler = CustomFileHandler(name='info', filename=BASE_DIR / "log/django.log")
     dj_error_handler = CustomFileHandler(name='django.request', filename=BASE_DIR / "log/django.error.log")
     guni_error_handler = CustomFileHandler(name='gunicorn.error', filename=BASE_DIR / "log/gunicorn.error.log")
     guni_access_handler = CustomFileHandler(name='gunicorn.access', filename=BASE_DIR / "log/gunicorn.access.log")
 
-    handlers = [stream_handler,
-                dj_info_handler,
+    handlers = [dj_info_handler,
                 dj_error_handler,
                 guni_error_handler,
                 guni_access_handler]
@@ -55,8 +52,9 @@ def configure_handlers() -> [logging.Handler]:
                               " - %(message)s",
                               rename_fields={
                                   "asctime": "timestamp",
-                                  "trace_id": "traceId",
-                                  "user_id": "userId",
+                                  "trace_id": "x_traceId",
+                                  "user_id": "x_userId",
+                                  "impersonating": "x_impersonating",
                                   "levelname": "level",
                                   "threadName": "thread",
                                   "filename": "logger"
@@ -110,10 +108,7 @@ class LogRecordSocketReceiver(socketserver.ThreadingTCPServer):
 
 
 def main():
-    fmt = "%(levelname)s %(asctime)s <%(name)s> traceId=%(trace_id)s " \
-          "pid=%(process)d module=%(filename)s msg=`%(message)s`"
     logging.basicConfig(level=logging.INFO,
-                        format=fmt,
                         handlers=configure_handlers())
     tcp_server = LogRecordSocketReceiver()
     tcp_server.serve_until_stopped()

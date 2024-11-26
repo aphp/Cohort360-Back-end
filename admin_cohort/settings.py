@@ -8,7 +8,7 @@ import pytz
 from celery.schedules import crontab
 
 TITLE = "Portail/Cohort360 API"
-VERSION = "3.24.1"
+VERSION = "3.24.2"
 AUTHOR = "Assistance Publique - Hopitaux de Paris, Département I&D"
 DESCRIPTION_MD = f"""Supports the official **Cohort360** web app and **Portail**  
                      Built by **{AUTHOR}**
@@ -66,13 +66,12 @@ LOGGING = dict(version=1,
                loggers={
                    'info': {
                        'level': "INFO",
-                       'handlers': ['info_handler'] + (DEBUG and ['console'] or []),
+                       'handlers': ['info'] + (DEBUG and ['console'] or []),
                        'propagate': False
                    },
                    'django.request': {
                        'level': "ERROR",
-                       'handlers': ['error_handler'] + (DEBUG and ['console'] or []) + (
-                               NOTIFY_ADMINS and ['mail_admins'] or []),
+                       'handlers': ['error'] + (DEBUG and ['console'] or []) + (NOTIFY_ADMINS and ['mail_admins'] or []),
                        'propagate': False
                    }
                },
@@ -87,14 +86,14 @@ LOGGING = dict(version=1,
                        'class': "logging.StreamHandler",
                        'filters': ["request_headers_interceptor"]
                    },
-                   'info_handler': {
+                   'info': {
                        'level': "INFO",
                        'class': "admin_cohort.tools.logging.CustomSocketHandler",
                        'host': "localhost",
                        'port': DEFAULT_TCP_LOGGING_PORT,
                        'filters': ["request_headers_interceptor"]
                    },
-                   'error_handler': {
+                   'error': {
                        'level': "ERROR",
                        'class': "admin_cohort.tools.logging.CustomSocketHandler",
                        'host': "localhost",
