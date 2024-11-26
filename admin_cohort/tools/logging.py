@@ -4,6 +4,7 @@ import struct
 import traceback
 from logging.handlers import SocketHandler
 
+from gunicorn.glogging import SafeAtoms
 from django.conf import settings
 
 from admin_cohort.middleware.context_request_middleware import context_request
@@ -41,11 +42,18 @@ class CustomSocketHandler(SocketHandler):
 
         trace_id, user_id, impersonating = None, None, None
 
-        request_metadata = d.pop("request_metadata", None)
-        if request_metadata is not None:
+        # logs from Django
+        request_metadata = d.pop("request_metadata", {})
+        if request_metadata:
             trace_id = request_metadata.get("trace_id")
             user_id = request_metadata.get("user_id")
             impersonating = request_metadata.get("impersonating")
+
+        # logs from Gunicorn
+        if isinstance(record.args, SafeAtoms):
+            trace_id = record.args.get("trace_id")
+            user_id = record.args.get("user_id")
+            impersonating = record.args.get("impersonating")
 
         d['trace_id'] = trace_id
         d['user_id'] = user_id
