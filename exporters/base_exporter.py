@@ -1,13 +1,11 @@
 import logging
 import time
-from typing import List
 
 from django.utils import timezone
 from requests import RequestException
 
 from admin_cohort.models import User
 from admin_cohort.types import JobStatus
-from cohort.models import CohortResult
 from exports.emails import check_email_address
 from exports.models import Export, Datalab, ExportTable
 from exports.services.rights_checker import rights_checker
@@ -28,38 +26,11 @@ class BaseExporter:
 
     def validate(self, export_data: dict, **kwargs) -> None:
         owner = kwargs["owner"]
-        self.validate_tables_data(tables_data=export_data.get("export_tables", []))
         check_email_address(owner.email)
         self.check_user_rights(export_data=export_data, **kwargs)
         export_data['request_job_status'] = JobStatus.validated
         self.complete_data(export_data=export_data, owner=owner)
 
-    @staticmethod
-    def using_new_export_models(export_data: dict) -> bool:
-        # todo: 2b removed once starting to use new models
-        return "export_tables" in export_data
-
-    def validate_tables_data(self, tables_data: List[dict]) -> bool:
-        required_table = self.export_api.required_table
-        base_cohort_provided = False
-        required_table_provided = False
-        for table_data in tables_data:
-            source_cohort_id = table_data.get('cohort_result_source')
-
-            if required_table in table_data.get("table_ids"):
-                required_table_provided = True
-                if not source_cohort_id:
-                    raise ValueError(f"The `{required_table}` table can not be exported without a source cohort")
-
-            if source_cohort_id:
-                if CohortResult.objects.filter(pk=source_cohort_id, request_job_status=JobStatus.finished).exists():
-                    base_cohort_provided = True
-                else:
-                    raise ValueError(f"Cohort `{source_cohort_id}` not found or did not finish successfully")
-
-        if not required_table_provided and not base_cohort_provided:
-            raise ValueError(f"`{required_table}` table was not specified; must then provide source cohort for all tables")
-        return True
 
     @staticmethod
     def check_user_rights(export_data: dict, **kwargs) -> None:
