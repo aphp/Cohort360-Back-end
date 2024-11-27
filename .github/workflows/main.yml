@@ -73,7 +73,7 @@ jobs:
             ${{ runner.os }}-pip-
 
       - name: Install system deps
-        run: | 
+        run: |
           sudo apt-get update && sudo apt-get -y install gcc libkrb5-dev
           sudo locale-gen fr_FR.utf8
           sudo update-locale 
@@ -97,7 +97,21 @@ jobs:
           coverage run --source='.' --omit="*/test*","*/migrations/*" manage.py test
           coverage xml --omit="*/test*","*/migrations/*" -o coverage.xml
           coverage html --omit="*/test*","*/migrations/*" -d htmlcov
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report
+          path: coverage.xml
 
+
+  sonar:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download coverage report
+        uses: actions/download-artifact@v3
+        with:
+          name: coverage-report
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
         env:
