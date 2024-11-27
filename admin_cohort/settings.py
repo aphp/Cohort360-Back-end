@@ -61,6 +61,7 @@ NOTIFY_ADMINS = env.bool("NOTIFY_ADMINS", default=False)
 
 logging.captureWarnings(True)
 
+SOCKET_LOGGER_HOST = env("SOCKET_LOGGER_HOST", default="localhost")
 LOGGING = dict(version=1,
                disable_existing_loggers=False,
                loggers={
@@ -89,14 +90,14 @@ LOGGING = dict(version=1,
                    'info': {
                        'level': "INFO",
                        'class': "admin_cohort.tools.logging.CustomSocketHandler",
-                       'host': "localhost",
+                       'host': SOCKET_LOGGER_HOST,
                        'port': DEFAULT_TCP_LOGGING_PORT,
                        'filters': ["request_headers_interceptor"]
                    },
                    'error': {
                        'level': "ERROR",
                        'class': "admin_cohort.tools.logging.CustomSocketHandler",
-                       'host': "localhost",
+                       'host': SOCKET_LOGGER_HOST,
                        'port': DEFAULT_TCP_LOGGING_PORT,
                        'filters': ["request_headers_interceptor"]
                    },
