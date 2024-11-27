@@ -91,7 +91,7 @@ class LogRecordStreamHandler(socketserver.StreamRequestHandler):
 class LogRecordSocketReceiver(socketserver.ThreadingTCPServer):
     allow_reuse_address = True
 
-    def __init__(self, host='localhost', port=DEFAULT_TCP_LOGGING_PORT, handler=LogRecordStreamHandler):
+    def __init__(self, host='0.0.0.0', port=DEFAULT_TCP_LOGGING_PORT, handler=LogRecordStreamHandler):
         super(LogRecordSocketReceiver, self).__init__(server_address=(host, port), RequestHandlerClass=handler)
         self.abort = 0
         self.timeout = 1
