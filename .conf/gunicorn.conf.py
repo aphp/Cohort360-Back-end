@@ -1,8 +1,9 @@
 from logging.handlers import DEFAULT_TCP_LOGGING_PORT
 
+from environ import environ
 from gunicorn.glogging import Logger
 
-
+env = environ.Env()
 workers = 7
 threads = 10
 limit_request_line = 8190
@@ -19,6 +20,8 @@ class CustomLogger(Logger):
         })
         return atoms
 
+
+SOCKET_LOGGER_HOST = env("SOCKET_LOGGER_HOST", default="localhost")
 
 logger_class = CustomLogger
 
@@ -47,12 +50,12 @@ logconfig_dict = dict(
         },
         "access": {
             "class": "admin_cohort.tools.logging.CustomSocketHandler",
-            "host": "localhost",
+            "host": SOCKET_LOGGER_HOST,
             "port": DEFAULT_TCP_LOGGING_PORT,
         },
         "error": {
             "class": "admin_cohort.tools.logging.CustomSocketHandler",
-            "host": "localhost",
+            "host": SOCKET_LOGGER_HOST,
             "port": DEFAULT_TCP_LOGGING_PORT,
         }}
 )
