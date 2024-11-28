@@ -67,12 +67,12 @@ LOGGING = dict(version=1,
                loggers={
                    'info': {
                        'level': "INFO",
-                       'handlers': ['info'] + (DEBUG and ['console'] or []),
+                       'handlers': ['info', 'console'],
                        'propagate': False
                    },
                    'django.request': {
                        'level': "ERROR",
-                       'handlers': ['error'] + (DEBUG and ['console'] or []) + (NOTIFY_ADMINS and ['mail_admins'] or []),
+                       'handlers': ['error', 'console'] + (NOTIFY_ADMINS and ['mail_admins'] or []),
                        'propagate': False
                    }
                },
