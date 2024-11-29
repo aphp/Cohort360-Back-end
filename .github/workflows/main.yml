@@ -96,9 +96,8 @@ jobs:
         run: |
           coverage run --source='.' --omit="*/test*","*/migrations/*" manage.py test
           coverage xml --omit="*/test*","*/migrations/*" -o coverage.xml
-          coverage html --omit="*/test*","*/migrations/*" -d htmlcov
       - name: Upload coverage report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: coverage.xml
@@ -113,14 +112,21 @@ jobs:
         with:
           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
       - name: Download coverage report
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: coverage-report
+      - name: Retrieve version
+        run: |
+          VERSION=$(head -n 20 ./admin_cohort/settings.py | grep VERSION | head -1 | awk -F'=' '{ print $2 }' | sed "s/[\"' ]//g")
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.projectVersion=${{ env.VERSION }}
 
   publish:
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')

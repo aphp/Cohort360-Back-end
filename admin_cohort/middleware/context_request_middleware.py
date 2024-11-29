@@ -23,7 +23,7 @@ def get_request_user_id(request) -> str:
     auth_token = bearer_token and bearer_token.split("Bearer ")[1] or None
     if auth_token is not None:
         try:
-            decoded = jwt.decode(jwt=auth_token, options={'verify_signature': False})
+            decoded = jwt.decode(jwt=auth_token, options={'verify_signature': True})
             user_id = decoded.get("preferred_username", decoded.get("username"))
         except jwt.PyJWTError:
             pass
