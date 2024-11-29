@@ -16,7 +16,7 @@ ENV VIRTUAL_ENV=/app/venv \
     LC_CTYPE="fr_FR.utf8"
 
 RUN apt-get update -y \
-    && apt-get install -y net-tools procps nginx curl gettext locales locales-all xxd krb5-user nano cron \
+    && apt-get install -y cron curl gettext krb5-user locales locales-all nano nginx procps xxd \
     && rm -rf /var/lib/apt/lists/*
 RUN dpkg-reconfigure locales
 
