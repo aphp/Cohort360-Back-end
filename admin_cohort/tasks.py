@@ -11,6 +11,9 @@ def maintenance_notifier_checker():
         maintenance_notifier.s(maintenance_phase_to_info(event).model_dump()).apply_async(eta=event.start_datetime)
     for event in event_to_end:
         maintenance_notifier.s(maintenance_phase_to_info(event).model_dump()).apply_async(eta=event.end_datetime)
+    current_maintenance = MaintenanceService.get_current_maintenance()
+    if current_maintenance:
+        maintenance_notifier.s(maintenance_phase_to_info(current_maintenance).model_dump()).apply_async()
 
 
 @shared_task
