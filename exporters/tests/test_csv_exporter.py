@@ -49,9 +49,12 @@ class TestCSVExporter(ExportersTestBase):
         export_data = dict(output_format=ExportTypes.CSV.value,
                            nominative=True,
                            motivation='motivation',
-                           cohort_result_source=self.cohort.pk,
-                           export_tables=[{"table_name": "table1"},
-                                          {"table_name": "person"}
+                           export_tables=[{"table_name": "table1",
+                                           "cohort_result_source": self.cohort.pk
+                                           },
+                                          {"table_name": "person",
+                                           "cohort_result_source": self.cohort.pk
+                                           }
                                           ]
                            )
         self.exporter.validate(export_data=export_data, owner=self.csv_exporter_user)
