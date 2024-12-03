@@ -1,3 +1,4 @@
+import datetime
 import logging
 from datetime import timedelta
 from typing import Union, Optional
@@ -22,6 +23,7 @@ SJS_TOKEN = env("SJS_TOKEN")
 
 
 class WSMaintenanceInfo(BaseModel):
+    id: int
     subject: Optional[str]
     maintenance_start: str
     maintenance_end: str
@@ -36,6 +38,7 @@ class WSMaintenance(WebSocketMessage):
 
 def maintenance_phase_to_info(maintenance: MaintenancePhase) -> WSMaintenanceInfo:
     return WSMaintenanceInfo(
+        id=maintenance.id,
         subject=maintenance.subject,
         maintenance_start=maintenance.start_datetime.isoformat(),
         maintenance_end=maintenance.end_datetime.isoformat(),
@@ -58,20 +61,41 @@ class MaintenanceService:
         return event_to_start, event_to_end
 
     @staticmethod
-    def send_maintenance_notification(maintenance_info: WSMaintenanceInfo):
+    def send_deleted_maintenance_notification(maintenance_info: MaintenancePhase):
+        now = timezone.now()
+        if maintenance_info.end_datetime >= now >= maintenance_info.start_datetime:
+            deleted_maintenance = maintenance_phase_to_info(maintenance_info)
+            maintenance_service.send_maintenance_notification(deleted_maintenance, force_active_state=False)
+
+    @staticmethod
+    def send_maintenance_notification(maintenance_info: WSMaintenanceInfo, force_active_state: Optional[bool] = None):
+        """
+        Send a maintenance notification to all clients.
+        Except if there is a current maintenance active and the message is an end maintenance message.
+        """
         now = timezone.now()
         start_time = dateutil.parser.parse(maintenance_info.maintenance_start)
         end_time = dateutil.parser.parse(maintenance_info.maintenance_end)
-        maintenance_info.active = start_time < now < end_time
+        maintenance_info.active = force_active_state if force_active_state is not None else start_time < now < end_time
         logging.info(f"Sending maintenance notification: {maintenance_info}")
-        WebsocketManager.send_to_client("__all__", WSMaintenance(type=WebSocketMessageType.MAINTENANCE, info=maintenance_info))
+        current_maintenances = MaintenancePhase.objects.filter(start_datetime__lte=now, end_datetime__gte=now).order_by('-end_datetime').all()
+        current_active_maintenances = [cur for cur in
+                                       current_maintenances
+                                       if cur.id != maintenance_info.id]
+        if maintenance_info.active or not current_active_maintenances:
+            WebsocketManager.send_to_client("__all__", WSMaintenance(type=WebSocketMessageType.MAINTENANCE, info=maintenance_info))
+
+    @staticmethod
+    def get_current_maintenance(now: Optional[datetime] = None) -> Optional[MaintenancePhase]:
+        ref_now = now or timezone.now()
+        return MaintenancePhase.objects.filter(start_datetime__lte=ref_now, end_datetime__gte=ref_now) \
+            .order_by('-end_datetime') \
+            .first()
 
     @staticmethod
     def get_next_maintenance() -> Union[MaintenancePhase, None]:
         now = timezone.now()
-        current = MaintenancePhase.objects.filter(start_datetime__lte=now, end_datetime__gte=now) \
-            .order_by('-end_datetime') \
-            .first()
+        current = MaintenanceService.get_current_maintenance(now)
         if current:
             return current
         next_maintenance = MaintenancePhase.objects.filter(start_datetime__gte=now) \

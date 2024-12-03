@@ -37,3 +37,7 @@ class MaintenancePhaseViewSet(viewsets.ModelViewSet):
         q = maintenance_service.get_next_maintenance()
         d = self.get_serializer(q).data if q is not None else {}
         return Response(d)
+
+    def destroy(self, request, *args, **kwargs):
+        maintenance_service.send_deleted_maintenance_notification(self.get_object())
+        return super().destroy(request, *args, **kwargs)
