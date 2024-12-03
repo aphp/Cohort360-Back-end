@@ -21,7 +21,7 @@ class TestHiveExporter(ExportersTestBase):
         # all tables have a linked source cohort
         tables_data = [{"table_name": self.person_table_name, "cohort_result_source": self.cohorts[0].uuid},
                        {"table_name": "other_table_01", "cohort_result_source": self.cohorts[1].uuid}]
-        check = self.exporter.validate_tables_data(tables_data=tables_data)
+        check = self.exporter.check_source_cohorts(tables_data=tables_data)
         self.assertTrue(check)
 
     def test_validate_tables_data_only_person_table_has_source_cohort(self):
@@ -29,13 +29,13 @@ class TestHiveExporter(ExportersTestBase):
         tables_data = [{"table_name": "table_01"},
                        {"table_name": self.person_table_name, "cohort_result_source": self.cohorts[0].uuid},
                        {"table_name": "table_02"}]
-        check = self.exporter.validate_tables_data(tables_data=tables_data)
+        check = self.exporter.check_source_cohorts(tables_data=tables_data)
         self.assertTrue(check)
 
     def test_validate_tables_data_one_table_with_source_cohort(self):
         # tables data is valid if the source cohort is provided within the table data
         tables_data = [{"table_name": "table_01", "cohort_result_source": self.cohorts[0].uuid}]
-        check = self.exporter.validate_tables_data(tables_data=tables_data)
+        check = self.exporter.check_source_cohorts(tables_data=tables_data)
         self.assertTrue(check)
 
     def test_validate_tables_data_missing_source_cohort_for_person_table(self):
@@ -43,20 +43,20 @@ class TestHiveExporter(ExportersTestBase):
         tables_data = [{"table_name": self.person_table_name},
                        {"table_name": "table_01", "cohort_result_source": self.cohorts[0].uuid}]
         with self.assertRaises(ValueError):
-            self.exporter.validate_tables_data(tables_data=tables_data)
+            self.exporter.check_source_cohorts(tables_data=tables_data)
 
     def test_validate_tables_data_with_only_person_table_without_source_cohort(self):
         # tables data is not valid if the `person` table has no source cohort
         tables_data = [{"table_name": self.person_table_name}]
         with self.assertRaises(ValueError):
-            self.exporter.validate_tables_data(tables_data=tables_data)
+            self.exporter.check_source_cohorts(tables_data=tables_data)
 
     def test_validate_tables_data_all_tables_without_source_cohort_nor_person_table(self):
         # tables data is not valid if the `person` table has no source cohort
         tables_data = [{"table_name": "table_01"},
                        {"table_name": "table_02"}]
         with self.assertRaises(ValueError):
-            self.exporter.validate_tables_data(tables_data=tables_data)
+            self.exporter.check_source_cohorts(tables_data=tables_data)
 
     def test_successfully_create_db(self):
         self.mock_export_api.create_db.return_value = "some-job-id"

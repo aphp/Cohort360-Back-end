@@ -12,29 +12,30 @@ class ExportersConfig(AppConfig):
     EXPORTERS = [
         {
             "TYPE": ExportTypes.CSV.value,
-            "EXPORTER_CLASS": "exporters.csv_exporter.CSVExporter"
+            "EXPORTER_CLASS": "exporters.exporters.csv_exporter.CSVExporter"
         },
         {
             "TYPE": ExportTypes.XLSX.value,
-            "EXPORTER_CLASS": "exporters.xlsx_exporter.XLSXExporter"
+            "EXPORTER_CLASS": "exporters.exporters.xlsx_exporter.XLSXExporter"
         },
         {
             "TYPE": ExportTypes.HIVE.value,
-            "EXPORTER_CLASS": "exporters.hive_exporter.HiveExporter"
+            "EXPORTER_CLASS": "exporters.exporters.hive_exporter.HiveExporter"
         }
     ]
 
     env = os.environ
-    EXPORT_API_CONF = {
-        "API_URL": env.get('EXPORT_API_URL'),
-        "CSV_EXPORT_ENDPOINT": env.get('CSV_EXPORT_ENDPOINT'),
-        "HIVE_EXPORT_ENDPOINT": env.get('HIVE_EXPORT_ENDPOINT'),
-        "XLSX_EXPORT_ENDPOINT": env.get('XLSX_EXPORT_ENDPOINT'),
-        "EXPORT_TASK_STATUS_ENDPOINT": env.get('EXPORT_TASK_STATUS_ENDPOINT'),
-        "HADOOP_TASK_STATUS_ENDPOINT": env.get('HADOOP_TASK_STATUS_ENDPOINT'),
-        "CREATE_DB_ENDPOINT": env.get('CREATE_DB_ENDPOINT'),
-        "ALTER_DB_ENDPOINT": env.get('ALTER_DB_ENDPOINT'),
-        "BIGDATA_TOKEN": env.get('INFRA_EXPORT_TOKEN'),
-        "HADOOP_TOKEN": env.get('INFRA_HADOOP_TOKEN'),
-        "EXPORT_ENVIRONMENT": env.get('EXPORT_ENVIRONMENT')
+    THIRD_PARTY_API_CONF = {
+        "INFRA_API": {
+            "API_URL": env.get('INFRA_API_URL'),        # to be added
+            "AUTH_TOKEN": env.get('INFRA_HADOOP_TOKEN'),
+            "TASK_STATUS_ENDPOINT": env.get('HADOOP_TASK_STATUS_ENDPOINT'),
+            "CREATE_DB_ENDPOINT": env.get('CREATE_DB_ENDPOINT'),
+            "ALTER_DB_ENDPOINT": env.get('ALTER_DB_ENDPOINT'),
+        },
+        "EXPORT_API": {
+            "API_URL": env.get('EXPORT_API_URL'),
+            "AUTH_TOKEN": env.get('EXPORT_AUTH_TOKEN'),
+            "TASK_STATUS_ENDPOINT": env.get('EXPORT_TASK_STATUS_ENDPOINT'), # update to: "/task_status"
+        },
     }

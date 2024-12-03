@@ -28,6 +28,7 @@ class Export(ExportsBaseModel, JobModel):
     group_tables = models.BooleanField(null=False, default=False)
     motivation = models.TextField(null=True, blank=True)
     clean_datetime = models.DateTimeField(null=True)
+    yaml_payload = models.TextField(null=True, blank=True)
 
     class Meta:
         db_table = 'export'

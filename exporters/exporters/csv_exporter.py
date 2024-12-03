@@ -5,7 +5,7 @@ from django.db.models import Q
 from admin_cohort.models import User
 from cohort.models import CohortResult
 from exports.models import Export
-from exporters.base_exporter import BaseExporter
+from exporters.exporters.base_exporter import BaseExporter
 from exporters.enums import ExportTypes
 
 
@@ -31,9 +31,9 @@ class CSVExporter(BaseExporter):
         kwargs["target_name"] = owner.pk
         super().complete_data(export_data=export_data, owner=owner, **kwargs)
 
-    def handle_export(self, export: Export, **kwargs) -> None:
+    def handle_export(self, export: Export, params: dict = None) -> None:
         self.confirm_export_received(export=export)
-        kwargs["params"] = {"export_in_one_table": export.group_tables,
-                            "file_path": f"{export.target_full_path}.zip"
-                            }
-        super().handle_export(export=export, **kwargs)
+        params = {"export_in_one_table": export.group_tables,
+                  "file_path": f"{export.target_full_path}.zip"
+                  }
+        super().handle_export(export=export, params=params)

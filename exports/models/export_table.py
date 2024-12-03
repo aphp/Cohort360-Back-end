@@ -1,3 +1,4 @@
+from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.db.models import CASCADE
 
@@ -12,6 +13,7 @@ class ExportTable(ExportsBaseModel):
     fhir_filter = models.ForeignKey(to=FhirFilter, related_name="export_tables", null=True, on_delete=CASCADE)
     cohort_result_subset = models.ForeignKey(to=CohortResult, related_name="export_table", null=True, on_delete=CASCADE)
     cohort_result_source = models.ForeignKey(to=CohortResult, related_name="export_tables", null=True, on_delete=CASCADE)
+    columns = ArrayField(models.CharField(max_length=55), null=True, blank=True)
 
     class Meta:
         db_table = 'export_table'
