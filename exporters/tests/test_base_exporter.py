@@ -1,6 +1,6 @@
 from unittest import mock
 
-from exporters.base_exporter import BaseExporter
+from exporters.exporters.base_exporter import BaseExporter
 from exporters.enums import ExportTypes
 from exporters.tests.base_test import ExportersTestBase
 
@@ -10,19 +10,21 @@ class TestBaseExporter(ExportersTestBase):
     def setUp(self) -> None:
         super().setUp()
         self.api_conf = {
-            'API_URL': 'https://exports-api.fr/api',
-            'CSV_EXPORT_ENDPOINT': '/csv',
-            'HIVE_EXPORT_ENDPOINT': '/hive',
-            'EXPORT_TASK_STATUS_ENDPOINT': '/bigdata/task_status',
-            'HADOOP_TASK_STATUS_ENDPOINT': '/hadoop/task_status',
-            'CREATE_DB_ENDPOINT': '/hadoop/create_db',
-            'ALTER_DB_ENDPOINT': '/hadoop/chown_db',
-            'EXPORT_ENVIRONMENT': 'test',
-            'BIGDATA_TOKEN': "bigdata-token",
-            'HADOOP_TOKEN': "hadoop-token"
+            "INFRA_API": {
+                "API_URL": 'https://infra-api.fr/api',
+                "AUTH_TOKEN": "hadoop-token",
+                "TASK_STATUS_ENDPOINT": '/hadoop/task_status',
+                "CREATE_DB_ENDPOINT": '/hadoop/create_db',
+                "ALTER_DB_ENDPOINT": '/hadoop/chown_db',
+            },
+            "EXPORT_API": {
+                "API_URL": 'https://export-api.fr/api',
+                "AUTH_TOKEN": "bigdata-token",
+                "TASK_STATUS_ENDPOINT": '/task_status',
+            },
         }
-        with mock.patch('exporters.infra_api.ExportersConfig') as mock_exports_config:
-            mock_exports_config.EXPORT_API_CONF = self.api_conf
+        with mock.patch('exporters.apis.base.ExportersConfig') as mock_exports_config:
+            mock_exports_config.THIRD_PARTY_API_CONF = self.api_conf
             self.exporter = BaseExporter()
 
     def test_complete_export_data(self):

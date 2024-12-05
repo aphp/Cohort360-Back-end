@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import List, Optional
+from typing import List
 
 from requests import RequestException
 
@@ -24,20 +24,32 @@ class HiveExporter(BaseExporter):
         self.user = os.environ.get('HIVE_EXPORTER_USER')
 
     def validate(self, export_data: dict, **kwargs) -> None:
-        self.check_source_cohorts(tables_data=export_data.get("export_tables", []))
+        self.validate_tables_data(tables_data=export_data.get("export_tables", []))
         kwargs["source_cohorts_ids"] = [t.get("cohort_result_source")
                                         for t in export_data.get("export_tables", [])
                                         if t.get("cohort_result_source")]
         super().validate(export_data=export_data, **kwargs)
 
-    @staticmethod
-    def check_source_cohorts(tables_data: List[dict]) -> Optional[bool]:
+    def validate_tables_data(self, tables_data: List[dict]) -> bool:
+        required_table = self.export_api.required_table
+        base_cohort_provided = False
+        required_table_provided = False
         for td in tables_data:
             source_cohort_id = td.get('cohort_result_source')
-            if source_cohort_id and not CohortResult.objects.filter(pk=source_cohort_id,
-                                                                    request_job_status=JobStatus.finished)\
-                                                            .exists():
-                raise ValueError(f"Cohort `{source_cohort_id}` not found or did not finish successfully")
+
+            if td.get("table_name", "") == required_table:
+                required_table_provided = True
+                if not source_cohort_id:
+                    raise ValueError(f"The `{required_table}` table can not be exported without a source cohort")
+
+            if source_cohort_id:
+                if CohortResult.objects.filter(pk=source_cohort_id, request_job_status=JobStatus.finished).exists():
+                    base_cohort_provided = True
+                else:
+                    raise ValueError(f"Cohort `{source_cohort_id}` not found or did not finish successfully")
+
+        if not required_table_provided and not base_cohort_provided:
+            raise ValueError(f"`{required_table}` table was not specified; must then provide source cohort for all tables")
         return True
 
     def complete_data(self, export_data: dict, owner: User, **kwargs) -> None:
