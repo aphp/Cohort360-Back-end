@@ -76,28 +76,27 @@ class BaseExporter:
         try:
             required_table = export.export_tables.get(name=required_table_name)
             linked_cohort = required_table.cohort_result_subset or required_table.cohort_result_source
-            required_table = {"table_name": required_table_name,
-                              "cohort_id": linked_cohort.group_id,
-                              "columns": required_table.columns
+            required_table = {"tableName": required_table_name,
+                              "cohortId": linked_cohort.group_id,
+                              "columnsToExport": required_table.columns
                               }
         except ExportTable.DoesNotExist:
             raise ValueError(f"Missing {required_table_name} table from export")
 
-        other_tables = [{"table_name": t.name,
-                         "cohort_id": t.cohort_result_subset and t.cohort_result_subset.group_id or '',
-                         "columns": t.columns
-                         } for t in export.export_tables.exclude(name=required_table_name)]
+        other_tables = [{"tableName": t.name,
+                         "cohortId": t.cohort_result_subset and t.cohort_result_subset.group_id or '',
+                         "columnsToExport": t.columns
+                         }
+                        for t in export.export_tables.exclude(name=required_table_name)]
         return [required_table] + other_tables
 
     def send_export(self, export: Export, params: dict) -> str:
         self.log_export_task(export.pk, f"Asking to export for '{export.target_name}'")
-        params.update({"export_id": export.uuid,
-                       "export_type": self.type,
-                       "tables": self.build_tables_input(export),
-                       "no_date_shift": export.nominative or not export.shift_dates,
-                       "user_for_pseudo": not export.nominative and export.datalab.name or None
+        params.update({"tablesToExport": self.build_tables_input(export),
+                       "noDateShift": export.nominative or not export.shift_dates,
+                       "user": not export.nominative and export.datalab.name or None
                        })
-        return self.export_api.launch_export(params=params)
+        return self.export_api.launch_export(export_id=export.uuid, params=params)
 
     def wait_for_export_job(self, export: Export) -> None:
         job_status = self.wait_for_job(job_id=export.request_job_id, job_type=APIJobType.EXPORT)

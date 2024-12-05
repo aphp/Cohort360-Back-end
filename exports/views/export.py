@@ -99,7 +99,7 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
         tables = request.data.pop("export_tables", [])
         response = super().create(request, *args, **kwargs)
         transaction.on_commit(lambda: export_service.proceed_with_export(export=response.data.serializer.instance,
-                                                                         tables_data=tables,
+                                                                         tables=tables,
                                                                          http_request=request))
         return response
 

@@ -27,7 +27,7 @@ class ExportersConfig(AppConfig):
     env = os.environ
     THIRD_PARTY_API_CONF = {
         "INFRA_API": {
-            "API_URL": env.get('INFRA_API_URL'),        # to be added
+            "API_URL": env.get('INFRA_API_URL'),
             "AUTH_TOKEN": env.get('INFRA_HADOOP_TOKEN'),
             "TASK_STATUS_ENDPOINT": env.get('HADOOP_TASK_STATUS_ENDPOINT'),
             "CREATE_DB_ENDPOINT": env.get('CREATE_DB_ENDPOINT'),
@@ -36,6 +36,6 @@ class ExportersConfig(AppConfig):
         "EXPORT_API": {
             "API_URL": env.get('EXPORT_API_URL'),
             "AUTH_TOKEN": env.get('EXPORT_AUTH_TOKEN'),
-            "TASK_STATUS_ENDPOINT": env.get('EXPORT_TASK_STATUS_ENDPOINT'), # update to: "/task_status"
+            "TASK_STATUS_ENDPOINT": env.get('EXPORT_TASK_STATUS_ENDPOINT'),
         },
     }
