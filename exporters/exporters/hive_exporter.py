@@ -59,10 +59,10 @@ class HiveExporter(BaseExporter):
     def handle_export(self, export: Export, params: dict = None) -> None:
         self.confirm_export_received(export=export)
         self.prepare_db(export)
-        params = {"output": {"type": self.type,
-                             "database_name": export.target_name
-                             }
-                  }
+        params = params or {"output": {"type": self.type,
+                                       "database_name": export.target_name
+                                       }
+                            }
         super().handle_export(export=export, params=params)
         self.conclude_export(export=export)
 
