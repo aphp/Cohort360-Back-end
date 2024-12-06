@@ -3,13 +3,13 @@ from unittest import mock
 from admin_cohort.types import JobStatus
 from exporters.enums import ExportTypes
 from exporters.tests.base_test import ExportersTestBase
-from exporters.csv_exporter import CSVExporter
+from exporters.exporters.csv_exporter import CSVExporter
 
 
 class TestCSVExporter(ExportersTestBase):
     def setUp(self):
         super().setUp()
-        with mock.patch('exporters.base_exporter.InfraAPI'):
+        with mock.patch('exporters.exporters.base_exporter.ExportAPI'):
             self.exporter = CSVExporter()
             self.mock_export_api = self.exporter.export_api
 
@@ -31,8 +31,8 @@ class TestCSVExporter(ExportersTestBase):
         with self.assertRaises(ValueError):
             self.exporter.validate(export_data=export_data, owner=self.csv_exporter_user)
 
-    @mock.patch('exporters.base_exporter.notify_export_succeeded.delay')
-    @mock.patch('exporters.base_exporter.notify_export_received.delay')
+    @mock.patch('exporters.exporters.base_exporter.notify_export_succeeded.delay')
+    @mock.patch('exporters.exporters.base_exporter.notify_export_received.delay')
     def test_successfully_handle_export(self, mock_notify_export_received, mock_notify_export_succeeded):
         self.mock_export_api.required_table = "person"
         self.mock_export_api.target_environment = "target_environment"

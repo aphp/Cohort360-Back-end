@@ -81,7 +81,8 @@ class ExportService:
                                        name=table_name,
                                        fhir_filter_id=fhir_filter_id,
                                        cohort_result_source=cohort_source,
-                                       cohort_result_subset=cohort_subset)
+                                       cohort_result_subset=cohort_subset,
+                                       columns=td.get("columns"))
         return requires_cohort_subsets
 
     @staticmethod

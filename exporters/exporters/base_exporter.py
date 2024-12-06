@@ -1,15 +1,18 @@
 import logging
 import time
+from typing import List
 
 from django.utils import timezone
 from requests import RequestException
 
 from admin_cohort.models import User
 from admin_cohort.types import JobStatus
+from exporters.apis.export_api import ExportAPI
+from exporters.apis.infra_api import InfraAPI
+from exporters.enums import APIJobType
 from exports.emails import check_email_address
-from exports.models import Export, Datalab, ExportTable
+from exports.models import Export, ExportTable
 from exports.services.rights_checker import rights_checker
-from exporters.infra_api import InfraAPI
 from exporters.tasks import notify_export_received, notify_export_succeeded, notify_export_failed
 
 _celery_logger = logging.getLogger('celery.app')
@@ -19,7 +22,8 @@ _logger = logging.getLogger('django.request')
 class BaseExporter:
 
     def __init__(self):
-        self.export_api = InfraAPI()
+        self.export_api = ExportAPI()
+        self.infra_api = InfraAPI()
         self.type = None
         self.file_extension = None
         self.target_location = None
@@ -40,18 +44,15 @@ class BaseExporter:
                                           source_cohorts_ids=kwargs.get("source_cohorts_ids"))
 
     def complete_data(self, export_data: dict, owner: User, **kwargs) -> None:
-        target_name = kwargs.get("target_name")
-        if not target_name:
-            target_name = Datalab.objects.get(pk=export_data["datalab"]).name
-        export_data.update({"owner": owner.pk,
-                            "motivation": export_data.get('motivation', "").replace("\n", " -- "),
-                            "target_name": f"{target_name}_{timezone.now().strftime('%Y%m%d_%H%M%S%f')}",
-                            "target_location": self.target_location
-                            })
+        export_data.update({
+            "owner": owner.pk,
+            "motivation": export_data.get('motivation', "").replace("\n", " - "),
+            "target_name": f"{kwargs.get('target_name')}_{timezone.now().strftime('%Y%m%d_%H%M%S%f')}",
+            "target_location": self.target_location
+        })
 
-    def handle_export(self, export: Export, **kwargs) -> None:
-        params = kwargs.get("params", {})
-        self.log_export_task(export.pk, "Sending request to Infra API.")
+    def handle_export(self, export: Export, params: dict = None) -> None:
+        self.log_export_task(export.pk, "Sending request to the Export API.")
         start_time = timezone.now()
         try:
             job_id = self.send_export(export=export, params=params)
@@ -70,45 +71,54 @@ class BaseExporter:
         self.log_export_task(export.pk, "Export job finished")
         self.confirm_export_succeeded(export=export)
 
-    def build_tables_input(self, export) -> str:
+    def build_tables_input(self, export) -> List[dict[str, str]]:
         required_table_name = self.export_api.required_table
         try:
             required_table = export.export_tables.get(name=required_table_name)
+            linked_cohort = required_table.cohort_result_subset or required_table.cohort_result_source
+            required_table = {"tableName": required_table_name,
+                              "cohortId": linked_cohort.group_id,
+                              "columnsToExport": required_table.columns
+                              }
         except ExportTable.DoesNotExist:
             raise ValueError(f"Missing {required_table_name} table from export")
 
-        linked_cohort = required_table.cohort_result_subset or required_table.cohort_result_source
-        required_table = f"{required_table_name}:{linked_cohort.group_id}:{required_table.respect_table_relationships}"
-        other_tables = ",".join(
-            map(lambda t: f"{t.name}:{t.cohort_result_subset and t.cohort_result_subset.group_id or ''}:{t.respect_table_relationships}",
-                export.export_tables.exclude(name=required_table_name)))
-        return f"{required_table},{other_tables}"
+        other_tables = [{"tableName": t.name,
+                         "cohortId": t.cohort_result_subset and t.cohort_result_subset.group_id or '',
+                         "columnsToExport": t.columns
+                         }
+                        for t in export.export_tables.exclude(name=required_table_name)]
+        return [required_table] + other_tables
 
     def send_export(self, export: Export, params: dict) -> str:
         self.log_export_task(export.pk, f"Asking to export for '{export.target_name}'")
-        params.update({"export_type": self.type,
-                       "tables": self.build_tables_input(export),
-                       "no_date_shift": export.nominative or not export.shift_dates,
-                       "user_for_pseudo": not export.nominative and export.datalab.name or None
+        params.update({"tablesToExport": self.build_tables_input(export),
+                       "noDateShift": export.nominative or not export.shift_dates,
+                       "user": not export.nominative and export.datalab.name or None
                        })
-        return self.export_api.launch_export(params=params)
+        return self.export_api.launch_export(export_id=export.uuid, params=params)
 
     def wait_for_export_job(self, export: Export) -> None:
-        job_status = self.wait_for_job(job_id=export.request_job_id,
-                                       service=self.export_api.Services.BIG_DATA)
+        job_status = self.wait_for_job(job_id=export.request_job_id, job_type=APIJobType.EXPORT)
         export.request_job_status = job_status.value
         export.save()
 
-    def wait_for_job(self, job_id: str, service: InfraAPI.Services) -> JobStatus:
+    def wait_for_job(self, job_id: str, job_type: APIJobType) -> JobStatus:
         errors_count = 0
         job_status = JobStatus.pending
 
         while errors_count < 5 and not job_status.is_end_state:
             time.sleep(5)
             self.log_export_task("", f"Asking for status of job {job_id}.")
+            target_api = (job_type == APIJobType.EXPORT and self.export_api
+                          or job_type == APIJobType.HIVE_DB_CREATE and self.infra_api
+                          or None)
             try:
-                job_status = self.export_api.get_job_status(job_id=job_id, service=service)
+                job_status = target_api.get_job_status(job_id=job_id)
                 self.log_export_task("", f"Received status: {job_status}")
+            except AttributeError as e:
+                logging.error(f"No configured API found matching the job type `{job_type}`")
+                raise e
             except RequestException:
                 errors_count += 1
 
