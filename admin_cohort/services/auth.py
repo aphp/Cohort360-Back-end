@@ -17,8 +17,6 @@ from jwt.algorithms import RSAAlgorithm
 from requests import RequestException
 from rest_framework import status, HTTP_HEADER_ENCODING
 from rest_framework.exceptions import AuthenticationFailed
-from rest_framework_simplejwt.authentication import AUTH_HEADER_TYPE_BYTES
-from rest_framework_simplejwt.exceptions import InvalidToken
 
 from admin_cohort.models import User
 from admin_cohort.types import ServerError, LoginError, OIDCAuthTokens, JWTAuthTokens, AuthTokens
@@ -52,7 +50,7 @@ class Auth(ABC):
         if response.status_code == status.HTTP_200_OK:
             return self.tokens_class(**response.json()).__dict__
         elif response.status_code in (status.HTTP_400_BAD_REQUEST, status.HTTP_401_UNAUTHORIZED):
-            raise InvalidToken("Token is invalid or has expired")
+            raise InvalidTokenError("Token is invalid or has expired")
         else:
             response.raise_for_status()
 
@@ -346,7 +344,7 @@ class AuthService:
         parts = header.split()
         if not parts:
             return None
-        if parts[0] not in AUTH_HEADER_TYPE_BYTES:
+        if parts[0] != "Bearer".encode(HTTP_HEADER_ENCODING):
             return None
         if len(parts) != 2:
             raise AuthenticationFailed(code='bad_authorization_header',
