@@ -57,7 +57,7 @@ jobs:
           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
 
       - name: Install UV
-        uses: astral-sh/setup-uv@v2
+        uses: astral-sh/setup-uv@v4
         with:
           version: "latest"
           enable-cache: true
@@ -72,9 +72,7 @@ jobs:
           sudo update-locale 
 
       - name: Install dependencies
-        run: |
-          uv sync
-          source .venv/bin/activate
+        run: uv sync
 
       - name: Set up Django environment variables and config
         run: |
@@ -83,12 +81,12 @@ jobs:
           echo "DATABASE_URL=postgres://portail_dev_limited_rw:portail_psswd@localhost:5432/portail_test" >> $GITHUB_ENV
 
       - name: Run Django migrations
-        run: python manage.py migrate
+        run: uv run python manage.py migrate
 
       - name: Run tests
         run: |
-          coverage run --source='.' --omit="*/test*","*/migrations/*" manage.py test
-          coverage xml --omit="*/test*","*/migrations/*" -o coverage.xml
+          uv run coverage run --source='.' --omit="*/test*","*/migrations/*" manage.py test
+          uv run coverage xml --omit="*/test*","*/migrations/*" -o coverage.xml
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:

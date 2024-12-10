@@ -11,6 +11,7 @@ requires-python = ">=3.11"
 dependencies = [
     "channels-redis>=4.2.1",
     "channels>=4.2.0",
+    "coverage>=7.6.9",
     "daphne>=4.1.2",
     "django-celery-beat>=2.7.0",
     "django-cors-headers>=4.6.0",
