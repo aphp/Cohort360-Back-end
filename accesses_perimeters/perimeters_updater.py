@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import logging
-import os
 from typing import List, Union
 
+from django.conf import settings
 from django.db.models import Q, QuerySet
 from django.db.models.query import RawQuerySet
 from django.utils import timezone
@@ -11,7 +11,6 @@ from django.utils import timezone
 from accesses.models import Perimeter, Access
 from accesses.services.accesses import AccessesService
 from accesses_perimeters.models import Concept, CareSite
-from admin_cohort import settings
 from admin_cohort.tools.cache import invalidate_cache
 
 """
@@ -39,7 +38,8 @@ It is a mono-hierarchy => one parent maximum for 1.n children
 _logger = logging.getLogger("info")
 _logger_err = logging.getLogger("django.request")
 
-env = os.environ
+CARE_SITE_DOMAIN_CONCEPT_NAME = "Care site"
+IS_PART_OF_RELATIONSHIP_NAME = "Care Site is part of Care Site"
 
 
 class RelationPerimeter:
@@ -58,10 +58,8 @@ def get_concept_filter_id() -> tuple:
     It is used to define the relation between fact_id_1 and fact_id_2 in Where clause in psql query.
     """
     try:
-        domain_id = env.get("CARE_SITE_DOMAIN_CONCEPT_NAME")
-        relationship_id = env.get("IS_PART_OF_RELATIONSHIP_NAME")
-        is_part_of_rel_id = Concept.objects.get(concept_name=relationship_id).concept_id
-        cs_domain_concept_id = Concept.objects.get(concept_name=domain_id).concept_id
+        is_part_of_rel_id = Concept.objects.get(concept_name=IS_PART_OF_RELATIONSHIP_NAME).concept_id
+        cs_domain_concept_id = Concept.objects.get(concept_name=CARE_SITE_DOMAIN_CONCEPT_NAME).concept_id
     except Concept.DoesNotExist as e:
         raise ValueError(f"Error while getting Concepts: {e}")
     return str(is_part_of_rel_id), str(cs_domain_concept_id)
@@ -109,7 +107,7 @@ def psql_query_care_site_relationship(top_care_site_id: int) -> str:
                    AND frr.domain_concept_id_1={cs_domain_concept_id}
                    AND frr.domain_concept_id_2={cs_domain_concept_id}
                    AND frr.relationship_concept_id={is_part_of_rel_id}
-                   AND css.care_site_type_source_value IN ({str(settings.PERIMETERS_TYPES)[1:-1]})
+                   AND css.care_site_type_source_value IN ({str(settings.PERIMETER_TYPES)[1:-1]})
                    AND css.delete_datetime IS NULL
                    AND frr.delete_datetime IS NULL
                    AND cd.delete_datetime IS NULL AND cd.source__type = 'Organization')
@@ -330,14 +328,14 @@ process steps:
 
 
 def perimeters_data_model_objects_update():
-    aphp_id = int(env.get("TOP_HIERARCHY_CARE_SITE_ID"))
-    _logger.info("1. Get top hierarchy ID. Must be APHP's")
+    top_perimeter_id = settings.ROOT_PERIMETER_ID
+    _logger.info("1. Get root perimeter id")
 
-    all_valid_care_sites = CareSite.objects.raw(psql_query_care_site_relationship(top_care_site_id=aphp_id))
+    all_valid_care_sites = CareSite.objects.raw(psql_query_care_site_relationship(top_care_site_id=top_perimeter_id))
     try:
-        top_care_site = [cs for cs in all_valid_care_sites if cs.care_site_id == aphp_id][0]
+        top_care_site = [cs for cs in all_valid_care_sites if cs.care_site_id == top_perimeter_id][0]
     except IndexError:
-        _logger_err.error("Perimeters daily update: missing top care site APHP")
+        _logger_err.error("Perimeters daily update: missing top care site")
         return
     _logger.info(f"2. Fetch {len(all_valid_care_sites)} care sites from OMOP DB")
 
@@ -350,7 +348,7 @@ def perimeters_data_model_objects_update():
                                           all_perimeters=all_perimeters)
     _logger.info("5. Start recursive Perimeter objects creation")
     second_level = 2
-    recursively_create_child_perimeters(parents_ids=[aphp_id],
+    recursively_create_child_perimeters(parents_ids=[top_perimeter_id],
                                         care_sites=all_valid_care_sites,
                                         all_perimeters=all_perimeters,
                                         previous_level_perimeters=top_perimeters,

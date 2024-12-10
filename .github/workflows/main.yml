@@ -72,7 +72,9 @@ jobs:
           sudo update-locale 
 
       - name: Install dependencies
-        run: uv sync
+        run: |
+          uv sync
+          source .venv/bin/activate
 
       - name: Set up Django environment variables and config
         run: |

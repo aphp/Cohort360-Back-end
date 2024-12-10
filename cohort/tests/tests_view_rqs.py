@@ -7,11 +7,12 @@ from unittest.mock import patch
 
 from django.core.mail import EmailMessage
 from django.utils import timezone
+from django.conf import settings
+
 from rest_framework import status
 from rest_framework.test import force_authenticate
 
 from admin_cohort.models import User
-from admin_cohort.settings import SHARED_FOLDER_NAME
 from admin_cohort.tools import prettify_json
 from admin_cohort.tests.tests_tools import CaseRetrieveFilter, CreateCase, random_str, ListCase, RetrieveCase, \
     DeleteCase, PatchCase
@@ -396,7 +397,7 @@ class RqsShareTests(RqsTests):
         if case.success:
             for u in case.recipients:
                 rqs = RequestQuerySnapshot.objects.filter(
-                    request__parent_folder__name=SHARED_FOLDER_NAME,
+                    request__parent_folder__name=settings.SHARED_FOLDER_NAME,
                     request__name=case.new_name or obj.request.name,
                     request__shared_by=case.user,
                     previous_snapshot__isnull=True,

@@ -136,6 +136,9 @@ class BaseExporter:
 
     @staticmethod
     def mark_export_as_failed(export: Export, reason: str) -> None:
+        export.request_job_status = JobStatus.failed
+        export.request_job_fail_msg = reason
+        export.save()
         notify_export_failed.delay(export.pk, reason)
 
     @staticmethod

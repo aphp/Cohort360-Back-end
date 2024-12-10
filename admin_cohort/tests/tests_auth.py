@@ -6,9 +6,10 @@ from jwt import InvalidTokenError
 from rest_framework import status
 from rest_framework.test import APITestCase, APIRequestFactory
 from django.test import Client
+from django.conf import settings
+
 from accesses.models import Access, Perimeter, Role
-from admin_cohort.models import User
-from admin_cohort.settings import JWT_AUTH_MODE, OIDC_AUTH_MODE
+from admin_cohort.models import User 
 from admin_cohort.tests.tests_tools import new_user_and_profile
 from admin_cohort.types import AuthTokens, LoginError, ServerError
 from admin_cohort.views import UserViewSet
@@ -140,7 +141,7 @@ class RefreshTokenTests(APITestCase):
                                    content_type="application/json",
                                    data={"refresh_token": "any-auth-code-will-do"},
                                    headers={"Authorization": "Bearer any-auth",
-                                            "AuthorizationMethod": OIDC_AUTH_MODE})
+                                            "AuthorizationMethod": settings.OIDC_AUTH_MODE})
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def test_refresh_token_with_invalid_auth_mode(self):
@@ -158,7 +159,7 @@ class RefreshTokenTests(APITestCase):
                                     content_type="application/json",
                                     data={"refresh_token": "any-token-will-do"},
                                     headers={"Authorization": "Bearer any-auth",
-                                             "AuthorizationMethod": JWT_AUTH_MODE})
+                                             "AuthorizationMethod": settings.JWT_AUTH_MODE})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     @mock.patch("admin_cohort.views.auth.auth_service.refresh_token")
@@ -168,7 +169,7 @@ class RefreshTokenTests(APITestCase):
                                     content_type="application/json",
                                     data={"refresh_token": "any-token-will-do"},
                                     headers={"Authorization": "Bearer any-auth",
-                                             "AuthorizationMethod": OIDC_AUTH_MODE})
+                                             "AuthorizationMethod": settings.OIDC_AUTH_MODE})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     @mock.patch("admin_cohort.views.auth.auth_service.refresh_token")
@@ -178,7 +179,7 @@ class RefreshTokenTests(APITestCase):
                                     content_type="application/json",
                                     data={"refresh_token": "any-auth-code-will-do"},
                                     headers={"Authorization": "Bearer any-auth",
-                                             "AuthorizationMethod": JWT_AUTH_MODE})
+                                             "AuthorizationMethod": settings.JWT_AUTH_MODE})
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
 

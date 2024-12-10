@@ -4,22 +4,16 @@ from datetime import timedelta
 from typing import Union, Optional
 
 import dateutil.parser
-import environ
+from django.apps import apps
 from django.utils import timezone
 from pydantic import BaseModel
 from rest_framework.permissions import SAFE_METHODS
 
 from admin_cohort import settings
 from admin_cohort.models import MaintenancePhase
-from admin_cohort.services.auth import auth_service
 from admin_cohort.services.ws_event_manager import WebSocketMessage, WebsocketManager, WebSocketMessageType
 
 _logger = logging.getLogger("info")
-
-env = environ.Env()
-
-ETL_TOKEN = env("ETL_TOKEN")
-SJS_TOKEN = env("SJS_TOKEN")
 
 
 class WSMaintenanceInfo(BaseModel):
@@ -105,12 +99,14 @@ class MaintenanceService:
 
     @staticmethod
     def is_allowed_request(request):
-        auth_token = auth_service.get_token_from_headers(request)[0]
-        is_sjs_etl_callback = auth_token in (SJS_TOKEN, ETL_TOKEN)
-        return request.method in SAFE_METHODS or \
-            request.path.startswith('/auth/') or \
-            request.path.startswith('/maintenances/') or \
-            is_sjs_etl_callback
+        allowed = request.method in SAFE_METHODS or \
+                  request.path.startswith('/auth/') or \
+                  request.path.startswith('/maintenances/')
+        if apps.is_installed("cohort_job_server"):
+            from cohort_job_server.utils import allow_request_during_maintenance
+            request_allowed = allow_request_during_maintenance(request)
+            allowed = allowed or request_allowed
+        return allowed
 
 
 maintenance_service = MaintenanceService()

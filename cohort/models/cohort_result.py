@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from django.db import models
+from django.conf import settings
 
 from admin_cohort.models import JobModel, User
-from admin_cohort.settings import COHORT_LIMIT
 from cohort.models import CohortBaseModel, RequestQuerySnapshot, DatedMeasure
 
 COHORT_TYPES = [("IMPORT_I2B2", "Previous cohorts imported from i2b2."),
@@ -34,4 +34,4 @@ class CohortResult(CohortBaseModel, JobModel):
     @property
     def exportable(self) -> bool:
         cohort_size = self.result_size
-        return cohort_size and cohort_size < COHORT_LIMIT or False
+        return cohort_size and cohort_size < settings.COHORT_LIMIT or False
