@@ -1,5 +1,5 @@
 import logging
-from datetime import date, datetime, time
+import tomllib
 from logging.handlers import DEFAULT_TCP_LOGGING_PORT
 from pathlib import Path
 
@@ -7,12 +7,17 @@ import environ
 import pytz
 from celery.schedules import crontab
 
-TITLE = "Portail/Cohort360 API"
-VERSION = "3.25.0-SNAPSHOT"
-AUTHOR = "Assistance Publique - Hopitaux de Paris, Département I&D"
-DESCRIPTION_MD = f"""Supports the official **Cohort360** web app and **Portail**  
-                     Built by **{AUTHOR}**
-                  """
+
+def get_project_info():
+    pyproject_file = Path(__file__).parent.parent / "pyproject.toml"
+    with open(pyproject_file, "rb") as f:
+        pyproject = tomllib.load(f)
+    project_info = pyproject.get("project", {})
+    return (project_info.get("name"),
+            f"{project_info.get('version')}{project_info.get('version-suffix')}",
+            project_info.get("description"))
+
+TITLE, VERSION, DESCRIPTION = get_project_info()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -201,7 +206,7 @@ REST_FRAMEWORK = {
 PAGINATION_MAX_LIMIT = 30_000
 
 SPECTACULAR_SETTINGS = {"TITLE": TITLE,
-                        "DESCRIPTION": DESCRIPTION_MD,
+                        "DESCRIPTION": DESCRIPTION,
                         "VERSION": VERSION,
                         "SERVE_INCLUDE_SCHEMA": False,
                         "COMPONENT_SPLIT_REQUEST": True,
@@ -267,8 +272,6 @@ MANUAL_SOURCE = "Manual"
 PERIMETERS_TYPES = env("PERIMETER_TYPES").split(",")
 ROOT_PERIMETER_TYPE = PERIMETERS_TYPES[0]
 SHARED_FOLDER_NAME = 'Mes requêtes reçues'
-MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE = utc.localize(datetime.combine(date(1970, 1, 1), time.min))
-MODEL_MANUAL_END_DATE_DEFAULT_ON_UPDATE = utc.localize(datetime.combine(date(2070, 1, 1), time.min))
 
 ACCESS_TOKEN_COOKIE = "access_token"
 SESSION_COOKIE_NAME = "sessionid"
