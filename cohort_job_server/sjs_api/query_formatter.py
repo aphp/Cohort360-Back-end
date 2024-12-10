@@ -9,7 +9,6 @@ import requests
 from django.conf import settings
 
 from admin_cohort.middleware.context_request_middleware import get_trace_id
-from admin_cohort.settings import CRB_TEST_FHIR_QUERIES
 from cohort_job_server.apps import CohortJobServerConfig
 from cohort_job_server.sjs_api.enums import CriteriaType, ResourceType
 from cohort_job_server.sjs_api.exceptions import FhirException
@@ -30,7 +29,7 @@ def query_fhir(resource: str, params: dict[str, list[str]], auth_headers: dict) 
     url = f"{FHIR_URL}/{resource}/$query"
 
     # this additional query is made to the real endpoint because the $query one does not check for params
-    if CRB_TEST_FHIR_QUERIES:
+    if settings.CRB_TEST_FHIR_QUERIES:
         url_test = f"{FHIR_URL}/{resource}"
         _logger.info(f"Testing real fhir query with {url_test=} {params=}")
         response = requests.get(url_test, params={**params, "_count": 0}, headers=auth_headers)

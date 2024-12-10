@@ -11,7 +11,7 @@ class TestServiceExport(ExportsTests):
 
     def setUp(self):
         super().setUp()
-        self.basic_export_data = dict(output_format="plain",
+        self.basic_export_data = dict(output_format="csv",
                                       nominative=True,
                                       motivation='motivation')
         self.basic_export = Export.objects.create(**self.basic_export_data,

@@ -55,12 +55,12 @@ class ExportViewSetTest(ExportsTestBase):
                                   result_count=len(self.exports)-1)
 
     @patch.object(ExportViewSet, 'permission_classes', [IsAuthenticated])
-    def test_create_export_no_exporter_implemented(self):
+    def test_create_export_success(self):
         create_url = reverse(viewname=self.viewname_list)
         self.check_test_create_view(request_user=self.exporter_user,
                                     create_url=create_url,
                                     request_data=self.export_basic_data,
-                                    expected_resp_status=status.HTTP_400_BAD_REQUEST)
+                                    expected_resp_status=status.HTTP_201_CREATED)
 
     @patch.object(ExportViewSet, 'permission_classes', [IsAuthenticated])
     def test_create_export_error(self):

@@ -2,6 +2,8 @@ import json
 
 from django.db.models import BooleanField, When, Case, Value, QuerySet
 from django.utils import timezone
+from django.conf import settings
+
 from django_filters import OrderingFilter
 from django_filters import rest_framework as filters
 from drf_spectacular.types import OpenApiTypes
@@ -13,7 +15,6 @@ from rest_framework.response import Response
 from accesses.services.accesses import accesses_service
 from accesses.views import BaseViewSet
 from admin_cohort.permissions import IsAuthenticated
-from admin_cohort.settings import ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools.request_log_mixin import RequestLogMixin
 from accesses.models import Access
@@ -142,7 +143,7 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
         if expiring:
             accesses = accesses_service.get_expiring_accesses(user=user, accesses=accesses)
             if not accesses:
-                return Response(data={"message": f"No accesses to expire in the next {ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS} days"},
+                return Response(data={"message": f"No accesses to expire in the next {settings.ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS} days"},
                                 status=status.HTTP_200_OK)
         return Response(data=self.get_serializer(accesses, many=True).data,
                         status=status.HTTP_200_OK)

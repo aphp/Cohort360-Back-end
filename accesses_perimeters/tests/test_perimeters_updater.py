@@ -1,4 +1,3 @@
-import os
 from unittest import mock
 
 from django.db import connection
@@ -8,9 +7,7 @@ from django.db import models
 from accesses.models import Perimeter
 from accesses_perimeters.models import Concept, CareSite, OmopModelManager, APP_LABEL
 from accesses_perimeters.perimeters_updater import perimeters_data_model_objects_update, psql_query_care_site_relationship
-from accesses_perimeters.tests.resources.initial_data import care_sites_data, concepts_data, fact_rels_data, lists_data
-
-env = os.environ
+from accesses_perimeters.tests.resources.initial_data import care_sites_data, concepts_data, fact_rels_data, lists_data, ROOT_PERIMETER_ID
 
 
 class FactRelationship(models.Model):
@@ -71,7 +68,7 @@ class PerimetersUpdaterTests(TestCase):
             for fr_vals in fact_rels_data[1]:
                 FactRelationship.objects.create(**dict(zip(fact_rels_data[0], fr_vals)))
 
-            q = psql_query_care_site_relationship(top_care_site_id=int(env.get("TOP_HIERARCHY_CARE_SITE_ID")))
+            q = psql_query_care_site_relationship(top_care_site_id=ROOT_PERIMETER_ID)
 
         self.edited_sql_query = q.replace('omop.', '')
         self.edited_sql_care_site = CareSite.sql_get_deleted_care_sites().replace('omop.', '')
@@ -88,7 +85,9 @@ class PerimetersUpdaterTests(TestCase):
 
             count_existing_care_sites = CareSite.objects.count()
             self.assertEqual(count_existing_care_sites, len(care_sites_data[1]))
-            perimeters_data_model_objects_update()
+            with mock.patch('accesses_perimeters.perimeters_updater.settings') as mock_settings_2:
+                mock_settings_2.ROOT_PERIMETER_ID = ROOT_PERIMETER_ID
+                perimeters_data_model_objects_update()
 
         count_created_perimeters = Perimeter.objects.count()
         self.assertEqual(count_created_perimeters, len(care_sites_data[1]))

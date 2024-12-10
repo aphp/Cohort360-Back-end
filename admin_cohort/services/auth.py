@@ -20,11 +20,16 @@ from rest_framework.exceptions import AuthenticationFailed
 
 from admin_cohort.models import User
 from admin_cohort.types import ServerError, LoginError, OIDCAuthTokens, JWTAuthTokens, AuthTokens
-from cohort_job_server.apps import CohortJobServerConfig
 
 env = environ.Env()
 _logger = logging.getLogger('info')
 _logger_err = logging.getLogger('django.request')
+
+extra_applicative_users = {}
+
+if apps.is_installed("cohort_job_server"):
+    from cohort_job_server.apps import CohortJobServerConfig
+    extra_applicative_users = CohortJobServerConfig.APPLICATIVE_USERS_TOKENS
 
 
 class Auth(ABC):
@@ -126,7 +131,7 @@ class OIDCAuth(Auth):
     def __init__(self):
         super().__init__()
         self.oidc_extra_allowed_servers = env("OIDC_EXTRA_SERVER_URLS", default="").split(",")
-        self.audience = env("OIDC_AUDIENCE").split(',')
+        self.audience = env("OIDC_AUDIENCE", default="").split(',')
         self.refresh_grant_type = "refresh_token"
         self.oidc_configs = build_oidc_configs()
 
@@ -206,9 +211,9 @@ class JWTAuth(Auth):
 
     def __init__(self):
         super().__init__()
-        self.server_url = env("JWT_SERVER_URL")
-        self.server_headers = {"X-User-App": env("JWT_APP_NAME")}
-        self.signing_key = env("JWT_SIGNING_KEY")
+        self.server_url = env.url("JWT_SERVER_URL", default="")
+        self.server_headers = {"X-User-App": env.str("JWT_APP_NAME", default="")}
+        self.signing_key = env.str("JWT_SIGNING_KEY", default="")
 
     @property
     def token_url(self):
@@ -241,8 +246,8 @@ class AuthService:
     authenticators = {settings.OIDC_AUTH_MODE: OIDCAuth(),
                       **({settings.JWT_AUTH_MODE: JWTAuth()} if settings.ENABLE_JWT else {})
                       }
-    applicative_users = {env("ROLLOUT_TOKEN"): env("ROLLOUT_USERNAME", default="ROLLOUT_PIPELINE"),
-                         **CohortJobServerConfig.APPLICATIVE_USERS_TOKENS
+    applicative_users = {env("ROLLOUT_TOKEN", default=""): env("ROLLOUT_USERNAME", default="ROLLOUT_PIPELINE"),
+                         **extra_applicative_users
                          }
 
     def __init__(self):
