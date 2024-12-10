@@ -1,6 +1,6 @@
 [project]
 name = "Cohort360-Backend"
-version = "3.25.0"
+version = "3.25.0-SNAPSHOT"
 authors = ["Assistance Publique - Hopitaux de Paris, Département I&D"]
 description = """Supports the official **Cohort360** web app and **Portail**
                  Built by **Assistance Publique - Hopitaux de Paris**, _Département I&D_
@@ -74,3 +74,6 @@ exclude = [
     "dist",
     "*/migrations"
 ]
+
+[tool.safety]
+# pass
