@@ -40,7 +40,9 @@ class TestServiceExport(ExportsTests):
         mock_launch_export_task.assert_called_once_with(self.basic_export.pk)
 
     @mock.patch("exports.services.export.launch_export_task.delay")
-    def test_export_is_not_launched_if_some_cohort_subset_failed(self, mock_launch_export_task):
+    @mock.patch("exporters.exporters.base_exporter.notify_export_failed.delay")
+    def test_export_is_not_launched_if_some_cohort_subset_failed(self, mock_notify_export_failed_task, mock_launch_export_task):
+        mock_notify_export_failed_task.return_value = None
         mock_launch_export_task.return_value = None
         cr = CohortResult.objects.create(is_subset=True,
                                          name='failed cohort subset',
@@ -50,6 +52,7 @@ class TestServiceExport(ExportsTests):
         export_service.check_all_cohort_subsets_created(export=self.basic_export)
         self.assertEqual(self.basic_export.request_job_status, JobStatus.failed.value)
         self.assertIsNotNone(self.basic_export.request_job_fail_msg)
+        mock_notify_export_failed_task.assert_called_once()
         mock_launch_export_task.assert_not_called()
 
     @mock.patch("exports.services.export.launch_export_task.delay")
