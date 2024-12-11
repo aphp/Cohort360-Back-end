@@ -74,9 +74,8 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
-      - name: Set up Django environment variables and config
+      - name: Set up log dir and DB config
         run: |
-          cp .conf/.test.env admin_cohort/.env
           mkdir log
           echo "DATABASE_URL=postgres://portail_dev_limited_rw:portail_psswd@localhost:5432/portail_test" >> $GITHUB_ENV
 
@@ -85,6 +84,7 @@ jobs:
 
       - name: Run tests
         run: |
+          cp .conf/.test.env admin_cohort/.env
           uv run coverage run --source='.' --omit="*/test*","*/migrations/*" manage.py test
           uv run coverage xml --omit="*/test*","*/migrations/*" -o coverage.xml
       - name: Upload coverage report
