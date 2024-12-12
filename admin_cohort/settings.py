@@ -28,7 +28,7 @@ NOTSET = environ.Env.NOTSET
 
 BACK_HOST = env.str("BACK_HOST", default="localhost:8000")
 BACK_URL = f"https://{BACK_HOST}"
-FRONT_URL = env.url("FRONT_URL", default="http://localhost:3000")
+FRONT_URL = env.str("FRONT_URL", default="http://localhost:3000")
 FRONT_URLS = env.str("FRONT_URLS", default="http://localhost:3000").split(',')
 
 # SECURITY WARNING: keep the secret key used in production secret!

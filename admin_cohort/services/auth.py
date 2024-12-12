@@ -211,7 +211,7 @@ class JWTAuth(Auth):
 
     def __init__(self):
         super().__init__()
-        self.server_url = env.url("JWT_SERVER_URL", default="")
+        self.server_url = env.str("JWT_SERVER_URL", default="")
         self.server_headers = {"X-User-App": env.str("JWT_APP_NAME", default="")}
         self.signing_key = env.str("JWT_SIGNING_KEY", default="")
 
