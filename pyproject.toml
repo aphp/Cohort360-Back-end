@@ -35,7 +35,7 @@ dependencies = [
     "pydantic>=2.10.3",
     "pyjwt>=2.10.1",
     "pytest>=8.3.4",
-    "python-json-logger>=2.0.7",
+    "python-json-logger==3.2.0",
     "redis>=5.2.1",
     "requests-kerberos>=0.15.0",
     "requests>=2.32.3",
