@@ -42,3 +42,86 @@ fact_rels_data = [['row_id', 'fact_id_1', 'fact_id_2', 'domain_concept_id_1', 'd
                    (8, 8, 2, 1, 1, 2),
                    (9, 7, 4, 1, 1, 2),
                    (10, 9, 4, 1, 1, 2)]]
+
+existing_perimeter_data = [
+    {
+        'id': 3,
+        'local_id': '3',
+        'cohort_id': '5',
+    },
+    {
+        'id': 4,
+        'local_id': '4',
+        'cohort_id': '4',
+    }
+]
+
+users_data = [
+    {
+        'username': '1',
+        'email': 'user1@example.com',
+        'firstname': 'User',
+        'lastname': 'One'
+    }
+]
+
+folders_data = [
+    {
+        'name': 'Folder 1',
+        'owner_id': 1
+    }
+]
+
+requests_data = [
+    {
+        'owner_id': 1,
+        'name': 'Request 1',
+        'description': 'Description for Request 1',
+        'favorite': False,
+        'data_type_of_query': 'PATIENT',
+        'shared_by_id': None
+    }
+]
+
+request_query_snapshots_data = [
+    {
+        'title': 'Snapshot 1',
+        'owner_id': 1,
+        'serialized_query': '{"sourcePopulation": {"caresiteCohortList": ["1", "2", "3"]}}',
+        'translated_query': None,
+        'previous_snapshot_id': None,
+        'shared_by_id': None,
+        'perimeters_ids': ['1', '2', '3'],
+        'version': 1
+    },
+    {
+        'title': 'Snapshot 2',
+        'owner_id': 1,
+        'serialized_query': '{"sourcePopulation": {"caresiteCohortList": ["4", "5", "6"]}}',
+        'translated_query': None,
+        'previous_snapshot_id': None,
+        'shared_by_id': None,
+        'perimeters_ids': ['4', '5', '6'],
+        'version': 1
+    },
+    {
+        'title': 'Snapshot 3',
+        'owner_id': 1,
+        'serialized_query': '{"sourcePopulation": {"caresiteCohortList": ["7", "8", "9"]}}',
+        'translated_query': None,
+        'previous_snapshot_id': None,
+        'shared_by_id': None,
+        'perimeters_ids': ['7', '8', '9'],
+        'version': 1
+    },
+    {
+        'title': 'Snapshot 4',
+        'owner_id': 1,
+        'serialized_query': '{"sourcePopulation": {"caresiteCohortList": ["10", "11"]}}',
+        'translated_query': None,
+        'previous_snapshot_id': None,
+        'shared_by_id': None,
+        'perimeters_ids': ['10', '11'],
+        'version': 1
+    }
+]

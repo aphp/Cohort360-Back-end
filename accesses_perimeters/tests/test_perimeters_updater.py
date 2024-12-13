@@ -7,7 +7,10 @@ from django.db import models
 from accesses.models import Perimeter
 from accesses_perimeters.models import Concept, CareSite, OmopModelManager, APP_LABEL
 from accesses_perimeters.perimeters_updater import perimeters_data_model_objects_update, psql_query_care_site_relationship
-from accesses_perimeters.tests.resources.initial_data import care_sites_data, concepts_data, fact_rels_data, lists_data, ROOT_PERIMETER_ID
+from accesses_perimeters.tests.resources.initial_data import care_sites_data, concepts_data, fact_rels_data, lists_data, ROOT_PERIMETER_ID, \
+    request_query_snapshots_data, users_data, folders_data, requests_data, existing_perimeter_data
+from admin_cohort.models import User
+from cohort.models import RequestQuerySnapshot, Folder, Request
 
 
 class FactRelationship(models.Model):
@@ -68,6 +71,23 @@ class PerimetersUpdaterTests(TestCase):
             for fr_vals in fact_rels_data[1]:
                 FactRelationship.objects.create(**dict(zip(fact_rels_data[0], fr_vals)))
 
+            for exiting_perimeter in existing_perimeter_data:
+                Perimeter.objects.create(**exiting_perimeter)
+
+            for user_data in users_data:
+                User.objects.create(**user_data)
+
+            for folder_data in folders_data:
+                Folder.objects.create(**folder_data)
+
+            for request_data in requests_data:
+                request_data['parent_folder'] = Folder.objects.first()
+                Request.objects.create(**request_data)
+
+            for snapshot in request_query_snapshots_data:
+                snapshot['request'] = Request.objects.first()
+                RequestQuerySnapshot.objects.create(**snapshot)
+
             q = psql_query_care_site_relationship(top_care_site_id=ROOT_PERIMETER_ID)
 
         self.edited_sql_query = q.replace('omop.', '')
@@ -79,7 +99,7 @@ class PerimetersUpdaterTests(TestCase):
         mock_sql_query.return_value = self.edited_sql_query
         mock_sql_care_site.return_value = self.edited_sql_care_site
         count_existing_perimeters = Perimeter.objects.count()
-        self.assertEqual(count_existing_perimeters, 0)
+        self.assertEqual(count_existing_perimeters, 2)
         with mock.patch('accesses_perimeters.models.settings') as mock_settings:
             mock_settings.OMOP_DB_ALIAS = "default"
 
@@ -89,5 +109,8 @@ class PerimetersUpdaterTests(TestCase):
                 mock_settings_2.ROOT_PERIMETER_ID = ROOT_PERIMETER_ID
                 perimeters_data_model_objects_update()
 
+        updated_query: RequestQuerySnapshot = RequestQuerySnapshot.objects.filter(title='Snapshot 2').first()
+        self.assertListEqual(updated_query.perimeters_ids, ['5', '6'])
+        self.assertEqual(updated_query.serialized_query, '{"sourcePopulation": {"caresiteCohortList": ["5", "6"]}}')
         count_created_perimeters = Perimeter.objects.count()
         self.assertEqual(count_created_perimeters, len(care_sites_data[1]))

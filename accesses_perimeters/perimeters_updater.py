@@ -12,6 +12,8 @@ from accesses.models import Perimeter, Access
 from accesses.services.accesses import AccessesService
 from accesses_perimeters.models import Concept, CareSite
 from admin_cohort.tools.cache import invalidate_cache
+from cohort.models import RequestQuerySnapshot
+from cohort.services.request_query_snapshot import RequestQuerySnapshotService
 
 """
 This script define 3 data models and the function which will refresh by insert/update all modified Perimeters objects.
@@ -314,6 +316,36 @@ def get_child_care_sites(care_site: CareSite, all_care_sites: Union[List[CareSit
     return ",".join(children_ids)
 
 
+def get_updated_cohort_id_mapping(all_perimeters: QuerySet, all_valid_care_sites: List[CareSite]):
+    """
+    Get the updated cohort id mapping for all perimeters
+    """
+    def find_matching_care_site_cohort_id(perimeter: Perimeter):
+        matching_care_site = [cs for cs in all_valid_care_sites if cs.care_site_id == perimeter.id]
+        if matching_care_site:
+            return str(matching_care_site[0].cohort_id)
+        return None
+    return {
+        perimeter.cohort_id: find_matching_care_site_cohort_id(perimeter)
+        for perimeter in all_perimeters
+    }
+
+
+def update_query_snapshots_cohort_id(all_perimeters: QuerySet, all_valid_care_sites: List[CareSite]):
+    """
+    Update the cohort id in query snapshots if the cohort id for the perimeters has changed
+    """
+    matching = get_updated_cohort_id_mapping(all_perimeters, all_valid_care_sites)
+    differing_matching = {k: v for k, v in matching.items() if v is not None and k != v}
+    rqs_to_update = []
+    for rqs in RequestQuerySnapshot.objects.filter(perimeters_ids__overlap=list(differing_matching.keys())):
+        _logger.info(f"Updating perimeters for request snapshot {rqs.uuid} with original perimeters {rqs.perimeters_ids}")
+        rqs.serialized_query = RequestQuerySnapshotService.update_query_perimeter(rqs.serialized_query, differing_matching)
+        rqs.perimeters_ids = sorted(list(set(differing_matching.get(pid) or pid for pid in rqs.perimeters_ids)))
+        rqs_to_update.append(rqs)
+    RequestQuerySnapshot.objects.bulk_update(rqs_to_update, ['serialized_query', 'perimeters_ids'])
+
+
 """
 Main function to recreate all Perimeters:
 the update run in "INSERT/UPDATE/DELETE" mode (delta).
@@ -353,9 +385,11 @@ def perimeters_data_model_objects_update():
                                         all_perimeters=all_perimeters,
                                         previous_level_perimeters=top_perimeters,
                                         level=second_level)
-    _logger.info("6. Deleting removed perimeters")
+    _logger.info("6. Update cohort id in query snapshots")
+    update_query_snapshots_cohort_id(all_perimeters, all_valid_care_sites)
+    _logger.info("7. Deleting removed perimeters")
     perimeters_to_delete = delete_perimeters(perimeters=all_perimeters, care_sites=all_valid_care_sites)
-    _logger.info("7. Closing linked accesses")
+    _logger.info("8. Closing linked accesses")
     AccessesService.close_accesses(perimeters_to_delete)
     _logger.info("End of perimeters updating. Invalidating cache for Perimeters and Accesses")
     invalidate_cache(model_name=Perimeter.__name__)
