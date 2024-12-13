@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 import uuid
 
 from django.test import TestCase
+from rest_framework import status
 
 from admin_cohort.types import JobStatus
 from exporters.apis.export_api import ExportAPI
@@ -26,6 +27,7 @@ class TestExportAPI(TestCase):
     @mock.patch('exporters.apis.export_api.requests')
     def test_launch_export_csv(self, mock_requests):
         mock_response = MagicMock()
+        mock_response.status_code = status.HTTP_200_OK
         mock_response.json.return_value = {'task_id': '123456'}
         mock_requests.post.return_value = mock_response
         params = {'export_type': ExportTypes.CSV.value, 'api_param': 'value'}
@@ -36,6 +38,7 @@ class TestExportAPI(TestCase):
     @mock.patch('exporters.apis.export_api.requests')
     def test_launch_export_hive(self, mock_requests):
         mock_response = MagicMock()
+        mock_response.status_code = status.HTTP_200_OK
         mock_response.json.return_value = {'task_id': '123456'}
         mock_requests.post.return_value = mock_response
         params = {'export_type': ExportTypes.HIVE.value, 'api_param': 'value'}
