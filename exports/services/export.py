@@ -63,11 +63,13 @@ class ExportService:
             cohort_source_id = export_table.get("cohort_result_source")
             cohort_source = cohort_source_id and CohortResult.objects.get(pk=cohort_source_id) or None
             for table_name in export_table.get("table_ids"):
-                if not fhir_filter_id and table_name in TABLES_REQUIRING_SUB_COHORTS:
+                if fhir_filter_id and cohort_source is None:
+                    raise ValidationError("A FHIR filter was provided but not a cohort source to filter")
+                if cohort_source and table_name in TABLES_REQUIRING_SUB_COHORTS and not fhir_filter_id:
                     fhir_filter_id = self.force_generate_fhir_filter(export=export,
                                                                      table_name=table_name)
 
-                if table_name not in EXCLUDED_TABLES and cohort_source and fhir_filter_id:
+                if cohort_source and fhir_filter_id and table_name not in EXCLUDED_TABLES:
                     requires_cohort_subsets = True
                     cohort_subset = cohort_service.create_cohort_subset(request=kwargs.get("http_request"),
                                                                         owner_id=export.owner_id,

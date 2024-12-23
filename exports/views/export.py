@@ -96,9 +96,12 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
             return Response(data=ve.detail, status=status.HTTP_400_BAD_REQUEST)
         tables = request.data.pop("export_tables", [])
         response = super().create(request, *args, **kwargs)
-        transaction.on_commit(lambda: export_service.proceed_with_export(export=response.data.serializer.instance,
-                                                                         tables=tables,
-                                                                         http_request=request))
+        try:
+            transaction.on_commit(lambda: export_service.proceed_with_export(export=response.data.serializer.instance,
+                                                                             tables=tables,
+                                                                             http_request=request))
+        except ValidationError as ve:
+            return Response(data=ve.detail, status=status.HTTP_400_BAD_REQUEST)
         return response
 
     @extend_schema(responses={(status.HTTP_200_OK, "application/zip"): OpenApiTypes.BINARY})
