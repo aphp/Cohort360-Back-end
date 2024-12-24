@@ -11,7 +11,7 @@ class TestServiceExport(ExportsTests):
 
     def setUp(self):
         super().setUp()
-        self.basic_export_data = dict(output_format="plain",
+        self.basic_export_data = dict(output_format="csv",
                                       nominative=True,
                                       motivation='motivation')
         self.basic_export = Export.objects.create(**self.basic_export_data,
@@ -40,7 +40,9 @@ class TestServiceExport(ExportsTests):
         mock_launch_export_task.assert_called_once_with(self.basic_export.pk)
 
     @mock.patch("exports.services.export.launch_export_task.delay")
-    def test_export_is_not_launched_if_some_cohort_subset_failed(self, mock_launch_export_task):
+    @mock.patch("exporters.exporters.base_exporter.notify_export_failed.delay")
+    def test_export_is_not_launched_if_some_cohort_subset_failed(self, mock_notify_export_failed_task, mock_launch_export_task):
+        mock_notify_export_failed_task.return_value = None
         mock_launch_export_task.return_value = None
         cr = CohortResult.objects.create(is_subset=True,
                                          name='failed cohort subset',
@@ -50,6 +52,7 @@ class TestServiceExport(ExportsTests):
         export_service.check_all_cohort_subsets_created(export=self.basic_export)
         self.assertEqual(self.basic_export.request_job_status, JobStatus.failed.value)
         self.assertIsNotNone(self.basic_export.request_job_fail_msg)
+        mock_notify_export_failed_task.assert_called_once()
         mock_launch_export_task.assert_not_called()
 
     @mock.patch("exports.services.export.launch_export_task.delay")
@@ -65,31 +68,31 @@ class TestServiceExport(ExportsTests):
     @mock.patch("exports.services.export.cohort_service.create_cohort_subset")
     def test_create_cohort_subsets_when_create_tables(self, mock_create_cohort_subset):
         mock_create_cohort_subset.return_value = None
-        tables = [{'table_ids': ['person'],
+        tables = [{'table_name': 'person',
                    'cohort_result_source': self.main_cohort.uuid,
                    'fhir_filter': self.fhir_filter.uuid,
                    }]
-        requires_cohort_subsets = export_service.create_tables(export=self.second_export, tables=tables)
+        requires_cohort_subsets = export_service.create_tables(export=self.second_export, tables_data=tables)
         mock_create_cohort_subset.assert_called_once()
         self.assertTrue(requires_cohort_subsets)
 
     @mock.patch("exports.services.export.cohort_service.create_cohort_subset")
     def test_force_create_cohort_subsets_without_filter_when_create_tables(self, mock_create_cohort_subset):
         mock_create_cohort_subset.return_value = None
-        tables = [{'table_ids': [TABLES_REQUIRING_SUB_COHORTS[0]],
+        tables = [{'table_name': TABLES_REQUIRING_SUB_COHORTS[0],
                    'cohort_result_source': self.main_cohort.uuid
                    }]
-        requires_cohort_subsets = export_service.create_tables(export=self.second_export, tables=tables)
+        requires_cohort_subsets = export_service.create_tables(export=self.second_export, tables_data=tables)
         mock_create_cohort_subset.assert_called_once()
         self.assertTrue(requires_cohort_subsets)
 
     @mock.patch("exports.services.export.cohort_service.create_cohort_subset")
     def test_not_create_cohort_subsets_when_create_tables(self, mock_create_cohort_subset):
         mock_create_cohort_subset.return_value = None
-        tables = [{'table_ids': [EXCLUDED_TABLES[0]],
+        tables = [{'table_name': EXCLUDED_TABLES[0],
                    'cohort_result_source': self.main_cohort.uuid
                    }]
-        requires_cohort_subsets = export_service.create_tables(export=self.second_export, tables=tables)
+        requires_cohort_subsets = export_service.create_tables(export=self.second_export, tables_data=tables)
         mock_create_cohort_subset.assert_not_called()
         self.assertFalse(requires_cohort_subsets)
 

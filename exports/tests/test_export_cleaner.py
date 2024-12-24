@@ -7,7 +7,7 @@ from django.utils import timezone
 from requests import RequestException
 
 from admin_cohort.types import JobStatus
-from exports import ExportTypes
+from exports.apps import ExportsConfig
 from exports.models import Export, ExportTable
 from exports.services.export_operators import ExportCleaner
 from exports.tests.test_view_export_request import ExportsTests
@@ -21,7 +21,7 @@ class TestExportCleaner(ExportsTests):
             self.export_cleaner = ExportCleaner()
             self.mock_storage_provider = self.export_cleaner.storage_provider
 
-        cleanable_export_types = [t.value for t in ExportTypes if t.allow_to_clean]
+        cleanable_export_types = [t.value for t in ExportsConfig.ExportTypes if t.allow_to_clean]
 
         self.export1 = Export.objects.create(owner=self.user1,
                                              output_format=cleanable_export_types and cleanable_export_types[0] or None,

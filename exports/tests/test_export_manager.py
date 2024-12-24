@@ -2,10 +2,16 @@ from unittest import TestCase, mock
 
 from django.core.exceptions import ImproperlyConfigured
 
+from exporters.exporters.csv_exporter import CSVExporter
+from exporters.exporters.hive_exporter import HiveExporter
+from exporters.exporters.xlsx_exporter import XLSXExporter
 from exports.apps import ExportsConfig
 from exports.models import Export
 from exports.services.export_operators import load_available_exporters, DefaultExporter, ExportManager
 from exports.tests.test_view_export_request import ExportsTests
+
+
+ExportTypes = ExportsConfig.ExportTypes
 
 
 class TestExportersLoader(TestCase):
@@ -13,26 +19,25 @@ class TestExportersLoader(TestCase):
     def setUp(self):
         super().setUp()
 
-    def test_load_available_exporters(self):
-        plain_type = "plain"
-        ExportsConfig.EXPORTERS = [{"TYPE": plain_type,
-                                    "EXPORTER_CLASS": "exports.services.export_operators.DefaultExporter"
-                                    }]
-        exporters = load_available_exporters()
-        self.assertEqual(list(exporters.keys())[0], plain_type)
-        self.assertEqual(list(exporters.values())[0], DefaultExporter)
+    def test_error_load_available_exporters_wrong_export_type(self):
+        mock_exports_list = [{"TYPE": "wrong",
+                              "EXPORTER_CLASS": "exports.services.export_operators.DefaultExporter"
+                              }]
+        with mock.patch('exports.services.export_operators.EXPORTERS', mock_exports_list):
+            with self.assertRaises(ImproperlyConfigured):
+                _ = load_available_exporters()
 
     def test_error_load_available_exporters_no_exporters(self):
-        ExportsConfig.EXPORTERS = []
-        with self.assertRaises(ImproperlyConfigured):
-            _ = load_available_exporters()
+        with mock.patch('exports.services.export_operators.EXPORTERS', []):
+            with self.assertRaises(ImproperlyConfigured):
+                _ = load_available_exporters()
 
-    def test_error_load_available_exporters_wrong_export_type(self):
-        ExportsConfig.EXPORTERS = [{"TYPE": "wrong",
-                                    "EXPORTER_CLASS": "exports.services.export_operators.DefaultExporter"
-                                    }]
-        with self.assertRaises(ImproperlyConfigured):
-            _ = load_available_exporters()
+    def test_load_available_exporters(self):
+        exporters = load_available_exporters()
+        for export_type in (ExportTypes.CSV, ExportTypes.HIVE, ExportTypes.XLSX):
+            self.assertIn(export_type.value, exporters.keys())
+        for exporter in (CSVExporter, HiveExporter, XLSXExporter):
+            self.assertIn(exporter, exporters.values())
 
 
 class TestExportManager(ExportsTests):
@@ -51,9 +56,9 @@ class TestExportManager(ExportsTests):
     def test_validate(self):
         export_data = dict(output_format="plain",
                            nominative=True,
-                           cohort_id=self.user1_cohort.group_id,
+                           cohort_result_source=self.user1_cohort.uuid,
                            motivation='motivation',
-                           tables=[{"omop_table_name": "table1"}]
+                           export_tables=[{"table_name": "table1"}]
                            )
         with self.assertRaises(NotImplementedError):
             self.export_manager.validate(export_data=export_data, owner=self.user1)

@@ -2,7 +2,6 @@ import logging
 
 from celery import shared_task
 
-from admin_cohort.types import JobStatus
 from exporters.enums import ExportTypes
 from exports.models import Export
 from exports.emails import push_email_notification
@@ -71,8 +70,6 @@ def notify_export_succeeded(export_id: str) -> None:
 def notify_export_failed(export_id: str, reason: str) -> None:
     export = get_export_by_id(export_id)
     _logger.error(f"[ExportTask] [Export {export.pk}] {reason}")
-    export.request_job_status = JobStatus.failed
-    export.request_job_fail_msg = reason
     notification_data = dict(recipient_name=export.owner.display_name,
                              recipient_email=export.owner.email,
                              cohort_id=get_cohort_id(export=export),
@@ -84,4 +81,4 @@ def notify_export_failed(export_id: str, reason: str) -> None:
         _logger.error(f"[Export {export.pk}] Error sending export failure notification")
     else:
         export.is_user_notified = True
-    export.save()
+        export.save()

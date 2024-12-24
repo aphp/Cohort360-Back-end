@@ -4,9 +4,9 @@ import logging
 
 from django.db import models
 from django.db.models import Q
+from django.conf import settings
 
 from admin_cohort.models import BaseModel
-from admin_cohort.settings import PERIMETERS_TYPES
 from admin_cohort.tools import join_qs
 
 _logger = logging.getLogger("django.request")
@@ -63,4 +63,4 @@ class Perimeter(BaseModel):
 
     def q_all_parents(self) -> Q:
         return join_qs([Q(**{f'perimeter__{"__".join(i * ["children"])}': self})
-                        for i in range(1, len(PERIMETERS_TYPES))])
+                        for i in range(1, len(settings.PERIMETER_TYPES))])

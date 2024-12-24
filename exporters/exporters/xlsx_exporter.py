@@ -1,6 +1,6 @@
 import os
 
-from exporters.csv_exporter import CSVExporter
+from exporters.exporters.csv_exporter import CSVExporter
 from exporters.enums import ExportTypes
 
 

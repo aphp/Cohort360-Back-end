@@ -7,7 +7,7 @@ import struct
 from logging.handlers import DEFAULT_TCP_LOGGING_PORT
 from pathlib import Path
 
-from pythonjsonlogger.jsonlogger import JsonFormatter
+from pythonjsonlogger.json import JsonFormatter
 
 BUILTIN_WARNINGS_LOGGER_NAME = 'py.warnings'
 INFO_LOGGER_NAME = 'info'

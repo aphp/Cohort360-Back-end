@@ -7,7 +7,7 @@ from accesses.models import Perimeter, Role
 from accesses.services.accesses import accesses_service
 from accesses.services.shared import PerimeterReadRight
 from admin_cohort.models import User
-from admin_cohort.settings import PERIMETERS_TYPES
+from django.conf import settings
 from admin_cohort.tools import join_qs
 from cohort.services.cohort_rights import cohort_rights_service
 
@@ -17,7 +17,7 @@ class PerimetersService:
     @staticmethod
     def get_all_child_perimeters(perimeter: Perimeter) -> QuerySet:
         return Perimeter.objects.filter(join_qs([Q(**{"__".join(i * ["parent"]): perimeter})
-                                                 for i in range(1, len(PERIMETERS_TYPES))]))
+                                                 for i in range(1, len(settings.PERIMETER_TYPES))]))
 
     @staticmethod
     def get_top_perimeters_ids_same_level(same_level_perimeters_ids: List[int], all_perimeters_ids: List[int]) -> Set[int]:
