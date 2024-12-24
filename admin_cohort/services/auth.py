@@ -3,6 +3,7 @@ import json
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Union, Tuple, Optional, Callable, Dict, List
 
 import environ
@@ -10,7 +11,6 @@ import jwt
 import requests
 from django.apps import apps
 from django.conf import settings
-from django.core.cache import cache
 from django.contrib.auth import logout
 from django.utils.module_loading import import_string
 from jwt import InvalidTokenError
@@ -125,6 +125,20 @@ def build_oidc_configs() -> List[OIDCAuthConfig]:
     return configs
 
 
+@lru_cache
+def get_issuer_certs(issuer: str) -> dict:
+    issuer_certs_url = f"{issuer}/protocol/openid-connect/certs"
+    response = requests.get(url=issuer_certs_url)
+    if response.status_code != status.HTTP_200_OK:
+        raise ServerError(f"Error {response.status_code} from OIDC Auth Server ({issuer_certs_url}): {response.text}")
+    jwks = response.json()
+    certs = {}
+    for jwk in jwks['keys']:
+        kid = jwk['kid']
+        certs[kid] = RSAAlgorithm.from_jwk(json.dumps(jwk))
+    return certs
+
+
 class OIDCAuth(Auth):
     USERNAME_LOOKUP = "preferred_username"
     tokens_class = OIDCAuthTokens
@@ -175,21 +189,9 @@ class OIDCAuth(Auth):
         decoded_token = self.decode_token(token=token, verify_signature=False)
         issuer = decoded_token.get("iss")
         assert issuer in self.recognised_issuers, f"Unrecognised issuer: `{issuer}`"
-        public_keys = cache.get(f"oidc_certs_{issuer}")
-        if public_keys is None:
-            issuer_certs_url = f"{issuer}/protocol/openid-connect/certs"
-            response = requests.get(url=issuer_certs_url)
-            if response.status_code != status.HTTP_200_OK:
-                raise ServerError(
-                    f"Error {response.status_code} from OIDC Auth Server ({issuer_certs_url}): {response.text}")
-            jwks = response.json()
-            public_keys = {}
-            for jwk in jwks['keys']:
-                kid = jwk['kid']
-                public_keys[kid] = RSAAlgorithm.from_jwk(json.dumps(jwk))
-            cache.set(f"oidc_certs_{issuer}", public_keys, timeout=3600)
+        certs = get_issuer_certs(issuer=issuer)
         kid = jwt.get_unverified_header(token)['kid']
-        key = public_keys.get(kid)
+        key = certs.get(kid)
         decoded = self.decode_token(token=token, key=key, issuer=issuer, audience=self.audience)
         return super().retrieve_username(token_payload=decoded)
 
