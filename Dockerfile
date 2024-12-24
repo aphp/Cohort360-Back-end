@@ -24,8 +24,8 @@ ENV VIRTUAL_ENV=$HOMEDIR/app/.venv \
 RUN pip install --no-cache-dir uv && \
     uv sync --frozen && \
     dpkg-reconfigure locales && \
-    echo "$USERNAME ALL=(ALL) NOPASSWD: /bin/sed, /usr/sbin/service" >> /etc/sudoers.d/sudo_nginx && \
-    chmod 440 /etc/sudoers.d/sudo_nginx && \
+    echo "$USERNAME ALL=(ALL) NOPASSWD: /bin/sed, /usr/sbin/service" >> /etc/sudoers.d/custom_sudo && \
+    chmod 440 /etc/sudoers.d/custom_sudo && \
     groupadd --gid "$GROUP_UID" "$GROUPNAME" && \
     useradd --uid "$USER_UID" --gid "$GROUP_UID" --system --shell /bin/bash "$USERNAME" && \
     chown -R "$USERNAME":"$GROUPNAME" "$HOMEDIR" && \
