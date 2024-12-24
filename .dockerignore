@@ -1,0 +1,13 @@
+.idea
+.git
+.env
+.venv
+venv
+.github
+.gitignore
+static
+CHANGELOG.md
+README.md
+LICENSE
+
+__pycache__
