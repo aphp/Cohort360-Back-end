@@ -72,7 +72,7 @@ class TestServiceExport(ExportsTests):
                    'cohort_result_source': self.main_cohort.uuid,
                    'fhir_filter': self.fhir_filter.uuid,
                    }]
-        requires_cohort_subsets = export_service.create_tables(export=self.second_export, tables_data=tables)
+        requires_cohort_subsets = export_service.create_tables(export=self.second_export, tables=tables)
         mock_create_cohort_subset.assert_called_once()
         self.assertTrue(requires_cohort_subsets)
 
@@ -82,7 +82,7 @@ class TestServiceExport(ExportsTests):
         tables = [{'table_name': TABLES_REQUIRING_SUB_COHORTS[0],
                    'cohort_result_source': self.main_cohort.uuid
                    }]
-        requires_cohort_subsets = export_service.create_tables(export=self.second_export, tables_data=tables)
+        requires_cohort_subsets = export_service.create_tables(export=self.second_export, tables=tables)
         mock_create_cohort_subset.assert_called_once()
         self.assertTrue(requires_cohort_subsets)
 
@@ -92,7 +92,7 @@ class TestServiceExport(ExportsTests):
         tables = [{'table_name': EXCLUDED_TABLES[0],
                    'cohort_result_source': self.main_cohort.uuid
                    }]
-        requires_cohort_subsets = export_service.create_tables(export=self.second_export, tables_data=tables)
+        requires_cohort_subsets = export_service.create_tables(export=self.second_export, tables=tables)
         mock_create_cohort_subset.assert_not_called()
         self.assertFalse(requires_cohort_subsets)
 
