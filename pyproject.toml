@@ -6,7 +6,7 @@ description = """Supports the official **Cohort360** web app and **Portail**
                  Built by **APHP**, _Département I&D_
               """
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = "==3.12.3"
 dependencies = [
     "channels-redis>=4.2.1",
     "channels>=4.2.0",
@@ -42,7 +42,7 @@ dependencies = [
 ]
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py312"
 lint.select = ["E", "F"]
 lint.dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 lint.ignore = ["E711"]
