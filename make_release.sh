@@ -38,7 +38,7 @@ git push --set-upstream origin "$RELEASE_BRANCH" --dry-run -v
 git checkout $SOURCE_BRANCH
 
 git cliff --latest --prepend CHANGELOG.md
-echo "-------------- New tag created: $RELEASE_VERSION"
+echo "-------------- updated changelog"
 
 # prepare next dev version
 IFS='.' read -r MAJOR MINOR PATCH <<< "$RELEASE_VERSION"
