@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Tuple
+from typing import Tuple, Optional
 
 from django.utils import timezone
 
@@ -14,11 +14,17 @@ _logger_err = logging.getLogger('django.request')
 
 class CohortCounter(BaseCohortOperator):
 
-    def launch_dated_measure_count(self, dm_id: str, json_query: str, auth_headers: dict, global_estimate=False) -> None:
+    def launch_dated_measure_count(self,
+                                   dm_id: str,
+                                   json_query: str,
+                                   auth_headers: dict,
+                                   global_estimate: Optional[bool] = False,
+                                   owner_username: Optional[str] = None) -> None:
         count_cls = global_estimate and CohortCountAll or CohortCount
         self.sjs_requester.launch_request(count_cls(instance_id=dm_id,
                                                     json_query=json_query,
-                                                    auth_headers=auth_headers))
+                                                    auth_headers=auth_headers,
+                                                    owner_username=owner_username))
 
     @staticmethod
     def translate_query(dm_id: str, json_query: str, auth_headers: dict) -> str:
@@ -32,10 +38,15 @@ class CohortCounter(BaseCohortOperator):
     def refresh_dated_measure_count(translated_query: str) -> None:
         SJSClient().count(input_payload=translated_query)
 
-    def launch_feasibility_study_count(self, fs_id: str, json_query: str, auth_headers: dict) -> bool:
+    def launch_feasibility_study_count(self,
+                                       fs_id: str,
+                                       json_query: str,
+                                       auth_headers: dict,
+                                       owner_username: Optional[str] = None) -> bool:
         response = self.sjs_requester.launch_request(FeasibilityCount(instance_id=fs_id,
                                                                       json_query=json_query,
-                                                                      auth_headers=auth_headers))
+                                                                      auth_headers=auth_headers,
+                                                                      owner_username=owner_username))
         return response.success
 
     def cancel_job(self, job_id: str) -> JobStatus:

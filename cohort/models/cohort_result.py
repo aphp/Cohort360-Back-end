@@ -26,6 +26,8 @@ class CohortResult(CohortBaseModel, JobModel):
     create_task_id = models.TextField(blank=True)
     type = models.CharField(max_length=20, choices=COHORT_TYPES, default=MY_COHORTS_TYPE)
     is_subset = models.BooleanField(default=False)
+    parent_cohort = models.ForeignKey("CohortResult", related_name="sample_cohorts", on_delete=models.SET_NULL, null=True)
+    sampling_ratio = models.FloatField(blank=True, null=True)
 
     @property
     def result_size(self) -> int:
