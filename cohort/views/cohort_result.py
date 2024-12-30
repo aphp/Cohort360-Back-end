@@ -1,7 +1,7 @@
 from django.db import transaction
 from django.db.models import Q, F
 from django_filters import rest_framework as filters, OrderingFilter
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, PolymorphicProxySerializer
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
@@ -13,7 +13,7 @@ from admin_cohort.tools import join_qs
 from cohort.services.cohort_result import cohort_service
 from cohort.models import CohortResult
 from cohort.serializers import CohortResultSerializer, CohortResultSerializerFullDatedMeasure, CohortResultCreateSerializer, \
-    CohortResultPatchSerializer, CohortRightsSerializer
+    CohortResultPatchSerializer, CohortRightsSerializer, SampledCohortResultCreateSerializer
 from cohort.services.cohort_rights import cohort_rights_service
 from cohort.views.shared import UserObjectsRestrictedViewSet
 from exports.services.export import export_service
@@ -52,7 +52,8 @@ class CohortFilter(filters.FilterSet):
                   'favorite',
                   'group_id',
                   'request_id',
-                  'status')
+                  'status',
+                  'parent_cohort')
 
 
 class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
@@ -81,19 +82,27 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         return super().get_queryset().filter(is_subset=False)
 
     def get_serializer_class(self):
-        if self.request.method in ["POST", "PUT", "PATCH"] \
-                and "dated_measure" in self.request.data \
-                and isinstance(self.request.data["dated_measure"], dict) \
-                or self.request.method == "GET":
+        if self.request.method == "GET":
             return CohortResultSerializerFullDatedMeasure
-        return self.serializer_class
+        elif self.request.method == "PATCH":
+            return CohortResultPatchSerializer
+        elif self.request.method == "POST":
+            if CohortResult.sampling_ratio.field.name in self.request.data:
+                return SampledCohortResultCreateSerializer
+            return CohortResultCreateSerializer
+        else:
+            return self.serializer_class
 
     @cache_response()
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
-    @extend_schema(request=CohortResultCreateSerializer,
-                   responses={status.HTTP_201_CREATED: CohortResultSerializer})
+    @extend_schema(
+        request=PolymorphicProxySerializer(
+            component_name="CreateCohortResult",
+            resource_type_field_name=None,
+            serializers=[CohortResultCreateSerializer, SampledCohortResultCreateSerializer]),
+        responses={status.HTTP_201_CREATED: CohortResultSerializer})
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)

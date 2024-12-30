@@ -25,7 +25,8 @@ class BaseCohortRequest:
                  auth_headers: dict,
                  callback_path: str = None,
                  existing_cohort_id: int = None,
-                 owner_username: str = None):
+                 owner_username: str = None,
+                 sampling_ratio: Optional[float] = None):
         self.mode = mode
         self.instance_id = instance_id
         self.json_query = json_query
@@ -34,6 +35,7 @@ class BaseCohortRequest:
         self.callback_path = callback_path
         self.owner_username = owner_username
         self.existing_cohort_id = existing_cohort_id
+        self.sampling_ratio = sampling_ratio
 
     @staticmethod
     def is_cohort_request_pseudo_read(username: str, source_population: List[int]) -> bool:
@@ -55,12 +57,13 @@ class BaseCohortRequest:
 
         callback_path = self.callback_path or (
                 self.mode == Mode.COUNT_WITH_DETAILS and f"/cohort/feasibility-studies/{cohort_query.instance_id}/" or None)
-        spark_job_request = SparkJobObject(cohort_definition_name="Created from Django",
+        spark_job_request = SparkJobObject(cohort_definition_name="Created from C360 backend",
                                            cohort_definition_syntax=cohort_query,
                                            mode=self.mode,
                                            owner_entity_id=self.owner_username,
                                            callbackPath=callback_path,
-                                           existingCohortId=self.existing_cohort_id
+                                           existingCohortId=self.existing_cohort_id,
+                                           samplingRatio=self.sampling_ratio
                                            )
         return format_spark_job_request_for_sjs(spark_job_request)
 
