@@ -8,7 +8,7 @@ from admin_cohort.models import User
 from admin_cohort.tests.tests_tools import new_user_and_profile, ViewSetTestsWithBasicPerims, random_str, ListCase, \
     RetrieveCase, PatchCase, DeleteCase
 from cohort.models import CohortResult, RequestQuerySnapshot, Request, DatedMeasure, Folder
-from exports import ExportTypes
+from exports.apps import ExportsConfig
 from exports.models import Export, ExportTable, InfrastructureProvider, Datalab
 from exports.views import ExportViewSet
 
@@ -153,7 +153,7 @@ class ExportsTests(ViewSetTestsWithBasicPerims):
 
         _, _, _, _, self.user2_cohort = new_cohort_result(owner=self.user2,
                                                           status=JobStatus.finished.value)
-        self.export_type = ExportTypes.default()
+        self.export_type = ExportsConfig.ExportTypes.default()
 
     def check_is_created(self, base_instance: Export,
                          request_model: dict = None, user: User = None):

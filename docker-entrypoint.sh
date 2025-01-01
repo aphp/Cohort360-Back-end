@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 # Initialize option variables
 WITH_CELERY_BEAT=""
@@ -45,13 +45,13 @@ shift "$((OPTIND-1))"
 
 set -e
 
-mkdir -p /app/log
+mkdir log
 
-sed -i s/{{BACK_HOST}}/"$BACK_HOST"/g /etc/nginx/nginx.conf;
+sudo sed -i s/{{BACK_HOST}}/"$BACK_HOST"/g /etc/nginx/nginx.conf;
 
-service nginx restart
+sudo service nginx restart
 
-source $VIRTUAL_ENV/bin/activate
+source "$VIRTUAL_ENV"/bin/activate
 
 if [ "$WITH_DB_MIGRATION" = true ]; then
   python manage.py migrate --database="default"
@@ -64,10 +64,10 @@ if [ "$WITH_INIT" = true ]; then
 fi
 
 if [ "$WITH_KERBEROS" = true ]; then
-  kinit $KERBEROS_USER -k -t akouachi.keytab || echo "kinit failed, continue app launching"
+  kinit "$KERBEROS_USER" -k -t akouachi.keytab || echo "kinit failed, continue app launching"
   # Cron kerberos token refresh
-  crontab -l | { cat; echo "0 0 * * */1 /usr/bin/kinit akouachi@EDS.APHP.FR -k -t /app/akouachi.keytab"; } | crontab -
-  cron
+  crontab -l | { cat; echo "0 0 * * */1 /usr/bin/kinit akouachi@EDS.APHP.FR -k -t akouachi.keytab"; } | crontab -
+  sudo service cron start
 fi
 
 if [ "$WITH_LOGGING" = true ]; then
@@ -80,7 +80,7 @@ fi
 if [ "$WITHOUT_APP_SERVER" = false ]; then
   python manage.py collectstatic --noinput
 
-  celery -A admin_cohort worker $WITH_CELERY_BEAT --loglevel=INFO --logfile=/app/log/celery.log &
+  celery -A admin_cohort worker $WITH_CELERY_BEAT --loglevel=INFO --logfile=log/celery.log &
   sleep 5
 
   # For websockets
@@ -88,7 +88,7 @@ if [ "$WITHOUT_APP_SERVER" = false ]; then
 
   gunicorn admin_cohort.wsgi --config .conf/gunicorn.conf.py
 
-  tail -f /app/log/django.error.log &
+  tail -f log/django.error.log &
 
   # Wait for any process to exit
   wait -n

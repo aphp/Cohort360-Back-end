@@ -1,27 +1,36 @@
-FROM python:3.11.4-slim-buster AS builder
-WORKDIR /app
+FROM python:3.12.8-slim-bullseye
 
-ENV VIRTUAL_ENV=/app/venv
-RUN apt-get update -y && apt-get install -y gcc libkrb5-dev && rm -rf /var/lib/apt/lists/*
-COPY requirements.txt .
-RUN pip install uv && uv venv $VIRTUAL_ENV && uv pip install --no-cache -r requirements.txt
+RUN apt-get update -y &&  \
+    apt-get install -y cron curl gcc gettext krb5-user libkrb5-dev locales locales-all nginx procps sudo xxd && \
+    rm -rf /var/lib/apt/lists/*
 
-FROM python:3.11.4-slim-buster AS final
-WORKDIR /app
+ARG USER_UID=1000
+ARG GROUP_UID=1050
+ARG USERNAME=cohort360-backend
+ARG GROUPNAME=$USERNAME
+ARG HOMEDIR=/home/$USERNAME
 
-ENV VIRTUAL_ENV=/app/venv \
-    PATH="$VIRTUAL_ENV/bin:$PATH" \
+WORKDIR $HOMEDIR/app
+
+COPY . .
+COPY .conf/nginx.conf /etc/nginx/
+
+ENV VIRTUAL_ENV=$HOMEDIR/app/.venv \
+    PATH="$HOMEDIR/app:$PATH" \
     DEBIAN_FRONTEND=noninteractive \
     LC_ALL="fr_FR.utf8" \
     LC_CTYPE="fr_FR.utf8"
 
-RUN apt-get update -y \
-    && apt-get install -y net-tools procps nginx curl gettext locales locales-all xxd krb5-user nano cron \
-    && rm -rf /var/lib/apt/lists/*
-RUN dpkg-reconfigure locales
+RUN pip install --no-cache-dir uv && \
+    uv sync --frozen && \
+    dpkg-reconfigure locales && \
+    echo "$USERNAME ALL=(ALL) NOPASSWD: /bin/sed, /usr/sbin/service" >> /etc/sudoers.d/custom_sudo && \
+    chmod 440 /etc/sudoers.d/custom_sudo && \
+    groupadd --gid "$GROUP_UID" "$GROUPNAME" && \
+    useradd --uid "$USER_UID" --gid "$GROUP_UID" --system --shell /bin/bash "$USERNAME" && \
+    chown -R "$USERNAME":"$GROUPNAME" "$HOMEDIR" && \
+    chmod +x docker-entrypoint.sh
 
-COPY --from=builder $VIRTUAL_ENV $VIRTUAL_ENV
-COPY . .
-COPY .conf/nginx.conf /etc/nginx/
-RUN chmod +x docker-entrypoint.sh
-ENTRYPOINT ["/app/docker-entrypoint.sh"]
+USER $USER_UID
+
+ENTRYPOINT ["docker-entrypoint.sh"]

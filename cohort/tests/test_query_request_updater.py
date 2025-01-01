@@ -73,7 +73,7 @@ class TestQueryRequestUpdater(BaseTests):
         saved = []
         updater.do_update_old_query_snapshots(queries, lambda r: saved.append(r.serialized_query), dry_run=False,
                                               debug=False)
-        self.assertEquals(len(saved), 4)
+        self.assertEqual(len(saved), 4)
 
         expected = [
             json.dumps({"version": "turbo2000", "_type": "request", "request": {"criteria": [
@@ -88,10 +88,10 @@ class TestQueryRequestUpdater(BaseTests):
                         "resourceType": "SomeResourceD"}
                        )
         ]
-        self.assertEquals(expected[0], saved[0])
-        self.assertEquals(expected[1], saved[1])
-        self.assertEquals(expected[2], saved[2])
-        self.assertEquals(expected[3], saved[3])
+        self.assertEqual(expected[0], saved[0])
+        self.assertEqual(expected[1], saved[1])
+        self.assertEqual(expected[2], saved[2])
+        self.assertEqual(expected[3], saved[3])
 
 
 @dataclasses.dataclass

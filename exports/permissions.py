@@ -6,7 +6,9 @@ from rest_framework.exceptions import PermissionDenied
 from accesses.permissions import can_user_make_export_jupyter_nomi, can_user_make_export_jupyter_pseudo, \
                                  can_user_read_datalabs, can_user_manage_datalabs, can_user_make_export_csv_nomi, \
                                  can_user_make_export_csv_pseudo
-from exports import ExportTypes
+from exports.apps import ExportsConfig
+
+ExportTypes = ExportsConfig.ExportTypes
 
 
 def check_allow_nomi_export(user, output_format: ExportTypes) -> Optional[bool]:

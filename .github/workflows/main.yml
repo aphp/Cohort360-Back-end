@@ -11,30 +11,27 @@ on:
       - '*'
 
 jobs:
+
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Set up Python
-        uses: actions/setup-python@v1
+
+      - name: Install UV
+        uses: astral-sh/setup-uv@v2
         with:
-          python-version: 3.11
-      - name: Install system deps
-        run: sudo apt-get update && sudo apt-get -y install gcc libkrb5-dev
-      - name: Install dependencies
+          version: "latest"
+          enable-cache: true
+
+      - name: Install Python 3.11
+        run: uv python install 3.11
+
+      - name: Run Ruff + Safety
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-      - name: Run linter
-        run: |
-          pip install ruff
-          ruff check .
-      - name: Run safety check
-        run: |
-          pip install safety
-          safety check -i 42240,66963,70612,65213
+          uv tool run ruff check .
+          uv tool run safety check -i 42240,66963,70612,65213
 
   test:
     runs-on: ubuntu-latest
@@ -55,60 +52,65 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v4
+        uses: actions/checkout@v4
         with:
-          python-version: '3.11'
+          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
 
-      - name: Cache Python packages
-        uses: actions/cache@v3
+      - name: Install UV
+        uses: astral-sh/setup-uv@v4
         with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
+          version: "latest"
+          enable-cache: true
+
+      - name: Install Python 3.11 and deps
+        run: uv python install 3.11
 
       - name: Install system deps
-        run: | 
+        run: |
           sudo apt-get update && sudo apt-get -y install gcc libkrb5-dev
           sudo locale-gen fr_FR.utf8
           sudo update-locale 
 
       - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
+        run: uv sync
 
-      - name: Set up Django environment variables and config
+      - name: Set up log dir and DB config
         run: |
-          cp .conf/.test.env admin_cohort/.env
           mkdir log
           echo "DATABASE_URL=postgres://portail_dev_limited_rw:portail_psswd@localhost:5432/portail_test" >> $GITHUB_ENV
 
       - name: Run Django migrations
         run: |
-          python manage.py migrate
+          cp .conf/.test.env admin_cohort/.env
+          uv run python manage.py migrate
 
       - name: Run tests
         run: |
-          coverage run --source='.' --omit="*/test*","*/migrations/*" manage.py test
-          coverage xml --omit="*/test*","*/migrations/*" -o coverage.xml
-          coverage html --omit="*/test*","*/migrations/*" -d htmlcov
+          uv run coverage run --source='.' --omit="*/test*","*/migrations/*" manage.py test
+          uv run coverage xml --omit="*/test*","*/migrations/*" -o coverage.xml
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.xml
 
-# TODO activate this when the project is public
-#  sonarcloud:
-#    name: SonarCloud
-#    runs-on: ubuntu-latest
-#    steps:
-#      - uses: actions/checkout@v3
-#        with:
-#          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
-#      - name: SonarCloud Scan
-#        uses: SonarSource/sonarcloud-github-action@master
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
-#          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  sonar:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+      - name: Download coverage report
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report
+      - name: SonarCloud Scan
+        uses: sonarsource/sonarqube-scan-action@v4
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   publish:
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
@@ -117,44 +119,24 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-
-      - name: Cache Python packages
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
-      - name: Install system deps
-        run: sudo apt-get update && sudo apt-get -y install gcc libkrb5-dev
-
-      - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
+        uses: actions/checkout@v4
 
       - name: Retrieve version
         run: |
-          VERSION=$(head -n 20 ./admin_cohort/settings.py | grep VERSION | head -1 | awk -F'=' '{ print $2 }' | sed "s/[\"' ]//g")
+          VERSION=$(grep '^version =' pyproject.toml | sed -E 's/version = "(.*)"/\1/')
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to DockerHub
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
