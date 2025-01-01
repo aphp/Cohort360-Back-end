@@ -41,30 +41,30 @@ def count_cohort(dm_id: str, json_query: str, auth_headers: dict, cohort_counter
 @shared_task
 def cancel_previous_count_jobs(dm_id: str, cohort_counter_cls: str):
     dm = DatedMeasure.objects.get(pk=dm_id)
-    rqs = dm.request_query_snapshot
-    running_dms = rqs.dated_measures.exclude(uuid=dm.uuid)\
-                                    .filter(request_job_status__in=(JobStatus.started,
-                                                                    JobStatus.pending))\
-                                    .prefetch_related('cohorts', 'global_cohorts')
+    request = dm.request_query_snapshot.request
+    running_dms = request.dated_measures.exclude(uuid=dm_id)\
+                                        .filter(request_job_status__in=(JobStatus.started, JobStatus.pending),
+                                                cohorts__isnull=True,
+                                                global_cohorts__isnull=True)
     cohort_counter = load_operator(cohort_counter_cls)
-    for dm in running_dms:
-        if dm.cohorts.all() or dm.global_cohorts.all():
+    for r_dm in running_dms:
+        if r_dm.cohorts.all() or r_dm.global_cohorts.all():
             continue
-        job_status = dm.request_job_status
+        job_status = r_dm.request_job_status
         try:
             if job_status == JobStatus.started.value:
-                new_status = cohort_counter.cancel_job(job_id=dm.request_job_id)
-                dm.request_job_status = new_status
+                new_status = cohort_counter.cancel_job(job_id=r_dm.request_job_id)
+                r_dm.request_job_status = new_status
             else:
-                celery_app.control.revoke(dm.count_task_id)
-                dm.request_job_status = JobStatus.cancelled
+                celery_app.control.revoke(r_dm.count_task_id)
+                r_dm.request_job_status = JobStatus.cancelled
         except Exception as e:
-            msg = f"Error while cancelling {job_status} job [{dm.request_job_id}] DM [{dm.uuid}] - {e}"
+            msg = f"Error while cancelling {job_status} job [{r_dm.request_job_id}] DM [{r_dm.uuid}] - {e}"
             _logger.exception(msg)
-            dm.request_job_status = JobStatus.failed
-            dm.request_job_fail_msg = msg
+            r_dm.request_job_status = JobStatus.failed
+            r_dm.request_job_fail_msg = msg
         finally:
-            dm.save()
+            r_dm.save()
 
 
 @shared_task

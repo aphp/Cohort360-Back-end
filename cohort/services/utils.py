@@ -2,6 +2,7 @@ import functools
 import logging
 from enum import StrEnum
 from smtplib import SMTPException
+from time import sleep
 from typing import Callable
 
 from django.core.cache import cache
@@ -23,12 +24,13 @@ def await_celery_task(func):
         return cache.get(lock_id)
 
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(request, *args, **kwargs):
         dm_id = kwargs.get("uuid")
         lock = retrieve_lock(lock_id=dm_id)
         while lock is not None:
+            sleep(0.5)
             lock = retrieve_lock(lock_id=dm_id)
-        return func(*args, **kwargs)
+        return func(request, *args, **kwargs)
     return wrapper
 
 
@@ -41,7 +43,7 @@ def locked_instance_task(task):
 
     @functools.wraps(task)
     def wrapper(*args, **kwargs):
-        instance_id = kwargs.get("dm_uuid")
+        instance_id = kwargs.get("dm_id")
         locked = acquire_lock(instance_id)
         if locked:
             try:
