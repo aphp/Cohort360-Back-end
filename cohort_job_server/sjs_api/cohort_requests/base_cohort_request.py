@@ -68,7 +68,7 @@ class BaseCohortRequest:
         return format_spark_job_request_for_sjs(spark_job_request)
 
     def log(self, msg: str) -> None:
-        _celery_logger.info(f"Task {self.model}[{self.instance_id}] {msg}")
+        _celery_logger.info(f"Task {self.model.__name__}[{self.instance_id}] {msg}")
 
     def launch(self, cohort_query: CohortQuery):
         """Perform an action (count, countAll, create) based on the cohort_query"""
