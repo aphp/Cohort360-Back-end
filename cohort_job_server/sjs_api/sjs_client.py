@@ -26,7 +26,6 @@ class SJSClient:
         self.api_url = f"{os.environ.get('SJS_URL')}/jobs"
 
     def count(self, input_payload: str) -> Response:
-        _logger.info(f"Count query payload: {input_payload}")
         params = {
             'appName': self.APP_NAME,
             'classPath': self.COUNT_CLASSPATH,

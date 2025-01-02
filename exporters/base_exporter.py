@@ -111,7 +111,7 @@ class BaseExporter:
         other_tables = ",".join(
             map(lambda t: f"{t.name}:{t.cohort_result_subset and t.cohort_result_subset.group_id or ''}:{t.respect_table_relationships}",
                 export.export_tables.exclude(name=required_table_name)))
-        return f"{required_table},{other_tables}"
+        return ",".join([required_table, other_tables])
 
     def send_export(self, export: Export, params: dict) -> str:
         self.log_export_task(export.pk, f"Asking to export for '{export.target_name}'")
