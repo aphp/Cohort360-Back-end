@@ -1,12 +1,12 @@
 import os
-from typing import List
 
 from django.db.models import Q
+from typing import List
 
 from admin_cohort.models import User
 from cohort.models import CohortResult
 from exports.models import Export
-from exporters.base_exporter import BaseExporter
+from exporters.exporters.base_exporter import BaseExporter
 from exporters.enums import ExportTypes
 
 
@@ -25,7 +25,7 @@ class CSVExporter(BaseExporter):
             raise ValueError("All export tables must have the same source cohort")
         source_cohort_id = source_cohorts_ids[0]
         if not CohortResult.objects.filter(Q(pk=source_cohort_id) &
-                                           Q(owner=kwargs.get("owner")))\
+                                           Q(owner=kwargs.get("owner"))) \
                                    .exists():
             raise ValueError(f"Missing cohort with id {source_cohort_id}")
         return source_cohorts_ids
@@ -41,9 +41,11 @@ class CSVExporter(BaseExporter):
         kwargs["target_name"] = owner.pk
         super().complete_data(export_data=export_data, owner=owner, **kwargs)
 
-    def handle_export(self, export: Export, **kwargs) -> None:
+    def handle_export(self, export: Export, params: dict = None) -> None:
         self.confirm_export_received(export=export)
-        kwargs["params"] = {"export_in_one_table": export.group_tables,
-                            "file_path": f"{export.target_full_path}.zip"
+        params = params or {"joinOnPrimarykey": export.group_tables,
+                            "output": {"type": self.type,
+                                       "exportPath": f"{export.target_full_path}.zip"
+                                       },
                             }
-        super().handle_export(export=export, **kwargs)
+        super().handle_export(export=export, params=params)

@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import datetime as dt, timedelta
+from datetime import datetime as dt, timedelta, UTC
 from unittest import TestCase
 from unittest.mock import MagicMock
 
@@ -15,8 +15,8 @@ env = os.environ
 
 def enable_maintenance(minutes=5):
     data = dict(subject="maintenance for middleware testing",
-                start_datetime=dt.utcnow(),
-                end_datetime=dt.utcnow() + timedelta(minutes=minutes))
+                start_datetime=dt.now(UTC),
+                end_datetime=dt.now(UTC) + timedelta(minutes=minutes))
     MaintenancePhase.objects.create(**data)
 
 

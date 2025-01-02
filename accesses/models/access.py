@@ -3,11 +3,11 @@ from __future__ import annotations
 from django.db import models
 from django.db.models import CASCADE, SET_NULL
 from django.utils import timezone
+from django.conf import settings
 
 from accesses.models import Perimeter, Profile, Role
 from admin_cohort.tools.cache import invalidate_cache
 from admin_cohort.models import BaseModel, User
-from admin_cohort.settings import MANUAL_SOURCE
 
 
 class Access(BaseModel):
@@ -15,7 +15,7 @@ class Access(BaseModel):
     perimeter = models.ForeignKey(Perimeter, on_delete=SET_NULL, related_name='accesses', null=True)
     profile = models.ForeignKey(Profile, on_delete=CASCADE, related_name='accesses', null=True)
     role = models.ForeignKey(Role, on_delete=CASCADE, related_name='accesses', null=True)
-    source = models.TextField(blank=True, null=True, default=MANUAL_SOURCE)
+    source = models.TextField(blank=True, null=True, default=settings.MANUAL_SOURCE)
     start_datetime = models.DateTimeField(blank=True, null=True)
     end_datetime = models.DateTimeField(blank=True, null=True)
     created_by = models.ForeignKey(User, on_delete=SET_NULL, related_name='created_accesses', null=True, db_column="created_by")

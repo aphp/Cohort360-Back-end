@@ -1,6 +1,6 @@
+from django.conf import settings
 from rest_framework.pagination import LimitOffsetPagination
 
-from admin_cohort.settings import PAGINATION_MAX_LIMIT
 
 
 class NegativeLimitOffsetPagination(LimitOffsetPagination):
@@ -14,5 +14,5 @@ class NegativeLimitOffsetPagination(LimitOffsetPagination):
                 except ValueError:
                     return self.default_limit
                 if limit < 0:
-                    return PAGINATION_MAX_LIMIT
+                    return settings.PAGINATION_MAX_LIMIT
         return super().get_limit(request)
