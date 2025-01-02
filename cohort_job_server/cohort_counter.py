@@ -49,11 +49,10 @@ class CohortCounter(BaseCohortOperator):
             raise ValueError(f"Bad Request: Invalid job status: {data.get(JOB_STATUS)}")
         job_duration = str(timezone.now() - dm.created_at)
         if job_status == JobStatus.finished:
+            data["measure"] = data.pop(COUNT, None)
             if dm.is_global:
                 data.update({"measure_min": data.pop(MINIMUM, None),
                              "measure_max": data.pop(MAXIMUM, None)})
-            else:
-                data["measure"] = data.pop(COUNT, None)
             _logger.info(f"DatedMeasure[{dm.uuid}] successfully updated from SJS")
         else:
             data["request_job_fail_msg"] = data.pop(ERR_MESSAGE, None)

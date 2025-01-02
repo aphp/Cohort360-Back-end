@@ -41,7 +41,9 @@ class CohortResultService(CommonService):
             return DatedMeasure.objects.create(mode=dm.mode,
                                                owner=dm.owner,
                                                request_query_snapshot=new_rqs,
-                                               measure=dm.measure)
+                                               measure=dm.measure,
+                                               request_job_status=dm.request_job_status,
+                                               request_job_duration=dm.request_job_duration)
 
         query = self.build_query(source_cohort.group_id, fhir_filter_id)
         new_rqs = copy_query_snapshot(source_cohort.request_query_snapshot)

@@ -74,7 +74,7 @@ class Auth(ABC):
         try:
             return jwt.decode(jwt=token, options=options, **kwargs)
         except jwt.PyJWTError as e:
-            _logger.info(f"Error decoding token: {e} - `{token}`")
+            _logger.info(f"Error decoding token: {e}")
             raise e
 
     def retrieve_username(self, token_payload: dict) -> str:
