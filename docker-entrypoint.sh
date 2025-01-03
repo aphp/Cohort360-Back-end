@@ -45,7 +45,7 @@ shift "$((OPTIND-1))"
 
 set -e
 
-mkdir log
+mkdir -p log
 
 sudo sed -i s/{{BACK_HOST}}/"$BACK_HOST"/g /etc/nginx/nginx.conf;
 
