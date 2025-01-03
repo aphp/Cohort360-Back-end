@@ -51,7 +51,6 @@ class TemporalConstraint(BaseModel):
     dates_are_not_null: list = Field(default=None, alias="dateIsNotNullList")
     filtered_criteria_id: list = Field(default=None, alias="filteredCriteriaIdList")
 
-
 class SourcePopulation(BaseModel):
     care_site_cohort_list: list[int] = Field(default_factory=list, alias="caresiteCohortList")
 
@@ -101,6 +100,7 @@ class SparkJobObject:
     owner_entity_id: str
     callbackPath: Optional[str] = Field(None, alias='callbackPath')
     existingCohortId: Optional[int] = Field(None, alias='existingCohortId')
+    samplingRatio: Optional[float] = Field(None, alias='samplingRatio')
 
 
 class FhirParameter(BaseModel):
