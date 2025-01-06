@@ -113,13 +113,18 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
             * at least one perimeter must be accessible otherwise return HTTP404
             * at least one perimeter must be accessible in nominative mode else: allow_read_patient_data_nomi = False
         """
+
+        # todo: add cached functions on the user model (all functions taking "user" as argument)
+        #       the result would be cached for a day --> this needs to make accesses managed by date instead of datetime
+
         user = request.user
         cohort_ids = request.query_params.get("cohort_ids")
         read_mode = request.query_params.get('mode')
+        if cohort_ids is None:
+            return Response(data={"error": "Missing `cohort_ids` parameter"}, status=status.HTTP_400_BAD_REQUEST)
         if read_mode not in (MAX, MIN):
-            return Response(data={"error": "Patient data reading `mode` is missing or has invalid value"},
-                            status=status.HTTP_400_BAD_REQUEST)
-        target_perimeters = self.queryset
+            return Response(data={"error": "Patient data reading `mode` is missing or has invalid value"}, status=status.HTTP_400_BAD_REQUEST)
+
         if accesses_service.is_user_allowed_unlimited_patients_read(user=user):
             serializer = RightReadPatientDataSerializer(data={"allow_read_patient_data_nomi": True,
                                                               "allow_lookup_opposed_patients": True,
@@ -128,11 +133,9 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
             serializer.is_valid()
             return Response(data=serializer.data, status=status.HTTP_200_OK)
 
-        if cohort_ids:
-            target_perimeters = perimeters_service.get_target_perimeters(cohort_ids=cohort_ids)
-        target_perimeters = self.filter_queryset(target_perimeters)
+        target_perimeters = perimeters_service.get_target_perimeters(cohort_ids=cohort_ids)
 
-        if not target_perimeters:
+        if not target_perimeters.exists():
             return Response(data={"error": "None of the target perimeters was found"}, status=status.HTTP_404_NOT_FOUND)
 
         if not accesses_service.user_has_data_reading_accesses_on_target_perimeters(user=user,
@@ -141,8 +144,8 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
             return Response(data={"error": "User has no data reading accesses"}, status=status.HTTP_404_NOT_FOUND)
 
         if read_mode == MAX:
-            allow_read_patient_data_nomi = accesses_service \
-                .user_can_access_at_least_one_target_perimeter_in_nomi(user=user, target_perimeters=target_perimeters)
+            allow_read_patient_data_nomi = accesses_service.user_can_access_at_least_one_target_perimeter_in_nomi(user=user,
+                                                                                                                  target_perimeters=target_perimeters)
         else:
             allow_read_patient_data_nomi = accesses_service.user_can_access_all_target_perimeters_in_nomi(user=user,
                                                                                                           target_perimeters=target_perimeters)

@@ -1,4 +1,4 @@
-from functools import reduce
+from functools import reduce, lru_cache
 from typing import Set, List
 
 from django.db.models import QuerySet, Q
@@ -91,6 +91,7 @@ class PerimetersService:
             return Perimeter.objects.filter(id__in=top_same_level_perimeters_ids.union(top_inf_levels_perimeters_ids))
 
     @staticmethod
+    @lru_cache
     def get_target_perimeters(cohort_ids: str) -> QuerySet:
         cohorts_ids = cohort_ids.split(",")
         virtual_cohorts_map = cohort_rights_service.retrieve_virtual_cohorts_ids_from_snapshot(cohorts_ids=cohorts_ids) or {}

@@ -83,6 +83,8 @@ class AccessesService:
         user_data_accesses = self.get_user_valid_accesses(user=user)\
                                  .filter(Role.q_allow_read_patient_data_nominative()
                                          | Role.q_allow_read_patient_data_pseudo())
+        if not user_data_accesses.exists():
+            return False
         has_access = False
         for perimeter in target_perimeters:
             perimeter_and_parents_ids = [perimeter.id] + perimeter.above_levels
