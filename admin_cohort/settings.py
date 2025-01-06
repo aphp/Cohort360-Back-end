@@ -213,9 +213,21 @@ SPECTACULAR_SETTINGS = {"TITLE": TITLE,
                         "COMPONENT_SPLIT_REQUEST": True,
                         "SORT_OPERATION_PARAMETERS": False,
                         "SWAGGER_UI_SETTINGS": {
+                            "filter": True,
+                            "docExpansion": "none",
+                            "tagsSorter": "alpha",
+                            "operationsSorter": "method",
+                            "tryItOutEnabled": True,
                             "withCredentials": True,
                             "persistAuthorization": True,
                             "oauth2RedirectUrl": f"{env('OIDC_SWAGGER_REDIRECT_URL', default='/url/not/set')}",
+                            "requestInterceptor": """
+                            setAuthMethod(request) {
+                                request.headers['authorizationMethod'] = 'OIDC';
+                                return request;
+                            }
+                            """,
+                            "showMutatedRequest": True,
                         },
                         "SWAGGER_UI_OAUTH2_CONFIG": {
                             "appName": TITLE,
