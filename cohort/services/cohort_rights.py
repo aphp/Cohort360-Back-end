@@ -5,7 +5,9 @@ from django.db import IntegrityError
 from django.db.models import QuerySet
 from django.http import Http404
 
-from accesses.models import Role, Perimeter
+from accesses.models import Perimeter
+from accesses.q_expressions import q_allow_read_patient_data_nominative, q_allow_read_patient_data_pseudo, q_allow_export_csv_nominative, \
+    q_allow_export_csv_pseudo, q_allow_export_jupyter_nominative, q_allow_export_jupyter_pseudo
 from accesses.services.accesses import accesses_service
 from admin_cohort.models import User
 from cohort.models import CohortResult
@@ -68,13 +70,13 @@ class CohortRightsService:
 
     @staticmethod
     def get_accesses_per_right(user_accesses: QuerySet) -> dict[str, QuerySet]:
-        return {READ_PATIENT_NOMI: user_accesses.filter(Role.q_allow_read_patient_data_nominative()),
-                READ_PATIENT_PSEUDO: user_accesses.filter(Role.q_allow_read_patient_data_pseudo() |
-                                                          Role.q_allow_read_patient_data_nominative()),
-                EXPORT_CSV_NOMI: user_accesses.filter(Role.q_allow_export_csv_nominative()),
-                EXPORT_CSV_PSEUDO: user_accesses.filter(Role.q_allow_export_csv_pseudo()),
-                EXPORT_JUPYTER_NOMI: user_accesses.filter(Role.q_allow_export_jupyter_nominative()),
-                EXPORT_JUPYTER_PSEUDO: user_accesses.filter(Role.q_allow_export_jupyter_pseudo())}
+        return {READ_PATIENT_NOMI: user_accesses.filter(q_allow_read_patient_data_nominative),
+                READ_PATIENT_PSEUDO: user_accesses.filter(q_allow_read_patient_data_pseudo |
+                                                          q_allow_read_patient_data_nominative),
+                EXPORT_CSV_NOMI: user_accesses.filter(q_allow_export_csv_nominative),
+                EXPORT_CSV_PSEUDO: user_accesses.filter(q_allow_export_csv_pseudo),
+                EXPORT_JUPYTER_NOMI: user_accesses.filter(q_allow_export_jupyter_nominative),
+                EXPORT_JUPYTER_PSEUDO: user_accesses.filter(q_allow_export_jupyter_pseudo)}
 
     @staticmethod
     def get_rights_on_perimeters(accesses_per_right: dict, perimeters: QuerySet[Perimeter]) -> dict[str, bool]:

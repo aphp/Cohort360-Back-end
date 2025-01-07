@@ -75,7 +75,7 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
         manageable_perimeters = perimeters_service.get_top_manageable_perimeters(user=request.user)
         if request.query_params:
             manageable_perimeters_children = reduce(lambda qs1, qs2: qs1.union(qs2),
-                                                    [perimeters_service.get_all_child_perimeters(perimeter=p)
+                                                    [perimeters_service.get_all_child_perimeters(perimeter_id=p.id)
                                                      for p in manageable_perimeters])
             manageable_perimeters = manageable_perimeters | manageable_perimeters_children
             manageable_perimeters = self.filter_queryset(queryset=manageable_perimeters)
@@ -113,10 +113,6 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
             * at least one perimeter must be accessible otherwise return HTTP404
             * at least one perimeter must be accessible in nominative mode else: allow_read_patient_data_nomi = False
         """
-
-        # todo: add cached functions on the user model (all functions taking "user" as argument)
-        #       the result would be cached for a day --> this needs to make accesses managed by date instead of datetime
-
         user = request.user
         cohort_ids = request.query_params.get("cohort_ids")
         read_mode = request.query_params.get('mode')
