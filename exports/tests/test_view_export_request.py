@@ -1,5 +1,8 @@
 import random
+from datetime import timedelta
 from typing import List
+
+from django.utils import timezone
 from rest_framework import status
 
 from accesses.models import Access, Role, Perimeter
@@ -102,49 +105,67 @@ class ExportsTests(ViewSetTestsWithBasicPerims):
         self.user1_csv_nomi_acc: Access = Access.objects.create(
             perimeter=self.aphp,
             profile=self.prof_1,
-            role=self.role_exp_csv_nomi
+            role=self.role_exp_csv_nomi,
+            start_datetime=timezone.now(),
+            end_datetime=timezone.now() + timedelta(days=365)
         )
 
         self.user1_csv_pseudo_acc: Access = Access.objects.create(
             perimeter=self.aphp,
             profile=self.prof_1,
-            role=self.role_exp_csv_pseudo
+            role=self.role_exp_csv_pseudo,
+            start_datetime=timezone.now(),
+            end_datetime=timezone.now() + timedelta(days=365)
         )
 
         self.user1_nomi_acc: Access = Access.objects.create(
             perimeter=self.aphp,
             profile=self.prof_1,
-            role=self.role_read_nomi
+            role=self.role_read_nomi,
+            start_datetime=timezone.now(),
+            end_datetime=timezone.now() + timedelta(days=365)
         )
         self.user1_exp_jup_nomi_acc: Access = Access.objects.create(
             perimeter=self.aphp,
             profile=self.prof_1,
-            role=self.role_exp_jup_nomi
+            role=self.role_exp_jup_nomi,
+            start_datetime=timezone.now(),
+            end_datetime=timezone.now() + timedelta(days=365)
         )
         self.user1_exp_jup_pseudo_acc: Access = Access.objects.create(
             perimeter=self.aphp,
             profile=self.prof_1,
-            role=self.role_exp_jup_pseudo
+            role=self.role_exp_jup_pseudo,
+            start_datetime=timezone.now(),
+            end_datetime=timezone.now() + timedelta(days=365)
         )
         self.user2_exp_jup_nomi_acc: Access = Access.objects.create(
             perimeter=self.aphp,
             profile=self.prof_2,
-            role=self.role_exp_jup_nomi
+            role=self.role_exp_jup_nomi,
+            start_datetime=timezone.now(),
+            end_datetime=timezone.now() + timedelta(days=365)
         )
         self.user3_exp_jup_pseudo_acc: Access = Access.objects.create(
             perimeter=self.aphp,
             profile=self.prof_3,
-            role=self.role_exp_jup_pseudo
+            role=self.role_exp_jup_pseudo,
+            start_datetime=timezone.now(),
+            end_datetime=timezone.now() + timedelta(days=365)
         )
         self.user2_nomi_acc: Access = Access.objects.create(
             perimeter=self.aphp,
             profile=self.prof_2,
-            role=self.role_read_nomi
+            role=self.role_read_nomi,
+            start_datetime=timezone.now(),
+            end_datetime=timezone.now() + timedelta(days=365)
         )
         self.user2_exp_csv_nomi_acc: Access = Access.objects.create(
             perimeter=self.aphp,
             profile=self.prof_2,
-            role=self.role_exp_csv_nomi
+            role=self.role_exp_csv_nomi,
+            start_datetime=timezone.now(),
+            end_datetime=timezone.now() + timedelta(days=365)
         )
 
         # COHORTS
@@ -328,8 +349,11 @@ class ExportsNotAllowedTests(ExportsWithSimpleSetUp):
             (f, True) for f in self.all_rights
         ]), name='FULL')
 
-        Access.objects.create(role=role_full, profile=full_admin_ph,
-                              perimeter=self.aphp)
+        Access.objects.create(role=role_full,
+                              profile=full_admin_ph,
+                              perimeter=self.aphp,
+                              start_datetime=timezone.now(),
+                              end_datetime=timezone.now() + timedelta(days=365))
 
         self.basic_jup_data = dict(
             owner=self.full_admin_user,

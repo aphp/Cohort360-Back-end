@@ -7,10 +7,13 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.conf import settings
 
+from accesses.q_expressions import q_allow_read_search_opposed_patient_data, q_allow_read_patient_data_nominative, q_allow_read_patient_data_pseudo, \
+    q_allow_manage_accesses_on_same_level, q_allow_manage_accesses_on_inf_levels, q_allow_manage_export_accesses, \
+    q_allow_read_accesses_on_same_level, q_allow_read_accesses_on_inf_levels, q_impact_inferior_levels, q_allow_unlimited_patients_search
 from admin_cohort.models import User
 from admin_cohort.tools import join_qs
-from ..models import Perimeter, Role, Access
-from ..services.shared import DataRight
+from accesses.models import Perimeter, Access, Role
+from accesses.services.shared import DataRight
 
 _logger = logging.getLogger("info")
 
@@ -20,8 +23,7 @@ class AccessesService:
     @staticmethod
     def q_access_is_valid() -> Q:
         now = timezone.now()
-        return ((Q(start_datetime=None) | Q(start_datetime__lte=now)) &
-                (Q(end_datetime=None) | Q(end_datetime__gte=now)))
+        return Q(start_datetime__lte=now) & Q(end_datetime__gte=now)
 
     def get_user_valid_accesses(self, user: User) -> QuerySet:
         return Access.objects.filter(self.q_access_is_valid()
@@ -74,20 +76,22 @@ class AccessesService:
                                                                     .exists()
             if user_can_read_accesses_from_above_levels:
                 q = q | (Q(perimeter_id__in=perimeter.above_levels)
-                         & Role.q_impact_inferior_levels())
+                         & q_impact_inferior_levels())
         return self.filter_accesses_for_user(user=user, accesses=accesses.filter(Q(sql_is_valid=True) & q))
 
     def user_has_data_reading_accesses_on_target_perimeters(self, user: User,
                                                             target_perimeters: QuerySet,
                                                             read_mode: Literal["max", "min"]) -> bool:
-        user_data_accesses = self.get_user_valid_accesses(user=user)\
-                                 .filter(Role.q_allow_read_patient_data_nominative()
-                                         | Role.q_allow_read_patient_data_pseudo())
+        perimeters_with_data_accesses = self.get_user_valid_accesses(user=user)\
+                                            .filter(q_allow_read_patient_data_nominative
+                                                    | q_allow_read_patient_data_pseudo)\
+                                            .values_list("perimeter_id", flat=True)
+        if not perimeters_with_data_accesses:
+            return False
         has_access = False
         for perimeter in target_perimeters:
             perimeter_and_parents_ids = [perimeter.id] + perimeter.above_levels
-            can_access_perimeter = user_data_accesses.filter(perimeter_id__in=perimeter_and_parents_ids).exists()
-
+            can_access_perimeter = any(p in perimeters_with_data_accesses for p in perimeter_and_parents_ids)
             if read_mode == "max":
                 if can_access_perimeter:
                     return True
@@ -97,9 +101,9 @@ class AccessesService:
                 has_access = True
         return has_access
 
-    def get_nominative_perimeters(self, user: User) -> List[int]:
+    def get_nominative_perimeters(self, user: User) -> QuerySet[int]:
         return self.get_user_valid_accesses(user=user)\
-                   .filter(Role.q_allow_read_patient_data_nominative())\
+                   .filter(q_allow_read_patient_data_nominative)\
                    .values_list('perimeter_id', flat=True)
 
     def user_can_access_at_least_one_target_perimeter_in_nomi(self, user: User, target_perimeters: QuerySet) -> bool:
@@ -119,12 +123,13 @@ class AccessesService:
         return True
 
     def can_user_read_opposed_patient_data(self, user: User) -> bool:
-        user_accesses = self.get_user_valid_accesses(user=user)
-        return user_accesses.filter(Role.q_allow_read_search_opposed_patient_data()).exists()
+        return self.get_user_valid_accesses(user=user)\
+                   .filter(q_allow_read_search_opposed_patient_data)\
+                   .exists()
 
     def is_user_allowed_unlimited_patients_read(self, user: User) -> bool:
         user_accesses = self.get_user_valid_accesses(user=user)
-        return user_accesses.filter(Role.q_allow_unlimited_patients_search()).exists()
+        return user_accesses.filter(q_allow_unlimited_patients_search).exists()
 
     def get_user_data_accesses(self, user: User) -> QuerySet:
         return self.get_user_valid_accesses(user).filter(join_qs([Q(role__right_read_patient_nominative=True),
@@ -257,9 +262,9 @@ class AccessesService:
               + those configured on any of the perimeter's parents AND allow to manage accesses on inferior levels
               + those allowing to read/manage Exports accesses (global rights, allow to manage on any level)
         """
-        return self.get_user_valid_accesses(user).filter((Q(perimeter=perimeter) & Role.q_allow_manage_accesses_on_same_level())
-                                                         | (perimeter.q_all_parents() & Role.q_allow_manage_accesses_on_inf_levels())
-                                                         | Role.q_allow_manage_export_accesses()) \
+        return self.get_user_valid_accesses(user).filter((Q(perimeter=perimeter) & q_allow_manage_accesses_on_same_level())
+                                                         | (perimeter.q_all_parents() & q_allow_manage_accesses_on_inf_levels())
+                                                         | q_allow_manage_export_accesses) \
                                                  .distinct() \
                                                  .select_related("role")
 
@@ -269,9 +274,9 @@ class AccessesService:
               + those configured on any of the perimeter's parents AND allow to read/manage accesses on inferior levels
               + those allowing to read/manage Exports accesses (global rights, allow to manage on any level)
         """
-        return self.get_user_valid_accesses(user).filter((Q(perimeter=perimeter) & Role.q_allow_read_accesses_on_same_level())
-                                                         | (perimeter.q_all_parents() & Role.q_allow_read_accesses_on_inf_levels())
-                                                         | Role.q_allow_manage_export_accesses()) \
+        return self.get_user_valid_accesses(user).filter((Q(perimeter=perimeter) & q_allow_read_accesses_on_same_level())
+                                                         | (perimeter.q_all_parents() & q_allow_read_accesses_on_inf_levels())
+                                                         | q_allow_manage_export_accesses) \
                                                  .distinct() \
                                                  .select_related("role")
 

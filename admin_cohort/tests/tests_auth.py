@@ -1,6 +1,8 @@
+from datetime import timedelta
 from unittest import mock
 from unittest.mock import MagicMock
 
+from django.utils import timezone
 from jwt import InvalidTokenError
 
 from rest_framework import status
@@ -9,7 +11,7 @@ from django.test import Client
 from django.conf import settings
 
 from accesses.models import Access, Perimeter, Role
-from admin_cohort.models import User 
+from admin_cohort.models import User
 from admin_cohort.tests.tests_tools import new_user_and_profile
 from admin_cohort.types import AuthTokens, LoginError, ServerError
 from admin_cohort.views import UserViewSet
@@ -103,7 +105,9 @@ class AuthClassTests(APITestCase):
         self.users_reader_role = Role.objects.create(name="USERS READER", right_read_users=True)
         self.users_reader_access = Access.objects.create(profile=self.regular_profile,
                                                          perimeter=self.perimeter_aphp,
-                                                         role=self.users_reader_role)
+                                                         role=self.users_reader_role,
+                                                         start_datetime=timezone.now(),
+                                                         end_datetime=timezone.now() + timedelta(days=365))
 
     @mock.patch("admin_cohort.auth.auth_class.auth_service.authenticate_http_request")
     def test_authenticate_success(self, mock_authenticate_http_request: MagicMock):

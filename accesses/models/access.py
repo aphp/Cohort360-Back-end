@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from functools import cached_property
+
 from django.db import models
 from django.db.models import CASCADE, SET_NULL
 from django.utils import timezone
@@ -34,11 +36,11 @@ class Access(BaseModel):
             return False
         return True
 
-    @property
+    @cached_property
     def care_site_id(self):
         return self.perimeter.id
 
-    @property
+    @cached_property
     def care_site(self):
         return {'care_site_id': self.perimeter.id,
                 'care_site_name': self.perimeter.name,

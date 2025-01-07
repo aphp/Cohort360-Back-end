@@ -14,7 +14,7 @@ def get_project_info():
         pyproject = tomllib.load(f)
     project_info = pyproject.get("project", {})
     return (project_info.get("name"),
-            f"{project_info.get('version')}{project_info.get('version-suffix')}",
+            project_info.get('version'),
             project_info.get("description"))
 
 TITLE, VERSION, DESCRIPTION = get_project_info()

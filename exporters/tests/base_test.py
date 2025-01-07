@@ -1,4 +1,7 @@
+from datetime import timedelta
+
 from django.test import TestCase
+from django.utils import timezone
 
 from accesses.models import Access, Perimeter, Role
 from admin_cohort.tests.tests_tools import new_user_and_profile
@@ -18,7 +21,9 @@ class ExportersTestBase(TestCase):
         self.csv_exporter_role = Role.objects.create(name="CSV EXPORTER", right_export_csv_nominative=True)
         self.csv_exporter_access = Access.objects.create(profile=self.csv_exporter_profile,
                                                          perimeter=self.perimeter_aphp,
-                                                         role=self.csv_exporter_role)
+                                                         role=self.csv_exporter_role,
+                                                         start_datetime=timezone.now(),
+                                                         end_datetime=timezone.now() + timedelta(days=365))
         self.folder = Folder.objects.create(name="TestFolder", owner=self.csv_exporter_user)
         self.request = Request.objects.create(name="TestRequest", owner=self.csv_exporter_user, parent_folder=self.folder)
         self.rqs = RequestQuerySnapshot.objects.create(owner=self.csv_exporter_user,

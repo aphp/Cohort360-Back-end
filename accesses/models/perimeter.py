@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import logging
+from functools import lru_cache, cached_property
 
 from django.db import models
 from django.db.models import Q
-from django.conf import settings
 
 from admin_cohort.models import BaseModel
-from admin_cohort.tools import join_qs
 
 _logger = logging.getLogger("django.request")
 
@@ -33,12 +32,12 @@ class Perimeter(BaseModel):
     def __str__(self):
         return f"[{self.id}] {self.name}"
 
-    @property
+    @cached_property
     def names(self):
         return dict(name=self.name, short=self.short_name,
                     source_value=self.source_value)
 
-    @property
+    @cached_property
     def above_levels(self):
         if not self.above_levels_ids:
             return list()
@@ -48,7 +47,7 @@ class Perimeter(BaseModel):
             _logger.error(f"Error getting above levels ids for perimeter {self}.\n {e}")
             raise e
 
-    @property
+    @cached_property
     def inferior_levels(self):
         if not self.inferior_levels_ids:
             return list()
@@ -58,9 +57,10 @@ class Perimeter(BaseModel):
             _logger.error(f"Error getting inferior levels ids for perimeter {self}.\n {e}")
             raise e
 
+    @lru_cache(maxsize=None)
     def is_child_of(self, perimeter: Perimeter) -> bool:
         return self.level > perimeter.level and perimeter.id in self.above_levels
 
+    @lru_cache(maxsize=None)
     def q_all_parents(self) -> Q:
-        return join_qs([Q(**{f'perimeter__{"__".join(i * ["children"])}': self})
-                        for i in range(1, len(settings.PERIMETER_TYPES))])
+        return Q(perimeter_id__in=self.above_levels)

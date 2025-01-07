@@ -1,3 +1,6 @@
+from datetime import timedelta
+
+from django.utils import timezone
 from django.conf import settings
 from rest_framework import status
 from rest_framework.test import force_authenticate
@@ -41,7 +44,9 @@ class RequestLogTests(BaseTests):
         self.user_role = Role.objects.create(**dict([(f, True) for f in self.all_rights]), name='FullAdmin')
         self.user_access = Access.objects.create(perimeter=self.aphp,
                                                  role=self.user_role,
-                                                 profile=self.profile)
+                                                 profile=self.profile,
+                                                 start_datetime=timezone.now(),
+                                                 end_datetime=timezone.now() + timedelta(days=365))
         create_sample_logs_data(user=self.user)
 
     def test_list_request_logs(self):
