@@ -374,8 +374,8 @@ class CohortsUpdateTests(CohortsTests):
                                                     success=False)
 
     @mock.patch('admin_cohort.services.ws_event_manager.WebsocketManager.send_to_client')
-    @mock.patch('cohort.services.cohort_operators.DefaultCohortCreator.handle_cohort_post_update')
-    @mock.patch('cohort.services.cohort_operators.DefaultCohortCreator.handle_patch_cohort')
+    @mock.patch('cohort_job_server.cohort_creator.CohortCreator.handle_cohort_post_update')
+    @mock.patch('cohort_job_server.cohort_creator.CohortCreator.handle_patch_cohort')
     def test_update_cohort_as_owner(self, mock_patch_handler, mock_post_update, mock_ws_send_to_client):
         mock_patch_handler.return_value = None
         mock_post_update.return_value = None
@@ -415,8 +415,8 @@ class CohortsUpdateTests(CohortsTests):
         [self.check_patch_case(case) for case in cases]
 
     @mock.patch('admin_cohort.services.ws_event_manager.WebsocketManager.send_to_client')
-    @mock.patch('cohort.services.cohort_operators.DefaultCohortCreator.handle_cohort_post_update')
-    @mock.patch('cohort.services.cohort_operators.DefaultCohortCreator.handle_patch_cohort')
+    @mock.patch('cohort_job_server.cohort_creator.CohortCreator.handle_cohort_post_update')
+    @mock.patch('cohort_job_server.cohort_creator.CohortCreator.handle_patch_cohort')
     def test_patch_cohort_with_status_finished(self, mock_patch_handler, mock_post_update, mock_ws_send_to_client):
         mock_patch_handler.return_value = None
         mock_post_update.return_value = None
@@ -429,7 +429,7 @@ class CohortsUpdateTests(CohortsTests):
         mock_ws_send_to_client.assert_called_once()
 
     @mock.patch('admin_cohort.services.ws_event_manager.WebsocketManager.send_to_client')
-    @mock.patch('cohort.services.cohort_operators.DefaultCohortCreator.handle_patch_cohort')
+    @mock.patch('cohort_job_server.cohort_creator.CohortCreator.handle_patch_cohort')
     def test_error_patch_cohort_with_invalid_status(self, mock_patch_handler, mock_ws_send_to_client):
         mock_patch_handler.side_effect = ValueError('Wrong status value')
         mock_ws_send_to_client.return_value = None

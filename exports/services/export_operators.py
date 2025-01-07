@@ -10,7 +10,6 @@ from django.utils.module_loading import import_string
 from requests import RequestException
 
 from admin_cohort.types import JobStatus
-from exports import ExportTypes
 from exports.apps import ExportsConfig
 from exports.emails import push_email_notification, exported_files_deleted
 from exports.exceptions import BadRequestError, FilesNoLongerAvailable, StorageProviderException
@@ -24,10 +23,13 @@ STORAGE_PROVIDERS = os.environ.get("STORAGE_PROVIDERS", "").split(',')
 if not STORAGE_PROVIDERS:
     _logger.warning("No storage provider is configured!")
 
+ExportTypes = ExportsConfig.ExportTypes
+EXPORTERS = ExportsConfig.EXPORTERS
+
 
 def load_available_exporters() -> dict:
     exporters = {}
-    for exporter_conf in ExportsConfig.EXPORTERS:
+    for exporter_conf in EXPORTERS:
         try:
             export_type, cls_path = exporter_conf["TYPE"], exporter_conf["EXPORTER_CLASS"]
             export_type = ExportTypes(export_type).value

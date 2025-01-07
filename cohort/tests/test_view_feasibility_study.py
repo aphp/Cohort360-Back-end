@@ -39,7 +39,7 @@ class FeasibilityStudyViewTests(CohortAppTests):
 
     @mock.patch('cohort.services.feasibility_study.send_email_feasibility_report_ready.apply_async')
     @mock.patch('cohort.services.feasibility_study.FeasibilityStudyService.build_feasibility_report')
-    @mock.patch('cohort.services.cohort_operators.DefaultCohortCounter.handle_patch_feasibility_study')
+    @mock.patch('cohort_job_server.cohort_counter.CohortCounter.handle_patch_feasibility_study')
     def test_successfully_patch_feasibility_study(self, mock_patch_handler, mock_build_report, mock_send_email_report_ready):
         extra = {group_id: count for (group_id, count) in [("1", "10"), ("2", "10"), ("3", "10"),
                                                            ("4", "15"), ("5", "15"), ("6", "25")]}
@@ -66,12 +66,12 @@ class FeasibilityStudyViewTests(CohortAppTests):
         self.assertIsNotNone(feasibility_study.report_file)
 
     @mock.patch('cohort.services.feasibility_study.send_email_feasibility_report_error.apply_async')
-    @mock.patch('cohort.services.cohort_operators.DefaultCohortCounter.handle_patch_feasibility_study')
+    @mock.patch('cohort_job_server.cohort_counter.CohortCounter.handle_patch_feasibility_study')
     def test_error_patch_feasibility_study(self, mock_patch_handler, mock_send_email_report_error):
         mock_patch_handler.side_effect = ValueError("Wrong value for status")
         mock_send_email_report_error.return_value = None
         case = PatchCase(initial_data=self.basic_data,
-                         data_to_update={},
+                         data_to_update={"request_job_status": "INVALID_STATUS",},
                          user=self.user1,
                          status=status.HTTP_400_BAD_REQUEST,
                          success=False)
@@ -110,13 +110,13 @@ class TestFeasibilityStudiesService(TestCase):
     @staticmethod
     def create_perimeters_tree():
         basic_data = [
-            {'id': 1, 'name': 'APHP', 'type_source_value': 'AP-HP', 'cohort_id': '1', 'local_id': '1', 'parent_id': None, 'level': 1},
-            {'id': 2, 'name': 'GHU-01', 'type_source_value': 'GHU', 'cohort_id': '2', 'local_id': '2', 'parent_id': 1, 'level': 2},
-            {'id': 3, 'name': 'Hop-01', 'type_source_value': 'Hôpital', 'cohort_id': '3', 'local_id': '3', 'parent_id': 2, 'level': 3},
-            {'id': 4, 'name': 'Pole/DMU-01', 'type_source_value': 'Pôle/DMU', 'cohort_id': '4', 'local_id': '4', 'parent_id': 3, 'level': 4},
-            {'id': 5, 'name': 'UF-01', 'type_source_value': 'Unité Fonctionnelle (UF)', 'cohort_id': '5', 'local_id': '5', 'parent_id': 4,
+            {'id': 1, 'name': 'APHP', 'type_source_value': 'TYPE0', 'cohort_id': '1', 'local_id': '1', 'parent_id': None, 'level': 1},
+            {'id': 2, 'name': 'GHU-01', 'type_source_value': 'TYPE1', 'cohort_id': '2', 'local_id': '2', 'parent_id': 1, 'level': 2},
+            {'id': 3, 'name': 'Hop-01', 'type_source_value': 'TYPE2', 'cohort_id': '3', 'local_id': '3', 'parent_id': 2, 'level': 3},
+            {'id': 4, 'name': 'Pole/DMU-01', 'type_source_value': 'TYPE3', 'cohort_id': '4', 'local_id': '4', 'parent_id': 3, 'level': 4},
+            {'id': 5, 'name': 'UF-01', 'type_source_value': 'TYPE4', 'cohort_id': '5', 'local_id': '5', 'parent_id': 4,
              'level': 5},
-            {'id': 6, 'name': 'UC-01', 'type_source_value': 'Unité de consultation (UC)', 'cohort_id': '6', 'local_id': '6', 'parent_id': 5,
+            {'id': 6, 'name': 'UC-01', 'type_source_value': 'TYPE5', 'cohort_id': '6', 'local_id': '6', 'parent_id': 5,
              'level': 6}]
         for d in basic_data:
             Perimeter.objects.create(**d)
