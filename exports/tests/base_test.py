@@ -1,6 +1,8 @@
+from datetime import timedelta
 from typing import Union
 
 from django.test import TestCase
+from django.utils import timezone
 from django.views import View
 from rest_framework.test import APIRequestFactory, force_authenticate
 
@@ -41,13 +43,19 @@ class ExportsTestBase(TestCase):
 
         self.datalabs_reader_access = Access.objects.create(profile=self.datalabs_reader_profile,
                                                             perimeter=self.perimeter_aphp,
-                                                            role=self.datalab_reader_role)
+                                                            role=self.datalab_reader_role,
+                                                            start_datetime=timezone.now(),
+                                                            end_datetime=timezone.now() + timedelta(days=365))
         self.datalabs_manager_access = Access.objects.create(profile=self.datalabs_manager_profile,
                                                              perimeter=self.perimeter_aphp,
-                                                             role=self.datalab_manager_role)
+                                                             role=self.datalab_manager_role,
+                                                             start_datetime=timezone.now(),
+                                                             end_datetime=timezone.now() + timedelta(days=365))
         self.csv_exporter_access = Access.objects.create(profile=self.exporter_profile,
                                                          perimeter=self.perimeter_aphp,
-                                                         role=self.csv_exporter_role)
+                                                         role=self.csv_exporter_role,
+                                                         start_datetime=timezone.now(),
+                                                         end_datetime=timezone.now() + timedelta(days=365))
         self.infra_provider_aphp = InfrastructureProvider.objects.create(name="APHP")
         self.folder = Folder.objects.create(name="TestFolder", owner=self.exporter_user)
         self.request = Request.objects.create(name="TestRequest", owner=self.exporter_user, parent_folder=self.folder)

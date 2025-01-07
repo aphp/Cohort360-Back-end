@@ -44,14 +44,18 @@ class MaintenanceTests(ViewSetTestsWithBasicPerims):
         self.role_maintenance_manager = Role.objects.create(right_full_admin=True)
         Access.objects.create(perimeter_id=self.hospital3.id,
                               profile=profile_maintenance_manager,
-                              role=self.role_maintenance_manager)
+                              role=self.role_maintenance_manager,
+                              start_datetime=timezone.now(),
+                              end_datetime=timezone.now() + timedelta(days=365))
 
         self.user_not_maintenance_manager, profile_not_maintenance_manager = new_user_and_profile()
         self.role_all_but_edit_maintenances = Role.objects.create(**dict([(r, True) for r in self.all_rights
                                                                           if r != 'right_full_admin']))
         Access.objects.create(perimeter_id=self.aphp.id,
                               profile=profile_not_maintenance_manager,
-                              role=self.role_all_but_edit_maintenances)
+                              role=self.role_all_but_edit_maintenances,
+                              start_datetime=timezone.now(),
+                              end_datetime=timezone.now() + timedelta(days=365))
 
 
 class MaintenanceCaseRetrieveFilter(CaseRetrieveFilter):

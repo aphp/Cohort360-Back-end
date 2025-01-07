@@ -20,8 +20,7 @@ class AccessesService:
     @staticmethod
     def q_access_is_valid() -> Q:
         now = timezone.now()
-        return ((Q(start_datetime=None) | Q(start_datetime__lte=now)) &
-                (Q(end_datetime=None) | Q(end_datetime__gte=now)))
+        return Q(start_datetime__lte=now) & Q(end_datetime__gte=now)
 
     def get_user_valid_accesses(self, user: User) -> QuerySet:
         return Access.objects.filter(self.q_access_is_valid()

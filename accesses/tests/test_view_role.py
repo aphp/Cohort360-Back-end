@@ -1,4 +1,7 @@
+from datetime import timedelta
+
 from django.db import IntegrityError
+from django.utils import timezone
 from rest_framework import status
 
 from accesses.models import Role, Access
@@ -29,10 +32,18 @@ class RoleViewTests(AccessesAppTestsBase):
     def setUp(self):
         super().setUp()
         self.user_full_admin_on_aphp, profile_full_admin_on_aphp = new_user_and_profile()
-        Access.objects.create(profile=profile_full_admin_on_aphp, role=self.role_full_admin, perimeter=self.aphp)
+        Access.objects.create(profile=profile_full_admin_on_aphp,
+                              role=self.role_full_admin,
+                              perimeter=self.aphp,
+                              start_datetime=timezone.now(),
+                              end_datetime=timezone.now() + timedelta(days=365))
 
         self.user_non_full_admin, profile = new_user_and_profile()
-        Access.objects.create(profile=profile, role=self.role_admin_accesses_manager, perimeter=self.aphp)
+        Access.objects.create(profile=profile,
+                              role=self.role_admin_accesses_manager,
+                              perimeter=self.aphp,
+                              start_datetime=timezone.now(),
+                              end_datetime=timezone.now() + timedelta(days=365))
 
     def test_role_unique_name(self):
         data = {**ALL_FALSY_RIGHTS,
@@ -229,7 +240,11 @@ class RoleViewTests(AccessesAppTestsBase):
     def test_get_assignable_roles_on_perimeter_P0_as_admin_accesses_manager_on_APHP(self):
         # expected behavior: return `role_data_accesses_manager` and `role_data_accesses_manager_inf_levels`
         user_admin_accesses_manager_on_aphp, profile = new_user_and_profile()
-        Access.objects.create(profile=profile, role=self.role_admin_accesses_manager, perimeter=self.aphp)
+        Access.objects.create(profile=profile,
+                              role=self.role_admin_accesses_manager,
+                              perimeter=self.aphp,
+                              start_datetime=timezone.now(),
+                              end_datetime=timezone.now() + timedelta(days=365))
         to_find = [self.role_data_accesses_manager,
                    self.role_data_accesses_manager_inf_levels]
         case = ListCase(params={"perimeter_id": self.p0.id},
@@ -242,7 +257,11 @@ class RoleViewTests(AccessesAppTestsBase):
     def test_get_assignable_roles_on_perimeter_P0_as_admin_accesses_manager_on_P0(self):
         # expected behavior: return `role_data_accesses_manager` only
         user_admin_accesses_manager_on_p0, profile = new_user_and_profile()
-        Access.objects.create(profile=profile, role=self.role_admin_accesses_manager, perimeter=self.p0)
+        Access.objects.create(profile=profile,
+                              role=self.role_admin_accesses_manager,
+                              perimeter=self.p0,
+                              start_datetime=timezone.now(),
+                              end_datetime=timezone.now() + timedelta(days=365))
         to_find = [self.role_data_accesses_manager,
                    self.role_data_accesses_manager_inf_levels]
         case = ListCase(params={"perimeter_id": self.p0.id},
@@ -255,7 +274,11 @@ class RoleViewTests(AccessesAppTestsBase):
     def test_get_assignable_roles_on_perimeter_P0_as_admin_accesses_manager_on_P4(self):
         # expected behavior: return no roles, HTTP 200 OK
         user_admin_accesses_manager_on_p4, profile = new_user_and_profile()
-        Access.objects.create(profile=profile, role=self.role_admin_accesses_manager, perimeter=self.p4)
+        Access.objects.create(profile=profile,
+                              role=self.role_admin_accesses_manager,
+                              perimeter=self.p4,
+                              start_datetime=timezone.now(),
+                              end_datetime=timezone.now() + timedelta(days=365))
         case = ListCase(params={"perimeter_id": self.p0.id},
                         to_find=[],
                         user=user_admin_accesses_manager_on_p4,

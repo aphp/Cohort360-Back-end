@@ -1,6 +1,8 @@
+from datetime import timedelta
 from unittest import mock
 from unittest.mock import MagicMock
 
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import force_authenticate
 
@@ -62,16 +64,24 @@ class UserTests(BaseTests):
 
         self.admin_access = Access.objects.create(perimeter_id=self.aphp.id,
                                                   role=self.role_full_admin,
-                                                  profile=self.admin_profile)
+                                                  profile=self.admin_profile,
+                                                  start_datetime=timezone.now(),
+                                                  end_datetime=timezone.now() + timedelta(days=365))
         self.access_user1_admin_h1 = Access.objects.create(perimeter_id=self.hospital1.id,
                                                            role=self.role_full_admin,
-                                                           profile=self.profile1)
+                                                           profile=self.profile1,
+                                                           start_datetime=timezone.now(),
+                                                           end_datetime=timezone.now() + timedelta(days=365))
         self.access_user2_admin_h2 = Access.objects.create(perimeter_id=self.hospital2.id,
                                                            role=self.role_full_admin,
-                                                           profile=self. profile2)
+                                                           profile=self. profile2,
+                                                           start_datetime=timezone.now(),
+                                                           end_datetime=timezone.now() + timedelta(days=365))
         self.access_user1_pseudo_h3 = Access.objects.create(perimeter_id=self.hospital3.id,
                                                             role=self.pseudo_anonymised_data_role,
-                                                            profile=self. profile1)
+                                                            profile=self. profile1,
+                                                            start_datetime=timezone.now(),
+                                                            end_datetime=timezone.now() + timedelta(days=365))
 
 
 class UserTestsAsAdmin(UserTests):
