@@ -8,7 +8,7 @@ import pytz
 from celery.schedules import crontab
 
 TITLE = "Portail/Cohort360 API"
-VERSION = "3.24.9"
+VERSION = "3.24.10"
 AUTHOR = "Assistance Publique - Hopitaux de Paris, Département I&D"
 DESCRIPTION_MD = f"""Supports the official **Cohort360** web app and **Portail**  
                      Built by **{AUTHOR}**
@@ -309,6 +309,7 @@ REST_FRAMEWORK_EXTENSIONS = {"DEFAULT_PARENT_LOOKUP_KWARG_NAME_PREFIX": "",
                              }
 
 # ACCESSES
+ACCESS_MANAGERS_LIST_LINK = env.str("ACCESS_MANAGERS_LIST_LINK", default="")
 ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS = env.int("ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS", default=30)
 ACCESS_EXPIRY_SECOND_ALERT_IN_DAYS = env.int("ACCESS_EXPIRY_SECOND_ALERT_IN_DAYS", default=2)
 MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS = env.int("ACCESS_MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS", default=2 * 365)

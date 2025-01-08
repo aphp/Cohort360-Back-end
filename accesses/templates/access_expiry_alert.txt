@@ -3,7 +3,7 @@
 {% block content %}
 
 Nous vous informons que vos accès à Cohort360 arriveront à expiration dans {{ expiry_days }} jours.
-Veuillez vous rapprocher de votre référent EDS pour faire renouveler vos accès à l'application (liste des coordinateurs EDS et data scientists : https://eds.aphp.fr/sites/default/files/2023-06/EDS_AP-HP_Contacts_20230531.pdf).
+Veuillez vous rapprocher de votre référent EDS pour faire renouveler vos accès à l'application (liste des coordinateurs EDS et data scientists : {{ access_managers_list_link }}).
 Attention: si vous avez changé de service ou d'hôpital, veuillez en informer votre référent pour qu'il mette à jour votre compte.
 
 {% endblock %}
