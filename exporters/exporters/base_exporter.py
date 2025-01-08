@@ -76,26 +76,31 @@ class BaseExporter:
         try:
             required_table = export.export_tables.get(name=required_table_name)
             linked_cohort = required_table.cohort_result_subset or required_table.cohort_result_source
-            required_table = {"tableName": required_table_name,
-                              "cohortId": linked_cohort.group_id,
-                              "columnsToExport": required_table.columns
-                              }
+            required_table_data = {"tableName": required_table_name,
+                                   "cohortId": linked_cohort.group_id,
+                                   }
+            if required_table.columns:
+                required_table_data["columnsToExport"] = required_table.columns
         except ExportTable.DoesNotExist:
             raise ValueError(f"Missing {required_table_name} table from export")
 
-        other_tables = [{"tableName": t.name,
-                         "cohortId": t.cohort_result_subset and t.cohort_result_subset.group_id or '',
-                         "columnsToExport": t.columns
-                         }
-                        for t in export.export_tables.exclude(name=required_table_name)]
-        return [required_table] + other_tables
+        other_tables = []
+        for t in export.export_tables.exclude(name=required_table_name):
+            t_data = {"tableName": t.name,
+                      "cohortId": t.cohort_result_subset and t.cohort_result_subset.group_id or '',
+                     }
+            if t.columns:
+                t_data["columnsToExport"] = t.columns
+            other_tables.append(t_data)
+        return [required_table_data] + other_tables
 
     def send_export(self, export: Export, params: dict) -> str:
         self.log_export_task(export.pk, f"Asking to export for '{export.target_name}'")
         params.update({"tablesToExport": self.build_tables_input(export),
                        "noDateShift": export.nominative or not export.shift_dates,
-                       "pseudo": not export.nominative and export.datalab.name or None
                        })
+        if not export.nominative:
+            params["pseudo"] = export.datalab.name
         return self.export_api.launch_export(export_id=export.uuid, params=params)
 
     def wait_for_export_job(self, export: Export) -> None:
