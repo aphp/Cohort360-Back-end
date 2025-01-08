@@ -3,12 +3,12 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 from django.utils import timezone
+from django.conf import settings
 from rest_framework import status
 from rest_framework.test import force_authenticate
 
 from accesses.models import Access, Role, Perimeter, Profile
 from admin_cohort.models import User
-from admin_cohort.settings import PERIMETERS_TYPES, MANUAL_SOURCE
 from admin_cohort.tests.tests_tools import BaseTests
 from admin_cohort.views import UserViewSet
 
@@ -31,22 +31,22 @@ class UserTests(BaseTests):
         self.aphp = Perimeter.objects.create(**dict(local_id=1,
                                                     name="APHP",
                                                     parent=None,
-                                                    type_source_value=PERIMETERS_TYPES[0],
+                                                    type_source_value=settings.PERIMETER_TYPES[0],
                                                     source_value="APHP"))
         self.hospital1 = Perimeter.objects.create(**dict(local_id=11,
                                                          name="Hospital 01",
                                                          parent=self.aphp,
-                                                         type_source_value=PERIMETERS_TYPES[2],
+                                                         type_source_value=settings.PERIMETER_TYPES[2],
                                                          source_value="Hospital 01"))
         self.hospital2 = Perimeter.objects.create(**dict(local_id=12,
                                                          name="Hospital 02",
                                                          parent=self.aphp,
-                                                         type_source_value=PERIMETERS_TYPES[2],
+                                                         type_source_value=settings.PERIMETER_TYPES[2],
                                                          source_value="Hospital 02"))
         self.hospital3 = Perimeter.objects.create(**dict(local_id=13,
                                                          name="Hospital 03",
                                                          parent=self.aphp,
-                                                         type_source_value=PERIMETERS_TYPES[2],
+                                                         type_source_value=settings.PERIMETER_TYPES[2],
                                                          source_value="Hospital 03"))
 
         self.role_full_admin = Role.objects.create(**dict([(f, True) for f in self.all_rights]), name='Admin full role')
@@ -58,9 +58,9 @@ class UserTests(BaseTests):
         self.user1 = User.objects.create(username="1111111", firstname="User 01", lastname="USER01", email="user01@aphp.fr")
         self.user2 = User.objects.create(username="2222222", firstname="User 02", lastname="USER02", email="user02@aphp.fr")
 
-        self.admin_profile = Profile.objects.create(source=MANUAL_SOURCE, user=self.admin_user, is_active=True)
-        self.profile1 = Profile.objects.create(source=MANUAL_SOURCE, user=self.user1, is_active=True)
-        self.profile2 = Profile.objects.create(source=MANUAL_SOURCE, user=self.user2, is_active=True)
+        self.admin_profile = Profile.objects.create(source=settings.MANUAL_SOURCE, user=self.admin_user, is_active=True)
+        self.profile1 = Profile.objects.create(source=settings.MANUAL_SOURCE, user=self.user1, is_active=True)
+        self.profile2 = Profile.objects.create(source=settings.MANUAL_SOURCE, user=self.user2, is_active=True)
 
         self.admin_access = Access.objects.create(perimeter_id=self.aphp.id,
                                                   role=self.role_full_admin,
@@ -87,7 +87,7 @@ class UserTests(BaseTests):
 class UserTestsAsAdmin(UserTests):
     unupdatable_fields = ["provider_name", "last_login_datetime", "source"]
     unsettable_default_fields = dict(last_login_datetime=None, source=None)
-    unsettable_fields = ["provider_id"]
+    unsettable_fields = []
 
     def test_get_user_as_main_admin(self):
         # As a main admin, I can get a user's full data

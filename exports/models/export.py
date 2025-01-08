@@ -3,15 +3,15 @@ from typing import Optional
 
 from django.db import models
 from django.db.models import CASCADE
+from django.conf import settings
 from django.utils import timezone
 
 from admin_cohort.models import User, JobModel
-from admin_cohort.settings import DAYS_TO_KEEP_EXPORTED_FILES
 from cohort.models import CohortResult
 from exports.models import ExportsBaseModel, Datalab
-from exports import ExportTypes
+from exports.apps import ExportsConfig
 
-OUTPUT_FORMATS = [(t.value, t.value) for t in ExportTypes]
+OUTPUT_FORMATS = [(t.value, t.value) for t in ExportsConfig.ExportTypes]
 
 
 class Export(ExportsBaseModel, JobModel):
@@ -61,4 +61,4 @@ class Export(ExportsBaseModel, JobModel):
         return self.base_cohort and self.base_cohort.dated_measure.measure or None
 
     def available_for_download(self) -> bool:
-        return self.created_at + timedelta(days=DAYS_TO_KEEP_EXPORTED_FILES) > timezone.now()
+        return self.created_at + timedelta(days=settings.DAYS_TO_KEEP_EXPORTED_FILES) > timezone.now()

@@ -1,8 +1,8 @@
 import logging
 from datetime import date, timedelta
 
-from django.conf import settings
 from django.db.models import Q, Count
+from django.conf import settings
 
 from accesses.models import Access, Profile
 from accesses.services.accesses import accesses_service

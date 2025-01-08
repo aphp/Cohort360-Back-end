@@ -1,3 +1,5 @@
+[![Actions Status](https://github.com/aphp/Cohort360-Back-end/workflows/main/badge.svg)](https://github.com/aphp/Cohort360-Back-end/actions)
+[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=aphp_Cohort360-Back-end&metric=alert_status)](https://sonarcloud.io/dashboard?id=aphp_Cohort360-Back-end)
 ![image](https://img.shields.io/badge/Python-3.11-blue/?color=blue&logo=python&logoColor=9cf)
 ![image](https://img.shields.io/badge/Django-5.0-%2344b78b/?color=%2344b78b&logo=django&logoColor=green)
 

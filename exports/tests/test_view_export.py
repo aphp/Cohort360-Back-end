@@ -30,13 +30,14 @@ class ExportViewSetTest(ExportsTestBase):
         self.export_basic_data = {"name": "Special Export",
                                   "output_format": self.export_type,
                                   "nominative": True,
-                                  "export_tables": [{"table_ids": ["person"],
+                                  "export_tables": [{"table_name": "person",
                                                      "cohort_result_source": self.cohort_result.uuid,
                                                      "fhir_filter": self.fhir_filter.uuid}]
                                   }
         self.export_data_error = {**self.export_basic_data,
-                                  "export_tables": [{"table_ids": ["person"]},
-                                                    {"table_ids": ["table01", "table02"]}]
+                                  "export_tables": [{"table_name": "person"},
+                                                    {"table_name": "table01"},
+                                                    {"table_name": "table02"}]
                                   }
         self.exports = [Export.objects.create(**dict(output_format=self.export_type,
                                                      owner=self.exporter_user,
@@ -54,12 +55,12 @@ class ExportViewSetTest(ExportsTestBase):
                                   result_count=len(self.exports)-1)
 
     @patch.object(ExportViewSet, 'permission_classes', [IsAuthenticated])
-    def test_create_export_no_exporter_implemented(self):
+    def test_create_export_success(self):
         create_url = reverse(viewname=self.viewname_list)
         self.check_test_create_view(request_user=self.exporter_user,
                                     create_url=create_url,
                                     request_data=self.export_basic_data,
-                                    expected_resp_status=status.HTTP_400_BAD_REQUEST)
+                                    expected_resp_status=status.HTTP_201_CREATED)
 
     @patch.object(ExportViewSet, 'permission_classes', [IsAuthenticated])
     def test_create_export_error(self):
