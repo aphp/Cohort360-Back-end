@@ -221,7 +221,6 @@ SPECTACULAR_SETTINGS = {"TITLE": TITLE,
                             "withCredentials": True,
                             "persistAuthorization": True,
                             "oauth2RedirectUrl": f"{env('OIDC_SWAGGER_REDIRECT_URL', default='/url/not/set')}",
-                            "showMutatedRequest": True,
                         },
                         "SWAGGER_UI_OAUTH2_CONFIG": {
                             "appName": TITLE,

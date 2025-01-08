@@ -45,7 +45,7 @@ class CSVExporter(BaseExporter):
         self.confirm_export_received(export=export)
         params = params or {"joinOnPrimarykey": export.group_tables,
                             "output": {"type": self.type,
-                                       "exportPath": f"{export.target_full_path}.zip"
+                                       "filePath": f"{export.target_full_path}.zip"
                                        },
                             }
         super().handle_export(export=export, params=params)
