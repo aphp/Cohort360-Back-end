@@ -43,7 +43,7 @@ class CSVExporter(BaseExporter):
 
     def handle_export(self, export: Export, params: dict = None) -> None:
         self.confirm_export_received(export=export)
-        params = params or {"joinOnPrimarykey": export.group_tables,
+        params = params or {"joinOnPrimaryKey": export.group_tables,
                             "output": {"type": self.type,
                                        "filePath": f"{export.target_full_path}.zip"
                                        },
