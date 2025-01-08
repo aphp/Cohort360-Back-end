@@ -14,7 +14,8 @@ _logger = logging.getLogger("info")
 
 def send_alert_email(user: User, days: int):
     context = {"recipient_name": user.display_name,
-               "expiry_days": days
+               "expiry_days": days,
+               "access_managers_list_link": settings.ACCESS_MANAGERS_LIST_LINK
                }
     email_notif = EmailNotification(subject="Expiration de vos accès à Cohort360",
                                     to=user.email,
