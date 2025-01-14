@@ -98,6 +98,7 @@ class BaseExporter:
         self.log_export_task(export.pk, f"Asking to export for '{export.target_name}'")
         params.update({"tablesToExport": self.build_tables_input(export),
                        "noDateShift": export.nominative or not export.shift_dates,
+                       "disableTerminology": self.export_api.disable_terminology,
                        })
         if not export.nominative:
             params["pseudo"] = export.datalab.name

@@ -20,6 +20,7 @@ class ExportAPI(BaseAPI):
     def __init__(self):
         super().__init__()
         self.required_table = "person"
+        self.disable_terminology = self.api_conf.get('DISABLE_TERMINOLOGY')
 
     def launch_export(self, export_id: UUID, params: dict) -> Union[str, JsonResponse]:
         try:

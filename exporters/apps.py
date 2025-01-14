@@ -37,5 +37,6 @@ class ExportersConfig(AppConfig):
             "API_URL": env.get('EXPORT_API_URL'),
             "AUTH_TOKEN": env.get('EXPORT_AUTH_TOKEN'),
             "TASK_STATUS_ENDPOINT": env.get('EXPORT_TASK_STATUS_ENDPOINT'),
+            "DISABLE_TERMINOLOGY": env.get('DISABLE_TERMINOLOGY', False),
         },
     }
