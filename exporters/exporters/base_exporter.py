@@ -86,9 +86,9 @@ class BaseExporter:
 
         other_tables = []
         for t in export.export_tables.exclude(name=required_table_name):
-            t_data = {"tableName": t.name,
-                      "cohortId": t.cohort_result_subset and t.cohort_result_subset.group_id or '',
-                     }
+            t_data = {"tableName": t.name}
+            if t.cohort_result_subset:
+                t_data["cohortId"] = t.cohort_result_subset.group_id
             if t.columns:
                 t_data["columnsToExport"] = t.columns
             other_tables.append(t_data)
