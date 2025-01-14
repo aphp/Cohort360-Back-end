@@ -11,7 +11,7 @@ class InfluxDBMiddleware:
         self.client = InfluxDBClient(url=settings.INFLUXDB_URL, token=settings.INFLUXDB_TOKEN)
 
     def __call__(self, request):
-        if settings.INFLUXDB_ENABLED:
+        if not settings.INFLUXDB_ENABLED:
             return self.get_response(request)
 
         start_time = time()
