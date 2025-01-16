@@ -265,6 +265,7 @@ class AuthService:
 
     def _get_authenticator(self, auth_method: str):
         try:
+            _logger.info(f"Authenticating using {auth_method}")
             return self.authenticators[auth_method]
         except KeyError as ke:
             _logger.error(f"Invalid authentication method : {auth_method}")
@@ -298,6 +299,7 @@ class AuthService:
             return None
         try:
             authenticator = self._get_authenticator(auth_method)
+            _logger.info(f"Authenticating token: {token}")
             username = authenticator.authenticate(token=token)
             user = User.objects.get(username=username)
             for post_auth_hook in self.post_auth_hooks:
