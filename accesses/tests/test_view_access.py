@@ -3,12 +3,13 @@ from datetime import timedelta
 
 from django.db.models import Q
 from django.utils import timezone
+from django.conf import settings
+
 from rest_framework import status
 
 from accesses.models import Access
 from accesses.tests.base import AccessesAppTestsBase
 from accesses.views import AccessViewSet
-from admin_cohort.settings import MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS, ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS
 from admin_cohort.tests.tests_tools import CaseRetrieveFilter, CreateCase, new_user_and_profile, PatchCase, ListCase, DeleteCase
 
 
@@ -95,7 +96,7 @@ class AccessViewTests(AccessesAppTestsBase):
                           retrieve_filter=self.basic_retrieve_filter)
         self.check_create_case(case)
         access = Access.objects.get(Q(**data))
-        expected_end_datetime = data["start_datetime"] + timedelta(days=MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS)
+        expected_end_datetime = data["start_datetime"] + timedelta(days=settings.MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS)
         self.assertEqual(expected_end_datetime, access.end_datetime)
 
     def test_error_create_access_with_past_start_end_datetime(self):
@@ -407,7 +408,8 @@ class AccessViewTests(AccessesAppTestsBase):
                                                            role=self.role_data_reader_nomi_csv_exporter_nomi,
                                                            perimeter=self.p9,
                                                            start_datetime=timezone.now(),
-                                                           end_datetime=timezone.now() + timedelta(days=ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS - 1))
+                                                           end_datetime=timezone.now() +
+                                                                        timedelta(days=settings.ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS - 1))
         case_1 = ListCase(params={"expiring": "true"},
                           to_find=[expiring_access_for_user_y],
                           user=self.user_y,

@@ -8,7 +8,6 @@ from rest_framework import status
 
 from accesses.models import Access, Role
 from admin_cohort.models import MaintenancePhase
-from admin_cohort.settings import ADMINS
 from admin_cohort.tests.tests_tools import new_user_and_profile, \
     CaseRetrieveFilter, ViewSetTestsWithBasicPerims, ListCase, \
     CreateCase, DeleteCase, PatchCase, RetrieveCase
@@ -39,7 +38,6 @@ class MaintenanceTests(ViewSetTestsWithBasicPerims):
     def setUp(self):
         super(MaintenanceTests, self).setUp()
 
-        self.test_admin_email = ADMINS[0][1]
         self.user_maintenance_manager, profile_maintenance_manager = new_user_and_profile()
         self.role_maintenance_manager = Role.objects.create(right_full_admin=True)
         Access.objects.create(perimeter_id=self.hospital3.id,

@@ -3,6 +3,7 @@ import json
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Union, Tuple, Optional, Callable, Dict, List
 
 import environ
@@ -17,16 +18,19 @@ from jwt.algorithms import RSAAlgorithm
 from requests import RequestException
 from rest_framework import status, HTTP_HEADER_ENCODING
 from rest_framework.exceptions import AuthenticationFailed
-from rest_framework_simplejwt.authentication import AUTH_HEADER_TYPE_BYTES
-from rest_framework_simplejwt.exceptions import InvalidToken
 
 from admin_cohort.models import User
 from admin_cohort.types import ServerError, LoginError, OIDCAuthTokens, JWTAuthTokens, AuthTokens
-from cohort_job_server.apps import CohortJobServerConfig
 
 env = environ.Env()
 _logger = logging.getLogger('info')
 _logger_err = logging.getLogger('django.request')
+
+extra_applicative_users = {}
+
+if apps.is_installed("cohort_job_server"):
+    from cohort_job_server.apps import CohortJobServerConfig
+    extra_applicative_users = CohortJobServerConfig.APPLICATIVE_USERS_TOKENS
 
 
 class Auth(ABC):
@@ -52,7 +56,7 @@ class Auth(ABC):
         if response.status_code == status.HTTP_200_OK:
             return self.tokens_class(**response.json()).__dict__
         elif response.status_code in (status.HTTP_400_BAD_REQUEST, status.HTTP_401_UNAUTHORIZED):
-            raise InvalidToken("Token is invalid or has expired")
+            raise InvalidTokenError("Token is invalid or has expired")
         else:
             response.raise_for_status()
 
@@ -121,6 +125,20 @@ def build_oidc_configs() -> List[OIDCAuthConfig]:
     return configs
 
 
+@lru_cache
+def get_issuer_certs(issuer: str) -> dict:
+    issuer_certs_url = f"{issuer}/protocol/openid-connect/certs"
+    response = requests.get(url=issuer_certs_url)
+    if response.status_code != status.HTTP_200_OK:
+        raise ServerError(f"Error {response.status_code} from OIDC Auth Server ({issuer_certs_url}): {response.text}")
+    jwks = response.json()
+    certs = {}
+    for jwk in jwks['keys']:
+        kid = jwk['kid']
+        certs[kid] = RSAAlgorithm.from_jwk(json.dumps(jwk))
+    return certs
+
+
 class OIDCAuth(Auth):
     USERNAME_LOOKUP = "preferred_username"
     tokens_class = OIDCAuthTokens
@@ -128,7 +146,7 @@ class OIDCAuth(Auth):
     def __init__(self):
         super().__init__()
         self.oidc_extra_allowed_servers = env("OIDC_EXTRA_SERVER_URLS", default="").split(",")
-        self.audience = env("OIDC_AUDIENCE").split(',')
+        self.audience = env("OIDC_AUDIENCE", default="").split(',')
         self.refresh_grant_type = "refresh_token"
         self.oidc_configs = build_oidc_configs()
 
@@ -171,18 +189,9 @@ class OIDCAuth(Auth):
         decoded_token = self.decode_token(token=token, verify_signature=False)
         issuer = decoded_token.get("iss")
         assert issuer in self.recognised_issuers, f"Unrecognised issuer: `{issuer}`"
-        issuer_certs_url = f"{issuer}/protocol/openid-connect/certs"
-        response = requests.get(url=issuer_certs_url)
-        if response.status_code != status.HTTP_200_OK:
-            raise ServerError(
-                f"Error {response.status_code} from OIDC Auth Server ({issuer_certs_url}): {response.text}")
-        jwks = response.json()
-        public_keys = {}
-        for jwk in jwks['keys']:
-            kid = jwk['kid']
-            public_keys[kid] = RSAAlgorithm.from_jwk(json.dumps(jwk))
+        certs = get_issuer_certs(issuer=issuer)
         kid = jwt.get_unverified_header(token)['kid']
-        key = public_keys.get(kid)
+        key = certs.get(kid)
         decoded = self.decode_token(token=token, key=key, issuer=issuer, audience=self.audience)
         return super().retrieve_username(token_payload=decoded)
 
@@ -208,9 +217,9 @@ class JWTAuth(Auth):
 
     def __init__(self):
         super().__init__()
-        self.server_url = env("JWT_SERVER_URL")
-        self.server_headers = {"X-User-App": env("JWT_APP_NAME")}
-        self.signing_key = env("JWT_SIGNING_KEY")
+        self.server_url = env.str("JWT_SERVER_URL", default="")
+        self.server_headers = {"X-User-App": env.str("JWT_APP_NAME", default="")}
+        self.signing_key = env.str("JWT_SIGNING_KEY", default="")
 
     @property
     def token_url(self):
@@ -243,8 +252,8 @@ class AuthService:
     authenticators = {settings.OIDC_AUTH_MODE: OIDCAuth(),
                       **({settings.JWT_AUTH_MODE: JWTAuth()} if settings.ENABLE_JWT else {})
                       }
-    applicative_users = {env("ROLLOUT_TOKEN"): env("ROLLOUT_USERNAME", default="ROLLOUT_PIPELINE"),
-                         **CohortJobServerConfig.APPLICATIVE_USERS_TOKENS
+    applicative_users = {env("ROLLOUT_TOKEN", default=""): env("ROLLOUT_USERNAME", default="ROLLOUT_PIPELINE"),
+                         **extra_applicative_users
                          }
 
     def __init__(self):
@@ -348,7 +357,7 @@ class AuthService:
         parts = header.split()
         if not parts:
             return None
-        if parts[0] not in AUTH_HEADER_TYPE_BYTES:
+        if parts[0] != "Bearer".encode(HTTP_HEADER_ENCODING):
             return None
         if len(parts) != 2:
             raise AuthenticationFailed(code='bad_authorization_header',

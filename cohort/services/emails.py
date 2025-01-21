@@ -4,9 +4,9 @@ from django.conf import settings
 
 from admin_cohort.emails import EmailNotification
 from admin_cohort.models import User
-from admin_cohort.settings import EMAIL_SUPPORT_CONTACT
 
-BASE_CONTEXT = {"contact_email_address": EMAIL_SUPPORT_CONTACT}
+
+BASE_CONTEXT = {"contact_email_address": settings.EMAIL_SUPPORT_CONTACT}
 _logger = logging.getLogger('info')
 
 

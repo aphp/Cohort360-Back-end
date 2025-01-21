@@ -7,12 +7,12 @@ from typing import List, Optional, Dict, Set
 
 from django.db.models import QuerySet
 from django.utils import timezone
+from django.conf import settings
 from fhirpy import SyncFHIRClient
 
 from accesses.models import Perimeter, Access
 from accesses.services.accesses import AccessesService
 from accesses_fhir_perimeters.apps import AccessesFhirAuxConfig
-from admin_cohort.settings import ROOT_PERIMETER_TYPE, PERIMETERS_TYPES
 from admin_cohort.tools.cache import invalidate_cache
 
 _logger = logging.getLogger("info")
@@ -76,9 +76,9 @@ def get_source_type(care_site: FhirOrganization, level: int) -> str:
     TODO: add mapping from the FhirResource to the source type
     """
     if level == 1:
-        return ROOT_PERIMETER_TYPE
-    if len(PERIMETERS_TYPES) >= level:
-        return PERIMETERS_TYPES[level - 1]
+        return settings.ROOT_PERIMETER_TYPE
+    if len(settings.PERIMETER_TYPES) >= level:
+        return settings.PERIMETER_TYPES[level - 1]
     return get_source_type(care_site, level - 1)
 
 

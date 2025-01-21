@@ -53,7 +53,7 @@ class Command(BaseCommand):
         user_data = dict(firstname=firstname,
                          lastname=lastname,
                          email=email)
-        user = User.objects.create(**user_data, username=username, provider_id=username)
+        user = User.objects.create(**user_data, username=username)
         profile = Profile.objects.create(user_id=user.username, is_active=True)
         return profile
 

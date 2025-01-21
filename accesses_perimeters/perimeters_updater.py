@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import logging
-import os
 from typing import List, Union
 
+from django.conf import settings
 from django.db.models import Q, QuerySet
 from django.db.models.query import RawQuerySet
 from django.utils import timezone
@@ -11,8 +11,9 @@ from django.utils import timezone
 from accesses.models import Perimeter, Access
 from accesses.services.accesses import AccessesService
 from accesses_perimeters.models import Concept, CareSite
-from admin_cohort import settings
 from admin_cohort.tools.cache import invalidate_cache
+from cohort.models import RequestQuerySnapshot
+from cohort.services.request_query_snapshot import RequestQuerySnapshotService
 
 """
 This script define 3 data models and the function which will refresh by insert/update all modified Perimeters objects.
@@ -39,7 +40,8 @@ It is a mono-hierarchy => one parent maximum for 1.n children
 _logger = logging.getLogger("info")
 _logger_err = logging.getLogger("django.request")
 
-env = os.environ
+CARE_SITE_DOMAIN_CONCEPT_NAME = "Care site"
+IS_PART_OF_RELATIONSHIP_NAME = "Care Site is part of Care Site"
 
 
 class RelationPerimeter:
@@ -58,10 +60,8 @@ def get_concept_filter_id() -> tuple:
     It is used to define the relation between fact_id_1 and fact_id_2 in Where clause in psql query.
     """
     try:
-        domain_id = env.get("CARE_SITE_DOMAIN_CONCEPT_NAME")
-        relationship_id = env.get("IS_PART_OF_RELATIONSHIP_NAME")
-        is_part_of_rel_id = Concept.objects.get(concept_name=relationship_id).concept_id
-        cs_domain_concept_id = Concept.objects.get(concept_name=domain_id).concept_id
+        is_part_of_rel_id = Concept.objects.get(concept_name=IS_PART_OF_RELATIONSHIP_NAME).concept_id
+        cs_domain_concept_id = Concept.objects.get(concept_name=CARE_SITE_DOMAIN_CONCEPT_NAME).concept_id
     except Concept.DoesNotExist as e:
         raise ValueError(f"Error while getting Concepts: {e}")
     return str(is_part_of_rel_id), str(cs_domain_concept_id)
@@ -109,7 +109,7 @@ def psql_query_care_site_relationship(top_care_site_id: int) -> str:
                    AND frr.domain_concept_id_1={cs_domain_concept_id}
                    AND frr.domain_concept_id_2={cs_domain_concept_id}
                    AND frr.relationship_concept_id={is_part_of_rel_id}
-                   AND css.care_site_type_source_value IN ({str(settings.PERIMETERS_TYPES)[1:-1]})
+                   AND css.care_site_type_source_value IN ({str(settings.PERIMETER_TYPES)[1:-1]})
                    AND css.delete_datetime IS NULL
                    AND frr.delete_datetime IS NULL
                    AND cd.delete_datetime IS NULL AND cd.source__type = 'Organization')
@@ -316,6 +316,36 @@ def get_child_care_sites(care_site: CareSite, all_care_sites: Union[List[CareSit
     return ",".join(children_ids)
 
 
+def get_updated_cohort_id_mapping(all_perimeters: QuerySet, all_valid_care_sites: List[CareSite]):
+    """
+    Get the updated cohort id mapping for all perimeters
+    """
+    def find_matching_care_site_cohort_id(perimeter: Perimeter):
+        matching_care_site = [cs for cs in all_valid_care_sites if cs.care_site_id == perimeter.id]
+        if matching_care_site:
+            return str(matching_care_site[0].cohort_id)
+        return None
+    return {
+        perimeter.cohort_id: find_matching_care_site_cohort_id(perimeter)
+        for perimeter in all_perimeters
+    }
+
+
+def update_query_snapshots_cohort_id(all_perimeters: QuerySet, all_valid_care_sites: List[CareSite]):
+    """
+    Update the cohort id in query snapshots if the cohort id for the perimeters has changed
+    """
+    matching = get_updated_cohort_id_mapping(all_perimeters, all_valid_care_sites)
+    differing_matching = {k: v for k, v in matching.items() if v is not None and k != v}
+    rqs_to_update = []
+    for rqs in RequestQuerySnapshot.objects.filter(perimeters_ids__overlap=list(differing_matching.keys())):
+        _logger.info(f"Updating perimeters for request snapshot {rqs.uuid} with original perimeters {rqs.perimeters_ids}")
+        rqs.serialized_query = RequestQuerySnapshotService.update_query_perimeter(rqs.serialized_query, differing_matching)
+        rqs.perimeters_ids = sorted(list(set(differing_matching.get(pid) or pid for pid in rqs.perimeters_ids)))
+        rqs_to_update.append(rqs)
+    RequestQuerySnapshot.objects.bulk_update(rqs_to_update, ['serialized_query', 'perimeters_ids'])
+
+
 """
 Main function to recreate all Perimeters:
 the update run in "INSERT/UPDATE/DELETE" mode (delta).
@@ -330,14 +360,14 @@ process steps:
 
 
 def perimeters_data_model_objects_update():
-    aphp_id = int(env.get("TOP_HIERARCHY_CARE_SITE_ID"))
-    _logger.info("1. Get top hierarchy ID. Must be APHP's")
+    top_perimeter_id = settings.ROOT_PERIMETER_ID
+    _logger.info("1. Get root perimeter id")
 
-    all_valid_care_sites = CareSite.objects.raw(psql_query_care_site_relationship(top_care_site_id=aphp_id))
+    all_valid_care_sites = CareSite.objects.raw(psql_query_care_site_relationship(top_care_site_id=top_perimeter_id))
     try:
-        top_care_site = [cs for cs in all_valid_care_sites if cs.care_site_id == aphp_id][0]
+        top_care_site = [cs for cs in all_valid_care_sites if cs.care_site_id == top_perimeter_id][0]
     except IndexError:
-        _logger_err.error("Perimeters daily update: missing top care site APHP")
+        _logger_err.error("Perimeters daily update: missing top care site")
         return
     _logger.info(f"2. Fetch {len(all_valid_care_sites)} care sites from OMOP DB")
 
@@ -350,14 +380,16 @@ def perimeters_data_model_objects_update():
                                           all_perimeters=all_perimeters)
     _logger.info("5. Start recursive Perimeter objects creation")
     second_level = 2
-    recursively_create_child_perimeters(parents_ids=[aphp_id],
+    recursively_create_child_perimeters(parents_ids=[top_perimeter_id],
                                         care_sites=all_valid_care_sites,
                                         all_perimeters=all_perimeters,
                                         previous_level_perimeters=top_perimeters,
                                         level=second_level)
-    _logger.info("6. Deleting removed perimeters")
+    _logger.info("6. Update cohort id in query snapshots")
+    update_query_snapshots_cohort_id(all_perimeters, all_valid_care_sites)
+    _logger.info("7. Deleting removed perimeters")
     perimeters_to_delete = delete_perimeters(perimeters=all_perimeters, care_sites=all_valid_care_sites)
-    _logger.info("7. Closing linked accesses")
+    _logger.info("8. Closing linked accesses")
     AccessesService.close_accesses(perimeters_to_delete)
     _logger.info("End of perimeters updating. Invalidating cache for Perimeters and Accesses")
     invalidate_cache(model_name=Perimeter.__name__)

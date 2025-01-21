@@ -1,5 +1,5 @@
 import logging
-from datetime import date, datetime, time
+import tomllib
 from logging.handlers import DEFAULT_TCP_LOGGING_PORT
 from pathlib import Path
 
@@ -7,12 +7,17 @@ import environ
 import pytz
 from celery.schedules import crontab
 
-TITLE = "Portail/Cohort360 API"
-VERSION = "3.24.12"
-AUTHOR = "Assistance Publique - Hopitaux de Paris, Département I&D"
-DESCRIPTION_MD = f"""Supports the official **Cohort360** web app and **Portail**  
-                     Built by **{AUTHOR}**
-                  """
+
+def get_project_info():
+    pyproject_file = Path(__file__).parent.parent / "pyproject.toml"
+    with open(pyproject_file, "rb") as f:
+        pyproject = tomllib.load(f)
+    project_info = pyproject.get("project", {})
+    return (project_info.get("name"),
+            project_info.get('version'),
+            project_info.get("description"))
+
+TITLE, VERSION, DESCRIPTION = get_project_info()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -21,17 +26,17 @@ environ.Env.read_env()
 
 NOTSET = environ.Env.NOTSET
 
-BACK_HOST = env("BACK_HOST")
-BACK_URL = f"https://{env('BACK_HOST')}"
-FRONT_URL = env("FRONT_URL")
-FRONT_URLS = env("FRONT_URLS").split(',')
+BACK_HOST = env.str("BACK_HOST", default="localhost:8000")
+BACK_URL = f"https://{BACK_HOST}"
+FRONT_URL = env.str("FRONT_URL", default="http://localhost:3000")
+FRONT_URLS = env.str("FRONT_URLS", default="http://localhost:3000").split(',')
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = env("DJANGO_SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 # Debug will also send sensitive data with the response to an error
-DEBUG = env.int("DEBUG") == 1
+DEBUG = env.int("DEBUG", default=0) == 1
 
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = [BACK_URL] + FRONT_URLS
@@ -56,7 +61,8 @@ ACCESS_TOKEN_COOKIE_SECURE = not DEBUG
 TRACE_ID_HEADER = "X-Trace-Id"
 IMPERSONATING_HEADER = "X-Impersonate"
 
-ADMINS = [a.split(',') for a in env("ADMINS").split(';')]
+ADMINS = [a.split(',') for a in env("ADMINS", default="").split(';')]
+
 NOTIFY_ADMINS = env.bool("NOTIFY_ADMINS", default=False)
 
 logging.captureWarnings(True)
@@ -110,7 +116,7 @@ LOGGING = dict(version=1,
 
 # Application definition
 INCLUDED_APPS = env('INCLUDED_APPS', default='accesses,cohort_job_server,cohort,exports,accesses_fhir_perimeters').split(",")
-INFLUXDB_DISABLED = env.int("INFLUXDB_DISABLED") == 1
+INFLUXDB_ENABLED = env.bool("INFLUXDB_ENABLED", default=False)
 ENABLE_JWT = env.bool("ENABLE_JWT", default=False)
 
 INSTALLED_APPS = ['django.contrib.admin',
@@ -144,8 +150,8 @@ MIDDLEWARE = [
     'admin_cohort.middleware.jwt_session_middleware.JWTSessionMiddleware',
     'admin_cohort.middleware.swagger_headers_middleware.SwaggerHeadersMiddleware'
 ]
-MIDDLEWARE = ((['admin_cohort.middleware.influxdb_middleware.InfluxDBMiddleware'] if not INFLUXDB_DISABLED else []) +
-              MIDDLEWARE)
+MIDDLEWARE = (INFLUXDB_ENABLED and ['admin_cohort.middleware.influxdb_middleware.InfluxDBMiddleware'] or []) + MIDDLEWARE
+
 
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
@@ -175,7 +181,7 @@ DATABASES = {'default': {'ENGINE': 'django.db.backends.postgresql',
                          'PASSWORD': env("DB_AUTH_PASSWORD"),
                          'HOST': env("DB_AUTH_HOST"),
                          'PORT': env("DB_AUTH_PORT"),
-                         'TEST': {'NAME': 'test_portail'}
+                         'TEST': {'NAME': f'test_{env("DB_AUTH_NAME")}'}
                          }
              }
 
@@ -201,15 +207,20 @@ REST_FRAMEWORK = {
 PAGINATION_MAX_LIMIT = 30_000
 
 SPECTACULAR_SETTINGS = {"TITLE": TITLE,
-                        "DESCRIPTION": DESCRIPTION_MD,
+                        "DESCRIPTION": DESCRIPTION,
                         "VERSION": VERSION,
                         "SERVE_INCLUDE_SCHEMA": False,
                         "COMPONENT_SPLIT_REQUEST": True,
                         "SORT_OPERATION_PARAMETERS": False,
                         "SWAGGER_UI_SETTINGS": {
+                            "filter": True,
+                            "docExpansion": "none",
+                            "tagsSorter": "alpha",
+                            "operationsSorter": "method",
+                            "tryItOutEnabled": True,
                             "withCredentials": True,
                             "persistAuthorization": True,
-                            "oauth2RedirectUrl": f"{env('OIDC_SWAGGER_REDIRECT_URL')}",
+                            "oauth2RedirectUrl": f"{env('OIDC_SWAGGER_REDIRECT_URL', default='/url/not/set')}",
                         },
                         "SWAGGER_UI_OAUTH2_CONFIG": {
                             "appName": TITLE,
@@ -225,16 +236,16 @@ APPEND_SLASH = False
 AUTH_USER_MODEL = 'admin_cohort.User'
 
 # EMAILS
-EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS")
-EMAIL_HOST = env("EMAIL_HOST")
-EMAIL_PORT = env("EMAIL_PORT")
-EMAIL_SUPPORT_CONTACT = env("EMAIL_SUPPORT_CONTACT")
-EMAIL_SENDER_ADDRESS = env("EMAIL_SENDER_ADDRESS")
-EMAIL_REGEX_CHECK = env("EMAIL_REGEX_CHECK", default=r"^[\w.+-]+@[\w-]+\.[\w]+$")
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+EMAIL_HOST = env.str("EMAIL_HOST", default="")
+EMAIL_PORT = env.str("EMAIL_PORT", default="")
+EMAIL_SUPPORT_CONTACT = env.str("EMAIL_SUPPORT_CONTACT", default="")
+EMAIL_SENDER_ADDRESS = env.str("EMAIL_SENDER_ADDRESS", default="")
+EMAIL_REGEX_CHECK = env.str("EMAIL_REGEX_CHECK", default=r"^[\w.+-]+@[\w-]+\.[\w]+$")
 
 # Celery
-CELERY_BROKER_URL = env("CELERY_BROKER_URL")
-CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND")
+CELERY_BROKER_URL = env.str("CELERY_BROKER_URL", default="redis://localhost:6379")
+CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 CELERY_ACCEPT_CONTENT = ['application/json']
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TASK_SERIALIZER = 'json'
@@ -264,11 +275,10 @@ if LOCAL_TASKS:
 utc = pytz.UTC
 
 MANUAL_SOURCE = "Manual"
-PERIMETERS_TYPES = env("PERIMETER_TYPES").split(",")
-ROOT_PERIMETER_TYPE = PERIMETERS_TYPES[0]
+PERIMETER_TYPES = env("PERIMETER_TYPES").split(",")
+ROOT_PERIMETER_TYPE = PERIMETER_TYPES[0]
+ROOT_PERIMETER_ID = env.int("ROOT_PERIMETER_ID", default=0)
 SHARED_FOLDER_NAME = 'Mes requêtes reçues'
-MODEL_MANUAL_START_DATE_DEFAULT_ON_UPDATE = utc.localize(datetime.combine(date(1970, 1, 1), time.min))
-MODEL_MANUAL_END_DATE_DEFAULT_ON_UPDATE = utc.localize(datetime.combine(date(2070, 1, 1), time.min))
 
 ACCESS_TOKEN_COOKIE = "access_token"
 SESSION_COOKIE_NAME = "sessionid"
@@ -279,17 +289,18 @@ OIDC_AUTH_MODE = "OIDC"
 
 # CUSTOM EXCEPTION REPORTER
 DEFAULT_EXCEPTION_REPORTER_FILTER = 'admin_cohort.tools.except_report_filter.CustomExceptionReporterFilter'
-SENSITIVE_PARAMS = env('SENSITIVE_PARAMS').split(",")
+SENSITIVE_PARAMS = env('SENSITIVE_PARAMS', default="password").split(",")
+
 
 # COHORTS +20k
 LAST_COUNT_VALIDITY = env.int("LAST_COUNT_VALIDITY", default=24)  # in hours
 COHORT_LIMIT = env.int("COHORT_LIMIT", default=20_000)
 
 # InfluxDB
-INFLUXDB_TOKEN = env("INFLUXDB_DJANGO_TOKEN", default="" if INFLUXDB_DISABLED else NOTSET)
-INFLUXDB_URL = env("INFLUXDB_URL", default="" if INFLUXDB_DISABLED else NOTSET)
-INFLUXDB_ORG = env("INFLUXDB_ORG", default="" if INFLUXDB_DISABLED else NOTSET)
-INFLUXDB_BUCKET = env("INFLUXDB_BUCKET", default="" if INFLUXDB_DISABLED else NOTSET)
+INFLUXDB_TOKEN = env("INFLUXDB_DJANGO_TOKEN", default=NOTSET if INFLUXDB_ENABLED else "")
+INFLUXDB_URL = env("INFLUXDB_URL", default=NOTSET if INFLUXDB_ENABLED else "")
+INFLUXDB_ORG = env("INFLUXDB_ORG", default=NOTSET if INFLUXDB_ENABLED else "")
+INFLUXDB_BUCKET = env("INFLUXDB_BUCKET", default=NOTSET if INFLUXDB_ENABLED else "")
 
 # CACHE
 CACHES = {
@@ -298,7 +309,7 @@ CACHES = {
         "LOCATION": CELERY_BROKER_URL
     }
 }
-if not env.bool("ENABLE_CACHE"):
+if not env.bool("ENABLE_CACHE", default=False):
     CACHES = {'default': {'BACKEND': 'admin_cohort.tools.cache.CustomDummyCache'}}
 
 REST_FRAMEWORK_EXTENSIONS = {"DEFAULT_PARENT_LOOKUP_KWARG_NAME_PREFIX": "",

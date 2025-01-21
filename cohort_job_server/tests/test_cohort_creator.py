@@ -38,8 +38,8 @@ class CohortCreatorTest(BaseTest):
         self.cohort_creator.launch_cohort_creation(self.cohort.pk, self.json_query, self.auth_headers)
         mock_launch.assert_called_once()
         self.cohort.refresh_from_db()
-        self.assertEquals(self.cohort.request_job_status, JobStatus.pending.value)
-        self.assertEquals(self.cohort.request_job_id, self.test_job_id)
+        self.assertEqual(self.cohort.request_job_status, JobStatus.pending.value)
+        self.assertEqual(self.cohort.request_job_id, self.test_job_id)
 
     @mock.patch.object(CohortCreate, 'launch')
     def test_successfully_launch_large_cohort_creation(self, mock_launch):
@@ -52,8 +52,8 @@ class CohortCreatorTest(BaseTest):
         self.cohort_creator.launch_cohort_creation(self.cohort.pk, self.json_query, self.auth_headers)
         mock_launch.assert_called_once()
         self.cohort.refresh_from_db()
-        self.assertEquals(self.cohort.request_job_status, JobStatus.long_pending.value)
-        self.assertEquals(self.cohort.request_job_id, self.test_job_id)
+        self.assertEqual(self.cohort.request_job_status, JobStatus.long_pending.value)
+        self.assertEqual(self.cohort.request_job_id, self.test_job_id)
 
     @mock.patch.object(CohortCreate, 'launch')
     def test_error_launch_cohort_creation(self, mock_launch):
@@ -61,8 +61,8 @@ class CohortCreatorTest(BaseTest):
         self.cohort_creator.launch_cohort_creation(self.cohort.pk, self.json_query, self.auth_headers)
         mock_launch.assert_called_once()
         self.cohort.refresh_from_db()
-        self.assertEquals(self.cohort.request_job_status, JobStatus.failed.value)
-        self.assertEquals(self.cohort.request_job_fail_msg, self.test_err_msg)
+        self.assertEqual(self.cohort.request_job_status, JobStatus.failed.value)
+        self.assertEqual(self.cohort.request_job_fail_msg, self.test_err_msg)
 
     def test_successfully_handle_patch_cohort(self):
         group_id, group_count = '12345', 555
@@ -72,9 +72,9 @@ class CohortCreatorTest(BaseTest):
         self.cohort_creator.handle_patch_cohort(cohort=self.cohort, data=patch_data)
         self.assertTrue('group.id' not in patch_data)
         self.assertTrue('group.count' not in patch_data)
-        self.assertEquals(patch_data['group_id'], group_id)
-        self.assertEquals(self.cohort.dated_measure.measure, group_count)
-        self.assertEquals(patch_data['request_job_status'], JobStatus.finished.value)
+        self.assertEqual(patch_data['group_id'], group_id)
+        self.assertEqual(self.cohort.dated_measure.measure, group_count)
+        self.assertEqual(patch_data['request_job_status'], JobStatus.finished.value)
         self.assertIsNotNone(patch_data['request_job_duration'])
 
     def test_handle_patch_cohort_failed(self):
@@ -82,8 +82,8 @@ class CohortCreatorTest(BaseTest):
                       'message': self.test_err_msg}
         self.cohort_creator.handle_patch_cohort(cohort=self.cohort, data=patch_data)
         self.assertTrue('message' not in patch_data)
-        self.assertEquals(patch_data['request_job_status'], JobStatus.failed.value)
-        self.assertEquals(patch_data['request_job_fail_msg'], self.test_err_msg)
+        self.assertEqual(patch_data['request_job_status'], JobStatus.failed.value)
+        self.assertEqual(patch_data['request_job_fail_msg'], self.test_err_msg)
         self.assertIsNotNone(patch_data['request_job_duration'])
 
     def test_handle_patch_cohort_invalid_status(self):
