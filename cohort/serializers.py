@@ -184,7 +184,7 @@ class RQSSerializer(BaseSerializer):
     owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
     request = PrimaryKeyRelatedFieldWithOwner(queryset=Request.objects.all(), required=False)
     previous_snapshot = PrimaryKeyRelatedFieldWithOwner(required=False, queryset=RequestQuerySnapshot.objects.all())
-    dated_measures = DatedMeasureSerializer(many=True, read_only=True)
+    dated_measures = serializers.SerializerMethodField()
     cohort_results = CohortResultSerializer(many=True, read_only=True)
     shared_by = UserSerializer(allow_null=True, read_only=True)
 
@@ -194,6 +194,10 @@ class RQSSerializer(BaseSerializer):
         read_only_fields = ["dated_measures",
                             "cohort_results",
                             "shared_by"]
+
+    def get_dated_measures(self, obj):
+        dated_measures = obj.dated_measures.all().order_by('-modified_at')
+        return DatedMeasureSerializer(dated_measures, many=True).data
 
 
 class RQSCreateSerializer(serializers.ModelSerializer):
