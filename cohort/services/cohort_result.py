@@ -54,7 +54,7 @@ class CohortResultService(CommonService):
                                                     dated_measure=new_dm,
                                                     request_query_snapshot=new_rqs)
         with transaction.atomic():
-            self.handle_cohort_creation(cohort_subset, request)
+            self.handle_cohort_creation(cohort_subset, request, False)
         return cohort_subset
 
     @staticmethod
@@ -66,8 +66,8 @@ class CohortResultService(CommonService):
         return CohortResult.objects.filter(request_job_status__in=active_statuses) \
             .count()
 
-    def handle_cohort_creation(self, cohort: CohortResult, request) -> None:
-        if request.data.pop("global_estimate", False):
+    def handle_cohort_creation(self, cohort: CohortResult, request, global_estimate: bool) -> None:
+        if global_estimate:
             dm_service.handle_global_count(cohort, request)
         try:
             create_cohort.s(cohort_id=cohort.pk,

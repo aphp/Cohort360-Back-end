@@ -1,5 +1,5 @@
 from django.db import transaction
-from django.db.models import Q, F
+from django.db.models import Q
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
@@ -12,8 +12,7 @@ from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools import join_qs
 from cohort.services.cohort_result import cohort_service
 from cohort.models import CohortResult
-from cohort.serializers import CohortResultSerializer, CohortResultSerializerFullDatedMeasure, CohortResultCreateSerializer, \
-    CohortResultPatchSerializer, CohortRightsSerializer
+from cohort.serializers import CohortResultSerializer, CohortResultCreateSerializer, CohortResultPatchSerializer, CohortRightsSerializer
 from cohort.services.cohort_rights import cohort_rights_service
 from cohort.views.shared import UserObjectsRestrictedViewSet
 from exports.services.export import export_service
@@ -30,9 +29,10 @@ class CohortFilter(filters.FilterSet):
     name = filters.CharFilter(field_name='name', lookup_expr="icontains")
     min_result_size = filters.NumberFilter(field_name='dated_measure__measure', lookup_expr='gte')
     max_result_size = filters.NumberFilter(field_name='dated_measure__measure', lookup_expr='lte')
-    min_fhir_datetime = filters.IsoDateTimeFilter(field_name='created_at', lookup_expr="gte")
-    max_fhir_datetime = filters.IsoDateTimeFilter(field_name='created_at', lookup_expr="lte")
-    request_id = filters.CharFilter(field_name='request_query_snapshot__request__pk')
+
+    min_created_at = filters.IsoDateTimeFilter(field_name='created_at', lookup_expr="gte")
+    max_created_at = filters.IsoDateTimeFilter(field_name='created_at', lookup_expr="lte")
+
     group_id = filters.CharFilter(method="multi_value_filter", field_name="group_id")
     status = filters.CharFilter(method="multi_value_filter", field_name="request_job_status")
 
@@ -47,17 +47,15 @@ class CohortFilter(filters.FilterSet):
         fields = ('name',
                   'min_result_size',
                   'max_result_size',
-                  'min_fhir_datetime',
-                  'max_fhir_datetime',
+                  'min_created_at',
+                  'max_created_at',
                   'favorite',
                   'group_id',
-                  'request_id',
                   'status')
 
 
 class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
-    queryset = CohortResult.objects.select_related('request_query_snapshot__request') \
-                                   .annotate(request_id=F('request_query_snapshot__request__uuid')).all()
+    queryset = CohortResult.objects.select_related('request_query_snapshot__request')
     serializer_class = CohortResultSerializer
     http_method_names = ['get', 'post', 'patch', 'delete']
     swagger_tags = ["Cohorts"]
@@ -67,6 +65,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                             'request_query_snapshot', 'request_query_snapshot_id',
                             'dated_measure', 'dated_measure_id']
 
+
     def get_permissions(self):
         special_permissions = cohort_service.get_special_permissions(self.request)
         if special_permissions:
@@ -75,34 +74,30 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             return [AllowAny()]
         return super().get_permissions()
 
+
     def get_queryset(self):
         if cohort_service.allow_use_full_queryset(request=self.request):
             return self.queryset
         return super().get_queryset().filter(is_subset=False)
 
-    def get_serializer_class(self):
-        if self.request.method in ["POST", "PUT", "PATCH"] \
-                and "dated_measure" in self.request.data \
-                and isinstance(self.request.data["dated_measure"], dict) \
-                or self.request.method == "GET":
-            return CohortResultSerializerFullDatedMeasure
-        return self.serializer_class
 
     @cache_response()
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
-    @extend_schema(request=CohortResultCreateSerializer,
-                   responses={status.HTTP_201_CREATED: CohortResultSerializer})
+
+    @extend_schema(request=CohortResultCreateSerializer, responses={status.HTTP_201_CREATED: CohortResultSerializer})
     @transaction.atomic
     def create(self, request, *args, **kwargs):
+        global_estimate = request.data.pop("global_estimate", False)
         response = super().create(request, *args, **kwargs)
         transaction.on_commit(lambda: cohort_service.handle_cohort_creation(request=request,
-                                                                            cohort=response.data.serializer.instance))
+                                                                            cohort=response.data.serializer.instance,
+                                                                            global_estimate=global_estimate))
         return response
 
-    @extend_schema(request=CohortResultPatchSerializer,
-                   responses={status.HTTP_200_OK: CohortResultSerializer})
+
+    @extend_schema(request=CohortResultPatchSerializer, responses={status.HTTP_200_OK: CohortResultSerializer})
     def partial_update(self, request, *args, **kwargs):
         if any(field in self.non_updatable_fields for field in request.data):
             return Response(data=f"The payload contains non-updatable fields `{request.data}`",
@@ -121,10 +116,12 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         cohort_service.ws_send_to_client(cohort=cohort)
         return response
 
+
     @action(methods=['get'], detail=False, url_path='jobs/active')
     def get_active_jobs(self, request, *args, **kwargs):
         return Response(data={"jobs_count": cohort_service.count_active_jobs()},
                         status=status.HTTP_200_OK)
+
 
     @extend_schema(responses={status.HTTP_200_OK: CohortRightsSerializer(many=True)})
     @action(detail=False, methods=['get'], url_path="cohort-rights")
