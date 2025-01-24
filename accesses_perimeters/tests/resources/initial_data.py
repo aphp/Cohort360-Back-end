@@ -78,14 +78,12 @@ requests_data = [
         'name': 'Request 1',
         'description': 'Description for Request 1',
         'favorite': False,
-        'data_type_of_query': 'PATIENT',
         'shared_by_id': None
     }
 ]
 
 request_query_snapshots_data = [
     {
-        'title': 'Snapshot 1',
         'owner_id': 1,
         'serialized_query': '{"sourcePopulation": {"caresiteCohortList": ["1", "2", "3"]}}',
         'translated_query': None,
@@ -95,33 +93,30 @@ request_query_snapshots_data = [
         'version': 1
     },
     {
-        'title': 'Snapshot 2',
         'owner_id': 1,
         'serialized_query': '{"sourcePopulation": {"caresiteCohortList": ["4", "5", "6"]}}',
         'translated_query': None,
         'previous_snapshot_id': None,
         'shared_by_id': None,
         'perimeters_ids': ['4', '5', '6'],
-        'version': 1
+        'version': 2
     },
     {
-        'title': 'Snapshot 3',
         'owner_id': 1,
         'serialized_query': '{"sourcePopulation": {"caresiteCohortList": ["7", "8", "9"]}}',
         'translated_query': None,
         'previous_snapshot_id': None,
         'shared_by_id': None,
         'perimeters_ids': ['7', '8', '9'],
-        'version': 1
+        'version': 3
     },
     {
-        'title': 'Snapshot 4',
         'owner_id': 1,
         'serialized_query': '{"sourcePopulation": {"caresiteCohortList": ["10", "11"]}}',
         'translated_query': None,
         'previous_snapshot_id': None,
         'shared_by_id': None,
         'perimeters_ids': ['10', '11'],
-        'version': 1
+        'version': 4
     }
 ]

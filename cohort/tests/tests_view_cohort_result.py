@@ -231,10 +231,6 @@ class CohortsCreateTests(CohortsTests):
             favorite=True,
             request_query_snapshot=self.user1_req1_snap1.pk,
             dated_measure=self.user1_req1_snap1_dm.pk,
-            # group_id
-            # dated_measure_global
-            # create_task_id
-            # type
         )
         self.basic_case = CohortCreateCase(
             data=self.basic_data,

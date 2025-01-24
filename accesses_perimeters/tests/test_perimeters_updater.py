@@ -109,7 +109,7 @@ class PerimetersUpdaterTests(TestCase):
                 mock_settings_2.ROOT_PERIMETER_ID = ROOT_PERIMETER_ID
                 perimeters_data_model_objects_update()
 
-        updated_query: RequestQuerySnapshot = RequestQuerySnapshot.objects.filter(title='Snapshot 2').first()
+        updated_query: RequestQuerySnapshot = RequestQuerySnapshot.objects.filter(version=2).first()
         self.assertListEqual(updated_query.perimeters_ids, ['5', '6'])
         self.assertEqual(updated_query.serialized_query, '{"sourcePopulation": {"caresiteCohortList": ["5", "6"]}}')
         count_created_perimeters = Perimeter.objects.count()
