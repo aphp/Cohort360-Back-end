@@ -213,9 +213,8 @@ class RQSReducedSerializer(serializers.ModelSerializer):
 
 class RQSSerializer(serializers.ModelSerializer):
     owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(), required=True)
-    request = PrimaryKeyRelatedFieldWithOwner(queryset=Request.objects.all(), required=False, write_only=True)
-    previous_snapshot = PrimaryKeyRelatedFieldWithOwner(queryset=RequestQuerySnapshot.objects.all(), required=False, write_only=True)
-    serialized_query = serializers.CharField(required=True, write_only=True)
+    request = PrimaryKeyRelatedFieldWithOwner(queryset=Request.objects.all(), required=False)
+    previous_snapshot = PrimaryKeyRelatedFieldWithOwner(queryset=RequestQuerySnapshot.objects.all(), required=False)
     dated_measures = serializers.SerializerMethodField()
     cohort_results = CohortResultSerializer(many=True, read_only=True)
 
@@ -223,9 +222,13 @@ class RQSSerializer(serializers.ModelSerializer):
         model = RequestQuerySnapshot
         fields = ["uuid",
                   "owner",
+                  "version",
+                  "created_at",
+                  "modified_at",
                   "request",
                   "previous_snapshot",
                   "serialized_query",
+                  "perimeters_ids",
                   "dated_measures",
                   "cohort_results",
                   ]
