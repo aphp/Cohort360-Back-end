@@ -55,7 +55,9 @@ class CohortFilter(filters.FilterSet):
 
 
 class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
-    queryset = CohortResult.objects.select_related('request_query_snapshot__request')
+    queryset = CohortResult.objects.select_related('dated_measure',
+                                                   'dated_measure_global',
+                                                   'request_query_snapshot__request')
     serializer_class = CohortResultSerializer
     http_method_names = ['get', 'post', 'patch', 'delete']
     swagger_tags = ["Cohorts"]
