@@ -29,10 +29,9 @@ class CohortFilter(filters.FilterSet):
     name = filters.CharFilter(field_name='name', lookup_expr="icontains")
     min_result_size = filters.NumberFilter(field_name='dated_measure__measure', lookup_expr='gte')
     max_result_size = filters.NumberFilter(field_name='dated_measure__measure', lookup_expr='lte')
-
     min_created_at = filters.IsoDateTimeFilter(field_name='created_at', lookup_expr="gte")
     max_created_at = filters.IsoDateTimeFilter(field_name='created_at', lookup_expr="lte")
-
+    request_id = filters.CharFilter(field_name='request_query_snapshot__request__pk')
     group_id = filters.CharFilter(method="multi_value_filter", field_name="group_id")
     status = filters.CharFilter(method="multi_value_filter", field_name="request_job_status")
 
@@ -49,6 +48,7 @@ class CohortFilter(filters.FilterSet):
                   'max_result_size',
                   'min_created_at',
                   'max_created_at',
+                  'request_id',
                   'favorite',
                   'group_id',
                   'status')

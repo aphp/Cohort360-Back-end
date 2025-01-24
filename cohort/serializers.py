@@ -36,11 +36,11 @@ class FolderSerializer(serializers.ModelSerializer):
                   "name",
                   "description",
                   "owner",
-                  "modified_at",
+                  "created_at",
                   "requests_count"
                   ]
         read_only_fields = ["uuid",
-                            "modified_at"
+                            "created_at"
                             ]
 
     def get_requests_count(self, obj) -> int:
