@@ -41,13 +41,13 @@ def count_allowed_users_in_inferior_levels():
 
 
 def re_count_allowed_users_inferior_levels(perimeter):
-    count = 0
+    user_list = set(Access.objects.filter(accesses_service.q_access_is_valid(), perimeter_id=perimeter.id)
+                    .values_list("profile__user_id", flat=True))
     for child in perimeter.children.all():
-        count += child.count_allowed_users
-        count += re_count_allowed_users_inferior_levels(perimeter=child)
-    perimeter.count_allowed_users_inferior_levels = count
+        user_list.update(re_count_allowed_users_inferior_levels(perimeter=child))
+    perimeter.count_allowed_users_inferior_levels = len(user_list)
     perimeter.save()
-    return count
+    return user_list
 
 
 def count_allowed_users_from_above_levels():
