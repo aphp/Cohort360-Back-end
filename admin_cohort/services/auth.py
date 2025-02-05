@@ -299,7 +299,6 @@ class AuthService:
             return None
         try:
             authenticator = self._get_authenticator(auth_method)
-            _logger.info(f"Authenticating token: {token}")
             username = authenticator.authenticate(token=token)
             user = User.objects.get(username=username)
             for post_auth_hook in self.post_auth_hooks:
