@@ -7,7 +7,7 @@ from django.utils import timezone
 from rest_framework import status
 
 from admin_cohort.types import JobStatus
-from exports import ExportTypes
+from exports.apps import ExportsConfig
 from exports.exceptions import BadRequestError, FilesNoLongerAvailable
 from exports.models import Export, ExportTable
 from exports.services.export_operators import ExportDownloader
@@ -22,7 +22,7 @@ class TestExportDownloader(ExportsTests):
             self.export_downloader = ExportDownloader()
             self.mock_storage_provider = self.export_downloader.storage_provider
 
-        downloadable_export_types = [t.value for t in ExportTypes if t.allow_download]
+        downloadable_export_types = [t.value for t in ExportsConfig.ExportTypes if t.allow_download]
 
         self.export1 = Export.objects.create(owner=self.user1,
                                              output_format=downloadable_export_types and downloadable_export_types[0] or None,

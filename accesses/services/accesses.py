@@ -5,12 +5,12 @@ from typing import List, Dict, Union, Literal
 from django.db.models import QuerySet, Q, Prefetch, F, Value
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
+from django.conf import settings
 
 from accesses.q_expressions import q_allow_read_search_opposed_patient_data, q_allow_read_patient_data_nominative, q_allow_read_patient_data_pseudo, \
     q_allow_manage_accesses_on_same_level, q_allow_manage_accesses_on_inf_levels, q_allow_manage_export_accesses, \
     q_allow_read_accesses_on_same_level, q_allow_read_accesses_on_inf_levels, q_impact_inferior_levels, q_allow_unlimited_patients_search
 from admin_cohort.models import User
-from admin_cohort.settings import ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS, PERIMETERS_TYPES, MANUAL_SOURCE, MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS
 from admin_cohort.tools import join_qs
 from accesses.models import Perimeter, Access, Role
 from accesses.services.shared import DataRight
@@ -28,7 +28,7 @@ class AccessesService:
     def get_user_valid_accesses(self, user: User) -> QuerySet:
         return Access.objects.filter(self.q_access_is_valid()
                                      & Q(profile__is_active=True)
-                                     & Q(profile__source=MANUAL_SOURCE)
+                                     & Q(profile__source=settings.MANUAL_SOURCE)
                                      & Q(profile__user=user))
 
     def user_is_full_admin(self, user: User) -> bool:
@@ -38,7 +38,7 @@ class AccessesService:
     @staticmethod
     def get_expiring_accesses(user: User, accesses: QuerySet):
         today = date.today()
-        expiry_date = today + timedelta(days=ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS)
+        expiry_date = today + timedelta(days=settings.ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS)
         to_expire_soon = Q(end_datetime__date__gte=today) & Q(end_datetime__date__lte=expiry_date)
         accesses_to_expire = accesses.filter(Q(profile__user=user) & to_expire_soon)
         if not accesses_to_expire:
@@ -146,7 +146,7 @@ class AccessesService:
                                             .prefetch_related(Prefetch('perimeter',
                                                                        queryset=Perimeter.objects.all().
                                                                        select_related(*["parent" + i * "__parent"
-                                                                                        for i in range(0, len(PERIMETERS_TYPES) - 2)]))) \
+                                                                                        for i in range(0, len(settings.PERIMETER_TYPES) - 2)]))) \
                                             .annotate(right_read_patient_nominative=F('role__right_read_patient_nominative'),
                                                       right_read_patient_pseudonymized=F('role__right_read_patient_pseudonymized'),
                                                       right_search_patients_by_ipp=F('role__right_search_patients_by_ipp'),
@@ -235,7 +235,7 @@ class AccessesService:
     def get_data_reading_rights(self, user: User, target_perimeters_ids: str) -> List[DataRight]:
         target_perimeters_ids = target_perimeters_ids and [int(p_id) for p_id in target_perimeters_ids.split(",")] or []
         target_perimeters = Perimeter.objects.filter(id__in=target_perimeters_ids) \
-                                             .select_related(*[f"parent{i * '__parent'}" for i in range(0, len(PERIMETERS_TYPES) - 2)])
+                                             .select_related(*[f"parent{i * '__parent'}" for i in range(0, len(settings.PERIMETER_TYPES) - 2)])
 
         data_accesses = self.get_data_accesses_with_rights(user)
         data_rights_from_accesses = self.get_data_rights_from_accesses(user=user, data_accesses=data_accesses)
@@ -419,7 +419,7 @@ class AccessesService:
 
         data["start_datetime"] = start_datetime and parse_datetime(start_datetime) or timezone.now()
         data["end_datetime"] = (end_datetime and parse_datetime(end_datetime) or
-                                data["start_datetime"] + timedelta(days=MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS))
+                                data["start_datetime"] + timedelta(days=settings.MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS))
         self.check_access_dates(new_start_datetime=data["start_datetime"],
                                 new_end_datetime=data["end_datetime"])
 

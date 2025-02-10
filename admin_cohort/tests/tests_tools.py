@@ -13,7 +13,6 @@ from rest_framework.test import APIRequestFactory, force_authenticate
 
 from accesses.models import Role, Profile, Perimeter
 from admin_cohort.models import BaseModel, User
-from admin_cohort.settings import PERIMETERS_TYPES, ROOT_PERIMETER_TYPE, MANUAL_SOURCE
 from admin_cohort.tools import prettify_dict, prettify_json
 from admin_cohort.types import MissingDataError
 from cohort.models import CohortBaseModel
@@ -64,17 +63,16 @@ def new_random_user() -> User:
         random_id = ''.join(random.choices(string.ascii_lowercase, k=10))
         return f"{random_id}@aphp.fr"
 
-    provider_id = str(random.randint(0, 10000000))
+    username = str(random.randint(0, 10000000))
 
-    while provider_id in [p.username for p in User.objects.all()]:
-        provider_id = str(random.randint(0, 10000000))
+    while username in [p.username for p in User.objects.all()]:
+        username = str(random.randint(0, 10000000))
 
     u: User = User.objects.create(
-        username=str(provider_id),
+        username=str(username),
         firstname="firstname",
         lastname="lastname",
         email=get_random_email(),
-        provider_id=provider_id,
     )
     return u
 
@@ -88,7 +86,7 @@ def new_user_and_profile() -> Tuple[User, Profile]:
     u = new_random_user()
 
     p: Profile = Profile.objects.create(
-        source=MANUAL_SOURCE,
+        source=settings.MANUAL_SOURCE,
         user=u,
         is_active=True,
     )
@@ -311,25 +309,25 @@ class SimplePerimSetup:
         #             hospital3
         self.aphp: Perimeter = Perimeter.objects.create(
             local_id="0",
-            name=ROOT_PERIMETER_TYPE,
-            type_source_value=PERIMETERS_TYPES[0]
+            name=settings.ROOT_PERIMETER_TYPE,
+            type_source_value=settings.PERIMETER_TYPES[0]
         )
         self.hospital1: Perimeter = Perimeter.objects.create(
             local_id="1",
             name="Galbadia Garden",
-            type_source_value=PERIMETERS_TYPES[1],
+            type_source_value=settings.PERIMETER_TYPES[1],
             parent=self.aphp,
         )
         self.hospital2: Perimeter = Perimeter.objects.create(
             local_id="2",
             name="Balamb Garden",
-            type_source_value=PERIMETERS_TYPES[1],
+            type_source_value=settings.PERIMETER_TYPES[1],
             parent=self.aphp,
         )
         self.hospital3: Perimeter = Perimeter.objects.create(
             local_id="3",
             name="Seeds",
-            type_source_value=PERIMETERS_TYPES[2],
+            type_source_value=settings.PERIMETER_TYPES[2],
             parent=self.hospital2,
         )
         self.all_perimeters: List[Perimeter] = [
@@ -346,7 +344,7 @@ class NumerousPerimSetup:
         # perim21   perim22 perim23
         #   |    \            |
         # perim31 perim32   perim33
-        t = PERIMETERS_TYPES[0]
+        t = settings.PERIMETER_TYPES[0]
         self.perim0 = Perimeter.objects.create(type_source_value=t, local_id="0")
         self.perim11 = Perimeter.objects.create(type_source_value=t, parent=self.perim0, local_id="11")
         self.perim21 = Perimeter.objects.create(type_source_value=t, parent=self.perim11, local_id="21")

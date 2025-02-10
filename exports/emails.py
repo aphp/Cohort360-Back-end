@@ -1,4 +1,3 @@
-import locale
 import re
 from typing import Callable
 
@@ -6,8 +5,6 @@ from django.conf import settings
 from rest_framework.exceptions import ValidationError
 
 from admin_cohort.emails import EmailNotification
-
-locale.setlocale(locale.LC_ALL, 'fr_FR.utf8')
 
 
 def check_email_address(email: str):

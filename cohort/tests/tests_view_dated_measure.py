@@ -259,7 +259,7 @@ class DMUpdateTests(DatedMeasuresTests):
                                                     success=False)
 
     @mock.patch('admin_cohort.services.ws_event_manager.WebsocketManager.send_to_client')
-    @mock.patch('cohort.services.cohort_operators.DefaultCohortCounter.handle_patch_dated_measure')
+    @mock.patch('cohort_job_server.cohort_counter.CohortCounter.handle_patch_dated_measure')
     def check_dm_patch_case(self, mock_patch_handler, mock_ws_send_to_client, case: dict):
         mock_patch_handler.return_value = None
         mock_ws_send_to_client.return_value = None
@@ -285,7 +285,7 @@ class DMUpdateTests(DatedMeasuresTests):
         self.check_dm_patch_case(case=global_dm_case)
 
     @mock.patch('admin_cohort.services.ws_event_manager.WebsocketManager.send_to_client')
-    @mock.patch('cohort.services.cohort_operators.DefaultCohortCounter.handle_patch_dated_measure')
+    @mock.patch('cohort_job_server.cohort_counter.CohortCounter.handle_patch_dated_measure')
     def test_error_patch_dm_with_invalid_status(self, mock_patch_handler, mock_ws_send_to_client):
         mock_patch_handler.side_effect = ValueError('Wrong status value')
         mock_ws_send_to_client.return_value = None

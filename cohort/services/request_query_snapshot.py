@@ -1,13 +1,13 @@
 import json
 import logging
-from typing import List
+from typing import List, Optional
+
+from django.conf import settings
 
 from admin_cohort.models import User
-from admin_cohort.settings import SHARED_FOLDER_NAME
 from admin_cohort.tools.cache import invalidate_cache
 from cohort.services.emails import send_email_notif_about_shared_request
 from cohort.models import RequestQuerySnapshot, Folder, Request
-
 
 _logger_err = logging.getLogger('django.request')
 
@@ -37,7 +37,7 @@ class RequestQuerySnapshotService:
 
     @staticmethod
     def check_shared_folders(recipients: List[User]) -> tuple[List[Folder], dict[str, Folder]]:
-        existing_shared_folders = Folder.objects.filter(name=SHARED_FOLDER_NAME,
+        existing_shared_folders = Folder.objects.filter(name=settings.SHARED_FOLDER_NAME,
                                                         owner__in=recipients)
         recipients_having_shared_folder = []
         folders_by_owner = {}
@@ -48,7 +48,7 @@ class RequestQuerySnapshotService:
         folders_to_create = []
         for recipient in recipients:
             if recipient not in recipients_having_shared_folder:
-                folder = Folder(name=SHARED_FOLDER_NAME, owner=recipient)
+                folder = Folder(name=settings.SHARED_FOLDER_NAME, owner=recipient)
                 folders_to_create.append(folder)
                 folders_by_owner[recipient.pk] = folder
         return folders_to_create, folders_by_owner
@@ -129,6 +129,21 @@ class RequestQuerySnapshotService:
             msg = f"Error extracting perimeters ids from JSON query - {e}"
             _logger_err.exception(msg=msg)
             raise ValueError(msg)
+
+    @staticmethod
+    def update_query_perimeter(json_query: str, matching: dict[str, Optional[str]], raise_on_error=False) -> str:
+        try:
+            query = json.loads(json_query)
+            perimeters_ids = query["sourcePopulation"]["caresiteCohortList"]
+            updated_perimeters_ids = sorted(list(set([matching.get(pid, pid) or pid for pid in perimeters_ids])))
+            query["sourcePopulation"]["caresiteCohortList"] = updated_perimeters_ids
+            return json.dumps(query)
+        except (json.JSONDecodeError, TypeError, KeyError) as e:
+            msg = f"Error updating perimeters ids from JSON query - {e}"
+            _logger_err.exception(msg=msg)
+            if raise_on_error:
+                raise ValueError(msg)
+            return json_query
 
 
 rqs_service = RequestQuerySnapshotService()

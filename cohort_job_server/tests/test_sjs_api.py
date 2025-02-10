@@ -38,7 +38,7 @@ class CohortQueryTest(TestCase):
         with open(Path(__file__).resolve().parent.joinpath("resources/complex_request.json"), "r") as f:
             json_data = json.load(f)
         cohort_query = CohortQuery(**json_data)
-        self.assertEquals(len(json_data["request"]["criteria"]), len(cohort_query.criteria.criteria))
+        self.assertEqual(len(json_data["request"]["criteria"]), len(cohort_query.criteria.criteria))
 
 
 class TestQueryFormatter(TestCase):
@@ -66,33 +66,33 @@ class TestQueryFormatter(TestCase):
     def test_format_to_fhir_simple_query(self, query_fhir):
         query_fhir.return_value = self.mocked_query_fhir_result
         res = self.query_formatter.format_to_fhir(self.cohort_query_simple, False)
-        self.assertEquals(1, len(res.criteria))
+        self.assertEqual(1, len(res.criteria))
         res_criteria = res.criteria[0]
-        self.assertEquals(ResourceType.DOCUMENT_REFERENCE, res_criteria.resource_type)
-        self.assertEquals(self.fq_value_string, res_criteria.filter_solr, )
-        self.assertEquals("docstatus=final&type:not=doc-impor&empty=false&patient-active=true&_text=ok",
+        self.assertEqual(ResourceType.DOCUMENT_REFERENCE, res_criteria.resource_type)
+        self.assertEqual(self.fq_value_string, res_criteria.filter_solr, )
+        self.assertEqual("docstatus=final&type:not=doc-impor&empty=false&patient-active=true&_text=ok",
                           res_criteria.filter_fhir)
 
     @mock.patch("cohort_job_server.sjs_api.query_formatter.query_fhir")
     def test_format_to_fhir_simple_query_pseudo(self, query_fhir):
         query_fhir.return_value = self.mocked_query_fhir_result
         res = self.query_formatter.format_to_fhir(self.cohort_query_simple, True)
-        self.assertEquals(1, len(res.criteria))
+        self.assertEqual(1, len(res.criteria))
         res_criteria = res.criteria[0]
-        self.assertEquals(ResourceType.DOCUMENT_REFERENCE, res_criteria.resource_type)
-        self.assertEquals(self.fq_value_string, res_criteria.filter_solr, )
-        self.assertEquals("docstatus=final&type:not=doc-impor&empty=false&patient-active=true&_text=ok",
+        self.assertEqual(ResourceType.DOCUMENT_REFERENCE, res_criteria.resource_type)
+        self.assertEqual(self.fq_value_string, res_criteria.filter_solr, )
+        self.assertEqual("docstatus=final&type:not=doc-impor&empty=false&patient-active=true&_text=ok",
                           res_criteria.filter_fhir)
 
     @mock.patch("cohort_job_server.sjs_api.query_formatter.query_fhir")
     def test_format_to_fhir_complex_query(self, query_fhir):
         query_fhir.return_value = self.mocked_query_fhir_result
         res = self.query_formatter.format_to_fhir(self.cohort_query_complex, False)
-        self.assertEquals(6, len(res.criteria))
+        self.assertEqual(6, len(res.criteria))
         res_criteria = res.criteria[1]
-        self.assertEquals(ResourceType.CONDITION, res_criteria.resource_type)
-        self.assertEquals(self.fq_value_string, res_criteria.filter_solr, )
-        self.assertEquals("patient-active=true&codeList=A00-B99", res_criteria.filter_fhir)
+        self.assertEqual(ResourceType.CONDITION, res_criteria.resource_type)
+        self.assertEqual(self.fq_value_string, res_criteria.filter_solr, )
+        self.assertEqual("patient-active=true&codeList=A00-B99", res_criteria.filter_fhir)
 
     def test_cohort_request_pseudo_read(self):
         user1 = User.objects.create(firstname='Test',

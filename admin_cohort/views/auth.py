@@ -1,5 +1,7 @@
 import logging
 
+from jwt import InvalidTokenError
+
 from django.contrib.auth import authenticate, login
 from django.contrib.auth import views
 from django.http import JsonResponse, HttpResponseRedirect
@@ -10,7 +12,6 @@ from django.views.decorators.csrf import csrf_exempt
 from drf_spectacular.utils import extend_schema
 from requests import RequestException
 from rest_framework import status, viewsets
-from rest_framework_simplejwt.exceptions import InvalidToken
 
 from admin_cohort.auth.auth_form import AuthForm
 from admin_cohort.models import User
@@ -110,7 +111,7 @@ class TokenRefreshView(ExemptedAuthView):
         try:
             auth_tokens = auth_service.refresh_token(request)
             return JsonResponse(data=auth_tokens, status=status.HTTP_200_OK)
-        except (KeyError, InvalidToken, RequestException) as e:
+        except (KeyError, InvalidTokenError, RequestException) as e:
             return JsonResponse(data={"error": f"{e}"}, status=status.HTTP_401_UNAUTHORIZED)
 
 

@@ -2,6 +2,57 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.24.1] - 2024-11-21
+
+### 🚀 Features
+
+- Add new fhir perimeter sync app (#405)
+- Add type and message to maintenance phase (#416)
+- *(maintenance)* Add ws event for started and ended maintenance phases (#418)
+- Add user info in log records (#422)
+- Add request migration script 1.6.0
+
+### 🐛 Bug Fixes
+
+- Adjust CohortRights serializer (#407)
+- Hotfix 3.23.2, check user is not anonymous (#408)
+- Hotfix 3.23.3 to get perimeters from snapshots (#409)
+- Hotfix 3.23.4 impersonate users (#410)
+- *(swagger)* Remove clientSecret setting
+- *(static)* Remove old static files
+- Hotfix 3.23.5 exports (#411)
+- *(exports)* Hotfix 3.23.7 notifs and files extensions (#413)
+- Hotfix 3.23.8 exports in one file (#414)
+- Hotfix 3.23.9 downloading xlsx/csv exports (#415)
+- Fhir perimeter source type + django max request line
+- *(cohort)* USE_SOLR boolean matching
+- Plug in actual cohort operators
+- Feasibility study serializers
+- *(exports)* Set file extension to .zip
+- Add traceId header
+- Remove extra arg
+- *(exports)* Do not create sub-cohort for measurement table
+- *(migrationscripts)* Add resource type to filter + fix basic resource postprocess
+- *(migrationscript)* Add fix request migration script
+- Hotfix 3.23.16 xlsx exports right verif (#424)
+- *(accesses)* Get only perimeters with defined rights
+
+### 🚜 Refactor
+
+- *(ws)* Move websocket manager to main module (#417)
+- Settings per app config (#420)
+- Update download url and add serializers
+- Always download a zip file
+
+### 📚 Documentation
+
+- Update changelog
+
+### ⚙️ Miscellaneous Tasks
+
+- Set version 3.24.0-SNAPSHOT
+- Get project version from settings
+
 ## [3.23.10] - 2024-09-02
 
 ### 🐛 Bug Fixes

@@ -1,12 +1,12 @@
 from datetime import timedelta
 
 from django.utils import timezone
+from django.conf import settings
 from rest_framework import status
 from rest_framework.test import force_authenticate
 from rest_framework_tracking.models import APIRequestLog
 
 from accesses.models import Access, Perimeter, Role
-from admin_cohort.settings import PERIMETERS_TYPES
 from admin_cohort.tests.tests_tools import BaseTests, new_user_and_profile
 from admin_cohort.views import RequestLogViewSet
 
@@ -38,7 +38,7 @@ class RequestLogTests(BaseTests):
         self.aphp = Perimeter.objects.create(**dict(local_id=1,
                                                     name="APHP",
                                                     parent=None,
-                                                    type_source_value=PERIMETERS_TYPES[0],
+                                                    type_source_value=settings.PERIMETER_TYPES[0],
                                                     source_value="APHP"))
         self.user, self.profile = new_user_and_profile()
         self.user_role = Role.objects.create(**dict([(f, True) for f in self.all_rights]), name='FullAdmin')

@@ -4,8 +4,10 @@ from importlib import import_module
 from django.core.asgi import get_asgi_application
 from channels.routing import ProtocolTypeRouter, URLRouter
 from django.urls import re_path
+from django.conf import settings
 
-from admin_cohort.settings import WEBSOCKET_MANAGER
+
+WEBSOCKET_MANAGER = settings.WEBSOCKET_MANAGER
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'admin_cohort.settings')
 

@@ -4,8 +4,7 @@ from smtplib import SMTPException
 
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import get_template
-
-from admin_cohort.settings import EMAIL_SENDER_ADDRESS, STATIC_ROOT
+from django.conf import settings
 
 _logger = logging.getLogger('django.request')
 
@@ -19,7 +18,7 @@ class EmailNotification(EmailMultiAlternatives):
         self.html_content = ""
         self.txt_content = ""
         self.build_email_contents(context=kwargs.pop("context", {}))
-        kwargs["from_email"] = EMAIL_SENDER_ADDRESS
+        kwargs["from_email"] = settings.EMAIL_SENDER_ADDRESS
         kwargs["to"] = [kwargs.pop("to", None)]
         kwargs["body"] = self.txt_content
         super().__init__(**kwargs)
@@ -32,7 +31,7 @@ class EmailNotification(EmailMultiAlternatives):
 
     def attach_logo(self) -> None:
         logo = 'logo_cohort360.png'
-        logo_path = STATIC_ROOT/"admin_cohort"/"img"/logo
+        logo_path = settings.STATIC_ROOT/"admin_cohort"/"img"/logo
         with open(logo_path, 'rb') as f:
             img = MIMEImage(f.read())
             img.add_header('Content-ID', f'<{logo}>')

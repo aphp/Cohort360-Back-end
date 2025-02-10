@@ -10,7 +10,6 @@ class User(AbstractBaseUser, BaseModel):
     email = models.EmailField('email address', max_length=254, unique=True, null=True)
     firstname = models.CharField(blank=True, null=True)
     lastname = models.CharField(blank=True, null=True)
-    provider_id = models.CharField(max_length=25, blank=True, null=True)
     password = None
 
     def __str__(self):
@@ -20,7 +19,7 @@ class User(AbstractBaseUser, BaseModel):
         return f"User {self})"
 
     @property
-    def display_name(self):
+    def display_name(self) -> str:
         deleted_suffix = self.delete_datetime and " (Supprimé)" or ""
         return f"{self}{deleted_suffix}"
 
