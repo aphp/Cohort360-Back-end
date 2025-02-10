@@ -2,7 +2,8 @@ import logging
 from datetime import date, timedelta, datetime
 from typing import List, Dict, Union, Literal
 
-from django.db.models import QuerySet, Q, Prefetch, F, Value
+from django.db import transaction
+from django.db.models import QuerySet, Q, Prefetch, F, Value, Count
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
@@ -478,3 +479,119 @@ class AccessesService:
 
 
 accesses_service = AccessesService()
+
+
+def count_allowed_users():
+    perimeters_with_counts = Access.objects.select_related("profile", "perimeter") \
+                                           .filter(accesses_service.q_access_is_valid()) \
+                                           .values("perimeter_id") \
+                                           .annotate(user_count=Count("profile__user_id", distinct=True))
+
+    updates = {pc["perimeter_id"]: pc["user_count"] for pc in perimeters_with_counts}
+    perimeters = Perimeter.objects.filter(id__in=updates.keys())
+
+    for perimeter in perimeters:
+        perimeter.count_allowed_users = updates.get(perimeter.id, 0)
+
+    with transaction.atomic():
+        Perimeter.objects.bulk_update(perimeters, ["count_allowed_users"])
+
+
+def process_leaf_perimeters():
+    # set count to 0 for all perimeters having no children
+    leaf_perimeters = Perimeter.objects.filter(Q(inferior_levels_ids="") |
+                                               Q(inferior_levels_ids__isnull=True))
+    for perimeter in leaf_perimeters:
+        perimeter.count_allowed_users_inferior_levels = 0
+
+    with transaction.atomic():
+        Perimeter.objects.bulk_update(leaf_perimeters, ["count_allowed_users_inferior_levels"])
+
+
+def count_allowed_users_in_inferior_levels():
+    process_leaf_perimeters()
+
+    perimeters = Perimeter.objects.filter(~Q(inferior_levels_ids="") &
+                                          Q(inferior_levels_ids__isnull=False)) \
+                                  .only("id", "inferior_levels_ids") \
+                                  .order_by("level")
+
+    # Step 2: Query all valid accesses in bulk and group by perimeter and user
+    valid_accesses = Access.objects.filter(accesses_service.q_access_is_valid(),
+                                           q_impact_inferior_levels()) \
+                                   .values("perimeter_id", "profile__user_id") \
+                                   .distinct()
+
+    # Step 3: Build a dictionary of {perimeter_id: set(user_ids)} for quick lookup
+    access_by_perimeter = {}
+    for access in valid_accesses:
+        perimeter_id = access["perimeter_id"]
+        user_id = access["profile__user_id"]
+        if perimeter_id not in access_by_perimeter:
+            access_by_perimeter[perimeter_id] = set()
+        access_by_perimeter[perimeter_id].add(user_id)
+
+    # Step 4: Recursive function to collect all inferior levels
+    def gather_inferior_levels(perimeter_id, visited):
+        """
+        Recursively gather all inferior levels for a given perimeter ID.
+        Avoid re-visiting nodes to prevent infinite loops in case of circular references.
+        """
+        if perimeter_id in visited:
+            return set()  # Avoid cycles
+
+        visited.add(perimeter_id)
+        child_ids = Perimeter.objects.filter(id=perimeter_id).values_list("inferior_levels", flat=True).first() or []
+        all_ids = set(child_ids)  # Start with direct children
+
+        for child_id in child_ids:
+            all_ids.update(gather_inferior_levels(child_id, visited))  # Add all descendants recursively
+
+        return all_ids
+
+    # Step 5: Process each perimeter to calculate distinct user counts for its entire hierarchy
+    updates = []
+    for perimeter in perimeters:
+        # Recursively collect all inferior levels
+        all_inferior_ids = gather_inferior_levels(perimeter.id, visited=set())
+
+        # Collect all user IDs from inferior levels
+        aggregated_users = set()
+        for inferior_id in all_inferior_ids:
+            aggregated_users.update(access_by_perimeter.get(inferior_id, set()))
+
+        # Update the count of allowed users in inferior levels
+        perimeter.count_allowed_users_in_inferior_levels = len(aggregated_users)
+        updates.append(perimeter)
+
+    # Step 6: Perform a bulk update for all perimeters
+    with transaction.atomic():
+        Perimeter.objects.bulk_update(updates, ["count_allowed_users_in_inferior_levels"])
+
+
+def count_allowed_users_from_above_levels():
+    perimeters = Perimeter.objects.all().only("id", "above_levels_ids")
+
+    valid_accesses = Access.objects.filter(accesses_service.q_access_is_valid(),
+                                           q_impact_inferior_levels()) \
+                                   .values("perimeter_id", "profile__user_id") \
+                                   .distinct()
+    users_by_perimeter = {}
+    for access in valid_accesses:
+        perimeter_id = access["perimeter_id"]
+        user_id = access["profile__user_id"]
+        if perimeter_id not in users_by_perimeter:
+            users_by_perimeter[perimeter_id] = set()
+        users_by_perimeter[perimeter_id].add(user_id)
+
+    # updates = []
+    for perimeter in perimeters:
+        aggregated_users = set()
+        for parent_id in perimeter.above_levels:
+            aggregated_users.update(users_by_perimeter.get(parent_id, set()))
+
+        perimeter.count_allowed_users_above_levels = len(aggregated_users)
+        # updates.append(perimeter)
+
+    with transaction.atomic():
+        Perimeter.objects.bulk_update(perimeters, ["count_allowed_users_above_levels"])
