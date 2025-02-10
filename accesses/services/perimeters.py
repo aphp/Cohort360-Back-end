@@ -1,11 +1,13 @@
 from functools import reduce, lru_cache
 from typing import Set, List
 
-from django.db.models import QuerySet
+from django.conf import settings
+from django.db import transaction
+from django.db.models import QuerySet, Count, Q
 
-from accesses.models import Perimeter
+from accesses.models import Perimeter, Access
 from accesses.q_expressions import q_allow_search_patients_by_ipp, q_allow_read_search_opposed_patient_data, q_allow_read_patient_data_nominative, \
-    q_allow_read_patient_data_pseudo, q_allow_manage_accesses_on_same_level, q_allow_manage_accesses_on_inf_levels
+    q_allow_read_patient_data_pseudo, q_allow_manage_accesses_on_same_level, q_allow_manage_accesses_on_inf_levels, q_impact_inferior_levels
 from accesses.services.accesses import accesses_service
 from accesses.services.shared import PerimeterReadRight
 from admin_cohort.models import User
@@ -185,3 +187,112 @@ class PerimetersService:
 
 
 perimeters_service = PerimetersService()
+
+
+def count_allowed_users():
+    # count distinct users having access directly to a Perimeter
+    perimeters_with_counts = Access.objects.select_related("profile", "perimeter") \
+                                           .filter(accesses_service.q_access_is_valid()
+                                                   & Q(profile__is_active=True)
+                                                   & Q(profile__source=settings.MANUAL_SOURCE)) \
+                                           .values("perimeter_id") \
+                                           .annotate(user_count=Count("profile__user_id", distinct=True))
+
+    updates = {pc["perimeter_id"]: pc["user_count"] for pc in perimeters_with_counts}
+    perimeters = Perimeter.objects.filter(id__in=updates.keys())
+
+    perimeters_to_update = []
+    for perimeter in perimeters:
+        count_users = updates.get(perimeter.id, 0)
+        if count_users != perimeter.count_allowed_users:
+            perimeter.count_allowed_users = count_users
+            perimeters_to_update.append(perimeter)
+
+    with transaction.atomic():
+        Perimeter.objects.bulk_update(perimeters_to_update, ["count_allowed_users"])
+
+
+def group_users_by_perimeter() -> dict[int, set]:
+    valid_accesses = Access.objects.filter(accesses_service.q_access_is_valid()
+                                           & Q(profile__is_active=True)
+                                           & Q(profile__source=settings.MANUAL_SOURCE)
+                                           & q_impact_inferior_levels()) \
+                                   .values("perimeter_id", "profile__user_id") \
+                                   .distinct()
+    users_per_perimeter = {}
+    for access in valid_accesses:
+        perimeter_id = access["perimeter_id"]
+        user_id = access["profile__user_id"]
+        if perimeter_id not in users_per_perimeter:
+            users_per_perimeter[perimeter_id] = set()
+        users_per_perimeter[perimeter_id].add(user_id)
+    return users_per_perimeter
+
+
+def count_allowed_users_from_above_levels():
+    """ for each Perimeter, count distinct users having access by inheritance
+        i.e. having access to one of its parents
+    """
+    perimeters = Perimeter.objects.all().only("id", "above_levels_ids")
+
+    users_per_perimeter = group_users_by_perimeter()
+    perimeters_to_update = []
+
+    for perimeter in perimeters:
+        aggregated_users = set()
+        for parent_id in perimeter.above_levels:
+            aggregated_users.update(users_per_perimeter.get(parent_id, set()))
+
+        count_users = len(aggregated_users)
+        if count_users != perimeter.count_allowed_users_above_levels:
+            perimeter.count_allowed_users_above_levels = count_users
+            perimeters_to_update.append(perimeter)
+
+    with transaction.atomic():
+        Perimeter.objects.bulk_update(perimeters_to_update, ["count_allowed_users_above_levels"])
+
+
+def process_leaf_perimeters():
+    leaf_perimeters = Perimeter.objects.filter(Q(inferior_levels_ids="") |
+                                               Q(inferior_levels_ids__isnull=True))
+    for perimeter in leaf_perimeters:
+        perimeter.count_allowed_users_inferior_levels = 0
+
+    with transaction.atomic():
+        Perimeter.objects.bulk_update(leaf_perimeters, ["count_allowed_users_inferior_levels"])
+
+
+def count_allowed_users_in_inferior_levels():
+    # - For efficiency, start by setting `count_allowed_users_inferior_levels` to 0 for all leaf perimeters
+    #   since they represent over 70% of existing perimeters.
+    # - For other perimeters, count distinct users having access to any of its children at all levels; starting from bottom to top.
+    process_leaf_perimeters()
+
+    non_leaf_perimeters = Perimeter.objects.filter(~Q(inferior_levels_ids="") &
+                                                   Q(inferior_levels_ids__isnull=False)) \
+                                           .only("id", "inferior_levels_ids", "level") \
+                                           .order_by("-level")
+
+    users_per_perimeter = group_users_by_perimeter()
+
+    users_from_inferior_levels_per_perimeter = {}
+
+    perimeters_to_update = []
+
+    for perimeter in non_leaf_perimeters:
+        aggregated_users = set()
+
+        for child_id in perimeter.inferior_levels:
+            users_from_inferior_levels = users_from_inferior_levels_per_perimeter.get(child_id,
+                                                                                      users_per_perimeter.get(child_id, set()))
+            aggregated_users.update(users_from_inferior_levels)
+
+        count_users = len(aggregated_users)
+        if count_users != perimeter.count_allowed_users_inferior_levels:
+            perimeter.count_allowed_users_inferior_levels = count_users
+            perimeters_to_update.append(perimeter)
+
+        aggregated_users.update(users_per_perimeter.get(perimeter.id, set()))
+        users_from_inferior_levels_per_perimeter[perimeter.id] = aggregated_users
+    with transaction.atomic():
+        Perimeter.objects.bulk_update(perimeters_to_update, ["count_allowed_users_inferior_levels"])
