@@ -212,15 +212,9 @@ def count_allowed_users():
         Perimeter.objects.bulk_update(perimeters_to_update, ["count_allowed_users"])
 
 
-def group_users_by_perimeter() -> dict[int, set]:
-    valid_accesses = Access.objects.filter(accesses_service.q_access_is_valid()
-                                           & Q(profile__is_active=True)
-                                           & Q(profile__source=settings.MANUAL_SOURCE)
-                                           & q_impact_inferior_levels()) \
-                                   .values("perimeter_id", "profile__user_id") \
-                                   .distinct()
+def group_users_by_perimeter(accesses) -> dict[int, set]:
     users_per_perimeter = {}
-    for access in valid_accesses:
+    for access in accesses:
         perimeter_id = access["perimeter_id"]
         user_id = access["profile__user_id"]
         if perimeter_id not in users_per_perimeter:
@@ -235,7 +229,13 @@ def count_allowed_users_from_above_levels():
     """
     perimeters = Perimeter.objects.all().only("id", "above_levels_ids")
 
-    users_per_perimeter = group_users_by_perimeter()
+    valid_accesses = Access.objects.filter(accesses_service.q_access_is_valid()
+                                           & Q(profile__is_active=True)
+                                           & Q(profile__source=settings.MANUAL_SOURCE)
+                                           & q_impact_inferior_levels()) \
+                                   .values("perimeter_id", "profile__user_id") \
+                                   .distinct()
+    users_per_perimeter = group_users_by_perimeter(valid_accesses)
     perimeters_to_update = []
 
     for perimeter in perimeters:
@@ -273,7 +273,12 @@ def count_allowed_users_in_inferior_levels():
                                            .only("id", "inferior_levels_ids", "level") \
                                            .order_by("-level")
 
-    users_per_perimeter = group_users_by_perimeter()
+    valid_accesses = Access.objects.filter(accesses_service.q_access_is_valid()
+                                           & Q(profile__is_active=True)
+                                           & Q(profile__source=settings.MANUAL_SOURCE)) \
+                                   .values("perimeter_id", "profile__user_id") \
+                                   .distinct()
+    users_per_perimeter = group_users_by_perimeter(valid_accesses)
 
     users_from_inferior_levels_per_perimeter = {}
 
