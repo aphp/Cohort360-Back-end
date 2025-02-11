@@ -62,7 +62,7 @@ class ExportManager:
         exporter = self._get_exporter(export_data.get("output_format"))
         exporter().validate(export_data=export_data, **kwargs)
 
-    def handle_export(self, export_id: str | int) -> None:
+    def handle_export(self, export_id: str) -> None:
         try:
             export = Export.objects.get(pk=export_id)
         except Export.DoesNotExist:

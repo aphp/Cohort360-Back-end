@@ -7,7 +7,6 @@ from django.conf import settings
 from django.utils import timezone
 
 from admin_cohort.models import User, JobModel
-from cohort.models import CohortResult
 from exports.models import ExportsBaseModel, Datalab
 from exports.apps import ExportsConfig
 
@@ -41,24 +40,6 @@ class Export(ExportsBaseModel, JobModel):
     @property
     def target_datalab(self) -> Optional[str]:
         return self.datalab and self.datalab.name or None
-
-    @property
-    def base_cohort(self) -> Optional[CohortResult]:
-        if self.datalab:
-            return None
-        return self.export_tables.first().cohort_result_source
-
-    @property
-    def cohort_name(self) -> Optional[str]:
-        return self.base_cohort and self.base_cohort.name or None
-
-    @property
-    def cohort_id(self) -> Optional[str]:
-        return self.base_cohort and self.base_cohort.group_id or None
-
-    @property
-    def patients_count(self) -> Optional[int]:
-        return self.base_cohort and self.base_cohort.dated_measure.measure or None
 
     def available_for_download(self) -> bool:
         return self.created_at + timedelta(days=settings.DAYS_TO_KEEP_EXPORTED_FILES) > timezone.now()

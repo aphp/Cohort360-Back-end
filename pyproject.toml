@@ -39,6 +39,7 @@ dependencies = [
     "redis>=5.2.1",
     "requests-kerberos>=0.15.0",
     "requests>=2.32.3",
+    "celery>=5.4.0",
 ]
 
 [tool.ruff]
