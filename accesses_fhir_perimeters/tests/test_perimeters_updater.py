@@ -78,10 +78,7 @@ class FhirPerimeterRetriever(TestCase):
             Perimeter.objects.create(**perimeter)
 
         mock_get_organization_care_sites.return_value = {
-            9999: FhirOrganization(
-                id=9999,
-                name="All Hospitals"
-            ),
+            9999: FhirOrganization(id=9999, name="All Hospitals"),
             2: FhirOrganization(id=2, name="Hospital 1", part_of=9999),
             3: FhirOrganization(id=3, name="Hospital 2", part_of=9999),
             4: FhirOrganization(id=4, name="Service 1.1", part_of=2),
@@ -108,7 +105,7 @@ class FhirPerimeterRetriever(TestCase):
             call('2', ['4', '5', '8'], 2),
             call('9999', ['2', '3', '4', '5', '6', '7', '8'], 9999)
         ], any_order=True)
-        deleted_perimeters = Perimeter.objects.exclude(delete_datetime__isnull=True).all()
+        deleted_perimeters = Perimeter.objects.exclude(delete_datetime__isnull=True).values_list('id', flat=True)
         assert len(deleted_perimeters) == 2
-        assert deleted_perimeters[0].id == 0
-        assert deleted_perimeters[1].id == 1
+        assert 0 in deleted_perimeters
+        assert 1 in deleted_perimeters
