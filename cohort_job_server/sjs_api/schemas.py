@@ -51,7 +51,6 @@ class TemporalConstraint(BaseModel):
     dates_are_not_null: list = Field(default=None, alias="dateIsNotNullList")
     filtered_criteria_id: list = Field(default=None, alias="filteredCriteriaIdList")
 
-
 class SourcePopulation(BaseModel):
     care_site_cohort_list: list[int] = Field(default_factory=list, alias="caresiteCohortList")
 
@@ -93,6 +92,10 @@ class CohortQuery(BaseModel):
     temporal_constraints: list[TemporalConstraint] = Field(default_factory=list, alias='temporalConstraints')
 
 
+class ModeOptions(BaseModel):
+    sampling: float = Field(None, alias='sampling')
+
+
 @dataclass
 class SparkJobObject:
     cohort_definition_name: str
@@ -101,6 +104,7 @@ class SparkJobObject:
     owner_entity_id: str
     callbackPath: Optional[str] = Field(None, alias='callbackPath')
     existingCohortId: Optional[int] = Field(None, alias='existingCohortId')
+    modeOptions: Optional[ModeOptions] = Field(None, alias='modeOptions')
 
 
 class FhirParameter(BaseModel):

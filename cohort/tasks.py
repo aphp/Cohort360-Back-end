@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 
 from celery import shared_task, current_task
 
@@ -14,19 +15,29 @@ _logger = logging.getLogger('django.request')
 
 
 @shared_task
-def create_cohort(cohort_id: str, json_query: str, auth_headers: dict, cohort_creator_cls: str) -> None:
+def create_cohort(cohort_id: str,
+                  json_query: str,
+                  auth_headers: dict,
+                  cohort_creator_cls: str,
+                  sampling_ratio: Optional[float] = None) -> None:
     cr = CohortResult.objects.get(uuid=cohort_id)
     cr.create_task_id = current_task.request.id or ""
     cr.save()
     cohort_creator = load_operator(cohort_creator_cls)
     cohort_creator.launch_cohort_creation(cohort_id=cohort_id,
                                           json_query=json_query,
-                                          auth_headers=auth_headers)
+                                          auth_headers=auth_headers,
+                                          owner_username=cr.owner_id,
+                                          sampling_ratio=sampling_ratio)
 
 
 @shared_task
 @locked_instance_task
-def count_cohort(dm_id: str, json_query: str, auth_headers: dict, cohort_counter_cls: str, global_estimate=False) -> None:
+def count_cohort(dm_id: str,
+                 json_query: str,
+                 auth_headers: dict,
+                 cohort_counter_cls: str,
+                 global_estimate=False) -> None:
     dm = DatedMeasure.objects.get(uuid=dm_id)
     dm.count_task_id = current_task.request.id or ""
     dm.request_job_status = JobStatus.pending
@@ -35,7 +46,8 @@ def count_cohort(dm_id: str, json_query: str, auth_headers: dict, cohort_counter
     cohort_counter.launch_dated_measure_count(dm_id=dm_id,
                                               json_query=json_query,
                                               auth_headers=auth_headers,
-                                              global_estimate=global_estimate)
+                                              global_estimate=global_estimate,
+                                              owner_username=dm.owner_id)
 
 
 @shared_task
@@ -75,7 +87,8 @@ def feasibility_study_count(fs_id: str, json_query: str, auth_headers: dict, coh
     cohort_counter = load_operator(cohort_counter_cls)
     return cohort_counter.launch_feasibility_study_count(fs_id=fs_id,
                                                          json_query=json_query,
-                                                         auth_headers=auth_headers)
+                                                         auth_headers=auth_headers,
+                                                         owner_username=fs.owner_id)
 
 
 @shared_task

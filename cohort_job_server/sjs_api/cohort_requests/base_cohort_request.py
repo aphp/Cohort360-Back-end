@@ -5,9 +5,9 @@ from typing import TYPE_CHECKING, List, Optional
 
 from accesses.models import Perimeter
 from accesses.services.accesses import accesses_service
-from admin_cohort.services.auth import auth_service
 from admin_cohort.models import User
 from cohort_job_server.sjs_api.exceptions import FhirException
+from cohort_job_server.sjs_api.schemas import ModeOptions
 from cohort_job_server.sjs_api.sjs_client import format_spark_job_request_for_sjs
 from cohort_job_server.sjs_api import Mode, SJSClient, QueryFormatter, SparkJobObject
 
@@ -20,9 +20,14 @@ _celery_logger = logging.getLogger("celery.app")
 class BaseCohortRequest:
     model = None
 
-    def __init__(self, mode: Mode, instance_id: Optional[str], json_query: str, auth_headers: dict, callback_path: str = None,
+    def __init__(self, mode: Mode,
+                 instance_id: Optional[str],
+                 json_query: str,
+                 auth_headers: dict,
+                 callback_path: str = None,
                  existing_cohort_id: int = None,
-                 owner_username: str = None):
+                 owner_username: str = None,
+                 sampling_ratio: Optional[float] = None):
         self.mode = mode
         self.instance_id = instance_id
         self.json_query = json_query
@@ -31,12 +36,7 @@ class BaseCohortRequest:
         self.callback_path = callback_path
         self.owner_username = owner_username
         self.existing_cohort_id = existing_cohort_id
-
-    def __headers_to_owner_entity(self) -> str:
-        if self.owner_username:
-            return self.owner_username
-        return auth_service.retrieve_username(token=self.auth_headers['Authorization'].replace('Bearer ', ''),
-                                              auth_method=self.auth_headers['authorizationMethod'])
+        self.sampling_ratio = sampling_ratio
 
     @staticmethod
     def is_cohort_request_pseudo_read(username: str, source_population: List[int]) -> bool:
@@ -50,7 +50,7 @@ class BaseCohortRequest:
         if cohort_query is None:
             raise FhirException("No query received to format.")
 
-        is_pseudo = self.is_cohort_request_pseudo_read(username=self.__headers_to_owner_entity(),
+        is_pseudo = self.is_cohort_request_pseudo_read(username=self.owner_username,
                                                        source_population=cohort_query.source_population.care_site_cohort_list)
 
         sjs_request = QueryFormatter(self.auth_headers).format_to_fhir(cohort_query, is_pseudo)
@@ -58,12 +58,13 @@ class BaseCohortRequest:
 
         callback_path = self.callback_path or (
                 self.mode == Mode.COUNT_WITH_DETAILS and f"/cohort/feasibility-studies/{cohort_query.instance_id}/" or None)
-        spark_job_request = SparkJobObject(cohort_definition_name="Created from Django",
+        spark_job_request = SparkJobObject(cohort_definition_name="Created from C360 backend",
                                            cohort_definition_syntax=cohort_query,
                                            mode=self.mode,
-                                           owner_entity_id=self.__headers_to_owner_entity(),
+                                           owner_entity_id=self.owner_username,
                                            callbackPath=callback_path,
-                                           existingCohortId=self.existing_cohort_id
+                                           existingCohortId=self.existing_cohort_id,
+                                           modeOptions=ModeOptions(sampling=self.sampling_ratio)
                                            )
         return format_spark_job_request_for_sjs(spark_job_request)
 

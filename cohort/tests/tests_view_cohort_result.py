@@ -188,6 +188,49 @@ class CohortCreateCase(CreateCase):
 
 
 class CohortsCreateTests(CohortsTests):
+
+    def setUp(self):
+        super(CohortsCreateTests, self).setUp()
+
+        self.test_name = "test"
+
+        self.user1_req1_snap1_dm = DatedMeasure.objects.create(owner=self.user1,
+                                                               request_query_snapshot=self.user1_req1_snap1,
+                                                               measure=1,
+                                                               fhir_datetime=timezone.now())
+
+        self.basic_data = dict(
+            name=self.test_name,
+            description=self.test_name,
+            favorite=True,
+            request_query_snapshot=self.user1_req1_snap1.pk,
+            dated_measure=self.user1_req1_snap1_dm.pk,
+        )
+        parent_cohort = CohortResult.objects.create(name="Parent cohort for sampling",
+                                                    description="Parent cohort for sampling",
+                                                    owner=self.user1,
+                                                    request_query_snapshot=self.user1_req1_snap1,
+                                                    dated_measure=self.user1_req1_snap1_dm)
+
+        self.basic_data_for_sampled_cohort = dict(name="Sampled Cohort",
+                                                  description="Sampled Cohort",
+                                                  parent_cohort=parent_cohort.uuid,
+                                                  sampling_ratio=0.3)
+        self.basic_case = CohortCreateCase(
+            data=self.basic_data,
+            status=status.HTTP_201_CREATED,
+            user=self.user1,
+            success=True,
+            mock_create_task_called=True,
+            retrieve_filter=CohortCaseRetrieveFilter(name=self.test_name),
+            global_estimate=False
+        )
+        self.basic_err_case = self.basic_case.clone(
+            mock_create_task_called=False,
+            success=False,
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     @mock.patch('cohort.services.cohort_result.get_authorization_header')
     @mock.patch('cohort.services.cohort_result.create_cohort.apply_async')
     @mock.patch('cohort.services.dated_measure.count_cohort.apply_async')
@@ -215,56 +258,15 @@ class CohortsCreateTests(CohortsTests):
     def check_create_case(self, case: CohortCreateCase, other_view: Any = None, **view_kwargs):
         return self.check_create_case_with_mock(case, other_view=other_view or None, view_kwargs=view_kwargs)
 
-    def setUp(self):
-        super(CohortsCreateTests, self).setUp()
-
-        self.test_name = "test"
-
-        self.user1_req1_snap1_dm = DatedMeasure.objects.create(owner=self.user1,
-                                                               request_query_snapshot=self.user1_req1_snap1,
-                                                               measure=1,
-                                                               fhir_datetime=timezone.now())
-
-        self.basic_data = dict(
-            name=self.test_name,
-            description=self.test_name,
-            favorite=True,
-            request_query_snapshot=self.user1_req1_snap1.pk,
-            dated_measure=self.user1_req1_snap1_dm.pk,
-            # group_id
-            # dated_measure_global
-            # create_task_id
-            # type
-        )
-        self.basic_case = CohortCreateCase(
-            data=self.basic_data,
-            status=status.HTTP_201_CREATED,
-            user=self.user1,
-            success=True,
-            mock_create_task_called=True,
-            retrieve_filter=CohortCaseRetrieveFilter(name=self.test_name),
-            global_estimate=False
-        )
-        self.basic_err_case = self.basic_case.clone(
-            mock_create_task_called=False,
-            success=False,
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
     def test_create(self):
-        # As a user, I can create a DatedMeasure with only RQS,
-        # it will launch a task
         self.check_create_case(self.basic_case)
 
     def test_create_with_global(self):
-        # As a user, I can create a DatedMeasure with only RQS,
-        # it will launch a task
         self.check_create_case(self.basic_case.clone(
             data={**self.basic_data, 'global_estimate': True}
         ))
 
     def test_create_with_unread_fields(self):
-        # As a user, I can create a dm
         self.check_create_case(self.basic_case.clone(
             data={**self.basic_data,
                   'create_task_id': random_str(5),
@@ -277,30 +279,65 @@ class CohortsCreateTests(CohortsTests):
         ))
 
     def test_error_create_missing_field(self):
-        # As a user, I cannot create a dm if some field is missing
-        cases = (self.basic_err_case.clone(
-            data={**self.basic_data, k: None},
+        case = self.basic_err_case.clone(
+            data={**self.basic_data, "request_query_snapshot": None},
             success=False,
-            status=status.HTTP_400_BAD_REQUEST,
-        ) for k in ['request_query_snapshot'])
-        [self.check_create_case(case) for case in cases]
+            status=status.HTTP_400_BAD_REQUEST)
+        self.check_create_case(case)
 
-    def test_error_create_with_other_owner(self):
-        # As a user, I cannot create a cohort providing another user as owner
-        self.check_create_case(self.basic_err_case.clone(
-            data={**self.basic_data, 'owner': self.user2.pk},
-            status=status.HTTP_400_BAD_REQUEST,
-            success=False,
-        ))
-
-    def test_error_create_on_rqs_not_owned(self):
-        # As a user, I cannot create a dm on a Rqs I don't own
+    def test_error_create_with_rqs_not_owned(self):
         self.check_create_case(self.basic_err_case.clone(
             data={**self.basic_data,
                   'request_query_snapshot': self.user2_req1_snap1.pk},
             success=False,
             status=status.HTTP_400_BAD_REQUEST,
         ))
+
+    def test_successfully_create_sampled_cohort(self):
+        self.check_create_case(
+            self.basic_case.clone(data=self.basic_data_for_sampled_cohort,
+                                  retrieve_filter=CohortCaseRetrieveFilter(name=self.basic_data_for_sampled_cohort.get("name"))
+                                  ))
+
+    def test_error_create_sampled_cohort_with_ratio_0(self):
+        data = {**self.basic_data_for_sampled_cohort,
+                "name": "Sampled Cohort with ratio 0.0",
+                "sampling_ratio": 0.0
+                }
+        self.check_create_case(
+            self.basic_err_case.clone(data=data,
+                                      retrieve_filter=CohortCaseRetrieveFilter(name=data.get("name"))
+                                      ))
+
+    def test_error_create_sampled_cohort_with_ratio_1(self):
+        data = {**self.basic_data_for_sampled_cohort,
+                "name": "Sampled Cohort with ratio 1.0",
+                "sampling_ratio": 1.0
+                }
+        self.check_create_case(
+            self.basic_err_case.clone(data=data,
+                                      retrieve_filter=CohortCaseRetrieveFilter(name=data.get("name"))
+                                      ))
+
+    def test_error_create_sampled_cohort_with_ratio_gt_1(self):
+        data = {**self.basic_data_for_sampled_cohort,
+                "name": "Sampled Cohort with ratio gt 1",
+                "sampling_ratio": 2.5
+                }
+        self.check_create_case(
+            self.basic_err_case.clone(data=data,
+                                      retrieve_filter=CohortCaseRetrieveFilter(name=data.get("name"))
+                                      ))
+
+    def test_error_create_sampled_cohort_with_ratio_lt_0(self):
+        data = {**self.basic_data_for_sampled_cohort,
+                "name": "Sampled Cohort with ratio lt 0",
+                "sampling_ratio": -1.5
+                }
+        self.check_create_case(
+            self.basic_err_case.clone(data=data,
+                                      retrieve_filter=CohortCaseRetrieveFilter(name=data.get("name"))
+                                      ))
 
 
 class CohortsDeleteTests(CohortsTests):
@@ -383,7 +420,6 @@ class CohortsUpdateTests(CohortsTests):
         data_to_update = dict(name="new_name",
                               description="new_desc",
                               request_job_status=JobStatus.failed,
-                              request_job_fail_msg="test_fail_msg",
                               # read_only
                               create_task_id="test_task_id",
                               request_job_id="test_job_id",

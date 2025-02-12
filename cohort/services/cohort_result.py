@@ -70,12 +70,12 @@ class CohortResultService(CommonService):
         if request.data.pop("global_estimate", False):
             dm_service.handle_global_count(cohort, request)
         try:
-            create_cohort.s(cohort_id=cohort.pk,
-                            json_query=cohort.request_query_snapshot.serialized_query,
-                            auth_headers=get_authorization_header(request),
-                            cohort_creator_cls=self.operator_cls) \
-                .apply_async()
-
+           create_cohort.s(cohort_id=cohort.pk,
+                           json_query=cohort.request_query_snapshot.serialized_query,
+                           auth_headers=get_authorization_header(request),
+                           cohort_creator_cls=self.operator_cls,
+                           sampling_ratio=cohort.sampling_ratio) \
+                        .apply_async()
         except Exception as e:
             cohort.delete()
             raise ServerError("Could not launch cohort creation") from e
