@@ -9,7 +9,6 @@ from admin_cohort.models import User
 from admin_cohort.tests.tests_tools import CaseRetrieveFilter, random_str, ListCase, RetrieveCase, CreateCase, DeleteCase, \
     PatchCase, RequestCase
 from cohort.models import Request, Folder
-from cohort.models.request import REQUEST_DATA_TYPES, PATIENT_DATA_TYPE
 from cohort.tests.cohort_app_tests import CohortAppTests
 from cohort.tests.tests_view_folders import FolderCaseRetrieveFilter
 from cohort.views import RequestViewSet, NestedRequestViewSet
@@ -84,7 +83,6 @@ class RequestsGetTests(RequestsTests):
                 owner=u,
                 favorite=random.random() > .5,
                 parent_folder=random.choice(u_folders),
-                data_type_of_query=random.choice(REQUEST_DATA_TYPES)[0],
                 shared_by=other_u if random.random() > .5 else None,
             ))
         Request.objects.bulk_create(self.requests)
@@ -174,7 +172,6 @@ class RequestsCreateTests(RequestsTests):
             parent_folder=self.user1_folder1.pk,
             description="desc",
             favorite=True,
-            data_type_of_query=PATIENT_DATA_TYPE,
         )
         self.basic_case = CreateCase(
             success=True,
@@ -241,7 +238,6 @@ class RequestsDeleteTests(RequestsTests):
             parent_folder=self.user1_folder1,
             description="desc",
             favorite=True,
-            data_type_of_query=PATIENT_DATA_TYPE,
             owner=self.user1,
         )
         self.basic_case = DeleteCase(
@@ -272,7 +268,6 @@ class RequestsUpdateTests(RequestsTests):
             parent_folder=self.user1_folder1,
             description="desc",
             favorite=True,
-            data_type_of_query=PATIENT_DATA_TYPE,
             owner=self.user1,
         )
         self.basic_case = PatchCase(
@@ -291,7 +286,6 @@ class RequestsUpdateTests(RequestsTests):
                 parent_folder=self.user1_folder2.pk,
                 description="asc",
                 favorite=False,
-                data_type_of_query=REQUEST_DATA_TYPES[1][0],
                 # read_only
                 shared_by=self.user2.pk,
                 created_at=timezone.now() + timedelta(hours=1),
