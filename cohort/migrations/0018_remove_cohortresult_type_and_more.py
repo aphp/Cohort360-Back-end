@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('cohort', '0016_fhirfilter_auto_generated_and_more'),
+        ('cohort', '0017_cohortresult_parent_cohort_and_more'),
     ]
 
     operations = [

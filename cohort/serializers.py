@@ -119,6 +119,8 @@ class CohortResultSerializer(serializers.ModelSerializer):
     owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
     request_query_snapshot = PrimaryKeyRelatedFieldWithOwner(queryset=RequestQuerySnapshot.objects.all(), required=False)
     dated_measure = PrimaryKeyRelatedFieldWithOwner(queryset=DatedMeasure.objects.all(), required=False, write_only=True)
+    parent_cohort = PrimaryKeyRelatedFieldWithOwner(queryset=CohortResult.objects.filter(parent_cohort__isnull=True), required=False)
+    sampling_ratio = serializers.FloatField(required=False)
     result_size = serializers.IntegerField(required=False)
     measure_min = serializers.IntegerField(required=False)
     measure_max = serializers.IntegerField(required=False)
@@ -136,6 +138,8 @@ class CohortResultSerializer(serializers.ModelSerializer):
                   "owner",
                   "request_query_snapshot",
                   "dated_measure",
+                  "parent_cohort",
+                  "sampling_ratio",
                   "result_size",
                   "measure_min",
                   "measure_max",
@@ -156,6 +160,20 @@ class CohortResultSerializer(serializers.ModelSerializer):
                 'description': obj.request_query_snapshot.request.description
                 }
 
+    def validate_sampling_ratio(self, value):
+        if value is not None and not 0 < value < 1:
+            raise serializers.ValidationError("Sampling ratio must be between 0 and 1")
+        return value
+
+    def create(self, validated_data):
+        parent_cohort = validated_data.get("parent_cohort")
+        if parent_cohort is not None:
+            # complete data to create sampled cohort
+            validated_data.update({"request_query_snapshot": parent_cohort.request_query_snapshot,
+                                   "dated_measure": parent_cohort.dated_measure
+                                   })
+        return super().create(validated_data)
+
 
 class CohortResultCreateSerializer(serializers.ModelSerializer):
     name = serializers.CharField(required=True)
@@ -175,7 +193,6 @@ class CohortResultCreateSerializer(serializers.ModelSerializer):
 
 class SampledCohortResultCreateSerializer(serializers.ModelSerializer):
     name = serializers.CharField(required=True)
-    description = serializers.CharField(allow_blank=True, allow_null=True)
     owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
     parent_cohort = PrimaryKeyRelatedFieldWithOwner(required=True, queryset=CohortResult.objects.filter(parent_cohort__isnull=True))
     sampling_ratio = serializers.FloatField(required=True)
@@ -187,18 +204,6 @@ class SampledCohortResultCreateSerializer(serializers.ModelSerializer):
                   "owner",
                   "parent_cohort",
                   "sampling_ratio"]
-
-    def validate_sampling_ratio(self, value):
-        if not 0 < value < 1:
-            raise serializers.ValidationError("Sampling ratio must be between 0 and 1")
-        return value
-
-    def create(self, validated_data):
-        parent_cohort = validated_data.get("parent_cohort")
-        validated_data.update({"request_query_snapshot": parent_cohort.request_query_snapshot,
-                               "dated_measure": parent_cohort.dated_measure
-                               })
-        return super().create(validated_data)
 
 
 class CohortResultPatchSerializer(serializers.ModelSerializer):

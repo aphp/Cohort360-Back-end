@@ -1,5 +1,5 @@
 from django.db import transaction
-from django.db.models import Q, F
+from django.db.models import Q
 from django.shortcuts import get_list_or_404
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_spectacular.utils import extend_schema, PolymorphicProxySerializer
@@ -13,7 +13,8 @@ from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools import join_qs
 from cohort.services.cohort_result import cohort_service
 from cohort.models import CohortResult
-from cohort.serializers import CohortResultSerializer
+from cohort.serializers import CohortResultSerializer, CohortRightsSerializer, CohortResultPatchSerializer, CohortResultCreateSerializer, \
+    SampledCohortResultCreateSerializer
 from cohort.services.cohort_rights import cohort_rights_service
 from cohort.views.shared import UserObjectsRestrictedViewSet
 from exports.services.export import export_service
@@ -84,11 +85,18 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             return self.queryset
         return super().get_queryset().filter(is_subset=False)
 
+
     @cache_response()
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
-    @extend_schema(request=CohortResultCreateSerializer, responses={status.HTTP_201_CREATED: CohortResultSerializer})
+
+    @extend_schema(
+        request=PolymorphicProxySerializer(
+            component_name="CreateCohortResult",
+            resource_type_field_name=None,
+            serializers=[CohortResultCreateSerializer, SampledCohortResultCreateSerializer]),
+        responses={status.HTTP_201_CREATED: CohortResultSerializer})
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         global_estimate = request.data.pop("global_estimate", False)
@@ -118,6 +126,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         cohort_service.ws_send_to_client(cohort=cohort)
         return response
 
+
     def destroy(self, request, *args, **kwargs):
         """Delete multiple objects if multiple UUIDs are provided, separated by commas."""
         uuids_arg = kwargs.get("uuid", "")
@@ -137,6 +146,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
 
         # Default single-object delete behavior
         return super().destroy(request, uuids_arg)
+
 
     @action(methods=['get'], detail=False, url_path='jobs/active')
     def get_active_jobs(self, request, *args, **kwargs):
