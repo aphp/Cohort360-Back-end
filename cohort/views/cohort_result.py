@@ -58,8 +58,10 @@ class CohortFilter(filters.FilterSet):
 
 
 class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
-    queryset = CohortResult.objects.select_related('request_query_snapshot__request') \
-                                   .annotate(request_id=F('request_query_snapshot__request__uuid')).all()
+    queryset = CohortResult.objects.select_related('dated_measure',
+                                                   'dated_measure_global',
+                                                   'request_query_snapshot__request') \
+                                   .annotate(request_id=F('request_query_snapshot__request__uuid'))
     serializer_class = CohortResultSerializer
     http_method_names = ['get', 'post', 'patch', 'delete']
     swagger_tags = ["Cohorts"]

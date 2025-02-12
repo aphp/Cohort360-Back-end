@@ -1,3 +1,4 @@
+from django.db.models.query import Prefetch
 from django.http import QueryDict
 from django.shortcuts import get_list_or_404
 from drf_spectacular.utils import extend_schema_view, extend_schema
@@ -6,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from admin_cohort.tools.cache import cache_response
-from cohort.models import Request
+from cohort.models import Request, RequestQuerySnapshot as RQS
 from cohort.serializers import RequestSerializer, RequestCreateSerializer, RequestPatchSerializer
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
@@ -21,7 +22,8 @@ from cohort.views.shared import UserObjectsRestrictedViewSet
     destroy=extend_schema(responses={status.HTTP_204_NO_CONTENT: None})
 )
 class RequestViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
-    queryset = Request.objects.all()
+    queryset = Request.objects.prefetch_related(Prefetch(lookup='query_snapshots',
+                                                         queryset=RQS.objects.prefetch_related('cohort_results')))
     serializer_class = RequestSerializer
     http_method_names = ["get", "post", "patch", "delete"]
     filterset_fields = ('favorite',
