@@ -18,7 +18,7 @@ def send_email_notif_about_shared_request(request_name: str, owner: User, recipi
                "request_name": request_name
                }
     email_notif = EmailNotification(subject=subject,
-                                    to=recipient.email,
+                                    to=[recipient.email],
                                     html_template="shared_request.html",
                                     txt_template="shared_request.txt",
                                     context=context)
@@ -32,7 +32,7 @@ def send_email_notif_feasibility_report_requested(request_name: str, owner: User
                "request_name": request_name
                }
     email_notif = EmailNotification(subject=subject,
-                                    to=owner.email,
+                                    to=[owner.email],
                                     html_template="feasibility_report_requested.html",
                                     txt_template="feasibility_report_requested.txt",
                                     context=context)
@@ -47,7 +47,7 @@ def send_email_notif_feasibility_report_ready(request_name: str, owner: User, fs
                "download_url": f"{settings.FRONT_URL}/download/feasibility-studies/{fs_id}/",
                }
     email_notif = EmailNotification(subject=subject,
-                                    to=owner.email,
+                                    to=[owner.email],
                                     html_template="feasibility_report_ready.html",
                                     txt_template="feasibility_report_ready.txt",
                                     context=context)
@@ -61,7 +61,7 @@ def send_email_notif_error_feasibility_report(request_name: str, owner: User) ->
                "request_name": request_name,
                }
     email_notif = EmailNotification(subject=subject,
-                                    to=owner.email,
+                                    to=[owner.email],
                                     html_template="feasibility_report_error.html",
                                     txt_template="feasibility_report_error.txt",
                                     context=context)
@@ -75,7 +75,7 @@ def send_email_notif_count_request_refreshed(request_name: str, owner: User) -> 
                "request_name": request_name,
                }
     email_notif = EmailNotification(subject=subject,
-                                    to=owner.email,
+                                    to=[owner.email],
                                     html_template="count_request_refreshed.html",
                                     txt_template="count_request_refreshed.txt",
                                     context=context)

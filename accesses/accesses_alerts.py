@@ -11,6 +11,8 @@ from admin_cohort.models import User
 
 _logger = logging.getLogger("info")
 
+MANUAL = settings.ACCESS_SOURCES[0]
+
 
 def send_alert_email(user: User, days: int):
     context = {"recipient_name": user.display_name,
@@ -18,7 +20,7 @@ def send_alert_email(user: User, days: int):
                "access_managers_list_link": settings.ACCESS_MANAGERS_LIST_LINK
                }
     email_notif = EmailNotification(subject="Expiration de vos accès à Cohort360",
-                                    to=user.email,
+                                    to=[user.email],
                                     html_template="access_expiry_alert.html",
                                     txt_template="access_expiry_alert.txt",
                                     context=context)
@@ -29,7 +31,6 @@ def send_access_expiry_alerts(days: int):
     _logger.info("Checking expiring accesses")
     expiry_date = date.today() + timedelta(days=days)
     expiring_accesses = Access.objects.filter(accesses_service.q_access_is_valid() &
-                                              Q(profile__source=settings.MANUAL_SOURCE) &
                                               Q(end_datetime__date=expiry_date))\
                                       .values("profile")\
                                       .annotate(total=Count("profile"))

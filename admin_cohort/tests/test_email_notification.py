@@ -21,7 +21,7 @@ class EmailNotificationTest(TestCase):
         mock_attach_logo.return_value = None
         mock_build_email_contents.return_value = None
         email_notif = EmailNotification(subject="Email subject",
-                                        to="some.one@aphp.fr",
+                                        to=["some.one@aphp.fr"],
                                         html_template='',
                                         txt_template='',
                                         context=self.context)

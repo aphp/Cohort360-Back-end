@@ -19,7 +19,7 @@ def export_received(action: str, export_type: str, **kwargs):
                "selected_tables": kwargs.get('selected_tables')
                }
     return dict(subject=f"[Cohorte {kwargs.get('cohort_id')}] {action}",
-                to=kwargs.get('recipient_email'),
+                to=[kwargs.get('recipient_email')],
                 html_template=f"{export_type}_export_received.html",
                 txt_template=f"{export_type}_export_received.txt",
                 context=context)
@@ -36,7 +36,7 @@ def export_succeeded(export_type: str, **kwargs):
                "delete_date": (timezone.now().date() + timedelta(days=settings.DAYS_TO_KEEP_EXPORTED_FILES)).strftime("%d %B %Y")
                }
     return dict(subject=subject,
-                to=kwargs.get('recipient_email'),
+                to=[kwargs.get('recipient_email')],
                 html_template=f"{export_type}_export_succeeded.html",
                 txt_template=f"{export_type}_export_succeeded.txt",
                 context=context)
@@ -50,7 +50,7 @@ def export_failed(**kwargs):
                "error_message": kwargs.get('error_message')
                }
     return dict(subject=subject,
-                to=kwargs.get('recipient_email'),
+                to=[kwargs.get('recipient_email')],
                 html_template="export_failed.html",
                 txt_template="export_failed.txt",
                 context=context)

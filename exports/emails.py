@@ -24,7 +24,7 @@ def exported_files_deleted(**kwargs):
                'cohort_id': kwargs.get('cohort_id')
                }
     return dict(subject=f"[Cohorte {kwargs.get('cohort_id')}] Confirmation de suppression de fichiers exportés",
-                to=kwargs.get('recipient_email'),
+                to=[kwargs.get('recipient_email')],
                 html_template="exported_files_deleted.html",
                 txt_template="exported_files_deleted.txt",
                 context=context)
