@@ -65,8 +65,9 @@ def format_spark_job_request_for_sjs(spark_job_request: SparkJobObject) -> str:
                         f"input.cohortDefinitionSyntax = {format_syntax(spark_job_request.cohort_definition_syntax)},"
                         f"input.ownerEntityId = {spark_job_request.owner_entity_id},"
                         f"input.mode = {spark_job_request.mode},"
-                        f"input.cohortUuid = {spark_job_request.cohort_definition_syntax.instance_id},"
-                        'input.modeOptions = {"sampling": "%s"}' % spark_job_request.modeOptions.sampling)
+                        f"input.cohortUuid = {spark_job_request.cohort_definition_syntax.instance_id}")
     if callback_path:
         request_input += f",input.callbackPath = {callback_path}"
+    if spark_job_request.modeOptions is not None:
+        request_input += ',input.modeOptions = {"sampling": "%s"}' % spark_job_request.modeOptions.sampling
     return request_input

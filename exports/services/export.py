@@ -85,9 +85,9 @@ class ExportService:
                                        cohort_result_source=cohort_source,
                                        cohort_result_subset=cohort_subset,
                                        columns=table.get("columns"),
-                                       pivot=table.get("pivot", False),
-                                       pivot_split=table.get("pivot_split", False),
-                                       pivot_merge=table.get("pivot_merge", False))
+                                       pivot=bool(table.get("pivot")),
+                                       pivot_split=bool(table.get("pivot_split")),
+                                       pivot_merge=bool(table.get("pivot_merge")))
         return requires_cohort_subsets
 
     @staticmethod

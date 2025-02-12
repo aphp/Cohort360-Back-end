@@ -20,20 +20,20 @@ class RequestQuerySnapshotService:
         request_id = data.get("request")
         if previous_snapshot_id:
             previous_snapshot = RequestQuerySnapshot.objects.get(pk=previous_snapshot_id)
-            if request_id and request_id != previous_snapshot.request.uuid:
+            if request_id and request_id != previous_snapshot.request_id:
                 raise ValueError("The provided request is different from the previous_snapshot's request")
-            data["request"] = previous_snapshot.request.uuid
+            data["request"] = previous_snapshot.request_id
         elif request_id:
             request = Request.objects.get(pk=request_id)
-            if request.query_snapshots.all().count():
+            if request.query_snapshots.exists():
                 raise ValueError("Must provide a `previous_snapshot` if the request already has snapshots")
         else:
-            raise ValueError("Neither `previous_snapshot` or `request` were provided")
+            raise ValueError("Neither `previous_snapshot` nor `request` were provided")
 
         serialized_query = data.get("serialized_query")
         data["perimeters_ids"] = RequestQuerySnapshotService.retrieve_perimeters(json_query=serialized_query)
         request = Request.objects.get(pk=data.get("request"))
-        data["version"] = request.query_snapshots.all().count() + 1
+        data["version"] = request.query_snapshots.count() + 1
 
     @staticmethod
     def check_shared_folders(recipients: List[User]) -> tuple[List[Folder], dict[str, Folder]]:
