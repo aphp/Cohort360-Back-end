@@ -19,8 +19,3 @@ class Request(CohortBaseModel):
     @property
     def dated_measures(self):
         return reduce(lambda a, b: a | b, [rqs.dated_measures.all() for rqs in self.query_snapshots.all()])
-
-    @property
-    def updated_at(self):
-        return max(self.modified_at,
-                   self.query_snapshots.latest("modified_at").modified_at)
