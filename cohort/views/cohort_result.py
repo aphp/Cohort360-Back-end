@@ -13,7 +13,7 @@ from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools import join_qs
 from cohort.services.cohort_result import cohort_service
 from cohort.models import CohortResult
-from cohort.serializers import CohortResultSerializer, CohortResultSerializerFullDatedMeasure, CohortResultCreateSerializer, \
+from cohort.serializers import CohortResultSerializer, CohortResultCreateSerializer, \
     CohortResultPatchSerializer, CohortRightsSerializer, SampledCohortResultCreateSerializer
 from cohort.services.cohort_rights import cohort_rights_service
 from cohort.views.shared import UserObjectsRestrictedViewSet
@@ -83,18 +83,6 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         if cohort_service.allow_use_full_queryset(request=self.request):
             return self.queryset
         return super().get_queryset().filter(is_subset=False)
-
-    def get_serializer_class(self):
-        if self.request.method == "GET":
-            return CohortResultSerializerFullDatedMeasure
-        elif self.request.method == "PATCH":
-            return CohortResultPatchSerializer
-        elif self.request.method == "POST":
-            if CohortResult.sampling_ratio.field.name in self.request.data:
-                return SampledCohortResultCreateSerializer
-            return CohortResultCreateSerializer
-        else:
-            return self.serializer_class
 
     @cache_response()
     def list(self, request, *args, **kwargs):

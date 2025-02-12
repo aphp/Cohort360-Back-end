@@ -157,8 +157,8 @@ class CohortResultSerializer(BaseSerializer):
     owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
     result_size = serializers.IntegerField(read_only=True)
     request = serializers.UUIDField(read_only=True, required=False, source='request_id')
-    request_query_snapshot = PrimaryKeyRelatedFieldWithOwner(queryset=RequestQuerySnapshot.objects.all())
-    dated_measure = PrimaryKeyRelatedFieldWithOwner(queryset=DatedMeasure.objects.all())
+    request_query_snapshot = PrimaryKeyRelatedFieldWithOwner(queryset=RequestQuerySnapshot.objects.all(), required=False)
+    dated_measure = PrimaryKeyRelatedFieldWithOwner(queryset=DatedMeasure.objects.all(), required=False)
     dated_measure_global = PrimaryKeyRelatedFieldWithOwner(queryset=DatedMeasure.objects.all(), required=False)
     group_id = serializers.CharField(allow_blank=True, allow_null=True, required=False)
     exportable = serializers.BooleanField(read_only=True)
@@ -169,6 +169,20 @@ class CohortResultSerializer(BaseSerializer):
         read_only_fields = ["create_task_id",
                             "request_job_id",
                             "type"]
+
+    def validate_sampling_ratio(self, value):
+        if value is not None and not 0 < value < 1:
+            raise serializers.ValidationError("Sampling ratio must be between 0 and 1")
+        return value
+
+    def create(self, validated_data):
+        parent_cohort = validated_data.get("parent_cohort")
+        if parent_cohort is not None:
+            # complete data to create sampled cohort
+            validated_data.update({"request_query_snapshot": parent_cohort.request_query_snapshot,
+                                   "dated_measure": parent_cohort.dated_measure
+                                   })
+        return super().create(validated_data)
 
 
 class CohortResultSerializerFullDatedMeasure(CohortResultSerializer):
