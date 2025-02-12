@@ -47,5 +47,8 @@ class CSVExporter(BaseExporter):
                             "output": {"type": self.type,
                                        "filePath": f"{export.target_full_path}.zip"
                                        },
+                            "pivot": list(export.export_tables.filter(pivot=True).values_list("name", flat=True)),
+                            "pivotSplit": list(export.export_tables.filter(pivot_split=True).values_list("name", flat=True)),
+                            "pivotMerge": list(export.export_tables.filter(pivot_merge=True).values_list("name", flat=True)),
                             }
         super().handle_export(export=export, params=params)

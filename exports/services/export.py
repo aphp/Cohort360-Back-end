@@ -84,7 +84,10 @@ class ExportService:
                                        fhir_filter_id=fhir_filter_id,
                                        cohort_result_source=cohort_source,
                                        cohort_result_subset=cohort_subset,
-                                       columns=table.get("columns"))
+                                       columns=table.get("columns"),
+                                       pivot=table.get("pivot", False),
+                                       pivot_split=table.get("pivot_split", False),
+                                       pivot_merge=table.get("pivot_merge", False))
         return requires_cohort_subsets
 
     @staticmethod

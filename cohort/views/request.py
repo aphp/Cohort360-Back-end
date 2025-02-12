@@ -1,7 +1,9 @@
 from django.db.models.query import Prefetch
 from django.http import QueryDict
+from django.shortcuts import get_list_or_404
 from drf_spectacular.utils import extend_schema_view, extend_schema
 from rest_framework import status
+from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from admin_cohort.tools.cache import cache_response
@@ -33,6 +35,24 @@ class RequestViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     @cache_response()
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        uuids_arg = kwargs.get("uuid", "")
+        if isinstance(uuids_arg, str) and "," in uuids_arg:  # Detect multiple UUIDs
+            try:
+                uuids = [u for u in uuids_arg.split(",")]  # Validate UUIDs
+            except ValueError:
+                return Response({"error": "Invalid UUID format"}, status=status.HTTP_400_BAD_REQUEST)
+
+            get_list_or_404(Request, uuid__in=uuids)
+            deleted_count, _ = Request.objects.filter(uuid__in=uuids).delete()
+
+            return Response(
+                {"message": f"Deleted {deleted_count} objects."},
+                status=status.HTTP_204_NO_CONTENT,
+            )
+        # Default single-object delete behavior
+        return super().destroy(request, uuids_arg)
 
 
 class NestedRequestViewSet(RequestViewSet):

@@ -40,7 +40,10 @@ class ExportTableSerializer(serializers.ModelSerializer):
         fields = ["name",
                   "respect_table_relationships",
                   "fhir_filter",
-                  "cohort_result_source"]
+                  "cohort_result_source",
+                  "pivot",
+                  "pivot_split",
+                  "pivot_merge"]
 
 
 class ExportSerializer(serializers.ModelSerializer):
@@ -74,7 +77,10 @@ class ExportTableSerializerCreate(serializers.ModelSerializer):
                   "columns",
                   "cohort_result_source",
                   "fhir_filter",
-                  "respect_table_relationships"]
+                  "respect_table_relationships",
+                  "pivot",
+                  "pivot_split",
+                  "pivot_merge"]
 
 
 class ExportCreateSerializer(serializers.ModelSerializer):
@@ -96,16 +102,16 @@ class ExportsListSerializer(serializers.ModelSerializer):
     cohort_id = serializers.CharField(read_only=True)
     cohort_name = serializers.CharField(read_only=True)
     patients_count = serializers.IntegerField(read_only=True)
-    target_datalab = serializers.CharField(read_only=True)
 
     class Meta:
         model = Export
         fields = ["owner",
-                  "output_format",  # todo: /!\ split pages in Portail for CSV/Hive exports
+                  "output_format",
+                  "motivation",
                   "cohort_id",
                   "cohort_name",
                   "patients_count",
-                  "created_at",     # todo:  was: `insert_datetime`
+                  "created_at",
                   "request_job_status",
                   "target_datalab",
-                  "target_name"]
+                  "target_name",]

@@ -1,6 +1,6 @@
 [project]
 name = "Cohort360-Backend"
-version = "3.25.0-dev-2878"
+version = "3.26.0-dev"
 authors = ["Assistance Publique - Hopitaux de Paris, Département I&D"]
 description = """Supports the official **Cohort360** web app and **Portail**
                  Built by **APHP**, _Département I&D_
@@ -39,6 +39,7 @@ dependencies = [
     "redis>=5.2.1",
     "requests-kerberos>=0.15.0",
     "requests>=2.32.3",
+    "celery>=5.4.0",
 ]
 
 [tool.ruff]

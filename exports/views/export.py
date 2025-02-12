@@ -2,6 +2,7 @@ import json
 
 from django.db import transaction
 from django.db.models import Q
+from django.db.models.expressions import Subquery, OuterRef
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema, OpenApiParameter, PolymorphicProxySerializer
@@ -14,7 +15,7 @@ from admin_cohort.tools import join_qs
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools.request_log_mixin import RequestLogMixin
 from exports.exceptions import FilesNoLongerAvailable, BadRequestError, StorageProviderException
-from exports.models import Export
+from exports.models import Export, ExportTable
 from exports.permissions import ExportPermission
 from exports.serializers import ExportSerializer, ExportsListSerializer, ExportCreateSerializer
 from exports.services.export import export_service
@@ -38,10 +39,11 @@ class ExportFilter(filters.FilterSet):
     output_format = filters.CharFilter(method="multi_value_filter", field_name="output_format")
     status = filters.CharFilter(method="multi_value_filter", field_name="request_job_status")
     owner = filters.CharFilter(method="owner_filter", field_name="owner")
-    motivation = filters.DateTimeFilter(field_name="motivation", lookup_expr='icontains')
+    motivation = filters.CharFilter(field_name="motivation", lookup_expr='icontains')
     ordering = OrderingFilter(fields=('created_at',
                                       'output_format',
                                       'status',
+                                      'patients_count',
                                       ('owner__firstname', 'owner')))
 
     class Meta:
@@ -53,8 +55,17 @@ class ExportFilter(filters.FilterSet):
 
 
 class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
+    export_table_subquery = ExportTable.objects.filter(export_id=OuterRef('uuid'),
+                                                       cohort_result_source__isnull=False) \
+                                               .values('cohort_result_source__name',
+                                                       'cohort_result_source__group_id',
+                                                       'cohort_result_source__dated_measure__measure'
+                                                       )[:1]
+    queryset = Export.objects.prefetch_related('export_tables__cohort_result_source__dated_measure') \
+                             .annotate(cohort_name=Subquery(export_table_subquery.values('cohort_result_source__name')),
+                                       cohort_id=Subquery(export_table_subquery.values('cohort_result_source__group_id')),
+                                       patients_count=Subquery(export_table_subquery.values('cohort_result_source__dated_measure__measure')))
     serializer_class = ExportSerializer
-    queryset = Export.objects.all()
     permission_classes = [ExportPermission]
     swagger_tags = ['Exports']
     filterset_class = ExportFilter
@@ -63,10 +74,13 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
     search_fields = ("owner__username",
                      "owner__firstname",
                      "owner__lastname",
+                     "motivation",
                      "request_job_status",
                      "output_format",
                      "target_name",
-                     "datalab__name")
+                     "datalab__name",
+                     "cohort_name",
+                     "cohort_id")
 
     def should_log(self, request, response):
         return super().should_log(request, response) or self.action == self.download.__name__

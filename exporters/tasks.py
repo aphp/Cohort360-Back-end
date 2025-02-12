@@ -1,4 +1,5 @@
 import logging
+from functools import lru_cache
 
 from celery import shared_task
 
@@ -18,11 +19,12 @@ def get_export_by_id(export_id: str | int) -> Export:
         raise ValueError(f'No export matches the given ID : {export_id}')
 
 
-def get_cohort_id(export: Export) -> int | str:
+@lru_cache(maxsize=None)
+def get_cohort(export: Export):
     if export.output_format in (ExportTypes.CSV.value,
                                 ExportTypes.XLSX.value):
-        return export.export_tables.first().cohort_result_source.group_id
-    return '--'
+        return export.export_tables.first().cohort_result_source
+    return None
 
 
 def get_selected_tables(export: Export) -> str:
@@ -35,10 +37,11 @@ def notify_export_received(export_id: str) -> None:
     export_type = export.output_format
 
     try:
+        cohort = get_cohort(export=export)
         notification_data = dict(recipient_name=export.owner.display_name,
                                  recipient_email=export.owner.email,
-                                 cohort_id=get_cohort_id(export=export),
-                                 cohort_name=export.cohort_name,
+                                 cohort_id=cohort and cohort.group_id or None,
+                                 cohort_name=cohort and cohort.name or None,
                                  selected_tables=get_selected_tables(export=export))
         push_email_notification(base_notification=EXPORT_RECEIVED_NOTIFICATIONS[export_type],
                                 **notification_data)
@@ -49,11 +52,12 @@ def notify_export_received(export_id: str) -> None:
 @shared_task
 def notify_export_succeeded(export_id: str) -> None:
     export = get_export_by_id(export_id)
+    cohort = get_cohort(export=export)
     notification_data = dict(recipient_name=export.owner.display_name,
                              recipient_email=export.owner.email,
                              export_request_id=export.pk,
-                             cohort_id=get_cohort_id(export=export),
-                             cohort_name=export.cohort_name,
+                             cohort_id=cohort and cohort.group_id or None,
+                             cohort_name=cohort and cohort.name or None,
                              database_name=export.target_name,
                              selected_tables=get_selected_tables(export=export))
     try:
@@ -70,10 +74,11 @@ def notify_export_succeeded(export_id: str) -> None:
 def notify_export_failed(export_id: str, reason: str) -> None:
     export = get_export_by_id(export_id)
     _logger.error(f"[ExportTask] [Export {export.pk}] {reason}")
+    cohort = get_cohort(export=export)
     notification_data = dict(recipient_name=export.owner.display_name,
                              recipient_email=export.owner.email,
-                             cohort_id=get_cohort_id(export=export),
-                             cohort_name=export.cohort_name,
+                             cohort_id=cohort and cohort.group_id or None,
+                             cohort_name=cohort and cohort.name or None,
                              error_message=reason)
     try:
         push_email_notification(base_notification=export_failed, **notification_data)

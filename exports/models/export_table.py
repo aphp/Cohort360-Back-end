@@ -14,6 +14,9 @@ class ExportTable(ExportsBaseModel):
     cohort_result_subset = models.ForeignKey(to=CohortResult, related_name="export_table", null=True, on_delete=CASCADE)
     cohort_result_source = models.ForeignKey(to=CohortResult, related_name="export_tables", null=True, on_delete=CASCADE)
     columns = ArrayField(models.CharField(max_length=55), null=True, blank=True)
+    pivot = models.BooleanField(null=False, default=False)
+    pivot_split = models.BooleanField(null=False, default=False)
+    pivot_merge = models.BooleanField(null=False, default=False)
 
     class Meta:
         db_table = 'export_table'

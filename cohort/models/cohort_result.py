@@ -18,6 +18,8 @@ class CohortResult(CohortBaseModel, JobModel):
     dated_measure_global = models.ForeignKey(DatedMeasure, related_name="global_cohorts", null=True, on_delete=models.SET_NULL)
     create_task_id = models.TextField(blank=True)
     is_subset = models.BooleanField(default=False)
+    parent_cohort = models.ForeignKey("CohortResult", related_name="sample_cohorts", on_delete=models.SET_NULL, null=True)
+    sampling_ratio = models.FloatField(blank=True, null=True)
 
     @property
     def result_size(self) -> int:

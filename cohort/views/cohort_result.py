@@ -1,7 +1,8 @@
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, F
+from django.shortcuts import get_list_or_404
 from django_filters import rest_framework as filters, OrderingFilter
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, PolymorphicProxySerializer
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
@@ -12,7 +13,7 @@ from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools import join_qs
 from cohort.services.cohort_result import cohort_service
 from cohort.models import CohortResult
-from cohort.serializers import CohortResultSerializer, CohortResultCreateSerializer, CohortResultPatchSerializer, CohortRightsSerializer
+from cohort.serializers import CohortResultSerializer
 from cohort.services.cohort_rights import cohort_rights_service
 from cohort.views.shared import UserObjectsRestrictedViewSet
 from exports.services.export import export_service
@@ -35,7 +36,7 @@ class CohortFilter(filters.FilterSet):
     group_id = filters.CharFilter(method="multi_value_filter", field_name="group_id")
     status = filters.CharFilter(method="multi_value_filter", field_name="request_job_status")
 
-    ordering = OrderingFilter(fields=('-created_at',
+    ordering = OrderingFilter(fields=('created_at',
                                       'modified_at',
                                       'name',
                                       ('dated_measure__measure', 'result_size'),
@@ -51,7 +52,8 @@ class CohortFilter(filters.FilterSet):
                   'request_id',
                   'favorite',
                   'group_id',
-                  'status')
+                  'status',
+                  'parent_cohort')
 
 
 class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
@@ -82,11 +84,9 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             return self.queryset
         return super().get_queryset().filter(is_subset=False)
 
-
     @cache_response()
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
-
 
     @extend_schema(request=CohortResultCreateSerializer, responses={status.HTTP_201_CREATED: CohortResultSerializer})
     @transaction.atomic
@@ -118,6 +118,25 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         cohort_service.ws_send_to_client(cohort=cohort)
         return response
 
+    def destroy(self, request, *args, **kwargs):
+        """Delete multiple objects if multiple UUIDs are provided, separated by commas."""
+        uuids_arg = kwargs.get("uuid", "")
+        if isinstance(uuids_arg, str) and "," in uuids_arg:  # Detect multiple UUIDs
+            try:
+                uuids = [u for u in uuids_arg.split(",")]  # Validate UUIDs
+            except ValueError:
+                return Response({"error": "Invalid UUID format"}, status=status.HTTP_400_BAD_REQUEST)
+
+            get_list_or_404(CohortResult, uuid__in=uuids)
+            deleted_count, _ = CohortResult.objects.filter(uuid__in=uuids).delete()
+
+            return Response(
+                {"message": f"Deleted {deleted_count} objects."},
+                status=status.HTTP_204_NO_CONTENT,
+            )
+
+        # Default single-object delete behavior
+        return super().destroy(request, uuids_arg)
 
     @action(methods=['get'], detail=False, url_path='jobs/active')
     def get_active_jobs(self, request, *args, **kwargs):
