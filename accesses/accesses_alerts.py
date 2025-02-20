@@ -29,7 +29,7 @@ def send_access_expiry_alerts(days: int):
     _logger.info("Checking expiring accesses")
     expiry_date = date.today() + timedelta(days=days)
     expiring_accesses = Access.objects.filter(accesses_service.q_access_is_valid() &
-                                              Q(profile__source=settings.MANUAL_SOURCE) &
+                                              Q(profile__source=settings.ACCESS_SOURCES[0]) &   # Manual
                                               Q(end_datetime__date=expiry_date))\
                                       .values("profile")\
                                       .annotate(total=Count("profile"))
