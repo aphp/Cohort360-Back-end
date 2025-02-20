@@ -67,16 +67,26 @@ class AccessesService:
         readonly_accesses = accesses.filter(id__in=readonly).annotate(editable=Value(False))
         return editable_accesses.union(readonly_accesses)
 
-    def get_accesses_on_perimeter(self, user: User, accesses: QuerySet, perimeter_id: int, include_parents: bool = False) -> QuerySet:
+    def get_accesses_on_perimeter(self,
+                                  user: User,
+                                  accesses: QuerySet,
+                                  perimeter_id: int,
+                                  include_parents: bool = False,
+                                  include_children: bool = False) -> QuerySet:
         q = Q(perimeter_id=perimeter_id)
+        perimeter = Perimeter.objects.get(pk=perimeter_id)
+        user_accesses = self.get_user_valid_accesses(user=user)
         if include_parents:
-            perimeter = Perimeter.objects.get(pk=perimeter_id)
-            user_accesses = self.get_user_valid_accesses(user=user)
-            user_can_read_accesses_from_above_levels = user_accesses.filter(role__right_read_accesses_above_levels=True) \
-                                                                    .exists()
+            user_can_read_accesses_from_above_levels = user_accesses.filter(role__right_read_accesses_above_levels=True).exists()
             if user_can_read_accesses_from_above_levels:
                 q = q | (Q(perimeter_id__in=perimeter.above_levels)
                          & q_impact_inferior_levels())
+        if include_children:
+            user_can_read_accesses_from_inferior_levels = user_accesses.filter(q_allow_read_accesses_on_inf_levels()).exists()
+            if user_can_read_accesses_from_inferior_levels:
+                all_child_perimeters_ids = Perimeter.objects.filter(above_levels_ids__contains=perimeter_id) \
+                                                        .values_list('id', flat=True)
+                q = q | Q(perimeter_id__in=all_child_perimeters_ids)
         return self.filter_accesses_for_user(user=user, accesses=accesses.filter(Q(sql_is_valid=True) & q))
 
     def user_has_data_reading_accesses_on_target_perimeters(self, user: User,

@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest import mock
 
 from django.urls import reverse
 from rest_framework import status
@@ -47,6 +47,12 @@ class ExportViewSetTest(ExportsTestBase):
         self.target_export_to_patch = self.exports[1]
         self.target_export_to_delete = self.exports[2]
 
+        self.failed_export = self.exports[3]
+        self.failed_export.request_job_status = JobStatus.failed
+        self.failed_export.save()
+        self.retry_view = self.view_set.as_view({'post': 'retry'})
+        self.retry_url = f"/exports/{self.failed_export.uuid}/retry/"
+
     def test_list_exports(self):
         list_url = reverse(viewname=self.viewname_list)
         self.check_test_list_view(list_url=list_url,
@@ -54,7 +60,7 @@ class ExportViewSetTest(ExportsTestBase):
                                   expected_resp_status=status.HTTP_200_OK,
                                   result_count=len(self.exports)-1)
 
-    @patch.object(ExportViewSet, 'permission_classes', [IsAuthenticated])
+    @mock.patch.object(ExportViewSet, 'permission_classes', [IsAuthenticated])
     def test_create_export_success(self):
         create_url = reverse(viewname=self.viewname_list)
         self.check_test_create_view(request_user=self.exporter_user,
@@ -62,10 +68,36 @@ class ExportViewSetTest(ExportsTestBase):
                                     request_data=self.export_basic_data,
                                     expected_resp_status=status.HTTP_201_CREATED)
 
-    @patch.object(ExportViewSet, 'permission_classes', [IsAuthenticated])
+    @mock.patch.object(ExportViewSet, 'permission_classes', [IsAuthenticated])
     def test_create_export_error(self):
         create_url = reverse(viewname=self.viewname_list)
         self.check_test_create_view(request_user=self.exporter_user,
                                     create_url=create_url,
                                     request_data=self.export_data_error,
                                     expected_resp_status=status.HTTP_400_BAD_REQUEST)
+
+    @mock.patch("exports.services.export.launch_export_task.delay")
+    @mock.patch.object(ExportViewSet, "get_object")
+    def test_successfully_retry_export(self, mock_get_object, mock_task):
+        mock_task.return_value = None
+        mock_get_object.return_value = self.failed_export
+        request = self.make_request(url=self.retry_url, http_verb="post", request_user=self.admin_user)
+        self.retry_view.kwargs = {'uuid': self.failed_export.pk}
+        response = self.retry_view(request)
+        mock_task.assert_called_once_with(self.failed_export.pk)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.failed_export.refresh_from_db()
+        self.assertEqual(self.failed_export.request_job_status, JobStatus.new)
+
+    @mock.patch("exports.services.export.launch_export_task.delay")
+    @mock.patch.object(ExportViewSet, "get_object")
+    def test_error_retry_export(self, mock_get_object, mock_task):
+        self.failed_export.request_job_status = JobStatus.finished
+        mock_get_object.return_value = self.failed_export
+        request = self.make_request(url=self.retry_url, http_verb="post", request_user=self.admin_user)
+        self.retry_view.kwargs = {'uuid': self.failed_export.pk}
+        response = self.retry_view(request)
+        mock_task.assert_not_called()
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.failed_export.refresh_from_db()
+        self.assertEqual(self.failed_export.request_job_status, JobStatus.failed)

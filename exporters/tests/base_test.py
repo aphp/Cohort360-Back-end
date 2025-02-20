@@ -64,3 +64,6 @@ class ExportersTestBase(TestCase):
         self.hive_export = Export.objects.create(**export_vals,
                                                  output_format=ExportTypes.HIVE.value,
                                                  datalab=self.datalab)
+        self.hive_export_table = ExportTable.objects.create(export=self.hive_export,
+                                                            name="person",
+                                                            cohort_result_source=self.cohort)

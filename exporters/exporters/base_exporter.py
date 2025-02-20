@@ -55,6 +55,7 @@ class BaseExporter:
         self.log_export_task(export.pk, "Sending request to the Export API.")
         start_time = timezone.now()
         try:
+            params = {**params, "overwrite": True}
             job_id = self.send_export(export=export, params=params)
             if job_id is None:
                 raise RequestException(f"Got an invalid Job ID: `{job_id}`")
