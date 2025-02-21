@@ -522,7 +522,7 @@ class AccessesSynchronizer:
         self.roles_map = load_roles_map()
 
     def sync_orbis_resources(self):
-        self.sync_users()
+        self.sync_profiles()
         self.sync_accesses()
 
 
@@ -531,11 +531,10 @@ class AccessesSynchronizer:
         return Role.objects.filter(name=mapped_role_name).first()
 
 
-    def sync_users(self):
+    def sync_profiles(self):
         """
-        Fetch the Practitioner resource and for each record, create a User and Profile with source="ORBIS"
-        cf. https://hl7.org/fhir/R4/practitioner.html
-        Only active Practitioners are taken into account to create a User and Profile.
+        Using the Practitioner resource cf. https://hl7.org/fhir/R4/practitioner.html
+        For active Practitioners, if the corresponding user exists, create a Profile for it with source="ORBIS" if it does not have any.
         For later syncing, inactive Practitioners will have their corresponding profiles deactivated.
         @return: None
         """
@@ -547,9 +546,8 @@ class AccessesSynchronizer:
                                                 firstname=p.name.official.given,
                                                 lastname=p.name.family,
                                                 email=p.telecom.value)
-                user, created = User.objects.get_or_create(defaults=practitioner.__dict__,
-                                                           username=practitioner.username)
-                if created or not user.profiles.filter(source=ORBIS, is_active=True).exists():
+                user = User.objects.filter(username=practitioner.username).first()
+                if user or not user.profiles.filter(source=ORBIS, is_active=True).exists():
                     Profile.objects.create(user=user, source=ORBIS, is_active=True)
             else:
                 linked_profiles = Profile.objects.filter(user_id=p.identifier, source=ORBIS, is_active=True)
@@ -564,14 +562,15 @@ class AccessesSynchronizer:
         - Fetch the PractitionerRole resource which represents an authorization for a Practitioner
           to perform a specific Role for a give period.
         - The roles fetched from FHIR are mapped to predefined roles in the DB.
-        - For active PractitionerRoles, ensure having the corresponding trio (role, profile, perimeter)
-          is available before creating a new access.
-        - For later syncing, if a PractitionerRole gets deactivated, the corresponding Access is deactivated.
+        - For active PractitionerRoles, ensure having a role and a perimeter before creating a new access.
+        - For later syncing, if a PractitionerRole gets deactivated, the corresponding Access is revoked.
         cf. https://hl7.org/fhir/R4/practitionerrole.html
         @return: None
         """
-        practitioner_role_res = self.fhir_client.resources("PractitionerRole")
-        skipped_roles = []
+        active_users = list(User.objects.filter(delete_datetime__isnull=True).values_list("username", flat=True))
+        practitioner_role_res = self.fhir_client.resource(resource_type="PractitionerRole",
+                                                          practitioner=active_users)
+        skipped_roles, missing_perimeters = [], []
         count_new_accesses = 0
         for pr in practitioner_role_res.fetch_all():
             if pr.active:
@@ -582,11 +581,12 @@ class AccessesSynchronizer:
                                            role_name=pr.code,
                                            start_datetime=pr.period.start,
                                            end_datetime=pr.period.end)
-                role = self.get_mapped_role(fpr.role_name)
                 profile = Profile.objects.filter(user_id=fpr.practitioner_id).first()
+                assert profile is not None, "`Profile` is expected to exist"
+                role = self.get_mapped_role(fpr.role_name)
                 perimeter = Perimeter.objects.filter(id=fpr.perimeter_id).first()
                 if role is not None:
-                    if (profile, perimeter) != (None, None):
+                    if perimeter is not None:
                         defaults = dict(source=ORBIS,
                                         external_id=fpr.id,
                                         role_id=role.id,
@@ -598,7 +598,8 @@ class AccessesSynchronizer:
                         if created:
                             count_new_accesses += 1
                     else:
-                        _logger.info(f"Missing `profile` or `perimeter` to create access. Got `{profile=}, {perimeter=}`")
+                        _logger.info(f"Could not find a match for the `perimeter` {fpr.perimeter_id=} to create access.")
+                        missing_perimeters.append(fpr.perimeter_id)
                 else:
                     _logger.info(f"Could not find a match for the ORBIS role `{pr.code}`")
                     skipped_roles.append(pr.code)
@@ -606,11 +607,13 @@ class AccessesSynchronizer:
                 Access.objects.filter(external_id=pr.identifier).update(end_datetime=timezone.now())
 
         if skipped_roles:
-            _logger.info(f"the following ORBIS roles were not correctly mapped: {skipped_roles}")
+            _logger.info(f"The following ORBIS roles were not correctly mapped: {skipped_roles}")
+        if missing_perimeters:
+            _logger.info(f"The following perimeters were not found: {missing_perimeters}")
 
         _logger.info(f"{practitioner_role_res.count()} accesses were fetched from ORBIS. "
                      f"{count_new_accesses} new accesses were created. "
-                     f"{practitioner_role_res.count() - len(skipped_roles)} accesses have been synchronized")
+                     f"{practitioner_role_res.count() - len(skipped_roles+missing_perimeters)} accesses have been synced")
 
 
 accesses_synchronizer = AccessesSynchronizer()
