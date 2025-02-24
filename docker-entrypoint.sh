@@ -64,9 +64,9 @@ if [ "$WITH_INIT" = true ]; then
 fi
 
 if [ "$WITH_KERBEROS" = true ]; then
-  kinit "$KERBEROS_USER" -k -t akouachi.keytab || echo "kinit failed, continue app launching"
-  # Cron kerberos token refresh
-  crontab -l | { cat; echo "0 0 * * */1 /usr/bin/kinit akouachi@EDS.APHP.FR -k -t akouachi.keytab"; } | crontab -
+  kinit "$KERBEROS_USER" -kt akouachi.keytab || echo "kinit failed, continue app launching"
+  # Cron kerberos ticket refresh
+  echo "0 0 * * * kinit $KERBEROS_USER -kt akouachi.keytab" | sudo tee -a /var/spool/cron/crontabs/root
   sudo service cron start
 fi
 
