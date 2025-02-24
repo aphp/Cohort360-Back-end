@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from django.db import models
-from django.conf import settings
 
 from admin_cohort.models import JobModel, User
 from cohort.models import CohortBaseModel, RequestQuerySnapshot, DatedMeasure
@@ -28,12 +27,3 @@ class CohortResult(CohortBaseModel, JobModel):
     is_subset = models.BooleanField(default=False)
     parent_cohort = models.ForeignKey("CohortResult", related_name="sample_cohorts", on_delete=models.SET_NULL, null=True)
     sampling_ratio = models.FloatField(blank=True, null=True)
-
-    @property
-    def result_size(self) -> int:
-        return self.dated_measure.measure
-
-    @property
-    def exportable(self) -> bool:
-        cohort_size = self.result_size
-        return cohort_size and cohort_size < settings.COHORT_LIMIT or False

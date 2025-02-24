@@ -4,7 +4,7 @@ from typing import Union
 from rest_framework import serializers
 
 from admin_cohort.models import User
-from admin_cohort.serializers import BaseSerializer, UserSerializer
+from admin_cohort.serializers import UserSerializer
 from admin_cohort.services.ws_event_manager import WebSocketMessage
 from admin_cohort.types import MissingDataError, JobStatus
 from cohort.models import CohortResult, DatedMeasure, Folder, Request, RequestQuerySnapshot, FhirFilter, FeasibilityStudy, RequestRefreshSchedule
@@ -64,7 +64,7 @@ class DatedMeasurePatchSerializer(serializers.ModelSerializer):
         return super().to_internal_value(data)
 
 
-class DatedMeasureSerializer(BaseSerializer):
+class DatedMeasureSerializer(CohortBaseSerializer):
     owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
     request = serializers.UUIDField(read_only=True, required=False, source='request_query_snapshot__request__pk')
     request_query_snapshot = PrimaryKeyRelatedFieldWithOwner(queryset=RequestQuerySnapshot.objects.all())
@@ -153,13 +153,13 @@ class CohortResultPatchSerializer(serializers.ModelSerializer):
         return super().to_internal_value(data)
 
 
-class CohortResultSerializer(BaseSerializer):
+class CohortResultSerializer(CohortBaseSerializer):
     owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
     result_size = serializers.IntegerField(read_only=True)
     request = serializers.UUIDField(read_only=True, required=False, source='request_id')
     request_query_snapshot = PrimaryKeyRelatedFieldWithOwner(queryset=RequestQuerySnapshot.objects.all(), required=False)
     dated_measure = PrimaryKeyRelatedFieldWithOwner(queryset=DatedMeasure.objects.all(), required=False)
-    dated_measure_global = PrimaryKeyRelatedFieldWithOwner(queryset=DatedMeasure.objects.all(), required=False)
+    dated_measure_global = DatedMeasureSerializer(required=False, allow_null=True)
     group_id = serializers.CharField(allow_blank=True, allow_null=True, required=False)
     exportable = serializers.BooleanField(read_only=True)
 
@@ -185,13 +185,10 @@ class CohortResultSerializer(BaseSerializer):
         return super().create(validated_data)
 
 
-class CohortResultSerializerFullDatedMeasure(CohortResultSerializer):
-    dated_measure = DatedMeasureSerializer(required=False, allow_null=True)
-    dated_measure_global = DatedMeasureSerializer(required=False, allow_null=True)
-
-
-class ReducedCohortResultSerializer(BaseSerializer):
+class ReducedCohortResultSerializer(CohortBaseSerializer):
     query_snapshot = serializers.UUIDField(read_only=True, source='request_query_snapshot_id')
+    result_size = serializers.IntegerField(read_only=True)
+    exportable = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = CohortResult
@@ -209,7 +206,7 @@ class CohortRightsSerializer(serializers.Serializer):
     rights = serializers.DictField(allow_null=True)
 
 
-class RQSReducedSerializer(BaseSerializer):
+class RQSReducedSerializer(CohortBaseSerializer):
     cohort_results = ReducedCohortResultSerializer(many=True, read_only=True)
 
     class Meta:
@@ -222,7 +219,7 @@ class RQSReducedSerializer(BaseSerializer):
                   "version"]
 
 
-class RQSSerializer(BaseSerializer):
+class RQSSerializer(CohortBaseSerializer):
     owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
     request = PrimaryKeyRelatedFieldWithOwner(queryset=Request.objects.all(), required=False)
     previous_snapshot = PrimaryKeyRelatedFieldWithOwner(required=False, queryset=RequestQuerySnapshot.objects.all())
@@ -261,7 +258,7 @@ class RQSShareSerializer(serializers.Serializer):
                   "notify_by_email"]
 
 
-class RequestSerializer(BaseSerializer):
+class RequestSerializer(CohortBaseSerializer):
     owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
     query_snapshots = RQSReducedSerializer(read_only=True, many=True)
     shared_by = UserSerializer(read_only=True)
@@ -296,7 +293,7 @@ class RequestPatchSerializer(RequestCreateSerializer):
     parent_folder = PrimaryKeyRelatedFieldWithOwner(required=False, queryset=Folder.objects.all())
 
 
-class FolderSerializer(BaseSerializer):
+class FolderSerializer(CohortBaseSerializer):
     owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
     requests = serializers.SlugRelatedField(slug_field='uuid', many=True, read_only=True)
 
@@ -316,7 +313,7 @@ class FolderPatchSerializer(FolderCreateSerializer):
     ...
 
 
-class FhirFilterSerializer(BaseSerializer):
+class FhirFilterSerializer(CohortBaseSerializer):
     owner = serializers.CharField(read_only=True, allow_null=True)
 
     class Meta:

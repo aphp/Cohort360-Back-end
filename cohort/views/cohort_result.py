@@ -1,5 +1,6 @@
+from django.conf import settings
 from django.db import transaction
-from django.db.models import Q, F
+from django.db.models import Q, F, BooleanField, When, Case, Value
 from django.shortcuts import get_list_or_404
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_spectacular.utils import extend_schema, PolymorphicProxySerializer
@@ -29,18 +30,19 @@ class CohortFilter(filters.FilterSet):
         return queryset
 
     name = filters.CharFilter(field_name='name', lookup_expr="icontains")
-    min_result_size = filters.NumberFilter(field_name='dated_measure__measure', lookup_expr='gte')
-    max_result_size = filters.NumberFilter(field_name='dated_measure__measure', lookup_expr='lte')
+    min_result_size = filters.NumberFilter(field_name='result_size', lookup_expr='gte')
+    max_result_size = filters.NumberFilter(field_name='result_size', lookup_expr='lte')
     min_fhir_datetime = filters.IsoDateTimeFilter(field_name='created_at', lookup_expr="gte")
     max_fhir_datetime = filters.IsoDateTimeFilter(field_name='created_at', lookup_expr="lte")
     request_id = filters.CharFilter(field_name='request_query_snapshot__request__pk')
     group_id = filters.CharFilter(method="multi_value_filter", field_name="group_id")
     status = filters.CharFilter(method="multi_value_filter", field_name="request_job_status")
+    exportable = filters.BooleanFilter(field_name="exportable")
 
     ordering = OrderingFilter(fields=('created_at',
                                       'modified_at',
                                       'name',
-                                      ('dated_measure__measure', 'result_size'),
+                                      'result_size',
                                       'favorite'))
 
     class Meta:
@@ -54,14 +56,22 @@ class CohortFilter(filters.FilterSet):
                   'group_id',
                   'request_id',
                   'status',
-                  'parent_cohort')
+                  'parent_cohort',
+                  'exportable')
 
 
 class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     queryset = CohortResult.objects.select_related('dated_measure',
                                                    'dated_measure_global',
                                                    'request_query_snapshot__request') \
-                                   .annotate(request_id=F('request_query_snapshot__request__uuid'))
+                                   .annotate(request_id=F('request_query_snapshot__request__uuid'),
+                                             result_size=F('dated_measure__measure'),
+                                             exportable=Case(When(result_size__isnull=False,
+                                                                  result_size__lte=settings.COHORT_LIMIT,
+                                                                  then=Value(True)),
+                                                               default=Value(False),
+                                                               output_field=BooleanField()
+                                                               ))
     serializer_class = CohortResultSerializer
     http_method_names = ['get', 'post', 'patch', 'delete']
     swagger_tags = ["Cohorts"]
