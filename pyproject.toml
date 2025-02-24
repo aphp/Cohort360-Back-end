@@ -1,6 +1,6 @@
 [project]
 name = "Cohort360-Backend"
-version = "3.25.5"
+version = "3.26.0-dev"
 authors = ["Assistance Publique - Hopitaux de Paris, Département I&D"]
 description = """Supports the official **Cohort360** web app and **Portail**
                  Built by **APHP**, _Département I&D_

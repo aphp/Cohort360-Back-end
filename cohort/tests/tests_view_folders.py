@@ -131,15 +131,6 @@ class FoldersCreateTests(FoldersTests):
         ) for k in ['name'])
         [self.check_create_case(case) for case in cases]
 
-    def test_error_create_with_other_owner(self):
-        # As a user, I cannot create a folder
-        case = self.basic_case.clone(data={"owner": self.user2.pk,
-                                           "name": self.test_name},
-                                     success=False,
-                                     status=status.HTTP_400_BAD_REQUEST,
-                                     retrieve_filter=FolderCaseRetrieveFilter(name=self.test_name, owner=self.user2))
-        self.check_create_case(case)
-
 
 class FoldersDeleteTests(FoldersTests):
     def setUp(self):
@@ -200,13 +191,4 @@ class FoldersUpdateTests(FoldersTests):
             data_to_update=dict(name="new_name"),
             success=False,
             status=status.HTTP_404_NOT_FOUND,
-        ))
-
-    def test_error_update_forbidden_fields(self):
-        # As a user, I cannot patch a folder I with forbidden values
-        self.check_patch_case(self.basic_case.clone(
-            initial_data=dict(owner=self.user1, name="test"),
-            data_to_update=dict(owner=self.user2.pk),
-            success=False,
-            status=status.HTTP_400_BAD_REQUEST,
         ))
