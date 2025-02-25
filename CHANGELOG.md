@@ -2,6 +2,154 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.25.7] - 1014-02-25
+
+### 🚀 Features
+
+- *(cms)* Add new content management application (#452)
+
+## [3.25.6] - 2025-02-25
+
+### 🐛 Bug Fixes
+
+- Set cron job to refresh Kerberos ticket
+
+## [3.25.5] - 2025-02-24
+
+### 🐛 Bug Fixes
+
+- *(cohort)* Add fields to queryset and fix serializers
+
+## [3.25.4] - 2025-02-24
+
+### Build
+
+- *(docker)* Refresh Kerberos ticket
+
+## [3.25.3] - 2025-02-21
+
+### 🐛 Bug Fixes
+
+- *(exports)* Sort by status
+
+## [3.25.2] - 2025-02-13
+
+### 🐛 Bug Fixes
+
+- Handle null inputs for export table
+
+## [3.25.1] - 2025-02-12
+
+### 🐛 Bug Fixes
+
+- *(cohort)* Handle null value for modeOptions
+- *(cohort)* Handle null value for modeOptions
+- Adjust CohortResult serializer
+
+### Build
+
+- Set version 3.26.0-dev
+
+## [3.25.0] - 2025-02-12
+
+### 🚀 Features
+
+- Add request migration script 1.6.0
+- New payload for exports
+- *(logging)* Readd default console logger
+- Add configurable socket logger host for gunicorn
+- *(auth)* Cache oidc issuer certs (#433)
+- *(perimeterUpdate)* Update query snapshot perimeter on perimeter cohort id change (#432)
+- *(Swagger)* Add more conf to Swagger UI
+- Add multiple deletion for cohort and requests
+- *(exports)* Add pivot options
+- Cohort sampling (#437)
+
+### 🐛 Bug Fixes
+
+- New export serializer
+- Add info to logs (#426)
+- *(logger)* Listen 0.0.0.0 for socket logger
+- Sonar cloud checks
+- *(maintenance)* Message on deletion and prevent sooner ending (#428)
+- *(exports)* Check if cohort exists before export
+- Parse url as string
+- *(exports)* Update export param
+- *(exports)* Handle exceptions on calling the Export API
+- *(exports)* Auto generate fhir filters only when given source cohort (#435)
+- Cache OIDC server certs
+- *(pyproject)* Set Python version 3.12.3
+- Missing argument for decorator causing DM status to not be updated (#438)
+- Small fixes regarding global DMs, exports and logs (#439)
+- *(Dockerfile)* Ensure log dir is created
+- Improve response time phase 1 (#440)
+- *(nginx)* Update static files location
+- *(Swagger)* Remove broken setting
+- Add configurable link for template (#441)
+- *(exports)* Typo in param name
+- *(exports)* Include non-null params only
+- *(exports)* Check cohort ID for each export table
+- *(middleware)* Check InfluxDB setting
+- *(exports)* Add terminology setting
+- Sort DatedMeasures within a RequestSnapshot (#443)
+- *(perimeters)* Distinct user count for inferior levels (#445)
+- Remove auth token logging
+- Count users on perimeters (#446)
+
+### 🚜 Refactor
+
+- Rm dead code
+- Get cohort ids in v2
+- Work with new exports payload
+- *(start)* [**breaking**] Add new docker entrypoint options (#427)
+- Use the new DE API within exports (#429)
+- Remove gitlab ci
+- Genral refactorization (#431)
+- Clean Dockerfile (#436)
+- *(exports)* Update params
+
+### 📚 Documentation
+
+- Update changelog
+
+### ⚡ Performance
+
+- Optimize DB queries
+
+### 🧪 Testing
+
+- *(exports)* Fix test
+- Fix typo
+- Mock Celery task call
+- *(exports)* Typo in argument name
+- Add tests for counting users on perimeters
+- *(perimeters)* Fix assertions
+
+### ⚙️ Miscellaneous Tasks
+
+- Enable sonarcloud scan
+- Upgrade actions versions
+- Remove sonar result as dependency of publishing docker
+- Fix sonar
+- Fix GH Actions
+- Add version suffix in pyproject
+- Set test env vars
+- Set test env vars before migrating DB
+- Automate making releases
+- Automate making releases
+
+### Build
+
+- Introduce uv and reduce project deps
+- Set version to "x.y.z-dev" format
+- Fix permissions over cron
+- Fix Dockerfile
+
+### Deps
+
+- Add coverage
+- Bump the json logger package
+
 ## [3.24.1] - 2024-11-21
 
 ### 🚀 Features
