@@ -25,7 +25,7 @@ RUN groupadd --gid "$GROUP_UID" "$GROUPNAME" && \
     useradd --uid "$USER_UID" --gid "$GROUP_UID" --system --shell /bin/bash "$USERNAME" && \
     chown -R "$USERNAME":"$GROUPNAME" "$HOMEDIR" && \
     chmod +x docker-entrypoint.sh && \
-    echo "$USERNAME ALL=(ALL) NOPASSWD: /bin/sed, /usr/sbin/service, /usr/bin/tee" >> /etc/sudoers.d/custom_sudo && \
+    echo "$USERNAME ALL=(ALL) NOPASSWD: /bin/sed, /usr/sbin/service, /usr/bin/crontab" >> /etc/sudoers.d/custom_sudo && \
     chmod 440 /etc/sudoers.d/custom_sudo
 
 USER $USER_UID
