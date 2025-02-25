@@ -17,6 +17,7 @@ def get_project_info():
             project_info.get('version'),
             project_info.get("description"))
 
+
 TITLE, VERSION, DESCRIPTION = get_project_info()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -115,7 +116,9 @@ LOGGING = dict(version=1,
                })
 
 # Application definition
-INCLUDED_APPS = env('INCLUDED_APPS', default='accesses,cohort_job_server,cohort,exports,accesses_fhir_perimeters').split(",")
+INCLUDED_APPS = env('INCLUDED_APPS',
+                    default='accesses,content_management,cohort_job_server,cohort,exports,accesses_fhir_perimeters').split(
+    ",")
 INFLUXDB_ENABLED = env.bool("INFLUXDB_ENABLED", default=False)
 ENABLE_JWT = env.bool("ENABLE_JWT", default=False)
 
@@ -150,8 +153,8 @@ MIDDLEWARE = [
     'admin_cohort.middleware.jwt_session_middleware.JWTSessionMiddleware',
     'admin_cohort.middleware.swagger_headers_middleware.SwaggerHeadersMiddleware'
 ]
-MIDDLEWARE = (INFLUXDB_ENABLED and ['admin_cohort.middleware.influxdb_middleware.InfluxDBMiddleware'] or []) + MIDDLEWARE
-
+MIDDLEWARE = (INFLUXDB_ENABLED and [
+    'admin_cohort.middleware.influxdb_middleware.InfluxDBMiddleware'] or []) + MIDDLEWARE
 
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
@@ -290,7 +293,6 @@ OIDC_AUTH_MODE = "OIDC"
 # CUSTOM EXCEPTION REPORTER
 DEFAULT_EXCEPTION_REPORTER_FILTER = 'admin_cohort.tools.except_report_filter.CustomExceptionReporterFilter'
 SENSITIVE_PARAMS = env('SENSITIVE_PARAMS', default="password").split(",")
-
 
 # COHORTS +20k
 LAST_COUNT_VALIDITY = env.int("LAST_COUNT_VALIDITY", default=24)  # in hours
