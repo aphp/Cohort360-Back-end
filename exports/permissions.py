@@ -6,6 +6,7 @@ from rest_framework.exceptions import PermissionDenied
 from accesses.permissions import can_user_make_export_jupyter_nomi, can_user_make_export_jupyter_pseudo, \
                                  can_user_read_datalabs, can_user_manage_datalabs, can_user_make_export_csv_nomi, \
                                  can_user_make_export_csv_pseudo
+from accesses.services.accesses import accesses_service
 from exports.apps import ExportsConfig
 
 ExportTypes = ExportsConfig.ExportTypes
@@ -39,6 +40,15 @@ class ExportPermission(IsAuthenticated):
 
     def has_object_permission(self, request, view, obj):
         return obj.owner == request.user and request.method in SAFE_METHODS
+
+
+class RetryExportPermission(IsAuthenticated):
+
+    def has_permission(self, request, view):
+        authenticated = super().has_permission(request, view)
+        return (authenticated
+                and request.method == "POST"
+                and accesses_service.user_is_full_admin(request.user))
 
 
 class ReadDatalabsPermission(IsAuthenticated):
