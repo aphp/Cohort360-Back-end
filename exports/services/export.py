@@ -110,5 +110,13 @@ class ExportService:
     def download(export: Export) -> StreamingHttpResponse:
         return ExportDownloader().download(export=export)
 
+    @staticmethod
+    def retry(export: Export):
+        export.request_job_status = JobStatus.new
+        export.request_job_fail_msg = None
+        export.request_job_duration = None
+        export.save()
+        launch_export_task.delay(export.pk)
+
 
 export_service = ExportService()

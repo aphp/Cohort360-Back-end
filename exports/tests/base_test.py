@@ -35,10 +35,12 @@ class ExportsTestBase(TestCase):
         self.csv_exporter_role = Role.objects.create(name="CSV EXPORTER", right_export_csv_nominative=True)
         self.datalab_reader_role = Role.objects.create(name="DATALABS READER", right_read_datalabs=True)
         self.datalab_manager_role = Role.objects.create(name="DATALABS MANAGER", right_read_datalabs=True, right_manage_datalabs=True)
+        self.full_admin_role = Role.objects.create(name="ADMIN", right_full_admin=True)
 
         self.datalabs_reader_user, self.datalabs_reader_profile = new_user_and_profile()
         self.datalabs_manager_user, self.datalabs_manager_profile = new_user_and_profile()
         self.exporter_user, self.exporter_profile = new_user_and_profile()
+        self.admin_user, self.admin_profile = new_user_and_profile()
         self.user_without_rights, _ = new_user_and_profile()
 
         self.datalabs_reader_access = Access.objects.create(profile=self.datalabs_reader_profile,
@@ -56,6 +58,11 @@ class ExportsTestBase(TestCase):
                                                          role=self.csv_exporter_role,
                                                          start_datetime=timezone.now(),
                                                          end_datetime=timezone.now() + timedelta(days=365))
+        self.admin_access = Access.objects.create(profile=self.admin_profile,
+                                                  perimeter=self.perimeter_aphp,
+                                                  role=self.full_admin_role,
+                                                  start_datetime=timezone.now(),
+                                                  end_datetime=timezone.now() + timedelta(days=365))
         self.infra_provider_aphp = InfrastructureProvider.objects.create(name="APHP")
         self.folder = Folder.objects.create(name="TestFolder", owner=self.exporter_user)
         self.request = Request.objects.create(name="TestRequest", owner=self.exporter_user, parent_folder=self.folder)

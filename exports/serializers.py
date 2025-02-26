@@ -105,7 +105,8 @@ class ExportsListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Export
-        fields = ["owner",
+        fields = ["uuid",
+                  "owner",
                   "output_format",
                   "motivation",
                   "cohort_id",

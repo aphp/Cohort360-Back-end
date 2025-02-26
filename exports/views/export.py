@@ -14,9 +14,10 @@ from rest_framework.response import Response
 from admin_cohort.tools import join_qs
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools.request_log_mixin import RequestLogMixin
+from admin_cohort.types import JobStatus
 from exports.exceptions import FilesNoLongerAvailable, BadRequestError, StorageProviderException
 from exports.models import Export, ExportTable
-from exports.permissions import ExportPermission
+from exports.permissions import ExportPermission, RetryExportPermission
 from exports.serializers import ExportSerializer, ExportsListSerializer, ExportCreateSerializer
 from exports.services.export import export_service
 from exports.views import ExportsBaseViewSet
@@ -82,6 +83,11 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
                      "cohort_name",
                      "cohort_id")
 
+    def get_permissions(self):
+        if self.action == self.retry.__name__:
+            return [RetryExportPermission()]
+        return super().get_permissions()
+
     def should_log(self, request, response):
         return super().should_log(request, response) or self.action == self.download.__name__
 
@@ -130,3 +136,13 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
             return Response(data=f"Error downloading files: {e}", status=status.HTTP_400_BAD_REQUEST)
         except StorageProviderException as e:
             return Response(data=f"Storage provider error: {e}", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+    @extend_schema(responses=status.HTTP_200_OK)
+    @action(detail=True, methods=['post'], url_path="retry")
+    def retry(self, request, *args, **kwargs):
+        export = self.get_object()
+        if export.request_job_status != JobStatus.failed:
+            return Response(data="The export did not fail. Cannot relaunch it", status=status.HTTP_400_BAD_REQUEST)
+        export_service.retry(export=export)
+        return Response(data=f"The export `{export.uuid}` has been relaunched", status=status.HTTP_200_OK)
