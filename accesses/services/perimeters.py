@@ -1,7 +1,6 @@
 from functools import reduce, lru_cache
 from typing import Set, List
 
-from django.conf import settings
 from django.db import transaction
 from django.db.models import QuerySet, Count, Q
 
@@ -193,8 +192,7 @@ def count_allowed_users():
     # count distinct users having access directly to a Perimeter
     perimeters_with_counts = Access.objects.select_related("profile", "perimeter") \
                                            .filter(accesses_service.q_access_is_valid()
-                                                   & Q(profile__is_active=True)
-                                                   & Q(profile__source=settings.MANUAL_SOURCE)) \
+                                                   & Q(profile__is_active=True)) \
                                            .values("perimeter_id") \
                                            .annotate(user_count=Count("profile__user_id", distinct=True))
 
@@ -231,7 +229,6 @@ def count_allowed_users_from_above_levels():
 
     valid_accesses = Access.objects.filter(accesses_service.q_access_is_valid()
                                            & Q(profile__is_active=True)
-                                           & Q(profile__source=settings.MANUAL_SOURCE)
                                            & q_impact_inferior_levels()) \
                                    .values("perimeter_id", "profile__user_id") \
                                    .distinct()
@@ -274,8 +271,7 @@ def count_allowed_users_in_inferior_levels():
                                            .order_by("-level")
 
     valid_accesses = Access.objects.filter(accesses_service.q_access_is_valid()
-                                           & Q(profile__is_active=True)
-                                           & Q(profile__source=settings.MANUAL_SOURCE)) \
+                                           & Q(profile__is_active=True)) \
                                    .values("perimeter_id", "profile__user_id") \
                                    .distinct()
     users_per_perimeter = group_users_by_perimeter(valid_accesses)

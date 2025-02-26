@@ -13,6 +13,7 @@ from admin_cohort.tests.tests_tools import BaseTests
 from admin_cohort.views import UserViewSet
 
 USERS_URL = "/users"
+MANUAL = settings.ACCESS_SOURCES[0]
 
 
 class ObjectView(object):
@@ -58,9 +59,9 @@ class UserTests(BaseTests):
         self.user1 = User.objects.create(username="1111111", firstname="User 01", lastname="USER01", email="user01@aphp.fr")
         self.user2 = User.objects.create(username="2222222", firstname="User 02", lastname="USER02", email="user02@aphp.fr")
 
-        self.admin_profile = Profile.objects.create(source=settings.MANUAL_SOURCE, user=self.admin_user, is_active=True)
-        self.profile1 = Profile.objects.create(source=settings.MANUAL_SOURCE, user=self.user1, is_active=True)
-        self.profile2 = Profile.objects.create(source=settings.MANUAL_SOURCE, user=self.user2, is_active=True)
+        self.admin_profile = Profile.objects.create(source=MANUAL, user=self.admin_user, is_active=True)
+        self.profile1 = Profile.objects.create(source=MANUAL, user=self.user1, is_active=True)
+        self.profile2 = Profile.objects.create(source=MANUAL, user=self.user2, is_active=True)
 
         self.admin_access = Access.objects.create(perimeter_id=self.aphp.id,
                                                   role=self.role_full_admin,
