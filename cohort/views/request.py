@@ -18,7 +18,9 @@ class RequestFilter(filters.FilterSet):
     min_updated_at = filters.IsoDateTimeFilter(field_name='updated_at', lookup_expr="gte")
     max_updated_at = filters.IsoDateTimeFilter(field_name='updated_at', lookup_expr="lte")
 
-    ordering = OrderingFilter(fields=('name', 'updated_at'))
+    ordering = OrderingFilter(fields=('name',
+                                      'updated_at',
+                                      ('parent_folder__name', 'parent_folder')))
 
     class Meta:
         model = Request

@@ -43,7 +43,8 @@ class CohortFilter(filters.FilterSet):
                                       'modified_at',
                                       'name',
                                       'result_size',
-                                      'favorite'))
+                                      'favorite',
+                                      ('request_query_snapshot__request__name', 'request')))
 
     class Meta:
         model = CohortResult
