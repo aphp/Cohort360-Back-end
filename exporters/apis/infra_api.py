@@ -20,7 +20,7 @@ class InfraAPI(BaseAPI):
     def create_db(self, name: str, location: str) -> str:
         params = {"name": name,
                   "location": location,
-                  "if_not_exists": False
+                  "if_not_exists": True
                   }
         response = self.query_hadoop(endpoint=self.create_db_endpoint, params=params)
         return response.json().get('task_id')
