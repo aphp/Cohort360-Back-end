@@ -60,7 +60,7 @@ class HiveExporter(BaseExporter):
         self.confirm_export_received(export=export)
         self.prepare_db(export)
         params = params or {"output": {"type": self.type,
-                                       "database_name": export.target_name
+                                       "databaseName": export.target_name
                                        }
                             }
         super().handle_export(export=export, params=params)
