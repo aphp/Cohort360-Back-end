@@ -62,7 +62,7 @@ class TestInfraAPI(TestCase):
         mock_requests.post.assert_called_once_with(url='https://infra-api.fr/api/hadoop/create_db',
                                                    params={'name': 'some_db_name',
                                                            'location': '/dir1/dir2',
-                                                           'if_not_exists': False},
+                                                           'if_not_exists': True},
                                                    headers={'auth-token': 'hadoop-token'})
 
     @mock.patch('exporters.apis.infra_api.requests')
