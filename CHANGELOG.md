@@ -2,6 +2,54 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.25.7] - 1014-02-25
+
+### 🚀 Features
+
+- *(cms)* Add new content management application (#452)
+
+## [3.25.6] - 2025-02-25
+
+### 🐛 Bug Fixes
+
+- Set cron job to refresh Kerberos ticket
+
+## [3.25.5] - 2025-02-24
+
+### 🐛 Bug Fixes
+
+- *(cohort)* Add fields to queryset and fix serializers
+
+## [3.25.4] - 2025-02-24
+
+### Build
+
+- *(docker)* Refresh Kerberos ticket
+
+## [3.25.3] - 2025-02-21
+
+### 🐛 Bug Fixes
+
+- *(exports)* Sort by status
+
+## [3.25.2] - 2025-02-13
+
+### 🐛 Bug Fixes
+
+- Handle null inputs for export table
+
+## [3.25.1] - 2025-02-12
+
+### 🐛 Bug Fixes
+
+- *(cohort)* Handle null value for modeOptions
+- *(cohort)* Handle null value for modeOptions
+- Adjust CohortResult serializer
+
+### Build
+
+- Set version 3.26.0-dev
+
 ## [3.25.0] - 2025-02-12
 
 ### 🚀 Features
@@ -92,7 +140,6 @@ All notable changes to this project will be documented in this file.
 
 ### Build
 
-- Bump dev to v3.25.0-SNAPSHOT
 - Introduce uv and reduce project deps
 - Set version to "x.y.z-dev" format
 - Fix permissions over cron

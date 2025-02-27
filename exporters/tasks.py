@@ -3,7 +3,6 @@ from functools import lru_cache
 
 from celery import shared_task
 
-from exporters.enums import ExportTypes
 from exports.models import Export
 from exports.emails import push_email_notification
 from exporters.notifications import export_failed, \
@@ -21,10 +20,8 @@ def get_export_by_id(export_id: str | int) -> Export:
 
 @lru_cache(maxsize=None)
 def get_cohort(export: Export):
-    if export.output_format in (ExportTypes.CSV.value,
-                                ExportTypes.XLSX.value):
-        return export.export_tables.first().cohort_result_source
-    return None
+    sample_table = export.export_tables.filter(cohort_result_source__isnull=False).first()
+    return sample_table.cohort_result_source
 
 
 def get_selected_tables(export: Export) -> str:

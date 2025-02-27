@@ -243,7 +243,7 @@ class RQSReducedSerializer(serializers.ModelSerializer):
     def get_cohorts_count(self, obj) -> int:
         return obj.cohort_results.count()
 
-      
+
 class RQSSerializer(serializers.ModelSerializer):
     owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(), required=True)
     request = PrimaryKeyRelatedFieldWithOwner(queryset=Request.objects.all(), required=False)
