@@ -17,7 +17,6 @@ class RequestQuerySnapshotManager(models.Manager):
 
 
 class RequestQuerySnapshot(CohortBaseModel):
-    title = models.CharField(default="", max_length=50)
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='user_request_query_snapshots')
     request = models.ForeignKey(Request, on_delete=models.CASCADE, related_name='query_snapshots')
     serialized_query = models.TextField(default="{}")
@@ -29,13 +28,9 @@ class RequestQuerySnapshot(CohortBaseModel):
 
     objects = RequestQuerySnapshotManager()
 
-    @property
-    def has_linked_cohorts(self) -> bool:
-        return self.cohort_results.exists()
-
     def save(self, *args, **kwargs):
         try:
             json.loads(str(self.serialized_query))
         except json.decoder.JSONDecodeError as e:
             raise ValueError(f"serialized_query is not a valid JSON {e}")
-        super(RequestQuerySnapshot, self).save(*args, **kwargs)
+        super().save(*args, **kwargs)
