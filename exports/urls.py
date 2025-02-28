@@ -9,8 +9,8 @@ router = DefaultRouter()
 router.register(r'cohorts', CohortViewSet, basename="cohorts")
 router.register(r'fhir-filters', FhirFilterViewSet, basename="fhir-filters")
 router.register(r'datalabs', DatalabViewSet, basename="datalabs")
-router.register(r'infrastructure_providers', InfrastructureProviderViewSet, basename="infrastructure_providers")
-router.register(r'export_stats', ExportResultStatViewSet, basename="export_stats")
+router.register(r'infrastructure-providers', InfrastructureProviderViewSet, basename="infrastructure_providers")
+router.register(r'export-stats', ExportResultStatViewSet, basename="export_stats")
 router.register(r'', ExportViewSet, basename="exports")
 
 urlpatterns = [path('', include(router.urls))]
