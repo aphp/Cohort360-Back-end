@@ -1,4 +1,7 @@
+import json
+
 from django.http import Http404
+from django.utils import timezone
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status, viewsets
@@ -49,10 +52,19 @@ class UserViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         # todo : to test manual_only
-        manual_only = self.request.GET.get("manual_only")
-        if not manual_only:
-            return super().get_queryset()
-        return User.objects.filter(profiles__source='Manual').distinct()
+        manual_only = json.loads(self.request.GET.get("manual_only", "false"))
+        with_access = json.loads(self.request.GET.get("with_access", "false"))
+        base_results = super().get_queryset()
+        if manual_only:
+            base_results = base_results.filter(profiles__source='Manual')
+        if with_access:
+            now = timezone.now()
+            base_results = base_results.filter(
+                profiles__is_active=True,
+                profiles__accesses__start_datetime__lte=now,
+                profiles__accesses__end_datetime__gte=now
+            )
+        return base_results.distinct()
 
     @extend_schema(responses={status.HTTP_201_CREATED: UserSerializer})
     def create(self, request, *args, **kwargs):
