@@ -66,7 +66,7 @@ fi
 if [ "$WITH_KERBEROS" = true ]; then
   kinit "$KERBEROS_USER" -kt akouachi.keytab || echo "kinit failed, continue app launching"
   # Cron kerberos ticket refresh
-  echo "0 0 * * * kinit $KERBEROS_USER -kt $HOME/app/akouachi.keytab" | sudo crontab -u root -
+  echo "0 0 * * * su - $(whoami) -c 'kinit $KERBEROS_USER -kt $HOME/app/akouachi.keytab'" | sudo crontab -u root -
   sudo service cron start
 fi
 

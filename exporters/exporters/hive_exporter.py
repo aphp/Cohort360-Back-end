@@ -58,20 +58,21 @@ class HiveExporter(BaseExporter):
 
     def handle_export(self, export: Export, params: dict = None) -> None:
         self.confirm_export_received(export=export)
-        self.prepare_db(export)
-        params = params or {"output": {"type": self.type,
-                                       "databaseName": export.target_name
-                                       }
-                            }
-        super().handle_export(export=export, params=params)
-        self.conclude_export(export=export)
-
-    def prepare_db(self, export: Export) -> None:
         try:
-            self.create_db(export=export)
-            self.change_db_ownership(export=export, db_user=self.user)
+            self.prepare_db(export)
         except RequestException as e:
             self.mark_export_as_failed(export=export, reason=f"Error while preparing DB for export: {e}")
+        else:
+            params = params or {"output": {"type": self.type,
+                                           "databaseName": export.target_name
+                                           }
+                                }
+            super().handle_export(export=export, params=params)
+            self.conclude_export(export=export)
+
+    def prepare_db(self, export: Export) -> None:
+        self.create_db(export=export)
+        self.change_db_ownership(export=export, db_user=self.user)
 
     def get_db_location(self, export: Export) -> str:
         return f"{export.target_full_path}{self.file_extension}"

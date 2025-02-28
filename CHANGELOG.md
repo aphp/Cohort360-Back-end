@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.25.11] - 2025-02-28
+
+### 🚜 Refactor
+
+- *(maintenance)* Add new maintenance view sort and filter cap
+
+## [3.25.10] - 2025-02-27
+
+### 🐛 Bug Fixes
+
+- *(exports)* Overwrite export database
+
+## [3.25.9] - 2025-02-27
+
+### Build
+
+- Set version 3.25.9
+
+## [3.25.8] - 2025-02-26
+
+### 🚀 Features
+
+- Add retry failed exports
+
 ## [3.25.7] - 1014-02-25
 
 ### 🚀 Features
