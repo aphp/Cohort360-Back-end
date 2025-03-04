@@ -1,9 +1,0 @@
-{% extends "email_base_template.txt" %}
-
-{% block content %}
-
-Votre requête `{{ request_name }}` a été rafraichie avec succès.
-
-Pour toute question, contactez le support Cohort360 à l'adresse {{ contact_email_address }}
-
-{% endblock %}

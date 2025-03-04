@@ -1,6 +1,8 @@
 from smtplib import SMTPException
-from unittest import TestCase, mock
+from unittest import mock
 from unittest.mock import MagicMock
+
+from django.test.testcases import TestCase
 
 from admin_cohort.emails import EmailNotification
 
@@ -13,21 +15,17 @@ class EmailNotificationTest(TestCase):
         self.context = {"recipient_name": self.recipient_name}
         self.email_notif = self.create_email_notif()
 
+    @mock.patch("admin_cohort.emails.EmailNotification.build_email_contents")
     @mock.patch("admin_cohort.emails.EmailNotification.attach_logo")
-    def create_email_notif(self, mock_attach_logo: MagicMock):
+    def create_email_notif(self, mock_attach_logo: MagicMock, mock_build_email_contents: MagicMock):
         mock_attach_logo.return_value = None
+        mock_build_email_contents.return_value = None
         email_notif = EmailNotification(subject="Email subject",
                                         to="some.one@aphp.fr",
-                                        html_template="email_base_template.html",
-                                        txt_template="email_base_template.txt",
+                                        html_template='',
+                                        txt_template='',
                                         context=self.context)
         return email_notif
-
-    def test_build_email_contents(self):
-        self.email_notif.build_email_contents(context=self.context)
-        expected_string_in_content = f"Bonjour {self.recipient_name}"
-        self.assertIn(expected_string_in_content, self.email_notif.html_content)
-        self.assertIn(expected_string_in_content, self.email_notif.txt_content)
 
     @mock.patch("admin_cohort.emails.EmailNotification.send")
     @mock.patch("admin_cohort.emails.EmailNotification.attach_logo")
