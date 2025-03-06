@@ -13,7 +13,7 @@ _logger = logging.getLogger('info')
 ORBIS = settings.ACCESS_SOURCES[1]
 
 
-rights = [
+new_rights_from_orbis = [
     {
         "name": "right_read_administrative_data",
         "label": "Lecture de données administratives",
@@ -31,24 +31,6 @@ rights = [
         "label": "Lecture de données de soins",
         "category": "Lecture de Données Patients",
         "is_global": False,
-    },
-    {
-        "name": "right_read_sensitive_psychiatric_data",
-        "label": "Lecture de données sensibles de Psychiatrie",
-        "category": "Lecture de Données Patients",
-        "is_global": False,
-    },
-    {
-        "name": "right_read_sensitive_psychological_data",
-        "label": "Lecture de données sensibles de Psychologie",
-        "category": "Lecture de Données Patients",
-        "is_global": False,
-    },
-    {
-        "name": "right_read_sensitive_social_data",
-        "label": "Lecture de données sensibles Social",
-        "category": "Lecture de Données Patients",
-        "is_global": False,
     }
 ]
 
@@ -61,7 +43,7 @@ def delete_existing_orbis_profiles(apps, schema_editor):
 
 
 def load_orbis_related_rights(apps, schema_editor):
-    for data_set in rights:
+    for data_set in new_rights_from_orbis:
         right_serializer = RightSerializer(data=data_set, many=True)
         if right_serializer.is_valid():
             right_serializer.save()
@@ -73,7 +55,7 @@ def load_orbis_related_rights(apps, schema_editor):
 def erase_orbis_related_rights(apps, schema_editor):
     db_alias = schema_editor.connection.alias
     right_model = apps.get_model('accesses', 'Right')
-    deleted_count, _ = right_model.objects.using(db_alias).filter(name__in=[r['name'] for r in rights]).delete()
+    deleted_count, _ = right_model.objects.using(db_alias).filter(name__in=[r['name'] for r in new_rights_from_orbis]).delete()
     _logger.info(f"Erased {deleted_count} ORBIS related rights")
 
 
@@ -95,9 +77,6 @@ def unset_orbis_related_rights_on_existing_roles(apps, schema_editor):
     count_updated = role_model.objects.using(db_alias).exclude(name__startswith="0_") \
         .update(right_read_administrative_data=False,
                 right_read_medical_data=False,
-                right_read_sensitive_psychiatric_data=False,
-                right_read_sensitive_psychological_data=False,
-                right_read_sensitive_social_data=False,
                 right_read_treatments_data=False)
     _logger.info(f"Set all new ORBIS related rights to False on {count_updated} existing roles")
 
@@ -117,11 +96,12 @@ def load_orbis_roles(apps, schema_editor):
             _logger.error(f"Error on loading ORBIS roles: {role_serializer.errors}")
             return
 
+NEW_ROLES_NAMES = ("role_01", "role_02", "role_03")
 
 def erase_orbis_roles(apps, schema_editor):
     db_alias = schema_editor.connection.alias
     role_model = apps.get_model('accesses', 'Role')
-    deleted_count, _ = role_model.objects.using(db_alias).filter(name__startswith="0_").delete()
+    deleted_count, _ = role_model.objects.using(db_alias).filter(name__in=NEW_ROLES_NAMES).delete()
     _logger.info(f"Erased {deleted_count} ORBIS roles")
 
 
@@ -144,22 +124,12 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='role',
-            name='right_read_sensitive_psychiatric_data',
-            field=models.BooleanField(default=False),
-        ),
-        migrations.AddField(
-            model_name='role',
-            name='right_read_sensitive_psychological_data',
-            field=models.BooleanField(default=False),
-        ),
-        migrations.AddField(
-            model_name='role',
-            name='right_read_sensitive_social_data',
-            field=models.BooleanField(default=False),
-        ),
-        migrations.AddField(
-            model_name='role',
             name='right_read_treatments_data',
+            field=models.BooleanField(default=False),
+        ),
+        migrations.AddField(
+            model_name='role',
+            name='right_read_practitioner_data',
             field=models.BooleanField(default=False),
         ),
         migrations.RunPython(code=delete_existing_orbis_profiles),

@@ -47,9 +47,6 @@ class Role(BaseModel):
     right_read_administrative_data = models.BooleanField(default=False, null=False)
     right_read_medical_data = models.BooleanField(default=False, null=False)
     right_read_treatments_data = models.BooleanField(default=False, null=False)
-    right_read_sensitive_psychiatric_data = models.BooleanField(default=False, null=False)
-    right_read_sensitive_psychological_data = models.BooleanField(default=False, null=False)
-    right_read_sensitive_social_data = models.BooleanField(default=False, null=False)
     # FHIR
     right_read_practitioner_data = models.BooleanField(default=False, null=False)
 

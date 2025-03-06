@@ -208,9 +208,6 @@ class DataRightSerializer(serializers.Serializer):
     right_read_administrative_data = serializers.BooleanField(read_only=True)
     right_read_medical_data = serializers.BooleanField(read_only=True)
     right_read_treatments_data = serializers.BooleanField(read_only=True)
-    right_read_sensitive_psychiatric_data = serializers.BooleanField(read_only=True)
-    right_read_sensitive_psychological_data = serializers.BooleanField(read_only=True)
-    right_read_sensitive_social_data = serializers.BooleanField(read_only=True)
     right_export_csv_nominative = serializers.BooleanField(read_only=True)
     right_export_csv_pseudonymized = serializers.BooleanField(read_only=True)
     right_export_jupyter_nominative = serializers.BooleanField(read_only=True)
@@ -227,9 +224,6 @@ class ReadRightPerimeter(serializers.Serializer):
     right_read_administrative_data = serializers.BooleanField(read_only=True)
     right_read_medical_data = serializers.BooleanField(read_only=True)
     right_read_treatments_data = serializers.BooleanField(read_only=True)
-    right_read_sensitive_psychiatric_data = serializers.BooleanField(read_only=True)
-    right_read_sensitive_psychological_data = serializers.BooleanField(read_only=True)
-    right_read_sensitive_social_data = serializers.BooleanField(read_only=True)
 
 
 class RightReadPatientDataSerializer(serializers.Serializer):
@@ -239,6 +233,3 @@ class RightReadPatientDataSerializer(serializers.Serializer):
     allow_read_administrative_data = serializers.BooleanField(read_only=True)
     allow_read_medical_data = serializers.BooleanField(read_only=True)
     allow_read_treatments_data = serializers.BooleanField(read_only=True)
-    allow_read_sensitive_psychiatric_data = serializers.BooleanField(read_only=True)
-    allow_read_sensitive_psychological_data = serializers.BooleanField(read_only=True)
-    allow_read_sensitive_social_data = serializers.BooleanField(read_only=True)
