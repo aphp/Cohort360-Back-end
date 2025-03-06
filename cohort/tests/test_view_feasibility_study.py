@@ -37,15 +37,17 @@ class FeasibilityStudyViewTests(CohortAppTests):
         self.basic_data = dict(request_query_snapshot_id=self.rqs.pk,
                                owner=self.user1)
 
+    @mock.patch('cohort.services.feasibility_study.get_template')
     @mock.patch('cohort.services.feasibility_study.send_email_feasibility_report_ready.apply_async')
     @mock.patch('cohort.services.feasibility_study.FeasibilityStudyService.build_feasibility_report')
     @mock.patch('cohort_job_server.cohort_counter.CohortCounter.handle_patch_feasibility_study')
-    def test_successfully_patch_feasibility_study(self, mock_patch_handler, mock_build_report, mock_send_email_report_ready):
+    def test_successfully_patch_feasibility_study(self, mock_patch_handler, mock_build_report, mock_send_email_report_ready, mock_get_template):
         extra = {group_id: count for (group_id, count) in [("1", "10"), ("2", "10"), ("3", "10"),
                                                            ("4", "15"), ("5", "15"), ("6", "25")]}
         mock_patch_handler.return_value = JobStatus.finished, extra
         mock_build_report.return_value = {"1111": 1111}, "<html><body><h1>Some HTML</h1></body></html>"
         mock_send_email_report_ready.return_value = None
+        mock_get_template.render.return_value = ''
 
         patch_data = {"request_job_status": "finished",
                       "count": 25,
