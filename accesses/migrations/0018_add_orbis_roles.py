@@ -6,6 +6,7 @@ from pathlib import Path
 from django.conf import settings
 from django.db import migrations, models
 
+from accesses.migrations.data.orbis_roles_map import NEW_ROLES
 from accesses.serializers import RoleSerializer, RightSerializer
 
 _logger = logging.getLogger('info')
@@ -62,22 +63,21 @@ def erase_orbis_related_rights(apps, schema_editor):
 def update_existing_roles_with_orbis_related_rights(apps, schema_editor):
     db_alias = schema_editor.connection.alias
     role_model = apps.get_model('accesses', 'Role')
-    for role in role_model.objects.using(db_alias).all():   # todo: complete this after establishing rules
+    for role in role_model.objects.using(db_alias).all():
         if role.right_read_patient_nominative:
             role.right_read_administrative_data = True
             role.right_read_medical_data = True
             role.right_read_treatments_data = True
-            ...
             role.save()
 
 
 def unset_orbis_related_rights_on_existing_roles(apps, schema_editor):
     db_alias = schema_editor.connection.alias
     role_model = apps.get_model('accesses', 'Role')
-    count_updated = role_model.objects.using(db_alias).exclude(name__startswith="0_") \
-        .update(right_read_administrative_data=False,
-                right_read_medical_data=False,
-                right_read_treatments_data=False)
+    count_updated = role_model.objects.using(db_alias).exclude(name__in=NEW_ROLES) \
+                                                      .update(right_read_administrative_data=False,
+                                                              right_read_medical_data=False,
+                                                              right_read_treatments_data=False)
     _logger.info(f"Set all new ORBIS related rights to False on {count_updated} existing roles")
 
 
@@ -96,12 +96,11 @@ def load_orbis_roles(apps, schema_editor):
             _logger.error(f"Error on loading ORBIS roles: {role_serializer.errors}")
             return
 
-NEW_ROLES_NAMES = ("role_01", "role_02", "role_03")
 
 def erase_orbis_roles(apps, schema_editor):
     db_alias = schema_editor.connection.alias
     role_model = apps.get_model('accesses', 'Role')
-    deleted_count, _ = role_model.objects.using(db_alias).filter(name__in=NEW_ROLES_NAMES).delete()
+    deleted_count, _ = role_model.objects.using(db_alias).filter(name__in=NEW_ROLES).delete()
     _logger.info(f"Erased {deleted_count} ORBIS roles")
 
 

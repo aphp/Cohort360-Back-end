@@ -1,0 +1,23 @@
+<div style="font-size:12pt;color:#000000;font-family:Calibri,Helvetica,sans-serif;" dir="ltr">
+    Bonjour,
+    <br><br>
+    La synchronisation des droits ORBIS en date de {{ sync_time }} a terminé avec les anomalies suivantes:
+
+    <br><br>
+
+    <strong>Rôles ignorés à défaut de mapping:</strong>
+    {% for role in skipped_roles %}
+        * {{ role }}
+    {% endfor %}
+
+    <br><br>
+
+    <strong>Périmètres manquants:</strong>
+    {% for perimeter in missing_perimeters %}
+        * {{ perimeter }}
+    {% endfor %}
+
+    <br>
+    Cordialement.
+</div>
+

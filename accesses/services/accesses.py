@@ -10,6 +10,7 @@ from django.conf import settings
 from fhirpy import SyncFHIRClient
 
 from accesses.migrations.data.orbis_roles_map import roles_map
+from admin_cohort.emails import EmailNotification
 from admin_cohort.models import User
 from admin_cohort.tools import join_qs
 from accesses.q_expressions import q_allow_read_search_opposed_patient_data, q_allow_read_patient_data_nominative, q_allow_read_patient_data_pseudo, \
@@ -518,7 +519,7 @@ class AccessesSynchronizer:
 
     @staticmethod
     def get_mapped_role(role_name) -> Role:
-        mapped_role_name = {k for k in roles_map if role_name in roles_map}
+        mapped_role_name = {k for k in roles_map if role_name in roles_map[k]}
         return Role.objects.filter(name=mapped_role_name).first()
 
 
@@ -610,8 +611,19 @@ class AccessesSynchronizer:
                      f"{count_new_accesses} new accesses were created. "
                      f"{practitioner_role_res.count() - len(skipped_roles+missing_perimeters)} accesses have been synced")
 
-    def send_report_notification(self, skipped_roles, missing_perimeters):
-        ...
+    @staticmethod
+    def send_report_notification(skipped_roles, missing_perimeters):
+        context = {"sync_time": datetime.now(),
+                   "skipped_roles": skipped_roles,
+                   "missing_perimeters": missing_perimeters
+                   }
+        recipients_addresses = [a[1] for a in settings.ADMINS]
+        email_notif = EmailNotification(subject="Rapport de synchro des accès ORBIS",
+                                        to=recipients_addresses,
+                                        html_template="sync_orbis_accesses_report.html",
+                                        txt_template="sync_orbis_accesses_report.txt",
+                                        context=context)
+        email_notif.push()
 
 
 accesses_synchronizer = AccessesSynchronizer()
