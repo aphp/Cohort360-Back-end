@@ -94,6 +94,7 @@ class CohortQuery(BaseModel):
 
 class ModeOptions(BaseModel):
     sampling: float = Field(None, alias='sampling')
+    details: str = Field(None, alias='details')
 
 
 @dataclass
