@@ -41,6 +41,59 @@ class CohortQueryTest(TestCase):
         self.assertEqual(len(json_data["request"]["criteria"]), len(cohort_query.criteria.criteria))
 
 
+class TestBaseCohortRequest(TestCase):
+    def setUp(self):
+        self.auth_headers = {'Authorization': 'Bearer xxx.token.xxx', 'authorizationMethod': 'JWT', 'X-Trace-Id': '12a'}
+        self.instance_id = "test-instance-id"
+        self.json_query = '{"sourcePopulation": {"caresiteCohortList": []}}'
+        
+    @mock.patch('cohort_job_server.sjs_api.cohort_requests.base_cohort_request.QueryFormatter')
+    @mock.patch('cohort_job_server.sjs_api.cohort_requests.base_cohort_request.format_spark_job_request_for_sjs')
+    def test_create_sjs_request_with_stage_details(self, mock_format_request, mock_query_formatter):
+        # Mock the format_to_fhir method to return a criteria object
+        mock_formatter_instance = mock.MagicMock()
+        mock_query_formatter.return_value = mock_formatter_instance
+        mock_formatter_instance.format_to_fhir.return_value = mock.MagicMock()
+        
+        # Mock the format_spark_job_request_for_sjs function to return a string
+        expected_result = '{"modeOptions": {"sampling": 0.5, "details": "detailed"}}'
+        mock_format_request.return_value = expected_result
+        
+        # Create a BaseCohortRequest with stage_details and sampling
+        from cohort_job_server.sjs_api.enums import Mode
+        stage_details = "detailed"
+        sampling_ratio = 0.5
+        request = BaseCohortRequest(
+            mode=Mode.COUNT,
+            instance_id=self.instance_id,
+            json_query=self.json_query,
+            auth_headers=self.auth_headers,
+            stage_details=stage_details,
+            sampling_ratio=sampling_ratio
+        )
+        
+        # Create a mock CohortQuery
+        cohort_query = mock.MagicMock()
+        
+        # Call create_sjs_request
+        result = request.create_sjs_request(cohort_query)
+        
+        # Verify that the result is correct
+        self.assertEqual(result, expected_result)
+        
+        # Verify that format_spark_job_request_for_sjs was called
+        mock_format_request.assert_called_once()
+        
+        # Verify that the SparkJobObject was created with the correct parameters
+        spark_job_obj = mock_format_request.call_args[0][0]
+        self.assertEqual(spark_job_obj.mode, Mode.COUNT)
+        self.assertEqual(spark_job_obj.owner_entity_id, None)  # Not set in our test
+        
+        # Verify that the result contains the expected values
+        self.assertIn('"sampling": 0.5', expected_result)
+        self.assertIn('"details": "detailed"', expected_result)
+
+
 class TestQueryFormatter(TestCase):
     def setUp(self):
         def load_query(filename: str) -> CohortQuery:
