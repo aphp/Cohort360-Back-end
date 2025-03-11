@@ -19,8 +19,8 @@ def send_alert_email(user: User, days: int):
                }
     email_notif = EmailNotification(subject="Expiration de vos accès à Cohort360",
                                     to=user.email,
-                                    html_template="html/access_expiry_alert.html",
-                                    txt_template="txt/access_expiry_alert.txt",
+                                    html_template="access_expiry_alert.html",
+                                    txt_template="access_expiry_alert.txt",
                                     context=context)
     email_notif.push()
 
