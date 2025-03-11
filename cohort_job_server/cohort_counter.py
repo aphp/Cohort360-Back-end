@@ -19,12 +19,15 @@ class CohortCounter(BaseCohortOperator):
                                    json_query: str,
                                    auth_headers: dict,
                                    global_estimate: Optional[bool] = False,
+                                   stage_details: Optional[str] = None,
                                    owner_username: Optional[str] = None) -> None:
         count_cls = global_estimate and CohortCountAll or CohortCount
         self.sjs_requester.launch_request(count_cls(instance_id=dm_id,
                                                     json_query=json_query,
                                                     auth_headers=auth_headers,
-                                                    owner_username=owner_username))
+                                                    owner_username=owner_username,
+                                                    stage_details=stage_details
+                                                    ))
 
     @staticmethod
     def translate_query(dm_id: str, json_query: str, auth_headers: dict) -> str:
@@ -61,6 +64,7 @@ class CohortCounter(BaseCohortOperator):
         job_duration = str(timezone.now() - dm.created_at)
         if job_status == JobStatus.finished:
             data["measure"] = data.pop(COUNT, None)
+            data["extra"] = data.pop(EXTRA, None)
             if dm.is_global:
                 data.update({"measure_min": data.pop(MINIMUM, None),
                              "measure_max": data.pop(MAXIMUM, None)})
