@@ -6,8 +6,8 @@ from rest_framework import routers
 from rest_framework.routers import SimpleRouter
 from rest_framework_extensions.routers import NestedRouterMixin
 
-from admin_cohort.views import OIDCLoginView, UserViewSet, RequestLogViewSet, MaintenancePhaseViewSet, CacheViewSet, ReleaseNotesViewSet, \
-    JWTLoginView, TokenRefreshView, LogoutView, NotFoundView
+from admin_cohort.views import LoginView, UserViewSet, RequestLogViewSet, MaintenancePhaseViewSet, CacheViewSet, ReleaseNotesViewSet, \
+    TokenRefreshView, LogoutView, NotFoundView
 
 DOCS_ENDPOINT = "docs"
 
@@ -23,8 +23,7 @@ router.register(r'logs', RequestLogViewSet, basename="logs")
 router.register(r'release-notes', ReleaseNotesViewSet, basename="release_notes")
 
 urlpatterns = [re_path(r'^$', NotFoundView.as_view(), name="not-found"),
-               re_path(r'^auth/oidc/login', OIDCLoginView.as_view({'post': 'post'}), name="oidc-login"),
-               re_path(r'^auth/login/$', JWTLoginView.as_view(), name='jwt-login'),
+               re_path(r'^auth/login/', LoginView.as_view({'post': 'post'}), name="login"),
                re_path(r'^auth/logout/$', LogoutView.as_view(), name='logout'),
                re_path(r'^auth/refresh/$', TokenRefreshView.as_view(), name='token-refresh'),
                re_path(r'^cache', CacheViewSet.as_view(), name='cache'),

@@ -57,7 +57,6 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 CSRF_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_SECURE = not DEBUG
-ACCESS_TOKEN_COOKIE_SECURE = not DEBUG
 
 TRACE_ID_HEADER = "X-Trace-Id"
 IMPERSONATING_HEADER = "X-Impersonate"
@@ -117,10 +116,18 @@ LOGGING = dict(version=1,
 
 # Application definition
 INCLUDED_APPS = env('INCLUDED_APPS',
-                    default='accesses,content_management,cohort_job_server,cohort,exports,accesses_fhir_perimeters').split(
-    ",")
+                    default='accesses,content_management,cohort_job_server,'
+                            'cohort,exports,accesses_fhir_perimeters').split(",")
+
 INFLUXDB_ENABLED = env.bool("INFLUXDB_ENABLED", default=False)
+
 ENABLE_JWT = env.bool("ENABLE_JWT", default=False)
+
+SIMPLE_JWT = {"USER_ID_FIELD": "username",
+              "USER_ID_CLAIM": "username",
+              "SIGNING_KEY": env.str("JWT_SIGNING_KEY", default=""),
+              "ROTATE_REFRESH_TOKENS": True,
+              }
 
 INSTALLED_APPS = ['django.contrib.admin',
                   'django.contrib.auth',
@@ -213,6 +220,7 @@ PAGINATION_MAX_LIMIT = 30_000
 SPECTACULAR_SETTINGS = {"TITLE": TITLE,
                         "DESCRIPTION": DESCRIPTION,
                         "VERSION": VERSION,
+                        "SERVE_AUTHENTICATION": [],
                         "SERVE_INCLUDE_SCHEMA": False,
                         "COMPONENT_SPLIT_REQUEST": True,
                         "SORT_OPERATION_PARAMETERS": False,
@@ -284,7 +292,6 @@ ROOT_PERIMETER_TYPE = PERIMETER_TYPES[0]
 ROOT_PERIMETER_ID = env.int("ROOT_PERIMETER_ID", default=0)
 SHARED_FOLDER_NAME = 'Mes requêtes reçues'
 
-ACCESS_TOKEN_COOKIE = "access_token"
 SESSION_COOKIE_NAME = "sessionid"
 SESSION_COOKIE_AGE = 24 * 60 * 60
 

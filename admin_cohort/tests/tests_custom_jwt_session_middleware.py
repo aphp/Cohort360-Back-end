@@ -16,7 +16,6 @@ class JWTSessionMiddlewareTests(TestCase):
         self.test_safe_route = "/accesses/roles/"
         self.test_logout_route = "/auth/logout/"
         self.cookies = {settings.SESSION_COOKIE_NAME: "SOMESESSIONCOOKIE",
-                        settings.ACCESS_TOKEN_COOKIE: "SOMESESSIONACCESSCOOKIE",
                         settings.CSRF_COOKIE_NAME: "SOMECSRFCOOKIE"
                         }
 
@@ -30,4 +29,4 @@ class JWTSessionMiddlewareTests(TestCase):
         request = self.factory.get(path=self.test_logout_route)
         request.COOKIES = self.cookies
         response: MagicMock = self.middleware(request)
-        self.assertEqual(response.delete_cookie.call_count, 2)
+        self.assertEqual(response.delete_cookie.call_count, 1)
