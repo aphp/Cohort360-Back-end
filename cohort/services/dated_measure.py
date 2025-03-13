@@ -61,7 +61,9 @@ class DatedMeasureService(CommonService):
                                                                           job_name=JobName.COUNT,
                                                                           extra_info={"request_job_status": dm.request_job_status,
                                                                                       "request_job_fail_msg": dm.request_job_fail_msg,
-                                                                                      "measure": dm.measure}))
+                                                                                      "measure": dm.measure,
+                                                                                      "extra": dm.extra
+                                                                                      }))
 
 
 dm_service = DatedMeasureService()
