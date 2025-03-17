@@ -1,6 +1,7 @@
 from unittest import mock
 from unittest.mock import MagicMock
 
+from django.conf import settings
 from django.test import TestCase
 
 from accesses.models import Perimeter
@@ -25,7 +26,7 @@ class TasksTests(TestCase):
 
         self.main_perimeter = Perimeter.objects.create(name="Main Perimeter", level=1, cohort_id="1234")
         self.json_query = '{"sourcePopulation": {"caresiteCohortList": ["%s"]}}' % self.main_perimeter.cohort_id
-        self.auth_headers = {'Authorization': 'Bearer XXXX', 'authorizationMethod': 'OIDC'}
+        self.auth_headers = {'Authorization': 'Bearer XXXX', settings.AUTHORIZATION_METHOD_HEADER: settings.OIDC_AUTH_MODE}
 
         self.user1 = new_random_user()
         self.folder = Folder.objects.create(owner=self.user1, name="folder01")

@@ -224,9 +224,8 @@ class JWTAuth(Auth):
     def __init__(self):
         super().__init__()
         self.signing_key = settings.SIMPLE_JWT.get("SIGNING_KEY")
-        self.identification_server = {"url": env.str("ID_CHECKER_URL", default=""),
-                                      "auth_token": env.str("ID_CHECKER_TOKEN", default="")
-                                      }
+        self.id_checker_auth_url = f"{settings.ID_CHECKER_URL}/user/authenticate"
+        self.id_checker_headers = settings.ID_CHECKER_HEADERS
 
     def authenticate(self, token: str) -> str:
         decoded = self.decode_token(token=token, key=self.signing_key)
@@ -254,9 +253,9 @@ class JWTAuth(Auth):
 
     def check_credentials(self, username, password) -> bool:
         try:
-            response = requests.post(url=f"{self.identification_server['url']}/user/authenticate",
+            response = requests.post(url=self.id_checker_auth_url,
                                      data={"username": username, "password": password},
-                                     headers={'Key-auth': self.identification_server['auth_token']}
+                                     headers=self.id_checker_headers
                                      )
             return response.status_code == status.HTTP_200_OK
         except Exception as e:
@@ -370,7 +369,7 @@ class AuthService:
 
     def get_token_from_headers(self, request) -> Tuple[Optional[str], Optional[str]]:
         authorization = request.META.get('HTTP_AUTHORIZATION')
-        authorization_method = request.META.get('HTTP_AUTHORIZATIONMETHOD')
+        authorization_method = request.META.get(f"HTTP_{settings.AUTHORIZATION_METHOD_HEADER}")
         if isinstance(authorization, str):
             authorization = authorization.encode(HTTP_HEADER_ENCODING)
         if authorization is None:
@@ -382,11 +381,11 @@ class AuthService:
         parts = header.split()
         if not parts:
             return None
-        if parts[0] != "Bearer".encode(HTTP_HEADER_ENCODING):
-            return None
         if len(parts) != 2:
             raise AuthenticationFailed(code='bad_authorization_header',
                                        detail='Authorization header must contain two space-delimited values')
+        if parts[0] != "Bearer".encode(HTTP_HEADER_ENCODING):
+            return None
         res = parts[1]
         token = res if not isinstance(res, bytes) else res.decode('utf-8')
         return token

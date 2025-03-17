@@ -4,6 +4,7 @@ import re
 from typing import Optional
 
 import requests
+from django.conf import settings
 from django.http import Http404
 from rest_framework import status
 
@@ -13,10 +14,10 @@ from admin_cohort.types import PersonIdentity, ServerError
 
 env = os.environ
 
-ID_CHECKER_URL = f"{env.get('ID_CHECKER_URL')}/user/info"
-ID_CHECKER_TOKEN_HEADER = env.get("ID_CHECKER_TOKEN_HEADER")
-ID_CHECKER_TOKEN = env.get("ID_CHECKER_TOKEN")
-ID_CHECKER_SERVER_HEADERS = {ID_CHECKER_TOKEN_HEADER: ID_CHECKER_TOKEN}
+if hasattr(settings, "ID_CHECKER_URL"):
+    ID_CHECKER_USER_INFO_URL = f"{settings.ID_CHECKER_URL}/user/info"
+else:
+    ID_CHECKER_USER_INFO_URL = None
 
 USERNAME_REGEX = env.get("USERNAME_REGEX", "(.*)")
 
@@ -26,15 +27,15 @@ _logger = logging.getLogger("info")
 class UsersService:
 
     def validate_user_data(self, data: dict):
-        if ID_CHECKER_URL is not None:
+        if ID_CHECKER_USER_INFO_URL is not None:
             self.verify_user_identity(username=data.get("username"))
         self.check_fields_against_regex(data=data)
 
     @staticmethod
     def verify_user_identity(username: str) -> Optional[PersonIdentity]:
-        response = requests.post(url=ID_CHECKER_URL,
+        response = requests.post(url=ID_CHECKER_USER_INFO_URL,
                                  data={'username': username},
-                                 headers=ID_CHECKER_SERVER_HEADERS)
+                                 headers=settings.ID_CHECKER_HEADERS)
         if response.status_code == status.HTTP_404_NOT_FOUND:
             raise Http404
         if response.status_code != status.HTTP_200_OK:
@@ -56,13 +57,13 @@ class UsersService:
 
         assert all(f and isinstance(f, str) for f in (firstname, lastname, email)), "Basic info fields must be strings"
 
-        name_regex = re.compile(r"^[A-Za-zÀ-ÖØ-öø-ÿ\-' ]*$")
-        email_regex = re.compile(r"^[A-Za-z0-9\-. @_]*$")
+        name_regex = re.compile(r"^[\wÀ-ÖØ-öø-ÿ' -]*$")
+        email_regex = re.compile(settings.EMAIL_REGEX_CHECK)
 
         if firstname and lastname and not name_regex.match(f"{firstname + lastname}"):
-            raise ValueError("Nom/Prénom invalide. Doit comporter uniquement des lettres et des caractères ' et - ")
+            raise ValueError("Invalid firstname/lastname: may contain only letters and `'-`")
         if email and not email_regex.match(email):
-            raise ValueError(f"Adresse email invalide: {email}. Doit comporter uniquement des lettres, chiffres et caractères @_-.")
+            raise ValueError(f"Invalid email address {email}: may be only alphanumeric or contain `@_-.`")
 
     @staticmethod
     def setup_profile(data: dict) -> None:

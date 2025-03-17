@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth import login, logout
 from django.contrib.auth.models import update_last_login
 from django.http import JsonResponse
@@ -27,7 +28,7 @@ class LoginView(RequestLogMixin, viewsets.GenericViewSet):
                    request=LoginFormSerializer,
                    responses={200: LoginSerializer})
     def post(self, request, *args, **kwargs):
-        auth_method = request.META.get('HTTP_AUTHORIZATIONMETHOD')
+        auth_method = request.META.get(f"HTTP_{settings.AUTHORIZATION_METHOD_HEADER}")
         try:
             user = auth_service.login(request=request, auth_method=auth_method)
         except (AuthenticationFailed, User.DoesNotExist, ServerError) as e:

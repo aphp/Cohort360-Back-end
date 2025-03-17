@@ -1,6 +1,7 @@
 import csv
 import os
 from datetime import timedelta
+from typing import Optional
 
 from django.core.management.base import BaseCommand
 from django.utils import timezone
@@ -28,7 +29,7 @@ class Command(BaseCommand):
         self.create_cohort_requester_profile()
         admin_profile = self.create_admin_profile()
         self.assign_admin_role(profile=admin_profile)
-        self.stdout.write(self.style.SUCCESS(f"Successfully added user '{ADMIN_USERNAME}' with Full Admin role"))
+        self.stdout.write(self.style.SUCCESS(f"Successfully added user '{ADMIN_USERNAME}' with 'Full Admin' role"))
 
     def load_perimeters(self, csv_file_path: str) -> None:
         with open(csv_file_path, 'r') as csv_file:
@@ -40,13 +41,12 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f'Successfully loaded {count} perimeters'))
 
     @staticmethod
-    def check_for_existing_user(username) -> User | bool:
-        existing_user = User.objects.filter(username=username).first()
-        return existing_user or False
+    def check_for_existing_user(username) -> Optional[User]:
+        return User.objects.filter(username=username).first()
 
     def create_profile(self, username, firstname, lastname, email) -> Profile:
         existing_user = self.check_for_existing_user(username)
-        if existing_user:
+        if existing_user is not None:
             self.stdout.write(self.style.WARNING(f'Found an old user {username} in DB, proceed with it'))
             return existing_user.profiles.first()
 
@@ -58,10 +58,16 @@ class Command(BaseCommand):
         return profile
 
     def create_admin_profile(self) -> Profile:
-        return self.create_profile(ADMIN_USERNAME, ADMIN_FIRSTNAME, ADMIN_LASTNAME, ADMIN_EMAIL)
+        return self.create_profile(username=ADMIN_USERNAME,
+                                   firstname=ADMIN_FIRSTNAME,
+                                   lastname=ADMIN_LASTNAME,
+                                   email=ADMIN_EMAIL)
 
     def create_cohort_requester_profile(self) -> Profile:
-        return self.create_profile(SJS_USERNAME, 'cohort', 'requester', 'cohort.requester@cohort360.org')
+        return self.create_profile(username=SJS_USERNAME,
+                                   firstname='cohort',
+                                   lastname='requester',
+                                   email='cohort.requester@cohort360.org')
 
     @staticmethod
     def assign_admin_role(profile: Profile) -> None:

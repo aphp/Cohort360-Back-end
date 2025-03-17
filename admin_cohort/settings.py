@@ -37,7 +37,7 @@ SECRET_KEY = env("DJANGO_SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 # Debug will also send sensitive data with the response to an error
-DEBUG = env.int("DEBUG", default=0) == 1
+DEBUG = env.bool("DEBUG", default=False)
 
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = [BACK_URL] + FRONT_URLS
@@ -58,13 +58,11 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 CSRF_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_SECURE = not DEBUG
 
-TRACE_ID_HEADER = "X-Trace-Id"
-IMPERSONATING_HEADER = "X-Impersonate"
-
 ADMINS = [a.split(',') for a in env("ADMINS", default="").split(';')]
 
 NOTIFY_ADMINS = env.bool("NOTIFY_ADMINS", default=False)
 
+# logging
 logging.captureWarnings(True)
 
 SOCKET_LOGGER_HOST = env("SOCKET_LOGGER_HOST", default="localhost")
@@ -119,16 +117,6 @@ INCLUDED_APPS = env('INCLUDED_APPS',
                     default='accesses,content_management,cohort_job_server,'
                             'cohort,exports,accesses_fhir_perimeters').split(",")
 
-INFLUXDB_ENABLED = env.bool("INFLUXDB_ENABLED", default=False)
-
-ENABLE_JWT = env.bool("ENABLE_JWT", default=False)
-
-SIMPLE_JWT = {"USER_ID_FIELD": "username",
-              "USER_ID_CLAIM": "username",
-              "SIGNING_KEY": env.str("JWT_SIGNING_KEY", default=""),
-              "ROTATE_REFRESH_TOKENS": True,
-              }
-
 INSTALLED_APPS = ['django.contrib.admin',
                   'django.contrib.auth',
                   'django.contrib.contenttypes',
@@ -144,7 +132,8 @@ INSTALLED_APPS = ['django.contrib.admin',
                   'safedelete',
                   'channels',
                   'django_celery_beat',
-                  'admin_cohort'] + INCLUDED_APPS
+                  'admin_cohort'
+                  ] + INCLUDED_APPS
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -160,22 +149,14 @@ MIDDLEWARE = [
     'admin_cohort.middleware.jwt_session_middleware.JWTSessionMiddleware',
     'admin_cohort.middleware.swagger_headers_middleware.SwaggerHeadersMiddleware'
 ]
-MIDDLEWARE = (INFLUXDB_ENABLED and [
-    'admin_cohort.middleware.influxdb_middleware.InfluxDBMiddleware'] or []) + MIDDLEWARE
 
-DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
+INFLUXDB_ENABLED = env.bool("INFLUXDB_ENABLED", default=False)
 
-DJANGO_CPROFILE_MIDDLEWARE_REQUIRE_STAFF = False
-
-AUTHENTICATION_BACKENDS = ['admin_cohort.auth.auth_backends.JWTAuthBackend',
-                           'admin_cohort.auth.auth_backends.OIDCAuthBackend']
-
-ROOT_URLCONF = 'admin_cohort.urls'
-
-TEMPLATES_DIR = BASE_DIR / 'templates'
+if INFLUXDB_ENABLED:
+    MIDDLEWARE = ['admin_cohort.middleware.influxdb_middleware.InfluxDBMiddleware'] + MIDDLEWARE
 
 TEMPLATES = [{'BACKEND': 'django.template.backends.django.DjangoTemplates',
-              'DIRS': [TEMPLATES_DIR],
+              'DIRS': [BASE_DIR / 'templates'],
               'APP_DIRS': True,
               'OPTIONS': {'context_processors': ['django.template.context_processors.debug',
                                                  'django.template.context_processors.request',
@@ -183,8 +164,6 @@ TEMPLATES = [{'BACKEND': 'django.template.backends.django.DjangoTemplates',
                                                  'django.contrib.messages.context_processors.messages']
                           }
               }]
-
-WSGI_APPLICATION = 'admin_cohort.wsgi.application'
 
 DATABASES = {'default': {'ENGINE': 'django.db.backends.postgresql',
                          'NAME': env("DB_AUTH_NAME"),
@@ -196,14 +175,29 @@ DATABASES = {'default': {'ENGINE': 'django.db.backends.postgresql',
                          }
              }
 
+WSGI_APPLICATION = 'admin_cohort.wsgi.application'
+
+ROOT_URLCONF = 'admin_cohort.urls'
+
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
+
+AUTH_USER_MODEL = 'admin_cohort.User'
+
+APPEND_SLASH = False
+
 LANGUAGE_CODE = 'en-us'
 USE_I18N = True
 USE_TZ = True
 TIME_ZONE = 'UTC'
 USE_DEPRECATED_PYTZ = True
+utc = pytz.UTC
 
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'static'
+
+
+AUTHENTICATION_BACKENDS = ['admin_cohort.auth.auth_backends.JWTAuthBackend',
+                           'admin_cohort.auth.auth_backends.OIDCAuthBackend']
 
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.IsAuthenticated'],
@@ -234,10 +228,6 @@ SPECTACULAR_SETTINGS = {"TITLE": TITLE,
                             "persistAuthorization": True,
                         },
                         }
-
-APPEND_SLASH = False
-
-AUTH_USER_MODEL = 'admin_cohort.User'
 
 # EMAILS
 EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
@@ -287,12 +277,29 @@ SHARED_FOLDER_NAME = 'Mes requêtes reçues'
 SESSION_COOKIE_NAME = "sessionid"
 SESSION_COOKIE_AGE = 24 * 60 * 60
 
+ENABLE_JWT = env.bool("ENABLE_JWT", default=True)
+
+if ENABLE_JWT:
+    SIMPLE_JWT = {"USER_ID_FIELD": "username",
+                  "USER_ID_CLAIM": "username",
+                  "SIGNING_KEY": env.str("JWT_SIGNING_KEY"),
+                  "ROTATE_REFRESH_TOKENS": True,
+                  }
+
+    ID_CHECKER_URL = env.str("ID_CHECKER_URL")
+    ID_CHECKER_HEADER = env.str("ID_CHECKER_TOKEN_HEADER")
+    ID_CHECKER_TOKEN = env.str("ID_CHECKER_TOKEN")
+    ID_CHECKER_HEADERS = {ID_CHECKER_HEADER: ID_CHECKER_TOKEN}
+
 JWT_AUTH_MODE = "JWT"
 OIDC_AUTH_MODE = "OIDC"
 
+AUTHORIZATION_METHOD_HEADER = "AUTHORIZATIONMETHOD"
+TRACE_ID_HEADER = "X-Trace-Id"
+IMPERSONATING_HEADER = "X-Impersonate"
+
 # CUSTOM EXCEPTION REPORTER
 DEFAULT_EXCEPTION_REPORTER_FILTER = 'admin_cohort.tools.except_report_filter.CustomExceptionReporterFilter'
-SENSITIVE_PARAMS = env('SENSITIVE_PARAMS', default="password").split(",")
 
 # COHORTS +20k
 LAST_COUNT_VALIDITY = env.int("LAST_COUNT_VALIDITY", default=24)  # in hours

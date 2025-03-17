@@ -143,7 +143,7 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
             return Response(data=f"Storage provider error: {e}", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-    @extend_schema(responses=status.HTTP_200_OK)
+    @extend_schema(responses={status.HTTP_200_OK: OpenApiTypes.STR})
     @action(detail=True, methods=['post'], url_path="retry")
     def retry(self, request, *args, **kwargs):
         export = self.get_object()
