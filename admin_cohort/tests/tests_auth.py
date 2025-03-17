@@ -28,7 +28,7 @@ if settings.ENABLE_JWT:
     class JWTLoginTests(APITestCase):
 
         def setUp(self):
-            self.headers = {"AuthorizationMethod": settings.JWT_AUTH_MODE}
+            self.headers = {settings.AUTHORIZATION_METHOD_HEADER: settings.JWT_AUTH_MODE}
             self.login_url = '/auth/login/'
             self.regular_user = create_regular_user()
             self.unregistered_user_credentials = {"username": "spy-user",
@@ -80,7 +80,7 @@ if settings.ENABLE_JWT:
 class OIDCLoginTests(APITestCase):
 
     def setUp(self):
-        self.headers = {"AuthorizationMethod": settings.OIDC_AUTH_MODE}
+        self.headers = {settings.AUTHORIZATION_METHOD_HEADER: settings.OIDC_AUTH_MODE}
         self.client = Client()
         self.login_url = '/auth/login/'
         self.regular_user = create_regular_user()
@@ -159,7 +159,7 @@ class RefreshTokenTests(APITestCase):
                                    content_type="application/json",
                                    data={"refresh_token": "any-auth-code-will-do"},
                                    headers={"Authorization": "Bearer any-auth",
-                                            "AuthorizationMethod": settings.OIDC_AUTH_MODE})
+                                            settings.AUTHORIZATION_METHOD_HEADER: settings.OIDC_AUTH_MODE})
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def test_refresh_token_with_invalid_auth_mode(self):
@@ -168,7 +168,7 @@ class RefreshTokenTests(APITestCase):
                                  content_type="application/json",
                                  data={"refresh_token": "any-auth-code-will-do"},
                                  headers={"Authorization": "Bearer any-auth",
-                                          "AuthorizationMethod": "INVALID_AUTH_MODE"})
+                                          settings.AUTHORIZATION_METHOD_HEADER: "INVALID_AUTH_MODE"})
 
     @mock.patch("admin_cohort.views.auth.auth_service.refresh_token")
     def test_refresh_token_with_jwt_auth_mode(self, mock_refresh_token: MagicMock):
@@ -177,7 +177,7 @@ class RefreshTokenTests(APITestCase):
                                     content_type="application/json",
                                     data={"refresh_token": "any-token-will-do"},
                                     headers={"Authorization": "Bearer any-auth",
-                                             "AuthorizationMethod": settings.JWT_AUTH_MODE})
+                                             settings.AUTHORIZATION_METHOD_HEADER: settings.JWT_AUTH_MODE})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     @mock.patch("admin_cohort.views.auth.auth_service.refresh_token")
@@ -187,7 +187,7 @@ class RefreshTokenTests(APITestCase):
                                     content_type="application/json",
                                     data={"refresh_token": "any-token-will-do"},
                                     headers={"Authorization": "Bearer any-auth",
-                                             "AuthorizationMethod": settings.OIDC_AUTH_MODE})
+                                             settings.AUTHORIZATION_METHOD_HEADER: settings.OIDC_AUTH_MODE})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     @mock.patch("admin_cohort.views.auth.auth_service.refresh_token")
@@ -197,7 +197,7 @@ class RefreshTokenTests(APITestCase):
                                     content_type="application/json",
                                     data={"refresh_token": "any-auth-code-will-do"},
                                     headers={"Authorization": "Bearer any-auth",
-                                             "AuthorizationMethod": settings.JWT_AUTH_MODE})
+                                             settings.AUTHORIZATION_METHOD_HEADER: settings.JWT_AUTH_MODE})
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -214,7 +214,7 @@ class LogoutTests(APITestCase):
     def test_success_logout_from_jwt_session(self, mock_logout: MagicMock):
         mock_logout.return_value = None
         response = self.client.post(path=self.logout_url,
-                                    headers={"AuthorizationMethod": settings.JWT_AUTH_MODE})
+                                    headers={settings.AUTHORIZATION_METHOD_HEADER: settings.JWT_AUTH_MODE})
         mock_logout.assert_called()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
@@ -223,7 +223,7 @@ class LogoutTests(APITestCase):
         mock_logout.return_value = None
         response = self.client.post(path=self.logout_url,
                                     data={"refresh_token": "any-token-will-do"},
-                                    headers={"AuthorizationMethod": settings.OIDC_AUTH_MODE})
+                                    headers={settings.AUTHORIZATION_METHOD_HEADER: settings.OIDC_AUTH_MODE})
         mock_logout.assert_called()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
