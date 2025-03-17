@@ -43,7 +43,7 @@ if settings.ENABLE_JWT:
 
         def setUp(self):
             super().setUp()
-            self.headers = {"AuthorizationMethod": settings.JWT_AUTH_MODE}
+            self.headers = {settings.AUTHORIZATION_METHOD_HEADER: settings.JWT_AUTH_MODE}
             self.login_url = '/auth/login/'
             self.unregistered_user_credentials = {"username": "spy-user",
                                                   "password": "top-secret-007"}
@@ -105,7 +105,7 @@ class OIDCLoginTests(AuthBaseTests):
 
     def setUp(self):
         super().setUp()
-        self.headers = {"AuthorizationMethod": settings.OIDC_AUTH_MODE}
+        self.headers = {settings.AUTHORIZATION_METHOD_HEADER: settings.OIDC_AUTH_MODE}
         self.login_url = '/auth/login/'
 
     def test_login_without_auth_code(self):
@@ -181,7 +181,7 @@ class RefreshTokenTests(AuthBaseTests):
                                    content_type="application/json",
                                    data={"refresh_token": "any-auth-code-will-do"},
                                    headers={"Authorization": "Bearer any-auth",
-                                            "AuthorizationMethod": settings.OIDC_AUTH_MODE})
+                                            settings.AUTHORIZATION_METHOD_HEADER: settings.OIDC_AUTH_MODE})
         force_authenticate(request, self.regular_user)
         response = TokenRefreshView.as_view({'get': 'post'})(request)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
@@ -192,7 +192,7 @@ class RefreshTokenTests(AuthBaseTests):
                                         content_type="application/json",
                                         data={"refresh_token": "any-auth-code-will-do"},
                                         headers={"Authorization": "Bearer any-auth",
-                                                 "AuthorizationMethod": "INVALID_AUTH_MODE"})
+                                                 settings.AUTHORIZATION_METHOD_HEADER: "INVALID_AUTH_MODE"})
             self._add_session_to_request(request)
             force_authenticate(request, self.regular_user)
             _ = TokenRefreshView.as_view({'post': 'post'})(request)
@@ -204,7 +204,7 @@ class RefreshTokenTests(AuthBaseTests):
                                     content_type="application/json",
                                     data={"refresh_token": "any-jwt-token"},
                                     headers={"Authorization": "Bearer any-auth",
-                                             "AuthorizationMethod": settings.JWT_AUTH_MODE})
+                                             settings.AUTHORIZATION_METHOD_HEADER: settings.JWT_AUTH_MODE})
         self._add_session_to_request(request)
         force_authenticate(request, self.regular_user)
         response = TokenRefreshView.as_view({'post': 'post'})(request)
@@ -217,7 +217,7 @@ class RefreshTokenTests(AuthBaseTests):
                                     content_type="application/json",
                                     data={"refresh_token": "any-oidc-token"},
                                     headers={"Authorization": "Bearer any-auth",
-                                             "AuthorizationMethod": settings.OIDC_AUTH_MODE})
+                                             settings.AUTHORIZATION_METHOD_HEADER: settings.OIDC_AUTH_MODE})
         self._add_session_to_request(request)
         force_authenticate(request, self.regular_user)
         response = TokenRefreshView.as_view({'post': 'post'})(request)
@@ -230,7 +230,7 @@ class RefreshTokenTests(AuthBaseTests):
                                     content_type="application/json",
                                     data={"refresh_token": "any-auth-code-will-do"},
                                     headers={"Authorization": "Bearer any-auth",
-                                             "AuthorizationMethod": settings.JWT_AUTH_MODE})
+                                             settings.AUTHORIZATION_METHOD_HEADER: settings.JWT_AUTH_MODE})
         self._add_session_to_request(request)
         force_authenticate(request, self.regular_user)
         response = TokenRefreshView.as_view({'post': 'post'})(request)
@@ -265,7 +265,7 @@ class LogoutTests(AuthBaseTests):
     def test_success_logout_from_oidc_session(self, mock_logout: MagicMock):
         request = self.factory.post(path=self.logout_url,
                                     data={"refresh_token": "any-token-will-do"},
-                                    headers={"AuthorizationMethod": settings.OIDC_AUTH_MODE})
+                                    headers={settings.AUTHORIZATION_METHOD_HEADER: settings.OIDC_AUTH_MODE})
         self._add_session_to_request(request)
         force_authenticate(request, self.regular_user)
         mock_logout.return_value = None
