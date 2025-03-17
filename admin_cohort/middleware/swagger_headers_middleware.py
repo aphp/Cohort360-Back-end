@@ -10,5 +10,5 @@ class SwaggerHeadersMiddleware:
     def __call__(self, request):
         referer = request.headers.get("Referer")
         if referer is not None and referer.endswith(f"/{DOCS_ENDPOINT}"):
-            request.META["HTTP_AUTHORIZATIONMETHOD"] = settings.OIDC_AUTH_MODE
+            request.META["HTTP_AUTHORIZATIONMETHOD"] = settings.JWT_AUTH_MODE
         return self.get_response(request)

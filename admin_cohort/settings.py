@@ -232,14 +232,6 @@ SPECTACULAR_SETTINGS = {"TITLE": TITLE,
                             "tryItOutEnabled": True,
                             "withCredentials": True,
                             "persistAuthorization": True,
-                            "oauth2RedirectUrl": f"{env('OIDC_SWAGGER_REDIRECT_URL', default='/url/not/set')}",
-                        },
-                        "SWAGGER_UI_OAUTH2_CONFIG": {
-                            "appName": TITLE,
-                            "issuer": env('OIDC_AUTH_SERVER_1', default=''),
-                            "realm": env('OIDC_AUTH_SERVER_1', default='').split("realms/")[-1],
-                            "clientId": env('OIDC_CLIENT_ID_1', default=''),
-                            "useBasicAuthenticationWithAccessCodeGrant": True,
                         },
                         }
 

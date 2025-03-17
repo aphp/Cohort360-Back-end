@@ -172,6 +172,8 @@ class OIDCAuth(Auth):
             if response.status_code == status.HTTP_200_OK:
                 return OIDCAuthTokens(**response.json())
             raise InvalidToken("Token is invalid or expired")
+        except InvalidTokenError as e:
+            raise e
         except Exception as e:
             raise ServerError(f"Error refreshing token: {e}")
 
