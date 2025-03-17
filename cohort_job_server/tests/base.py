@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.test import TestCase
 
 from accesses.models import Perimeter
@@ -11,7 +12,7 @@ class BaseTest(TestCase):
         super().setUp()
         self.perimeter = Perimeter.objects.create(name="Main Perimeter", level=1, cohort_id="1234")
         self.json_query = '{"sourcePopulation": {"caresiteCohortList": ["%s"]}}' % self.perimeter.cohort_id
-        self.auth_headers = {'Authorization': 'Bearer XXXX', 'authorizationMethod': 'OIDC'}
+        self.auth_headers = {'Authorization': 'Bearer XXXX', settings.AUTHORIZATION_METHOD_HEADER: settings.OIDC_AUTH_MODE}
         self.test_job_id = "some_job_id"
         self.test_err_msg = "Error Message"
         self.user = new_random_user()
