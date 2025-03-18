@@ -40,6 +40,7 @@ dependencies = [
     "requests-kerberos>=0.15.0",
     "requests>=2.32.3",
     "celery>=5.4.0",
+    "djangorestframework-simplejwt>=5.4.0",
 ]
 
 [tool.ruff]

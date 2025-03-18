@@ -1,30 +1,26 @@
 import inspect
 import os
 
-from django.conf import settings
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from drf_spectacular.utils import extend_schema_view, extend_schema
+
+from admin_cohort.auth.auth_class import Authentication
 
 env = os.environ
 
 
-class SwaggerOIDCAuthScheme(OpenApiAuthenticationExtension):
-    target_class = settings.REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"][0]
-    name = "OIDC Auth"
-    match_subclasses = True
-    priority = 10
+class JWTAuthScheme(OpenApiAuthenticationExtension):
+    target_class = Authentication
+    name = 'Token based authentication'
 
     def get_security_definition(self, auto_schema):
-        issuer = settings.SPECTACULAR_SETTINGS["SWAGGER_UI_OAUTH2_CONFIG"]["issuer"]
-        return {"type": "oauth2",
-                "flows": {
-                    "authorizationCode": {
-                        "authorizationUrl": f"{issuer}/protocol/openid-connect/auth",
-                        "tokenUrl": f"{issuer}/protocol/openid-connect/token",
-                        "scopes": {}
-                     }
-                   }
-                }
+        return {
+            'type': 'http',
+            'scheme': 'bearer',
+            'bearerFormat': 'JWT',
+            'description': "Use the **access_token** obtained after login.\n\n"
+                           "Login at `/auth/login/`\n\n\n"
+        }
 
 
 class SchemaMeta(type):

@@ -1,26 +1,28 @@
-import inspect
 import json
 import logging
-from abc import ABC, abstractmethod
+from abc import ABC
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Union, Tuple, Optional, Callable, Dict, List
+from typing import Tuple, Optional, Callable, Dict, List
 
 import environ
 import jwt
 import requests
 from django.apps import apps
 from django.conf import settings
-from django.contrib.auth import logout
+from django.contrib.auth import authenticate
 from django.utils.module_loading import import_string
 from jwt import InvalidTokenError
 from jwt.algorithms import RSAAlgorithm
 from requests import RequestException
 from rest_framework import status, HTTP_HEADER_ENCODING
 from rest_framework.exceptions import AuthenticationFailed
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer, TokenObtainPairSerializer
+from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
+
 
 from admin_cohort.models import User
-from admin_cohort.types import ServerError, LoginError, OIDCAuthTokens, JWTAuthTokens, AuthTokens
+from admin_cohort.types import ServerError, OIDCAuthTokens, JWTAuthTokens, AuthTokens
 
 env = environ.Env()
 _logger = logging.getLogger('info')
@@ -35,50 +37,26 @@ if apps.is_installed("cohort_job_server"):
 
 class Auth(ABC):
     USERNAME_LOOKUP = None
-    tokens_class = None
 
     def __init__(self):
         assert self.USERNAME_LOOKUP is not None, "`USERNAME_LOOKUP` attribute is not defined"
-        assert self.tokens_class is not None, "`tokens_class` attribute is not defined"
         self.algorithms = env("JWT_ALGORITHMS", default="RS256,HS256")
 
-    def get_tokens(self, **kwargs) -> AuthTokens:
-        response = requests.post(**kwargs)
-        if response.status_code == status.HTTP_200_OK:
-            return self.tokens_class(**response.json())
-        if response.status_code == status.HTTP_401_UNAUTHORIZED:
-            raise LoginError("Invalid username or password")
-        else:
-            raise ServerError(f"Error {response.status_code} from authentication server: {response.text}")
+    def logout(self, *args):
+        pass
 
-    def refresh_token(self, **kwargs) -> dict:
-        response = requests.post(**kwargs)
-        if response.status_code == status.HTTP_200_OK:
-            return self.tokens_class(**response.json()).__dict__
-        elif response.status_code in (status.HTTP_400_BAD_REQUEST, status.HTTP_401_UNAUTHORIZED):
-            raise InvalidTokenError("Token is invalid or has expired")
-        else:
-            response.raise_for_status()
-
-    @abstractmethod
-    def logout_user(self, *args):
-        raise NotImplementedError
-
-    def decode_token(self, token: str, verify_signature=True, key="", issuer=None, audience=None, leeway=0):
+    def decode_token(self, token: str, verify_signature=True, key="", issuer=None, audience=None):
         options = {'verify_signature': verify_signature}
         kwargs = {'algorithms': self.algorithms,
                   'key': key,
                   'issuer': issuer,
-                  'audience': audience,
-                  'leeway': leeway}
+                  'audience': audience
+                  }
         try:
             return jwt.decode(jwt=token, options=options, **kwargs)
         except jwt.PyJWTError as e:
             _logger.info(f"Error decoding token: {e}")
             raise e
-
-    def retrieve_username(self, token_payload: dict) -> str:
-        return token_payload.get(self.USERNAME_LOOKUP)
 
 
 @dataclass
@@ -141,7 +119,6 @@ def get_issuer_certs(issuer: str) -> dict:
 
 class OIDCAuth(Auth):
     USERNAME_LOOKUP = "preferred_username"
-    tokens_class = OIDCAuthTokens
 
     def __init__(self):
         super().__init__()
@@ -168,22 +145,37 @@ class OIDCAuth(Auth):
     def recognised_issuers(self):
         return [c.issuer for c in self.oidc_configs] + self.oidc_extra_allowed_servers
 
-    def get_tokens(self, code: str, redirect_uri: Optional[str] = None) -> AuthTokens:
+    def get_tokens(self, code: str, redirect_uri: Optional[str] = None) -> Optional[OIDCAuthTokens]:
         oidc_conf = self.get_oidc_config(redirect_uri=redirect_uri)
         data = {**oidc_conf.client_identity,
                 "redirect_uri": oidc_conf.redirect_uri,
                 "grant_type": oidc_conf.grant_type,
                 "code": code
                 }
-        return super().get_tokens(url=oidc_conf.token_url, data=data)
+        try:
+            response = requests.post(url=oidc_conf.token_url, data=data)
+            if response.status_code == status.HTTP_200_OK:
+                return OIDCAuthTokens(**response.json())
+            return None
+        except Exception as e:
+            raise ServerError(f"Error issuing tokens: {e}")
 
-    def refresh_token(self, token: str):
+    def refresh_token(self, token: str) -> Optional[OIDCAuthTokens]:
         client_id = self.decode_token(token=token, verify_signature=False).get("azp")
         oidc_conf = self.get_oidc_config(client_id)
         data = {**oidc_conf.client_identity,
                 "grant_type": self.refresh_grant_type,
-                "refresh_token": token}
-        return super().refresh_token(url=oidc_conf.token_url, data=data)
+                "refresh_token": token
+                }
+        try:
+            response = requests.post(url=oidc_conf.token_url, data=data)
+            if response.status_code == status.HTTP_200_OK:
+                return OIDCAuthTokens(**response.json())
+            raise InvalidToken("Token is invalid or expired")
+        except InvalidTokenError as e:
+            raise e
+        except Exception as e:
+            raise ServerError(f"Error refreshing token: {e}")
 
     def authenticate(self, token: str) -> str:
         decoded_token = self.decode_token(token=token, verify_signature=False)
@@ -193,9 +185,23 @@ class OIDCAuth(Auth):
         kid = jwt.get_unverified_header(token)['kid']
         key = certs.get(kid)
         decoded = self.decode_token(token=token, key=key, issuer=issuer, audience=self.audience)
-        return super().retrieve_username(token_payload=decoded)
+        return decoded.get(self.USERNAME_LOOKUP)
 
-    def logout_user(self, payload: bytes, access_token: str):
+    def retrieve_username(self, token: str) -> str:
+        decoded = self.decode_token(token=token, verify_signature=False)
+        return decoded.get(self.USERNAME_LOOKUP)
+
+    @staticmethod
+    def login(request) -> User:
+        try:
+            code = request.data["auth_code"]
+            redirect_uri = request.data["redirect_uri"]
+        except KeyError as e:
+            raise AuthenticationFailed(f"Missing `{e}`")
+        user = authenticate(request=request, code=code, redirect_uri=redirect_uri)
+        return user
+
+    def logout(self, payload: bytes, access_token: str):
         try:
             refresh_token = json.loads(payload).get("refresh_token")
         except json.JSONDecodeError as e:
@@ -212,40 +218,47 @@ class OIDCAuth(Auth):
 
 class JWTAuth(Auth):
     USERNAME_LOOKUP = "username"
-    tokens_class = JWTAuthTokens
-    leeway = 15
 
     def __init__(self):
         super().__init__()
-        self.server_url = env.str("JWT_SERVER_URL", default="")
-        self.server_headers = {"X-User-App": env.str("JWT_APP_NAME", default="")}
-        self.signing_key = env.str("JWT_SIGNING_KEY", default="")
-
-    @property
-    def token_url(self):
-        return f"{self.server_url}/jwt/"
-
-    @property
-    def refresh_url(self):
-        return f"{self.server_url}/jwt/refresh/"
-
-    def get_tokens(self, username: str, password: str) -> AuthTokens:
-        data = {"username": username,
-                "password": password
-                }
-        return super().get_tokens(url=self.token_url, data=data, headers=self.server_headers)
-
-    def refresh_token(self, token: str):
-        return super().refresh_token(url=self.refresh_url,
-                                     data={"refresh": token},
-                                     headers=self.server_headers)
+        self.signing_key = settings.SIMPLE_JWT.get("SIGNING_KEY")
+        self.identification_server = {"url": env.str("ID_SERVER_URL", default=""),
+                                      "auth_token": env.str("ID_SERVER_TOKEN", default="")
+                                      }
 
     def authenticate(self, token: str) -> str:
-        decoded = self.decode_token(token=token, key=self.signing_key, leeway=self.leeway)
-        return super().retrieve_username(token_payload=decoded)
+        decoded = self.decode_token(token=token, key=self.signing_key)
+        return decoded.get(self.USERNAME_LOOKUP)
 
-    def logout_user(self, *args):
-        pass
+    @staticmethod
+    def login(request) -> User:
+        serializer = TokenObtainPairSerializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except (TokenError, AuthenticationFailed) as e:
+            raise AuthenticationFailed(e.args[0])
+        user, auth_tokens = serializer.user, serializer.validated_data
+        request.auth_tokens = JWTAuthTokens(**auth_tokens)
+        return user
+
+    @staticmethod
+    def refresh_token(token: str) -> Optional[JWTAuthTokens]:
+        serializer = TokenRefreshSerializer(data={"refresh": token})
+        try:
+            serializer.is_valid(raise_exception=True)
+        except TokenError as e:
+            raise InvalidToken(e.args[0])
+        return JWTAuthTokens(**serializer.validated_data)
+
+    def check_credentials(self, username, password) -> bool:
+        try:
+            response = requests.post(url=f"{self.identification_server['url']}/user/authenticate",
+                                     data={"username": username, "password": password},
+                                     headers={'Key-auth': self.identification_server['auth_token']}
+                                     )
+            return response.status_code == status.HTTP_200_OK
+        except Exception as e:
+            raise ServerError(f"Error checking credentials for user `{username}`: {e}")
 
 
 class AuthService:
@@ -274,36 +287,27 @@ class AuthService:
 
     def _get_authenticator(self, auth_method: str):
         try:
-            _logger.info(f"Authenticating using {auth_method}")
             return self.authenticators[auth_method]
         except KeyError as ke:
             _logger.error(f"Invalid authentication method : {auth_method}")
             raise ke
 
-    def get_tokens(self, **params) -> AuthTokens:
-        for authenticator in self.authenticators.values():
-            authenticator_signature = inspect.signature(authenticator.get_tokens)
-            try:
-                authenticator_signature.bind(**params)
-            except TypeError:
-                continue
-            return authenticator.get_tokens(**params)
-
-    def refresh_token(self, request) -> Union[dict, None]:
-        _, auth_method = self.get_auth_data(request)
+    def refresh_token(self, request) -> Optional[AuthTokens]:
+        _, auth_method = self.get_token_from_headers(request)
         token = json.loads(request.body).get('refresh_token')
         authenticator = self._get_authenticator(auth_method)
         return authenticator.refresh_token(token=token)
 
-    def logout_user(self, request):
-        access_token, auth_method = self.get_auth_data(request)
+    def login(self, request, auth_method: str) -> User:
         authenticator = self._get_authenticator(auth_method)
-        authenticator.logout_user(request.body, access_token)
-        logout(request)
+        return authenticator.login(request=request)
 
-    def authenticate_token(self, token: str, auth_method: str, headers: Dict[str, str]) -> Union[
-        Tuple[User, str], None]:
-        assert auth_method is not None, "Missing `auth_method` parameter"
+    def logout(self, request):
+        access_token, auth_method = self.get_token_from_headers(request)
+        authenticator = self._get_authenticator(auth_method)
+        authenticator.logout(request.body, access_token)
+
+    def authenticate_request(self, token: str, auth_method: str, headers: Dict[str, str]) -> Optional[Tuple[User, str]]:
         if token is None:
             return None
         try:
@@ -314,35 +318,23 @@ class AuthService:
                 user = post_auth_hook(user, headers)
             return user, token
         except (InvalidTokenError, ValueError, User.DoesNotExist) as e:
-            _logger.error(f"Error authenticating token: {e}")
+            _logger.error(f"Error authenticating request: {e}")
             return None
 
-    def authenticate_http_request(self, request) -> Union[Tuple[User, str], None]:
-        token, auth_method = self.get_auth_data(request)
+    def authenticate_http_request(self, request) -> Optional[Tuple[User, str]]:
+        token, auth_method = self.get_token_from_headers(request)
         if token in self.applicative_users:
             applicative_user = User.objects.get(username=self.applicative_users[token])
             return applicative_user, token
-        return self.authenticate_token(token=token, auth_method=auth_method or settings.OIDC_AUTH_MODE,
-                                       headers=request.headers)
+        return self.authenticate_request(token=token, auth_method=auth_method, headers=request.headers)
 
-    def authenticate_ws_request(self, token: str, auth_method: str, headers: Dict[str, str]) -> Union[User, None]:
-        res = self.authenticate_token(token=token, auth_method=auth_method, headers=headers)
+    def authenticate_ws_request(self, token: str, auth_method: str, headers: Dict[str, str]) -> Optional[User]:
+        res = self.authenticate_request(token=token, auth_method=auth_method, headers=headers)
         if res is not None:
             return res[0]
         _logger.info("Error authenticating WS request")
 
-    def retrieve_username(self, token: str, auth_method: str) -> str:
-        authenticator = self._get_authenticator(auth_method)
-        decoded = authenticator.decode_token(token=token, verify_signature=False)
-        return authenticator.retrieve_username(decoded)
-
-    def get_auth_data(self, request) -> Tuple[str, str]:
-        auth_token, auth_method = self.get_token_from_headers(request)
-        if not auth_token:
-            auth_token = request.COOKIES.get(settings.ACCESS_TOKEN_COOKIE)
-        return auth_token, auth_method
-
-    def get_token_from_headers(self, request) -> Tuple[Union[str, None], Union[str, None]]:
+    def get_token_from_headers(self, request) -> Tuple[Optional[str], Optional[str]]:
         authorization = request.META.get('HTTP_AUTHORIZATION')
         authorization_method = request.META.get('HTTP_AUTHORIZATIONMETHOD')
         if isinstance(authorization, str):
@@ -352,7 +344,7 @@ class AuthService:
         return self.get_raw_token(authorization), authorization_method
 
     @staticmethod
-    def get_raw_token(header: bytes) -> Union[str, None]:
+    def get_raw_token(header: bytes) -> Optional[str]:
         parts = header.split()
         if not parts:
             return None
@@ -367,3 +359,5 @@ class AuthService:
 
 
 auth_service = AuthService()
+oidc_auth_service = OIDCAuth()
+jwt_auth_service = JWTAuth()

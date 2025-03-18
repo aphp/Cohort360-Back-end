@@ -103,3 +103,15 @@ class RequestLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = APIRequestLog
         fields = "__all__"
+
+
+class LoginFormSerializer(serializers.Serializer):
+    username = serializers.CharField(required=True)
+    password = serializers.CharField(required=True)
+
+
+class LoginSerializer(serializers.Serializer):
+    user = UserSerializer(required=True)
+    last_login = serializers.DateTimeField(required=True)
+    access_token = serializers.CharField(required=True)
+    refresh_token = serializers.CharField(required=True)
