@@ -3,10 +3,6 @@ from enum import Enum
 from typing import List
 
 
-class LoginError(Exception):
-    pass
-
-
 class ServerError(Exception):
     pass
 

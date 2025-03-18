@@ -89,7 +89,7 @@ class FeasibilityStudyService(CommonService):
                        "request_url": f"{FRONT_REQUEST_URL}/{snapshot.request.uuid}",
                        "html_content": html_content
                        }
-            html_content = get_template("html/feasibility_report.html").render(context)
+            html_content = get_template("feasibility_report.html").render(context)
             contents = dict(json=json.dumps(json_content),
                             html=html_content)
             json_zip_bytes, html_zip_bytes = self.compress_report_contents(fs=fs, contents=contents)

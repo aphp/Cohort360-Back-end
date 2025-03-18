@@ -23,6 +23,7 @@ class DatedMeasure(CohortBaseModel, JobModel):
     measure = models.BigIntegerField(null=True, blank=False)
     measure_min = models.BigIntegerField(null=True, blank=False)
     measure_max = models.BigIntegerField(null=True, blank=False)
+    extra = models.JSONField(null=True, blank=True)
     count_task_id = models.TextField(blank=True)
     mode = models.CharField(max_length=20, choices=DATED_MEASURE_MODE_CHOICES, default=SNAPSHOT_DM_MODE, null=True)
 

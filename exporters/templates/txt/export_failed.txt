@@ -1,9 +1,0 @@
-{% extends "email_base_template.txt" %}
-
-{% block content %}
-Malheureusement, votre demande d'export de données concernant la cohorte numéro {{ cohort_id }} n'a pas pu aboutir, pour la raison suivante :
-
-{{ error_message }}
-
-Pour toute question, contactez le support Cohort360 à {{ contact_email_address }}
-{% endblock %}

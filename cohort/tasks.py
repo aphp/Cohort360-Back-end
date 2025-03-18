@@ -37,7 +37,9 @@ def count_cohort(dm_id: str,
                  json_query: str,
                  auth_headers: dict,
                  cohort_counter_cls: str,
-                 global_estimate=False) -> None:
+                 global_estimate=False,
+                 stage_details: Optional[str] = None
+                 ) -> None:
     dm = DatedMeasure.objects.get(uuid=dm_id)
     dm.count_task_id = current_task.request.id or ""
     dm.request_job_status = JobStatus.pending
@@ -47,7 +49,9 @@ def count_cohort(dm_id: str,
                                               json_query=json_query,
                                               auth_headers=auth_headers,
                                               global_estimate=global_estimate,
-                                              owner_username=dm.owner_id)
+                                              owner_username=dm.owner_id,
+                                              stage_details=stage_details
+                                              )
 
 
 @shared_task

@@ -69,5 +69,5 @@ def format_spark_job_request_for_sjs(spark_job_request: SparkJobObject) -> str:
     if callback_path:
         request_input += f",input.callbackPath = {callback_path}"
     if spark_job_request.modeOptions is not None:
-        request_input += ',input.modeOptions = {"sampling": "%s"}' % spark_job_request.modeOptions.sampling
+        request_input += ',input.modeOptions = %s' % spark_job_request.modeOptions.model_dump_json(exclude_unset=True)
     return request_input
