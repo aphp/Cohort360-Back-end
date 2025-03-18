@@ -222,8 +222,8 @@ class JWTAuth(Auth):
     def __init__(self):
         super().__init__()
         self.signing_key = settings.SIMPLE_JWT.get("SIGNING_KEY")
-        self.identification_server = {"url": env.str("ID_SERVER_URL", default=""),
-                                      "auth_token": env.str("ID_SERVER_TOKEN", default="")
+        self.identification_server = {"url": env.str("ID_CHECKER_URL", default=""),
+                                      "auth_token": env.str("ID_CHECKER_TOKEN", default="")
                                       }
 
     def authenticate(self, token: str) -> str:
