@@ -47,6 +47,8 @@ set -e
 
 mkdir -p log
 
+sudo sed -i s/{{BACK_HOST}}/"$BACK_HOST"/g /etc/nginx/nginx.conf;
+
 sudo service nginx restart
 
 source "$VIRTUAL_ENV"/bin/activate
