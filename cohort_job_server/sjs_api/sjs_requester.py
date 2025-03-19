@@ -53,15 +53,17 @@ class SJSRequester:
 
     @staticmethod
     def cancel_job(job_id: str) -> JobStatus:
-        response = SJSClient().delete(job_id)
-        result = response.json()
+        try:
+            response = SJSClient().delete(job_id)
+            result = response.json()
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Error with response content: {str(e)}")
         if response.status_code == status.HTTP_403_FORBIDDEN:
             return JobStatus.finished
         if response.status_code != status.HTTP_200_OK:
-            raise HTTPError(f"Request failed: {response.status_code}: "
-                            f"{result.get('error', 'no error')} - {result.get('message', 'no message')}")
+            raise HTTPError(f"Cancel request failed: {response.status_code}: {result}")
         if 'status' not in result:
-            raise MissingDataError(f"Missing `status` from response: {result}")
+            raise MissingDataError(f"`status` is missing in response: {result}")
         job_status = sjs_status_mapper(result.get('status'))
         if job_status not in [JobStatus.cancelled, JobStatus.finished]:
             raise ValueError(f"Invalid job status {result.get('status')}")
