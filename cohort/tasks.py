@@ -68,14 +68,14 @@ def cancel_previous_count_jobs(dm_id: str, cohort_counter_cls: str):
             continue
         job_status = r_dm.request_job_status
         try:
-            if job_status == JobStatus.started.value:
+            if job_status == JobStatus.started:
                 new_status = cohort_counter.cancel_job(job_id=r_dm.request_job_id)
                 r_dm.request_job_status = new_status
             else:
                 celery_app.control.revoke(r_dm.count_task_id)
                 r_dm.request_job_status = JobStatus.cancelled
         except Exception as e:
-            msg = f"Error while cancelling {job_status} job [{r_dm.request_job_id}] DM [{r_dm.uuid}] - {e}"
+            msg = f"Error cancelling a {job_status} DM job [{r_dm.request_job_id}] - {e}"
             _logger.exception(msg)
             r_dm.request_job_status = JobStatus.failed
             r_dm.request_job_fail_msg = msg
