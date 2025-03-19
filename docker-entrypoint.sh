@@ -47,8 +47,6 @@ set -e
 
 mkdir -p log
 
-sudo sed -i s/{{BACK_HOST}}/"$BACK_HOST"/g /etc/nginx/nginx.conf;
-
 sudo service nginx restart
 
 source "$VIRTUAL_ENV"/bin/activate
@@ -84,7 +82,7 @@ if [ "$WITHOUT_APP_SERVER" = false ]; then
   sleep 5
 
   # For websockets
-  daphne -p 8005 admin_cohort.asgi:application &
+  daphne -v 0 -p 8005 admin_cohort.asgi:application &
 
   gunicorn admin_cohort.wsgi --config .conf/gunicorn.conf.py
 
