@@ -25,7 +25,7 @@ class Access(BaseModel):
 
     def save(self, *args, **kwargs):
         super(Access, self).save(*args, **kwargs)
-        related_models = [f.related_model.__name__ for f in Access._meta.fields if f.is_relation]
+        related_models = [Access.__name__] + [f.related_model.__name__ for f in Access._meta.fields if f.is_relation]
         for model in related_models:
             invalidate_cache(model_name=model)
 
