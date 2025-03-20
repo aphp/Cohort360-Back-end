@@ -19,4 +19,7 @@ class CohortBaseModel(SafeDeleteModel):
 
     def save(self, *args, **kwargs):
         super(CohortBaseModel, self).save(*args, **kwargs)
-        invalidate_cache(model_name=self.__class__.__name__, user=str(getattr(self, "owner_id", "")))
+        related_models = [self.__class__.__name__] + [f.related_model.__name__
+                                                      for f in self.__class__._meta.fields if f.is_relation]
+        for model in related_models:
+            invalidate_cache(model_name=model, user=str(getattr(self, "owner_id", "")))
