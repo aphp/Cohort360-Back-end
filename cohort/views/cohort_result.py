@@ -67,6 +67,8 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                                                    'request_query_snapshot__request') \
                                    .annotate(request_id=F('request_query_snapshot__request__uuid'),
                                              result_size=F('dated_measure__measure'),
+                                             measure_min=F('dated_measure_global__measure_min'),
+                                             measure_max=F('dated_measure_global__measure_max'),
                                              exportable=Case(When(result_size__isnull=False,
                                                                   result_size__lte=settings.COHORT_LIMIT,
                                                                   then=Value(True)),
