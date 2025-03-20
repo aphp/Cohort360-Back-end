@@ -10,11 +10,16 @@ from cohort.views.shared import UserObjectsRestrictedViewSet
 
 
 class FolderFilter(filters.FilterSet):
+    min_created_at = filters.IsoDateTimeFilter(field_name='created_at', lookup_expr="gte")
+    max_created_at = filters.IsoDateTimeFilter(field_name='created_at', lookup_expr="lte")
+
     ordering = OrderingFilter(fields=('name', 'created_at', 'modified_at'))
 
     class Meta:
         model = Folder
-        fields = []
+        fields = ["name",
+                  "min_created_at",
+                  "max_created_at"]
 
 
 @extend_schema_view(

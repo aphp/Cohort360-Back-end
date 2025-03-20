@@ -12,17 +12,25 @@ class ExportsCohortResultSerializer(serializers.ModelSerializer):
         fields = ['uuid', 'owner', 'name']
 
 
-class DatalabSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Datalab
-        exclude = ["created_at", "modified_at", "deleted", "deleted_by_cascade"]
-
-
 class InfrastructureProviderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = InfrastructureProvider
-        fields = "__all__"
+        exclude = ["created_at", "modified_at", "deleted", "deleted_by_cascade"]
+
+
+class DatalabSerializer(serializers.ModelSerializer):
+    infrastructure_provider = serializers.PrimaryKeyRelatedField(queryset=InfrastructureProvider.objects.all())
+
+    class Meta:
+        model = Datalab
+        exclude = ["modified_at", "deleted", "deleted_by_cascade"]
+
+    def to_representation(self, instance):
+        res = super().to_representation(instance)
+        res["infrastructure_provider"] = dict(uuid=instance.infrastructure_provider_id,
+                                              name=instance.infrastructure_provider.name)
+        return res
 
 
 class ExportResultStatSerializer(serializers.ModelSerializer):

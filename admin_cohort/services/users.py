@@ -11,7 +11,7 @@ from admin_cohort.types import PersonIdentity, ServerError
 
 env = os.environ
 
-ID_CHECKER_URL = env.get("ID_CHECKER_URL")
+ID_CHECKER_URL = f"{env.get('ID_CHECKER_URL')}/user/info"
 ID_CHECKER_TOKEN_HEADER = env.get("ID_CHECKER_TOKEN_HEADER")
 ID_CHECKER_TOKEN = env.get("ID_CHECKER_TOKEN")
 ID_CHECKER_SERVER_HEADERS = {ID_CHECKER_TOKEN_HEADER: ID_CHECKER_TOKEN}

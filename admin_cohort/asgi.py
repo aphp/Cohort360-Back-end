@@ -17,6 +17,5 @@ ws_manager_module = import_module(WEBSOCKET_MANAGER["module"])
 WebsocketManager = getattr(ws_manager_module, WEBSOCKET_MANAGER["manager_class"])
 
 application = ProtocolTypeRouter({
-    "http": asgi_application,
     "websocket": URLRouter([re_path(r'ws', WebsocketManager.as_asgi())])
 })

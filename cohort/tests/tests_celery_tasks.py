@@ -81,6 +81,14 @@ class TasksTests(TestCase):
                          cohort_counter_cls=self.cohort_counter_cls,
                          auth_headers=self.auth_headers)
 
+    def test_count_cohort_task_with_stage_details(self):
+        with self.assertRaises(NotImplementedError):
+            count_cohort(dm_id=self.dm1.uuid,
+                         json_query=self.json_query,
+                         cohort_counter_cls=self.cohort_counter_cls,
+                         auth_headers=self.auth_headers,
+                         stage_details="detailed")
+
     def test_count_cohort_task_with_global_mode(self):
         with self.assertRaises(NotImplementedError):
             count_cohort(dm_id=self.global_dm.uuid,

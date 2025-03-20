@@ -20,8 +20,8 @@ def export_received(action: str, export_type: str, **kwargs):
                }
     return dict(subject=f"[Cohorte {kwargs.get('cohort_id')}] {action}",
                 to=kwargs.get('recipient_email'),
-                html_template=f"html/{export_type}_export_received.html",
-                txt_template=f"txt/{export_type}_export_received.txt",
+                html_template=f"{export_type}_export_received.html",
+                txt_template=f"{export_type}_export_received.txt",
                 context=context)
 
 
@@ -37,8 +37,8 @@ def export_succeeded(export_type: str, **kwargs):
                }
     return dict(subject=subject,
                 to=kwargs.get('recipient_email'),
-                html_template=f"html/{export_type}_export_succeeded.html",
-                txt_template=f"txt/{export_type}_export_succeeded.txt",
+                html_template=f"{export_type}_export_succeeded.html",
+                txt_template=f"{export_type}_export_succeeded.txt",
                 context=context)
 
 
@@ -51,8 +51,8 @@ def export_failed(**kwargs):
                }
     return dict(subject=subject,
                 to=kwargs.get('recipient_email'),
-                html_template="html/export_failed.html",
-                txt_template="txt/export_failed.txt",
+                html_template="export_failed.html",
+                txt_template="export_failed.txt",
                 context=context)
 
 

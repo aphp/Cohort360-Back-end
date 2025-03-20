@@ -84,7 +84,7 @@ if [ "$WITHOUT_APP_SERVER" = false ]; then
   sleep 5
 
   # For websockets
-  daphne -p 8005 admin_cohort.asgi:application &
+  daphne -v 0 -p 8005 admin_cohort.asgi:application &
 
   gunicorn admin_cohort.wsgi --config .conf/gunicorn.conf.py
 

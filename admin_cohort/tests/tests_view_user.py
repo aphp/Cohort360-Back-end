@@ -57,10 +57,12 @@ class UserTests(BaseTests):
         self.admin_user = User.objects.create(username="000000", firstname="Admin", lastname="ADMIN", email="admin@aphp.fr")
         self.user1 = User.objects.create(username="1111111", firstname="User 01", lastname="USER01", email="user01@aphp.fr")
         self.user2 = User.objects.create(username="2222222", firstname="User 02", lastname="USER02", email="user02@aphp.fr")
+        self.user3 = User.objects.create(username="3333333", firstname="User 03", lastname="USER03", email="user03@aphp.fr")
 
         self.admin_profile = Profile.objects.create(source=settings.MANUAL_SOURCE, user=self.admin_user, is_active=True)
         self.profile1 = Profile.objects.create(source=settings.MANUAL_SOURCE, user=self.user1, is_active=True)
         self.profile2 = Profile.objects.create(source=settings.MANUAL_SOURCE, user=self.user2, is_active=True)
+        self.profile3 = Profile.objects.create(source=settings.MANUAL_SOURCE, user=self.user3, is_active=False)
 
         self.admin_access = Access.objects.create(perimeter_id=self.aphp.id,
                                                   role=self.role_full_admin,
@@ -100,14 +102,15 @@ class UserTestsAsAdmin(UserTests):
         self.assertEqual(user_found.username, self.user1.username)
         self.assertEqual(user_found.email, self.user1.email)
 
-    def test_get_users_as_main_admin(self):
-        # As a main admin, I can retrieve all users' full data
-        request = self.factory.get(USERS_URL)
+    def _get_users(self, filter_active: bool):
+        request = self.factory.get(USERS_URL+("?with_access=true" if filter_active else ""))
         force_authenticate(request, self.admin_user)
         response = UserViewSet.as_view({'get': 'list'})(request)
         response.render()
+        return response
+
+    def _check_users(self, response, users_to_find):
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
-        users_to_find = [self.user1, self.user2, self.admin_user]
         users_found = [ObjectView(u) for u in self.get_response_payload(response)["results"]]
 
         user_found_ids = [p.username for p in users_found]
@@ -116,6 +119,18 @@ class UserTestsAsAdmin(UserTests):
         for i in users_to_find_ids:
             self.assertIn(i, user_found_ids, msg=msg)
         self.assertEqual(len(user_found_ids), len(users_to_find), msg=msg)
+
+    def test_get_active_users_as_main_admin(self):
+        # As a main admin, I can retrieve all users' full data
+        response = self._get_users(True)
+        users_to_find = [self.user1, self.user2, self.admin_user]
+        self._check_users(response, users_to_find)
+
+    def test_get_users_as_main_admin(self):
+        # As a main admin, I can retrieve all users' full data
+        response = self._get_users(False)
+        users_to_find = [self.user1, self.user2, self.admin_user, self.user3]
+        self._check_users(response, users_to_find)
 
     @mock.patch('admin_cohort.services.users.requests')
     def test_create_user(self, mock_requests: MagicMock):

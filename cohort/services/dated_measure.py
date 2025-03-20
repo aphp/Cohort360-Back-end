@@ -12,12 +12,15 @@ class DatedMeasureService(CommonService):
     job_type = "count"
 
     def handle_count(self, dm: DatedMeasure, request) -> None:
+        stage_details = request.data.get("stageDetails", None)
         cancel_previous_count_jobs.s(dm_id=dm.uuid, cohort_counter_cls=self.operator_cls).apply_async()
         try:
             count_cohort.s(dm_id=dm.uuid,
                            json_query=dm.request_query_snapshot.serialized_query,
                            auth_headers=get_authorization_header(request),
-                           cohort_counter_cls=self.operator_cls) \
+                           cohort_counter_cls=self.operator_cls,
+                           stage_details=stage_details
+                           ) \
                 .apply_async()
         except Exception as e:
             dm.delete()
@@ -58,7 +61,9 @@ class DatedMeasureService(CommonService):
                                                                           job_name=JobName.COUNT,
                                                                           extra_info={"request_job_status": dm.request_job_status,
                                                                                       "request_job_fail_msg": dm.request_job_fail_msg,
-                                                                                      "measure": dm.measure}))
+                                                                                      "measure": dm.measure,
+                                                                                      "extra": dm.extra
+                                                                                      }))
 
 
 dm_service = DatedMeasureService()

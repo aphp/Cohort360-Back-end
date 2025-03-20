@@ -1,10 +1,7 @@
-import logging
-
-from jwt import InvalidTokenError
-
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import login, logout
 from django.contrib.auth import views
-from django.http import JsonResponse, HttpResponseRedirect
+from django.contrib.auth.models import update_last_login
+from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.cache import never_cache
@@ -12,27 +9,18 @@ from django.views.decorators.csrf import csrf_exempt
 from drf_spectacular.utils import extend_schema
 from requests import RequestException
 from rest_framework import status, viewsets
+from rest_framework.exceptions import AuthenticationFailed
+from rest_framework_simplejwt.exceptions import InvalidToken
 
-from admin_cohort.auth.auth_form import AuthForm
 from admin_cohort.models import User
-from admin_cohort.serializers import UserSerializer
+from admin_cohort.serializers import UserSerializer, LoginFormSerializer, LoginSerializer
 from admin_cohort.services.auth import auth_service
-from admin_cohort.tools.request_log_mixin import RequestLogMixin, JWTLoginRequestLogMixin
-from admin_cohort.types import AuthTokens
-
-_logger = logging.getLogger("django.request")
+from admin_cohort.tools.request_log_mixin import RequestLogMixin
+from admin_cohort.types import ServerError
 
 
-def get_response_data(user: User, auth_tokens: AuthTokens):
-    return {"user": UserSerializer(user).data,
-            "last_login": user.last_login,
-            "access_token": auth_tokens.access_token,
-            "refresh_token": auth_tokens.refresh_token
-            }
-
-
-class ExemptedAuthView(View):
-    logging_methods = ['POST']
+class CSRFExemptedAuthView(View):
+    http_method_names = ["post"]
 
     @method_decorator(csrf_exempt)
     @method_decorator(never_cache)
@@ -44,75 +32,53 @@ class ExemptedAuthView(View):
         return handler(request, *args, **kwargs)
 
 
-class OIDCLoginView(RequestLogMixin, viewsets.GenericViewSet):
+class LoginView(RequestLogMixin, viewsets.GenericViewSet):
+    authentication_classes = []
     permission_classes = []
     http_method_names = ["post"]
-    logging_methods = ['POST']
+    logging_methods = ["POST"]
+    swagger_tags = [".Authentication - Login"]
 
-    @extend_schema(exclude=True)
+    @extend_schema(tags=swagger_tags,
+                   summary="Login with username and password",
+                   description="Authenticate user and return an access token.",
+                   request=LoginFormSerializer,
+                   responses={200: LoginSerializer})
     def post(self, request, *args, **kwargs):
-        auth_code = request.data.get("auth_code")
-        redirect_uri = request.data.get("redirect_uri")
-        if not auth_code:
-            return JsonResponse(data={"error": "OIDC Authorization Code not provided"},
-                                status=status.HTTP_400_BAD_REQUEST)
+        auth_method = request.META.get('HTTP_AUTHORIZATIONMETHOD')
         try:
-            user = authenticate(request=request, code=auth_code, redirect_uri=redirect_uri)
-        except User.DoesNotExist:
-            return JsonResponse(data={"error": "User not found in database"},
-                                status=status.HTTP_401_UNAUTHORIZED)
-        data = get_response_data(user=user, auth_tokens=request.auth_tokens)
+            user = auth_service.login(request=request, auth_method=auth_method)
+        except (AuthenticationFailed, User.DoesNotExist, ServerError) as e:
+            return JsonResponse(data={"error": str(e)}, status=status.HTTP_401_UNAUTHORIZED)
         login(request=request, user=user)
-        return JsonResponse(data=data, status=status.HTTP_200_OK)
+        login_serializer = LoginSerializer(data={"user": UserSerializer(user).data,
+                                                 "last_login": user.last_login,
+                                                 "access_token": request.auth_tokens.access_token,
+                                                 "refresh_token": request.auth_tokens.refresh_token})
+        login_serializer.is_valid()
+        update_last_login(None, user)
+        return JsonResponse(data=login_serializer.data, status=status.HTTP_200_OK)
 
 
-class JWTLoginView(JWTLoginRequestLogMixin, ExemptedAuthView, views.LoginView):
-    form_class = AuthForm
-    http_method_names = ["post"]
-
-    @method_decorator(csrf_exempt)
-    @method_decorator(never_cache)
-    def dispatch(self, request, *args, **kwargs):
-        super().init_request_log(request)
-        response = super().dispatch(request, *args, **kwargs)
-        super().finalize_request_log(request)
-        return response
-
-    def form_valid(self, form):
-        user = form.get_user()
-        request = self.request
-        data = get_response_data(user=user, auth_tokens=request.auth_tokens)
-        login(request, user)
-        redirect_url = self.get_redirect_url()
-        if redirect_url:
-            return HttpResponseRedirect(redirect_url)
-        return JsonResponse(data=data, status=status.HTTP_200_OK)
-
-    def form_invalid(self, form):
-        return JsonResponse(data={"errors": form.errors.get('__all__')},
-                            status=status.HTTP_401_UNAUTHORIZED)
-
-
-class LogoutView(ExemptedAuthView, views.LogoutView):
-    http_method_names = ["post", "get"]
+class LogoutView(CSRFExemptedAuthView, views.LogoutView):
 
     def post(self, request, *args, **kwargs):
         try:
-            auth_service.logout_user(request)
+            auth_service.logout(request)
+            logout(request)
             return JsonResponse(data={}, status=status.HTTP_200_OK)
         except RequestException as e:
-            return JsonResponse(data={"error": f"Error on user logout, {e}"}, status=status.HTTP_401_UNAUTHORIZED)
+            return JsonResponse(data={"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class TokenRefreshView(ExemptedAuthView):
-    http_method_names = ["post"]
+class TokenRefreshView(CSRFExemptedAuthView, View):
 
     def post(self, request, *args, **kwargs):
         try:
             auth_tokens = auth_service.refresh_token(request)
-            return JsonResponse(data=auth_tokens, status=status.HTTP_200_OK)
-        except (KeyError, InvalidTokenError, RequestException) as e:
-            return JsonResponse(data={"error": f"{e}"}, status=status.HTTP_401_UNAUTHORIZED)
+            return JsonResponse(data=auth_tokens.__dict__, status=status.HTTP_200_OK)
+        except (InvalidToken, ServerError) as e:
+            return JsonResponse(data={"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class NotFoundView(View):

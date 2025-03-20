@@ -57,7 +57,6 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 CSRF_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_SECURE = not DEBUG
-ACCESS_TOKEN_COOKIE_SECURE = not DEBUG
 
 TRACE_ID_HEADER = "X-Trace-Id"
 IMPERSONATING_HEADER = "X-Impersonate"
@@ -117,10 +116,18 @@ LOGGING = dict(version=1,
 
 # Application definition
 INCLUDED_APPS = env('INCLUDED_APPS',
-                    default='accesses,content_management,cohort_job_server,cohort,exports,accesses_fhir_perimeters').split(
-    ",")
+                    default='accesses,content_management,cohort_job_server,'
+                            'cohort,exports,accesses_fhir_perimeters').split(",")
+
 INFLUXDB_ENABLED = env.bool("INFLUXDB_ENABLED", default=False)
+
 ENABLE_JWT = env.bool("ENABLE_JWT", default=False)
+
+SIMPLE_JWT = {"USER_ID_FIELD": "username",
+              "USER_ID_CLAIM": "username",
+              "SIGNING_KEY": env.str("JWT_SIGNING_KEY", default=""),
+              "ROTATE_REFRESH_TOKENS": True,
+              }
 
 INSTALLED_APPS = ['django.contrib.admin',
                   'django.contrib.auth',
@@ -165,9 +172,10 @@ AUTHENTICATION_BACKENDS = ['admin_cohort.auth.auth_backends.JWTAuthBackend',
 
 ROOT_URLCONF = 'admin_cohort.urls'
 
+TEMPLATES_DIR = BASE_DIR / 'templates'
+
 TEMPLATES = [{'BACKEND': 'django.template.backends.django.DjangoTemplates',
-              'DIRS': [BASE_DIR / 'admin_cohort/templates'] +
-                      [BASE_DIR / f'{app}/templates' for app in INCLUDED_APPS],
+              'DIRS': [TEMPLATES_DIR],
               'APP_DIRS': True,
               'OPTIONS': {'context_processors': ['django.template.context_processors.debug',
                                                  'django.template.context_processors.request',
@@ -212,6 +220,7 @@ PAGINATION_MAX_LIMIT = 30_000
 SPECTACULAR_SETTINGS = {"TITLE": TITLE,
                         "DESCRIPTION": DESCRIPTION,
                         "VERSION": VERSION,
+                        "SERVE_AUTHENTICATION": [],
                         "SERVE_INCLUDE_SCHEMA": False,
                         "COMPONENT_SPLIT_REQUEST": True,
                         "SORT_OPERATION_PARAMETERS": False,
@@ -223,14 +232,6 @@ SPECTACULAR_SETTINGS = {"TITLE": TITLE,
                             "tryItOutEnabled": True,
                             "withCredentials": True,
                             "persistAuthorization": True,
-                            "oauth2RedirectUrl": f"{env('OIDC_SWAGGER_REDIRECT_URL', default='/url/not/set')}",
-                        },
-                        "SWAGGER_UI_OAUTH2_CONFIG": {
-                            "appName": TITLE,
-                            "issuer": env('OIDC_AUTH_SERVER_1', default=''),
-                            "realm": env('OIDC_AUTH_SERVER_1', default='').split("realms/")[-1],
-                            "clientId": env('OIDC_CLIENT_ID_1', default=''),
-                            "useBasicAuthenticationWithAccessCodeGrant": True,
                         },
                         }
 
@@ -283,7 +284,6 @@ ROOT_PERIMETER_TYPE = PERIMETER_TYPES[0]
 ROOT_PERIMETER_ID = env.int("ROOT_PERIMETER_ID", default=0)
 SHARED_FOLDER_NAME = 'Mes requêtes reçues'
 
-ACCESS_TOKEN_COOKIE = "access_token"
 SESSION_COOKIE_NAME = "sessionid"
 SESSION_COOKIE_AGE = 24 * 60 * 60
 
