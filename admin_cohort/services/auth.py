@@ -260,6 +260,31 @@ class JWTAuth(Auth):
         except Exception as e:
             raise ServerError(f"Error checking credentials for user `{username}`: {e}")
 
+    @staticmethod
+    def generate_system_token() -> JWTAuthTokens:
+        """
+        Generate a system JWT token for internal API calls.
+        Returns:
+            JWTAuthTokens: The generated access and refresh tokens
+        """
+        try:
+            system_user, created = User.objects.get_or_create(
+                username="system",
+                defaults={
+                    "username": "system",
+                    "firstname": "System",
+                    "lastname": "SYSTEM",
+                    "email": "system.dj@aphp.fr",
+                }
+            )
+            serializer = TokenObtainPairSerializer()
+            serializer.user = system_user
+            tokens = serializer.validate({})
+            return JWTAuthTokens(**tokens)
+        except Exception as e:
+            _logger_err.error(f"Failed to generate system token: {e}")
+            raise ServerError(f"Error generating system token: {e}")
+
 
 class AuthService:
     authenticators = {settings.OIDC_AUTH_MODE: OIDCAuth(),

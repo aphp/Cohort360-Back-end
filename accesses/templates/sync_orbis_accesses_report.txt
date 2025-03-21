@@ -1,0 +1,16 @@
+Bonjour,
+
+La synchronisation des droits ORBIS en date de {{ sync_time }} a terminé avec les anomalies suivantes:
+
+* Rôles ignorés à défaut de mapping:
+{% for role in skipped_roles %}
+    - {{ role }}
+{% endfor %}
+
+
+* Périmètres manquants:
+{% for perimeter in missing_perimeters %}
+    - {{ perimeter }}
+{% endfor %}
+
+Cordialement,

@@ -70,7 +70,7 @@ class UserViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         users_service.validate_user_data(data=request.data)
         response = super().create(request, *args, **kwargs)
-        users_service.create_initial_profile(data=request.data)
+        users_service.setup_profile(data=request.data)
         return response
 
     @cache_response()

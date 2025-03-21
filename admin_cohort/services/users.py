@@ -7,6 +7,7 @@ from django.http import Http404
 from rest_framework import status
 
 from accesses.models import Profile
+from accesses.services.accesses import accesses_synchronizer
 from admin_cohort.types import PersonIdentity, ServerError
 
 env = os.environ
@@ -61,8 +62,9 @@ class UsersService:
             raise ValueError(f"Adresse email invalide: {email}. Doit comporter uniquement des lettres, chiffres et caractères @_-.")
 
     @staticmethod
-    def create_initial_profile(data: dict) -> None:
-        Profile.objects.create(user_id=data.get("username"), is_active=True)
+    def setup_profile(data: dict) -> None:
+        p = Profile.objects.create(user_id=data.get("username"), is_active=True)
+        accesses_synchronizer.sync_accesses(target_user=p.user_id)
 
     def check_user_existence(self, username: str) -> Optional[PersonIdentity]:
         if not (username and re.compile(USERNAME_REGEX).match(username)):

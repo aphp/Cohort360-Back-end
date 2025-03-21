@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass
 from datetime import date, timedelta, datetime
 from typing import List, Dict, Union, Literal
 
@@ -6,16 +7,23 @@ from django.db.models import QuerySet, Q, Prefetch, F, Value
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.conf import settings
+from fhirpy import SyncFHIRClient
 
+from accesses.migrations.data.orbis_roles_map import roles_map
+from admin_cohort.emails import EmailNotification
+from admin_cohort.models import User
+from admin_cohort.services.auth import jwt_auth_service
+from admin_cohort.tools import join_qs
 from accesses.q_expressions import q_allow_read_search_opposed_patient_data, q_allow_read_patient_data_nominative, q_allow_read_patient_data_pseudo, \
     q_allow_manage_accesses_on_same_level, q_allow_manage_accesses_on_inf_levels, q_allow_manage_export_accesses, \
     q_allow_read_accesses_on_same_level, q_allow_read_accesses_on_inf_levels, q_impact_inferior_levels, q_allow_unlimited_patients_search
-from admin_cohort.models import User
-from admin_cohort.tools import join_qs
-from accesses.models import Perimeter, Access, Role
+from accesses.apps import AccessConfig
+from accesses.models import Perimeter, Access, Role, Profile
 from accesses.services.shared import DataRight
 
 _logger = logging.getLogger("info")
+
+MANUAL, ORBIS = settings.ACCESS_SOURCES
 
 
 class AccessesService:
@@ -28,7 +36,7 @@ class AccessesService:
     def get_user_valid_accesses(self, user: User) -> QuerySet:
         return Access.objects.filter(self.q_access_is_valid()
                                      & Q(profile__is_active=True)
-                                     & Q(profile__source=settings.MANUAL_SOURCE)
+                                     & Q(profile__source=MANUAL)
                                      & Q(profile__user=user))
 
     def user_is_full_admin(self, user: User) -> bool:
@@ -488,3 +496,160 @@ class AccessesService:
 
 
 accesses_service = AccessesService()
+
+
+@dataclass
+class FhirPractitioner:
+    username: str
+    firstname: str
+    lastname: str
+
+
+@dataclass
+class FhirPractitionerRole:
+    id: str
+    active: bool
+    practitioner_id: str
+    perimeter_id: int
+    role_name: str
+    start_datetime: datetime
+    end_datetime: datetime
+
+
+class AccessesSynchronizer:
+
+    def __init__(self):
+        token = jwt_auth_service.generate_system_token()
+        self.fhir_client = SyncFHIRClient(url=AccessConfig.FHIR_URL,
+                                          authorization=f"Bearer {token}")
+
+    @staticmethod
+    def log(message: str):
+        _logger.info(f"[ORBIS sync] {message}")
+
+    def sync_orbis_resources(self):
+        self.sync_profiles()
+        self.sync_accesses()
+
+
+    @staticmethod
+    def get_mapped_role(role_name) -> Role:
+        mapped_role_name = {k for k in roles_map if role_name in roles_map[k]}
+        return Role.objects.filter(name=mapped_role_name).first()
+
+
+    def sync_profiles(self):
+        """
+        Using the Practitioner resource cf. https://hl7.org/fhir/R4/practitioner.html
+        For active Practitioners, if the corresponding user exists, create a Profile for it with source="ORBIS" if it does not have any.
+        For later syncing, inactive Practitioners will have their corresponding profiles deactivated.
+        @return: None
+        """
+        practitioner_res = self.fhir_client.resources("Practitioner")
+
+        for p in practitioner_res.fetch_all():
+            if p.active:
+                practitioner = FhirPractitioner(username=p.identifier[0].value,
+                                                firstname=p.name[0].given[0],
+                                                lastname=p.name[0].family
+                                                )
+                user = User.objects.filter(username=practitioner.username).first()
+                if user or not user.profiles.filter(source=ORBIS, is_active=True).exists():
+                    Profile.objects.create(user=user, source=ORBIS, is_active=True)
+            else:
+                linked_profiles = Profile.objects.filter(user_id=p.identifier, source=ORBIS, is_active=True)
+                linked_profiles.accesses.update(end_datetime=timezone.now())
+                count_deactivated, _ = linked_profiles.update(is_active=False)
+                self.log(f"{count_deactivated} ORBIS profiles have been deactivated for user `{p.identifier}`")
+        self.log(f"{practitioner_res.count()} users have been synchronized with ORBIS")
+
+
+    def sync_accesses(self, target_user: str = None):
+        """
+        - Fetch the PractitionerRole resource which represents an authorization for a Practitioner
+          to perform a specific Role for a give period.
+        - The roles fetched from FHIR are mapped to predefined roles in the DB.
+        - For active PractitionerRoles, ensure having a role and a perimeter before creating a new access.
+        - For later syncing, if a PractitionerRole gets deactivated, the corresponding Access is revoked.
+        cf. https://hl7.org/fhir/R4/practitionerrole.html
+        @return: None
+        """
+        active_users = list(User.objects.filter(delete_datetime__isnull=True).values_list("username", flat=True))
+        batch_size = 100
+        users_batches = [active_users[i:i + batch_size] for i in range(0, len(active_users), batch_size)]
+
+        count_orbis_accesses, count_new_accesses, skipped_roles, missing_perimeters = 0, 0, [], []
+        notify = False
+
+        for batch in users_batches:
+            res = self.fhir_client.resources("Practitioner")\
+                                  .revinclude("PractitionerRole", "practitioner")\
+                                  .search(identifier=",".join(batch))
+            bundle = res.fetch_raw()
+
+            for e in filter(lambda i: i.rsource.resource_type == "PractitionerRole", bundle.entry):
+                count_orbis_accesses += 1
+                pr = e.resource
+                if pr.active:
+                    fpr = FhirPractitionerRole(id=pr.id,
+                                               active=pr.active,
+                                               practitioner_id=pr.practitioner.identifier[0].value,
+                                               perimeter_id=int(pr.organization.id),
+                                               role_name=pr.code[0].coding[0].code,
+                                               start_datetime=hasattr(pr.period, "start") and pr.period.start or None,
+                                               end_datetime=hasattr(pr.period, "end") and pr.period.end or None
+                                               )
+                    profile = Profile.objects.filter(user_id=fpr.practitioner_id).first()
+                    assert profile is not None, f"`Profile` is expected to exist for user {fpr.practitioner_id}"
+                    role = self.get_mapped_role(fpr.role_name)
+                    perimeter = Perimeter.objects.filter(id=fpr.perimeter_id).first()
+                    if role is not None:
+                        if perimeter is not None:
+                            defaults = dict(source=ORBIS,
+                                            external_id=fpr.id,
+                                            role_id=role.id,
+                                            profile_id=profile.id,
+                                            perimeter_id=perimeter.id,
+                                            start_datetime=fpr.start_datetime,
+                                            end_datetime=fpr.end_datetime)
+                            access, created = Access.objects.get_or_create(defaults=defaults, external_id=fpr.id)
+                            if created:
+                                count_new_accesses += 1
+                        else:
+                            self.log(f"Could not find a match for the `perimeter` {fpr.perimeter_id=} to create access.")
+                            missing_perimeters.append(fpr.perimeter_id)
+                    else:
+                        self.log(f"Could not find a match for the ORBIS role `{pr.code}`")
+                        skipped_roles.append(pr.code)
+                else:
+                    Access.objects.filter(external_id=pr.identifier).update(end_datetime=timezone.now())
+
+            if skipped_roles:
+                notify = True
+                self.log(f"The following ORBIS roles were not correctly mapped: {skipped_roles}")
+            if missing_perimeters:
+                notify = True
+                self.log(f"The following perimeters were not found: {missing_perimeters}")
+            if notify:
+                self.send_report_notification(skipped_roles, missing_perimeters)
+            self.log(f"{count_orbis_accesses} accesses were fetched from ORBIS. "
+                     f"{count_new_accesses} new accesses were created. "
+                     f"{count_orbis_accesses - len(skipped_roles + missing_perimeters)} accesses have been synced")
+
+
+    @staticmethod
+    def send_report_notification(skipped_roles, missing_perimeters):
+        context = {"sync_time": datetime.now(),
+                   "skipped_roles": skipped_roles,
+                   "missing_perimeters": missing_perimeters
+                   }
+        recipients_addresses = [a[1] for a in settings.ADMINS]
+        email_notif = EmailNotification(subject="Rapport de synchro des accès ORBIS",
+                                        to=recipients_addresses,
+                                        html_template="sync_orbis_accesses_report.html",
+                                        txt_template="sync_orbis_accesses_report.txt",
+                                        context=context)
+        email_notif.push()
+
+
+accesses_synchronizer = AccessesSynchronizer()
