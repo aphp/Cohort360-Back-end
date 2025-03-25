@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from unittest import mock
 
+from django.conf import settings
 from django.test import TestCase
 
 from admin_cohort.models import User
@@ -43,7 +44,10 @@ class CohortQueryTest(TestCase):
 
 class TestBaseCohortRequest(TestCase):
     def setUp(self):
-        self.auth_headers = {'Authorization': 'Bearer xxx.token.xxx', 'authorizationMethod': 'JWT', 'X-Trace-Id': '12a'}
+        self.auth_headers = {'Authorization': 'Bearer xxx.token.xxx',
+                             settings.AUTHORIZATION_METHOD_HEADER: settings.JWT_AUTH_MODE,
+                             'X-Trace-Id': '12a'
+                             }
         self.instance_id = "test-instance-id"
         self.json_query = '{"sourcePopulation": {"caresiteCohortList": []}}'
         
@@ -100,7 +104,10 @@ class TestQueryFormatter(TestCase):
             with open(Path(__file__).resolve().parent.joinpath(f"resources/{filename}"), "r") as f:
                 return CohortQuery(**json.load(f))
 
-        self.auth_headers = {'Authorization': 'Bearer xxx.token.xxx', 'authorizationMethod': 'JWT', 'X-Trace-Id': '12a'}
+        self.auth_headers = {'Authorization': 'Bearer xxx.token.xxx',
+                             settings.AUTHORIZATION_METHOD_HEADER: settings.JWT_AUTH_MODE,
+                             'X-Trace-Id': '12a'
+                             }
         self.query_formatter = QueryFormatter(self.auth_headers)
         self.cohort_query_complex = load_query("complex_request.json")
         self.cohort_query_simple = load_query("simple_request.json")

@@ -27,7 +27,7 @@ class RequestLogMixinTests(APITestCase):
                                     content_type="application/json",
                                     data={"auth_code": "any-auth-code-will-do",
                                           "redirect_uri": "some-redirect-url"},
-                                    headers={"AuthorizationMethod": settings.OIDC_AUTH_MODE})
+                                    headers={settings.AUTHORIZATION_METHOD_HEADER: settings.OIDC_AUTH_MODE})
         mock_get_tokens.assert_called()
         mock_retrieve_username.assert_called()
         self.assertEqual(response.status_code, status.HTTP_200_OK)

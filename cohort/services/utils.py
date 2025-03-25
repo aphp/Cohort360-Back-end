@@ -5,6 +5,7 @@ from smtplib import SMTPException
 from time import sleep
 from typing import Callable
 
+from django.conf import settings
 from django.core.cache import cache
 from rest_framework.request import Request
 
@@ -66,7 +67,7 @@ def send_email_notification(notification: Callable, **kwargs) -> None:
 
 def get_authorization_header(request: Request) -> dict:
     headers = {"Authorization": f"Bearer {request.META.get('HTTP_AUTHORIZATION')}",
-               "authorizationMethod": request.META.get('HTTP_AUTHORIZATIONMETHOD')
+               settings.AUTHORIZATION_METHOD_HEADER: request.META.get(f"HTTP_{settings.AUTHORIZATION_METHOD_HEADER}")
                }
     return headers
 

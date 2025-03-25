@@ -51,7 +51,7 @@ class ContentSerializer(serializers.ModelSerializer):
             for item in metadata_list
         }
 
-    def get_content_type_display(self, obj):
+    def get_content_type_display(self, obj) -> str:
         return ContentManagementConfig.CONTENT_TYPES.get(obj.content_type, {}).get('label', obj.content_type)
 
     def validate_content_type(self, value):
