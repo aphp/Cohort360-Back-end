@@ -117,20 +117,20 @@
 <details>
   <summary>Basic</summary>
 
-  | Variable              | Description                                                                                                                                                                       | Default Value                                                          |
-  |-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------|
-  | INCLUDED_APPS         | comma-separated apps names                                                                                                                                                        | accesses,cohort_job_server,cohort,exporters,exports,content_management |
-  | DEBUG                 | boolean to enable/disable debug mode                                                                                                                                              | False                                                                  |
-  | ADMINS                | List of admin users to notify for errors. <br/>Used by the _django.utils.log.AdminEmailHandler_ <br/>Multi-value variable ex: `Admin1,admin1@backend.fr;Admin2,admin2@backend.fr` |                                                                        |
-  | NOTIFY_ADMINS         | A boolean to allow sending `ADMINS` email notifications                                                                                                                           | False                                                                  |
-  | FRONT_URL             | Cohort360 frontend URL                                                                                                                                                            | http://local-cohort.fr                                                 |
-  | FRONT_URLS            | comma-separated frontend URLs. if defined, it must include the `FRONT_URL`                                                                                                        | http://local-portail.fr,http://local-cohort.fr                         |
-  | BACK_URL              | The backend URL without the _http_ schema                                                                                                                                         | localhost:8000                                                         |
-  | CELERY_BROKER_URL     | Broker URL                                                                                                                                                                        | redis://localhost:6379                                                 |
-  | CELERY_RESULT_BACKEND | Broker URL                                                                                                                                                                        | redis://localhost:6379                                                 |
-  | SOCKET_LOGGER_HOST    | Host URL to which the logs will be sent                                                                                                                                           | localhost                                                              |
-  | USERNAME_REGEX        | A regex to validate users usernames                                                                                                                                               | (.*)                                                                   |
-  | EMAIL_REGEX_CHECK     | A regex to validate email addresses                                                                                                                                               | ^[\w.+-]+@[\w-]+\.[\w]+$                                               |
+  | Variable              | Description                                                                                                                                                                              | Default Value                                                          |
+  |-----------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------|
+  | INCLUDED_APPS         | comma-separated apps names                                                                                                                                                               | accesses,cohort_job_server,cohort,exporters,exports,content_management |
+  | DEBUG                 | boolean to enable/disable debug mode                                                                                                                                                     | False                                                                  |
+  | ADMINS                | List of admin users to notify for errors. <br/>Used by the _django.utils.log.AdminEmailHandler_ <br/>Multi-value variable ex: `Admin1,admin1@backend.fr;Admin2,admin2@backend.fr`        |                                                                        |
+  | NOTIFY_ADMINS         | A boolean to allow sending `ADMINS` email notifications                                                                                                                                  | False                                                                  |
+  | FRONT_URL             | Cohort360 frontend URL                                                                                                                                                                   | http://local-cohort.fr                                                 |
+  | FRONT_URLS            | comma-separated frontend URLs. if defined, it must include the `FRONT_URL`                                                                                                               | http://local-portail.fr,http://local-cohort.fr                         |
+  | BACK_URL              | The backend URL without the _http_ schema                                                                                                                                                | localhost:8000                                                         |
+  | CELERY_BROKER_URL     | Broker URL                                                                                                                                                                               | redis://localhost:6379                                                 |
+  | CELERY_RESULT_BACKEND | Broker URL                                                                                                                                                                               | redis://localhost:6379                                                 |
+  | SOCKET_LOGGER_HOST    | Host URL to which the logs will be sent, logs are currently sent to a Network SocketHandler (see the [reference](https://docs.python.org/3/library/logging.handlers.html#sockethandler)) | localhost                                                              |
+  | USERNAME_REGEX        | A regex to validate users usernames                                                                                                                                                      | (.*)                                                                   |
+  | EMAIL_REGEX_CHECK     | A regex to validate email addresses                                                                                                                                                      | ^[\w.+-]+@[\w-]+\.[\w]+$                                               |
 
 </details>
 
@@ -163,8 +163,11 @@
   <summary>Authentication modes</summary>
 
   The backend supports 2 authentication modes:
-   * JWT tokens (if `ENABLE_JWT` is set to **True**). Users login using their credentials _username_/_password_
+   * Based on an external API exposing specific routes (for example an API that connects to an LDAP server under the hood)  
+        - By setting `ENABLE_JWT` to **True**
+        - Users log in using their credentials _username_/_password_
    * OIDC authentication using one or multiple OIDC servers.
+        - By setting `ENABLE_JWT` to **False**
         - You can configure a new server by adding extra variables: `OIDC_AUTH_SERVER_2`, `OIDC_REDIRECT_URI_2` ...
 
   | Variable               | Description                                                                                                                                                                                                              | Default Value            |
@@ -182,21 +185,23 @@
 
 </details>
 
+
+
 #### 🔷 Apps related environment variables
 
 <details>
   <summary>Cohort</summary>
 
-  | Variable              | Description                                                                                          | Default Value         |
-  |-----------------------|------------------------------------------------------------------------------------------------------|-----------------------|
-  | LAST_COUNT_VALIDITY   | Validity of a Cohort Count Request in hours                                                          | 24                    |
-  | COHORT_LIMIT          | Maximum patients a cohort can contain                                                                | 20000                 |
-  | FHIR_URL              | FHIR URL ex: https://fhir.aphp.fr                                                                    |                       |
-  | SJS_URL               | SJS URL ex: https://sjs.aphp.fr                                                                      |                       |
-  | SJS_USERNAME          | The system user of the SJS app. Used to make _patch_ calls on Cohorts and DatedMeasures              |                       |
-  | ETL_USERNAME          | The system user of the ETL app. Used to make _patch_ calls on Cohorts                                |                       |
-  | META_SECURITY_PSEUDED | Security mode used to access FHIR resources                                                          | meta.security=PSEUDED |
-  | USE_SOLR              | A boolean to indicate if a SolR database is used. If so, FHIR criteria are translated to SolR format | False                 |
+  | Variable              | Description                                                                                                                                                             | Default Value         |
+  |-----------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------|
+  | LAST_COUNT_VALIDITY   | Validity of a Cohort Count Request in hours                                                                                                                             | 24                    |
+  | COHORT_LIMIT          | Maximum patients a "small" cohort can contain ("small" cohorts will be run right away while big ones can be launched manually by calling Django API on the /? endpoint) | 20000                 |
+  | SJS_URL               | SJS URL ex: https://sjs.aphp.fr (il s'agit de l'url du serveur [QueryExecutor](https://github.com/aphp/Cohort360-QueryExecutor))                                        |                       |
+  | SJS_USERNAME          | The system user of the SJS app. Used to make _patch_ calls on Cohorts and DatedMeasures                                                                                 |                       |
+  | ETL_USERNAME          | The system user of the ETL app. Used to make _patch_ calls on Cohorts                                                                                                   |                       |
+  | META_SECURITY_PSEUDED | Security mode used to access FHIR resources                                                                                                                             | meta.security=PSEUDED |
+  | USE_SOLR              | A boolean to indicate if a SolR database is used. If so, FHIR criteria are translated to SolR format                                                                    | False                 |
+  | FHIR_URL              | The URL of the server used to translate FHIR criterias to SolR format, ex: https://fhir.aphp.fr                                                                         |                       |
 
 </details>
 
@@ -217,7 +222,7 @@
   The backend comes with three exporters allowing to have data exported in the following formats:
     * CSV
     * XLSX
-    * In a Hive database
+    * To a Hive database
   
   | Variable                    | Description                                                                    | Default Value |
   |-----------------------------|--------------------------------------------------------------------------------|---------------|
@@ -232,7 +237,7 @@
   | CREATE_DB_ENDPOINT          | The endpoint allowing to _create_ a Hive database                              |               |
   | ALTER_DB_ENDPOINT           | The endpoint allowing to _change ownership_ of a Hive database                 |               |
   | HADOOP_TASK_STATUS_ENDPOINT | The endpoint allowing to check _database creation job_ status                  |               |
-  | HIVE_EXPORTER_USER          | Name of the system user that creates the Hive database                         |               |
+  | HIVE_EXPORTER_USER          | Name of the system user that creates Hive databases                            |               |
   | DISABLE_TERMINOLOGY         | boolean to disable exported data translation                                   | False         |
 
 </details>
