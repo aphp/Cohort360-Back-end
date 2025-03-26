@@ -6,6 +6,7 @@ from admin_cohort.services.maintenance import MaintenanceService, maintenance_ph
 
 @celery_app.task()
 def maintenance_notifier_checker():
+    # /!\ CAUTION: in case of renaming this function, update  the `CELERY_BEAT_SCHEDULE` in setting.py as well
     event_to_start, event_to_end = MaintenanceService.get_maintenance_with_event()
     for event in event_to_start:
         maintenance_notifier.s(maintenance_phase_to_info(event).model_dump()).apply_async(eta=event.start_datetime)

@@ -7,7 +7,7 @@ from rest_framework import status
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult
 from cohort_job_server.cohort_creator import CohortCreator
-from cohort_job_server.sjs_api import CohortCreate
+from cohort_job_server.query_executor_api import CohortCreate
 from cohort_job_server.tests.base import BaseTest
 
 
@@ -20,8 +20,8 @@ class CohortCreatorTest(BaseTest):
             mock_app_conf.API_USERNAMES = []
             self.cohort_creator = CohortCreator()
 
-        self.small_count_value = settings.COHORT_LIMIT // 2
-        self.large_count_value = 2 * settings.COHORT_LIMIT
+        self.small_count_value = settings.COHORT_SIZE_LIMIT // 2
+        self.large_count_value = 2 * settings.COHORT_SIZE_LIMIT
         self.create_cohort_success_resp_content = str.encode('{"status": "STARTED", "jobId": "%s"}' % self.test_job_id)
         self.cohort = CohortResult.objects.create(request_query_snapshot=self.snapshot,
                                                   dated_measure=self.dm,
@@ -94,7 +94,7 @@ class CohortCreatorTest(BaseTest):
 
     @mock.patch('cohort_job_server.cohort_creator.notify_large_cohort_ready.apply_async')
     @mock.patch('cohort_job_server.cohort_creator._logger.info')
-    def test_handle_cohort_post_update_sjs_callback(self, mock_logger, mock_notify):
+    def test_handle_cohort_post_update_query_executor_callback(self, mock_logger, mock_notify):
         mock_logger.return_value = None
         mock_notify.return_value = None
         patch_data = {'request_job_status': 'FINISHED',

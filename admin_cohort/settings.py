@@ -6,6 +6,7 @@ from pathlib import Path
 import environ
 import pytz
 from celery.schedules import crontab
+from django.db.utils import DEFAULT_DB_ALIAS
 
 
 def get_project_info():
@@ -27,10 +28,10 @@ environ.Env.read_env()
 
 NOTSET = environ.Env.NOTSET
 
-BACK_HOST = env.str("BACK_HOST", default="localhost:8000")
-BACK_URL = f"https://{BACK_HOST}"
-FRONT_URL = env.str("FRONT_URL", default="http://localhost:3000")
-FRONT_URLS = env.str("FRONT_URLS", default="http://localhost:3000").split(',')
+BACKEND_HOST = env.str("BACKEND_HOST", default="localhost:8000")
+BACKEND_URL = f"https://{BACKEND_HOST}"
+FRONTEND_URL = env.str("FRONTEND_URL", default="http://localhost:3000")
+FRONTEND_URLS = env.str("FRONTEND_URLS", default="http://localhost:3000").split(',')
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = env("DJANGO_SECRET_KEY")
@@ -40,8 +41,8 @@ SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = env.bool("DEBUG", default=False)
 
 CORS_ALLOW_ALL_ORIGINS = False
-CORS_ALLOWED_ORIGINS = [BACK_URL] + FRONT_URLS
-CSRF_TRUSTED_ORIGINS = [BACK_URL] + FRONT_URLS
+CORS_ALLOWED_ORIGINS = [BACKEND_URL] + FRONTEND_URLS
+CSRF_TRUSTED_ORIGINS = [BACKEND_URL] + FRONTEND_URLS
 
 CORS_ALLOW_HEADERS = ['access-control-allow-origin',
                       'content-type',
@@ -51,7 +52,7 @@ CORS_ALLOW_HEADERS = ['access-control-allow-origin',
 ALLOWED_HOSTS = ['localhost',
                  '127.0.0.1',
                  '0.0.0.0',
-                 BACK_HOST]
+                 BACKEND_HOST]
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
@@ -112,7 +113,6 @@ LOGGING = dict(version=1,
                    }
                })
 
-# Application definition
 INCLUDED_APPS = env('INCLUDED_APPS',
                     default='accesses,content_management,cohort_job_server,'
                             'cohort,exports,accesses_fhir_perimeters').split(",")
@@ -165,15 +165,31 @@ TEMPLATES = [{'BACKEND': 'django.template.backends.django.DjangoTemplates',
                           }
               }]
 
-DATABASES = {'default': {'ENGINE': 'django.db.backends.postgresql',
-                         'NAME': env("DB_AUTH_NAME"),
-                         'USER': env("DB_AUTH_USER"),
-                         'PASSWORD': env("DB_AUTH_PASSWORD"),
-                         'HOST': env("DB_AUTH_HOST"),
-                         'PORT': env("DB_AUTH_PORT"),
-                         'TEST': {'NAME': f'test_{env("DB_AUTH_NAME")}'}
-                         }
+DATABASES = {DEFAULT_DB_ALIAS: {'ENGINE': 'django.db.backends.postgresql',
+                                'NAME': env("DB_NAME"),
+                                'USER': env("DB_USER"),
+                                'PASSWORD': env("DB_PASSWORD"),
+                                'HOST': env("DB_HOST"),
+                                'PORT': env("DB_PORT"),
+                                'TEST': {'NAME': f'test_{env("DB_NAME")}'}
+                                }
              }
+
+if "accesses_perimeters" in INCLUDED_APPS:
+    DATABASES["accesses_perimeters"] = {'ENGINE': 'django.db.backends.postgresql',
+                                        'NAME': env("PERIMETERS_SOURCE_DB_NAME"),
+                                        'USER': env("PERIMETERS_SOURCE_DB_USER"),
+                                        'PASSWORD': env("PERIMETERS_SOURCE_DB_PASSWORD"),
+                                        'HOST': env("PERIMETERS_SOURCE_DB_HOST"),
+                                        'PORT': env("PERIMETERS_SOURCE_DB_PORT"),
+                                        'TEST': {'NAME': f'test_{env("PERIMETERS_SOURCE_DB_NAME")}'},
+                                        'DISABLE_SERVER_SIDE_CURSORS': True,
+                                        'TIME_ZONE': None,
+                                        'CONN_HEALTH_CHECKS': False,
+                                        'CONN_MAX_AGE': 0,
+                                        'AUTOCOMMIT': True,
+                                        'OPTIONS': {'options': f"-c search_path={env('PERIMETERS_SOURCE_DB_SCHEMA', default='public')}"}
+                                        }
 
 WSGI_APPLICATION = 'admin_cohort.wsgi.application'
 
@@ -195,9 +211,11 @@ utc = pytz.UTC
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'static'
 
+ENABLE_OIDC_AUTH = env.bool("ENABLE_OIDC_AUTH", default=False)
 
-AUTHENTICATION_BACKENDS = ['admin_cohort.auth.auth_backends.JWTAuthBackend',
-                           'admin_cohort.auth.auth_backends.OIDCAuthBackend']
+AUTHENTICATION_BACKENDS = ['admin_cohort.auth.auth_backends.JWTAuthBackend']
+if ENABLE_OIDC_AUTH:
+    AUTHENTICATION_BACKENDS.append('admin_cohort.auth.auth_backends.OIDCAuthBackend')
 
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.IsAuthenticated'],
@@ -233,9 +251,14 @@ SPECTACULAR_SETTINGS = {"TITLE": TITLE,
 EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
 EMAIL_HOST = env.str("EMAIL_HOST", default="")
 EMAIL_PORT = env.str("EMAIL_PORT", default="")
+DEFAULT_FROM_EMAIL = env.str("DEFAULT_FROM_EMAIL", default="")
 EMAIL_SUPPORT_CONTACT = env.str("EMAIL_SUPPORT_CONTACT", default="")
-EMAIL_SENDER_ADDRESS = env.str("EMAIL_SENDER_ADDRESS", default="")
-EMAIL_REGEX_CHECK = env.str("EMAIL_REGEX_CHECK", default=r"^[\w.+-]+@[\w-]+\.[\w]+$")
+
+# REGEX
+USERNAME_REGEX = env.str("USERNAME_REGEX", default=r"[0-9]")
+EMAIL_REGEX = env.str("EMAIL_REGEX", default=r"^[\w.+-]+@[\w-]+\.[\w]+$")
+
+MAINTENANCE_PERIODIC_SCHEDULING_MINUTES = 1
 
 # Celery
 CELERY_BROKER_URL = env.str("CELERY_BROKER_URL", default="redis://localhost:6379")
@@ -245,25 +268,24 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_TASK_ALWAYS_EAGER = False
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
-
-DEFAULT_LOCAL_TASKS = """
-count_users_on_perimeters,accesses.tasks.count_users_on_perimeters,5,30;
-check_expiring_accesses,accesses.tasks.check_expiring_accesses,6,0
-"""
-MAINTENANCE_PERIODIC_SCHEDULING_MINUTES = env("MAINTENANCE_PERIODIC_SCHEDULING", default=1)
-LOCAL_TASKS = env('LOCAL_TASKS', default=DEFAULT_LOCAL_TASKS)
-if LOCAL_TASKS:
-    CELERY_BEAT_SCHEDULE = {'maintenance_notifier': {
+CELERY_BEAT_SCHEDULE = {
+    'maintenance_notifier': {
         'task': 'admin_cohort.tasks.maintenance_notifier_checker',
         'schedule': crontab(minute=f'*/{MAINTENANCE_PERIODIC_SCHEDULING_MINUTES}')
-    },
+    }
+}
+
+SCHEDULED_TASKS = env('SCHEDULED_TASKS', default="")
+
+if SCHEDULED_TASKS:
+    CELERY_BEAT_SCHEDULE.update(
         **{task_name: {'task': task,
-                       'schedule': crontab(hour=hour,
-                                           minute=minute)}
+                       'schedule': crontab(hour=hour, minute=minute)
+                       }
            for (task_name, task, hour, minute) in
-           [task.strip().split(',')
-            for task in LOCAL_TASKS.split(';')]
-           }}
+           [task.strip().split(',') for task in SCHEDULED_TASKS.split(';')]
+           }
+    )
 
 # CONSTANTS
 utc = pytz.UTC
@@ -277,19 +299,11 @@ SHARED_FOLDER_NAME = 'Mes requêtes reçues'
 SESSION_COOKIE_NAME = "sessionid"
 SESSION_COOKIE_AGE = 24 * 60 * 60
 
-ENABLE_JWT = env.bool("ENABLE_JWT", default=True)
-
-if ENABLE_JWT:
-    SIMPLE_JWT = {"USER_ID_FIELD": "username",
-                  "USER_ID_CLAIM": "username",
-                  "SIGNING_KEY": env.str("JWT_SIGNING_KEY"),
-                  "ROTATE_REFRESH_TOKENS": True,
-                  }
-
-    ID_CHECKER_URL = env.str("ID_CHECKER_URL")
-    ID_CHECKER_HEADER = env.str("ID_CHECKER_TOKEN_HEADER")
-    ID_CHECKER_TOKEN = env.str("ID_CHECKER_TOKEN")
-    ID_CHECKER_HEADERS = {ID_CHECKER_HEADER: ID_CHECKER_TOKEN}
+SIMPLE_JWT = {"USER_ID_FIELD": "username",
+              "USER_ID_CLAIM": "username",
+              "SIGNING_KEY": env.str("JWT_SIGNING_KEY"),
+              "ROTATE_REFRESH_TOKENS": True,
+              }
 
 JWT_AUTH_MODE = "JWT"
 OIDC_AUTH_MODE = "OIDC"
@@ -303,7 +317,7 @@ DEFAULT_EXCEPTION_REPORTER_FILTER = 'admin_cohort.tools.except_report_filter.Cus
 
 # COHORTS +20k
 LAST_COUNT_VALIDITY = env.int("LAST_COUNT_VALIDITY", default=24)  # in hours
-COHORT_LIMIT = env.int("COHORT_LIMIT", default=20_000)
+COHORT_SIZE_LIMIT = env.int("COHORT_SIZE_LIMIT", default=20_000)
 
 # InfluxDB
 INFLUXDB_TOKEN = env("INFLUXDB_DJANGO_TOKEN", default=NOTSET if INFLUXDB_ENABLED else "")
@@ -332,11 +346,7 @@ REST_FRAMEWORK_EXTENSIONS = {"DEFAULT_PARENT_LOOKUP_KWARG_NAME_PREFIX": "",
 ACCESS_MANAGERS_LIST_LINK = env.str("ACCESS_MANAGERS_LIST_LINK", default="")
 ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS = env.int("ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS", default=30)
 ACCESS_EXPIRY_SECOND_ALERT_IN_DAYS = env.int("ACCESS_EXPIRY_SECOND_ALERT_IN_DAYS", default=2)
-MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS = env.int("ACCESS_MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS", default=2 * 365)
-
-# COHORT_JOB_SERVER
-CRB_TEST_FHIR_QUERIES = env.bool("CRB_TEST_FHIR_QUERIES", default=False)
-USE_SOLR = env.bool("USE_SOLR", default=False)
+DEFAULT_ACCESS_VALIDITY_IN_DAYS = env.int("DEFAULT_ACCESS_VALIDITY_IN_DAYS", default=2 * 365)
 
 # EXPORTS
 DAYS_TO_KEEP_EXPORTED_FILES = env.int("DAYS_TO_KEEP_EXPORTED_FILES", default=7)

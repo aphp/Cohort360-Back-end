@@ -1,24 +1,31 @@
-from __future__ import annotations
-
+import logging
 
 from django.conf import settings
 from django.db import models
 
+from accesses_perimeters.apps import AccessesPerimetersConfig
 
-APP_LABEL = 'accesses_perimeters'
+APP_LABEL = AccessesPerimetersConfig.name
+DB_ALIAS = AccessesPerimetersConfig.DB_ALIAS
+
+_logger = logging.getLogger("django.request")
 
 
-class OmopModelManager(models.Manager):
+class ModelManager(models.Manager):
+
     def get_queryset(self):
-        q = super(OmopModelManager, self).get_queryset()
-        q._db = settings.OMOP_DB_ALIAS
+        if DB_ALIAS not in settings.DATABASES:
+            _logger.error(f"`{DB_ALIAS}` is missing from settings.DATABASES")
+            return
+        q = super().get_queryset()
+        q._db = DB_ALIAS
         return q
 
 
 class Concept(models.Model):
     concept_id = models.IntegerField(primary_key=True)
     concept_name = models.TextField(blank=True, null=True)
-    objects = OmopModelManager()
+    objects = ModelManager()
 
     class Meta:
         app_label = APP_LABEL
@@ -36,7 +43,7 @@ class CareSite(models.Model):
     cohort_id = models.BigIntegerField(null=True)
     cohort_size = models.BigIntegerField(null=True)
     delete_datetime = models.DateTimeField(null=True)
-    objects = OmopModelManager()
+    objects = ModelManager()
 
     class Meta:
         app_label = APP_LABEL

@@ -12,8 +12,7 @@ from admin_cohort.models import User
 from admin_cohort.serializers import UserSerializer, LoginFormSerializer, LoginSerializer
 from admin_cohort.services.auth import auth_service
 from admin_cohort.tools.request_log_mixin import RequestLogMixin
-from admin_cohort.types import ServerError
-
+from admin_cohort.exceptions import ServerError
 
 class LoginView(RequestLogMixin, viewsets.GenericViewSet):
     authentication_classes = []

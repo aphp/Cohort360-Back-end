@@ -1,19 +1,18 @@
 from datetime import timedelta
 from typing import Union
 
-from django.test import TestCase
 from django.utils import timezone
 from django.views import View
 from rest_framework.test import APIRequestFactory, force_authenticate
 
 from accesses.models import Role, Perimeter, Access
-from admin_cohort.tests.tests_tools import new_user_and_profile
+from admin_cohort.tests.tests_tools import new_user_and_profile, TestCaseWithDBs
 from cohort.models import Request, RequestQuerySnapshot, Folder
 from exports.apps import ExportsConfig
 from exports.models import InfrastructureProvider
 
 
-class ExportsTestBase(TestCase):
+class ExportsTestBase(TestCaseWithDBs):
     view_set: Union[View, None] = None
     view_root = ""
     model = None

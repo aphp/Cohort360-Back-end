@@ -318,7 +318,6 @@ class ExportsListTests(ExportsTests):
 
 
 class ExportsRetrieveTests(ExportsWithSimpleSetUp):
-    download_view = ExportViewSet.as_view({'get': 'download'})
 
     def setUp(self):
         super(ExportsRetrieveTests, self).setUp()

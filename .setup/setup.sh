@@ -15,9 +15,9 @@ uv sync
 source .venv/bin/activate
 echo "Successfully initialized a virtual env and installed requirements"
 
-COHORT_DB=$(sed -n 's/^DB_AUTH_NAME=//p' admin_cohort/.env)
-COHORT_USER=$(sed -n 's/^DB_AUTH_USER=//p' admin_cohort/.env)
-COHORT_USER_PASSWORD=$(sed -n 's/^DB_AUTH_PASSWORD=//p' admin_cohort/.env)
+COHORT_DB=$(sed -n 's/^DB_NAME=//p' admin_cohort/.env)
+COHORT_USER=$(sed -n 's/^DB_USER=//p' admin_cohort/.env)
+COHORT_USER_PASSWORD=$(sed -n 's/^DB_PASSWORD=//p' admin_cohort/.env)
 
 echo "Creating database '$COHORT_DB' and a user '$COHORT_USER' with password '$COHORT_USER_PASSWORD'"
 

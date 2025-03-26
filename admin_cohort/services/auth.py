@@ -1,3 +1,4 @@
+import hashlib
 import json
 import logging
 from abc import ABC
@@ -18,13 +19,16 @@ from jwt import InvalidTokenError
 from jwt.algorithms import RSAAlgorithm
 from requests import RequestException
 from rest_framework import status, HTTP_HEADER_ENCODING
-from rest_framework.exceptions import AuthenticationFailed, ValidationError
+from rest_framework.exceptions import AuthenticationFailed, ValidationError, APIException
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer, TokenObtainPairSerializer
 from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 
 from accesses.models import Profile, Role, Perimeter, Access
+from admin_cohort.apps import AdminCohortConfig
 from admin_cohort.models import User
-from admin_cohort.types import ServerError, OIDCAuthTokens, JWTAuthTokens, AuthTokens
+from admin_cohort.types import OIDCAuthTokens, JWTAuthTokens, AuthTokens
+from admin_cohort.exceptions import ServerError, NoAuthenticationHookDefined
+
 
 env = environ.Env()
 _logger = logging.getLogger('info')
@@ -97,7 +101,7 @@ def build_oidc_configs() -> List[OIDCAuthConfig]:
             configs.append(OIDCAuthConfig(issuer=issuer,
                                           client_id=env(f"OIDC_CLIENT_ID_{i}"),
                                           client_secret=env(f"OIDC_CLIENT_SECRET_{i}"),
-                                          grant_type=env(f"OIDC_GRANT_TYPE_{i}"),
+                                          grant_type="authorization_code",
                                           redirect_uri=env(f"OIDC_REDIRECT_URI_{i}")))
             i += 1
         else:
@@ -126,7 +130,6 @@ class OIDCAuth(Auth):
         super().__init__()
         self.oidc_extra_allowed_servers = env("OIDC_EXTRA_SERVER_URLS", default="").split(",")
         self.audience = env("OIDC_AUDIENCE", default="").split(',')
-        self.refresh_grant_type = "refresh_token"
         self.oidc_configs = build_oidc_configs()
 
     def get_oidc_config(self, client_id: Optional[str] = None, redirect_uri: Optional[str] = None):
@@ -166,7 +169,7 @@ class OIDCAuth(Auth):
         client_id = self.decode_token(token=token, verify_signature=False).get("azp")
         oidc_conf = self.get_oidc_config(client_id)
         data = {**oidc_conf.client_identity,
-                "grant_type": self.refresh_grant_type,
+                "grant_type": "refresh_token",
                 "refresh_token": token
                 }
         try:
@@ -224,8 +227,6 @@ class JWTAuth(Auth):
     def __init__(self):
         super().__init__()
         self.signing_key = settings.SIMPLE_JWT.get("SIGNING_KEY")
-        self.id_checker_auth_url = f"{settings.ID_CHECKER_URL}/user/authenticate"
-        self.id_checker_headers = settings.ID_CHECKER_HEADERS
 
     def authenticate(self, token: str) -> str:
         decoded = self.decode_token(token=token, key=self.signing_key)
@@ -251,15 +252,48 @@ class JWTAuth(Auth):
             raise InvalidToken(e.args[0])
         return JWTAuthTokens(**serializer.validated_data)
 
-    def check_credentials(self, username, password) -> bool:
+    def check_credentials(self, username, password) -> Optional[bool]:
+        """
+        if an external Identity Server is configured, reach out to it.
+        otherwise, validate credentials inplace.
+        :param username:
+        :param password:
+        :return: boolean to indicate if the credentials are valid
+        """
         try:
-            response = requests.post(url=self.id_checker_auth_url,
-                                     data={"username": username, "password": password},
-                                     headers=self.id_checker_headers
-                                     )
-            return response.status_code == status.HTTP_200_OK
-        except Exception as e:
-            raise ServerError(f"Error checking credentials for user `{username}`: {e}")
+            _ = User.objects.get(username=username)
+        except User.DoesNotExist:
+            raise AuthenticationFailed(f"User `{username}` does not exist")
+
+        try:
+            return self.authenticate_with_external_services(username=username, password=password)
+        except NoAuthenticationHookDefined:
+            return self.check_credentials_locally(username=username, password=password)
+
+    @staticmethod
+    def authenticate_with_external_services(username, password) -> Optional[bool]:
+        authentication_hooks = AdminCohortConfig.HOOKS.get("USER_AUTHENTICATION", [])
+        if not authentication_hooks:
+            raise NoAuthenticationHookDefined()
+        for auth_hook in authentication_hooks:
+            try:
+                auth_hook = import_string(auth_hook)
+                authenticated = auth_hook(username=username, password=password)
+                if authenticated:
+                    return True
+            except ImportError as e:
+                _logger.error(f"[Authentication] hook improperly configured: {str(e)}")
+            except APIException:
+                continue
+        _logger.error("[Authentication] All external services failed. Review defined hooks or remove them")
+        return False
+
+
+    @staticmethod
+    def check_credentials_locally(username, password):
+        hashed_password = hashlib.sha256(password.encode("utf-8")).hexdigest()
+        user = User.objects.get(username=username)
+        return user.password == hashed_password
 
     @staticmethod
     def generate_system_token() -> str:
@@ -295,8 +329,8 @@ class JWTAuth(Auth):
 
 
 class AuthService:
-    authenticators = {settings.OIDC_AUTH_MODE: OIDCAuth(),
-                      **({settings.JWT_AUTH_MODE: JWTAuth()} if settings.ENABLE_JWT else {})
+    authenticators = {settings.JWT_AUTH_MODE: JWTAuth(),
+                      **({settings.OIDC_AUTH_MODE: OIDCAuth()} if settings.ENABLE_OIDC_AUTH else {})
                       }
     applicative_users = {env("ROLLOUT_TOKEN", default=""): env("ROLLOUT_USERNAME", default="ROLLOUT_PIPELINE"),
                          **extra_applicative_users

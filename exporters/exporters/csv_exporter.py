@@ -1,5 +1,3 @@
-import os
-
 from django.db.models import Q
 from typing import List
 
@@ -15,7 +13,7 @@ class CSVExporter(BaseExporter):
     def __init__(self):
         super().__init__()
         self.type = ExportTypes.CSV.value
-        self.target_location = os.environ.get('EXPORT_CSV_PATH')
+        self.target_location = self.export_api.export_csv_path
 
     @staticmethod
     def get_source_cohorts(export_data: dict, **kwargs) -> List[str]:

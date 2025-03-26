@@ -1,13 +1,13 @@
 import json
 import os
 from datetime import datetime as dt, timedelta, UTC
-from unittest import TestCase
 from unittest.mock import MagicMock
 
 from rest_framework import status
 from rest_framework.test import APIRequestFactory
 
 from admin_cohort.middleware.maintenance_middleware import MaintenanceModeMiddleware
+from .tests_tools import TestCaseWithDBs
 from ..models import MaintenancePhase
 
 env = os.environ
@@ -20,7 +20,7 @@ def enable_maintenance(minutes=5):
     MaintenancePhase.objects.create(**data)
 
 
-class MaintenanceModeMiddlewareTests(TestCase):
+class MaintenanceModeMiddlewareTests(TestCaseWithDBs):
 
     def setUp(self):
         get_response = MagicMock()
@@ -29,7 +29,7 @@ class MaintenanceModeMiddlewareTests(TestCase):
 
         self.safe_method_url = '/accesses/roles/'
         self.non_safe_method_url = '/accesses/roles/'
-        self.sjs_etl_callback_url = '/cohort/cohorts/'
+        self.query_executor_etl_callback_url = '/cohort/cohorts/'
         self.maintenance_url = '/maintenances/'
         self.auth_url = '/auth/'
 
@@ -50,10 +50,10 @@ class MaintenanceModeMiddlewareTests(TestCase):
         self.assertIn('message', content)
         self.assertTrue(content.get('active'))
 
-    def test_sjs_etl_callback_request(self):
-        request = self.factory.patch(path=self.sjs_etl_callback_url+'some_cohort_uuid/',
+    def test_query_executor_etl_callback_request(self):
+        request = self.factory.patch(path=self.query_executor_etl_callback_url+'some_cohort_uuid/',
                                      data={"request_job_status": "finished"})
-        request.META = {"HTTP_AUTHORIZATION": f"Bearer {env.get('SJS_TOKEN')}"}
+        request.META = {"HTTP_AUTHORIZATION": f"Bearer {env.get('QUERY_EXECUTOR_TOKEN')}"}
         response = self.middleware(request)
         self.assertNotEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
 

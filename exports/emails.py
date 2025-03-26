@@ -10,7 +10,7 @@ from admin_cohort.emails import EmailNotification
 def check_email_address(email: str):
     if not email:
         raise ValidationError("No email address is configured. Please contact an administrator")
-    if not re.match(settings.EMAIL_REGEX_CHECK, email):
+    if not re.match(settings.EMAIL_REGEX, email):
         raise ValidationError(f"Invalid email address '{email}'. Please contact an administrator.")
 
 
