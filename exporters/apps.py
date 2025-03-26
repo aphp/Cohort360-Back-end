@@ -26,17 +26,21 @@ class ExportersConfig(AppConfig):
 
     env = os.environ
     THIRD_PARTY_API_CONF = {
-        "INFRA_API": {
-            "API_URL": env.get('INFRA_API_URL'),
+        "HADOOP_API": {
+            "API_URL": env.get('HADOOP_API_URL'),
             "AUTH_TOKEN": env.get('INFRA_HADOOP_TOKEN'),
-            "TASK_STATUS_ENDPOINT": env.get('HADOOP_TASK_STATUS_ENDPOINT'),
-            "CREATE_DB_ENDPOINT": env.get('CREATE_DB_ENDPOINT'),
-            "ALTER_DB_ENDPOINT": env.get('ALTER_DB_ENDPOINT'),
+            "HIVE_DB_PATH": env.get('HIVE_DB_PATH'),
+            "HIVE_USER": env.get('HIVE_USER'),
+            "TASK_STATUS_ENDPOINT": "/hadoop/task_status",
+            "CREATE_DB_ENDPOINT": "/hadoop/hive/create_base_hive",
+            "ALTER_DB_ENDPOINT": "/hadoop/hdfs/chown_directory",
         },
         "EXPORT_API": {
             "API_URL": env.get('EXPORT_API_URL'),
             "AUTH_TOKEN": env.get('EXPORT_AUTH_TOKEN'),
-            "TASK_STATUS_ENDPOINT": env.get('EXPORT_TASK_STATUS_ENDPOINT'),
-            "DISABLE_TERMINOLOGY": env.get('DISABLE_TERMINOLOGY', False),
+            "EXPORT_CSV_PATH": env.get('EXPORT_CSV_PATH'),
+            "EXPORT_XLSX_PATH": env.get('EXPORT_XLSX_PATH'),
+            "DISABLE_DATA_TRANSLATION": env.get('DISABLE_DATA_TRANSLATION', False),
+            "TASK_STATUS_ENDPOINT": "/api/task_status",
         },
     }

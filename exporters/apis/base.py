@@ -11,13 +11,13 @@ _logger = logging.getLogger('django.request')
 
 
 class BaseAPI:
-    conf_key: Literal["INFRA_API", "EXPORT_API"]
+    conf_key: Literal["HADOOP_API", "EXPORT_API"]
 
     def __init__(self):
         self.api_conf = ExportersConfig.THIRD_PARTY_API_CONF.get(self.conf_key)
         self.url = self.api_conf.get('API_URL')
-        self.task_status_endpoint = self.api_conf.get('TASK_STATUS_ENDPOINT')
         self.auth_token = self.api_conf.get('AUTH_TOKEN')
+        self.task_status_endpoint = self.api_conf.get('TASK_STATUS_ENDPOINT')
 
     def get_job_status(self, job_id: str) -> JobStatus:
         params = {"task_uuid": job_id,

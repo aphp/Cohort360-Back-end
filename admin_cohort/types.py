@@ -3,20 +3,12 @@ from enum import Enum
 from typing import List
 
 
-class ServerError(Exception):
-    pass
-
-
-class MissingDataError(Exception):
-    pass
-
-
+@dataclass
 class PersonIdentity:
-    def __init__(self, firstname, lastname, username, email):
-        self.firstname = firstname
-        self.lastname = lastname
-        self.username = username
-        self.email = email
+    firstname: str
+    lastname: str
+    username: str
+    email: str
 
 
 @dataclass
@@ -26,17 +18,17 @@ class AuthTokens:
 
 
 class OIDCAuthTokens(AuthTokens):
-
-    def __init__(self, access_token: str, refresh_token: str, **kwargs):
-        super().__init__(access_token, refresh_token)
+    pass
 
 
 class JWTAuthTokens(AuthTokens):
+
     def __init__(self, access: str, refresh: str, **kwargs):
         super().__init__(access_token=access, refresh_token=refresh)
 
 
 class StrEnum(str, Enum):
+
     def __str__(self):
         return self.value
 

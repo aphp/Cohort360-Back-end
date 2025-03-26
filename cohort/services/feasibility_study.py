@@ -21,7 +21,7 @@ from cohort.tasks import feasibility_study_count, send_feasibility_study_notific
 
 REPORTING_PERIMETER_TYPES = os.environ.get("REPORTING_PERIMETER_TYPES").split(",")
 
-FRONT_REQUEST_URL = f"{settings.FRONT_URL}/cohort/new"
+FRONT_REQUEST_URL = f"{settings.FRONTEND_URL}/cohort/new"
 
 REPORT_FILE_NAME = "Rapport"
 

@@ -5,7 +5,8 @@ from rest_framework import serializers
 
 from admin_cohort.models import User
 from admin_cohort.services.ws_event_manager import WebSocketMessage
-from admin_cohort.types import MissingDataError, JobStatus
+from admin_cohort.types import JobStatus
+from admin_cohort.exceptions import MissingDataError
 from cohort.models import CohortResult, DatedMeasure, Folder, Request, RequestQuerySnapshot, FhirFilter, FeasibilityStudy, RequestRefreshSchedule
 
 

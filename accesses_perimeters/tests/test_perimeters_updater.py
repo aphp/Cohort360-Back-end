@@ -1,15 +1,16 @@
-from unittest import mock
+from unittest.mock import patch
 
 from django.db import connection
-from django.test import TestCase
+from django.db.utils import DEFAULT_DB_ALIAS
 from django.db import models
 
 from accesses.models import Perimeter
-from accesses_perimeters.models import Concept, CareSite, OmopModelManager, APP_LABEL
+from accesses_perimeters.models import Concept, CareSite, ModelManager, APP_LABEL
 from accesses_perimeters.perimeters_updater import perimeters_data_model_objects_update, psql_query_care_site_relationship
 from accesses_perimeters.tests.resources.initial_data import care_sites_data, concepts_data, fact_rels_data, lists_data, ROOT_PERIMETER_ID, \
     request_query_snapshots_data, users_data, folders_data, requests_data, existing_perimeter_data
 from admin_cohort.models import User
+from admin_cohort.tests.tests_tools import TestCaseWithDBs
 from cohort.models import RequestQuerySnapshot, Folder, Request
 
 
@@ -21,7 +22,7 @@ class FactRelationship(models.Model):
     domain_concept_id_2 = models.BigIntegerField()
     relationship_concept_id = models.BigIntegerField()
     delete_datetime = models.DateTimeField(null=True)
-    objects = OmopModelManager()
+    objects = ModelManager()
 
     class Meta:
         app_label = APP_LABEL
@@ -35,7 +36,7 @@ class ListCohortDef(models.Model):
     size = models.BigIntegerField(null=True, db_column='_size')
     source_reference_id = models.CharField(null=True, db_column='_sourcereferenceid')
     delete_datetime = models.DateTimeField(null=True)
-    objects = OmopModelManager()
+    objects = ModelManager()
 
     class Meta:
         app_label = APP_LABEL
@@ -43,22 +44,25 @@ class ListCohortDef(models.Model):
         db_table = 'list'
 
 
-class PerimetersUpdaterTests(TestCase):
+class PerimetersUpdaterTests(TestCaseWithDBs):
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        Concept._meta.managed = True
+        CareSite._meta.managed = True
+        ListCohortDef._meta.managed = True
+        FactRelationship._meta.managed = True
+
+        with connection.schema_editor() as schema_editor:
+            schema_editor.create_model(Concept)
+            schema_editor.create_model(CareSite)
+            schema_editor.create_model(ListCohortDef)
+            schema_editor.create_model(FactRelationship)
 
     def setUp(self):
-        with mock.patch('accesses_perimeters.models.settings') as mock_settings:
-            mock_settings.OMOP_DB_ALIAS = "default"
-            Concept._meta.managed = True
-            CareSite._meta.managed = True
-            ListCohortDef._meta.managed = True
-            FactRelationship._meta.managed = True
-
-            with connection.schema_editor() as schema_editor:
-                schema_editor.create_model(Concept)
-                schema_editor.create_model(CareSite)
-                schema_editor.create_model(ListCohortDef)
-                schema_editor.create_model(FactRelationship)
-
+        super().setUp()
+        with patch(target="accesses_perimeters.models.DB_ALIAS", new=DEFAULT_DB_ALIAS):
             for c_data in concepts_data:
                 Concept.objects.create(**c_data)
 
@@ -89,23 +93,20 @@ class PerimetersUpdaterTests(TestCase):
                 RequestQuerySnapshot.objects.create(**snapshot)
 
             q = psql_query_care_site_relationship(top_care_site_id=ROOT_PERIMETER_ID)
+            self.edited_sql_query = q.replace('omop.', '')
+            self.edited_sql_care_site = CareSite.sql_get_deleted_care_sites().replace('omop.', '')
 
-        self.edited_sql_query = q.replace('omop.', '')
-        self.edited_sql_care_site = CareSite.sql_get_deleted_care_sites().replace('omop.', '')
-
-    @mock.patch.object(CareSite, 'sql_get_deleted_care_sites')
-    @mock.patch('accesses_perimeters.perimeters_updater.psql_query_care_site_relationship')
+    @patch.object(CareSite, 'sql_get_deleted_care_sites')
+    @patch('accesses_perimeters.perimeters_updater.psql_query_care_site_relationship')
     def test_perimeters_created_from_existing_care_sites(self, mock_sql_query, mock_sql_care_site):
         mock_sql_query.return_value = self.edited_sql_query
         mock_sql_care_site.return_value = self.edited_sql_care_site
         count_existing_perimeters = Perimeter.objects.count()
         self.assertEqual(count_existing_perimeters, 2)
-        with mock.patch('accesses_perimeters.models.settings') as mock_settings:
-            mock_settings.OMOP_DB_ALIAS = "default"
-
+        with patch(target="accesses_perimeters.models.DB_ALIAS", new=DEFAULT_DB_ALIAS):
             count_existing_care_sites = CareSite.objects.count()
             self.assertEqual(count_existing_care_sites, len(care_sites_data[1]))
-            with mock.patch('accesses_perimeters.perimeters_updater.settings') as mock_settings_2:
+            with patch('accesses_perimeters.perimeters_updater.settings') as mock_settings_2:
                 mock_settings_2.ROOT_PERIMETER_ID = ROOT_PERIMETER_ID
                 perimeters_data_model_objects_update()
 

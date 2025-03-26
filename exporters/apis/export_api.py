@@ -20,7 +20,9 @@ class ExportAPI(BaseAPI):
     def __init__(self):
         super().__init__()
         self.required_table = "person"
-        self.disable_terminology = self.api_conf.get('DISABLE_TERMINOLOGY')
+        self.export_csv_path = self.api_conf.get('EXPORT_CSV_PATH')
+        self.export_xlsx_path = self.api_conf.get('EXPORT_XLSX_PATH')
+        self.disable_data_translation = self.api_conf.get('DISABLE_DATA_TRANSLATION')
 
     def launch_export(self, export_id: UUID, params: dict) -> Union[str, JsonResponse]:
         try:

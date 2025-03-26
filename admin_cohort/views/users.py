@@ -13,7 +13,7 @@ from admin_cohort.permissions import UsersPermission
 from admin_cohort.serializers import UserSerializer, UserCheckSerializer
 from admin_cohort.services.users import users_service
 from admin_cohort.tools.cache import cache_response
-from admin_cohort.types import ServerError
+from admin_cohort.exceptions import ServerError
 
 
 class UserFilter(filters.FilterSet):

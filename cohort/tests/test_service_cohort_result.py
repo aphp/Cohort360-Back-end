@@ -1,14 +1,13 @@
 from unittest import mock
 
 from requests import Request as HttpRequest
-from django.test import TestCase
 
-from admin_cohort.tests.tests_tools import new_random_user
+from admin_cohort.tests.tests_tools import new_random_user, TestCaseWithDBs
 from cohort.models import Folder, Request, RequestQuerySnapshot, CohortResult, DatedMeasure, FhirFilter
 from cohort.services.cohort_result import CohortResultService
 
 
-class TestCohortResultService(TestCase):
+class TestCohortResultService(TestCaseWithDBs):
 
     def setUp(self):
         super().setUp()

@@ -5,15 +5,16 @@ from unittest.mock import MagicMock
 from django.utils import timezone
 
 from rest_framework import status
-from rest_framework.test import APITestCase, APIRequestFactory
+from rest_framework.test import APIRequestFactory
 from rest_framework_simplejwt.exceptions import InvalidToken
 from django.test import Client
 from django.conf import settings
 
 from accesses.models import Access, Perimeter, Role
 from admin_cohort.models import User
-from admin_cohort.tests.tests_tools import new_user_and_profile
-from admin_cohort.types import ServerError, OIDCAuthTokens, JWTAuthTokens
+from admin_cohort.tests.tests_tools import new_user_and_profile, TestCaseWithDBs
+from admin_cohort.types import OIDCAuthTokens, JWTAuthTokens
+from admin_cohort.exceptions import ServerError
 from admin_cohort.views import UserViewSet
 
 
@@ -24,90 +25,90 @@ def create_regular_user() -> User:
                                username="12345")
 
 
-if settings.ENABLE_JWT:
-    class JWTLoginTests(APITestCase):
-
-        def setUp(self):
-            self.headers = {settings.AUTHORIZATION_METHOD_HEADER: settings.JWT_AUTH_MODE}
-            self.login_url = '/auth/login/'
-            self.regular_user = create_regular_user()
-            self.unregistered_user_credentials = {"username": "spy-user",
-                                                  "password": "top-secret-007"}
-
-        def test_login_method_not_allowed(self):
-            response = self.client.patch(path=self.login_url)
-            self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
-
-        @mock.patch("admin_cohort.auth.auth_backends.jwt_auth_service.check_credentials")
-        def test_login_with_unregistered_user(self, mock_check_credentials: MagicMock):
-            mock_check_credentials.return_value = True
-            response = self.client.post(path=self.login_url,
-                                        data=self.unregistered_user_credentials,
-                                        headers=self.headers)
-            self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-        @mock.patch("admin_cohort.auth.auth_backends.jwt_auth_service.check_credentials")
-        def test_login_with_wrong_credentials(self, mock_check_credentials: MagicMock):
-            mock_check_credentials.return_value = False
-            response = self.client.post(path=self.login_url,
-                                        data={"username": self.regular_user.username,
-                                              "password": "wrong-psswd"},
-                                        headers=self.headers)
-            mock_check_credentials.assert_called()
-            self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-        @mock.patch("admin_cohort.auth.auth_backends.jwt_auth_service.check_credentials")
-        def test_login_unavailable_id_checker_server(self, mock_check_credentials: MagicMock):
-            mock_check_credentials.side_effect = ServerError("ID checker server unavailable")
-            response = self.client.post(path=self.login_url,
-                                        data={"username": self.regular_user.username,
-                                              "password": "psswd"},
-                                        headers=self.headers)
-            mock_check_credentials.assert_called()
-            self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-        @mock.patch("admin_cohort.auth.auth_backends.jwt_auth_service.check_credentials")
-        def test_login_success(self, mock_check_credentials: MagicMock):
-            mock_check_credentials.return_value = True
-            response = self.client.post(path=self.login_url,
-                                        data={"username": self.regular_user.username,
-                                              "password": "any-will-do"},
-                                        headers=self.headers)
-            mock_check_credentials.assert_called()
-            self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-
-class OIDCLoginTests(APITestCase):
+class JWTLoginTests(TestCaseWithDBs):
 
     def setUp(self):
-        self.headers = {settings.AUTHORIZATION_METHOD_HEADER: settings.OIDC_AUTH_MODE}
-        self.client = Client()
+        self.headers = {settings.AUTHORIZATION_METHOD_HEADER: settings.JWT_AUTH_MODE}
         self.login_url = '/auth/login/'
         self.regular_user = create_regular_user()
+        self.unregistered_user_credentials = {"username": "spy-user",
+                                              "password": "top-secret-007"}
 
-    def test_login_without_auth_code(self):
+    def test_login_method_not_allowed(self):
+        response = self.client.patch(path=self.login_url)
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    @mock.patch("admin_cohort.auth.auth_backends.jwt_auth_service.check_credentials")
+    def test_login_with_unregistered_user(self, mock_check_credentials: MagicMock):
+        mock_check_credentials.return_value = True
         response = self.client.post(path=self.login_url,
-                                    content_type="application/json",
-                                    data={"not_auth_code": "value"},
+                                    data=self.unregistered_user_credentials,
                                     headers=self.headers)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    @mock.patch("admin_cohort.auth.auth_backends.oidc_auth_service.retrieve_username")
-    @mock.patch("admin_cohort.auth.auth_backends.oidc_auth_service.get_tokens")
-    def test_login_success(self, mock_get_tokens: MagicMock, mock_retrieve_username: MagicMock):
-        mock_get_tokens.return_value = OIDCAuthTokens(access_token="aaa", refresh_token="rrr")
-        mock_retrieve_username.return_value = self.regular_user.username
+    @mock.patch("admin_cohort.auth.auth_backends.jwt_auth_service.check_credentials")
+    def test_login_with_wrong_credentials(self, mock_check_credentials: MagicMock):
+        mock_check_credentials.return_value = False
         response = self.client.post(path=self.login_url,
-                                    content_type="application/json",
-                                    data={"auth_code": "any-auth-code-will-do",
-                                          "redirect_uri": "some-redirect-url"},
+                                    data={"username": self.regular_user.username,
+                                          "password": "wrong-psswd"},
                                     headers=self.headers)
-        mock_get_tokens.assert_called()
-        mock_retrieve_username.assert_called()
+        mock_check_credentials.assert_called()
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    @mock.patch("admin_cohort.auth.auth_backends.jwt_auth_service.check_credentials")
+    def test_login_unavailable_id_checker_server(self, mock_check_credentials: MagicMock):
+        mock_check_credentials.side_effect = ServerError("ID checker server unavailable")
+        response = self.client.post(path=self.login_url,
+                                    data={"username": self.regular_user.username,
+                                          "password": "psswd"},
+                                    headers=self.headers)
+        mock_check_credentials.assert_called()
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    @mock.patch("admin_cohort.auth.auth_backends.jwt_auth_service.check_credentials")
+    def test_login_success(self, mock_check_credentials: MagicMock):
+        mock_check_credentials.return_value = True
+        response = self.client.post(path=self.login_url,
+                                    data={"username": self.regular_user.username,
+                                          "password": "any-will-do"},
+                                    headers=self.headers)
+        mock_check_credentials.assert_called()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
 
-class AuthClassTests(APITestCase):
+if settings.ENABLE_OIDC_AUTH:
+    class OIDCLoginTests(TestCaseWithDBs):
+
+        def setUp(self):
+            self.headers = {settings.AUTHORIZATION_METHOD_HEADER: settings.OIDC_AUTH_MODE}
+            self.client = Client()
+            self.login_url = '/auth/login/'
+            self.regular_user = create_regular_user()
+
+        def test_login_without_auth_code(self):
+            response = self.client.post(path=self.login_url,
+                                        content_type="application/json",
+                                        data={"not_auth_code": "value"},
+                                        headers=self.headers)
+            self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        @mock.patch("admin_cohort.auth.auth_backends.oidc_auth_service.retrieve_username")
+        @mock.patch("admin_cohort.auth.auth_backends.oidc_auth_service.get_tokens")
+        def test_login_success(self, mock_get_tokens: MagicMock, mock_retrieve_username: MagicMock):
+            mock_get_tokens.return_value = OIDCAuthTokens(access_token="aaa", refresh_token="rrr")
+            mock_retrieve_username.return_value = self.regular_user.username
+            response = self.client.post(path=self.login_url,
+                                        content_type="application/json",
+                                        data={"auth_code": "any-auth-code-will-do",
+                                              "redirect_uri": "some-redirect-url"},
+                                        headers=self.headers)
+            mock_get_tokens.assert_called()
+            mock_retrieve_username.assert_called()
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+
+class AuthClassTests(TestCaseWithDBs):
 
     def setUp(self):
         self.factory = APIRequestFactory()
@@ -147,7 +148,7 @@ class AuthClassTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
 
-class RefreshTokenTests(APITestCase):
+class RefreshTokenTests(TestCaseWithDBs):
 
     def setUp(self):
         self.client = Client()
@@ -201,7 +202,7 @@ class RefreshTokenTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class LogoutTests(APITestCase):
+class LogoutTests(TestCaseWithDBs):
 
     def setUp(self):
         self.logout_url = '/auth/logout/'

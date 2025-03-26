@@ -133,7 +133,31 @@ class UserTestsAsAdmin(UserTests):
         self._check_users(response, users_to_find)
 
     @mock.patch('admin_cohort.services.users.requests')
-    def test_create_user(self, mock_requests: MagicMock):
+    def test_create_user_with_password(self, mock_requests: MagicMock):
+        mock_response = MagicMock()
+        mock_response.status_code = status.HTTP_200_OK
+        mock_response.json.return_value = {'data': {'attributes': {'givenName': 'New',
+                                                                   'sn': 'USER',
+                                                                   'cn': '999999',
+                                                                   'mail': 'new.user@aphp.fr'}}}
+        mock_requests.post.return_value = mock_response
+        data = dict(username="999999",
+                    firstname="New",
+                    lastname="USER",
+                    email="new.user@aphp.fr",
+                    password="password")
+        request = self.factory.post(USERS_URL, data, format='json')
+        force_authenticate(request, self.admin_user)
+        response = UserViewSet.as_view({'post': 'create'})(request)
+        response.render()
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertNotIn("password", response.data)
+        user = User.objects.get(pk=data["username"])
+        self.assertTrue(user.password is not None)
+        self.assertNotEqual(user.password, data["password"])    # password is hashed
+
+    @mock.patch('admin_cohort.services.users.requests')
+    def test_create_user_without_password(self, mock_requests: MagicMock):
         mock_response = MagicMock()
         mock_response.status_code = status.HTTP_200_OK
         mock_response.json.return_value = {'data': {'attributes': {'givenName': 'New',
@@ -141,12 +165,17 @@ class UserTestsAsAdmin(UserTests):
                                                                    'cn': '999999',
                                                                    'mail': 'new.user@aphp.fr'}}}
         mock_requests.post.return_value =mock_response
-        data = dict(username="999999", firstname="New", lastname="USER", email="new.user@aphp.fr")
+        data = dict(username="999999",
+                    firstname="New",
+                    lastname="USER",
+                    email="new.user@aphp.fr")
         request = self.factory.post(USERS_URL, data, format='json')
         force_authenticate(request, self.admin_user)
         response = UserViewSet.as_view({'post': 'create'})(request)
         response.render()
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        user = User.objects.get(pk=data["username"])
+        self.assertTrue(user.password is None)
 
     def test_update_user_success(self):
         patch_data = dict(email="updated.email.address@aphp.fr")

@@ -1,11 +1,10 @@
 from unittest import mock
 
-from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
 
 from accesses.models import Perimeter
-from admin_cohort.tests.tests_tools import PatchCase, FileDownloadCase
+from admin_cohort.tests.tests_tools import PatchCase, FileDownloadCase, TestCaseWithDBs
 from admin_cohort.types import JobStatus
 from cohort.models import RequestQuerySnapshot, Request, Folder, FeasibilityStudy
 from cohort.services.feasibility_study import feasibility_study_service
@@ -102,7 +101,7 @@ class FeasibilityStudyViewTests(CohortAppTests):
         self.check_file_download_case(case=error_case, download_view=self.__class__.download_view)
 
 
-class TestFeasibilityStudiesService(TestCase):
+class TestFeasibilityStudiesService(TestCaseWithDBs):
 
     def setUp(self):
         super().setUp()
