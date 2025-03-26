@@ -1,7 +1,8 @@
-from unittest import TestCase, mock
+from unittest import mock
 
 from django.core.exceptions import ImproperlyConfigured
 
+from admin_cohort.tests.tests_tools import TestCaseWithDBs
 from exporters.exporters.csv_exporter import CSVExporter
 from exporters.exporters.hive_exporter import HiveExporter
 from exporters.exporters.xlsx_exporter import XLSXExporter
@@ -14,7 +15,7 @@ from exports.tests.test_view_export_request import ExportsTests
 ExportTypes = ExportsConfig.ExportTypes
 
 
-class TestExportersLoader(TestCase):
+class TestExportersLoader(TestCaseWithDBs):
 
     def setUp(self):
         super().setUp()

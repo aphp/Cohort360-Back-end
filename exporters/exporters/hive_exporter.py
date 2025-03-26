@@ -1,5 +1,4 @@
 import logging
-import os
 from typing import List
 
 from requests import RequestException
@@ -19,9 +18,8 @@ class HiveExporter(BaseExporter):
     def __init__(self):
         super().__init__()
         self.type = ExportTypes.HIVE.value
-        self.file_extension = ".db"
-        self.target_location = os.environ.get('HIVE_DB_FOLDER')
-        self.user = os.environ.get('HIVE_EXPORTER_USER')
+        self.target_location = self.hadoop_api.hive_db_path
+        self.user = self.hadoop_api.hive_user
 
     def validate(self, export_data: dict, **kwargs) -> None:
         self.validate_tables_data(tables_data=export_data.get("export_tables", []))
@@ -74,14 +72,15 @@ class HiveExporter(BaseExporter):
         self.create_db(export=export)
         self.change_db_ownership(export=export, db_user=self.user)
 
-    def get_db_location(self, export: Export) -> str:
-        return f"{export.target_full_path}{self.file_extension}"
+    @staticmethod
+    def get_db_location(export: Export) -> str:
+        return f"{export.target_full_path}.db"
 
     def create_db(self, export: Export) -> None:
         db_location = self.get_db_location(export=export)
         self.log_export_task(export.pk, f"Creating DB '{export.target_name}', location: {db_location}")
         try:
-            job_id = self.infra_api.create_db(name=export.target_name,
+            job_id = self.hadoop_api.create_db(name=export.target_name,
                                               location=db_location)
             self.log_export_task(export.pk, f"Received Hive DB creation job_id: {job_id}")
             self.wait_for_job(export=export, job_id=job_id, job_type=APIJobType.HIVE_DB_CREATE)
@@ -92,7 +91,7 @@ class HiveExporter(BaseExporter):
 
     def change_db_ownership(self, export: Export, db_user: str) -> None:
         try:
-            self.infra_api.change_db_ownership(location=self.get_db_location(export=export),
+            self.hadoop_api.change_db_ownership(location=self.get_db_location(export=export),
                                                 db_user=db_user)
             self.log_export_task(export.pk, f"`{db_user}` granted rights on DB `{export.target_name}`")
         except RequestException as e:

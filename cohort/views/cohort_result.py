@@ -72,7 +72,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                                              measure_min=F('dated_measure_global__measure_min'),
                                              measure_max=F('dated_measure_global__measure_max'),
                                              exportable=Case(When(result_size__isnull=False,
-                                                                  result_size__lte=settings.COHORT_LIMIT,
+                                                                  result_size__lte=settings.COHORT_SIZE_LIMIT,
                                                                   then=Value(True)),
                                                                default=Value(False),
                                                                output_field=BooleanField()

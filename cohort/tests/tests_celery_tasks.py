@@ -2,10 +2,9 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 from django.conf import settings
-from django.test import TestCase
 
 from accesses.models import Perimeter
-from admin_cohort.tests.tests_tools import new_random_user
+from admin_cohort.tests.tests_tools import new_random_user, TestCaseWithDBs
 from admin_cohort.types import JobStatus
 from cohort.models import DatedMeasure, CohortResult, Request, RequestQuerySnapshot, FeasibilityStudy, Folder
 from cohort.models.dated_measure import GLOBAL_DM_MODE
@@ -16,7 +15,7 @@ from cohort.tasks import count_cohort, create_cohort, cancel_previous_count_jobs
     send_email_feasibility_report_ready, send_email_feasibility_report_error
 
 
-class TasksTests(TestCase):
+class TasksTests(TestCaseWithDBs):
     def setUp(self):
         super(TasksTests, self).setUp()
         self.test_job_id = "job_id"

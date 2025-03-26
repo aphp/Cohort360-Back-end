@@ -9,11 +9,13 @@ from exporters.apis.base import BaseAPI
 _logger = logging.getLogger('django.request')
 
 
-class InfraAPI(BaseAPI):
-    conf_key = "INFRA_API"
+class HadoopAPI(BaseAPI):
+    conf_key = "HADOOP_API"
 
     def __init__(self):
         super().__init__()
+        self.hive_db_path = self.api_conf.get('HIVE_DB_PATH')
+        self.hive_user = self.api_conf.get('HIVE_USER')
         self.create_db_endpoint = self.api_conf.get('CREATE_DB_ENDPOINT')
         self.alter_db_endpoint = self.api_conf.get('ALTER_DB_ENDPOINT')
 

@@ -89,7 +89,7 @@ def notify_admins(export: Export, base_notification_data: dict) -> None:
                          "export_date": export.created_at.isoformat(),
                          "job_id": export.request_job_id,
                          "job_duration": export.request_job_duration,
-                         "host": settings.BACK_URL,
+                         "host": settings.BACKEND_URL,
                          }
     try:
         push_email_notification(base_notification=export_failed_notif_for_admins, **notification_data)

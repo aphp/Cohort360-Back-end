@@ -2,12 +2,11 @@ from smtplib import SMTPException
 from unittest import mock
 from unittest.mock import MagicMock
 
-from django.test.testcases import TestCase
-
 from admin_cohort.emails import EmailNotification
+from admin_cohort.tests.tests_tools import TestCaseWithDBs
 
 
-class EmailNotificationTest(TestCase):
+class EmailNotificationTest(TestCaseWithDBs):
 
     def setUp(self) -> None:
         super().setUp()

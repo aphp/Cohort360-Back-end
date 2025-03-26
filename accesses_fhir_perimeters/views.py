@@ -34,7 +34,7 @@ class FhirPerimeterResult(GenericViewSet):
     queryset = Perimeter.objects.all()
     serializer_class = FhirPerimeterResultSerializer
 
-    @extend_schema(summary="Used by sjs to update cohort status",
+    @extend_schema(summary="Used by QueryExecutor to update cohort status",
                    responses={status.HTTP_200_OK: OpenApiTypes.STR,
                               status.HTTP_400_BAD_REQUEST: OpenApiTypes.STR})
     def partial_update(self, request, *args, **kwargs):

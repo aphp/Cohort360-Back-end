@@ -1,21 +1,20 @@
 from datetime import timedelta
 
-from django.test import TestCase
 from django.utils import timezone
 
 from accesses.models import Access, Perimeter, Role
-from admin_cohort.tests.tests_tools import new_user_and_profile
+from admin_cohort.tests.tests_tools import new_user_and_profile, TestCaseWithDBs
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult, Folder, Request, RequestQuerySnapshot
 from exporters.enums import ExportTypes
 from exports.models import Export, Datalab, InfrastructureProvider, ExportTable
 
 
-class ExportersTestBase(TestCase):
+class ExportersTestBase(TestCaseWithDBs):
 
     def setUp(self):
         self.csv_exporter_user, self.csv_exporter_profile = new_user_and_profile()
-        self.hive_exporter_user, self.hive_exporter_profile = new_user_and_profile()
+        self.hive_user, self.hive_profile = new_user_and_profile()
         self.second_csv_exporter_user, self.second_csv_exporter_profile = new_user_and_profile()
         self.perimeter_aphp = Perimeter.objects.create(name="APHP", local_id="1", cohort_id="1")
         self.csv_exporter_role = Role.objects.create(name="CSV EXPORTER", right_export_csv_nominative=True)

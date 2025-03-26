@@ -7,6 +7,7 @@ from typing import Tuple, List, Any
 
 from django.conf import settings
 from django.db.models import Manager, Field, Model
+from django.db.utils import DEFAULT_DB_ALIAS
 from django.test import TestCase
 from rest_framework.response import Response
 from rest_framework.test import APIRequestFactory, force_authenticate
@@ -14,7 +15,7 @@ from rest_framework.test import APIRequestFactory, force_authenticate
 from accesses.models import Role, Profile, Perimeter
 from admin_cohort.models import BaseModel, User
 from admin_cohort.tools import prettify_dict, prettify_json
-from admin_cohort.types import MissingDataError
+from admin_cohort.exceptions import MissingDataError
 from cohort.models import CohortBaseModel
 
 
@@ -226,8 +227,11 @@ class FileDownloadCase(RequestCase):
         return self.__class__(**{**self.__dict__, **kwargs})
 
 
-class BaseTests(TestCase):
-    databases = ["default"]
+class TestCaseWithDBs(TestCase):
+    databases = {DEFAULT_DB_ALIAS}
+
+
+class BaseTests(TestCaseWithDBs):
     unupdatable_fields = []
     unsettable_fields = []
     unsettable_default_fields = {}
