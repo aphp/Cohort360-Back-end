@@ -11,13 +11,16 @@ from accesses.models import Perimeter, Profile, Role
 from admin_cohort.tools.cache import invalidate_cache
 from admin_cohort.models import BaseModel, User
 
+MANUAL = settings.ACCESS_SOURCES[0]
+
 
 class Access(BaseModel):
     id = models.BigAutoField(primary_key=True)
     perimeter = models.ForeignKey(Perimeter, on_delete=SET_NULL, related_name='accesses', null=True)
     profile = models.ForeignKey(Profile, on_delete=CASCADE, related_name='accesses', null=True)
     role = models.ForeignKey(Role, on_delete=CASCADE, related_name='accesses', null=True)
-    source = models.TextField(blank=True, null=True, default=settings.MANUAL_SOURCE)
+    source = models.TextField(blank=True, null=True, default=MANUAL)
+    external_id = models.CharField(blank=True, null=True)   # for accesses retrieved from external sources, ex: ORBIS
     start_datetime = models.DateTimeField(blank=True, null=True)
     end_datetime = models.DateTimeField(blank=True, null=True)
     created_by = models.ForeignKey(User, on_delete=SET_NULL, related_name='created_accesses', null=True, db_column="created_by")

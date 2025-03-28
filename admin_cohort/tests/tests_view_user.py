@@ -14,6 +14,8 @@ from admin_cohort.views import UserViewSet
 
 USERS_URL = "/users"
 
+MANUAL_SOURCE = settings.ACCESS_SOURCES[0]
+
 
 class ObjectView(object):
     def __init__(self, d):
@@ -59,10 +61,10 @@ class UserTests(BaseTests):
         self.user2 = User.objects.create(username="2222222", firstname="User 02", lastname="USER02", email="user02@aphp.fr")
         self.user3 = User.objects.create(username="3333333", firstname="User 03", lastname="USER03", email="user03@aphp.fr")
 
-        self.admin_profile = Profile.objects.create(source=settings.MANUAL_SOURCE, user=self.admin_user, is_active=True)
-        self.profile1 = Profile.objects.create(source=settings.MANUAL_SOURCE, user=self.user1, is_active=True)
-        self.profile2 = Profile.objects.create(source=settings.MANUAL_SOURCE, user=self.user2, is_active=True)
-        self.profile3 = Profile.objects.create(source=settings.MANUAL_SOURCE, user=self.user3, is_active=False)
+        self.admin_profile = Profile.objects.create(source=MANUAL_SOURCE, user=self.admin_user, is_active=True)
+        self.profile1 = Profile.objects.create(source=MANUAL_SOURCE, user=self.user1, is_active=True)
+        self.profile2 = Profile.objects.create(source=MANUAL_SOURCE, user=self.user2, is_active=True)
+        self.profile3 = Profile.objects.create(source=MANUAL_SOURCE, user=self.user3, is_active=False)
 
         self.admin_access = Access.objects.create(perimeter_id=self.aphp.id,
                                                   role=self.role_full_admin,
@@ -87,9 +89,6 @@ class UserTests(BaseTests):
 
 
 class UserTestsAsAdmin(UserTests):
-    unupdatable_fields = ["provider_name", "last_login_datetime", "source"]
-    unsettable_default_fields = dict(last_login_datetime=None, source=None)
-    unsettable_fields = []
 
     def test_get_user_as_main_admin(self):
         # As a main admin, I can get a user's full data
@@ -132,8 +131,10 @@ class UserTestsAsAdmin(UserTests):
         users_to_find = [self.user1, self.user2, self.admin_user, self.user3]
         self._check_users(response, users_to_find)
 
+    @mock.patch('admin_cohort.services.users.AccessesSynchronizer')
     @mock.patch('admin_cohort.services.users.requests')
-    def test_create_user(self, mock_requests: MagicMock):
+    def test_create_user(self, mock_requests: MagicMock, mock_accesses_syncer: MagicMock):
+        mock_accesses_syncer().sync_accesses.return_value = None
         mock_response = MagicMock()
         mock_response.status_code = status.HTTP_200_OK
         mock_response.json.return_value = {'data': {'attributes': {'givenName': 'New',

@@ -86,7 +86,7 @@ def new_user_and_profile() -> Tuple[User, Profile]:
     u = new_random_user()
 
     p: Profile = Profile.objects.create(
-        source=settings.MANUAL_SOURCE,
+        source=settings.ACCESS_SOURCES[0],  # Manual
         user=u,
         is_active=True,
     )
