@@ -106,23 +106,25 @@ class BaseExporter:
         return self.export_api.launch_export(export_id=export.uuid, params=params)
 
     def wait_for_export_job(self, export: Export) -> None:
-        job_status = self.wait_for_job(job_id=export.request_job_id, job_type=APIJobType.EXPORT)
+        job_status = self.wait_for_job(export=export, job_id=export.request_job_id, job_type=APIJobType.EXPORT)
         export.request_job_status = job_status.value
         export.save()
 
-    def wait_for_job(self, job_id: str, job_type: APIJobType) -> JobStatus:
+    def wait_for_job(self, export: Export, job_id: str, job_type: APIJobType) -> JobStatus:
         errors_count = 0
         job_status = JobStatus.pending
 
         while errors_count < 5 and not job_status.is_end_state:
-            time.sleep(5)
-            self.log_export_task("", f"Asking for status of job {job_id}.")
+            time.sleep(10)
+            self.log_export_task(export.uuid, f"Asking for status of job `{job_id}`")
             target_api = (job_type == APIJobType.EXPORT and self.export_api
                           or job_type == APIJobType.HIVE_DB_CREATE and self.infra_api
                           or None)
             try:
                 job_status = target_api.get_job_status(job_id=job_id)
-                self.log_export_task("", f"Received status: {job_status}")
+                self.log_export_task(export.uuid, f"Job `{job_id}` is {job_status}")
+                export.request_job_status = job_status.value
+                export.save()
             except AttributeError as e:
                 logging.error(f"No configured API found matching the job type `{job_type}`")
                 raise e
@@ -150,4 +152,4 @@ class BaseExporter:
 
     @staticmethod
     def log_export_task(export_id, msg):
-        _celery_logger.info(f"[ExportTask][Export {export_id}] {msg}")
+        _celery_logger.info(f"[Export {export_id}] {msg}")
