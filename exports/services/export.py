@@ -43,7 +43,9 @@ class ExportService:
             raise ValidationError(f'Invalid export data: {e}')
 
     def proceed_with_export(self, export: Export, tables: List[dict], **kwargs) -> None:
+        _logger.info(f"Export[{export.uuid}]: Creating tables {tables}")
         requires_cohort_subsets = self.create_tables(export, tables, **kwargs)
+        _logger.info(f"Export[{export.uuid}]: tables created. Required cohort subsets ? {requires_cohort_subsets}")
         if not requires_cohort_subsets:
             launch_export_task.delay(export.pk)
 
@@ -79,15 +81,16 @@ class ExportService:
             else:
                 cohort_subset = None
 
-            ExportTable.objects.create(export=export,
-                                       name=table_name,
-                                       fhir_filter_id=fhir_filter_id,
-                                       cohort_result_source=cohort_source,
-                                       cohort_result_subset=cohort_subset,
-                                       columns=table.get("columns"),
-                                       pivot=bool(table.get("pivot")),
-                                       pivot_split=bool(table.get("pivot_split")),
-                                       pivot_merge=bool(table.get("pivot_merge")))
+            t = ExportTable.objects.create(export=export,
+                                           name=table_name,
+                                           fhir_filter_id=fhir_filter_id,
+                                           cohort_result_source=cohort_source,
+                                           cohort_result_subset=cohort_subset,
+                                           columns=table.get("columns"),
+                                           pivot=bool(table.get("pivot")),
+                                           pivot_split=bool(table.get("pivot_split")),
+                                           pivot_merge=bool(table.get("pivot_merge")))
+            _logger.info(f"Export[{export.uuid}]: table `{t.name}` created")
         return requires_cohort_subsets
 
     @staticmethod

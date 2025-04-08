@@ -83,8 +83,8 @@ class HiveExporter(BaseExporter):
         try:
             job_id = self.infra_api.create_db(name=export.target_name,
                                               location=db_location)
-            self.log_export_task(export.pk, f"Received Hive DB creation task_id: {job_id}")
-            self.wait_for_job(job_id=job_id, job_type=APIJobType.HIVE_DB_CREATE)
+            self.log_export_task(export.pk, f"Received Hive DB creation job_id: {job_id}")
+            self.wait_for_job(export=export, job_id=job_id, job_type=APIJobType.HIVE_DB_CREATE)
         except RequestException as e:
             _logger.error(f"Error on call to create Hive DB: {e}")
             raise e
@@ -102,6 +102,6 @@ class HiveExporter(BaseExporter):
         db_user = export.datalab.name
         try:
             self.change_db_ownership(export=export, db_user=db_user)
-            self.log_export_task(export.pk, f"DB '{export.target_name}' attributed to {db_user}. Conclusion finished.")
+            self.log_export_task(export.pk, f"Export concluded: DB '{export.target_name}' attributed to {db_user}.")
         except RequestException as e:
             self.mark_export_as_failed(export=export, reason=f"Could not conclude export: {e}")

@@ -70,7 +70,7 @@ def notify_export_succeeded(export_id: str) -> None:
 @shared_task
 def notify_export_failed(export_id: str, reason: str) -> None:
     export = get_export_by_id(export_id)
-    _logger.error(f"[ExportTask] [Export {export.pk}] {reason}")
+    _logger.error(f"[Export {export.pk}] {reason}")
     cohort = get_cohort(export=export)
     notification_data = dict(recipient_name=export.owner.display_name,
                              recipient_email=export.owner.email,
