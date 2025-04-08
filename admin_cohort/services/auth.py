@@ -2,6 +2,7 @@ import json
 import logging
 from abc import ABC
 from dataclasses import dataclass
+from datetime import timedelta
 from functools import lru_cache
 from typing import Tuple, Optional, Callable, Dict, List
 
@@ -11,6 +12,7 @@ import requests
 from django.apps import apps
 from django.conf import settings
 from django.contrib.auth import authenticate
+from django.utils import timezone
 from django.utils.module_loading import import_string
 from jwt import InvalidTokenError
 from jwt.algorithms import RSAAlgorithm
@@ -20,7 +22,7 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer, TokenObtainPairSerializer
 from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 
-
+from accesses.models import Profile, Role, Perimeter, Access
 from admin_cohort.models import User
 from admin_cohort.types import ServerError, OIDCAuthTokens, JWTAuthTokens, AuthTokens
 
@@ -259,6 +261,38 @@ class JWTAuth(Auth):
             return response.status_code == status.HTTP_200_OK
         except Exception as e:
             raise ServerError(f"Error checking credentials for user `{username}`: {e}")
+
+    @staticmethod
+    def generate_system_token() -> str:
+        """
+        Generate a system JWT token for internal API calls.
+        @returns: str: The generated access token
+        """
+        system_user, created = User.objects.get_or_create(username="system",
+                                                          defaults={"username": "system",
+                                                                    "firstname": "System",
+                                                                    "lastname": "SYSTEM",
+                                                                    "email": "system.dj@aphp.fr"
+                                                                    })
+        if created:
+            p = Profile.objects.create(user_id=system_user.username, is_active=True)
+            root_perimeter = Perimeter.objects.get(pk=settings.ROOT_PERIMETER_ID)
+            admin_role = Role.objects.filter(right_full_admin=True).first()
+            now = timezone.now()
+            Access.objects.create(profile=p,
+                                  perimeter=root_perimeter,
+                                  role=admin_role,
+                                  start_datetime=now,
+                                  end_datetime=now + timedelta(weeks=52 * 100)  # grant access forever
+                                  )
+            _logger.info(f"System user created and granted `{admin_role.name}` role on perimeter `{root_perimeter.name}`")
+        try:
+            serializer = TokenObtainPairSerializer()
+            token = serializer.get_token(system_user)
+            return str(token.access_token)
+        except Exception as e:
+            _logger_err.error(f"Failed to generate system token: {e}")
+            raise ServerError(f"Error generating system token: {e}")
 
 
 class AuthService:
