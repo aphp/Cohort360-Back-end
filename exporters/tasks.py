@@ -5,7 +5,7 @@ from celery import shared_task
 
 from exports.models import Export
 from exports.emails import push_email_notification
-from exporters.notifications import export_failed, \
+from exporters.notifications import export_failed_for_owner, export_failed_for_admins, \
     EXPORT_RECEIVED_NOTIFICATIONS, EXPORT_SUCCEEDED_NOTIFICATIONS
 
 _logger = logging.getLogger('django.request')
@@ -37,6 +37,7 @@ def notify_export_received(export_id: str) -> None:
         cohort = get_cohort(export=export)
         notification_data = dict(recipient_name=export.owner.display_name,
                                  recipient_email=export.owner.email,
+                                 retried=export.retried,
                                  cohort_id=cohort and cohort.group_id or None,
                                  cohort_name=cohort and cohort.name or None,
                                  selected_tables=get_selected_tables(export=export))
@@ -67,20 +68,41 @@ def notify_export_succeeded(export_id: str) -> None:
         export.save()
 
 
-@shared_task
-def notify_export_failed(export_id: str, reason: str) -> None:
-    export = get_export_by_id(export_id)
-    _logger.error(f"[Export {export.pk}] {reason}")
-    cohort = get_cohort(export=export)
-    notification_data = dict(recipient_name=export.owner.display_name,
-                             recipient_email=export.owner.email,
-                             cohort_id=cohort and cohort.group_id or None,
-                             cohort_name=cohort and cohort.name or None,
-                             error_message=reason)
+def notify_export_owner(export: Export, base_notification_data: dict) -> None:
+    notification_data = {**base_notification_data,
+                         "recipient_name": export.owner.display_name,
+                         "recipient_email": export.owner.email
+                         }
     try:
-        push_email_notification(base_notification=export_failed, **notification_data)
+        push_email_notification(base_notification=export_failed_for_owner, **notification_data)
     except OSError:
         _logger.error(f"[Export {export.pk}] Error sending export failure notification")
     else:
         export.is_user_notified = True
         export.save()
+
+
+def notify_admins(export: Export, base_notification_data: dict) -> None:
+    notification_data = {**base_notification_data,
+                         "export_id": export.pk,
+                         "export_date": export.created_at.isoformat(),
+                         "job_id": export.request_job_id,
+                         "job_duration": export.request_job_duration,
+                         }
+    try:
+        push_email_notification(base_notification=export_failed_for_admins, **notification_data)
+    except OSError:
+        _logger.error(f"[Export {export.pk}] Error sending export failure notification to admins")
+
+
+@shared_task
+def notify_export_failed(export_id: str, reason: str) -> None:
+    export = get_export_by_id(export_id)
+    _logger.error(f"[Export {export.pk}] {reason}")
+    cohort = get_cohort(export=export)
+    base_notification_data = dict(cohort_id=cohort and cohort.group_id or None,
+                                  cohort_name=cohort and cohort.name or None,
+                                  error_message=reason
+                                  )
+    notify_export_owner(export, base_notification_data)
+    notify_admins(export, base_notification_data)

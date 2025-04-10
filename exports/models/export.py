@@ -27,6 +27,7 @@ class Export(ExportsBaseModel, JobModel):
     group_tables = models.BooleanField(null=False, default=False)
     motivation = models.TextField(null=True, blank=True)
     clean_datetime = models.DateTimeField(null=True)
+    retried = models.BooleanField(null=False, default=False)
 
     class Meta:
         db_table = 'export'

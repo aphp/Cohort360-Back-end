@@ -116,6 +116,7 @@ class ExportService:
     @staticmethod
     def retry(export: Export):
         export.request_job_status = JobStatus.new
+        export.retried = True
         export.request_job_fail_msg = None
         export.request_job_duration = None
         export.save()
