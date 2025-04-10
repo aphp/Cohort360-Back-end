@@ -66,7 +66,7 @@ class BaseExporter:
             self.wait_for_export_job(export)
         except RequestException as e:
             self.mark_export_as_failed(export=export, reason=f"Export terminated with an error: {e}")
-            raise e
+            return
         export.request_job_duration = timezone.now() - start_time
         export.save()
         self.log_export_task(export.pk, "Export job finished")

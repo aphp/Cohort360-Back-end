@@ -2,7 +2,9 @@ from typing import Callable
 from unittest import mock
 from unittest.mock import MagicMock
 
-from exporters.notifications import csv_export_received, csv_export_succeeded, hive_export_received, hive_export_succeeded, export_failed
+from exporters.notifications import (csv_export_received, csv_export_succeeded, hive_export_received, hive_export_succeeded,
+                                     export_failed_for_owner, export_failed_for_admins)
+
 from exporters.tasks import notify_export_received, notify_export_succeeded, notify_export_failed
 from exporters.tests.base_test import ExportersTestBase
 
@@ -40,7 +42,11 @@ class TestNotifyingTasks(ExportersTestBase):
                                                        dict(export_id=self.hive_export.pk),
                                                        hive_export_succeeded)
 
-    def test_notify_export_failed(self):
-        self.check_appropriate_notification_was_called(notify_export_failed,
-                                                       dict(export_id=self.hive_export.pk, reason=""),
-                                                       export_failed)
+    @mock.patch("exporters.tasks.push_email_notification")
+    def test_notify_export_failed(self, mock_push_notif: MagicMock):
+        mock_push_notif.return_value = None
+        notify_export_failed(**dict(export_id=self.hive_export.pk, reason=""))
+        mock_push_notif.assert_called()
+        self.assertEqual(mock_push_notif.call_count, 2)
+        self.assertIn(mock_push_notif.call_args.kwargs["base_notification"],
+                      [export_failed_for_owner, export_failed_for_admins])
