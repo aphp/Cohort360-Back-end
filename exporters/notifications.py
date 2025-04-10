@@ -42,7 +42,7 @@ def export_succeeded(export_type: str, **kwargs):
                 context=context)
 
 
-def export_failed(**kwargs):
+def export_failed_for_owner(**kwargs):
     subject = f"[Cohorte {kwargs.get('cohort_id')}] Votre demande d'export `{kwargs.get('cohort_name', '')}` n'a pas abouti"
     context = {**BASE_CONTEXT,
                "recipient_name": kwargs.get('recipient_name'),
@@ -53,6 +53,18 @@ def export_failed(**kwargs):
                 to=[kwargs.get('recipient_email')],
                 html_template="export_failed.html",
                 txt_template="export_failed.txt",
+                context=context)
+
+
+def export_failed_for_admins(**kwargs):
+    context = {**BASE_CONTEXT,
+               **kwargs,
+               "recipient_name": "Admin"
+               }
+    return dict(subject="Demande d'export échouée",
+                to=[a[1] for a in settings.ADMINS],
+                html_template="export_failed_admins.html",
+                txt_template="export_failed_admins.txt",
                 context=context)
 
 
