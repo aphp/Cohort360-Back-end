@@ -88,6 +88,7 @@ class ExportViewSetTest(ExportsTestBase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.failed_export.refresh_from_db()
         self.assertEqual(self.failed_export.request_job_status, JobStatus.new)
+        self.assertTrue(self.failed_export.retried)
 
     @mock.patch("exports.services.export.launch_export_task.delay")
     @mock.patch.object(ExportViewSet, "get_object")
@@ -101,3 +102,4 @@ class ExportViewSetTest(ExportsTestBase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.failed_export.refresh_from_db()
         self.assertEqual(self.failed_export.request_job_status, JobStatus.failed)
+        self.assertFalse(self.failed_export.retried)

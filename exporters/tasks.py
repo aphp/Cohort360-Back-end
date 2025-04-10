@@ -37,6 +37,7 @@ def notify_export_received(export_id: str) -> None:
         cohort = get_cohort(export=export)
         notification_data = dict(recipient_name=export.owner.display_name,
                                  recipient_email=export.owner.email,
+                                 retried=export.retried,
                                  cohort_id=cohort and cohort.group_id or None,
                                  cohort_name=cohort and cohort.name or None,
                                  selected_tables=get_selected_tables(export=export))
@@ -68,12 +69,12 @@ def notify_export_succeeded(export_id: str) -> None:
 
 
 def notify_export_owner(export: Export, base_notification_data: dict) -> None:
-    owner_notification_data = {**base_notification_data,
-                               "recipient_name": export.owner.display_name,
-                               "recipient_email": export.owner.email
-                               }
+    notification_data = {**base_notification_data,
+                         "recipient_name": export.owner.display_name,
+                         "recipient_email": export.owner.email
+                         }
     try:
-        push_email_notification(base_notification=export_failed_for_owner, **owner_notification_data)
+        push_email_notification(base_notification=export_failed_for_owner, **notification_data)
     except OSError:
         _logger.error(f"[Export {export.pk}] Error sending export failure notification")
     else:
