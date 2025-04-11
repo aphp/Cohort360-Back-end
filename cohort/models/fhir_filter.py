@@ -13,8 +13,8 @@ class FhirFilter(CohortBaseModel):
     name = models.CharField(max_length=50, validators=[MinLengthValidator(2)])
     filter = models.TextField()
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='fhir_filters')
+    identifying = models.BooleanField(default=False)
     auto_generated = models.BooleanField(default=False)
-    # is_pseudo = models.BooleanField(default=False)
 
     class Meta:
         constraints = [UniqueConstraint(name='unique_name_fhir_resource_owner',
