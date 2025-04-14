@@ -8,7 +8,7 @@ from cohort.models import CohortResult, FhirFilter, DatedMeasure, RequestQuerySn
 from cohort.serializers import WSJobStatus, JobName
 from cohort.services.base_service import CommonService
 from cohort.services.dated_measure import dm_service
-from cohort.services.utils import get_authorization_header, ServerError
+from cohort.services.utils import ServerError
 from admin_cohort.services.ws_event_manager import WebsocketManager, WebSocketMessageType
 from cohort.tasks import create_cohort
 
@@ -36,7 +36,12 @@ class CohortResultService(CommonService):
                  }
         return json.dumps(query)
 
-    def create_cohort_subset(self, request, owner_id: str, table_name: str, source_cohort: CohortResult, fhir_filter_id: str) -> CohortResult:
+    def create_cohort_subset(self,
+                             auth_headers: dict,
+                             owner_id: str,
+                             table_name: str,
+                             source_cohort: CohortResult,
+                             fhir_filter_id: str) -> CohortResult:
         def copy_query_snapshot(snapshot: RequestQuerySnapshot) -> RequestQuerySnapshot:
             return RequestQuerySnapshot.objects.create(owner=snapshot.owner,
                                                        request=snapshot.request,
@@ -62,7 +67,7 @@ class CohortResultService(CommonService):
                                                     dated_measure=new_dm,
                                                     request_query_snapshot=new_rqs)
         with transaction.atomic():
-            self.handle_cohort_creation(cohort_subset, request, False)
+            self.handle_cohort_creation(cohort_subset, auth_headers)
         return cohort_subset
 
     @staticmethod
@@ -74,9 +79,9 @@ class CohortResultService(CommonService):
         return CohortResult.objects.filter(request_job_status__in=active_statuses) \
             .count()
 
-    def handle_cohort_creation(self, cohort: CohortResult, request, global_estimate: bool) -> None:
+    def handle_cohort_creation(self, cohort: CohortResult, auth_headers: dict, global_estimate: bool=False) -> None:
         if global_estimate:
-            dm_service.handle_global_count(cohort, request)
+            dm_service.handle_global_count(cohort, auth_headers)
         try:
             if cohort.parent_cohort and cohort.sampling_ratio:
                 json_query = self.build_query(cohort_source_id=cohort.parent_cohort.group_id)
@@ -91,7 +96,7 @@ class CohortResultService(CommonService):
 
             create_cohort.s(cohort_id=cohort.pk,
                             json_query=json_query,
-                            auth_headers=get_authorization_header(request),
+                            auth_headers=auth_headers,
                             cohort_creator_cls=self.operator_cls,
                             sampling_ratio=cohort.sampling_ratio) \
                          .apply_async()

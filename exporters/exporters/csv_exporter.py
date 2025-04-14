@@ -3,7 +3,6 @@ from typing import List
 
 from admin_cohort.models import User
 from cohort.models import CohortResult
-from exports.models import Export
 from exporters.exporters.base_exporter import BaseExporter
 from exporters.enums import ExportTypes
 
@@ -12,7 +11,7 @@ class CSVExporter(BaseExporter):
 
     def __init__(self):
         super().__init__()
-        self.type = ExportTypes.CSV.value
+        self.type = ExportTypes.CSV
         self.target_location = self.export_api.export_csv_path
 
     @staticmethod
@@ -38,29 +37,3 @@ class CSVExporter(BaseExporter):
     def complete_data(self, export_data: dict, owner: User, **kwargs) -> None:
         kwargs["target_name"] = owner.pk
         super().complete_data(export_data=export_data, owner=owner, **kwargs)
-
-    def handle_export(self, export: Export, params: dict = None) -> None:
-        self.confirm_export_received(export=export)
-        params = params or {"joinOnPrimaryKey": export.group_tables,
-                            "output": {"type": self.type,
-                                       "filePath": f"{export.target_full_path}.zip"
-                                       }
-                            }
-        pivot_merge = list(export.export_tables.filter(pivot_merge=True).values_list("name", flat=True))
-
-        if pivot_merge:
-            params["pivotMerge"] = pivot_merge
-
-        pivot_merge_2 = []
-        for t in export.export_tables.filter(Q(pivot_merge_columns__isnull=False)
-                                             | Q(pivot_merge_ids__isnull=False)):
-            d = {"tableName": t.name}
-            if t.pivot_merge_columns:
-                d["pivotedColumnsToKeep"] = t.pivot_merge_columns
-            if t.pivot_merge_ids:
-                d["idsToMerge"] = t.pivot_merge_ids
-            pivot_merge_2.append(d)
-
-        if pivot_merge_2:
-            params["pivotMerge"] = pivot_merge_2
-        super().handle_export(export=export, params=params)
