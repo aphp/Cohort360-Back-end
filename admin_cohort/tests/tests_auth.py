@@ -198,7 +198,7 @@ class RefreshTokenTests(APITestCase):
                                     data={"refresh_token": "any-auth-code-will-do"},
                                     headers={"Authorization": "Bearer any-auth",
                                              "AuthorizationMethod": settings.JWT_AUTH_MODE})
-        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
 
 class LogoutTests(APITestCase):

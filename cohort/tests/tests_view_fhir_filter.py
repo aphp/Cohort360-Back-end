@@ -18,7 +18,6 @@ class TestFhirFilterAPI(CohortAppTests):
     list_view = FhirFilterViewSet.as_view({'get': 'list'})
     post_view = FhirFilterViewSet.as_view({'post': 'create'})
     patch_view = FhirFilterViewSet.as_view({'patch': 'partial_update'})
-    recent_list_view = FhirFilterViewSet.as_view({'get': 'recent_filters'})
     multiple_delete_view = FhirFilterViewSet.as_view({'delete': 'delete_multiple'})
     lookup_field = "uuid"
 
@@ -58,6 +57,21 @@ class TestFhirFilterAPI(CohortAppTests):
         assert fhir_object.owner.pk == user.pk
         assert fhir_object.fhir_version == '1.0.0'
         assert fhir_object.name == 'test_filter'
+
+    def test_error_creating_exising_filter(self):
+        url = reverse("cohort:fhir-filters-list")
+        user = User.objects.first()
+        data = {
+            'fhir_resource': 'Patient',
+            'fhir_version': '1.0.0',
+            'name': 'test_filter',
+            'filter': '{"some": "filter"}',
+        }
+        _ = FhirFilter.objects.create(**data, owner=user)
+        request = self.factory.post(url, data=data, format='json')
+        force_authenticate(request, user)
+        response: Response = self.__class__.post_view(request)
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     def test_edit_name(self):
         # Create a new FhirFilter instance
@@ -250,48 +264,3 @@ class TestFhirFilterAPI(CohortAppTests):
                 fhir_resource="Resource 1", name="name of filter", owner=User.objects.first(),
                 filter='{"some": "filter"}', fhir_version=None
             )
-
-    # def test_order_by_recent_date(self):
-    #     # Create FhirFilter instances with different created_at values
-    #     user = User.objects.first()
-    #     FhirFilter.objects.create(
-    #         fhir_resource='Resource 1', name='Filter 1', filter='{"some": "filter"}', owner=user,
-    #         fhir_version="1.0.0"
-    #     )
-    #     FhirFilter.objects.create(
-    #         fhir_resource='Resource 2', name='Filter 2', filter='{"some": "filter"}', owner=user,
-    #         fhir_version="1.0.0"
-    #     )
-    #     FhirFilter.objects.create(
-    #         fhir_resource='Resource 3', name='Filter 3', filter='{"some": "filter"}', owner=user,
-    #         fhir_version="1.0.0"
-    #     )
-    #
-    #     url = reverse("cohort:fhir-filters-recent-filters")
-    #     request = self.factory.get(url)
-    #     force_authenticate(request, user)
-    #     response: Response = self.__class__.recent_list_view(request)
-    #
-    #     created_dates = [f['created_at'] for f in response.data]
-    #     assert len(created_dates) == 3
-    #     assert created_dates == sorted(created_dates, reverse=True)  # dates are in ISO 8601 which makes this possible
-    #
-    # def test_order_by_recent_date_random_dates(self):
-    #     # Create FhirFilter instances with different created_at values
-    #     user = User.objects.first()
-    #     for i in range(100):
-    #         f = FhirFilter.objects.create(
-    #             fhir_resource=f"res {i}", name="name", owner=user,
-    #             filter='{"some": "filter"}', fhir_version='1.0.0'
-    #         )
-    #         f.created_at = datetime.now() - timedelta(weeks=randint(0, 52 * 10))
-    #         f.save()
-    #
-    #     url = reverse("cohort:fhir-filters-recent-filters")
-    #     request = self.factory.get(url, user=user)
-    #     force_authenticate(request, user)
-    #     response: Response = self.__class__.recent_list_view(request)
-    #
-    #     created_dates = [f['created_at'] for f in response.data]
-    #     assert len(created_dates) == 100
-    #     assert created_dates == sorted(created_dates, reverse=True)  # dates are in ISO 8601 which makes this possible

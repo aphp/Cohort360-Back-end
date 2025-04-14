@@ -1,3 +1,4 @@
+from django.db.utils import IntegrityError
 from django_filters import rest_framework as filters
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
@@ -46,7 +47,10 @@ class FhirFilterViewSet(UserObjectsRestrictedViewSet):
     @extend_schema(request=FhirFilterCreateSerializer,
                    responses={status.HTTP_201_CREATED: FhirFilterSerializer})
     def create(self, request, *args, **kwargs):
-        return super().create(request, *args, **kwargs)
+        try:
+            return super().create(request, *args, **kwargs)
+        except IntegrityError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     @extend_schema(request=FhirFilterPatchSerializer,
                    responses={status.HTTP_200_OK: FhirFilterSerializer})
