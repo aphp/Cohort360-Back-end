@@ -11,7 +11,7 @@ def send_email_notif_large_cohort_ready(cohort_name: str, cohort_id: str, cohort
                "cohort_url": f"{settings.FRONT_URL}/cohort/{cohort_id}"
                }
     email_notif = EmailNotification(subject="Votre cohorte est prête",
-                                    to=cohort_owner.email,
+                                    to=[cohort_owner.email],
                                     html_template="large_cohort_finished.html",
                                     txt_template="large_cohort_finished.txt",
                                     context=context)

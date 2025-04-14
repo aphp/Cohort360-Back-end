@@ -1,4 +1,5 @@
 from django_filters import rest_framework as filters, OrderingFilter
+from rest_framework.pagination import PageNumberPagination
 
 from exports.models import Datalab
 from exports.permissions import ManageDatalabsPermission, ReadDatalabsPermission
@@ -24,6 +25,7 @@ class DatalabViewSet(ExportsBaseViewSet):
     filterset_class = DatalabFilter
     http_method_names = ['get', 'post', 'patch']
     search_fields = ("name", "infrastructure_provider__name")
+    pagination_class = PageNumberPagination
 
     def get_permissions(self):
         if self.request.method in ("POST", "PATCH"):
