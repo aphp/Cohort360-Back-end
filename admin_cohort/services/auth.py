@@ -16,7 +16,7 @@ from jwt import InvalidTokenError
 from jwt.algorithms import RSAAlgorithm
 from requests import RequestException
 from rest_framework import status, HTTP_HEADER_ENCODING
-from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.exceptions import AuthenticationFailed, ValidationError
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer, TokenObtainPairSerializer
 from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 
@@ -246,7 +246,7 @@ class JWTAuth(Auth):
         serializer = TokenRefreshSerializer(data={"refresh": token})
         try:
             serializer.is_valid(raise_exception=True)
-        except TokenError as e:
+        except (ValidationError, TokenError) as e:
             raise InvalidToken(e.args[0])
         return JWTAuthTokens(**serializer.validated_data)
 

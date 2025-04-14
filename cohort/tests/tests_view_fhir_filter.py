@@ -67,7 +67,7 @@ class TestFhirFilterAPI(CohortAppTests):
             'name': 'test_filter',
             'filter': '{"some": "filter"}',
         }
-        _ = FhirFilter.objects.create(**data, owner=self.user1)
+        _ = FhirFilter.objects.create(**data, owner=user)
         request = self.factory.post(url, data=data, format='json')
         force_authenticate(request, user)
         response: Response = self.__class__.post_view(request)

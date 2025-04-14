@@ -78,7 +78,7 @@ class TokenRefreshView(CSRFExemptedAuthView, View):
             auth_tokens = auth_service.refresh_token(request)
             return JsonResponse(data=auth_tokens.__dict__, status=status.HTTP_200_OK)
         except (InvalidToken, ServerError) as e:
-            return JsonResponse(data={"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return JsonResponse(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class NotFoundView(View):
