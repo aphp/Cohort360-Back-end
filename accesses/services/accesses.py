@@ -242,8 +242,7 @@ class AccessesService:
             for dr in data_rights:
                 dr.acquire_extra_global_rights(global_dr)
 
-    def get_data_reading_rights(self, user: User, target_perimeters_ids: str) -> List[DataRight]:
-        target_perimeters_ids = target_perimeters_ids and [int(p_id) for p_id in target_perimeters_ids.split(",")] or []
+    def get_data_reading_rights(self, user: User, target_perimeters_ids: List[int]) -> List[DataRight]:
         target_perimeters = Perimeter.objects.filter(id__in=target_perimeters_ids) \
                                              .select_related(*[f"parent{i * '__parent'}" for i in range(0, len(settings.PERIMETER_TYPES) - 2)])
 

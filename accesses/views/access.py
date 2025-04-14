@@ -154,6 +154,11 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
     @cache_response()
     def get_my_data_reading_rights(self, request, *args, **kwargs):
         perimeters_ids = request.query_params.get('perimeters_ids')
-        data_rights = accesses_service.get_data_reading_rights(user=request.user, target_perimeters_ids=perimeters_ids)
+        try:
+            target_perimeters_ids = perimeters_ids and [int(p_id) for p_id in perimeters_ids.split(",")] or []
+        except ValueError:
+            return Response(data=f"`perimeters_ids` must be integers, got `{perimeters_ids}` instead",
+                            status=status.HTTP_400_BAD_REQUEST)
+        data_rights = accesses_service.get_data_reading_rights(user=request.user, target_perimeters_ids=target_perimeters_ids)
         return Response(data=DataRightSerializer(data_rights, many=True).data,
                         status=status.HTTP_200_OK)
