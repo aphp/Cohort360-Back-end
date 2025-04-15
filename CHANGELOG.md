@@ -2,6 +2,52 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.26.0] - 2025-03-18
+
+### 🚀 Features
+
+- Add filters and ordering on Requests
+- *(cms)* Add new content management application (#452)
+- *(accesses)* Add retrieving accesses within child perimeters
+- Add retry failed exports (#454)
+- *(users)* Add active user filter (#455)
+- *(cohorts)* Add more ordering options
+- Add filters to Folders view
+- *(cohortcount)* Add new details count mode option (#459)
+
+### 🐛 Bug Fixes
+
+- Make sample ratio optional (#447)
+- Handle null values for ExportTable (#448)
+- *(exports)* Sort by status (#450)
+- Refresh Kerberos auth ticket (#451)
+- Add fields to queryset and fix cohorts serializer (#453)
+- Set cron job to refresh Kerberos ticket
+- Adjust path to Kerberos keytab (#456)
+- *(exports)* Typo in param name
+- *(exports)* Overwrite export database
+- Cron job and fail fast for Hive exports (#457)
+- *(exports)* Adjust serializers and urls
+- *(email notifs)* Fix path to templates
+- *(datedmeasure)* Send extra result to ws
+- Update perimeters (#461)
+- *(release)* Set tags pattern and fix script
+
+### 🚜 Refactor
+
+- Serializers in Cohort app (#444)
+- *(maintenance)* Add new maintenance view sort and filter cap
+- Externalize email templates (#458)
+- Embedded JWT authentication (#460)
+
+### ⚙️ Miscellaneous Tasks
+
+- Update CHANGELOG.md and bump version to 3.26.0-dev
+
+### Dep
+
+- Bump Django to 5.0.13
+
 ## [3.25.11] - 2025-02-28
 
 ### 🚜 Refactor
