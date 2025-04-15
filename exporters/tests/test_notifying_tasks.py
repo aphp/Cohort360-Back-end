@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 
 from exporters.notifications import (csv_export_received, csv_export_succeeded, hive_export_received, hive_export_succeeded,
                                      export_failed_notif_for_owner, export_failed_notif_for_admins)
+                                     export_failed_for_owner, export_failed_for_admins)
 
 from exporters.tasks import notify_export_received, notify_export_succeeded, notify_export_failed
 from exporters.tests.base_test import ExportersTestBase

@@ -18,7 +18,6 @@ class PerimeterViewTests(AccessesAppTestsBase):
     create_view = PerimeterViewSet.as_view({'post': 'create'})
     delete_view = PerimeterViewSet.as_view({'delete': 'destroy'})
     update_view = PerimeterViewSet.as_view({'patch': 'partial_update'})
-    close_view = PerimeterViewSet.as_view(actions={'patch': 'close'})
     get_manageable_perimeters_view = PerimeterViewSet.as_view(actions={'get': 'get_manageable_perimeters'})
     get_data_read_rights_on_perimeters_view = PerimeterViewSet.as_view(actions={'get': 'get_data_read_rights_on_perimeters'})
     check_read_patient_data_rights_view = PerimeterViewSet.as_view(actions={'get': 'check_read_patient_data_rights'})
@@ -147,19 +146,30 @@ class PerimeterViewTests(AccessesAppTestsBase):
                                                      right_read_patient_nominative=False,
                                                      right_read_patient_pseudonymized=True,
                                                      right_search_patients_by_ipp=True,
-                                                     right_read_opposed_patients_data=True)
+                                                     right_read_opposed_patients_data=True,
+                                                     right_read_administrative_data=False,
+                                                     right_read_medical_data=False,
+                                                     right_read_treatments_data=False
+                                                     )
 
             data_read_rights_p2 = PerimeterReadRight(perimeter=self.p2,
                                                      right_read_patient_nominative=True,
                                                      right_read_patient_pseudonymized=True,
                                                      right_search_patients_by_ipp=True,
-                                                     right_read_opposed_patients_data=True)
+                                                     right_read_opposed_patients_data=True,
+                                                     right_read_administrative_data=True,
+                                                     right_read_medical_data=True,
+                                                     right_read_treatments_data=True
+                                                     )
 
             data_read_rights_p4 = PerimeterReadRight(perimeter=self.p4,
                                                      right_read_patient_nominative=True,
                                                      right_read_patient_pseudonymized=True,
                                                      right_search_patients_by_ipp=True,
-                                                     right_read_opposed_patients_data=True)
+                                                     right_read_opposed_patients_data=True,
+                                                     right_read_administrative_data=True,
+                                                     right_read_medical_data=True,
+                                                     right_read_treatments_data=True)
 
             expected_data_read_rights = [data_read_rights_p0,
                                          data_read_rights_p2,
@@ -172,13 +182,19 @@ class PerimeterViewTests(AccessesAppTestsBase):
                                                      right_read_patient_nominative=False,
                                                      right_read_patient_pseudonymized=True,
                                                      right_search_patients_by_ipp=True,
-                                                     right_read_opposed_patients_data=True)
+                                                     right_read_opposed_patients_data=True,
+                                                     right_read_administrative_data=False,
+                                                     right_read_medical_data=False,
+                                                     right_read_treatments_data=False)
 
             data_read_rights_p9 = PerimeterReadRight(perimeter=self.p9,
                                                      right_read_patient_nominative=True,
                                                      right_read_patient_pseudonymized=True,
                                                      right_search_patients_by_ipp=True,
-                                                     right_read_opposed_patients_data=True)
+                                                     right_read_opposed_patients_data=True,
+                                                     right_read_administrative_data=True,
+                                                     right_read_medical_data=True,
+                                                     right_read_treatments_data=True)
 
             expected_data_read_rights = [data_read_rights_p5,
                                          data_read_rights_p9]
@@ -243,7 +259,10 @@ class PerimeterViewTests(AccessesAppTestsBase):
                                     params={"cohort_ids": cohort_ids, "mode": "min"},
                                     to_find={"allow_read_patient_data_nomi": True,
                                              "allow_lookup_opposed_patients": False,
-                                             "allow_read_patient_without_perimeter_limit": False
+                                             "allow_read_patient_without_perimeter_limit": False,
+                                             "allow_read_administrative_data": True,
+                                             "allow_read_medical_data": True,
+                                             "allow_read_treatments_data": True
                                              })
         self.check_list_case_with_mock(case)
 
@@ -258,7 +277,11 @@ class PerimeterViewTests(AccessesAppTestsBase):
                                     params={"cohort_ids": cohort_ids, "mode": "min"},
                                     to_find={"allow_read_patient_data_nomi": True,
                                              "allow_lookup_opposed_patients": False,
-                                             "allow_read_patient_without_perimeter_limit": False})
+                                             "allow_read_patient_without_perimeter_limit": False,
+                                             "allow_read_administrative_data": True,
+                                             "allow_read_medical_data": True,
+                                             "allow_read_treatments_data": True
+                                             })
         self.check_list_case_with_mock(case)
 
     def test_read_patient_data_rights_case_3(self):
@@ -272,11 +295,19 @@ class PerimeterViewTests(AccessesAppTestsBase):
                                       params={"cohort_ids": cohort_ids, "mode": "max"},
                                       to_find={"allow_read_patient_data_nomi": True,
                                                "allow_lookup_opposed_patients": False,
-                                               "allow_read_patient_without_perimeter_limit": False})
+                                               "allow_read_patient_without_perimeter_limit": False,
+                                               "allow_read_administrative_data": True,
+                                               "allow_read_medical_data": True,
+                                               "allow_read_treatments_data": True
+                                               })
         case_2 = case_1.clone(params={"cohort_ids": cohort_ids, "mode": "min"},
                               to_find={"allow_read_patient_data_nomi": False,
                                        "allow_lookup_opposed_patients": False,
-                                       "allow_read_patient_without_perimeter_limit": False})
+                                       "allow_read_patient_without_perimeter_limit": False,
+                                       "allow_read_administrative_data": False,
+                                       "allow_read_medical_data": False,
+                                       "allow_read_treatments_data": False
+                                       })
         self.check_list_case_with_mock(case_1)
         self.check_list_case_with_mock(case_2)
 
@@ -293,11 +324,19 @@ class PerimeterViewTests(AccessesAppTestsBase):
                                       params={"cohort_ids": cohort_ids, "mode": "min"},
                                       to_find={"allow_read_patient_data_nomi": False,
                                                "allow_lookup_opposed_patients": True,
-                                               "allow_read_patient_without_perimeter_limit": False})
+                                               "allow_read_patient_without_perimeter_limit": False,
+                                               "allow_read_administrative_data": False,
+                                               "allow_read_medical_data": False,
+                                               "allow_read_treatments_data": False
+                                               })
         case_2 = case_1.clone(params={"cohort_ids": cohort_ids, "mode": "max"},
                               to_find={"allow_read_patient_data_nomi": True,
                                        "allow_lookup_opposed_patients": True,
-                                       "allow_read_patient_without_perimeter_limit": False})
+                                       "allow_read_patient_without_perimeter_limit": False,
+                                       "allow_read_administrative_data": True,
+                                       "allow_read_medical_data": True,
+                                       "allow_read_treatments_data": True
+                                       })
         self.check_list_case_with_mock(case_1)
         self.check_list_case_with_mock(case_2)
 
@@ -312,11 +351,19 @@ class PerimeterViewTests(AccessesAppTestsBase):
                                       params={"cohort_ids": cohort_ids, "mode": "max"},
                                       to_find={"allow_read_patient_data_nomi": False,
                                                "allow_lookup_opposed_patients": False,
-                                               "allow_read_patient_without_perimeter_limit": False})
+                                               "allow_read_patient_without_perimeter_limit": False,
+                                               "allow_read_administrative_data": False,
+                                               "allow_read_medical_data": False,
+                                               "allow_read_treatments_data": False
+                                               })
         case_2 = case_1.clone(params={"cohort_ids": cohort_ids, "mode": "min"},
                               to_find={"allow_read_patient_data_nomi": False,
                                        "allow_lookup_opposed_patients": False,
-                                       "allow_read_patient_without_perimeter_limit": False})
+                                       "allow_read_patient_without_perimeter_limit": False,
+                                       "allow_read_administrative_data": False,
+                                       "allow_read_medical_data": False,
+                                       "allow_read_treatments_data": False
+                                       })
         self.check_list_case_with_mock(case_1)
         self.check_list_case_with_mock(case_2)
 
@@ -331,7 +378,11 @@ class PerimeterViewTests(AccessesAppTestsBase):
                                     params={"cohort_ids": cohort_ids, "mode": "min"},
                                     to_find={"allow_read_patient_data_nomi": False,
                                              "allow_lookup_opposed_patients": False,
-                                             "allow_read_patient_without_perimeter_limit": False})
+                                             "allow_read_patient_without_perimeter_limit": False,
+                                             "allow_read_administrative_data": False,
+                                             "allow_read_medical_data": False,
+                                             "allow_read_treatments_data": False
+                                             })
         self.check_list_case_with_mock(case)
 
     def test_read_patient_data_rights_case_7(self):
@@ -344,7 +395,11 @@ class PerimeterViewTests(AccessesAppTestsBase):
                                     params={"cohort_ids": cohort_ids, "mode": "min"},
                                     to_find={"allow_read_patient_data_nomi": True,
                                              "allow_lookup_opposed_patients": True,
-                                             "allow_read_patient_without_perimeter_limit": True})
+                                             "allow_read_patient_without_perimeter_limit": True,
+                                             "allow_read_administrative_data": True,
+                                             "allow_read_medical_data": True,
+                                             "allow_read_treatments_data": True
+                                             })
         self.check_list_case_with_mock(case, check_mock_was_called=False)
 
     def test_read_patient_data_rights_case_8(self):
@@ -357,7 +412,11 @@ class PerimeterViewTests(AccessesAppTestsBase):
                                     params={"cohort_ids": cohort_ids, "mode": "max"},
                                     to_find={"allow_read_patient_data_nomi": True,
                                              "allow_lookup_opposed_patients": True,
-                                             "allow_read_patient_without_perimeter_limit": True})
+                                             "allow_read_patient_without_perimeter_limit": True,
+                                             "allow_read_administrative_data": True,
+                                             "allow_read_medical_data": True,
+                                             "allow_read_treatments_data": True
+                                             })
         self.check_list_case_with_mock(case, check_mock_was_called=False)
 
     def test_read_patient_data_rights_missing_access_on_some_target_perimeters(self):
@@ -375,7 +434,11 @@ class PerimeterViewTests(AccessesAppTestsBase):
                                                   params={"cohort_ids": cohort_ids, "mode": "max"},
                                                   to_find={"allow_read_patient_data_nomi": False,
                                                            "allow_lookup_opposed_patients": True,
-                                                           "allow_read_patient_without_perimeter_limit": False})
+                                                           "allow_read_patient_without_perimeter_limit": False,
+                                                           "allow_read_administrative_data": False,
+                                                           "allow_read_medical_data": False,
+                                                           "allow_read_treatments_data": False
+                                                           })
         for case in (case_with_mode_min, case_with_mode_max):
             self.check_list_case_with_mock(case)
 

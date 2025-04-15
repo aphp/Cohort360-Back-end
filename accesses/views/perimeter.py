@@ -124,7 +124,10 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
         if accesses_service.is_user_allowed_unlimited_patients_read(user=user):
             serializer = RightReadPatientDataSerializer(data={"allow_read_patient_data_nomi": True,
                                                               "allow_lookup_opposed_patients": True,
-                                                              "allow_read_patient_without_perimeter_limit": True
+                                                              "allow_read_patient_without_perimeter_limit": True,
+                                                              "allow_read_administrative_data": True,
+                                                              "allow_read_medical_data": True,
+                                                              "allow_read_treatments_data": True
                                                               })
             serializer.is_valid()
             return Response(data=serializer.data, status=status.HTTP_200_OK)
@@ -148,7 +151,10 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
         serializer = RightReadPatientDataSerializer(
             data={"allow_read_patient_data_nomi": allow_read_patient_data_nomi,
                   "allow_lookup_opposed_patients": accesses_service.can_user_read_opposed_patient_data(user=user),
-                  "allow_read_patient_without_perimeter_limit": False
+                  "allow_read_patient_without_perimeter_limit": False,
+                  "allow_read_administrative_data": allow_read_patient_data_nomi,
+                  "allow_read_medical_data": allow_read_patient_data_nomi,
+                  "allow_read_treatments_data": allow_read_patient_data_nomi
                   })
         serializer.is_valid()
         return Response(data=serializer.data, status=status.HTTP_200_OK)

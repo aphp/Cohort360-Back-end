@@ -7,11 +7,11 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.conf import settings
 
+from admin_cohort.models import User
+from admin_cohort.tools import join_qs
 from accesses.q_expressions import q_allow_read_search_opposed_patient_data, q_allow_read_patient_data_nominative, q_allow_read_patient_data_pseudo, \
     q_allow_manage_accesses_on_same_level, q_allow_manage_accesses_on_inf_levels, q_allow_manage_export_accesses, \
     q_allow_read_accesses_on_same_level, q_allow_read_accesses_on_inf_levels, q_impact_inferior_levels, q_allow_unlimited_patients_search
-from admin_cohort.models import User
-from admin_cohort.tools import join_qs
 from accesses.models import Perimeter, Access, Role
 from accesses.services.shared import DataRight
 
@@ -28,7 +28,6 @@ class AccessesService:
     def get_user_valid_accesses(self, user: User) -> QuerySet:
         return Access.objects.filter(self.q_access_is_valid()
                                      & Q(profile__is_active=True)
-                                     & Q(profile__source=settings.MANUAL_SOURCE)
                                      & Q(profile__user=user))
 
     def user_is_full_admin(self, user: User) -> bool:
