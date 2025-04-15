@@ -18,7 +18,7 @@ def send_alert_email(user: User, days: int):
                "access_managers_list_link": settings.ACCESS_MANAGERS_LIST_LINK
                }
     email_notif = EmailNotification(subject="Expiration de vos accès à Cohort360",
-                                    to=user.email,
+                                    to=[user.email],
                                     html_template="access_expiry_alert.html",
                                     txt_template="access_expiry_alert.txt",
                                     context=context)
