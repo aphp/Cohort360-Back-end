@@ -49,7 +49,8 @@ def get_organization_care_sites():
     }
 
 
-def build_tree(all_valid_care_sites: Dict[int, FhirOrganization], main_root_default: FhirOrganization) -> List[FhirOrganization]:
+def build_tree(all_valid_care_sites: Dict[int, FhirOrganization], main_root_default: FhirOrganization) -> List[
+    FhirOrganization]:
     """
     Build a tree of CareSite objects with parent/child relation using part-of attribute from FHIR
     """
@@ -113,7 +114,8 @@ def update_perimeter(perimeter: Perimeter, cohort_id: str, cohort_size: int):
 
 
 def recursively_create_child_perimeters(care_sites: List[FhirOrganization], existing_perimeters: List[Perimeter],
-                                        previous_level_perimeters: List[FhirOrganization], level) -> (List[Perimeter], List[Perimeter]):
+                                        previous_level_perimeters: List[FhirOrganization], level) -> (
+List[Perimeter], List[Perimeter]):
     """
     create perimeter from care_sites (skipping existing)
     create virtual cohort from care_sites using the filter fhir : Encounter?service-provider=care_site_id
@@ -132,8 +134,10 @@ def recursively_create_child_perimeters(care_sites: List[FhirOrganization], exis
         else:
             perimeters_to_create.append(perimeter)
 
-        child_perimeters_to_create, child_perimeter_to_update = recursively_create_child_perimeters(care_site.children, existing_perimeters,
-                                                                                                    previous_level_perimeters + [care_site],
+        child_perimeters_to_create, child_perimeter_to_update = recursively_create_child_perimeters(care_site.children,
+                                                                                                    existing_perimeters,
+                                                                                                    previous_level_perimeters + [
+                                                                                                        care_site],
                                                                                                     level + 1)
         perimeters_to_create.extend(child_perimeters_to_create)
         perimeters_to_update.extend(child_perimeter_to_update)
@@ -194,7 +198,8 @@ def perimeters_data_model_objects_update():
     _logger.info(f"6. Creating/Updating new virtual cohorts for perimeters {len(perimeter_to_create)}")
     create_virtual_cohorts(perimeter_to_create, perimeter_to_update)
     _logger.info("7. Deleting removed perimeters")
-    perimeters_to_delete = delete_perimeters(perimeters=all_perimeters, care_sites=list(all_valid_care_sites.values()))
+    perimeters_to_delete = delete_perimeters(perimeters=all_perimeters,
+                                             care_sites=list(all_valid_care_sites.values()) + care_sites_tree)
     _logger.info("8. Closing linked accesses")
     AccessesService.close_accesses(perimeters_to_delete)
     _logger.info("End of perimeters updating. Invalidating cache for Perimeters and Accesses")
