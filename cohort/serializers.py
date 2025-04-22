@@ -114,6 +114,30 @@ class DatedMeasureSerializer(serializers.ModelSerializer):
                             "request"]
 
 
+class SampledCohortResultSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = CohortResult
+        fields = ["uuid",
+                  "name",
+                  "sampling_ratio"]
+
+
+class SampledCohortResultCreateSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(required=True)
+    owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
+    parent_cohort = PrimaryKeyRelatedFieldWithOwner(required=True, queryset=CohortResult.objects.filter(parent_cohort__isnull=True))
+    sampling_ratio = serializers.FloatField(required=True)
+
+    class Meta:
+        model = CohortResult
+        fields = ["name",
+                  "description",
+                  "owner",
+                  "parent_cohort",
+                  "sampling_ratio"]
+
+
 class CohortResultSerializer(serializers.ModelSerializer):
     name = serializers.CharField(required=False)
     owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
@@ -121,6 +145,7 @@ class CohortResultSerializer(serializers.ModelSerializer):
     dated_measure = PrimaryKeyRelatedFieldWithOwner(queryset=DatedMeasure.objects.all(), required=False, write_only=True)
     parent_cohort = PrimaryKeyRelatedFieldWithOwner(queryset=CohortResult.objects.filter(parent_cohort__isnull=True), required=False)
     sampling_ratio = serializers.FloatField(required=False)
+    sample_cohorts = SampledCohortResultSerializer(many=True, read_only=True)
     result_size = serializers.IntegerField(required=False)
     measure_min = serializers.IntegerField(required=False)
     measure_max = serializers.IntegerField(required=False)
@@ -140,6 +165,7 @@ class CohortResultSerializer(serializers.ModelSerializer):
                   "dated_measure",
                   "parent_cohort",
                   "sampling_ratio",
+                  "sample_cohorts",
                   "result_size",
                   "measure_min",
                   "measure_max",
@@ -191,21 +217,6 @@ class CohortResultCreateSerializer(serializers.ModelSerializer):
                   "dated_measure"]
 
 
-class SampledCohortResultCreateSerializer(serializers.ModelSerializer):
-    name = serializers.CharField(required=True)
-    owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
-    parent_cohort = PrimaryKeyRelatedFieldWithOwner(required=True, queryset=CohortResult.objects.filter(parent_cohort__isnull=True))
-    sampling_ratio = serializers.FloatField(required=True)
-
-    class Meta:
-        model = CohortResult
-        fields = ["name",
-                  "description",
-                  "owner",
-                  "parent_cohort",
-                  "sampling_ratio"]
-
-
 class CohortResultPatchSerializer(serializers.ModelSerializer):
     name = serializers.CharField(required=False)
     description = serializers.CharField(required=False)
@@ -242,6 +253,12 @@ class RQSReducedSerializer(serializers.ModelSerializer):
 
     def get_cohorts_count(self, obj) -> int:
         return obj.cohort_results.count()
+
+    def get_patients_count(self, obj) -> int | str:
+        if obj.dated_measures.exists():
+            latest_dm = obj.dated_measures.latest("modified_at")
+            return latest_dm.measure if latest_dm.measure is not None else "NA"
+        return "NA"
 
 
 class RQSSerializer(serializers.ModelSerializer):
