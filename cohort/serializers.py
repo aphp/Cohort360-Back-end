@@ -232,16 +232,23 @@ class CohortRightsSerializer(serializers.Serializer):
 
 class RQSReducedSerializer(serializers.ModelSerializer):
     cohorts_count = serializers.SerializerMethodField()
+    patients_count = serializers.SerializerMethodField()
 
     class Meta:
         model = RequestQuerySnapshot
         fields = ["uuid",
+                  "name",
                   "created_at",
                   "cohorts_count",
+                  "patients_count",
                   "version"]
 
     def get_cohorts_count(self, obj) -> int:
         return obj.cohort_results.count()
+
+    def get_patients_count(self, obj) -> int | str:
+        latest_dm = obj.dated_measures.latest("modified_at")
+        return latest_dm.measure if latest_dm.measure is not None else "NA"
 
 
 class RQSSerializer(serializers.ModelSerializer):
@@ -255,6 +262,7 @@ class RQSSerializer(serializers.ModelSerializer):
         model = RequestQuerySnapshot
         fields = ["uuid",
                   "owner",
+                  "name",
                   "version",
                   "created_at",
                   "modified_at",

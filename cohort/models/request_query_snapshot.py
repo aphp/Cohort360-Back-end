@@ -25,6 +25,7 @@ class RequestQuerySnapshot(CohortBaseModel):
     shared_by = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='shared_query_snapshots', null=True, default=None)
     perimeters_ids = ArrayField(models.CharField(max_length=15), null=True, blank=True)
     version = models.IntegerField(default=1)
+    name = models.CharField(null=True, blank=True)
 
     objects = RequestQuerySnapshotManager()
 
