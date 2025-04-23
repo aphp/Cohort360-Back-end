@@ -67,7 +67,7 @@ class BaseCohortRequest:
                                            owner_entity_id=self.owner_username,
                                            callbackPath=callback_path,
                                            existingCohortId=self.existing_cohort_id,
-                                           modeOptions=self.sampling_ratio or self.stage_details and ModeOptions(
+                                           modeOptions=(self.sampling_ratio or self.stage_details) and ModeOptions(
                                                sampling=self.sampling_ratio, details=self.stage_details) or None
                                            )
         return format_spark_job_request_for_sjs(spark_job_request)
