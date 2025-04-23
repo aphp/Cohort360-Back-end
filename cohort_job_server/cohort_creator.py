@@ -44,6 +44,7 @@ class CohortCreator(BaseCohortOperator):
         if GROUP_ID in data:
             data["group_id"] = data.pop(GROUP_ID)
         if GROUP_COUNT in data:
+            cohort.dated_measure.request_job_status = data['request_job_status']
             cohort.dated_measure.measure = data.pop(GROUP_COUNT)
             cohort.dated_measure.save()
 

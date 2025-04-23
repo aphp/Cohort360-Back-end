@@ -195,16 +195,21 @@ class CohortResultSerializer(serializers.ModelSerializer):
         parent_cohort = validated_data.get("parent_cohort")
         if parent_cohort is not None:
             # complete data to create sampled cohort
+            new_dm = DatedMeasure.objects.create(owner=parent_cohort.owner,
+                                                 request_query_snapshot=parent_cohort.request_query_snapshot
+                                                 )
             validated_data.update({"request_query_snapshot": parent_cohort.request_query_snapshot,
-                                   "dated_measure": parent_cohort.dated_measure
+                                   "dated_measure": new_dm
                                    })
         return super().create(validated_data)
 
     def to_representation(self, instance):
         res = super().to_representation(instance)
-        res.update({"parent_cohort": {"uuid": instance.uuid,
-                                      "name": instance.name,
+        res.update({"parent_cohort": instance.parent_cohort and
+                                     {"uuid": instance.parent_cohort.uuid,
+                                      "name": instance.parent_cohort.name
                                       }
+                                     or None
                     })
         return res
 
