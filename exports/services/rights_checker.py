@@ -23,7 +23,7 @@ class RightsChecker:
             cohort_ids.extend(cohort.request_query_snapshot.perimeters_ids)
         perimeters_ids = Perimeter.objects.filter(cohort_id__in=cohort_ids).values_list('id', flat=True)
         data_permissions = accesses_service.get_data_reading_rights(user=owner,
-                                                                    target_perimeters_ids=','.join(map(str, perimeters_ids)))
+                                                                    target_perimeters_ids=perimeters_ids)
         self._check_rights(data_permissions=data_permissions, required_right=nominative and self.right_read_nomi or self.right_read_pseudo)
         if output_format in ("csv", "xlsx"):
             required_right = nominative and self.right_csv_nomi or self.right_csv_pseudo
