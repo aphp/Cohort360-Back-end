@@ -49,9 +49,9 @@ class ExportTableSerializer(serializers.ModelSerializer):
                   "respect_table_relationships",
                   "fhir_filter",
                   "cohort_result_source",
-                  "pivot",
-                  "pivot_split",
-                  "pivot_merge"]
+                  "pivot_columns",
+                  "pivot_split_columns",
+                  "pivot_merge_columns",]
 
 
 class ExportSerializer(serializers.ModelSerializer):
@@ -86,9 +86,9 @@ class ExportTableSerializerCreate(serializers.ModelSerializer):
                   "cohort_result_source",
                   "fhir_filter",
                   "respect_table_relationships",
-                  "pivot",
-                  "pivot_split",
-                  "pivot_merge"]
+                  "pivot_columns",
+                  "pivot_split_columns",
+                  "pivot_merge_columns",]
 
 
 class ExportCreateSerializer(serializers.ModelSerializer):

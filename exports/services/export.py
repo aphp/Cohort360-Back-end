@@ -87,9 +87,9 @@ class ExportService:
                                            cohort_result_source=cohort_source,
                                            cohort_result_subset=cohort_subset,
                                            columns=table.get("columns"),
-                                           pivot=bool(table.get("pivot")),
-                                           pivot_split=bool(table.get("pivot_split")),
-                                           pivot_merge=bool(table.get("pivot_merge")))
+                                           pivot_columns=table.get("pivot_columns"),
+                                           pivot_split_columns=table.get("pivot_split_columns"),
+                                           pivot_merge_columns=table.get("pivot_merge_columns"))
             _logger.info(f"Export[{export.uuid}]: table `{t.name}` created")
         return requires_cohort_subsets
 
