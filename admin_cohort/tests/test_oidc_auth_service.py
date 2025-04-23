@@ -1,4 +1,3 @@
-import json
 import jwt
 from unittest.mock import patch, MagicMock
 from django.test import TestCase
@@ -63,7 +62,7 @@ class OIDCAuthTestCase(TestCase):
         with patch.object(target=OIDCAuth, attribute="decode_token", return_value={"azp": self.oidc_config.client_id}):
             with patch.object(target=OIDCAuth, attribute="get_oidc_config", return_value=self.oidc_config):
                 with patch(target="requests.post", return_value=MagicMock(status_code=204)) as mock_post:
-                    self.oidc_auth.logout(json.dumps({"refresh_token": "test_refresh"}).encode(), "access_token")
+                    self.oidc_auth.logout({"refresh_token": "test_refresh"}, "access_token")
                     mock_post.assert_called()
 
     def test_oidc_auth_logout_fail(self):
@@ -71,7 +70,7 @@ class OIDCAuthTestCase(TestCase):
             with patch.object(target=OIDCAuth, attribute="get_oidc_config", return_value=self.oidc_config):
                 with patch(target="requests.post", return_value=MagicMock(status_code=400, text="Error")):
                     with self.assertRaises(RequestException):
-                        self.oidc_auth.logout(json.dumps({"refresh_token": "test_refresh"}).encode(), "access_token")
+                        self.oidc_auth.logout({"refresh_token": "test_refresh"}, "access_token")
 
     def test_get_tokens_success(self):
         with patch("requests.post", return_value=MagicMock(status_code=200, json=lambda: {"access_token": "test_access",
