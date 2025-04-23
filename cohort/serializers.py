@@ -200,6 +200,14 @@ class CohortResultSerializer(serializers.ModelSerializer):
                                    })
         return super().create(validated_data)
 
+    def to_representation(self, instance):
+        res = super().to_representation(instance)
+        res.update({"parent_cohort": {"uuid": instance.uuid,
+                                      "name": instance.name,
+                                      }
+                    })
+        return res
+
 
 class CohortResultCreateSerializer(serializers.ModelSerializer):
     name = serializers.CharField(required=True)
