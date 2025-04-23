@@ -1,11 +1,6 @@
 from django.contrib.auth import login, logout
-from django.contrib.auth import views
 from django.contrib.auth.models import update_last_login
 from django.http import JsonResponse
-from django.utils.decorators import method_decorator
-from django.views import View
-from django.views.decorators.cache import never_cache
-from django.views.decorators.csrf import csrf_exempt
 from drf_spectacular.utils import extend_schema
 from requests import RequestException
 from rest_framework import status, viewsets
@@ -17,19 +12,6 @@ from admin_cohort.serializers import UserSerializer, LoginFormSerializer, LoginS
 from admin_cohort.services.auth import auth_service
 from admin_cohort.tools.request_log_mixin import RequestLogMixin
 from admin_cohort.types import ServerError
-
-
-class CSRFExemptedAuthView(View):
-    http_method_names = ["post"]
-
-    @method_decorator(csrf_exempt)
-    @method_decorator(never_cache)
-    def dispatch(self, request, *args, **kwargs):
-        if request.method.lower() in self.http_method_names:
-            handler = getattr(self, request.method.lower(), self.http_method_not_allowed)
-        else:
-            handler = self.http_method_not_allowed
-        return handler(request, *args, **kwargs)
 
 
 class LoginView(RequestLogMixin, viewsets.GenericViewSet):
@@ -60,7 +42,8 @@ class LoginView(RequestLogMixin, viewsets.GenericViewSet):
         return JsonResponse(data=login_serializer.data, status=status.HTTP_200_OK)
 
 
-class LogoutView(CSRFExemptedAuthView, views.LogoutView):
+class LogoutView(viewsets.GenericViewSet):
+    http_method_names = ["post"]
 
     def post(self, request, *args, **kwargs):
         try:
@@ -71,7 +54,8 @@ class LogoutView(CSRFExemptedAuthView, views.LogoutView):
             return JsonResponse(data={"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class TokenRefreshView(CSRFExemptedAuthView, View):
+class TokenRefreshView(viewsets.GenericViewSet):
+    http_method_names = ["post"]
 
     def post(self, request, *args, **kwargs):
         try:
@@ -81,9 +65,8 @@ class TokenRefreshView(CSRFExemptedAuthView, View):
             return JsonResponse(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
-class NotFoundView(View):
+class NotFoundView(viewsets.GenericViewSet):
     http_method_names = ["get", "post"]
 
-    @method_decorator(csrf_exempt)
     def dispatch(self, request, *args, **kwargs):
         return JsonResponse(data={"error": "Page Not Found"}, status=status.HTTP_404_NOT_FOUND)

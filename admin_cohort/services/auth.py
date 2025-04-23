@@ -203,9 +203,9 @@ class OIDCAuth(Auth):
         user = authenticate(request=request, code=code, redirect_uri=redirect_uri)
         return user
 
-    def logout(self, payload: bytes, access_token: str):
+    def logout(self, payload: dict, access_token: str):
         try:
-            refresh_token = json.loads(payload).get("refresh_token")
+            refresh_token = payload.get("refresh_token")
         except json.JSONDecodeError as e:
             raise RequestException(f"Logout request missing `refresh_token` - {e}")
         client_id = self.decode_token(token=refresh_token, verify_signature=False).get("azp")
@@ -328,8 +328,8 @@ class AuthService:
 
     def refresh_token(self, request) -> Optional[AuthTokens]:
         _, auth_method = self.get_token_from_headers(request)
-        token = json.loads(request.body).get('refresh_token')
         authenticator = self._get_authenticator(auth_method)
+        token = request.data.get('refresh_token')
         return authenticator.refresh_token(token=token)
 
     def login(self, request, auth_method: str) -> User:
@@ -339,7 +339,7 @@ class AuthService:
     def logout(self, request):
         access_token, auth_method = self.get_token_from_headers(request)
         authenticator = self._get_authenticator(auth_method)
-        authenticator.logout(request.body, access_token)
+        authenticator.logout(request.data, access_token)
 
     def authenticate_request(self, token: str, auth_method: str, headers: Dict[str, str]) -> Optional[Tuple[User, str]]:
         if token is None:
