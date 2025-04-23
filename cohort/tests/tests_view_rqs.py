@@ -477,16 +477,15 @@ class RqsDeleteTests(RqsTests):
 
 
 class RqsUpdateTests(RqsTests):
-    def test_error_update_rqs(self):
-        # As a user, I cannot update a rqs, even if I own it
+    def test_successfully_update_rqs(self):
         self.check_patch_case(PatchCase(
             initial_data=dict(
                 request=self.user1_req2,
                 serialized_query="{}",
                 owner=self.user1,
             ),
-            data_to_update=dict(serialized_query="{}"),
-            status=status.HTTP_405_METHOD_NOT_ALLOWED,
-            success=False,
+            data_to_update=dict(name="new name for RQS"),
+            status=status.HTTP_200_OK,
+            success=True,
             user=self.user1,
         ))

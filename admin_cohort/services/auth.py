@@ -2,6 +2,7 @@ import json
 import logging
 from abc import ABC
 from dataclasses import dataclass
+from datetime import timedelta
 from functools import lru_cache
 from typing import Tuple, Optional, Callable, Dict, List
 
@@ -11,6 +12,7 @@ import requests
 from django.apps import apps
 from django.conf import settings
 from django.contrib.auth import authenticate
+from django.utils import timezone
 from django.utils.module_loading import import_string
 from jwt import InvalidTokenError
 from jwt.algorithms import RSAAlgorithm
@@ -20,7 +22,7 @@ from rest_framework.exceptions import AuthenticationFailed, ValidationError
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer, TokenObtainPairSerializer
 from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 
-
+from accesses.models import Profile, Role, Perimeter, Access
 from admin_cohort.models import User
 from admin_cohort.types import ServerError, OIDCAuthTokens, JWTAuthTokens, AuthTokens
 
@@ -201,9 +203,9 @@ class OIDCAuth(Auth):
         user = authenticate(request=request, code=code, redirect_uri=redirect_uri)
         return user
 
-    def logout(self, payload: bytes, access_token: str):
+    def logout(self, payload: dict, access_token: str):
         try:
-            refresh_token = json.loads(payload).get("refresh_token")
+            refresh_token = payload.get("refresh_token")
         except json.JSONDecodeError as e:
             raise RequestException(f"Logout request missing `refresh_token` - {e}")
         client_id = self.decode_token(token=refresh_token, verify_signature=False).get("azp")
@@ -260,6 +262,38 @@ class JWTAuth(Auth):
         except Exception as e:
             raise ServerError(f"Error checking credentials for user `{username}`: {e}")
 
+    @staticmethod
+    def generate_system_token() -> str:
+        """
+        Generate a system JWT token for internal API calls.
+        @returns: str: The generated access token
+        """
+        system_user, created = User.objects.get_or_create(username="system",
+                                                          defaults={"username": "system",
+                                                                    "firstname": "System",
+                                                                    "lastname": "SYSTEM",
+                                                                    "email": "system.dj@aphp.fr"
+                                                                    })
+        if created:
+            p = Profile.objects.create(user_id=system_user.username, is_active=True)
+            root_perimeter = Perimeter.objects.get(pk=settings.ROOT_PERIMETER_ID)
+            admin_role = Role.objects.filter(right_full_admin=True).first()
+            now = timezone.now()
+            Access.objects.create(profile=p,
+                                  perimeter=root_perimeter,
+                                  role=admin_role,
+                                  start_datetime=now,
+                                  end_datetime=now + timedelta(weeks=52 * 100)  # grant access forever
+                                  )
+            _logger.info(f"System user created and granted `{admin_role.name}` role on perimeter `{root_perimeter.name}`")
+        try:
+            serializer = TokenObtainPairSerializer()
+            token = serializer.get_token(system_user)
+            return str(token.access_token)
+        except Exception as e:
+            _logger_err.error(f"Failed to generate system token: {e}")
+            raise ServerError(f"Error generating system token: {e}")
+
 
 class AuthService:
     authenticators = {settings.OIDC_AUTH_MODE: OIDCAuth(),
@@ -294,8 +328,8 @@ class AuthService:
 
     def refresh_token(self, request) -> Optional[AuthTokens]:
         _, auth_method = self.get_token_from_headers(request)
-        token = json.loads(request.body).get('refresh_token')
         authenticator = self._get_authenticator(auth_method)
+        token = request.data.get('refresh_token')
         return authenticator.refresh_token(token=token)
 
     def login(self, request, auth_method: str) -> User:
@@ -305,7 +339,7 @@ class AuthService:
     def logout(self, request):
         access_token, auth_method = self.get_token_from_headers(request)
         authenticator = self._get_authenticator(auth_method)
-        authenticator.logout(request.body, access_token)
+        authenticator.logout(request.data, access_token)
 
     def authenticate_request(self, token: str, auth_method: str, headers: Dict[str, str]) -> Optional[Tuple[User, str]]:
         if token is None:

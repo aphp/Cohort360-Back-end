@@ -18,9 +18,10 @@ from cohort.views.shared import UserObjectsRestrictedViewSet
 class RequestQuerySnapshotViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     queryset = RequestQuerySnapshot.objects.exclude(cohort_results__is_subset=True)
     serializer_class = RQSSerializer
-    http_method_names = ['get', 'post']
+    http_method_names = ['get', 'post', 'patch']
     swagger_tags = ['Request Query Snapshots']
     filterset_fields = ['request',
+                        'name',
                         'shared_by',
                         'previous_snapshot',
                         'request',

@@ -38,6 +38,7 @@ class CohortFilter(filters.FilterSet):
     group_id = filters.CharFilter(method="multi_value_filter", field_name="group_id")
     status = filters.CharFilter(method="multi_value_filter", field_name="request_job_status")
     exportable = filters.BooleanFilter(field_name="exportable")
+    is_sample = filters.BooleanFilter(exclude=True, field_name="parent_cohort", lookup_expr="isnull")
 
     ordering = OrderingFilter(fields=('created_at',
                                       'modified_at',
@@ -58,6 +59,7 @@ class CohortFilter(filters.FilterSet):
                   'group_id',
                   'status',
                   'parent_cohort',
+                  'is_sample',
                   'exportable')
 
 

@@ -22,10 +22,10 @@ router.register(r'users', UserViewSet, basename="users")
 router.register(r'logs', RequestLogViewSet, basename="logs")
 router.register(r'release-notes', ReleaseNotesViewSet, basename="release_notes")
 
-urlpatterns = [re_path(r'^$', NotFoundView.as_view(), name="not-found"),
+urlpatterns = [re_path(r'^$', NotFoundView.as_view({'post': 'dispatch'}), name="not-found"),
                re_path(r'^auth/login/', LoginView.as_view({'post': 'post'}), name="login"),
-               re_path(r'^auth/logout/$', LogoutView.as_view(), name='logout'),
-               re_path(r'^auth/refresh/$', TokenRefreshView.as_view(), name='token-refresh'),
+               re_path(r'^auth/logout/$', LogoutView.as_view({'post': 'post'}), name='logout'),
+               re_path(r'^auth/refresh/$', TokenRefreshView.as_view({'post': 'post'}), name='token-refresh'),
                re_path(r'^cache', CacheViewSet.as_view(), name='cache'),
                re_path(r'^', include(router.urls)),
                path('webcontent/', include(('content_management.urls', 'webcontent'), namespace='content')),

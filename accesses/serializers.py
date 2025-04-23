@@ -199,28 +199,34 @@ class ExpiringAccessesSerializer(serializers.Serializer):
 
 
 class DataRightSerializer(serializers.Serializer):
-    user_id = serializers.CharField(read_only=True, allow_null=True)
-    perimeter_id = serializers.IntegerField(read_only=True, allow_null=True)
-    right_read_patient_nominative = serializers.BooleanField(read_only=True, allow_null=True)
-    right_read_patient_pseudonymized = serializers.BooleanField(read_only=True, allow_null=True)
-    right_search_patients_by_ipp = serializers.BooleanField(read_only=True, allow_null=True)
-    right_search_opposed_patients = serializers.BooleanField(read_only=True, allow_null=True)
-    right_export_csv_nominative = serializers.BooleanField(read_only=True, allow_null=True)
-    right_export_csv_pseudonymized = serializers.BooleanField(read_only=True, allow_null=True)
-    right_export_jupyter_nominative = serializers.BooleanField(read_only=True, allow_null=True)
-    right_export_jupyter_pseudonymized = serializers.BooleanField(read_only=True, allow_null=True)
+    user_id = serializers.CharField(read_only=True)
+    perimeter_id = serializers.IntegerField(read_only=True)
+    right_read_patient_nominative = serializers.BooleanField(read_only=True)
+    right_read_patient_pseudonymized = serializers.BooleanField(read_only=True)
+    right_search_patients_by_ipp = serializers.BooleanField(read_only=True)
+    right_search_opposed_patients = serializers.BooleanField(read_only=True)
+    right_export_csv_nominative = serializers.BooleanField(read_only=True)
+    right_export_csv_pseudonymized = serializers.BooleanField(read_only=True)
+    right_export_jupyter_nominative = serializers.BooleanField(read_only=True)
+    right_export_jupyter_pseudonymized = serializers.BooleanField(read_only=True)
 
 
 class ReadRightPerimeter(serializers.Serializer):
-    perimeter = PerimeterLiteSerializer(read_only=True, allow_null=True)
-    read_role = serializers.CharField(read_only=True, allow_null=True)
-    right_read_patient_nominative = serializers.BooleanField(read_only=True, allow_null=True)
-    right_read_patient_pseudonymized = serializers.BooleanField(read_only=True, allow_null=True)
-    right_search_patients_by_ipp = serializers.BooleanField(read_only=True, allow_null=True)
-    right_read_opposed_patients_data = serializers.BooleanField(read_only=True, allow_null=True)
+    perimeter = PerimeterLiteSerializer(read_only=True)
+    read_role = serializers.CharField(read_only=True)
+    right_read_patient_nominative = serializers.BooleanField(read_only=True)
+    right_read_patient_pseudonymized = serializers.BooleanField(read_only=True)
+    right_search_patients_by_ipp = serializers.BooleanField(read_only=True)
+    right_read_opposed_patients_data = serializers.BooleanField(read_only=True)
+    right_read_administrative_data = serializers.BooleanField(read_only=True)
+    right_read_medical_data = serializers.BooleanField(read_only=True)
+    right_read_treatments_data = serializers.BooleanField(read_only=True)
 
 
 class RightReadPatientDataSerializer(serializers.Serializer):
     allow_read_patient_data_nomi = serializers.BooleanField(allow_null=True)
     allow_lookup_opposed_patients = serializers.BooleanField(allow_null=True)
     allow_read_patient_without_perimeter_limit = serializers.BooleanField(allow_null=True)
+    allow_read_administrative_data = serializers.BooleanField(allow_null=True)
+    allow_read_medical_data = serializers.BooleanField(allow_null=True)
+    allow_read_treatments_data = serializers.BooleanField(allow_null=True)

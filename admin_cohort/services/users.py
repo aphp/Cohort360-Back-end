@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 from typing import Optional
@@ -7,6 +8,7 @@ from django.http import Http404
 from rest_framework import status
 
 from accesses.models import Profile
+from accesses.services.accesses_syncer import AccessesSynchronizer
 from admin_cohort.types import PersonIdentity, ServerError
 
 env = os.environ
@@ -17,6 +19,8 @@ ID_CHECKER_TOKEN = env.get("ID_CHECKER_TOKEN")
 ID_CHECKER_SERVER_HEADERS = {ID_CHECKER_TOKEN_HEADER: ID_CHECKER_TOKEN}
 
 USERNAME_REGEX = env.get("USERNAME_REGEX", "(.*)")
+
+_logger = logging.getLogger("info")
 
 
 class UsersService:
@@ -61,8 +65,11 @@ class UsersService:
             raise ValueError(f"Adresse email invalide: {email}. Doit comporter uniquement des lettres, chiffres et caractères @_-.")
 
     @staticmethod
-    def create_initial_profile(data: dict) -> None:
-        Profile.objects.create(user_id=data.get("username"), is_active=True)
+    def setup_profile(data: dict) -> None:
+        user_id = data.get("username")
+        Profile.objects.create(user_id=user_id, is_active=True)
+        if env.get("SYNC_USER_ORBIS_ACCESSES", False):
+            AccessesSynchronizer().sync_accesses(target_user=user_id)
 
     def check_user_existence(self, username: str) -> Optional[PersonIdentity]:
         if not (username and re.compile(USERNAME_REGEX).match(username)):

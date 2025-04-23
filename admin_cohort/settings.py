@@ -206,7 +206,7 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'static'
 
 REST_FRAMEWORK = {
-    'DEFAULT_PERMISSION_CLASSES': ['admin_cohort.permissions.IsAuthenticated'],
+    'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.IsAuthenticated'],
     'DEFAULT_AUTHENTICATION_CLASSES': ['admin_cohort.auth.auth_class.Authentication'],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
@@ -278,7 +278,7 @@ if LOCAL_TASKS:
 # CONSTANTS
 utc = pytz.UTC
 
-MANUAL_SOURCE = "Manual"
+ACCESS_SOURCES = ["Manual", "ORBIS"]
 PERIMETER_TYPES = env("PERIMETER_TYPES").split(",")
 ROOT_PERIMETER_TYPE = PERIMETER_TYPES[0]
 ROOT_PERIMETER_ID = env.int("ROOT_PERIMETER_ID", default=0)
