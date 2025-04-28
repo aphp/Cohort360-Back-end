@@ -98,6 +98,7 @@ class CohortResultService(CommonService):
         global_dm = cohort.dated_measure_global
         extra_info = {'request_job_status': cohort.request_job_status,
                       'group_id': cohort.group_id,
+                      'result_size': cohort.dated_measure.measure,
                       'request_job_fail_msg': cohort.request_job_fail_msg
                       }
         if global_dm:
