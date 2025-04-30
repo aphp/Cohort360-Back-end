@@ -56,7 +56,13 @@ class ExportersTestBase(TestCase):
         self.csv_export = Export.objects.create(**export_vals, output_format=ExportTypes.CSV.value)
         self.csv_export_table = ExportTable.objects.create(export=self.csv_export,
                                                            name="person",
-                                                           cohort_result_source=self.cohort)
+                                                           cohort_result_source=self.cohort,
+                                                           columns=["person_id", "person_name"])
+        self.csv_export_table_with_options = ExportTable.objects.create(export=self.csv_export,
+                                                                        name="special_table",
+                                                                        cohort_result_source=self.cohort,
+                                                                        columns=["col_01", "col_02"],
+                                                                        pivot_merge_columns=["col_03", "col_04"])
         self.xlsx_export = Export.objects.create(**export_vals, output_format=ExportTypes.XLSX.value, group_tables=True)
         self.xlsx_export_table = ExportTable.objects.create(export=self.xlsx_export,
                                                             name="person",
