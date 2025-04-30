@@ -12,7 +12,7 @@ class FhirFilterFilter(filters.FilterSet):
 
     class Meta:
         model = FhirFilter
-        fields = ('fhir_resource', 'owner_id')
+        fields = ('fhir_resource', 'owner_id', 'identifying')
 
 
 @extend_schema_view(retrieve=extend_schema(exclude=True))
@@ -24,4 +24,3 @@ class FhirFilterViewSet(ExportsBaseViewSet):
     swagger_tags = ['Exports - FHIR Filters']
     filterset_class = FhirFilterFilter
     search_fields = ('$name', '$fhir_resource', '$filter')
-

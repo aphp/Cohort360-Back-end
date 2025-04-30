@@ -24,7 +24,8 @@ class FhirFilterFilter(filters.FilterSet):
                   'owner',
                   'fhir_resource',
                   'fhir_filter',
-                  'query_version')
+                  'query_version',
+                  'identifying')
 
 
 class FhirFilterViewSet(UserObjectsRestrictedViewSet):
