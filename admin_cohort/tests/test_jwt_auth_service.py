@@ -1,8 +1,13 @@
+import hashlib
 import jwt
 from unittest.mock import patch, MagicMock
 
 from django.conf import settings
 from django.test import TestCase
+from rest_framework import status
+from rest_framework.exceptions import AuthenticationFailed
+
+from admin_cohort.exceptions import NoAuthenticationHookDefined
 
 from accesses.models import Perimeter, Role, Access, Profile
 from admin_cohort.models import User
@@ -13,20 +18,40 @@ class JWTAuthTestCase(TestCase):
 
     def setUp(self):
         self.jwt_auth = JWTAuth()
+        self.test_password = "1234"
+        self.test_user = User.objects.create(username='test_user',
+                                             email='test.user@backend.fr',
+                                             firstname='Test',
+                                             lastname='User',
+                                             password=hashlib.sha256(self.test_password.encode("utf-8")).hexdigest())
 
     def test_jwt_auth_authenticate(self):
         with patch.object(JWTAuth, "decode_token", return_value={"username": "test_user"}):
             username = self.jwt_auth.authenticate(token="some_token")
             self.assertEqual(username, "test_user")
 
-    def test_jwt_auth_check_credentials_success(self):
-        with patch(target="requests.post", return_value=MagicMock(status_code=200)) as mock_post:
-            self.assertTrue(self.jwt_auth.check_credentials("user", "pass"))
-            mock_post.assert_called()
+    @patch.object(JWTAuth, attribute="authenticate_with_external_services")
+    def test_jwt_auth_check_credentials_locally(self, mock_check_against_server):
+        mock_check_against_server.side_effect = NoAuthenticationHookDefined()
+        self.assertTrue(self.jwt_auth.check_credentials(username=self.test_user.username,
+                                                        password=self.test_password))
+        mock_check_against_server.assert_called()
 
-    def test_jwt_auth_check_credentials_failure(self):
-        with patch(target="requests.post", return_value=MagicMock(status_code=401)):
-            self.assertFalse(self.jwt_auth.check_credentials("user", "pass"))
+    def test_jwt_authenticate_with_external_services(self):
+        with patch(target="requests.post", return_value=MagicMock(status_code=status.HTTP_200_OK)):
+            res = self.jwt_auth.check_credentials(username=self.test_user.username,
+                                                  password=self.test_password)
+            self.assertTrue(res)
+
+    def test_jwt_auth_check_credentials_wrong_password(self):
+        res = self.jwt_auth.check_credentials(username=self.test_user.username,
+                                              password="wrong-password")
+        self.assertFalse(res)
+
+    def test_jwt_auth_check_credentials_user_not_found(self):
+        with self.assertRaises(AuthenticationFailed):
+            self.jwt_auth.check_credentials(username="wrong-username",
+                                            password=self.test_password)
 
     def test_jwt_auth_login(self):
         mock_request = MagicMock()

@@ -427,7 +427,7 @@ class AccessesService:
 
         data["start_datetime"] = start_datetime and parse_datetime(start_datetime) or timezone.now()
         data["end_datetime"] = (end_datetime and parse_datetime(end_datetime) or
-                                data["start_datetime"] + timedelta(days=settings.MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS))
+                                data["start_datetime"] + timedelta(days=settings.DEFAULT_ACCESS_VALIDITY_IN_DAYS))
         self.check_access_dates(new_start_datetime=data["start_datetime"],
                                 new_end_datetime=data["end_datetime"])
 

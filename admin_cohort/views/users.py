@@ -1,7 +1,10 @@
 import json
+import logging
+import re
 
 from django.http import Http404
 from django.utils import timezone
+from django.conf import settings
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status, viewsets
@@ -13,7 +16,9 @@ from admin_cohort.permissions import UsersPermission
 from admin_cohort.serializers import UserSerializer, UserCheckSerializer
 from admin_cohort.services.users import users_service
 from admin_cohort.tools.cache import cache_response
-from admin_cohort.types import ServerError
+from admin_cohort.exceptions import ServerError
+
+_logger = logging.getLogger('django.request')
 
 
 class UserFilter(filters.FilterSet):
@@ -83,24 +88,26 @@ class UserViewSet(viewsets.ModelViewSet):
 
     @extend_schema(responses={status.HTTP_200_OK: UserCheckSerializer})
     @action(detail=True, methods=['get'], url_path="check")
-    def check_user_existence(self, request, *args, **kwargs):
-        exists, found = False, False
+    def check_user_exists(self, request, *args, **kwargs):
+        user, exists, found = None, False, False
         try:
-            user = self.get_object()
+            user = self.get_object().__dict__
             exists = True
         except Http404:
             username = kwargs[self.lookup_field]
+            if not (username and re.compile(settings.USERNAME_REGEX).match(username)):
+                return Response(data={"message": "Invalid username format"}, status=status.HTTP_400_BAD_REQUEST)
             try:
-                user = users_service.check_user_existence(username=username)
-                found = True
-            except (ValueError, ServerError) as e:
-                return Response(data={"message": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-            except Http404:
-                return Response(data={"message": "User not found"}, status=status.HTTP_404_NOT_FOUND)
-        res = {"username": user.username,
-               "firstname": user.firstname,
-               "lastname": user.lastname,
-               "email": user.email,
-               "already_exists": exists,
-               "found": found}
-        return Response(data=UserCheckSerializer(res).data, status=status.HTTP_200_OK)
+                user = users_service.try_hooks(username=username)
+                found = user is not None
+            except ServerError as e:
+                return Response(data={"message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        if user is not None:
+            res = {"username": user["username"],
+                   "firstname": user["firstname"],
+                   "lastname": user["lastname"],
+                   "email": user["email"],
+                   "already_exists": exists,
+                   "found": found}
+            return Response(data=UserCheckSerializer(res).data, status=status.HTTP_200_OK)
+        return Response(data={"message": "User not found"}, status=status.HTTP_404_NOT_FOUND)

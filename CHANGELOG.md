@@ -662,7 +662,7 @@ All notable changes to this project will be documented in this file.
 - *(feasibility_studies)* Fix error on creation
 - *(feasibility studies)* Add specific logger
 - *(feasibility studies)* Format request input
-- *(feasibility studies)* Properly set callbackPath in the SJS payload
+- *(feasibility studies)* Properly set callbackPath in the QUERY_EXECUTOR payload
 - *(feasibility studies)* Report download and notify on success and on error
 - *(feasibility studies)* Properly chain tasks
 - *(auth)* Remove unnecessary logging on token refresh failure
@@ -810,7 +810,7 @@ All notable changes to this project will be documented in this file.
 - Silently log JWT token errors
 - *(crb)* Ipp list resource name (#283)
 - Extend try catch in crb process + add optional fields to query model
-- *(crb)* Correct sjs replacements
+- *(crb)* Correct QueryExecutor replacements
 - *(crb)* Optional fields for temporal constraints
 - *(requestmigration)* Add new param mappings (#284)
 

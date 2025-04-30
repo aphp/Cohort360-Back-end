@@ -1,14 +1,14 @@
 from io import StringIO
 
 from django.core.management import call_command
-from django.test import TestCase
 
 from accesses.models import Perimeter, Role
 from admin_cohort.management.commands import load_initial_data
 from admin_cohort.models import User
+from admin_cohort.tests.tests_tools import TestCaseWithDBs
 
 
-class LoadInitialDataCommandTest(TestCase):
+class LoadInitialDataCommandTest(TestCaseWithDBs):
 
     def test_load_initial_data_command(self):
         out = StringIO()

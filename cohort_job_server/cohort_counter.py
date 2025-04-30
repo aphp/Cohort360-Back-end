@@ -6,7 +6,8 @@ from django.utils import timezone
 
 from admin_cohort.types import JobStatus
 from cohort_job_server.base_operator import BaseCohortOperator
-from cohort_job_server.sjs_api import CohortCount, CohortCountAll, FeasibilityCount, sjs_status_mapper, SJSClient, CohortQuery
+from cohort_job_server.query_executor_api import CohortCount, CohortCountAll, FeasibilityCount, query_executor_status_mapper,\
+QueryExecutorClient, CohortQuery
 from cohort_job_server.utils import _logger, JOB_STATUS, COUNT, MINIMUM, MAXIMUM, EXTRA, ERR_MESSAGE
 
 _logger_err = logging.getLogger('django.request')
@@ -22,7 +23,7 @@ class CohortCounter(BaseCohortOperator):
                                    stage_details: Optional[str] = None,
                                    owner_username: Optional[str] = None) -> None:
         count_cls = global_estimate and CohortCountAll or CohortCount
-        self.sjs_requester.launch_request(count_cls(instance_id=dm_id,
+        self.query_executor_requester.launch_request(count_cls(instance_id=dm_id,
                                                     json_query=json_query,
                                                     auth_headers=auth_headers,
                                                     owner_username=owner_username,
@@ -35,30 +36,30 @@ class CohortCounter(BaseCohortOperator):
         cohort_count = CohortCount(instance_id=dm_id,
                                    json_query=json_query,
                                    auth_headers=auth_headers)
-        return cohort_count.create_sjs_request(cohort_query=cohort_query)
+        return cohort_count.create_query_executor_request(cohort_query=cohort_query)
 
     @staticmethod
     def refresh_dated_measure_count(translated_query: str) -> None:
-        SJSClient().count(input_payload=translated_query)
+        QueryExecutorClient().count(input_payload=translated_query)
 
     def launch_feasibility_study_count(self,
                                        fs_id: str,
                                        json_query: str,
                                        auth_headers: dict,
                                        owner_username: Optional[str] = None) -> bool:
-        response = self.sjs_requester.launch_request(FeasibilityCount(instance_id=fs_id,
+        response = self.query_executor_requester.launch_request(FeasibilityCount(instance_id=fs_id,
                                                                       json_query=json_query,
                                                                       auth_headers=auth_headers,
                                                                       owner_username=owner_username))
         return response.success
 
     def cancel_job(self, job_id: str) -> JobStatus:
-        return self.sjs_requester.cancel_job(job_id=job_id)
+        return self.query_executor_requester.cancel_job(job_id=job_id)
 
     @staticmethod
     def handle_patch_dated_measure(dm, data) -> None:
         _logger.info(f"DatedMeasure[{dm.uuid}] Received patch data: {data}")
-        job_status = sjs_status_mapper(data.get(JOB_STATUS))
+        job_status = query_executor_status_mapper(data.get(JOB_STATUS))
         if not job_status:
             raise ValueError(f"Bad Request: Invalid job status: {data.get(JOB_STATUS)}")
         job_duration = str(timezone.now() - dm.created_at)
@@ -68,10 +69,10 @@ class CohortCounter(BaseCohortOperator):
             if dm.is_global:
                 data.update({"measure_min": data.pop(MINIMUM, None),
                              "measure_max": data.pop(MAXIMUM, None)})
-            _logger.info(f"DatedMeasure[{dm.uuid}] successfully updated from SJS")
+            _logger.info(f"DatedMeasure[{dm.uuid}] successfully updated from QUERY_EXECUTOR")
         else:
             data["request_job_fail_msg"] = data.pop(ERR_MESSAGE, None)
-            _logger_err.exception(f"DatedMeasure[{dm.uuid}] - Error on SJS callback")
+            _logger_err.exception(f"DatedMeasure[{dm.uuid}] - Error on QUERY_EXECUTOR callback")
         data.update({"request_job_status": job_status,
                      "request_job_duration": job_duration})
 
@@ -79,7 +80,7 @@ class CohortCounter(BaseCohortOperator):
     def handle_patch_feasibility_study(fs, data) -> Tuple[JobStatus, dict]:
         _logger.info(f"FeasibilityStudy[{fs.uuid}] Received patch data: {data}")
         job_status = data.get(JOB_STATUS, "")
-        job_status = sjs_status_mapper(job_status)
+        job_status = query_executor_status_mapper(job_status)
         counts_per_perimeter = {}
         try:
             if not job_status:
@@ -91,9 +92,9 @@ class CohortCounter(BaseCohortOperator):
                     raise ValueError(f"Bad Request: Payload missing `{EXTRA}` key")
             else:
                 data["request_job_fail_msg"] = data.pop(ERR_MESSAGE, None)
-                _logger_err.exception(f"FeasibilityStudy[{fs.uuid}] - Error on SJS callback")
+                _logger_err.exception(f"FeasibilityStudy[{fs.uuid}] - Error on QUERY_EXECUTOR callback")
         except ValueError as ve:
-            _logger_err.exception(f"FeasibilityStudy[{fs.uuid}] - Error on SJS callback - {ve}")
+            _logger_err.exception(f"FeasibilityStudy[{fs.uuid}] - Error on QUERY_EXECUTOR callback - {ve}")
             raise ve
         data[JOB_STATUS] = job_status
         return job_status, counts_per_perimeter

@@ -2,14 +2,15 @@ import json
 from pathlib import Path
 from unittest import mock
 
+from django.conf import settings
 from django.test import TestCase
 
 from admin_cohort.models import User
 from cohort_job_server.apps import CohortJobServerConfig
-from cohort_job_server.sjs_api import QueryFormatter, BaseCohortRequest
-from cohort_job_server.sjs_api.enums import ResourceType
-from cohort_job_server.sjs_api.exceptions import FhirException
-from cohort_job_server.sjs_api.schemas import FhirParameters, FhirParameter, CohortQuery
+from cohort_job_server.query_executor_api import QueryFormatter, BaseCohortRequest
+from cohort_job_server.query_executor_api.enums import ResourceType
+from cohort_job_server.query_executor_api.exceptions import FhirException
+from cohort_job_server.query_executor_api.schemas import FhirParameters, FhirParameter, CohortQuery
 
 
 class FhirResponseMapperTest(TestCase):
@@ -43,24 +44,27 @@ class CohortQueryTest(TestCase):
 
 class TestBaseCohortRequest(TestCase):
     def setUp(self):
-        self.auth_headers = {'Authorization': 'Bearer xxx.token.xxx', 'authorizationMethod': 'JWT', 'X-Trace-Id': '12a'}
+        self.auth_headers = {'Authorization': 'Bearer xxx.token.xxx',
+                             settings.AUTHORIZATION_METHOD_HEADER: settings.JWT_AUTH_MODE,
+                             'X-Trace-Id': '12a'
+                             }
         self.instance_id = "test-instance-id"
         self.json_query = '{"sourcePopulation": {"caresiteCohortList": []}}'
         
-    @mock.patch('cohort_job_server.sjs_api.cohort_requests.base_cohort_request.QueryFormatter')
-    @mock.patch('cohort_job_server.sjs_api.cohort_requests.base_cohort_request.format_spark_job_request_for_sjs')
-    def test_create_sjs_request_with_stage_details(self, mock_format_request, mock_query_formatter):
+    @mock.patch('cohort_job_server.query_executor_api.cohort_requests.base_cohort_request.QueryFormatter')
+    @mock.patch('cohort_job_server.query_executor_api.cohort_requests.base_cohort_request.format_spark_job_request_for_query_executor')
+    def test_create_query_executor_request_with_stage_details(self, mock_format_request, mock_query_formatter):
         # Mock the format_to_fhir method to return a criteria object
         mock_formatter_instance = mock.MagicMock()
         mock_query_formatter.return_value = mock_formatter_instance
         mock_formatter_instance.format_to_fhir.return_value = mock.MagicMock()
         
-        # Mock the format_spark_job_request_for_sjs function to return a string
-        expected_result = '{"modeOptions": {"sampling": 0.5, "details": "detailed"}}'
+        # Mock the format_spark_job_request_for_query_executor function to return a string
+        expected_result = '{"mode_options": {"sampling": 0.5, "details": "detailed"}}'
         mock_format_request.return_value = expected_result
         
         # Create a BaseCohortRequest with stage_details and sampling
-        from cohort_job_server.sjs_api.enums import Mode
+        from cohort_job_server.query_executor_api.enums import Mode
         stage_details = "detailed"
         sampling_ratio = 0.5
         request = BaseCohortRequest(
@@ -75,13 +79,13 @@ class TestBaseCohortRequest(TestCase):
         # Create a mock CohortQuery
         cohort_query = mock.MagicMock()
         
-        # Call create_sjs_request
-        result = request.create_sjs_request(cohort_query)
+        # Call create_query_executor_request
+        result = request.create_query_executor_request(cohort_query)
         
         # Verify that the result is correct
         self.assertEqual(result, expected_result)
         
-        # Verify that format_spark_job_request_for_sjs was called
+        # Verify that format_spark_job_request_for_query_executor was called
         mock_format_request.assert_called_once()
         
         # Verify that the SparkJobObject was created with the correct parameters
@@ -100,7 +104,10 @@ class TestQueryFormatter(TestCase):
             with open(Path(__file__).resolve().parent.joinpath(f"resources/{filename}"), "r") as f:
                 return CohortQuery(**json.load(f))
 
-        self.auth_headers = {'Authorization': 'Bearer xxx.token.xxx', 'authorizationMethod': 'JWT', 'X-Trace-Id': '12a'}
+        self.auth_headers = {'Authorization': 'Bearer xxx.token.xxx',
+                             settings.AUTHORIZATION_METHOD_HEADER: settings.JWT_AUTH_MODE,
+                             'X-Trace-Id': '12a'
+                             }
         self.query_formatter = QueryFormatter(self.auth_headers)
         self.cohort_query_complex = load_query("complex_request.json")
         self.cohort_query_simple = load_query("simple_request.json")
@@ -115,7 +122,7 @@ class TestQueryFormatter(TestCase):
         )
         CohortJobServerConfig.USE_SOLR = True
 
-    @mock.patch("cohort_job_server.sjs_api.query_formatter.query_fhir")
+    @mock.patch("cohort_job_server.query_executor_api.query_formatter.query_fhir")
     def test_format_to_fhir_simple_query(self, query_fhir):
         query_fhir.return_value = self.mocked_query_fhir_result
         res = self.query_formatter.format_to_fhir(self.cohort_query_simple, False)
@@ -126,7 +133,7 @@ class TestQueryFormatter(TestCase):
         self.assertEqual("docstatus=final&type:not=doc-impor&empty=false&patient-active=true&_text=ok",
                           res_criteria.filter_fhir)
 
-    @mock.patch("cohort_job_server.sjs_api.query_formatter.query_fhir")
+    @mock.patch("cohort_job_server.query_executor_api.query_formatter.query_fhir")
     def test_format_to_fhir_simple_query_pseudo(self, query_fhir):
         query_fhir.return_value = self.mocked_query_fhir_result
         res = self.query_formatter.format_to_fhir(self.cohort_query_simple, True)
@@ -137,7 +144,7 @@ class TestQueryFormatter(TestCase):
         self.assertEqual("docstatus=final&type:not=doc-impor&empty=false&patient-active=true&_text=ok",
                           res_criteria.filter_fhir)
 
-    @mock.patch("cohort_job_server.sjs_api.query_formatter.query_fhir")
+    @mock.patch("cohort_job_server.query_executor_api.query_formatter.query_fhir")
     def test_format_to_fhir_complex_query(self, query_fhir):
         query_fhir.return_value = self.mocked_query_fhir_result
         res = self.query_formatter.format_to_fhir(self.cohort_query_complex, False)

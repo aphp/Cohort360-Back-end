@@ -1,13 +1,13 @@
-from unittest import TestCase
 from unittest.mock import MagicMock
 
 from django.conf import settings
 from rest_framework.test import APIRequestFactory
 
 from admin_cohort.middleware.jwt_session_middleware import JWTSessionMiddleware
+from admin_cohort.tests.tests_tools import TestCaseWithDBs
 
 
-class JWTSessionMiddlewareTests(TestCase):
+class JWTSessionMiddlewareTests(TestCaseWithDBs):
 
     def setUp(self):
         self.get_response = MagicMock()

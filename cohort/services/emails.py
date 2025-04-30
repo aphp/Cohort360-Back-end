@@ -44,7 +44,7 @@ def send_email_notif_feasibility_report_ready(request_name: str, owner: User, fs
     context = {**BASE_CONTEXT,
                "recipient_name": owner.display_name,
                "request_name": request_name,
-               "download_url": f"{settings.FRONT_URL}/download/feasibility-studies/{fs_id}/",
+               "download_url": f"{settings.FRONTEND_URL}/download/feasibility-studies/{fs_id}/",
                }
     email_notif = EmailNotification(subject=subject,
                                     to=[owner.email],

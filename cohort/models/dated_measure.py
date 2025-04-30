@@ -34,7 +34,7 @@ class DatedMeasure(CohortBaseModel, JobModel):
 
     @property
     def cohort_limit(self) -> int:
-        return settings.COHORT_LIMIT
+        return settings.COHORT_SIZE_LIMIT
 
     @property
     def is_global(self) -> bool:

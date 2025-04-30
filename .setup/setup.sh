@@ -4,20 +4,22 @@ set -e
 sudo apt update && sudo apt install software-properties-common -y
 sudo add-apt-repository ppa:deadsnakes/ppa -y && sudo apt update
 
-# Python
 echo "Installing prerequisites..."
-sudo apt install -y python3.11 python3.11-dev postgresql postgresql-contrib libkrb5-dev gcc
-echo "Installed: Python $(python3.11 --version), PostgreSQL $(psql --version), Kerberos"
+sudo apt install -y python3.12 python3.12-dev postgresql postgresql-contrib libkrb5-dev gcc
+echo "Installed: Python $(python3.12 --version), PostgreSQL $(psql --version), Kerberos"
 
 pip install uv
-uv venv -p python3.11 ../venv
-source ../venv/bin/activate
-uv pip install -r ../requirements.txt
-echo "Successfully installed requirements"
+cd ..
+uv venv -p python3.12
+uv sync
+source .venv/bin/activate
+echo "Successfully initialized a virtual env and installed requirements"
 
-COHORT_USER="cohort_dev"
-COHORT_USER_PASSWORD="cohort_dev_pwd"
-COHORT_DB="cohort_db"
+COHORT_DB=$(sed -n 's/^DB_NAME=//p' admin_cohort/.env)
+COHORT_USER=$(sed -n 's/^DB_USER=//p' admin_cohort/.env)
+COHORT_USER_PASSWORD=$(sed -n 's/^DB_PASSWORD=//p' admin_cohort/.env)
+
+echo "Creating database '$COHORT_DB' and a user '$COHORT_USER' with password '$COHORT_USER_PASSWORD'"
 
 sudo -u postgres psql <<EOF
 CREATE USER $COHORT_USER PASSWORD '$COHORT_USER_PASSWORD';
@@ -28,11 +30,10 @@ EOF
 
 echo "Database and user created. Running migrations..."
 
-source ../venv/bin/activate
-python ../manage.py migrate --database="default"
+python manage.py migrate --database="default"
 
-echo "Initializing a user with administration privileges"
-python ../manage.py load_initial_data --perimeters-conf perimeters.example.csv
+echo "Initializing a super user with all privileges"
+python manage.py load_initial_data --perimeters-conf .setup/perimeters.example.csv
 
-echo "Running server..."
-python ../manage.py runserver localhost:8000 &
+python manage.py runserver localhost:8000 &
+echo "Dev server running on localhost:8000"

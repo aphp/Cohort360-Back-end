@@ -5,7 +5,7 @@ from django.utils import timezone
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult
 from cohort_job_server.base_operator import BaseCohortOperator
-from cohort_job_server.sjs_api import sjs_status_mapper, CohortCreate
+from cohort_job_server.query_executor_api import query_executor_status_mapper, CohortCreate
 from cohort_job_server.tasks import notify_large_cohort_ready
 from cohort_job_server.utils import _logger, JOB_STATUS, GROUP_ID, GROUP_COUNT, ERR_MESSAGE
 
@@ -20,7 +20,7 @@ class CohortCreator(BaseCohortOperator):
                                existing_cohort_id: Optional[int] = None,
                                owner_username: Optional[str] = None,
                                sampling_ratio: Optional[float] = None) -> None:
-        self.sjs_requester.launch_request(CohortCreate(instance_id=cohort_id,
+        self.query_executor_requester.launch_request(CohortCreate(instance_id=cohort_id,
                                                        json_query=json_query,
                                                        auth_headers=auth_headers,
                                                        callback_path=callback_path,
@@ -33,7 +33,7 @@ class CohortCreator(BaseCohortOperator):
     def handle_patch_cohort(cohort: CohortResult, data: dict) -> None:
         _logger.info(f"Cohort[{cohort.uuid}]: Received patch data: {data}")
         if JOB_STATUS in data:
-            job_status = sjs_status_mapper(data[JOB_STATUS])
+            job_status = query_executor_status_mapper(data[JOB_STATUS])
             if not job_status:
                 raise ValueError(f"Bad Request: Invalid job status: {data.get(JOB_STATUS)}")
             if job_status in (JobStatus.finished, JobStatus.failed):
@@ -50,11 +50,11 @@ class CohortCreator(BaseCohortOperator):
 
     @staticmethod
     def handle_cohort_post_update(cohort: CohortResult, data: dict) -> None:
-        sjs_data_keys = (JOB_STATUS, GROUP_ID, GROUP_COUNT)
-        is_update_from_sjs = all(key in data for key in sjs_data_keys)
+        query_executor_data_keys = (JOB_STATUS, GROUP_ID, GROUP_COUNT)
+        is_update_from_query_executor = all(key in data for key in query_executor_data_keys)
         is_update_from_etl = JOB_STATUS in data and len(data) == 1
 
-        if is_update_from_sjs:
-            _logger.info(f"Cohort[{cohort.uuid}] successfully updated from SJS")
+        if is_update_from_query_executor:
+            _logger.info(f"Cohort[{cohort.uuid}] successfully updated from QUERY_EXECUTOR")
         if is_update_from_etl:
             notify_large_cohort_ready.s(cohort_id=cohort.uuid).apply_async()

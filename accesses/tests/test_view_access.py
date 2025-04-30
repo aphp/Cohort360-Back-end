@@ -96,7 +96,7 @@ class AccessViewTests(AccessesAppTestsBase):
                           retrieve_filter=self.basic_retrieve_filter)
         self.check_create_case(case)
         access = Access.objects.get(Q(**data))
-        expected_end_datetime = data["start_datetime"] + timedelta(days=settings.MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS)
+        expected_end_datetime = data["start_datetime"] + timedelta(days=settings.DEFAULT_ACCESS_VALIDITY_IN_DAYS)
         self.assertEqual(expected_end_datetime, access.end_datetime)
 
     def test_error_create_access_with_past_start_end_datetime(self):
