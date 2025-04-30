@@ -79,6 +79,7 @@ class BaseExporter:
             linked_cohort = required_table.cohort_result_subset or required_table.cohort_result_source
             required_table_data = {"tableName": required_table_name,
                                    "cohortId": linked_cohort.group_id,
+                                   "relation": True
                                    }
             if required_table.columns:
                 required_table_data["columnsToExport"] = required_table.columns
@@ -87,7 +88,9 @@ class BaseExporter:
 
         other_tables = []
         for t in export.export_tables.exclude(name=required_table_name):
-            t_data = {"tableName": t.name}
+            t_data = {"tableName": t.name,
+                      "relation": True
+                      }
             if t.cohort_result_subset:
                 t_data["cohortId"] = t.cohort_result_subset.group_id
             if t.columns:

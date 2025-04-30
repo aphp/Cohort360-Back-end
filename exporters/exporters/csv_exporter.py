@@ -46,9 +46,14 @@ class CSVExporter(BaseExporter):
         params = params or {"joinOnPrimaryKey": export.group_tables,
                             "output": {"type": self.type,
                                        "filePath": f"{export.target_full_path}.zip"
-                                       },
-                            "pivot": list(export.export_tables.filter(pivot=True).values_list("name", flat=True)),
-                            "pivotSplit": list(export.export_tables.filter(pivot_split=True).values_list("name", flat=True)),
-                            "pivotMerge": list(export.export_tables.filter(pivot_merge=True).values_list("name", flat=True)),
+                                       }
                             }
+        pivot_merge = []
+        for t in export.export_tables.filter(pivot_merge_columns__isnull=False):
+            d = {"tableName": t.name}
+            if t.pivot_merge_columns:
+                d["pivotedColumnsToKeep"] = t.pivot_merge_columns
+            pivot_merge.append(d)
+        if pivot_merge:
+            params["pivotMerge"] = pivot_merge
         super().handle_export(export=export, params=params)
