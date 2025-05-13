@@ -271,8 +271,9 @@ class RQSReducedSerializer(serializers.ModelSerializer):
         return obj.cohort_results.count()
 
     def get_patients_count(self, obj) -> int | str:
-        if obj.dated_measures.exists():
-            latest_dm = obj.dated_measures.latest("modified_at")
+        dms_with_normal_cohorts = obj.dated_measures.filter(cohorts__parent_cohort__isnull=True)
+        if dms_with_normal_cohorts.exists():
+            latest_dm = dms_with_normal_cohorts.latest("created_at")
             return latest_dm.measure if latest_dm.measure is not None else "NA"
         return "NA"
 
@@ -301,8 +302,9 @@ class RQSSerializer(serializers.ModelSerializer):
                   ]
 
     def get_dated_measures(self, obj) -> List[dict]:
-        dated_measures = obj.dated_measures.all().order_by('-modified_at')
-        return DatedMeasureSerializer(dated_measures, many=True).data
+        dms_with_normal_cohorts = obj.dated_measures.filter(cohorts__parent_cohort__isnull=True) \
+                                                    .order_by('-created_at')
+        return DatedMeasureSerializer(dms_with_normal_cohorts, many=True).data
 
 
 class RQSCreateSerializer(serializers.ModelSerializer):
