@@ -42,11 +42,11 @@ class RequestFilter(filters.FilterSet):
 )
 class RequestViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     query_snapshots_subquery = RQS.objects.filter(request_id=OuterRef('uuid')) \
-                                          .order_by('-modified_at') \
-                                          .values('modified_at')[:1]
+                                          .order_by('-created_at') \
+                                          .values('created_at')[:1]
     queryset = Request.objects.prefetch_related(Prefetch(lookup='query_snapshots',
                                                          queryset=RQS.objects.prefetch_related('cohort_results'))) \
-                              .annotate(updated_at=Subquery(query_snapshots_subquery.values('modified_at')))
+                              .annotate(updated_at=Subquery(query_snapshots_subquery.values('created_at')))
     serializer_class = RequestSerializer
     http_method_names = ["get", "post", "patch", "delete"]
     filterset_class = RequestFilter
