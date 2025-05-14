@@ -10,7 +10,7 @@ class AuthenticatedApplicativeUserPermission(IsAuthenticated):
             request.user.username in APPLICATIVE_USERS
 
 
-class SJSorETLCallbackPermission(AuthenticatedApplicativeUserPermission):
+class QueryExecutororETLCallbackPermission(AuthenticatedApplicativeUserPermission):
     def has_permission(self, request, view):
         return super().has_permission(request, view) and \
             request.method in ("GET", "PATCH")

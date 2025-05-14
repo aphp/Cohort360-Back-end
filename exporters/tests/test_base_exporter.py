@@ -10,8 +10,8 @@ class TestBaseExporter(ExportersTestBase):
     def setUp(self) -> None:
         super().setUp()
         self.api_conf = {
-            "INFRA_API": {
-                "API_URL": 'https://infra-api.fr/api',
+            "HADOOP_API": {
+                "API_URL": 'https://hadoop-api.fr/api',
                 "AUTH_TOKEN": "hadoop-token",
                 "TASK_STATUS_ENDPOINT": '/hadoop/task_status',
                 "CREATE_DB_ENDPOINT": '/hadoop/create_db',

@@ -18,7 +18,7 @@ class EmailNotification(EmailMultiAlternatives):
         self.html_content = ""
         self.txt_content = ""
         self.build_email_contents(context=kwargs.pop("context", {}))
-        kwargs["from_email"] = settings.EMAIL_SENDER_ADDRESS
+        kwargs["from_email"] = settings.DEFAULT_FROM_EMAIL
         kwargs["to"] = kwargs.pop("to", list())
         kwargs["body"] = self.txt_content
         super().__init__(**kwargs)

@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth import login, logout
 from django.contrib.auth.models import update_last_login
 from django.http import JsonResponse
@@ -11,8 +12,7 @@ from admin_cohort.models import User
 from admin_cohort.serializers import UserSerializer, LoginFormSerializer, LoginSerializer
 from admin_cohort.services.auth import auth_service
 from admin_cohort.tools.request_log_mixin import RequestLogMixin
-from admin_cohort.types import ServerError
-
+from admin_cohort.exceptions import ServerError
 
 class LoginView(RequestLogMixin, viewsets.GenericViewSet):
     authentication_classes = []
@@ -27,7 +27,7 @@ class LoginView(RequestLogMixin, viewsets.GenericViewSet):
                    request=LoginFormSerializer,
                    responses={200: LoginSerializer})
     def post(self, request, *args, **kwargs):
-        auth_method = request.META.get('HTTP_AUTHORIZATIONMETHOD')
+        auth_method = request.META.get(f"HTTP_{settings.AUTHORIZATION_METHOD_HEADER}")
         try:
             user = auth_service.login(request=request, auth_method=auth_method)
         except (AuthenticationFailed, User.DoesNotExist, ServerError) as e:

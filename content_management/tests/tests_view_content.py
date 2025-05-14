@@ -4,15 +4,14 @@ from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
-from rest_framework.test import APITestCase
 
 from accesses.models import Perimeter, Access, Role
 from accesses.tests.base import role_full_admin_data
-from admin_cohort.tests.tests_tools import new_random_user, new_user_and_profile
+from admin_cohort.tests.tests_tools import new_random_user, new_user_and_profile, TestCaseWithDBs
 from content_management.models import Content, MetadataName
 
 
-class ContentViewSetTest(APITestCase):
+class ContentViewSetTest(TestCaseWithDBs):
     def setUp(self):
         self.client = APIClient()
         self.admin_client = APIClient()
@@ -225,7 +224,7 @@ class ContentViewSetTest(APITestCase):
         self.assertIn('BANNER_ERROR', response.data)
 
 
-class UnauthenticatedContentViewSetTest(APITestCase):
+class UnauthenticatedContentViewSetTest(TestCaseWithDBs):
     def setUp(self):
         self.client = APIClient()
         self.valid_content_data = {

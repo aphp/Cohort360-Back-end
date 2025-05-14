@@ -13,8 +13,8 @@ class MaintenanceModeMiddleware:
         if maintenance and maintenance.active:
             if maintenance_service.is_allowed_request(request):
                 return self.get_response(request)
-            data = dict(message=f"Le serveur est en maintenance jusqu'au "
-                                f"{maintenance.end_datetime.strftime('%d/%m/%Y, %H:%M:%S')} en raison de: {maintenance.message}",
+            data = dict(message=f"The server is unavailable for maintenance up to {maintenance.end_datetime.strftime('%d/%m/%Y, %H:%M:%S')} "
+                                f"for the following reason: {maintenance.message}",
                         maintenance_start=maintenance.start_datetime,
                         maintenance_end=maintenance.end_datetime,
                         active=True)

@@ -12,9 +12,9 @@ class TestHiveExporter(ExportersTestBase):
         super().setUp()
         self.person_table_name = "person"
         self.cohorts = [self.cohort, self.cohort2]
-        with mock.patch('exporters.exporters.base_exporter.InfraAPI'):
+        with mock.patch('exporters.exporters.base_exporter.HadoopAPI'):
             self.exporter = HiveExporter()
-            self.mock_infra_api = self.exporter.infra_api
+            self.mock_infra_api = self.exporter.hadoop_api
             self.mock_infra_api.required_table = "person"
 
     def test_validate_tables_data_all_tables_have_source_cohort(self):
@@ -73,13 +73,13 @@ class TestHiveExporter(ExportersTestBase):
 
     def test_successfully_change_db_ownership(self):
         self.mock_infra_api.change_db_ownership.return_value = None
-        self.exporter.change_db_ownership(export=self.hive_export, db_user=self.hive_exporter_user)
+        self.exporter.change_db_ownership(export=self.hive_export, db_user=self.hive_user)
         self.mock_infra_api.change_db_ownership.assert_called_once()
 
     def test_error_change_db_ownership(self):
         self.mock_infra_api.change_db_ownership.side_effect = RequestException()
         with self.assertRaises(RequestException):
-            self.exporter.change_db_ownership(export=self.hive_export, db_user=self.hive_exporter_user)
+            self.exporter.change_db_ownership(export=self.hive_export, db_user=self.hive_user)
             self.mock_infra_api.change_db_ownership.assert_called_once()
 
     def test_successfully_conclude_export(self):

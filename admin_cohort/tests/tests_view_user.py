@@ -1,6 +1,5 @@
 from datetime import timedelta
 from unittest import mock
-from unittest.mock import MagicMock
 
 from django.utils import timezone
 from django.conf import settings
@@ -8,6 +7,7 @@ from rest_framework import status
 from rest_framework.test import force_authenticate
 
 from accesses.models import Access, Role, Perimeter, Profile
+from admin_cohort.exceptions import ServerError
 from admin_cohort.models import User
 from admin_cohort.tests.tests_tools import BaseTests
 from admin_cohort.views import UserViewSet
@@ -131,23 +131,34 @@ class UserTestsAsAdmin(UserTests):
         users_to_find = [self.user1, self.user2, self.admin_user, self.user3]
         self._check_users(response, users_to_find)
 
-    @mock.patch('admin_cohort.services.users.AccessesSynchronizer')
-    @mock.patch('admin_cohort.services.users.requests')
-    def test_create_user(self, mock_requests: MagicMock, mock_accesses_syncer: MagicMock):
-        mock_accesses_syncer().sync_accesses.return_value = None
-        mock_response = MagicMock()
-        mock_response.status_code = status.HTTP_200_OK
-        mock_response.json.return_value = {'data': {'attributes': {'givenName': 'New',
-                                                                   'sn': 'USER',
-                                                                   'cn': '999999',
-                                                                   'mail': 'new.user@aphp.fr'}}}
-        mock_requests.post.return_value =mock_response
-        data = dict(username="999999", firstname="New", lastname="USER", email="new.user@aphp.fr")
+    def test_create_user_with_password(self):
+        data = dict(username="999999",
+                    firstname="New",
+                    lastname="USER",
+                    email="new.user@aphp.fr",
+                    password="password")
         request = self.factory.post(USERS_URL, data, format='json')
         force_authenticate(request, self.admin_user)
         response = UserViewSet.as_view({'post': 'create'})(request)
         response.render()
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertNotIn("password", response.data)
+        user = User.objects.get(pk=data["username"])
+        self.assertTrue(user.password is not None)
+        self.assertNotEqual(user.password, data["password"])    # password is hashed
+
+    def test_create_user_without_password(self):
+        data = dict(username="999999",
+                    firstname="New",
+                    lastname="USER",
+                    email="new.user@aphp.fr")
+        request = self.factory.post(USERS_URL, data, format='json')
+        force_authenticate(request, self.admin_user)
+        response = UserViewSet.as_view({'post': 'create'})(request)
+        response.render()
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        user = User.objects.get(pk=data["username"])
+        self.assertTrue(user.password is None)
 
     def test_update_user_success(self):
         patch_data = dict(email="updated.email.address@aphp.fr")
@@ -167,3 +178,58 @@ class UserTestsAsAdmin(UserTests):
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN, response.content)
         user2 = User.objects.get(pk=self.user2.username)
         self.assertIsNotNone(user2)
+
+    def test_check_user_exists_in_db(self):
+        request = self.factory.get(f"{USERS_URL}/{self.user1.username}/check")
+        force_authenticate(request, self.admin_user)
+        response = UserViewSet.as_view({'get': 'check_user_exists'})(request, username=self.user1.username)
+        response.render()
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        result = response.data
+        self.assertTrue(result["already_exists"])
+        self.assertFalse(result["found"])
+
+    def test_check_user_exists_with_invalid_username(self):
+        invalid_username = "!@#$%^&*()"
+        request = self.factory.get(f"{USERS_URL}/{invalid_username}/check")
+        force_authenticate(request, self.admin_user)
+        response = UserViewSet.as_view({'get': 'check_user_exists'})(request, username=invalid_username)
+        response.render()
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @mock.patch('admin_cohort.views.users.users_service.try_hooks')
+    def test_check_user_exists_found_using_hooks_success(self, mock_try_hooks):
+        mock_try_hooks.return_value = {"username": "username",
+                                       "firstname": "Firstname",
+                                       "lastname": "LASTNAME",
+                                       "email": "username.email@backend.com"
+                                       }
+        random_username = "1234567"
+        request = self.factory.get(f"{USERS_URL}/{random_username}/check")
+        force_authenticate(request, self.admin_user)
+        response = UserViewSet.as_view({'get': 'check_user_exists'})(request, username=random_username)
+        response.render()
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        result = response.data
+        self.assertFalse(result["already_exists"])
+        self.assertTrue(result["found"])
+
+    @mock.patch('admin_cohort.views.users.users_service.try_hooks')
+    def test_check_user_exists_not_found_using_hooks_success(self, mock_try_hooks):
+        mock_try_hooks.return_value = None
+        random_username = "1234567"
+        request = self.factory.get(f"{USERS_URL}/{random_username}/check")
+        force_authenticate(request, self.admin_user)
+        response = UserViewSet.as_view({'get': 'check_user_exists'})(request, username=random_username)
+        response.render()
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    @mock.patch('admin_cohort.views.users.users_service.try_hooks')
+    def test_check_user_exists_hooks_error(self, mock_try_hooks):
+        mock_try_hooks.side_effect = ServerError()
+        random_username = "1234567"
+        request = self.factory.get(f"{USERS_URL}/{random_username}/check")
+        force_authenticate(request, self.admin_user)
+        response = UserViewSet.as_view({'get': 'check_user_exists'})(request, username=random_username)
+        response.render()
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)

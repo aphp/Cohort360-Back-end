@@ -10,17 +10,16 @@ from django.conf import settings
 
 from admin_cohort.middleware.context_request_middleware import get_trace_id
 from cohort_job_server.apps import CohortJobServerConfig
-from cohort_job_server.sjs_api.enums import CriteriaType, ResourceType
-from cohort_job_server.sjs_api.exceptions import FhirException
-from cohort_job_server.sjs_api.schemas import FhirParameters
+from cohort_job_server.query_executor_api.enums import CriteriaType, ResourceType
+from cohort_job_server.query_executor_api.exceptions import FhirException
+from cohort_job_server.query_executor_api.schemas import FhirParameters
 
 if TYPE_CHECKING:
-    from cohort_job_server.sjs_api.schemas import CohortQuery, Criteria, SourcePopulation
+    from cohort_job_server.query_executor_api.schemas import CohortQuery, Criteria, SourcePopulation
 
 env = os.environ
 FHIR_URL = env.get("FHIR_URL")
-META_SECURITY_PSEUDED = env.get("META_SECURITY_PSEUDED",
-                                "meta.security=http://terminology.hl7.org/CodeSystem/v3-ObservationValue|PSEUDED")
+META_SECURITY_PSEUDED = "meta.security=http://terminology.hl7.org/CodeSystem/v3-ObservationValue|PSEUDED"
 
 _logger = logging.getLogger("info")
 
@@ -29,7 +28,7 @@ def query_fhir(resource: str, params: dict[str, list[str]], auth_headers: dict) 
     url = f"{FHIR_URL}/{resource}/$query"
 
     # this additional query is made to the real endpoint because the $query one does not check for params
-    if settings.CRB_TEST_FHIR_QUERIES:
+    if CohortJobServerConfig.TEST_FHIR_QUERIES:
         url_test = f"{FHIR_URL}/{resource}"
         _logger.info(f"Testing real fhir query with {url_test=} {params=}")
         response = requests.get(url_test, params={**params, "_count": 0}, headers=auth_headers)

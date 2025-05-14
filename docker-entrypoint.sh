@@ -47,7 +47,7 @@ set -e
 
 mkdir -p log
 
-sudo sed -i s/{{BACK_HOST}}/"$BACK_HOST"/g /etc/nginx/nginx.conf;
+sudo sed -i s/{{BACKEND_HOST}}/"$BACKEND_HOST"/g /etc/nginx/nginx.conf;
 
 sudo service nginx restart
 

@@ -437,7 +437,7 @@ class RqsShareTests(RqsTests):
         with open(Path(__file__).resolve().parent.joinpath("resources/email_shared_request.txt"), "r") as fh:
             email_content = fh.read()
         with patch.object(EmailMessage, 'send', self.check_mail(
-                from_email=environ.get("EMAIL_SENDER_ADDRESS"),
+                from_email=environ.get("DEFAULT_FROM_EMAIL"),
                 to_emails=[self.user2.email],
                 body=email_content
         )):

@@ -6,7 +6,7 @@ from rest_framework import status
 from admin_cohort.types import JobStatus
 from cohort.models import DatedMeasure, FeasibilityStudy
 from cohort_job_server.cohort_counter import CohortCounter
-from cohort_job_server.sjs_api import CohortCount, FeasibilityCount, SJSClient
+from cohort_job_server.query_executor_api import CohortCount, FeasibilityCount, QueryExecutorClient
 from cohort_job_server.tests.base import BaseTest
 
 
@@ -47,9 +47,9 @@ class CohortCounterTest(BaseTest):
         response.status_code = status.HTTP_200_OK
         response._content = self.count_cohort_success_resp_content
         
-        # Setup mock SJSRequester
-        with mock.patch.object(self.cohort_counter, 'sjs_requester') as mock_sjs_requester:
-            mock_sjs_requester.launch_request.return_value = response
+        # Setup mock QueryExecutorRequester
+        with mock.patch.object(self.cohort_counter, 'query_executor_requester') as mock_query_executor_requester:
+            mock_query_executor_requester.launch_request.return_value = response
             
             # Call the method with stage_details
             stage_details = "detailed"
@@ -60,7 +60,7 @@ class CohortCounterTest(BaseTest):
             self.assertEqual(mock_cohort_count_class.call_args.kwargs['stage_details'], stage_details)
             
             # Verify that launch_request was called with the CohortCount instance
-            mock_sjs_requester.launch_request.assert_called_once_with(mock_cohort_count_instance)
+            mock_query_executor_requester.launch_request.assert_called_once_with(mock_cohort_count_instance)
 
     @mock.patch.object(CohortCount, 'launch')
     def test_error_launch_dated_measure_count(self, mock_launch):
@@ -84,7 +84,7 @@ class CohortCounterTest(BaseTest):
         self.assertEqual(self.fs.request_job_status, JobStatus.started.value)
         self.assertEqual(self.fs.request_job_id, self.test_job_id)
 
-    @mock.patch.object(SJSClient, 'delete')
+    @mock.patch.object(QueryExecutorClient, 'delete')
     def test_successfully_cancel_job(self, mock_delete_job):
         response = Response()
         response.status_code = status.HTTP_200_OK

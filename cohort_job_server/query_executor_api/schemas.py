@@ -5,8 +5,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from cohort_job_server.sjs_api.enums import CriteriaType, ResourceType, Mode
-from cohort_job_server.sjs_api.exceptions import FhirException
+from cohort_job_server.query_executor_api.enums import CriteriaType, ResourceType, Mode
+from cohort_job_server.query_executor_api.exceptions import FhirException
 
 
 class PatientAge(BaseModel):
@@ -103,9 +103,9 @@ class SparkJobObject:
     cohort_definition_syntax: CohortQuery
     mode: Mode
     owner_entity_id: str
-    callbackPath: Optional[str] = Field(None, alias='callbackPath')
-    existingCohortId: Optional[int] = Field(None, alias='existingCohortId')
-    modeOptions: Optional[ModeOptions] = Field(None, alias='modeOptions')
+    callback_path: Optional[str] = Field(None, alias='callbackPath')
+    existing_cohort_id: Optional[int] = Field(None, alias='existingCohortId')
+    mode_options: Optional[ModeOptions] = Field(None, alias='modeOptions')
 
 
 class FhirParameter(BaseModel):

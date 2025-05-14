@@ -8,7 +8,7 @@ from requests import RequestException
 from admin_cohort.models import User
 from admin_cohort.types import JobStatus
 from exporters.apis.export_api import ExportAPI
-from exporters.apis.infra_api import InfraAPI
+from exporters.apis.hadoop_api import HadoopAPI
 from exporters.enums import APIJobType
 from exports.emails import check_email_address
 from exports.models import Export, ExportTable
@@ -23,9 +23,8 @@ class BaseExporter:
 
     def __init__(self):
         self.export_api = ExportAPI()
-        self.infra_api = InfraAPI()
+        self.hadoop_api = HadoopAPI()
         self.type = None
-        self.file_extension = None
         self.target_location = None
 
     def validate(self, export_data: dict, **kwargs) -> None:
@@ -102,7 +101,7 @@ class BaseExporter:
         self.log_export_task(export.pk, f"Asking to export for '{export.target_name}'")
         params.update({"tablesToExport": self.build_tables_input(export),
                        "noDateShift": export.nominative or not export.shift_dates,
-                       "disableTerminology": self.export_api.disable_terminology,
+                       "disableTerminology": self.export_api.disable_data_translation,
                        })
         if not export.nominative:
             params["pseudo"] = export.datalab.name
@@ -121,7 +120,7 @@ class BaseExporter:
             time.sleep(10)
             self.log_export_task(export.uuid, f"Asking for status of job `{job_id}`")
             target_api = (job_type == APIJobType.EXPORT and self.export_api
-                          or job_type == APIJobType.HIVE_DB_CREATE and self.infra_api
+                          or job_type == APIJobType.HIVE_DB_CREATE and self.hadoop_api
                           or None)
             try:
                 job_status = target_api.get_job_status(job_id=job_id)

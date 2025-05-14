@@ -117,7 +117,7 @@ class AccessesSynchronizer:
                 count_orbis_accesses += 1
                 pr = e.resource
                 if pr.active:
-                    default_end_datetime = timezone.now() + timezone.timedelta(days=settings.MIN_DEFAULT_END_DATE_OFFSET_IN_DAYS)
+                    default_end_datetime = timezone.now() + timezone.timedelta(days=settings.DEFAULT_ACCESS_VALIDITY_IN_DAYS)
                     fpr = FhirPractitionerRole(id=pr.id,
                                                active=pr.active,
                                                practitioner_id=pr.practitioner.to_resource().identifier[0].value,

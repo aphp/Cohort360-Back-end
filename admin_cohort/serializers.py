@@ -49,6 +49,7 @@ class MaintenancePhaseSerializer(BaseSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     display_name = serializers.CharField(read_only=True)
+    password = serializers.CharField(write_only=True, required=False)
 
     class Meta:
         model = User
@@ -56,6 +57,7 @@ class UserSerializer(serializers.ModelSerializer):
                   "firstname",
                   "lastname",
                   "email",
+                  "password",
                   "display_name"]
 
 
