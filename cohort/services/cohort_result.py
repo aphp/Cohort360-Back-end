@@ -16,16 +16,21 @@ class CohortResultService(CommonService):
     job_type = "create"
 
     @staticmethod
-    def build_query(cohort_source_id: str, fhir_filter_id: str) -> str:
-        fhir_filter = FhirFilter.objects.get(pk=fhir_filter_id)
+    def build_query(cohort_source_id: str, fhir_filter_id: str = None) -> str:
+        resource_type, f_filter = "Patient", ""
+        if fhir_filter_id is not None:
+            fhir_filter = FhirFilter.objects.get(pk=fhir_filter_id)
+            resource_type = fhir_filter.fhir_resource
+            f_filter = fhir_filter.filter
+
         query = {"_type": "request",
-                 "resourceType": fhir_filter.fhir_resource,
+                 "resourceType": resource_type,
                  "sourcePopulation": {"caresiteCohortList": [cohort_source_id]},
                  "request": {"_id": 0,
                              "_type": "basicResource",
                              "isInclusive": True,
-                             "filterFhir": fhir_filter.filter,
-                             "resourceType": fhir_filter.fhir_resource
+                             "filterFhir": f_filter,
+                             "resourceType": resource_type
                              }
                  }
         return json.dumps(query)
@@ -45,7 +50,9 @@ class CohortResultService(CommonService):
                                                request_job_status=dm.request_job_status,
                                                request_job_duration=dm.request_job_duration)
 
-        query = self.build_query(source_cohort.group_id, fhir_filter_id)
+        query = self.build_query(cohort_source_id=source_cohort.group_id,
+                                 fhir_filter_id=fhir_filter_id
+                                 )
         new_rqs = copy_query_snapshot(source_cohort.request_query_snapshot)
         new_dm = copy_dated_measure(source_cohort.dated_measure)
         cohort_subset = CohortResult.objects.create(is_subset=True,
@@ -70,8 +77,12 @@ class CohortResultService(CommonService):
         if global_estimate:
             dm_service.handle_global_count(cohort, request)
         try:
+           if cohort.parent_cohort and cohort.sampling_ratio:
+               json_query = self.build_query(cohort_source_id=cohort.group_id)
+           else:
+               json_query = cohort.request_query_snapshot.serialized_query
            create_cohort.s(cohort_id=cohort.pk,
-                           json_query=cohort.request_query_snapshot.serialized_query,
+                           json_query=json_query,
                            auth_headers=get_authorization_header(request),
                            cohort_creator_cls=self.operator_cls,
                            sampling_ratio=cohort.sampling_ratio) \
