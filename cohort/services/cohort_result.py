@@ -78,7 +78,7 @@ class CohortResultService(CommonService):
             dm_service.handle_global_count(cohort, request)
         try:
            if cohort.parent_cohort and cohort.sampling_ratio:
-               json_query = self.build_query(cohort_source_id=cohort.group_id)
+               json_query = self.build_query(cohort_source_id=cohort.parent_cohort.group_id)
            else:
                json_query = cohort.request_query_snapshot.serialized_query
            create_cohort.s(cohort_id=cohort.pk,
