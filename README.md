@@ -236,9 +236,11 @@
   |-----------------------------|------------------------------------------------------------------------------|---------------|------------|
   | STORAGE_PROVIDERS           | Comma-separated URLs of servers to store exported data                       |               | `yes`      |
   | EXPORT_API_URL              | URL of the third-party API that handles exports                              |               | `yes`      |
+  | EXPORT_API_AUTH_TOKEN       | API-key used for authentication                                              |               | `yes`      |
   | EXPORT_CSV_PATH             | Path to the directory where CSV exports are stored                           |               | `yes`      |
   | EXPORT_XLSX_PATH            | Path to the directory where XLSX exports are stored                          |               | `yes`      |
   | HADOOP_API_URL              | URL of a third-party API that handles creating the database for Hive exports |               | `yes`      |
+  | HADOOP_API_AUTH_TOKEN       | API-key used for authentication                                              |               | `yes`      |
   | HIVE_DB_PATH                | Path to the directory where the Hive database is stored                      |               | `yes`      |
   | HIVE_USER                   | Name of the system user that creates Hive databases                          |               | `yes`      |
   | DISABLE_DATA_TRANSLATION    | If True, it disables translating exported data. Export data as is            | False         | no         |

@@ -10,7 +10,9 @@ class AuthTokens:
 
 
 class OIDCAuthTokens(AuthTokens):
-    pass
+
+    def __init__(self, access_token: str, refresh_token: str, **kwargs):
+        super().__init__(access_token, refresh_token)
 
 
 class JWTAuthTokens(AuthTokens):
