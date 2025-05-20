@@ -28,7 +28,7 @@ class ExportersConfig(AppConfig):
     THIRD_PARTY_API_CONF = {
         "HADOOP_API": {
             "API_URL": env.get('HADOOP_API_URL'),
-            "AUTH_TOKEN": env.get('INFRA_HADOOP_TOKEN'),
+            "AUTH_TOKEN": env.get('HADOOP_API_AUTH_TOKEN'),
             "HIVE_DB_PATH": env.get('HIVE_DB_PATH'),
             "HIVE_USER": env.get('HIVE_USER'),
             "TASK_STATUS_ENDPOINT": "/hadoop/task_status",
@@ -37,7 +37,7 @@ class ExportersConfig(AppConfig):
         },
         "EXPORT_API": {
             "API_URL": env.get('EXPORT_API_URL'),
-            "AUTH_TOKEN": env.get('EXPORT_AUTH_TOKEN'),
+            "AUTH_TOKEN": env.get('EXPORT_API_AUTH_TOKEN'),
             "EXPORT_CSV_PATH": env.get('EXPORT_CSV_PATH'),
             "EXPORT_XLSX_PATH": env.get('EXPORT_XLSX_PATH'),
             "DISABLE_DATA_TRANSLATION": env.get('DISABLE_DATA_TRANSLATION', False),
