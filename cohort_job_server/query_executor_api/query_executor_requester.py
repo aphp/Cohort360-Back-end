@@ -47,6 +47,8 @@ class QueryExecutorRequester:
             instance.request_job_id = response.job_id
             if instance_model is CohortResult:
                 count = instance.dated_measure.measure
+                if instance.parent_cohort:
+                    count = instance.parent_cohort.dated_measure.measure
                 job_status = count >= settings.COHORT_SIZE_LIMIT and JobStatus.long_pending or JobStatus.pending
         else:
             instance.request_job_fail_msg = response.err_msg
