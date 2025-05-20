@@ -69,6 +69,36 @@ class ExportViewSetTest(ExportsTestBase):
                                     expected_resp_status=status.HTTP_201_CREATED)
 
     @mock.patch.object(ExportViewSet, 'permission_classes', [IsAuthenticated])
+    def test_create_export_with_pivot_merge_success(self):
+        create_url = reverse(viewname=self.viewname_list)
+        export_data = {**self.export_basic_data,
+                       "export_tables": [{"table_name": "person",
+                                          "cohort_result_source": self.cohort_result.uuid,
+                                          "pivot_merge": True,
+                                          "columns": None
+                                          }]
+                      }
+        self.check_test_create_view(request_user=self.exporter_user,
+                                    create_url=create_url,
+                                    request_data=export_data,
+                                    expected_resp_status=status.HTTP_201_CREATED)
+
+    @mock.patch.object(ExportViewSet, 'permission_classes', [IsAuthenticated])
+    def test_create_export_with_pivot_merge_columns_success(self):
+        create_url = reverse(viewname=self.viewname_list)
+        export_data = {**self.export_basic_data,
+                       "export_tables": [{"table_name": "person",
+                                          "cohort_result_source": self.cohort_result.uuid,
+                                          "pivot_merge_columns": ["col_01", "col_02", "col_03"],
+                                          "columns": None
+                                          }]
+                       }
+        self.check_test_create_view(request_user=self.exporter_user,
+                                    create_url=create_url,
+                                    request_data=export_data,
+                                    expected_resp_status=status.HTTP_201_CREATED)
+
+    @mock.patch.object(ExportViewSet, 'permission_classes', [IsAuthenticated])
     def test_create_export_error(self):
         create_url = reverse(viewname=self.viewname_list)
         self.check_test_create_view(request_user=self.exporter_user,
