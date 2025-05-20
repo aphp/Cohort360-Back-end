@@ -39,9 +39,6 @@ class PerimeterReadRight:
     right_read_patient_pseudonymized: bool
     right_search_patients_by_ipp: bool
     right_read_opposed_patients_data: bool
-    right_read_administrative_data: bool
-    right_read_medical_data: bool
-    right_read_treatments_data: bool
 
     def __post_init__(self):
         if self.right_read_patient_nominative:

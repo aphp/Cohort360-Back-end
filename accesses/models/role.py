@@ -43,10 +43,6 @@ class Role(BaseModel):
     right_search_patients_by_ipp = models.BooleanField(default=False, null=False)
     right_search_patients_unlimited = models.BooleanField(default=False, null=False)
     right_search_opposed_patients = models.BooleanField(default=False, null=False)
-    # ORBIS
-    right_read_administrative_data = models.BooleanField(default=False, null=False)
-    right_read_medical_data = models.BooleanField(default=False, null=False)
-    right_read_treatments_data = models.BooleanField(default=False, null=False)
     # FHIR
     right_read_practitioner_data = models.BooleanField(default=False, null=False)
 

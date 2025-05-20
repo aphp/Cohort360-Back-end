@@ -1,26 +1,9 @@
 
-NEW_ROLES = ("SST", "Admin et soin", "Médical et soin")
 EXISTING_TARGET_ROLE = "Personnel médical - Equipe de soin"
 
 # not clean
 # todo: switch to using Role IDs instead of names after deploying to production
 roles_map = {
-    NEW_ROLES[0]: [
-        "0_SST_IDE",
-        "0_SST_MEDECIN",
-        "0_SST_SEC"
-        ],
-    NEW_ROLES[1]: [
-        "0_ETUDIANTTECHNICIENDELABO",
-        "0_SECRETAIRERADIOLOGIE",
-        "0_TECHNICIENDELABORATOIRE",
-        ],
-    NEW_ROLES[2]: [
-        "0_ETUDIANTREEDUCATEUR",
-        "0_ETUDIANTPHARMACIE",
-        "0_PHARMACOVIGILANCE_CRPV",
-        "0_COORDINATEUR_PRELEV_ORGANE"
-        ],
     EXISTING_TARGET_ROLE: [
         "0_ASSISTANTDENTAIRE",
         "0_CADRELABORATOIRE",
