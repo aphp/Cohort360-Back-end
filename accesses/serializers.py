@@ -218,9 +218,6 @@ class ReadRightPerimeter(serializers.Serializer):
     right_read_patient_pseudonymized = serializers.BooleanField(read_only=True)
     right_search_patients_by_ipp = serializers.BooleanField(read_only=True)
     right_read_opposed_patients_data = serializers.BooleanField(read_only=True)
-    right_read_administrative_data = serializers.BooleanField(read_only=True)
-    right_read_medical_data = serializers.BooleanField(read_only=True)
-    right_read_treatments_data = serializers.BooleanField(read_only=True)
 
 
 class RightReadPatientDataSerializer(serializers.Serializer):

@@ -147,9 +147,6 @@ class PerimeterViewTests(AccessesAppTestsBase):
                                                      right_read_patient_pseudonymized=True,
                                                      right_search_patients_by_ipp=True,
                                                      right_read_opposed_patients_data=True,
-                                                     right_read_administrative_data=False,
-                                                     right_read_medical_data=False,
-                                                     right_read_treatments_data=False
                                                      )
 
             data_read_rights_p2 = PerimeterReadRight(perimeter=self.p2,
@@ -157,19 +154,13 @@ class PerimeterViewTests(AccessesAppTestsBase):
                                                      right_read_patient_pseudonymized=True,
                                                      right_search_patients_by_ipp=True,
                                                      right_read_opposed_patients_data=True,
-                                                     right_read_administrative_data=True,
-                                                     right_read_medical_data=True,
-                                                     right_read_treatments_data=True
                                                      )
 
             data_read_rights_p4 = PerimeterReadRight(perimeter=self.p4,
                                                      right_read_patient_nominative=True,
                                                      right_read_patient_pseudonymized=True,
                                                      right_search_patients_by_ipp=True,
-                                                     right_read_opposed_patients_data=True,
-                                                     right_read_administrative_data=True,
-                                                     right_read_medical_data=True,
-                                                     right_read_treatments_data=True)
+                                                     right_read_opposed_patients_data=True)
 
             expected_data_read_rights = [data_read_rights_p0,
                                          data_read_rights_p2,
@@ -182,19 +173,13 @@ class PerimeterViewTests(AccessesAppTestsBase):
                                                      right_read_patient_nominative=False,
                                                      right_read_patient_pseudonymized=True,
                                                      right_search_patients_by_ipp=True,
-                                                     right_read_opposed_patients_data=True,
-                                                     right_read_administrative_data=False,
-                                                     right_read_medical_data=False,
-                                                     right_read_treatments_data=False)
+                                                     right_read_opposed_patients_data=True)
 
             data_read_rights_p9 = PerimeterReadRight(perimeter=self.p9,
                                                      right_read_patient_nominative=True,
                                                      right_read_patient_pseudonymized=True,
                                                      right_search_patients_by_ipp=True,
-                                                     right_read_opposed_patients_data=True,
-                                                     right_read_administrative_data=True,
-                                                     right_read_medical_data=True,
-                                                     right_read_treatments_data=True)
+                                                     right_read_opposed_patients_data=True)
 
             expected_data_read_rights = [data_read_rights_p5,
                                          data_read_rights_p9]

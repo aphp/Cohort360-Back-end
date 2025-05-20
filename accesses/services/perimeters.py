@@ -150,10 +150,7 @@ class PerimetersService:
                                                             right_read_patient_nominative=read_nomi,
                                                             right_read_patient_pseudonymized=read_pseudo,
                                                             right_search_patients_by_ipp=allow_search_by_ipp,
-                                                            right_read_opposed_patients_data=allow_read_opposed_patient,
-                                                            right_read_administrative_data=read_nomi,
-                                                            right_read_medical_data=read_nomi,
-                                                            right_read_treatments_data=read_nomi))
+                                                            right_read_opposed_patients_data=allow_read_opposed_patient))
         return sorted(perimeter_read_rights,
                       key=lambda x: (x.perimeter.full_path, x.perimeter.id))
 
