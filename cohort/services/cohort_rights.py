@@ -57,7 +57,10 @@ class CohortRightsService:
         return cohort_rights
 
     def get_cohort_perimeters(self, cohorts_ids: List[str], owner: User) -> dict[str, QuerySet[Perimeter]]:
-        if any(cid not in owner.user_cohorts.values_list('group_id', flat=True) for cid in cohorts_ids):
+        cohorts_owners = CohortResult.objects.filter(group_id__in=cohorts_ids)\
+                                             .values_list("owner_id", flat=True)\
+                                             .distinct()
+        if cohorts_owners.count() != 1 or owner.username not in cohorts_owners:
             raise IntegrityError(f"One or multiple cohorts with given IDs do not belong to user '{owner.display_name}'")
         virtual_cohorts = self.retrieve_virtual_cohorts_ids_from_snapshot(cohorts_ids=cohorts_ids) or {}
         return {cohort_id: Perimeter.objects.filter(cohort_id__in=virtual_cohort_ids)
