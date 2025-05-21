@@ -41,6 +41,6 @@ class ExportersConfig(AppConfig):
             "EXPORT_CSV_PATH": env.get('EXPORT_CSV_PATH'),
             "EXPORT_XLSX_PATH": env.get('EXPORT_XLSX_PATH'),
             "DISABLE_DATA_TRANSLATION": env.get('DISABLE_DATA_TRANSLATION', False),
-            "TASK_STATUS_ENDPOINT": "/api/task_status",
+            "TASK_STATUS_ENDPOINT": "/task_status",
         },
     }
