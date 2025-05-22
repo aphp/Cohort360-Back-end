@@ -92,6 +92,22 @@ class TestFhirFilterAPI(CohortAppTests):
         fhir_filter.refresh_from_db()
         assert fhir_filter.name == new_name
 
+    def test_edit_name_error(self):
+        old_name = 'filter_001'
+        new_name = 'filter_002'
+        base_data = dict(fhir_resource='Patient',
+                         fhir_version='1.0.0',
+                         filter='{"some": "filter"}',
+                         owner=self.user1)
+        fhir_filter_1 = FhirFilter.objects.create(**base_data, name=old_name)
+        _ = FhirFilter.objects.create(**base_data, name=new_name)
+
+        url = reverse("cohort:fhir-filters-detail", args=[fhir_filter_1.uuid])
+        request = self.factory.patch(url, data={'name': new_name}, format='json')
+        force_authenticate(request, self.user1)
+        response: Response = self.__class__.patch_view(request, uuid=fhir_filter_1.uuid)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_edit_name_only_modifies_name(self):
         user = User.objects.first()
         kwargs = {
