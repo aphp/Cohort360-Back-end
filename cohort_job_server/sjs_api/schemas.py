@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from dataclasses import field
 from typing import Optional
 from uuid import UUID
 
@@ -30,6 +29,11 @@ class Occurrence(BaseModel):
     time_delay_max: str = Field(default=None, alias='timeDelayMax')
     same_encounter: bool = Field(default=None, alias='sameEncounter')
     same_day: bool = Field(default=None, alias='sameDay')
+
+
+class NAmongMOption(BaseModel):
+    n: int = Field(alias='n')
+    operator: str = Field(alias='operator')
 
 
 class TemporalConstraintDuration(BaseModel):
@@ -69,12 +73,13 @@ class Criteria(BaseModel):
     filter_solr: str = Field(None, alias="filterSolr")
     filter_fhir: str = Field(None, alias="filterFhir")
     patient_age: PatientAge = Field(None, alias="patientAge")
-    criteria: list['Criteria'] = field(default_factory=list)
+    criteria: list['Criteria'] = Field(default_factory=list)
     occurrence: Occurrence = Field(None, alias="occurrence")
     date_range: DateRange = Field(None, alias="dateRange")
     date_range_list: list[DateRange] = Field(default_factory=list, alias="dateRangeList")
     encounter_date_range: DateRange = Field(None, alias="encounterDateRange")
     temporal_constraints: list[TemporalConstraint] = Field(default_factory=list, alias="temporalConstraints")
+    n_among_m_options: NAmongMOption = Field(None, alias="nAmongMOptions")
 
     def add_criteria(self, obj) -> Optional[str]:
         if self.filter_fhir is None:
