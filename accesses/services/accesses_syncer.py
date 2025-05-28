@@ -113,55 +113,56 @@ class AccessesSynchronizer:
                                   .search(identifier=",".join(batch))
             bundle = res.fetch_raw()
 
-            for e in filter(lambda i: i.resource.resource_type == "PractitionerRole", bundle.entry):
-                count_orbis_accesses += 1
-                pr = e.resource
-                if pr.active:
-                    default_end_datetime = timezone.now() + timezone.timedelta(days=settings.DEFAULT_ACCESS_VALIDITY_IN_DAYS)
-                    fpr = FhirPractitionerRole(id=pr.id,
-                                               active=pr.active,
-                                               practitioner_id=pr.practitioner.to_resource().identifier[0].value,
-                                               perimeter_id=int(pr.organization.id),
-                                               role_name=pr.code[0].coding[0].code,
-                                               start_datetime=hasattr(pr.period, "start") and pr.period.start or None,
-                                               end_datetime=hasattr(pr.period, "end") and pr.period.end or default_end_datetime
-                                               )
-                    profile = Profile.objects.filter(user_id=fpr.practitioner_id, source=ORBIS).first()
-                    if profile is None:
-                        profile = Profile.objects.create(user_id=fpr.practitioner_id,
-                                                         source=ORBIS,
-                                                         is_active=True)
-                    role = self.get_mapped_role(fpr.role_name)
-                    perimeter = Perimeter.objects.filter(id=fpr.perimeter_id).first()
-                    if role is not None:
-                        if perimeter is not None:
-                            defaults = dict(source=ORBIS,
-                                            external_id=fpr.id,
-                                            role_id=role.id,
-                                            profile_id=profile.id,
-                                            perimeter_id=perimeter.id,
-                                            start_datetime=fpr.start_datetime,
-                                            end_datetime=fpr.end_datetime)
-                            access, created = Access.objects.get_or_create(defaults=defaults, external_id=fpr.id)
-                            if created:
-                                count_new_accesses += 1
+            if bundle.total > 0:
+                for e in filter(lambda i: i.resource.resource_type == "PractitionerRole", bundle.entry):
+                    count_orbis_accesses += 1
+                    pr = e.resource
+                    if pr.active:
+                        default_end_datetime = timezone.now() + timezone.timedelta(days=settings.DEFAULT_ACCESS_VALIDITY_IN_DAYS)
+                        fpr = FhirPractitionerRole(id=pr.id,
+                                                   active=pr.active,
+                                                   practitioner_id=pr.practitioner.to_resource().identifier[0].value,
+                                                   perimeter_id=int(pr.organization.id),
+                                                   role_name=pr.code[0].coding[0].code,
+                                                   start_datetime=hasattr(pr.period, "start") and pr.period.start or None,
+                                                   end_datetime=hasattr(pr.period, "end") and pr.period.end or default_end_datetime
+                                                   )
+                        profile = Profile.objects.filter(user_id=fpr.practitioner_id, source=ORBIS).first()
+                        if profile is None:
+                            profile = Profile.objects.create(user_id=fpr.practitioner_id,
+                                                             source=ORBIS,
+                                                             is_active=True)
+                        role = self.get_mapped_role(fpr.role_name)
+                        perimeter = Perimeter.objects.filter(id=fpr.perimeter_id).first()
+                        if role is not None:
+                            if perimeter is not None:
+                                defaults = dict(source=ORBIS,
+                                                external_id=fpr.id,
+                                                role_id=role.id,
+                                                profile_id=profile.id,
+                                                perimeter_id=perimeter.id,
+                                                start_datetime=fpr.start_datetime,
+                                                end_datetime=fpr.end_datetime)
+                                access, created = Access.objects.get_or_create(defaults=defaults, external_id=fpr.id)
+                                if created:
+                                    count_new_accesses += 1
+                            else:
+                                self.log(f"Could not find a match for the `perimeter` {fpr.perimeter_id=} to create access.")
+                                missing_perimeters.add(fpr.perimeter_id)
                         else:
-                            self.log(f"Could not find a match for the `perimeter` {fpr.perimeter_id=} to create access.")
-                            missing_perimeters.add(fpr.perimeter_id)
+                            self.log(f"Could not find a match for the ORBIS role `{fpr.role_name}`")
+                            skipped_roles.add(fpr.role_name)
                     else:
-                        self.log(f"Could not find a match for the ORBIS role `{fpr.role_name}`")
-                        skipped_roles.add(fpr.role_name)
-                else:
-                    Access.objects.filter(external_id=pr.id).update(end_datetime=timezone.now())
+                        Access.objects.filter(external_id=pr.id).update(end_datetime=timezone.now())
 
-            if skipped_roles:
-                self.log(f"The following ORBIS roles were not correctly mapped: {skipped_roles}")
-            if missing_perimeters:
-                self.log(f"The following perimeters were not found: {missing_perimeters}")
-            self.send_report_notification(skipped_roles, missing_perimeters, count_orbis_accesses, count_new_accesses)
-            self.log(f"{count_orbis_accesses} accesses were fetched from ORBIS. "
-                     f"{count_new_accesses} new accesses were created. "
-                     f"{len(skipped_roles)} roles were skipped (no matching found).")
+        if skipped_roles:
+            self.log(f"The following ORBIS roles were not correctly mapped: {skipped_roles}")
+        if missing_perimeters:
+            self.log(f"The following perimeters were not found: {missing_perimeters}")
+        self.send_report_notification(skipped_roles, missing_perimeters, count_orbis_accesses, count_new_accesses)
+        self.log(f"{count_orbis_accesses} accesses were fetched from ORBIS. "
+                 f"{count_new_accesses} new accesses were created. "
+                 f"{len(skipped_roles)} roles were skipped (no matching found).")
 
 
     @staticmethod

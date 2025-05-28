@@ -1,13 +1,13 @@
 import csv
 import os
 from datetime import timedelta
-from typing import Optional
 
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from accesses.models import Perimeter, Profile, Role, Access
 from admin_cohort.models import User
+from admin_cohort.services.users import users_service
 
 env = os.environ
 
@@ -15,6 +15,7 @@ ADMIN_USERNAME = env.get('ADMIN_USERNAME', 'admin')
 ADMIN_FIRSTNAME = env.get('ADMIN_FIRSTNAME', 'Admin')
 ADMIN_LASTNAME = env.get('ADMIN_LASTNAME', 'ADMIN')
 ADMIN_EMAIL = env.get('ADMIN_EMAIL', 'admin@backend.fr')
+ADMIN_PASSWORD = env.get('ADMIN_PASSWORD', 'admin')
 
 
 class Command(BaseCommand):
@@ -37,20 +38,17 @@ class Command(BaseCommand):
                 count += 1
         self.stdout.write(self.style.SUCCESS(f'Successfully loaded {count} perimeters'))
 
-    @staticmethod
-    def check_for_existing_user(username) -> Optional[User]:
-        return User.objects.filter(username=username).first()
-
-    def create_profile(self, username, firstname, lastname, email) -> Profile:
-        existing_user = self.check_for_existing_user(username)
+    def create_profile(self, username, firstname, lastname, email, password) -> Profile:
+        existing_user = User.objects.filter(username=username).first()
         if existing_user is not None:
             self.stdout.write(self.style.WARNING(f'Found an old user {username} in DB, proceed with it'))
             return existing_user.profiles.first()
 
-        user_data = dict(firstname=firstname,
-                         lastname=lastname,
-                         email=email)
-        user = User.objects.create(**user_data, username=username)
+        user = User.objects.create(username=username,
+                                   firstname=firstname,
+                                   lastname=lastname,
+                                   email=email,
+                                   password=users_service.hash_password(password))
         profile = Profile.objects.create(user_id=user.username, is_active=True)
         return profile
 
@@ -58,7 +56,8 @@ class Command(BaseCommand):
         profile = self.create_profile(username=ADMIN_USERNAME,
                                       firstname=ADMIN_FIRSTNAME,
                                       lastname=ADMIN_LASTNAME,
-                                      email=ADMIN_EMAIL
+                                      email=ADMIN_EMAIL,
+                                      password=ADMIN_PASSWORD
                                       )
         rights = {f.name: True for f in Role._meta.fields if f.name.startswith("right_")}
         admin_role = Role.objects.create(name="Full Admin", **rights)

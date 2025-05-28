@@ -76,7 +76,7 @@ class AccessesSynchronizerTests(TestCase):
         self.syncer.fhir_client.resources.return_value.\
             revinclude.return_value.\
             search.return_value.\
-            fetch_raw.return_value = MagicMock(entry=[MagicMock(resource=mock_practitioner_role)])
+            fetch_raw.return_value = MagicMock(total=1, entry=[MagicMock(resource=mock_practitioner_role)])
         self.syncer.sync_accesses()
         mock_report_notif.assert_called_once()
 

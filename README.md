@@ -24,6 +24,9 @@
 
 **Cohort360-Backend** serves as the backend of two main web applications: [**Cohort360**](https://github.com/aphp/Cohort360) & [**Portail**](https://github.com/aphp/Cohort360-AdministrationPortal).  
 
+This project comes as part of the "frontend-backend" of the **Cohort360 project**. For the complete stack installation, please refer to 
+the [Cohort360 project](https://github.com/aphp/Cohort360) repository. 
+
 #### 🔑 Features
 
 - Native JWT based authentication
@@ -46,6 +49,17 @@
 * [Django REST Framework](https://www.django-rest-framework.org/)
 * [DRF-spectacular](https://drf-spectacular.readthedocs.io/en/latest/)
 * [Celery](https://docs.celeryproject.org/en/stable/)
+
+---
+
+## 🚀 Project setup
+
+  For a complete demonstration, please refer to the [Cohort360 project](https://github.com/aphp/Cohort360) repository.  
+  🔆 More insights on the used environment variables in the backend configuration file are provided below.
+
+<div align="right">
+  ⬆️ <a href="#readme-top">back to top</a>
+</div>
 
 ---
 
@@ -367,46 +381,6 @@
   
   </details>
 </details>
-
-<div align="right">
-  ⬆️ <a href="#readme-top">back to top</a>
-</div>
-
----
-
-## 🚀 Project setup
-
-### 1. 📥 Get the code
-
-   ```sh
-   git clone https://github.com/aphp/Cohort360-Back-end.git
-   ```
-
-### 2. 🔧 Configuration
-
-  1. Create a **.env** file in the _admin_cohort_ directory following the **.setup/.env.example** template  
-  🔆 More insights on environment variables above.
-   ```sh
-   cp .setup/.env.example admin_cohort/.env
-   ```
-
-  2. Create a **perimeters.csv** file in the _.setup_ directory following the **.setup/perimeters.example.csv** format
-   ```sh
-   cp .setup/perimeters.example.csv .setup/perimeters.csv
-   ```
-
-### 3. Setup
-
-   🔶 Note that the _setup.sh_ script needs root privileges to run some commands
-
-   ```sh
-   bash .setup/setup.sh
-   ```
-  All set up 🎉  
-  
-* The development server is running on port `8000` and the Swagger UI for endpoints documentation is found at: [localhost:8000/docs](http://localhost:8000/docs)
-* Once on the Swagger UI, start by getting an authentication **token** by logging in using the `/auth/login/` endpoint. Use that token for 
-  authorization.
 
 <div align="right">
   ⬆️ <a href="#readme-top">back to top</a>

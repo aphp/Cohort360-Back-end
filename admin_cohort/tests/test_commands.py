@@ -12,7 +12,7 @@ class LoadInitialDataCommandTest(TestCaseWithDBs):
 
     def test_load_initial_data_command(self):
         out = StringIO()
-        file_path = '.setup/perimeters.example.csv'
+        file_path = 'admin_cohort/tests/perimeters.example.csv'
         call_command(load_initial_data.Command(),
                      perimeters_conf=file_path,
                      stdout=out)
