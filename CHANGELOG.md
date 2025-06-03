@@ -2,6 +2,66 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.27.0] - 2025-06-03
+
+### 🚀 Features
+
+- *(requestpatch)* New patch for medication resource
+- Introduce roles from ORBIS (#449)
+- Alert admins for failed exports (#469)
+- *(RQS)* Edit snapshot name (#474)
+- Filter sample cohorts
+- *(cohorts)* Improve serializer
+- *(cohorts)* Add cohort size to WS response
+- Improve exports lot 3.2 (#477)
+- *(filters)* Add flag for identifying filters (#470)
+
+### 🐛 Bug Fixes
+
+- *(WS)* Fix ASGI app (#462)
+- *(nginx)* Nginx conf (#463)
+- *(cache)* Caching responses with nested objects (#464)
+- Fix cache and add global estimates on cohort serializer (#465)
+- More logs for exports (#468)
+- *(datalabs)* Add pagination
+- *(misc)* Small various fixes (#471)
+- Multi-recipient emails (#472)
+- Indent error
+- Add host info to notifications (#473)
+- *(fhir_perimeters)* Prevent root perimeter deletion
+- *(cohorts)* Properly pass modeOptions
+- Check rights for exports (#476)
+- *(cohorts)* Copy DM for sample cohort
+- *(sample cohorts)* Build query with base cohort ID
+- OIDC auth and enrich docs
+- *(exports)* Rename env vars
+- *(exports)* Handle pivot_merge and pivot_merge_columns (#480)
+- *(cohort)* Handle large cohort samples
+- *(cohort)* Check rights for deleted cohorts
+- *(exports)* Fix endpoint path
+- *(fhir filters)* Handle patch error
+- *(cohort)* Add nAmongMOption
+
+### 🚜 Refactor
+
+- *(auth)* Use APIViews for native CSRF exemption (#475)
+- *(accesses)* Remove extra rights (#479)
+
+### 📚 Documentation
+
+- Update readme and add missing repo files (#466)
+- *(setup)* Remove local setup and reference Cohort360 meta project
+
+### ⚙️ Miscellaneous Tasks
+
+- Update CHANGELOG.md and bump version to 3.27.0-dev
+- Set Python version to 3.12
+
+### Build
+
+- Set version 3.27.0-dev
+- Set release version 3.27.0
+
 ## [3.26.0] - 2025-03-18
 
 ### 🚀 Features
