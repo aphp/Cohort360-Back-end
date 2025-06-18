@@ -18,7 +18,7 @@ class ProfileViewSet(RequestLogMixin, BaseViewSet):
     permission_classes = (IsAuthenticated, ProfilesPermission)
     swagger_tags = ['Profiles']
     filterset_fields = ("user_id",)
-    search_fields = ["lastname", "firstname", "email", "user_id"]
+    search_fields = ["user__firstname", "user__lastname", "user__username"]
 
     def get_queryset(self) -> QuerySet:
         queryset = super().get_queryset()
