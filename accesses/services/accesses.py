@@ -86,7 +86,7 @@ class AccessesService:
                 all_child_perimeters_ids = Perimeter.objects.filter(above_levels_ids__contains=perimeter_id) \
                                                         .values_list('id', flat=True)
                 q = q | Q(perimeter_id__in=all_child_perimeters_ids)
-        return self.filter_accesses_for_user(user=user, accesses=accesses.filter(Q(sql_is_valid=True) & q))
+        return self.filter_accesses_for_user(user=user, accesses=accesses.filter(q))
 
     def user_has_data_reading_accesses_on_target_perimeters(self, user: User,
                                                             target_perimeters: QuerySet,
@@ -292,11 +292,11 @@ class AccessesService:
     def check_user_rights_on_perimeter(user_access: Access, target_perimeter: Perimeter, manage: False):
         role = user_access.role
         if target_perimeter == user_access.perimeter:
-            right_on_admin_accesses = manage and role.right_manage_admin_accesses_same_level or role.right_read_admin_accesses_same_level
-            right_on_data_accesses = manage and role.right_manage_data_accesses_same_level or role.right_read_data_accesses_same_level
+            right_on_admin_accesses = role.right_manage_admin_accesses_same_level if manage else role.right_read_admin_accesses_same_level
+            right_on_data_accesses = role.right_manage_data_accesses_same_level if manage else role.right_read_data_accesses_same_level
         elif target_perimeter.is_child_of(perimeter=user_access.perimeter):
-            right_on_admin_accesses = manage and role.right_manage_admin_accesses_inferior_levels or role.right_read_admin_accesses_inferior_levels
-            right_on_data_accesses = manage and role.right_manage_data_accesses_inferior_levels or role.right_read_data_accesses_inferior_levels
+            right_on_admin_accesses = role.right_manage_admin_accesses_inferior_levels if manage else role.right_read_admin_accesses_inferior_levels
+            right_on_data_accesses = role.right_manage_data_accesses_inferior_levels if manage else role.right_read_data_accesses_inferior_levels
         else:
             return False, False
         return right_on_admin_accesses, right_on_data_accesses
@@ -337,8 +337,8 @@ class AccessesService:
         can_manage_export_csv_accesses = False
         can_manage_export_jupyter_accesses = False
 
-        access_perimeter = isinstance(target_access, Access) and target_access.perimeter or target_access.get('perimeter')
-        access_role = isinstance(target_access, Access) and target_access.role or target_access.get('role')
+        access_perimeter = target_access.perimeter if isinstance(target_access, Access) else target_access.get('perimeter')
+        access_role = target_access.role if isinstance(target_access, Access) else target_access.get('role')
 
         user_accesses = self.get_user_managing_accesses_on_perimeter(user=user, perimeter=access_perimeter)
 

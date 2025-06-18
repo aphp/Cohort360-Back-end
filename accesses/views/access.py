@@ -1,6 +1,7 @@
 import json
 
 from django.db.models import BooleanField, When, Case, Value, QuerySet
+from django.db.models.query_utils import Q
 from django.utils import timezone
 from django.conf import settings
 
@@ -34,7 +35,6 @@ class AccessFilter(filters.FilterSet):
     class Meta:
         model = Access
         fields = ("source",
-                  "perimeter_id",
                   "role_id",
                   "profile_id",
                   "start_datetime",
@@ -50,11 +50,12 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
     http_method_names = ['get', 'post', 'patch', 'delete']
     logging_methods = ['POST', 'PATCH', 'DELETE']
     swagger_tags = ['Accesses']
-    search_fields = ["profile__user__firstname",
+    search_fields = ("profile__user__firstname",
                      "profile__user__lastname",
                      "profile__user__email",
-                     "profile__user_id",
-                     "perimeter__name"]
+                     "profile__user__username",
+                     "role__name",
+                     "perimeter__name")
 
     def get_permissions(self):
         if self.action in (self.get_my_accesses.__name__,
@@ -83,8 +84,9 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
             accesses = accesses_service.filter_accesses_for_user(user=request.user,
                                                                  accesses=accesses)
         if request.query_params.get("perimeter_id"):
+            valid_accesses = accesses.filter(Q(sql_is_valid=True))
             accesses = accesses_service.get_accesses_on_perimeter(user=request.user,
-                                                                  accesses=self.get_queryset(),
+                                                                  accesses=valid_accesses,
                                                                   perimeter_id=request.query_params.get("perimeter_id"),
                                                                   include_parents=json.loads(request.query_params.get("include_parents", "false")),
                                                                   include_children=json.loads(request.query_params.get("include_children", "false")))
