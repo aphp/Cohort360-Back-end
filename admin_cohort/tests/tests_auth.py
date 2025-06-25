@@ -1,8 +1,6 @@
-from datetime import timedelta
 from unittest import mock
 from unittest.mock import MagicMock
 
-from django.utils import timezone
 
 from rest_framework import status
 from rest_framework.test import APITestCase, APIRequestFactory, force_authenticate
@@ -11,7 +9,7 @@ from django.test import Client
 from django.conf import settings
 from django.contrib.sessions.middleware import SessionMiddleware
 
-from accesses.models import Access, Perimeter, Role
+from accesses.models import Perimeter
 from admin_cohort.models import User
 from admin_cohort.tests.tests_tools import new_user_and_profile, TestCaseWithDBs
 from admin_cohort.types import OIDCAuthTokens, JWTAuthTokens
@@ -142,12 +140,6 @@ class AuthClassTests(AuthBaseTests):
         self.protected_view = UserViewSet
         self.regular_user, self.regular_profile = new_user_and_profile()
         self.perimeter_aphp = Perimeter.objects.create(name="APHP", local_id="1")
-        self.users_reader_role = Role.objects.create(name="USERS READER", right_read_users=True)
-        self.users_reader_access = Access.objects.create(profile=self.regular_profile,
-                                                         perimeter=self.perimeter_aphp,
-                                                         role=self.users_reader_role,
-                                                         start_datetime=timezone.now(),
-                                                         end_datetime=timezone.now() + timedelta(days=365))
 
     @mock.patch("admin_cohort.auth.auth_class.auth_service.authenticate_http_request")
     def test_authenticate_success(self, mock_authenticate_http_request: MagicMock):
