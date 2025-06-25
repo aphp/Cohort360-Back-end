@@ -17,7 +17,7 @@ class ExportersTestBase(TestCaseWithDBs):
         self.hive_user, self.hive_profile = new_user_and_profile()
         self.second_csv_exporter_user, self.second_csv_exporter_profile = new_user_and_profile()
         self.perimeter_aphp = Perimeter.objects.create(name="APHP", local_id="1", cohort_id="1")
-        self.csv_exporter_role = Role.objects.create(name="CSV EXPORTER", right_export_csv_nominative=True)
+        self.csv_exporter_role = Role.objects.create(name="CSV EXPORTER", right_export_csv_xlsx_nominative=True)
         self.csv_exporter_access = Access.objects.create(profile=self.csv_exporter_profile,
                                                          perimeter=self.perimeter_aphp,
                                                          role=self.csv_exporter_role,

@@ -48,24 +48,24 @@ class RoleViewTests(AccessesAppTestsBase):
     def test_role_unique_name(self):
         data = {**ALL_FALSY_RIGHTS,
                 "name": "CSV EXPORTER NOMI",
-                "right_export_csv_nominative": True,
+                "right_export_csv_xlsx_nominative": True,
                 }
         r = Role.objects.create(**data)
         self.assertIsNotNone(r)
         with self.assertRaises(IntegrityError):
-            Role.objects.create(**{**data, "right_read_users": True})
+            Role.objects.create(**data)
 
     def test_duplicated_name_as_a_deleted_role(self):
         data = {**ALL_FALSY_RIGHTS,
                 "name": "CSV EXPORTER NOMI",
-                "right_export_csv_nominative": True,
+                "right_export_csv_xlsx_nominative": True,
                 }
         r = Role.objects.create(**data)
         self.assertIsNotNone(r)
         r.delete()
         self.assertIsNotNone(r.delete_datetime)
         try:
-            Role.objects.create(**{**data, "right_read_users": True})
+            Role.objects.create(**data)
         except IntegrityError:
             self.fail("Must be able to create a role having the same name as a previously deleted role")
 
@@ -89,7 +89,6 @@ class RoleViewTests(AccessesAppTestsBase):
         data = {**ALL_FALSY_RIGHTS,
                 "name": role_name,
                 "right_read_patient_nominative": True,
-                "right_read_logs": True
                 }
         case = CreateCase(data=data,
                           retrieve_filter=RoleRetrieveFilter(name=role_name),
@@ -116,25 +115,17 @@ class RoleViewTests(AccessesAppTestsBase):
         cases_data = [{**ALL_FALSY_RIGHTS,
                        "name": "DATA READER PSEUDO & EXPORT NOMI",
                        "right_read_patient_pseudonymized": True,
-                       "right_export_csv_nominative": True
+                       "right_export_csv_xlsx_nominative": True
                        },
                       {**ALL_FALSY_RIGHTS,
                        "name": "FULL ADMIN WITH SOME FALSY RIGHTS",
                        "right_full_admin": True,
                        "right_manage_users": True,
-                       "right_read_logs": True
                        },
                       {**ALL_FALSY_RIGHTS,
                        "name": "ADMINISTRATION ACCESSES MANAGER WITHOUT USERS MANAGEMENT",
                        "right_manage_admin_accesses_same_level": True,
-                       "right_read_admin_accesses_same_level": True,
                        "right_manage_admin_accesses_inferior_levels": True,
-                       "right_read_admin_accesses_inferior_levels": True
-                       },
-                      {**ALL_FALSY_RIGHTS,
-                       "name": "EXPORT ACCESSES MANAGER WITHOUT USERS MANAGEMENT",
-                       "right_manage_export_csv_accesses": True,
-                       "right_manage_export_jupyter_accesses": True
                        }]
         for d in cases_data:
             self.check_create_case(CreateCase(data=d,
@@ -146,8 +137,6 @@ class RoleViewTests(AccessesAppTestsBase):
     def test_successfully_patch_role(self):
         initial_data = {**ALL_FALSY_RIGHTS,
                         "name": "USERS & LOGS READER",
-                        "right_read_users": True,
-                        "right_read_logs": True
                         }
         patch_data = {"name": "USERS MANAGER & LOGS READER",
                       "right_manage_users": True
@@ -169,13 +158,11 @@ class RoleViewTests(AccessesAppTestsBase):
 
     def test_patch_role_with_inconsistent_rights(self):
         initial_data = {**ALL_FALSY_RIGHTS,
-                        "name": "DATA READER PSEUDO & EXPORT PSEUDO",
+                        "name": "DATA READER PSEUDO",
                         "right_read_patient_pseudonymized": True,
-                        "right_export_csv_pseudonymized": True
                         }
         patch_data = {"name": "DATA READER PSEUDO & EXPORT NOMI",
-                      "right_read_patient_pseudonymized": True,
-                      "right_export_csv_nominative": True
+                      "right_export_csv_xlsx_nominative": True
                       }
         case = PatchCase(initial_data=initial_data,
                          data_to_update=patch_data,
@@ -216,19 +203,19 @@ class RoleViewTests(AccessesAppTestsBase):
         # according to the hierarchy above, target perimeters for ex: P5, P7 and P13
         # expected behavior: return all roles
         all_roles = Role.objects.all()
-        cases = [ListCase(title="get assignable role on perimeter P5",
+        cases = [ListCase(title="get assignable roles on perimeter P5",
                           params={"perimeter_id": self.p5.id},
                           to_find=all_roles,
                           user=self.user_full_admin_on_aphp,
                           status=status.HTTP_200_OK,
                           success=True),
-                 ListCase(title="get assignable role on perimeter P7",
+                 ListCase(title="get assignable roles on perimeter P7",
                           params={"perimeter_id": self.p7.id},
                           to_find=all_roles,
                           user=self.user_full_admin_on_aphp,
                           status=status.HTTP_200_OK,
                           success=True),
-                 ListCase(title="get assignable role on perimeter P13",
+                 ListCase(title="get assignable roles on perimeter P13",
                           params={"perimeter_id": self.p13.id},
                           to_find=all_roles,
                           user=self.user_full_admin_on_aphp,
@@ -238,18 +225,62 @@ class RoleViewTests(AccessesAppTestsBase):
             self.check_list_case(case, other_view=RoleViewTests.assignable_view)
 
     def test_get_assignable_roles_on_perimeter_P0_as_admin_accesses_manager_on_APHP(self):
-        # expected behavior: return `role_data_accesses_manager` and `role_data_accesses_manager_inf_levels`
+        # expected behavior: return `role_data_accesses_manager`, `role_data_accesses_manager_same_level/inf_levels`
         user_admin_accesses_manager_on_aphp, profile = new_user_and_profile()
         Access.objects.create(profile=profile,
                               role=self.role_admin_accesses_manager,
                               perimeter=self.aphp,
                               start_datetime=timezone.now(),
                               end_datetime=timezone.now() + timedelta(days=365))
-        to_find = [self.role_data_accesses_manager,
-                   self.role_data_accesses_manager_inf_levels]
         case = ListCase(params={"perimeter_id": self.p0.id},
-                        to_find=to_find,
+                        to_find=[self.role_data_accesses_manager,
+                                 self.role_data_accesses_manager_same_level,
+                                 self.role_data_accesses_manager_inf_levels,
+                                 self.role_data_reader_nomi,
+                                 self.role_data_reader_pseudo,
+                                 self.role_data_reader_nomi_pseudo,
+                                 self.role_jupyter_exporter_pseudo,
+                                 self.role_data_reader_nomi_csv_xlsx_exporter_nomi,
+                                 ],
                         user=user_admin_accesses_manager_on_aphp,
+                        status=status.HTTP_200_OK,
+                        success=True)
+        self.check_list_case(case, other_view=RoleViewTests.assignable_view)
+
+    def test_get_assignable_roles_on_perimeter_P0_as_admin_accesses_manager_same_level_on_APHP(self):
+        # expected behavior: return `role_data_accesses_manager` and `role_data_accesses_manager_inf_levels`
+        user_admin_accesses_manager_same_level_on_aphp, profile = new_user_and_profile()
+        Access.objects.create(profile=profile,
+                              role=self.role_admin_accesses_manager_same_level,
+                              perimeter=self.aphp,
+                              start_datetime=timezone.now(),
+                              end_datetime=timezone.now() + timedelta(days=365))
+        case = ListCase(params={"perimeter_id": self.p0.id},
+                        to_find=[],
+                        user=user_admin_accesses_manager_same_level_on_aphp,
+                        status=status.HTTP_200_OK,
+                        success=True)
+        self.check_list_case(case, other_view=RoleViewTests.assignable_view)
+
+    def test_get_assignable_roles_on_perimeter_P0_as_admin_accesses_manager_inf_levels_on_APHP(self):
+        # expected behavior: return `role_data_accesses_manager` and `role_data_accesses_manager_inf_levels`
+        user_admin_accesses_manager_inf_levels_on_aphp, profile = new_user_and_profile()
+        Access.objects.create(profile=profile,
+                              role=self.role_admin_accesses_manager_inferior_levels,
+                              perimeter=self.aphp,
+                              start_datetime=timezone.now(),
+                              end_datetime=timezone.now() + timedelta(days=365))
+        case = ListCase(params={"perimeter_id": self.p0.id},
+                        to_find=[self.role_data_accesses_manager,
+                                 self.role_data_accesses_manager_same_level,
+                                 self.role_data_accesses_manager_inf_levels,
+                                 self.role_data_reader_nomi,
+                                 self.role_data_reader_pseudo,
+                                 self.role_data_reader_nomi_pseudo,
+                                 self.role_jupyter_exporter_pseudo,
+                                 self.role_data_reader_nomi_csv_xlsx_exporter_nomi,
+                                 ],
+                        user=user_admin_accesses_manager_inf_levels_on_aphp,
                         status=status.HTTP_200_OK,
                         success=True)
         self.check_list_case(case, other_view=RoleViewTests.assignable_view)
@@ -262,10 +293,16 @@ class RoleViewTests(AccessesAppTestsBase):
                               perimeter=self.p0,
                               start_datetime=timezone.now(),
                               end_datetime=timezone.now() + timedelta(days=365))
-        to_find = [self.role_data_accesses_manager,
-                   self.role_data_accesses_manager_inf_levels]
         case = ListCase(params={"perimeter_id": self.p0.id},
-                        to_find=to_find,
+                        to_find=[self.role_data_accesses_manager,
+                                 self.role_data_accesses_manager_same_level,
+                                 self.role_data_accesses_manager_inf_levels,
+                                 self.role_data_reader_nomi,
+                                 self.role_data_reader_pseudo,
+                                 self.role_data_reader_nomi_pseudo,
+                                 self.role_jupyter_exporter_pseudo,
+                                 self.role_data_reader_nomi_csv_xlsx_exporter_nomi,
+                                 ],
                         user=user_admin_accesses_manager_on_p0,
                         status=status.HTTP_200_OK,
                         success=True)

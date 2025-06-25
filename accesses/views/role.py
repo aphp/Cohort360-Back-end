@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from accesses.models import Role
 from accesses.permissions import RolesPermission
 from accesses.serializers import RoleSerializer, UsersInRoleSerializer
+from accesses.services.rights import all_rights
 from accesses.services.roles import roles_service
 from accesses.views import BaseViewSet
 from admin_cohort.tools.cache import cache_response
@@ -57,8 +58,13 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
     @extend_schema(request=RoleSerializer,
                    responses={status.HTTP_200_OK: RoleSerializer})
     def partial_update(self, request, *args, **kwargs):
+        role = self.get_object()
+        data = {'name': request.data.get('name', role.name)
+                }
+        data.update({right: request.data.get(right, getattr(role, right, False)) for right in all_rights
+                })
         try:
-            roles_service.check_role_has_inconsistent_rights(data=request.data.copy())
+            roles_service.check_role_has_inconsistent_rights(data=data)
         except IntegrityError as e:
             return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return super(RoleViewSet, self).partial_update(request, *args, **kwargs)
@@ -122,7 +128,7 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
             return Response(data={"error": "Missing parameter: `perimeter_id`"}, status=status.HTTP_400_BAD_REQUEST)
         assignable_roles_ids = roles_service.get_assignable_roles_ids(user=request.user,
                                                                       perimeter_id=perimeter_id,
-                                                                      queryset=self.get_queryset())
+                                                                      all_roles=self.get_queryset())
         assignable_roles = self.get_queryset().filter(id__in=assignable_roles_ids)
         return Response(data=RoleSerializer(assignable_roles, many=True).data,
                         status=status.HTTP_200_OK)

@@ -21,8 +21,6 @@ class RightsViewSet(BaseViewSet):
     filterset_fields = ["name",
                         "label",
                         "is_global",
-                        "allow_read_accesses_on_same_level",
-                        "allow_read_accesses_on_inf_levels",
                         "allow_edit_accesses_on_same_level",
                         "allow_edit_accesses_on_inf_levels"]
     swagger_tags = ["Rights"]

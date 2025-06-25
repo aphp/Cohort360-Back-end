@@ -4,8 +4,7 @@ from rest_framework.permissions import IsAuthenticated, SAFE_METHODS
 from rest_framework.exceptions import PermissionDenied
 
 from accesses.permissions import can_user_make_export_jupyter_nomi, can_user_make_export_jupyter_pseudo, \
-                                 can_user_read_datalabs, can_user_manage_datalabs, can_user_make_export_csv_nomi, \
-                                 can_user_make_export_csv_pseudo
+                                 can_user_read_datalabs, can_user_manage_datalabs, can_user_make_export_csv_xlsx_nomi
 from accesses.services.accesses import accesses_service
 from exports.apps import ExportsConfig
 
@@ -13,7 +12,7 @@ ExportTypes = ExportsConfig.ExportTypes
 
 
 def check_allow_nomi_export(user, output_format: ExportTypes) -> Optional[bool]:
-    if output_format in (ExportTypes.CSV, ExportTypes.XLSX) and not can_user_make_export_csv_nomi(user):
+    if output_format in (ExportTypes.CSV, ExportTypes.XLSX) and not can_user_make_export_csv_xlsx_nomi(user):
         raise PermissionDenied("Vous n'avez pas le droit d'export CSV/Excel nominatif")
     if output_format == ExportTypes.HIVE and not can_user_make_export_jupyter_nomi(user):
         raise PermissionDenied("Vous n'avez pas le droit d'export Jupyter nominatif")
@@ -21,8 +20,8 @@ def check_allow_nomi_export(user, output_format: ExportTypes) -> Optional[bool]:
 
 
 def check_allow_pseudo_export(user, output_format: ExportTypes) -> Optional[bool]:
-    if output_format in (ExportTypes.CSV, ExportTypes.XLSX) and not can_user_make_export_csv_pseudo(user):
-        raise PermissionDenied("Vous n'avez pas le droit d'export CSV pseudonymisé")
+    if output_format in (ExportTypes.CSV, ExportTypes.XLSX):
+        raise PermissionDenied("Vous n'avez pas le droit d'export CSV/Excel pseudonymisé")
     if output_format == ExportTypes.HIVE and not can_user_make_export_jupyter_pseudo(user):
         raise PermissionDenied("Vous n'avez pas le droit d'export Jupyter pseudonymisé")
     return True

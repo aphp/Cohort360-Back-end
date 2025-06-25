@@ -82,15 +82,13 @@ class ExportsTests(ViewSetTestsWithBasicPerims):
         # ROLES
         (self.role_read_pseudo,
          self.role_read_nomi,
-         self.role_exp_csv_pseudo,
-         self.role_exp_csv_nomi,
+         self.role_exp_csv_xlsx_nomi,
          self.role_exp_jup_pseudo,
          self.role_exp_jup_nomi) = [
             Role.objects.create(**dict([(f, f == right) for f in self.all_rights]), name=name)
             for (name, right) in [("READ_PSEUDO", "right_read_patient_pseudonymized"),
                                   ("READ_NOMI", "right_read_patient_nominative"),
-                                  ("EXP_CSV_PSEUDO", "right_export_csv_pseudonymized"),
-                                  ("EXP_CSV_NOMI", "right_export_csv_nominative"),
+                                  ("EXP_CSV_XLSX_NOMI", "right_export_csv_xlsx_nominative"),
                                   ("EXP_JUP_PSEUDO", "right_export_jupyter_pseudonymized"),
                                   ("EXP_JUP_NOMI", "right_export_jupyter_nominative")]]
 
@@ -102,18 +100,10 @@ class ExportsTests(ViewSetTestsWithBasicPerims):
         self.user3, self.prof_3 = new_user_and_profile()
 
         # ACCESSES
-        self.user1_csv_nomi_acc: Access = Access.objects.create(
+        self.user1_csv_xlsx_nomi_acc: Access = Access.objects.create(
             perimeter=self.aphp,
             profile=self.prof_1,
-            role=self.role_exp_csv_nomi,
-            start_datetime=timezone.now(),
-            end_datetime=timezone.now() + timedelta(days=365)
-        )
-
-        self.user1_csv_pseudo_acc: Access = Access.objects.create(
-            perimeter=self.aphp,
-            profile=self.prof_1,
-            role=self.role_exp_csv_pseudo,
+            role=self.role_exp_csv_xlsx_nomi,
             start_datetime=timezone.now(),
             end_datetime=timezone.now() + timedelta(days=365)
         )
@@ -160,10 +150,10 @@ class ExportsTests(ViewSetTestsWithBasicPerims):
             start_datetime=timezone.now(),
             end_datetime=timezone.now() + timedelta(days=365)
         )
-        self.user2_exp_csv_nomi_acc: Access = Access.objects.create(
+        self.user2_exp_csv_xlsx_nomi_acc: Access = Access.objects.create(
             perimeter=self.aphp,
             profile=self.prof_2,
-            role=self.role_exp_csv_nomi,
+            role=self.role_exp_csv_xlsx_nomi,
             start_datetime=timezone.now(),
             end_datetime=timezone.now() + timedelta(days=365)
         )

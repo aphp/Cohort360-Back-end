@@ -12,8 +12,7 @@ from cohort.models import CohortResult
 class RightsChecker:
     right_read_nomi = "right_read_patient_nominative"
     right_read_pseudo = "right_read_patient_pseudonymized"
-    right_csv_nomi = "right_export_csv_nominative"
-    right_csv_pseudo = "right_export_csv_pseudonymized"
+    right_csv_xlsx_nomi = "right_export_csv_xlsx_nominative"
     right_jupyter_nomi = "right_export_jupyter_nominative"
     right_jupyter_pseudo = "right_export_jupyter_pseudonymized"
 
@@ -26,7 +25,7 @@ class RightsChecker:
                                                                     target_perimeters_ids=perimeters_ids)
         self._check_rights(data_permissions=data_permissions, required_right=nominative and self.right_read_nomi or self.right_read_pseudo)
         if output_format in ("csv", "xlsx"):
-            required_right = nominative and self.right_csv_nomi or self.right_csv_pseudo
+            required_right = self.right_csv_xlsx_nomi
         else:
             required_right = nominative and self.right_jupyter_nomi or self.right_jupyter_pseudo
         self._check_rights(data_permissions=data_permissions, required_right=required_right)
