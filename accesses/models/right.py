@@ -10,8 +10,6 @@ class Right(BaseModel):
     depends_on = models.ForeignKey("Right", related_name="dependent_rights", on_delete=models.SET_NULL, null=True)
     category = models.CharField(blank=False, null=False)
     is_global = models.BooleanField(default=False, null=False)
-    allow_read_accesses_on_same_level = models.BooleanField(null=True, default=False)
-    allow_read_accesses_on_inf_levels = models.BooleanField(null=True, default=False)
     allow_edit_accesses_on_same_level = models.BooleanField(null=True, default=False)
     allow_edit_accesses_on_inf_levels = models.BooleanField(null=True, default=False)
     impact_inferior_levels = models.BooleanField(null=True, default=False)

@@ -9,21 +9,16 @@ from accesses.services.rights import all_rights
 from admin_cohort.models import User
 
 ROLES_HELP_TEXT = dict(right_full_admin="Super user",
-                       right_read_logs="Lire l'historique des requêtes des utilisateurs",
                        right_manage_users="Gérer la liste des utilisateurs/profils",
-                       right_read_users="Consulter la liste des utilisateurs/profils",
                        right_read_patient_nominative="Lire les données patient sous forme nominatives sur son périmètre et ses sous-périmètres",
                        right_read_patient_pseudonymized="Lire les données patient sous forme pseudonymisée sur son périmètre et "
                                                         "ses sous-périmètres",
                        right_search_patients_by_ipp="Utiliser une liste d'IPP comme critère d'une requête Cohort.",
                        right_search_opposed_patients="Détermine le droit de chercher les patients opposés à l'utilisation "
                                                      "de leurs données pour la recherche",
-                       right_manage_export_jupyter_accesses="Gérer les accès permettant d'exporter les cohortes vers des environnements Jupyter",
                        right_export_jupyter_nominative="Exporter ses cohortes de patients sous forme nominative vers un environnement Jupyter.",
                        right_export_jupyter_pseudonymized="Exporter ses cohortes de patients sous forme pseudonymisée vers un environnement Jupyter.",
-                       right_manage_export_csv_accesses="Gérer les accès permettant de réaliser des exports de données en format CSV",
-                       right_export_csv_nominative="Demander à exporter ses cohortes de patients sous forme nominative en format CSV.",
-                       right_export_csv_pseudonymized="Demander à exporter ses cohortes de patients sous forme pseudonymisée en format CSV.",
+                       right_export_csv_xlsx_nominative="Demander à exporter ses cohortes de patients sous forme nominative en format CSV/Excel.",
                        right_manage_datalabs="Gérer les environnements de travail",
                        right_read_datalabs="Consulter la liste des environnements de travail")
 
@@ -46,37 +41,20 @@ class RolesService:
                                     on_same_level=role.right_manage_admin_accesses_same_level,
                                     on_inferior_levels=role.right_manage_admin_accesses_inferior_levels)
 
-    def get_help_text_for_right_read_admin_accesses(self, role):
-        return self.build_help_text(text_root="Consulter la liste des accès administrateurs",
-                                    on_same_level=role.right_read_admin_accesses_same_level,
-                                    on_inferior_levels=role.right_read_admin_accesses_inferior_levels)
-
     def get_help_text_for_right_manage_data_accesses(self, role):
         return self.build_help_text(text_root="Gérer les accès aux données patients",
                                     on_same_level=role.right_manage_data_accesses_same_level,
                                     on_inferior_levels=role.right_manage_data_accesses_inferior_levels)
 
-    def get_help_text_for_right_read_data_accesses(self, role):
-        return self.build_help_text(text_root="Consulter la liste des accès aux données patients",
-                                    on_same_level=role.right_read_data_accesses_same_level,
-                                    on_inferior_levels=role.right_read_data_accesses_inferior_levels)
-
-    @staticmethod
-    def get_help_text_for_right_read_accesses_above_levels(role):
-        return role.right_read_accesses_above_levels \
-                and "Consulter la liste des accès définis sur les périmètres parents d'un périmètre P" or ""
-
     def get_help_text(self, role):
-        hierarchy_agnostic_rights = [r.name for r in all_rights if not (r.name.endswith('same_level')
-                                                                        or r.name.endswith('inferior_levels')
-                                                                        or r.name.endswith('above_levels'))]
+        hierarchy_agnostic_rights = [right for right in all_rights if not (right.endswith('same_level')
+                                                                           or right.endswith('inferior_levels')
+                                                                           or right.endswith('above_levels'))]
         help_txt = [ROLES_HELP_TEXT.get(r) for r in hierarchy_agnostic_rights if getattr(role, r, False)]
 
         hierarchy_dependent_texts = [self.get_help_text_for_right_manage_admin_accesses(role),
-                                     self.get_help_text_for_right_read_admin_accesses(role),
-                                     self.get_help_text_for_right_manage_data_accesses(role),
-                                     self.get_help_text_for_right_read_data_accesses(role),
-                                     self.get_help_text_for_right_read_accesses_above_levels(role)]
+                                     self.get_help_text_for_right_manage_data_accesses(role)
+                                     ]
         help_txt.extend([text for text in hierarchy_dependent_texts if text])
         return help_txt
 
@@ -86,57 +64,53 @@ class RolesService:
                     role.right_manage_admin_accesses_same_level,
                     role.right_manage_admin_accesses_inferior_levels,
                     role.right_manage_data_accesses_same_level,
-                    role.right_manage_data_accesses_inferior_levels,
-                    role.right_manage_export_jupyter_accesses,
-                    role.right_manage_export_csv_accesses))
+                    role.right_manage_data_accesses_inferior_levels))
 
     def role_allows_to_read_accesses(self, role):
-        return self.role_allows_to_manage_accesses(role=role) \
-            or any((role.right_read_admin_accesses_same_level,
-                    role.right_read_admin_accesses_inferior_levels,
-                    role.right_read_data_accesses_same_level,
-                    role.right_read_data_accesses_inferior_levels,
-                    role.right_read_accesses_above_levels))
+        return self.role_allows_to_manage_accesses(role=role)
 
     @staticmethod
     def check_role_has_inconsistent_rights(data: dict) -> None:
-        is_full_admin_with_falsy_rights = (data.get("right_full_admin")
-                                           and any(not data.get(r.name) for r in all_rights))
-        if is_full_admin_with_falsy_rights:
+
+        def is_full_admin_with_falsy_rights(d: dict) -> bool:
+            return d.get("right_full_admin", False) \
+                   and any(not d.get(right) for right in all_rights)
+
+
+        def allow_read_data_pseudo_and_export_nomi(d: dict) -> bool:
+            return not d.get("right_read_patient_nominative", False) \
+                   and d.get("right_read_patient_pseudonymized", False) \
+                   and (d.get("right_export_csv_xlsx_nominative", False)
+                        or d.get("right_export_jupyter_nominative", False))
+
+        def allow_search_by_ipp_but_not_read_nomi(d: dict) -> bool:
+            return d.get("right_search_patients_by_ipp", False) \
+                   and not d.get("right_read_patient_nominative", False)
+
+
+        def allow_manage_accesses(d: dict) -> bool:
+            return any((d.get("right_manage_data_accesses_same_level", False),
+                        d.get("right_manage_data_accesses_inferior_levels", False),
+                        d.get("right_manage_admin_accesses_same_level", False),
+                        d.get("right_manage_admin_accesses_inferior_levels", False)))
+
+        if is_full_admin_with_falsy_rights(data):
             raise IntegrityError("Cannot create a Full Admin role with falsy rights")
 
-        allow_read_data_pseudo_and_export_nomi = (not data.get("right_read_patient_nominative")
-                                                  and data.get("right_read_patient_pseudonymized")
-                                                  and (data.get("right_export_csv_nominative")
-                                                       or data.get("right_export_jupyter_nominative")))
-        if allow_read_data_pseudo_and_export_nomi:
+        if allow_read_data_pseudo_and_export_nomi(data):
             raise IntegrityError("Cannot create a role allowing to read patient data in pseudo and export nominative data")
 
-        allow_manage_accesses = any((data.get("right_manage_data_accesses_same_level"),
-                                     data.get("right_manage_data_accesses_inferior_levels"),
-                                     data.get("right_manage_admin_accesses_same_level"),
-                                     data.get("right_manage_admin_accesses_inferior_levels"),
-                                     data.get("right_manage_export_csv_accesses"),
-                                     data.get("right_manage_export_jupyter_accesses")))
+        if allow_search_by_ipp_but_not_read_nomi(data):
+            raise IntegrityError("Cannot create a role allowing to search by IPP but not read patient data in nominative mode")
 
-        allow_read_accesses = any((data.get("right_read_data_accesses_same_level"),
-                                   data.get("right_read_data_accesses_inferior_levels"),
-                                   data.get("right_read_admin_accesses_same_level"),
-                                   data.get("right_read_admin_accesses_inferior_levels"),
-                                   data.get("right_read_accesses_above_levels")))
-
-        allow_manage_users = data.get("right_manage_users")
-        allow_read_users = data.get("right_read_users")
-
-        if allow_manage_accesses and not allow_manage_users:
+        if allow_manage_accesses(data) and not data.get("right_manage_users", False):
             raise IntegrityError("Cannot create a role allowing to manage accesses but not users")
-        if allow_read_accesses and not allow_read_users:
-            raise IntegrityError("Cannot create a role allowing to read accesses but not users")
+
 
     @staticmethod
-    def get_assignable_roles_ids(user: User, perimeter_id: str, queryset: QuerySet) -> List[int]:
+    def get_assignable_roles_ids(user: User, perimeter_id: str, all_roles: QuerySet) -> List[int]:
         perimeter = Perimeter.objects.get(id=perimeter_id)
-        assignable_roles_ids = [role.id for role in queryset
+        assignable_roles_ids = [role.id for role in all_roles
                                 if accesses_service.can_user_manage_access(user=user,
                                                                            target_access=dict(role=role, perimeter=perimeter))]
         return assignable_roles_ids

@@ -13,7 +13,7 @@ def enable_all_rights_for_full_admin_roles(apps, schema_editor):
 
     for role in role_model.objects.using(db_alias).filter(right_full_admin=True):
         for right in all_rights:
-            setattr(role, right.name, True)
+            setattr(role, right, True)
             role.save()
 
 
