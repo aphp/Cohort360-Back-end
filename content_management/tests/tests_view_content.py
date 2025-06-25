@@ -6,7 +6,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from accesses.models import Perimeter, Access, Role
-from accesses.tests.base import role_full_admin_data
+from accesses.tests.base import full_admin_role_definition
 from admin_cohort.tests.tests_tools import new_random_user, new_user_and_profile, TestCaseWithDBs
 from content_management.models import Content, MetadataName
 
@@ -24,7 +24,7 @@ class ContentViewSetTest(TestCaseWithDBs):
                'type_source_value': 'AP-HP',
                'parent_id': None, 'level': 1, 'above_levels_ids': '', 'inferior_levels_ids': '0,1,2',
                'cohort_id': '9999'})
-        admin_role = Role.objects.create(**role_full_admin_data)
+        admin_role = Role.objects.create(**full_admin_role_definition)
         Access.objects.create(profile=admin_profile,
                               role=admin_role,
                               perimeter=perimeter_aphp,

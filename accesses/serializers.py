@@ -20,15 +20,11 @@ class RightSerializer(ModelSerializer):
                   "depends_on",
                   "category",
                   "is_global",
-                  "allow_read_accesses_on_same_level",
-                  "allow_read_accesses_on_inf_levels",
                   "allow_edit_accesses_on_same_level",
                   "allow_edit_accesses_on_inf_levels",
                   "impact_inferior_levels"
                   ]
-        extra_kwargs = {'allow_read_accesses_on_same_level': {'write_only': True},
-                        'allow_read_accesses_on_inf_levels': {'write_only': True},
-                        'allow_edit_accesses_on_same_level': {'write_only': True},
+        extra_kwargs = {'allow_edit_accesses_on_same_level': {'write_only': True},
                         'allow_edit_accesses_on_inf_levels': {'write_only': True},
                         'impact_inferior_levels': {'write_only': True}
                         }
@@ -205,8 +201,7 @@ class DataRightSerializer(serializers.Serializer):
     right_read_patient_pseudonymized = serializers.BooleanField(read_only=True)
     right_search_patients_by_ipp = serializers.BooleanField(read_only=True)
     right_search_opposed_patients = serializers.BooleanField(read_only=True)
-    right_export_csv_nominative = serializers.BooleanField(read_only=True)
-    right_export_csv_pseudonymized = serializers.BooleanField(read_only=True)
+    right_export_csv_xlsx_nominative = serializers.BooleanField(read_only=True)
     right_export_jupyter_nominative = serializers.BooleanField(read_only=True)
     right_export_jupyter_pseudonymized = serializers.BooleanField(read_only=True)
 

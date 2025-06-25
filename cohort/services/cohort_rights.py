@@ -6,8 +6,8 @@ from django.db.models import QuerySet
 from django.http import Http404
 
 from accesses.models import Perimeter
-from accesses.q_expressions import q_allow_read_patient_data_nominative, q_allow_read_patient_data_pseudo, q_allow_export_csv_nominative, \
-    q_allow_export_csv_pseudo, q_allow_export_jupyter_nominative, q_allow_export_jupyter_pseudo
+from accesses.q_expressions import q_allow_read_patient_data_nominative, q_allow_read_patient_data_pseudo, q_allow_export_csv_xlsx_nominative, \
+    q_allow_export_jupyter_nominative, q_allow_export_jupyter_pseudo
 from accesses.services.accesses import accesses_service
 from admin_cohort.models import User
 from cohort.models import CohortResult
@@ -15,8 +15,7 @@ from cohort.models import CohortResult
 ROLE = "role"
 READ_PATIENT_NOMI = "read_patient_nomi"
 READ_PATIENT_PSEUDO = "read_patient_pseudo"
-EXPORT_CSV_NOMI = "export_csv_nomi"
-EXPORT_CSV_PSEUDO = "export_csv_pseudo"
+EXPORT_CSV_XLSX_NOMI = "export_csv_xlsx_nomi"
 EXPORT_JUPYTER_NOMI = "export_jupyter_nomi"
 EXPORT_JUPYTER_PSEUDO = "export_jupyter_pseudo"
 
@@ -24,8 +23,7 @@ EXPORT_JUPYTER_PSEUDO = "export_jupyter_pseudo"
 def all_true_rights():
     return {READ_PATIENT_NOMI: True,
             READ_PATIENT_PSEUDO: True,
-            EXPORT_CSV_NOMI: True,
-            EXPORT_CSV_PSEUDO: True,
+            EXPORT_CSV_XLSX_NOMI: True,
             EXPORT_JUPYTER_NOMI: True,
             EXPORT_JUPYTER_PSEUDO: True
             }
@@ -76,8 +74,7 @@ class CohortRightsService:
         return {READ_PATIENT_NOMI: user_accesses.filter(q_allow_read_patient_data_nominative),
                 READ_PATIENT_PSEUDO: user_accesses.filter(q_allow_read_patient_data_pseudo |
                                                           q_allow_read_patient_data_nominative),
-                EXPORT_CSV_NOMI: user_accesses.filter(q_allow_export_csv_nominative),
-                EXPORT_CSV_PSEUDO: user_accesses.filter(q_allow_export_csv_pseudo),
+                EXPORT_CSV_XLSX_NOMI: user_accesses.filter(q_allow_export_csv_xlsx_nominative),
                 EXPORT_JUPYTER_NOMI: user_accesses.filter(q_allow_export_jupyter_nominative),
                 EXPORT_JUPYTER_PSEUDO: user_accesses.filter(q_allow_export_jupyter_pseudo)}
 

@@ -5,11 +5,12 @@ class RightsService:
 
     @staticmethod
     def all_rights():
-        return Right.objects.all()
+        return Right.objects.all().values_list("name", flat=True)
 
-    def list_rights(self):
+    @staticmethod
+    def list_rights():
         right_categories = {}
-        for right in self.all_rights():
+        for right in Right.objects.all():
             if right.category not in right_categories:
                 right_categories[right.category] = {"name": right.category,
                                                     "is_global": right.is_global,
