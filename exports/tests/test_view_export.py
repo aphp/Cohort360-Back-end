@@ -90,6 +90,7 @@ class ExportViewSetTest(ExportsTestBase):
                        "export_tables": [{"table_name": "person",
                                           "cohort_result_source": self.cohort_result.uuid,
                                           "pivot_merge_columns": ["col_01", "col_02", "col_03"],
+                                          "pivot_merge_ids": ["col_01", "col_02"],
                                           "columns": None
                                           }]
                        }
