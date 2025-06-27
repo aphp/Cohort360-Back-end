@@ -173,6 +173,7 @@ class CohortResultSerializer(serializers.ModelSerializer):
                   "group_id",
                   "request_job_status",
                   "request_job_fail_msg",
+                  "request_job_duration",
                   "exportable",
                   "created_at",
                   "modified_at",

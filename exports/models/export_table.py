@@ -16,6 +16,7 @@ class ExportTable(ExportsBaseModel):
     columns = ArrayField(models.CharField(max_length=55), null=True, blank=True)
     pivot_merge = models.BooleanField(null=False, default=False)
     pivot_merge_columns = ArrayField(models.CharField(max_length=255), null=True, blank=True)
+    pivot_merge_ids = ArrayField(models.CharField(max_length=255), null=True, blank=True)
 
     class Meta:
         db_table = 'export_table'
