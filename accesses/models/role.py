@@ -35,7 +35,7 @@ class Role(BaseModel):
     right_search_patients_unlimited = models.BooleanField(default=False, null=False)
     right_search_opposed_patients = models.BooleanField(default=False, null=False)
     # FHIR
-    right_read_practitioner_data = models.BooleanField(default=False, null=False)
+    right_read_practitioner_data = models.BooleanField(default=False, null=False)   # todo: how to use ?
 
 
     class Meta:
@@ -68,8 +68,6 @@ class Role(BaseModel):
     def requires_full_admin_right_to_be_managed(self):
         # requires having: right_full_admin = True
         return self.right_full_admin or \
-            self.right_manage_datalabs or \
-            self.right_read_datalabs or \
             self.right_search_patients_unlimited or \
             self.right_manage_admin_accesses_same_level or \
             self.right_manage_admin_accesses_inferior_levels
@@ -79,7 +77,9 @@ class Role(BaseModel):
         return self.right_manage_users or \
             self.right_manage_data_accesses_same_level or \
             self.right_manage_data_accesses_inferior_levels or \
-            self.right_read_accesses_above_levels
+            self.right_read_accesses_above_levels or \
+            self.right_manage_datalabs or \
+            self.right_read_datalabs
 
     def requires_data_accesses_managing_right_to_be_managed(self):
         # requires having: right_manage_data_accesses_same/inf_level = True

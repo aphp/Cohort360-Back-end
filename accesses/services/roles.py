@@ -77,27 +77,41 @@ class RolesService:
 
     @staticmethod
     def check_role_has_inconsistent_rights(data: dict) -> None:
-        is_full_admin_with_falsy_rights = (data.get("right_full_admin", False)
-                                           and any(not data.get(right) for right in all_rights))
-        if is_full_admin_with_falsy_rights:
+
+        def is_full_admin_with_falsy_rights(d: dict) -> bool:
+            return d.get("right_full_admin", False) \
+                   and any(not d.get(right) for right in all_rights)
+
+
+        def allow_read_data_pseudo_and_export_nomi(d: dict) -> bool:
+            return not d.get("right_read_patient_nominative", False) \
+                   and d.get("right_read_patient_pseudonymized", False) \
+                   and (d.get("right_export_csv_xlsx_nominative", False)
+                        or d.get("right_export_jupyter_nominative", False))
+
+        def allow_search_by_ipp_but_not_read_nomi(d: dict) -> bool:
+            return d.get("right_search_patients_by_ipp", False) \
+                   and not d.get("right_read_patient_nominative", False)
+
+
+        def allow_manage_accesses(d: dict) -> bool:
+            return any((d.get("right_manage_data_accesses_same_level", False),
+                        d.get("right_manage_data_accesses_inferior_levels", False),
+                        d.get("right_manage_admin_accesses_same_level", False),
+                        d.get("right_manage_admin_accesses_inferior_levels", False)))
+
+        if is_full_admin_with_falsy_rights(data):
             raise IntegrityError("Cannot create a Full Admin role with falsy rights")
 
-        allow_read_data_pseudo_and_export_nomi = (not data.get("right_read_patient_nominative", False)
-                                                  and data.get("right_read_patient_pseudonymized", False)
-                                                  and (data.get("right_export_csv_xlsx_nominative", False)
-                                                       or data.get("right_export_jupyter_nominative", False)))
-        if allow_read_data_pseudo_and_export_nomi:
+        if allow_read_data_pseudo_and_export_nomi(data):
             raise IntegrityError("Cannot create a role allowing to read patient data in pseudo and export nominative data")
 
-        allow_manage_accesses = any((data.get("right_manage_data_accesses_same_level", False),
-                                     data.get("right_manage_data_accesses_inferior_levels", False),
-                                     data.get("right_manage_admin_accesses_same_level", False),
-                                     data.get("right_manage_admin_accesses_inferior_levels", False)))
+        if allow_search_by_ipp_but_not_read_nomi(data):
+            raise IntegrityError("Cannot create a role allowing to search by IPP but not read patient data in nominative mode")
 
-        allow_manage_users = data.get("right_manage_users", False)
-
-        if allow_manage_accesses and not allow_manage_users:
+        if allow_manage_accesses(data) and not data.get("right_manage_users", False):
             raise IntegrityError("Cannot create a role allowing to manage accesses but not users")
+
 
     @staticmethod
     def get_assignable_roles_ids(user: User, perimeter_id: str, all_roles: QuerySet) -> List[int]:
