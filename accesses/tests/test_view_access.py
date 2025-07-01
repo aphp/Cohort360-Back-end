@@ -323,19 +323,25 @@ class AccessViewTests(AccessesAppTestsBase):
 
         def test_as_user_y_is_admin_accesses_manager_on_aphp():
             self.create_new_access_for_user(profile=self.profile_y, role=self.role_admin_accesses_manager, perimeter=self.aphp)
-            to_find = profile_x.accesses.filter(perimeter__in=[self.p1, self.p10])
+            to_find = profile_x.accesses.filter(perimeter__in=[self.p1, self.p4, self.p10])
             resp_results = self.check_get_paged_list_case(base_case.clone(to_find=to_find),
                                                           yield_response_results=True)
             for access in resp_results:
-                self.assertTrue(access.get("editable"))
+                if access.get("perimeter_id") in (self.p1.id, self.p10.id):
+                    self.assertTrue(access.get("editable"))
+                if access.get("perimeter_id") in (self.p4.id,):
+                    self.assertFalse(access.get("editable"))
 
         def test_as_user_y_is_data_accesses_manager_on_aphp():
             self.create_new_access_for_user(profile=self.profile_y, role=self.role_data_accesses_manager, perimeter=self.aphp)
-            to_find = profile_x.accesses.filter(perimeter__in=[self.p1])
+            to_find = profile_x.accesses.filter(perimeter__in=[self.p1, self.p4, self.p10])
             resp_results = self.check_get_paged_list_case(base_case.clone(to_find=to_find),
                                                           yield_response_results=True)
             for access in resp_results:
-                self.assertTrue(access.get("editable"))
+                if access.get("perimeter_id") in (self.p1.id,):
+                    self.assertTrue(access.get("editable"))
+                if access.get("perimeter_id") in (self.p4.id, self.p10.id):
+                    self.assertFalse(access.get("editable"))
 
         test_as_user_y_is_full_admin_on_aphp()
         test_as_user_y_is_admin_accesses_manager_on_aphp()

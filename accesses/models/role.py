@@ -24,7 +24,6 @@ class Role(BaseModel):
     # Administration accesses management
     right_manage_admin_accesses_same_level = models.BooleanField(default=False, null=False)
     right_manage_admin_accesses_inferior_levels = models.BooleanField(default=False, null=False)
-    right_read_accesses_above_levels = models.BooleanField(default=False, null=False)
     # Data accesses management
     right_manage_data_accesses_same_level = models.BooleanField(default=False, null=False)
     right_manage_data_accesses_inferior_levels = models.BooleanField(default=False, null=False)
@@ -55,8 +54,7 @@ class Role(BaseModel):
         return any((self.has_any_global_management_right(),
                     self.right_read_datalabs,
                     self.right_search_patients_by_ipp,
-                    self.right_search_opposed_patients,
-                    self.right_read_accesses_above_levels))
+                    self.right_search_opposed_patients))
 
     @lru_cache(maxsize=None)
     def has_any_level_dependent_management_right(self):
@@ -77,7 +75,6 @@ class Role(BaseModel):
         return self.right_manage_users or \
             self.right_manage_data_accesses_same_level or \
             self.right_manage_data_accesses_inferior_levels or \
-            self.right_read_accesses_above_levels or \
             self.right_manage_datalabs or \
             self.right_read_datalabs
 

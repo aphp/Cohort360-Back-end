@@ -65,19 +65,16 @@ admin_accesses_manager_role_definition = {**ALL_FALSY_RIGHTS,
                                           "right_manage_users": True,
                                           "right_manage_admin_accesses_same_level": True,
                                           "right_manage_admin_accesses_inferior_levels": True,
-                                          "right_read_accesses_above_levels": True
                                           }
 admin_accesses_manager_same_level_role_definition = {**ALL_FALSY_RIGHTS,
                                                      "name": "ADMIN ACCESSES MANAGER ON SAME LEVEL",
                                                      "right_manage_users": True,
                                                      "right_manage_admin_accesses_same_level": True,
-                                                     "right_read_accesses_above_levels": True
                                                      }
 admin_accesses_manager_inf_levels_role_definition = {**ALL_FALSY_RIGHTS,
                                                      "name": "ADMIN ACCESSES MANAGER ON INFERIOR LEVELS",
                                                      "right_manage_users": True,
                                                      "right_manage_admin_accesses_inferior_levels": True,
-                                                     "right_read_accesses_above_levels": True
                                                      }
 
 data_accesses_manager_role_definition = {**ALL_FALSY_RIGHTS,
@@ -85,19 +82,16 @@ data_accesses_manager_role_definition = {**ALL_FALSY_RIGHTS,
                                          "right_manage_users": True,
                                          "right_manage_data_accesses_same_level": True,
                                          "right_manage_data_accesses_inferior_levels": True,
-                                         "right_read_accesses_above_levels": True
                                          }
 data_accesses_manager_same_level_role_definition = {**ALL_FALSY_RIGHTS,
                                                     "name": "DATA ACCESSES MANAGER ON SAME LEVEL",
                                                     "right_manage_users": True,
                                                     "right_manage_data_accesses_same_level": True,
-                                                    "right_read_accesses_above_levels": True
                                                     }
 data_accesses_manager_inf_levels_role_definition = {**ALL_FALSY_RIGHTS,
                                                     "name": "DATA ACCESSES MANAGER ON INFERIOR LEVELS",
                                                     "right_manage_users": True,
                                                     "right_manage_data_accesses_inferior_levels": True,
-                                                    "right_read_accesses_above_levels": True
                                                     }
 
 data_reader_nomi_role_definition = {**ALL_FALSY_RIGHTS,

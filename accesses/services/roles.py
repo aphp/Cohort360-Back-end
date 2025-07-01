@@ -46,11 +46,6 @@ class RolesService:
                                     on_same_level=role.right_manage_data_accesses_same_level,
                                     on_inferior_levels=role.right_manage_data_accesses_inferior_levels)
 
-    @staticmethod
-    def get_help_text_for_right_read_accesses_above_levels(role):
-        return role.right_read_accesses_above_levels \
-                and "Consulter les accès en provenance des périmètres parents" or ""
-
     def get_help_text(self, role):
         hierarchy_agnostic_rights = [right for right in all_rights if not (right.endswith('same_level')
                                                                            or right.endswith('inferior_levels')
@@ -58,8 +53,8 @@ class RolesService:
         help_txt = [ROLES_HELP_TEXT.get(r) for r in hierarchy_agnostic_rights if getattr(role, r, False)]
 
         hierarchy_dependent_texts = [self.get_help_text_for_right_manage_admin_accesses(role),
-                                     self.get_help_text_for_right_manage_data_accesses(role),
-                                     self.get_help_text_for_right_read_accesses_above_levels(role)]
+                                     self.get_help_text_for_right_manage_data_accesses(role)
+                                     ]
         help_txt.extend([text for text in hierarchy_dependent_texts if text])
         return help_txt
 
@@ -72,8 +67,7 @@ class RolesService:
                     role.right_manage_data_accesses_inferior_levels))
 
     def role_allows_to_read_accesses(self, role):
-        return self.role_allows_to_manage_accesses(role=role) \
-               or role.right_read_accesses_above_levels
+        return self.role_allows_to_manage_accesses(role=role)
 
     @staticmethod
     def check_role_has_inconsistent_rights(data: dict) -> None:

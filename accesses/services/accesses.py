@@ -59,7 +59,7 @@ class AccessesService:
         for access in accesses:
             if self.can_user_manage_access(user=user, target_access=access):
                 editable.append(access.id)
-            elif self.can_user_read_accesses_from_parent_perimeters(user=user, target_access=access):
+            else:
                 readonly.append(access.id)
         editable_accesses = accesses.filter(id__in=editable).annotate(editable=Value(True))
         readonly_accesses = accesses.filter(id__in=readonly).annotate(editable=Value(False))
@@ -75,10 +75,8 @@ class AccessesService:
         perimeter = Perimeter.objects.get(pk=perimeter_id)
         user_accesses = self.get_user_valid_accesses(user=user)
         if include_parents:
-            user_can_read_accesses_from_above_levels = user_accesses.filter(role__right_read_accesses_above_levels=True).exists()
-            if user_can_read_accesses_from_above_levels:
-                q = q | (Q(perimeter_id__in=perimeter.above_levels)
-                         & q_impact_inferior_levels())
+            q = q | (Q(perimeter_id__in=perimeter.above_levels)
+                     & q_impact_inferior_levels())
         if include_children:
             user_can_read_accesses_from_inferior_levels = user_accesses.filter(q_allow_manage_accesses_on_inf_levels()).exists()
             if user_can_read_accesses_from_inferior_levels:
@@ -308,12 +306,6 @@ class AccessesService:
         return not role_requires_full_admin_right_to_be_managed \
             and (can_manage_admin_accesses or not role_requires_admin_accesses_managing_right_to_be_managed) \
             and (can_manage_data_accesses or not role_requires_data_accesses_managing_right_to_be_managed)
-
-    def can_user_read_accesses_from_parent_perimeters(self, user: User, target_access: Access) -> bool:
-        perimeter = target_access.perimeter
-        return self.get_user_valid_accesses(user).filter(Q(perimeter__above_levels_ids__icontains=perimeter.id) &
-                                                         Q(role__right_read_accesses_above_levels=True)
-                                                         ).exists()
 
     @staticmethod
     def role_requires_full_admin_right_to_be_read(role: Role):

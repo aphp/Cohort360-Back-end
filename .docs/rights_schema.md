@@ -9,12 +9,10 @@ class Unlimited_Data_Reader {
 class Manager_Of_Administrators {
   right_manage_admin_accesses_same_level
   right_manage_admin_accesses_inferior_levels
-  right_read_accesses_above_levels
 }
 class Administrator_Of_Patient_Data_Readers {
   right_manage_data_accesses_same_level
   right_manage_data_accesses_inferior_levels
-  right_read_accesses_above_levels
 }
 class Patient_Data_Reader {
   right_read_patient_nominative
@@ -81,7 +79,6 @@ Only the Full_Admin role is allowed to assign such a role to a user:
 It allows to manage accesses associated with _Patient_Data_Reader_ roles:  
 - *right_manage_data_accesses_same_level*
 - *right_manage_data_accesses_inferior_levels*
-- *right_read_accesses_above_levels*
 - *right_manage_users*
 
 > ⚠️  The rights granted by this role are dependent to the perimeters' hierarchy
@@ -90,7 +87,6 @@ It allows to manage accesses associated with _Patient_Data_Reader_ roles:
 It allows to manage accesses associated with _Administrator_Of_Patient_Data_Readers_ roles.  
 - *right_manage_admin_accesses_same_level*
 - *right_manage_admin_accesses_inferior_levels*
-- *right_read_accesses_above_levels*
 - *right_manage_users*
 
 > ⚠️  The rights granted by this role are dependent to the perimeters' hierarchy
@@ -123,6 +119,6 @@ The rules of managing role are defined according to the following dependencies:
   | If a Role has one of these rights                                                                                                                                                                                                                                                   | Managing it requires a Role having one of these rights                                                                                                                                                                     |
   |-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
   | right_full_admin OR <br/> right_search_patients_unlimited OR <br/> right_manage_admin_accesses_same_level OR <br/>right_manage_admin_accesses_inferior_levels                                                                                                                       | right_full_admin                                                                                                                                                                                                           |
-  | right_manage_users OR <br/> right_manage_data_accesses_same_level OR <br/> right_manage_data_accesses_inferior_levels OR <br/> right_read_accesses_above_levels OR <br/> right_manage_datalabs OR <br/> right_read_datalabs                                                         | right_full_admin  OR <br/> right_manage_admin_accesses_same_level OR <br/> right_manage_admin_accesses_inferior_levels                                                                                                     |
+  | right_manage_users OR <br/> right_manage_data_accesses_same_level OR <br/> right_manage_data_accesses_inferior_levels OR <br/> right_manage_datalabs OR <br/> right_read_datalabs                                                         | right_full_admin  OR <br/> right_manage_admin_accesses_same_level OR <br/> right_manage_admin_accesses_inferior_levels                                                                                                     |
   | right_read_patient_nominative OR <br/> right_read_patient_pseudonymized OR <br/> right_search_patients_by_ipp OR <br/> right_search_opposed_patients OR <br/> right_export_csv_xlsx_nominative OR <br/> right_export_jupyter_nominative OR <br/> right_export_jupyter_pseudonymized | right_full_admin  OR <br/> right_manage_admin_accesses_same_level OR <br/> right_manage_admin_accesses_inferior_levels  OR <br/> right_manage_data_accesses_same_level OR <br/> right_manage_data_accesses_inferior_levels |
 
