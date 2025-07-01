@@ -14,8 +14,7 @@ class DataRight:
     right_read_patient_pseudonymized: Optional[bool] = False
     right_search_patients_by_ipp: Optional[bool] = False
     right_search_opposed_patients: Optional[bool] = False
-    right_export_csv_nominative: Optional[bool] = False
-    right_export_csv_pseudonymized: Optional[bool] = False
+    right_export_csv_xlsx_nominative: Optional[bool] = False
     right_export_jupyter_nominative: Optional[bool] = False
     right_export_jupyter_pseudonymized: Optional[bool] = False
 
@@ -26,8 +25,7 @@ class DataRight:
     def acquire_extra_global_rights(self, dr: DataRight):
         self.right_search_patients_by_ipp = self.right_search_patients_by_ipp or dr.right_search_patients_by_ipp
         self.right_search_opposed_patients = self.right_search_opposed_patients or dr.right_search_opposed_patients
-        self.right_export_csv_nominative = self.right_export_csv_nominative or dr.right_export_csv_nominative
-        self.right_export_csv_pseudonymized = self.right_export_csv_pseudonymized or dr.right_export_csv_pseudonymized
+        self.right_export_csv_xlsx_nominative = self.right_export_csv_xlsx_nominative or dr.right_export_csv_xlsx_nominative
         self.right_export_jupyter_nominative = self.right_export_jupyter_nominative or dr.right_export_jupyter_nominative
         self.right_export_jupyter_pseudonymized = self.right_export_jupyter_pseudonymized or dr.right_export_jupyter_pseudonymized
 

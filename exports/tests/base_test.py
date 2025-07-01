@@ -31,7 +31,7 @@ class ExportsTestBase(TestCaseWithDBs):
 
         self.perimeter_aphp = Perimeter.objects.create(name="APHP", local_id="1", cohort_id="1")
 
-        self.csv_exporter_role = Role.objects.create(name="CSV EXPORTER", right_export_csv_nominative=True)
+        self.csv_exporter_role = Role.objects.create(name="CSV EXPORTER", right_export_csv_xlsx_nominative=True)
         self.datalab_reader_role = Role.objects.create(name="DATALABS READER", right_read_datalabs=True)
         self.datalab_manager_role = Role.objects.create(name="DATALABS MANAGER", right_read_datalabs=True, right_manage_datalabs=True)
         self.full_admin_role = Role.objects.create(name="ADMIN", right_full_admin=True)
