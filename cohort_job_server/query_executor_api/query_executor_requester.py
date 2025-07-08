@@ -28,12 +28,12 @@ class QueryExecutorRequester:
             cohort_query = CohortQuery(instance_id=instance_id, **json.loads(json_query))
             response = cohort_request.launch(cohort_query)
         except Exception as e:
-            _logger_err.error(f"Error sending request to QUERY_EXECUTOR: {e}")
+            _logger_err.error(f"Error sending request to Query Executor: {e}")
             response_data = dict(success=False, err_msg=str(e), status="ERROR")
         else:
             response_data = dict(success=True, **response.json())
         response = QueryExecutorResponse(**response_data)
-        _logger(msg=f"Received QUERY_EXECUTOR response {response.__dict__}")
+        _logger(msg=f"Received Query Executor response {response.__dict__}")
         if instance_id is not None and cohort_request.model is not None:
             self.update_request_instance(cohort_request.model, instance_id, response)
         _logger(msg=f"Done: {response.success and f'{cohort_request.model.__name__} updated' or response.err_msg}")
