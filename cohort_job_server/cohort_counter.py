@@ -69,10 +69,12 @@ class CohortCounter(BaseCohortOperator):
             if dm.is_global:
                 data.update({"measure_min": data.pop(MINIMUM, None),
                              "measure_max": data.pop(MAXIMUM, None)})
-            _logger.info(f"DatedMeasure[{dm.uuid}] successfully updated from QUERY_EXECUTOR")
-        else:
+            _logger.info(f"DatedMeasure[{dm.uuid}] successfully updated from Query Executor")
+        elif job_status == JobStatus.failed:
             data["request_job_fail_msg"] = data.pop(ERR_MESSAGE, None)
-            _logger_err.exception(f"DatedMeasure[{dm.uuid}] - Error on QUERY_EXECUTOR callback")
+            _logger_err.error(f"DatedMeasure[{dm.uuid}] - Failed")
+        else:
+            _logger.info(f"DatedMeasure[{dm.uuid}] - Ended with status: {job_status}")
         data.update({"request_job_status": job_status,
                      "request_job_duration": job_duration})
 
@@ -90,11 +92,13 @@ class CohortCounter(BaseCohortOperator):
                 counts_per_perimeter = data.pop(EXTRA, {})
                 if not counts_per_perimeter:
                     raise ValueError(f"Bad Request: Payload missing `{EXTRA}` key")
-            else:
+            elif job_status == JobStatus.failed:
                 data["request_job_fail_msg"] = data.pop(ERR_MESSAGE, None)
-                _logger_err.exception(f"FeasibilityStudy[{fs.uuid}] - Error on QUERY_EXECUTOR callback")
+                _logger_err.error(f"FeasibilityStudy[{fs.uuid}] - Failed")
+            else:
+                _logger.info(f"FeasibilityStudy[{fs.uuid}] - Ended with status: {job_status}")
         except ValueError as ve:
-            _logger_err.exception(f"FeasibilityStudy[{fs.uuid}] - Error on QUERY_EXECUTOR callback - {ve}")
+            _logger_err.error(f"FeasibilityStudy[{fs.uuid}] - Error on Query Executor callback - {ve}")
             raise ve
         data[JOB_STATUS] = job_status
         return job_status, counts_per_perimeter
