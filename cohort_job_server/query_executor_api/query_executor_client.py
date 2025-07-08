@@ -17,7 +17,7 @@ _logger = logging.getLogger('info')
 class QueryExecutorClient:
     APP_NAME = "omop-spark-job"
 
-    # todo: remove this dependency by refactoring the QUERY_EXECUTOR scala project and removing those class paths requirements
+    # todo: remove this dependency by refactoring the Query Executor scala project and removing those class paths requirements
     COUNT_CLASSPATH = "fr.aphp.id.eds.requester.CountQuery"
     CREATE_CLASSPATH = "fr.aphp.id.eds.requester.CreateQuery"
     CONTEXT = "shared"

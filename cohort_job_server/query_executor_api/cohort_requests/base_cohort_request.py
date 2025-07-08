@@ -77,4 +77,4 @@ class BaseCohortRequest:
 
     def launch(self, cohort_query: CohortQuery):
         """Perform an action (count, countAll, create) based on the cohort_query"""
-        self.log(msg=f"Sending request to QUERY_EXECUTOR: {cohort_query}")
+        self.log(msg=f"Sending request to Query Executor: {cohort_query}")
