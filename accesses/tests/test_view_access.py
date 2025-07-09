@@ -45,7 +45,7 @@ class AccessViewTests(AccessesAppTestsBase):
                               start_datetime=timezone.now(),
                               end_datetime=timezone.now() + timedelta(weeks=1))
         Access.objects.create(profile=profile2,
-                              role=self.role_data_reader_nomi_csv_exporter_nomi,
+                              role=self.role_data_reader_nomi_csv_xlsx_exporter_nomi,
                               perimeter=self.aphp,
                               start_datetime=timezone.now(),
                               end_datetime=timezone.now() + timedelta(weeks=1))
@@ -280,10 +280,10 @@ class AccessViewTests(AccessesAppTestsBase):
         """                                         APHP
                          ____________________________|____________________________
                          |                           |                           |
-                         P0                          P1                          P2
+                         P0                         -P1-                         P2
                __________|__________          _______|_______          __________|__________
                |         |         |          |             |          |         |         |
-               P3        P4       P5          P6            P7       P8          P9       P10
+               P3       -P4-      P5          P6            P7       P8          P9      -P10-
                    ______|_______                                                    ______|_______
                    |            |                                                    |            |
                    P11         P12                                                  P13          P14
@@ -323,31 +323,28 @@ class AccessViewTests(AccessesAppTestsBase):
 
         def test_as_user_y_is_admin_accesses_manager_on_aphp():
             self.create_new_access_for_user(profile=self.profile_y, role=self.role_admin_accesses_manager, perimeter=self.aphp)
-            to_find = profile_x.accesses.filter(perimeter=self.p10)
+            to_find = profile_x.accesses.filter(perimeter__in=[self.p1, self.p4, self.p10])
             resp_results = self.check_get_paged_list_case(base_case.clone(to_find=to_find),
                                                           yield_response_results=True)
             for access in resp_results:
-                self.assertTrue(access.get("editable"))
-
-        def test_as_user_y_is_admin_accesses_reader_on_aphp():
-            self.create_new_access_for_user(profile=self.profile_y, role=self.role_admin_accesses_reader, perimeter=self.aphp)
-            to_find = profile_x.accesses.filter(perimeter=self.p10)
-            resp_results = self.check_get_paged_list_case(base_case.clone(to_find=to_find),
-                                                          yield_response_results=True)
-            for access in resp_results:
-                self.assertFalse(access.get("editable"))
+                if access.get("perimeter_id") in (self.p1.id, self.p10.id):
+                    self.assertTrue(access.get("editable"))
+                if access.get("perimeter_id") in (self.p4.id,):
+                    self.assertFalse(access.get("editable"))
 
         def test_as_user_y_is_data_accesses_manager_on_aphp():
             self.create_new_access_for_user(profile=self.profile_y, role=self.role_data_accesses_manager, perimeter=self.aphp)
-            to_find = profile_x.accesses.filter(perimeter=self.p1)
+            to_find = profile_x.accesses.filter(perimeter__in=[self.p1, self.p4, self.p10])
             resp_results = self.check_get_paged_list_case(base_case.clone(to_find=to_find),
                                                           yield_response_results=True)
             for access in resp_results:
-                self.assertTrue(access.get("editable"))
+                if access.get("perimeter_id") in (self.p1.id,):
+                    self.assertTrue(access.get("editable"))
+                if access.get("perimeter_id") in (self.p4.id, self.p10.id):
+                    self.assertFalse(access.get("editable"))
 
         test_as_user_y_is_full_admin_on_aphp()
         test_as_user_y_is_admin_accesses_manager_on_aphp()
-        test_as_user_y_is_admin_accesses_reader_on_aphp()
         test_as_user_y_is_data_accesses_manager_on_aphp()
 
     def test_list_accesses_on_perimeter_P_for_user_y(self):
@@ -391,7 +388,7 @@ class AccessViewTests(AccessesAppTestsBase):
     def test_successfully_get_my_valid_accesses_only(self):
         self.create_new_access_for_user(profile=self.profile_y, role=self.role_data_reader_nomi_pseudo, perimeter=self.p8)
         invalid_access_for_user_y = Access.objects.create(profile=self.profile_y,
-                                                          role=self.role_data_reader_nomi_csv_exporter_nomi,
+                                                          role=self.role_data_reader_nomi_csv_xlsx_exporter_nomi,
                                                           perimeter=self.p9,
                                                           start_datetime=timezone.now() - timedelta(days=2),
                                                           end_datetime=timezone.now() - timedelta(days=1))
@@ -405,7 +402,7 @@ class AccessViewTests(AccessesAppTestsBase):
     def test_get_expiring_accesses(self):
         self.create_new_access_for_user(profile=self.profile_y, role=self.role_data_reader_nomi_pseudo, perimeter=self.p8)
         expiring_access_for_user_y = Access.objects.create(profile=self.profile_y,
-                                                           role=self.role_data_reader_nomi_csv_exporter_nomi,
+                                                           role=self.role_data_reader_nomi_csv_xlsx_exporter_nomi,
                                                            perimeter=self.p9,
                                                            start_datetime=timezone.now(),
                                                            end_datetime=timezone.now() +
@@ -440,10 +437,10 @@ class AccessViewTests(AccessesAppTestsBase):
 
         perimeters = [self.p0, self.p1, self.p7, self.p8, self.p12]
         roles = [self.role_data_reader_nomi_pseudo,
-                 self.role_admin_accesses_reader,
+                 self.role_admin_accesses_manager,
                  self.role_jupyter_exporter_pseudo,
-                 self.role_data_reader_nomi_csv_exporter_nomi,
-                 self.role_search_by_ipp_and_search_opposed]
+                 self.role_data_reader_nomi,
+                 self.role_data_reader_nomi_csv_xlsx_exporter_nomi]
 
         for role, perimeter in zip(roles, perimeters):
             self.create_new_access_for_user(profile=self.profile_y, role=role, perimeter=perimeter, close_existing=False)
@@ -454,29 +451,38 @@ class AccessViewTests(AccessesAppTestsBase):
                               right_read_patient_nominative=True,
                               right_read_patient_pseudonymized=True,
                               right_search_patients_by_ipp=True,
-                              right_search_opposed_patients=True,
-                              right_export_csv_nominative=True,
-                              right_export_csv_pseudonymized=False,
+                              right_search_opposed_patients=False,
+                              right_export_csv_xlsx_nominative=True,
                               right_export_jupyter_nominative=False,
                               right_export_jupyter_pseudonymized=True)]
 
         target_perimeters_p2 = [self.p2.id]
         to_find_on_p2 = []
 
-        target_perimeters_p4_p10 = [self.p4.id, self.p10.id]
-        to_find_on_p4_p10 = [dict(user_id=self.user_y.pk,
-                                  perimeter_id=self.p4.id,
-                                  right_read_patient_nominative=True,
-                                  right_read_patient_pseudonymized=True,
-                                  right_search_patients_by_ipp=True,
-                                  right_search_opposed_patients=True,
-                                  right_export_csv_nominative=True,
-                                  right_export_csv_pseudonymized=False,
-                                  right_export_jupyter_nominative=False,
-                                  right_export_jupyter_pseudonymized=True)]
+        target_perimeters_p4 = [self.p4.id]
+        to_find_on_p4 = [dict(user_id=self.user_y.pk,
+                              perimeter_id=self.p4.id,
+                              right_read_patient_nominative=True,
+                              right_read_patient_pseudonymized=True,
+                              right_search_patients_by_ipp=True,
+                              right_search_opposed_patients=False,
+                              right_export_csv_xlsx_nominative=True,
+                              right_export_jupyter_nominative=False,
+                              right_export_jupyter_pseudonymized=True)]
 
-        target_perimeters_ids = [target_perimeters_p0, target_perimeters_p2, target_perimeters_p4_p10]
-        to_find_list = [to_find_on_p0, to_find_on_p2, to_find_on_p4_p10]
+        target_perimeters_p8 = [self.p8.id]
+        to_find_on_p8 = [dict(user_id=self.user_y.pk,
+                              perimeter_id=self.p8.id,
+                              right_read_patient_nominative=True,
+                              right_read_patient_pseudonymized=False,
+                              right_search_patients_by_ipp=True,
+                              right_search_opposed_patients=False,
+                              right_export_csv_xlsx_nominative=True,
+                              right_export_jupyter_nominative=False,
+                              right_export_jupyter_pseudonymized=True)]
+
+        target_perimeters_ids = [target_perimeters_p0, target_perimeters_p2, target_perimeters_p4, target_perimeters_p8]
+        to_find_list = [to_find_on_p0, to_find_on_p2, to_find_on_p4, to_find_on_p8]
 
         for perimeters_ids, to_find in zip(target_perimeters_ids, to_find_list):
             case = base_case.clone(params={"perimeters_ids": ",".join(map(str, perimeters_ids))},

@@ -3,17 +3,18 @@ from drf_spectacular.utils import extend_schema
 from rest_framework import status
 
 from accesses.views import BaseViewSet
-from admin_cohort.permissions import IsAuthenticated, can_user_read_users
+from admin_cohort.permissions import IsAuthenticated
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools.request_log_mixin import RequestLogMixin
 from accesses.models import Profile
 from accesses.permissions import ProfilesPermission
-from accesses.serializers import ProfileSerializer, ReducedProfileSerializer
+from accesses.serializers import ProfileSerializer
 
 
 class ProfileViewSet(RequestLogMixin, BaseViewSet):
     queryset = Profile.objects.filter(delete_datetime__isnull=True).all()
     lookup_field = "id"
+    serializer_class = ProfileSerializer
     http_method_names = ['get']
     permission_classes = (IsAuthenticated, ProfilesPermission)
     swagger_tags = ['Profiles']
@@ -26,11 +27,6 @@ class ProfileViewSet(RequestLogMixin, BaseViewSet):
                                      sql_provider_name=Func(F('user__firstname'), Value(' '), F('user__lastname'),
                                                             function='CONCAT'))
         return queryset
-
-    def get_serializer_class(self):
-        if self.request.method == 'GET' and not can_user_read_users(self.request.user):
-            return ReducedProfileSerializer
-        return ProfileSerializer
 
     @extend_schema(responses={status.HTTP_200_OK: ProfileSerializer(many=True)})
     @cache_response()
