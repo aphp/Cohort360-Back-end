@@ -17,6 +17,7 @@ ADMIN_LASTNAME = env.get('ADMIN_LASTNAME', 'ADMIN')
 ADMIN_EMAIL = env.get('ADMIN_EMAIL', 'admin@backend.fr')
 ADMIN_PASSWORD = env.get('ADMIN_PASSWORD', 'admin')
 QUERY_EXECUTOR_USERNAME = env.get('QUERY_EXECUTOR_USERNAME', 'QUERY_EXECUTOR')
+QUERY_EXECUTOR_PASSWORD = env.get('QUERY_EXECUTOR_PASSWORD', '1234')
 
 
 class Command(BaseCommand):
@@ -59,7 +60,7 @@ class Command(BaseCommand):
                                 firstname='Query',
                                 lastname='EXECUTOR',
                                 email='query_executor@example.org',
-                                password='1234'
+                                password=QUERY_EXECUTOR_PASSWORD
                                 )
 
     def setup_admin_user_account(self) -> None:
