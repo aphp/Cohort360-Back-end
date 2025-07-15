@@ -273,11 +273,12 @@ class RQSReducedSerializer(serializers.ModelSerializer):
         return obj.cohort_results.count()
 
     def get_patients_count(self, obj) -> int | str:
+        # Find all cohorts that are not samples
         dms_with_normal_cohorts = obj.dated_measures.filter(cohorts__parent_cohort__isnull=True)
         if dms_with_normal_cohorts.exists():
             latest_dm = dms_with_normal_cohorts.latest("created_at")
-            return latest_dm.measure if latest_dm.measure is not None else "NA"
-        return "NA"
+            return latest_dm.measure
+        return None
 
 
 class RQSSerializer(serializers.ModelSerializer):
