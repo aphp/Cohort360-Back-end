@@ -16,6 +16,7 @@ ADMIN_FIRSTNAME = env.get('ADMIN_FIRSTNAME', 'Admin')
 ADMIN_LASTNAME = env.get('ADMIN_LASTNAME', 'ADMIN')
 ADMIN_EMAIL = env.get('ADMIN_EMAIL', 'admin@backend.fr')
 ADMIN_PASSWORD = env.get('ADMIN_PASSWORD', 'admin')
+QUERY_EXECUTOR_USERNAME = env.get('QUERY_EXECUTOR_USERNAME', 'QUERY_EXECUTOR')
 
 
 class Command(BaseCommand):
@@ -27,6 +28,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self.load_perimeters(csv_file_path=options['perimeters_conf'])
         self.setup_admin_user_account()
+        self.setup_query_executor_user_account()
         self.stdout.write(self.style.SUCCESS(f"Successfully added user '{ADMIN_USERNAME}' with 'Full Admin' role"))
 
     def load_perimeters(self, csv_file_path: str) -> None:
@@ -51,6 +53,14 @@ class Command(BaseCommand):
                                    password=users_service.hash_password(password))
         profile = Profile.objects.create(user_id=user.username, is_active=True)
         return profile
+
+    def setup_query_executor_user_account(self) -> None:
+        _ = self.create_profile(username=QUERY_EXECUTOR_USERNAME,
+                                firstname='Query',
+                                lastname='EXECUTOR',
+                                email='query_executor@example.org',
+                                password='1234'
+                                )
 
     def setup_admin_user_account(self) -> None:
         profile = self.create_profile(username=ADMIN_USERNAME,
