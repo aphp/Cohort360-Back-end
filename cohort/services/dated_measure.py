@@ -62,6 +62,7 @@ class DatedMeasureService(CommonService):
                                                                           extra_info={"request_job_status": dm.request_job_status,
                                                                                       "request_job_fail_msg": dm.request_job_fail_msg,
                                                                                       "measure": dm.measure,
+                                                                                      "snapshot_id": dm.request_query_snapshot_id.uuid,
                                                                                       "extra": dm.extra
                                                                                       }))
 
