@@ -272,7 +272,7 @@ class RQSReducedSerializer(serializers.ModelSerializer):
     def get_cohorts_count(self, obj) -> int:
         return obj.cohort_results.count()
 
-    def get_patients_count(self, obj) -> int | str:
+    def get_patients_count(self, obj) -> int | None:
         # Find all cohorts that are not samples
         dms_with_normal_cohorts = obj.dated_measures.filter(cohorts__parent_cohort__isnull=True)
         if dms_with_normal_cohorts.exists():

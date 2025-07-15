@@ -163,7 +163,7 @@ def get_all_children_perimeters(perimeter: Perimeter, all_perimeters: List[Perim
     for p in all_perimeters:
         if p.is_child_of(perimeter):
             children.add(str(p.id))
-            children.union(get_all_children_perimeters(p, all_perimeters))
+            children = children.union(get_all_children_perimeters(p, all_perimeters))
     return children
 
 
@@ -171,7 +171,7 @@ def create_virtual_cohorts(perimeter_to_create: List[Perimeter], perimeter_to_up
     from accesses_fhir_perimeters.tasks import create_virtual_cohort
     perimeters = perimeter_to_create + perimeter_to_update
     for perimeter in perimeters:
-        children_ids = sorted(list(get_all_children_perimeters(perimeter, perimeter_to_create + perimeter_to_update)))
+        children_ids = sorted(get_all_children_perimeters(perimeter, perimeters))
         if perimeter.cohort_id:
             _logger.info(f"Updating virtual cohort {perimeter.cohort_id} for perimeter {perimeter.id}")
             create_virtual_cohort.s(str(perimeter.id), children_ids, int(perimeter.cohort_id)).apply_async()
