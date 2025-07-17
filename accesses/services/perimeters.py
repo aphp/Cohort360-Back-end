@@ -197,10 +197,9 @@ def count_allowed_users():
                                            .annotate(user_count=Count("profile__user_id", distinct=True))
 
     updates = {pc["perimeter_id"]: pc["user_count"] for pc in perimeters_with_counts}
-    perimeters = Perimeter.objects.filter(id__in=updates.keys())
-
     perimeters_to_update = []
-    for perimeter in perimeters:
+
+    for perimeter in Perimeter.objects.all():
         count_users = updates.get(perimeter.id, 0)
         if count_users != perimeter.count_allowed_users:
             perimeter.count_allowed_users = count_users

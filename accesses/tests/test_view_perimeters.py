@@ -47,7 +47,7 @@ class PerimeterViewTests(AccessesAppTestsBase):
                                P0 (S+I)                    P1 (S+I)                    P2 (S+I)
                       _________|__________           ______|_______           _________|__________
                      |         |         |          |             |          |         |         |
-                     P3        P4       P5 (S+I)   P6            P7         P8 (S+I)  P9        P10
+                     P3        P4       P5         P6            P7         P8 (S+I)  P9        P10
                          ______|_______                                                    ______|_______
                         |             |                                                   |             |
                        P11           P12                                                 P13           P14
@@ -55,17 +55,16 @@ class PerimeterViewTests(AccessesAppTestsBase):
             - With respect to this hierarchy, User Z has 6 accesses defined on P0, P1, P2, P5, P8 and P10
               allowing him to manage other accesses either on same level (S) or on inferior levels (I).
             """
-            perimeters = [self.p0, self.p1, self.p2, self.p5, self.p8]
+            perimeters = [self.p0, self.p1, self.p2, self.p8]
             roles = [self.role_data_accesses_manager,
-                     self.role_admin_accesses_reader,
                      self.role_admin_accesses_manager,
-                     self.role_export_accesses_manager,
+                     self.role_admin_accesses_manager,
                      self.role_data_accesses_manager]
 
             for perimeter, role in zip(perimeters, roles):
                 self.create_new_access_for_user(profile=self.profile_z, role=role, perimeter=perimeter, close_existing=False)
 
-            top_manageable_perimeters_ids = [self.p0.id, self.p2.id]
+            top_manageable_perimeters_ids = [self.p0.id, self.p1.id, self.p2.id]
             return base_case.clone(user=self.user_z,
                                    to_find=top_manageable_perimeters_ids)
 
@@ -111,7 +110,7 @@ class PerimeterViewTests(AccessesAppTestsBase):
             self.assertEqual(sorted(perimeter_ids_in_response),
                              sorted(case.to_find))
 
-    def test_get_data_read_rights_on_perimeters(self):
+    def test_get_data_reading_rights_on_perimeters(self):
         """                                            APHP
                              ___________________________|____________________________
                             |                           |                           |
@@ -132,7 +131,7 @@ class PerimeterViewTests(AccessesAppTestsBase):
 
         perimeters = [self.p0, self.p1, self.p2, self.p4, self.p10]
         roles = [self.role_data_reader_pseudo,
-                 self.role_search_by_ipp_and_search_opposed,
+                 self.role_data_reader_full_access,
                  self.role_data_reader_nomi_pseudo,
                  self.role_data_reader_nomi,
                  self.role_data_reader_pseudo]
@@ -141,9 +140,16 @@ class PerimeterViewTests(AccessesAppTestsBase):
         for perimeter, role in zip(perimeters, roles):
             self.create_new_access_for_user(profile=self.profile_y, role=role, perimeter=perimeter, close_existing=False)
 
-        def get_data_read_rights_on_perimeters_1():
+        def get_data_reading_rights_on_perimeters_1():
             data_read_rights_p0 = PerimeterReadRight(perimeter=self.p0,
                                                      right_read_patient_nominative=False,
+                                                     right_read_patient_pseudonymized=True,
+                                                     right_search_patients_by_ipp=True,
+                                                     right_read_opposed_patients_data=True,
+                                                     )
+
+            data_read_rights_p1 = PerimeterReadRight(perimeter=self.p1,
+                                                     right_read_patient_nominative=True,
                                                      right_read_patient_pseudonymized=True,
                                                      right_search_patients_by_ipp=True,
                                                      right_read_opposed_patients_data=True,
@@ -163,25 +169,33 @@ class PerimeterViewTests(AccessesAppTestsBase):
                                                      right_read_opposed_patients_data=True)
 
             expected_data_read_rights = [data_read_rights_p0,
+                                         data_read_rights_p1,
                                          data_read_rights_p2,
                                          data_read_rights_p4]
             return base_case.clone(params={},
                                    to_find=expected_data_read_rights)
 
-        def get_data_read_rights_on_perimeters_2():
+        def get_data_reading_rights_on_perimeters_2():
+            data_read_rights_p1 = PerimeterReadRight(perimeter=self.p1,
+                                                     right_read_patient_nominative=True,
+                                                     right_read_patient_pseudonymized=True,
+                                                     right_search_patients_by_ipp=True,
+                                                     right_read_opposed_patients_data=True,
+                                                     )
             data_read_rights_p5 = PerimeterReadRight(perimeter=self.p5,
                                                      right_read_patient_nominative=False,
                                                      right_read_patient_pseudonymized=True,
                                                      right_search_patients_by_ipp=True,
-                                                     right_read_opposed_patients_data=True)
-
+                                                     right_read_opposed_patients_data=True
+                                                     )
             data_read_rights_p9 = PerimeterReadRight(perimeter=self.p9,
                                                      right_read_patient_nominative=True,
                                                      right_read_patient_pseudonymized=True,
                                                      right_search_patients_by_ipp=True,
-                                                     right_read_opposed_patients_data=True)
-
-            expected_data_read_rights = [data_read_rights_p5,
+                                                     right_read_opposed_patients_data=True
+                                                     )
+            expected_data_read_rights = [data_read_rights_p1,
+                                         data_read_rights_p5,
                                          data_read_rights_p9]
 
             target_local_ids = [self.p1.local_id,
@@ -191,8 +205,8 @@ class PerimeterViewTests(AccessesAppTestsBase):
             return base_case.clone(params={"local_id": ",".join(target_local_ids)},
                                    to_find=expected_data_read_rights)
 
-        case_1 = get_data_read_rights_on_perimeters_1()
-        case_2 = get_data_read_rights_on_perimeters_2()
+        case_1 = get_data_reading_rights_on_perimeters_1()
+        case_2 = get_data_reading_rights_on_perimeters_2()
 
         for case in (case_1, case_2):
             response_results = self.check_get_paged_list_case(case=case,
@@ -297,18 +311,17 @@ class PerimeterViewTests(AccessesAppTestsBase):
         self.check_list_case_with_mock(case_2)
 
     def test_read_patient_data_rights_case_4(self):
-        perimeters = [self.aphp, self.p1, self.p4, self.p10]
+        perimeters = [self.aphp, self.p4, self.p10]
         roles = [self.role_data_reader_pseudo,
-                 self.role_search_by_ipp_and_search_opposed,
                  self.role_data_reader_nomi_pseudo,
                  self.role_data_reader_nomi]
         self.make_accesses_for_user(self.profile_z, perimeters, roles)
 
-        cohort_ids = ",".join([self.aphp.cohort_id, self.p1.cohort_id, self.p4.cohort_id, self.p10.cohort_id])
+        cohort_ids = ",".join([self.aphp.cohort_id, self.p4.cohort_id, self.p10.cohort_id])
         case_1 = self.base_case.clone(user=self.user_z,
                                       params={"cohort_ids": cohort_ids, "mode": "min"},
                                       to_find={"allow_read_patient_data_nomi": False,
-                                               "allow_lookup_opposed_patients": True,
+                                               "allow_lookup_opposed_patients": False,
                                                "allow_read_patient_without_perimeter_limit": False,
                                                "allow_read_administrative_data": False,
                                                "allow_read_medical_data": False,
@@ -316,7 +329,7 @@ class PerimeterViewTests(AccessesAppTestsBase):
                                                })
         case_2 = case_1.clone(params={"cohort_ids": cohort_ids, "mode": "max"},
                               to_find={"allow_read_patient_data_nomi": True,
-                                       "allow_lookup_opposed_patients": True,
+                                       "allow_lookup_opposed_patients": False,
                                        "allow_read_patient_without_perimeter_limit": False,
                                        "allow_read_administrative_data": True,
                                        "allow_read_medical_data": True,
@@ -407,7 +420,7 @@ class PerimeterViewTests(AccessesAppTestsBase):
     def test_read_patient_data_rights_missing_access_on_some_target_perimeters(self):
         perimeters = [self.p1, self.p2]
         roles = [self.role_data_reader_pseudo,
-                 self.role_search_by_ipp_and_search_opposed]
+                 self.role_data_reader_nomi]
         self.make_accesses_for_user(self.profile_t, perimeters, roles)
 
         cohort_ids = ",".join([self.p1.cohort_id, self.p5.cohort_id])
@@ -418,7 +431,7 @@ class PerimeterViewTests(AccessesAppTestsBase):
         case_with_mode_max = self.base_case.clone(user=self.user_t,
                                                   params={"cohort_ids": cohort_ids, "mode": "max"},
                                                   to_find={"allow_read_patient_data_nomi": False,
-                                                           "allow_lookup_opposed_patients": True,
+                                                           "allow_lookup_opposed_patients": False,
                                                            "allow_read_patient_without_perimeter_limit": False,
                                                            "allow_read_administrative_data": False,
                                                            "allow_read_medical_data": False,
@@ -429,8 +442,8 @@ class PerimeterViewTests(AccessesAppTestsBase):
 
     def test_read_patient_data_rights_with_user_having_no_data_rights(self):
         perimeters = [self.aphp, self.p2]
-        roles = [self.role_data_accesses_manager,
-                 self.role_export_accesses_manager]
+        roles = [self.role_data_accesses_manager_same_level,
+                 self.role_data_accesses_manager_inf_levels]
         self.make_accesses_for_user(self.profile_y, perimeters, roles)
 
         cohort_ids = ",".join([self.aphp.cohort_id, self.p2.cohort_id])

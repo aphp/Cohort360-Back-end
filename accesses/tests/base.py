@@ -58,86 +58,83 @@ ALL_RIGHTS = [f.name for f in Role._meta.fields if f.name.startswith('right_')]
 
 ALL_FALSY_RIGHTS = {right: False for right in ALL_RIGHTS}
 
-role_full_admin_data = {**{right: True for right in ALL_RIGHTS}, "name": "FULL ADMIN"}
+full_admin_role_definition = {**{right: True for right in ALL_RIGHTS}, "name": "FULL ADMIN"}
 
-role_admin_accesses_reader_data = {**ALL_FALSY_RIGHTS,
-                                   "name": "ADMIN ACCESSES READER",
-                                   "right_read_users": True,
-                                   "right_read_admin_accesses_same_level": True,
-                                   "right_read_admin_accesses_inferior_levels": True
-                                   }
-role_admin_accesses_manager_data = {**role_admin_accesses_reader_data,
-                                    "name": "ADMIN ACCESSES MANAGER",
-                                    "right_manage_users": True,
-                                    "right_manage_admin_accesses_same_level": True,
-                                    "right_manage_admin_accesses_inferior_levels": True,
+admin_accesses_manager_role_definition = {**ALL_FALSY_RIGHTS,
+                                          "name": "ADMIN ACCESSES MANAGER",
+                                          "right_manage_users": True,
+                                          "right_manage_admin_accesses_same_level": True,
+                                          "right_manage_admin_accesses_inferior_levels": True,
+                                          }
+admin_accesses_manager_same_level_role_definition = {**ALL_FALSY_RIGHTS,
+                                                     "name": "ADMIN ACCESSES MANAGER ON SAME LEVEL",
+                                                     "right_manage_users": True,
+                                                     "right_manage_admin_accesses_same_level": True,
+                                                     }
+admin_accesses_manager_inf_levels_role_definition = {**ALL_FALSY_RIGHTS,
+                                                     "name": "ADMIN ACCESSES MANAGER ON INFERIOR LEVELS",
+                                                     "right_manage_users": True,
+                                                     "right_manage_admin_accesses_inferior_levels": True,
+                                                     }
+
+data_accesses_manager_role_definition = {**ALL_FALSY_RIGHTS,
+                                         "name": "DATA ACCESSES MANAGER",
+                                         "right_manage_users": True,
+                                         "right_manage_data_accesses_same_level": True,
+                                         "right_manage_data_accesses_inferior_levels": True,
+                                         }
+data_accesses_manager_same_level_role_definition = {**ALL_FALSY_RIGHTS,
+                                                    "name": "DATA ACCESSES MANAGER ON SAME LEVEL",
+                                                    "right_manage_users": True,
+                                                    "right_manage_data_accesses_same_level": True,
+                                                    }
+data_accesses_manager_inf_levels_role_definition = {**ALL_FALSY_RIGHTS,
+                                                    "name": "DATA ACCESSES MANAGER ON INFERIOR LEVELS",
+                                                    "right_manage_users": True,
+                                                    "right_manage_data_accesses_inferior_levels": True,
+                                                    }
+
+data_reader_nomi_role_definition = {**ALL_FALSY_RIGHTS,
+                                    "name": "DATA NOMI READER",
+                                    "right_read_patient_nominative": True,
+                                    "right_search_patients_by_ipp": True,
                                     }
-role_data_accesses_manager_data = {**ALL_FALSY_RIGHTS,
-                                   "name": "DATA ACCESSES MANAGER",
-                                   "right_manage_users": True,
-                                   "right_read_users": True,
-                                   "right_manage_data_accesses_same_level": True,
-                                   "right_read_data_accesses_same_level": True,
-                                   "right_manage_data_accesses_inferior_levels": True,
-                                   "right_read_data_accesses_inferior_levels": True
-                                   }
-role_data_reader_nomi_data = {**ALL_FALSY_RIGHTS,
-                              "name": "DATA NOMI READER",
-                              "right_read_patient_nominative": True,
-                              }
 
-role_data_reader_full_access_data = {**ALL_FALSY_RIGHTS,
-                                     "name": "DATA NOMI READER FULL ACCESS",
-                                     "right_read_patient_nominative": True,
-                                     "right_read_patient_pseudonymized": True,
-                                     "right_search_patients_by_ipp": True,
-                                     "right_search_patients_unlimited": True,
-                                     "right_search_opposed_patients": True
-                                     }
-role_data_reader_pseudo_data = {**ALL_FALSY_RIGHTS,
-                                "name": "DATA PSEUDO READER",
-                                "right_read_patient_pseudonymized": True,
-                                }
-role_data_reader_nomi_pseudo_data = {**ALL_FALSY_RIGHTS,
-                                     "name": "DATA NOMI/PSEUDO READER",
-                                     "right_read_patient_nominative": True,
-                                     "right_read_patient_pseudonymized": True,
-                                     }
-role_data_reader_nomi_csv_exporter_nomi_data = {**ALL_FALSY_RIGHTS,
-                                                "name": "DATA NOMI READER + CSV EXPORTER",
-                                                "right_read_patient_nominative": True,
-                                                "right_export_csv_nominative": True
-                                                }
-role_jupyter_exporter_pseudo_data = {**ALL_FALSY_RIGHTS,
-                                     "name": "JUPYTER EXPORTER PSEUDO",
-                                     "right_export_jupyter_pseudonymized": True
-                                     }
-role_search_by_ipp_and_search_opposed_data = {**ALL_FALSY_RIGHTS,
-                                              "name": "SEARCH BY IPP + OPPOSED PATIENTS",
-                                              "right_search_patients_by_ipp": True,
-                                              "right_search_opposed_patients": True
-                                              }
-role_export_accesses_manager_data = {**ALL_FALSY_RIGHTS,
-                                     "name": "EXPORT ACCESSES MANAGER",
-                                     "right_manage_users": True,
-                                     "right_read_users": True,
-                                     "right_manage_export_csv_accesses": True,
-                                     "right_manage_export_jupyter_accesses": True
-                                     }
-role_data_accesses_manager_inf_levels_data = {**ALL_FALSY_RIGHTS,
-                                              "name": "DATA ACCESSES MANAGER ON INFERIOR LEVELS",
-                                              "right_manage_users": True,
-                                              "right_read_users": True,
-                                              "right_manage_data_accesses_inferior_levels": True,
-                                              "right_read_data_accesses_inferior_levels": True
-                                              }
-role_admin_accesses_manager_same_level_data = {**ALL_FALSY_RIGHTS,
-                                               "name": "ADMIN ACCESSES MANAGER ON SAME LEVEL",
-                                               "right_manage_users": True,
-                                               "right_read_users": True,
-                                               "right_manage_admin_accesses_same_level": True,
-                                               "right_read_admin_accesses_same_level": True
-                                               }
+data_reader_full_access_role_definition = {**ALL_FALSY_RIGHTS,
+                                           "name": "DATA NOMI READER FULL ACCESS",
+                                           "right_read_patient_nominative": True,
+                                           "right_read_patient_pseudonymized": True,
+                                           "right_search_patients_by_ipp": True,
+                                           "right_search_opposed_patients": True,
+                                           "right_search_patients_unlimited": True,
+                                           }
+data_reader_pseudo_role_definition = {**ALL_FALSY_RIGHTS,
+                                      "name": "DATA PSEUDO READER",
+                                      "right_read_patient_pseudonymized": True,
+                                      }
+data_reader_nomi_pseudo_role_definition = {**ALL_FALSY_RIGHTS,
+                                           "name": "DATA NOMI/PSEUDO READER",
+                                           "right_read_patient_nominative": True,
+                                           "right_read_patient_pseudonymized": True,
+                                           }
+data_reader_nomi_csv_xlsx_exporter_nomi_role_definition = {**ALL_FALSY_RIGHTS,
+                                                           "name": "DATA NOMI READER + CSV EXPORTER",
+                                                           "right_read_patient_nominative": True,
+                                                           "right_export_csv_xlsx_nominative": True
+                                                           }
+jupyter_exporter_pseudo_role_definition = {**ALL_FALSY_RIGHTS,
+                                           "name": "JUPYTER EXPORTER PSEUDO",
+                                           "right_read_patient_pseudonymized": True,
+                                           "right_export_jupyter_pseudonymized": True
+                                           }
+cse_support_for_jupyter_exports_role_definition = {**ALL_FALSY_RIGHTS,
+                                                   "name": "SUPPORT CSE - JUPYTER EXPORTS NOMI/PSEUDO",
+                                                   "right_manage_datalabs": True,
+                                                   "right_read_datalabs": True,
+                                                   "right_read_patient_pseudonymized": True,
+                                                   "right_export_jupyter_nominative": True,
+                                                   "right_export_jupyter_pseudonymized": True
+                                                   }
 
 
 def create_perimeters_hierarchy():
@@ -178,27 +175,29 @@ class AccessesAppTestsBase(ViewSetTests):
         self.p13 = Perimeter.objects.get(id=13)
         self.p14 = Perimeter.objects.get(id=14)
 
-        self.role_full_admin = Role.objects.create(**role_full_admin_data)
-        self.role_admin_accesses_manager = Role.objects.create(**role_admin_accesses_manager_data)
-        self.role_admin_accesses_reader = Role.objects.create(**role_admin_accesses_reader_data)
-        self.role_data_accesses_manager = Role.objects.create(**role_data_accesses_manager_data)
-        self.role_data_reader_nomi = Role.objects.create(**role_data_reader_nomi_data)
-        self.role_data_reader_pseudo = Role.objects.create(**role_data_reader_pseudo_data)
-        self.role_data_reader_full_access = Role.objects.create(**role_data_reader_full_access_data)
-        self.role_data_reader_nomi_pseudo = Role.objects.create(**role_data_reader_nomi_pseudo_data)
-        self.role_data_reader_nomi_csv_exporter_nomi = Role.objects.create(
-            **role_data_reader_nomi_csv_exporter_nomi_data)
-        self.role_jupyter_exporter_pseudo = Role.objects.create(**role_jupyter_exporter_pseudo_data)
-        self.role_search_by_ipp_and_search_opposed = Role.objects.create(**role_search_by_ipp_and_search_opposed_data)
-        self.role_export_accesses_manager = Role.objects.create(**role_export_accesses_manager_data)
-        self.role_data_accesses_manager_inf_levels = Role.objects.create(**role_data_accesses_manager_inf_levels_data)
-        self.role_admin_accesses_manager_same_level = Role.objects.create(**role_admin_accesses_manager_same_level_data)
+        self.role_full_admin = Role.objects.create(**full_admin_role_definition)
+
+        self.role_admin_accesses_manager = Role.objects.create(**admin_accesses_manager_role_definition)
+        self.role_admin_accesses_manager_same_level = Role.objects.create(**admin_accesses_manager_same_level_role_definition)
+        self.role_admin_accesses_manager_inferior_levels = Role.objects.create(**admin_accesses_manager_inf_levels_role_definition)
+
+        self.role_data_accesses_manager = Role.objects.create(**data_accesses_manager_role_definition)
+        self.role_data_accesses_manager_same_level = Role.objects.create(**data_accesses_manager_same_level_role_definition)
+        self.role_data_accesses_manager_inf_levels = Role.objects.create(**data_accesses_manager_inf_levels_role_definition)
+
+        self.role_data_reader_nomi = Role.objects.create(**data_reader_nomi_role_definition)
+        self.role_data_reader_pseudo = Role.objects.create(**data_reader_pseudo_role_definition)
+        self.role_data_reader_full_access = Role.objects.create(**data_reader_full_access_role_definition)
+        self.role_data_reader_nomi_pseudo = Role.objects.create(**data_reader_nomi_pseudo_role_definition)
+        self.role_data_reader_nomi_csv_xlsx_exporter_nomi = Role.objects.create(**data_reader_nomi_csv_xlsx_exporter_nomi_role_definition)
+        self.role_jupyter_exporter_pseudo = Role.objects.create(**jupyter_exporter_pseudo_role_definition)
 
         self.user_y, self.profile_y = new_user_and_profile()
         self.user_z, self.profile_z = new_user_and_profile()
         self.user_t, self.profile_t = new_user_and_profile()
 
-    def create_new_access_for_user(self, profile, role, perimeter, start_datetime=None, end_datetime=None, close_existing: bool = True):
+    @staticmethod
+    def create_new_access_for_user(profile, role, perimeter, start_datetime=None, end_datetime=None, close_existing: bool = True):
         if close_existing:
             profile.accesses.all().update(end_datetime=timezone.now())
         Access.objects.create(profile=profile,

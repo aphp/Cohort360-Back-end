@@ -125,7 +125,7 @@ class PerimeterViewSet(NestedViewSetMixin, BaseViewSet):
             serializer = RightReadPatientDataSerializer(data={"allow_read_patient_data_nomi": True,
                                                               "allow_lookup_opposed_patients": True,
                                                               "allow_read_patient_without_perimeter_limit": True,
-                                                              "allow_read_administrative_data": True,
+                                                              "allow_read_administrative_data": True,          # todo:  remove this ? used in FHIR ?
                                                               "allow_read_medical_data": True,
                                                               "allow_read_treatments_data": True
                                                               })
