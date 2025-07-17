@@ -381,6 +381,23 @@ class CohortsDeleteTests(CohortsTests):
             user=self.user2,
         ))
 
+    def test_delete_multiple(self):
+        target_uuids = []
+        for i in range(5):
+            req = CohortResult.objects.create(**dict(owner=self.user1,
+                                                     name=f"test cohort {i}",
+                                                     request_query_snapshot=self.user1_req1_snap1,
+                                                     dated_measure=self.user1_req1_snap1_dm,
+                                                     ))
+            target_uuids.append(str(req.uuid))
+        request = self.factory.delete(self.objects_url)
+        force_authenticate(request, self.user1)
+        response = self.__class__.delete_view(request, **{self.model._meta.pk.name: ','.join(target_uuids)})
+        response.render()
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        count_cohorts = CohortResult.objects.filter(uuid__in=target_uuids).count()
+        self.assertEqual(count_cohorts, 0)
+
 
 class CohortsUpdateTests(CohortsTests):
     def setUp(self):

@@ -8,19 +8,20 @@ from accesses.services.accesses import accesses_service
 from accesses.services.rights import all_rights
 from admin_cohort.models import User
 
-ROLES_HELP_TEXT = dict(right_full_admin="Super user",
-                       right_manage_users="Gérer la liste des utilisateurs/profils",
-                       right_read_patient_nominative="Lire les données patient sous forme nominatives sur son périmètre et ses sous-périmètres",
-                       right_read_patient_pseudonymized="Lire les données patient sous forme pseudonymisée sur son périmètre et "
-                                                        "ses sous-périmètres",
-                       right_search_patients_by_ipp="Utiliser une liste d'IPP comme critère d'une requête Cohort.",
-                       right_search_opposed_patients="Détermine le droit de chercher les patients opposés à l'utilisation "
-                                                     "de leurs données pour la recherche",
-                       right_export_jupyter_nominative="Exporter ses cohortes de patients sous forme nominative vers un environnement Jupyter.",
-                       right_export_jupyter_pseudonymized="Exporter ses cohortes de patients sous forme pseudonymisée vers un environnement Jupyter.",
-                       right_export_csv_xlsx_nominative="Demander à exporter ses cohortes de patients sous forme nominative en format CSV/Excel.",
-                       right_manage_datalabs="Gérer les environnements de travail",
-                       right_read_datalabs="Consulter la liste des environnements de travail")
+ROLES_HELP_TEXT = {"right_full_admin": "Super user",
+                   "right_manage_users": "Gérer la liste des utilisateurs/profils",
+                   "right_read_patient_nominative": "Lire les données patient sous forme nominatives sur son périmètre et ses sous-périmètres",
+                   "right_read_patient_pseudonymized": "Lire les données patient sous forme pseudonymisée sur son périmètre et "
+                                                    "ses sous-périmètres",
+                   "right_search_patients_by_ipp": "Utiliser une liste d'IPP comme critère d'une requête Cohort.",
+                   "right_search_opposed_patients": "Détermine le droit de chercher les patients opposés à l'utilisation "
+                                                 "de leurs données pour la recherche",
+                   "right_export_jupyter_nominative": "Exporter ses cohortes de patients sous forme nominative vers un environnement Jupyter.",
+                   "right_export_jupyter_pseudonymized": "Exporter ses cohortes de patients sous forme pseudonymisée vers un environnement Jupyter.",
+                   "right_export_csv_xlsx_nominative": "Demander à exporter ses cohortes de patients sous forme nominative en format CSV/Excel.",
+                   "right_manage_datalabs": "Gérer les environnements de travail",
+                   "right_read_datalabs": "Consulter la liste des environnements de travail"
+                   }
 
 
 class RolesService:
@@ -112,7 +113,7 @@ class RolesService:
         perimeter = Perimeter.objects.get(id=perimeter_id)
         assignable_roles_ids = [role.id for role in all_roles
                                 if accesses_service.can_user_manage_access(user=user,
-                                                                           target_access=dict(role=role, perimeter=perimeter))]
+                                                                           target_access={"role": role, "perimeter": perimeter})]
         return assignable_roles_ids
 
 

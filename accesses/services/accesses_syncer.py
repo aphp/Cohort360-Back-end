@@ -136,14 +136,15 @@ class AccessesSynchronizer:
                         perimeter = Perimeter.objects.filter(id=fpr.perimeter_id).first()
                         if role is not None:
                             if perimeter is not None:
-                                defaults = dict(source=ORBIS,
-                                                external_id=fpr.id,
-                                                role_id=role.id,
-                                                profile_id=profile.id,
-                                                perimeter_id=perimeter.id,
-                                                start_datetime=fpr.start_datetime,
-                                                end_datetime=fpr.end_datetime)
-                                access, created = Access.objects.get_or_create(defaults=defaults, external_id=fpr.id)
+                                defaults =  {"source": ORBIS,
+                                             "external_id": fpr.id,
+                                             "role_id": role.id,
+                                             "profile_id": profile.id,
+                                             "perimeter_id": perimeter.id,
+                                             "start_datetime": fpr.start_datetime,
+                                             "end_datetime": fpr.end_datetime
+                                             }
+                                _, created = Access.objects.get_or_create(defaults=defaults, external_id=fpr.id)
                                 if created:
                                     count_new_accesses += 1
                             else:

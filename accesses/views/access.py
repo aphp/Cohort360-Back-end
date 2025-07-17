@@ -90,7 +90,7 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
                                                                   perimeter_id=request.query_params.get("perimeter_id"),
                                                                   include_parents=json.loads(request.query_params.get("include_parents", "false")),
                                                                   include_children=json.loads(request.query_params.get("include_children", "false")))
-        page = self.paginate_queryset([a for a in accesses])
+        page = self.paginate_queryset(accesses)
         if page:
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)

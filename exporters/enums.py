@@ -20,8 +20,7 @@ class ExportTypes(Enum):
 
     @property
     def allow_to_clean(self) -> bool:
-        return self in (ExportTypes.CSV,
-                        ExportTypes.XLSX)
+        return self.allow_download
 
 
 class APIJobType(enum.Enum):

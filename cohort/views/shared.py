@@ -1,6 +1,8 @@
 from django.http import QueryDict
 from rest_framework import viewsets
 from rest_framework.relations import RelatedField
+from rest_framework.response import Response
+from rest_framework import status
 
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from admin_cohort.tools.request_log_mixin import RequestLogMixin
@@ -41,3 +43,17 @@ class UserObjectsRestrictedViewSet(RequestLogMixin, viewsets.ModelViewSet, metac
             field_name_with_id = f'{field_name}_id'
             if field_name_with_id in request.data:
                 request.data[field_name] = request.data[field_name_with_id]
+
+    def destroy(self, request, *args, **kwargs):
+        """Delete multiple objects if multiple UUIDs are provided, separated by commas."""
+        uuids = str(kwargs.get("uuid", "")).split(",")
+        if len(uuids) > 1:
+            try:
+                return self.destroy_many(uuids=uuids)
+            except ValueError:
+                return Response(data={"error": f"Invalid value for uuid param, {uuids=}"}, status=status.HTTP_400_BAD_REQUEST)
+        return super().destroy(request, *args, **kwargs)
+
+    def destroy_many(self, uuids):
+        self.queryset.filter(uuid__in=uuids).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

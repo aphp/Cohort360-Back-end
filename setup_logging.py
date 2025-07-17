@@ -6,6 +6,7 @@ import socketserver
 import struct
 from logging.handlers import DEFAULT_TCP_LOGGING_PORT
 from pathlib import Path
+from typing import List
 
 from pythonjsonlogger.json import JsonFormatter
 
@@ -18,18 +19,18 @@ BASE_DIR = Path(__file__).resolve().parent
 class CustomFileHandler(logging.FileHandler):
 
     def __init__(self, name, *args, **kwargs):
-        super(CustomFileHandler, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.name = name
 
     def handle(self, record):
         if record.name == BUILTIN_WARNINGS_LOGGER_NAME:
             record.name = INFO_LOGGER_NAME
         if record.name == self.name:
-            return super(CustomFileHandler, self).handle(record)
-        pass
+            return super().handle(record)
+        return None
 
 
-def configure_handlers() -> [logging.Handler]:
+def configure_handlers() -> List[logging.Handler]:
     dj_info_handler = CustomFileHandler(name='info', filename=BASE_DIR / "log/django.log")
     dj_error_handler = CustomFileHandler(name='django.request', filename=BASE_DIR / "log/django.error.log")
     guni_error_handler = CustomFileHandler(name='gunicorn.error', filename=BASE_DIR / "log/gunicorn.error.log")
@@ -92,7 +93,7 @@ class LogRecordSocketReceiver(socketserver.ThreadingTCPServer):
     allow_reuse_address = True
 
     def __init__(self, host='0.0.0.0', port=DEFAULT_TCP_LOGGING_PORT, handler=LogRecordStreamHandler):
-        super(LogRecordSocketReceiver, self).__init__(server_address=(host, port), RequestHandlerClass=handler)
+        super().__init__(server_address=(host, port), RequestHandlerClass=handler)
         self.abort = 0
         self.timeout = 1
         self.logname = None
@@ -101,7 +102,7 @@ class LogRecordSocketReceiver(socketserver.ThreadingTCPServer):
         import select
         abort = 0
         while not abort:
-            rd, wr, ex = select.select([self.socket.fileno()], [], [], self.timeout)
+            rd, _, _ = select.select([self.socket.fileno()], [], [], self.timeout)
             if rd:
                 self.handle_request()
             abort = self.abort

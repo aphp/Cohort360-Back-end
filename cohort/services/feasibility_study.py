@@ -90,8 +90,9 @@ class FeasibilityStudyService(CommonService):
                        "html_content": html_content
                        }
             html_content = get_template("feasibility_report.html").render(context)
-            contents = dict(json=json.dumps(json_content),
-                            html=html_content)
+            contents = {"json": json.dumps(json_content),
+                        "html": html_content
+                        }
             json_zip_bytes, html_zip_bytes = self.compress_report_contents(fs=fs, contents=contents)
             fs.report_json_content = json_zip_bytes
             fs.report_file = html_zip_bytes

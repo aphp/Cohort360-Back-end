@@ -28,8 +28,9 @@ class DatalabSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         res = super().to_representation(instance)
-        res["infrastructure_provider"] = dict(uuid=instance.infrastructure_provider_id,
-                                              name=instance.infrastructure_provider.name)
+        res["infrastructure_provider"] = {"uuid": instance.infrastructure_provider_id,
+                                          "name": instance.infrastructure_provider.name
+                                          }
         return res
 
 

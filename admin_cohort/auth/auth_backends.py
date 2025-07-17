@@ -1,13 +1,9 @@
-import logging
 from typing import Optional
 
 from rest_framework.exceptions import AuthenticationFailed
 
 from admin_cohort.services.auth import jwt_auth_service, oidc_auth_service
 from admin_cohort.models import User
-
-
-_logger = logging.getLogger("django.request")
 
 
 class BaseAuthBackend:
@@ -18,6 +14,8 @@ class BaseAuthBackend:
 class JWTAuthBackend(BaseAuthBackend):
 
     def authenticate(self, request, username, password):
+        # param 'request' is forced by function signature in the definition of the AuthBackend. DO NOT REMOVE!
+        _ = request
         valid_credentials = jwt_auth_service.check_credentials(username=username, password=password)
         if valid_credentials:
             return self.get_user(user_id=username)

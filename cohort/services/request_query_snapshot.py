@@ -57,9 +57,9 @@ class RequestQuerySnapshotService:
     def create_requests(snapshot: RequestQuerySnapshot, request_name: str, folders_by_owner: dict) -> dict[str, Request]:
         requests_by_owner = {}
         for owner_id, folder in folders_by_owner.items():
-            request = Request(**{**dict([(field.name, getattr(snapshot.request, field.name))
-                                         for field in Request._meta.fields
-                                         if field.name != Request._meta.pk.name]),
+            request = Request(**{**{field.name: getattr(snapshot.request, field.name)
+                                    for field in Request._meta.fields if field.name != Request._meta.pk.name
+                                    },
                                  'owner_id': owner_id,
                                  'favorite': False,
                                  'name': request_name,
@@ -73,9 +73,10 @@ class RequestQuerySnapshotService:
     def create_snapshots(snapshot: RequestQuerySnapshot, requests_by_owner: dict) -> List[RequestQuerySnapshot]:
         snapshots = []
         for owner_id, request in requests_by_owner.items():
-            snapshots.append(RequestQuerySnapshot(**{**dict([(field.name, getattr(snapshot, field.name))
-                                                             for field in RequestQuerySnapshot._meta.fields
-                                                             if field.name != RequestQuerySnapshot._meta.pk.name]),
+            snapshots.append(RequestQuerySnapshot(**{**{field.name: getattr(snapshot, field.name)
+                                                        for field in RequestQuerySnapshot._meta.fields
+                                                        if field.name != RequestQuerySnapshot._meta.pk.name
+                                                        },
                                                      'shared_by': snapshot.owner,
                                                      'owner_id': owner_id,
                                                      'previous_snapshot': None,
@@ -135,7 +136,7 @@ class RequestQuerySnapshotService:
         try:
             query = json.loads(json_query)
             perimeters_ids = query["sourcePopulation"]["caresiteCohortList"]
-            updated_perimeters_ids = sorted(list(set([matching.get(pid, pid) or pid for pid in perimeters_ids])))
+            updated_perimeters_ids = sorted({matching.get(pid, pid) or pid for pid in perimeters_ids})
             query["sourcePopulation"]["caresiteCohortList"] = updated_perimeters_ids
             return json.dumps(query)
         except (json.JSONDecodeError, TypeError, KeyError) as e:

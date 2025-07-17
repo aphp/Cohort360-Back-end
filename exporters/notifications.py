@@ -19,11 +19,12 @@ def export_received(action: str, export_type: str, **kwargs):
                "cohort_id": kwargs.get('cohort_id'),
                "selected_tables": kwargs.get('selected_tables')
                }
-    return dict(subject=f"[Cohorte {kwargs.get('cohort_id')}] {action}",
-                to=[kwargs.get('recipient_email')],
-                html_template=f"{export_type}_export_received.html",
-                txt_template=f"{export_type}_export_received.txt",
-                context=context)
+    return {"subject": f"[Cohorte {kwargs.get('cohort_id')}] {action}",
+            "to": [kwargs.get('recipient_email')],
+            "html_template": f"{export_type}_export_received.html",
+            "txt_template": f"{export_type}_export_received.txt",
+            "context": context
+            }
 
 
 def export_succeeded(export_type: str, **kwargs):
@@ -36,11 +37,12 @@ def export_succeeded(export_type: str, **kwargs):
                "database_name": kwargs.get('database_name'),
                "delete_date": (timezone.now().date() + timedelta(days=settings.DAYS_TO_KEEP_EXPORTED_FILES)).strftime("%d %B %Y")
                }
-    return dict(subject=subject,
-                to=[kwargs.get('recipient_email')],
-                html_template=f"{export_type}_export_succeeded.html",
-                txt_template=f"{export_type}_export_succeeded.txt",
-                context=context)
+    return {"subject": subject,
+            "to": [kwargs.get('recipient_email')],
+            "html_template": f"{export_type}_export_succeeded.html",
+            "txt_template": f"{export_type}_export_succeeded.txt",
+            "context": context
+            }
 
 
 def export_failed_notif_for_owner(**kwargs):
@@ -49,11 +51,12 @@ def export_failed_notif_for_owner(**kwargs):
                "recipient_name": kwargs.get('recipient_name'),
                "cohort_id": kwargs.get('cohort_id')
                }
-    return dict(subject=subject,
-                to=[kwargs.get('recipient_email')],
-                html_template="export_failed.html",
-                txt_template="export_failed.txt",
-                context=context)
+    return {"subject": subject,
+            "to": [kwargs.get('recipient_email')],
+            "html_template": "export_failed.html",
+            "txt_template": "export_failed.txt",
+            "context": context
+            }
 
 
 def export_failed_notif_for_admins(**kwargs):
@@ -61,11 +64,12 @@ def export_failed_notif_for_admins(**kwargs):
                **kwargs,
                "recipient_name": "Admin"
                }
-    return dict(subject="Demande d'export échouée",
-                to=[a[1] for a in settings.ADMINS],
-                html_template="export_failed_admins.html",
-                txt_template="export_failed_admins.txt",
-                context=context)
+    return {"subject": "Demande d'export échouée",
+            "to": [a[1] for a in settings.ADMINS],
+            "html_template": "export_failed_admins.html",
+            "txt_template": "export_failed_admins.txt",
+            "context": context
+            }
 
 
 def csv_export_received(**kwargs):

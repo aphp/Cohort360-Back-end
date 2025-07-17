@@ -1,6 +1,7 @@
 import json
 from typing import List, Tuple
 
+from drf_spectacular.utils import extend_schema_view, extend_schema
 from django_filters import rest_framework as filters, OrderingFilter
 from rest_framework import viewsets
 from rest_framework.response import Response
@@ -51,6 +52,13 @@ def log_related_names(log_data: str):
     return dict(retrieve_object_names(d))
 
 
+extended_schema = extend_schema(tags=["Request Logs"])
+
+
+@extend_schema_view(
+    list=extended_schema,
+    retrieve=extended_schema,
+)
 class RequestLogViewSet(viewsets.ModelViewSet):
     queryset = APIRequestLog.objects.all()
     serializer_class = RequestLogSerializer
@@ -68,11 +76,11 @@ class RequestLogViewSet(viewsets.ModelViewSet):
             logs: List[APIRequestLog] = list(queryset)
 
         users = User.objects.filter(pk__in=set([log.username_persistent for log in logs]))
-        dct_users = dict((u.pk, u) for u in users)
+        users_dict = {u.username: u for u in users}
 
         for log in logs:
             log.related_names = log_related_names(log.response)
-            log.user_details = dct_users.get(log.username_persistent)
+            log.user_details = users_dict.get(log.username_persistent)
 
         serializer = self.serializer_class(logs, many=True)
         if page is not None:

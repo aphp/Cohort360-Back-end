@@ -4,6 +4,7 @@ from typing import List
 
 from django.utils import timezone
 from rest_framework import status
+from rest_framework.test import force_authenticate
 
 from admin_cohort.models import User
 from admin_cohort.tests.tests_tools import CaseRetrieveFilter, random_str, ListCase, RetrieveCase, CreateCase, DeleteCase, \
@@ -258,6 +259,22 @@ class RequestsDeleteTests(RequestsTests):
             success=False,
             status=status.HTTP_404_NOT_FOUND,
         ))
+
+    def test_delete_multiple(self):
+        target_uuids = []
+        for i in range(5):
+            req = Request.objects.create(**dict(name=f"test request {i}",
+                                                parent_folder=self.user1_folder1,
+                                                owner=self.user1,
+                                                ))
+            target_uuids.append(str(req.uuid))
+        request = self.factory.delete(self.objects_url)
+        force_authenticate(request, self.user1)
+        response = self.__class__.delete_view(request, **{self.model._meta.pk.name: ','.join(target_uuids)})
+        response.render()
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        count_reqs = Request.objects.filter(uuid__in=target_uuids).count()
+        self.assertEqual(count_reqs, 0)
 
 
 class RequestsUpdateTests(RequestsTests):

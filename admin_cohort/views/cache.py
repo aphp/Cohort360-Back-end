@@ -23,7 +23,7 @@ class CacheViewSet(APIView):
         if username:
             search_pattern = f"*{username}*"
         keys = sorted(cache.keys(search_pattern))
-        data = dict((k, cache.get(k)) for k in keys)
+        data = {k: cache.get(k) for k in keys}
         keys_only = request.query_params.get('keys_only')
         if keys_only:
             return Response(data=keys, status=status.HTTP_200_OK)
