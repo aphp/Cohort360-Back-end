@@ -133,9 +133,15 @@ class AccessesService:
                    .filter(q_allow_read_search_opposed_patient_data)\
                    .exists()
 
+    def can_user_manage_users(self, user: User) -> bool:
+        return self.get_user_valid_accesses(user=user)\
+                   .filter(role__right_manage_users=True)\
+                   .exists()
+
     def is_user_allowed_unlimited_patients_read(self, user: User) -> bool:
-        user_accesses = self.get_user_valid_accesses(user=user)
-        return user_accesses.filter(q_allow_unlimited_patients_search).exists()
+        return self.get_user_valid_accesses(user=user)\
+                   .filter(q_allow_unlimited_patients_search)\
+                   .exists()
 
     def get_user_data_accesses(self, user: User) -> QuerySet:
         return self.get_user_valid_accesses(user).filter(join_qs([Q(role__right_read_patient_nominative=True),

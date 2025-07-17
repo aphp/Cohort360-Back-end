@@ -219,6 +219,4 @@ class RightReadPatientDataSerializer(serializers.Serializer):
     allow_read_patient_data_nomi = serializers.BooleanField(allow_null=True)
     allow_lookup_opposed_patients = serializers.BooleanField(allow_null=True)
     allow_read_patient_without_perimeter_limit = serializers.BooleanField(allow_null=True)
-    allow_read_administrative_data = serializers.BooleanField(allow_null=True)
-    allow_read_medical_data = serializers.BooleanField(allow_null=True)
-    allow_read_treatments_data = serializers.BooleanField(allow_null=True)
+    allow_read_practitioner = serializers.BooleanField(allow_null=True)

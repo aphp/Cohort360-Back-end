@@ -33,8 +33,6 @@ class Role(BaseModel):
     right_search_patients_by_ipp = models.BooleanField(default=False, null=False)
     right_search_patients_unlimited = models.BooleanField(default=False, null=False)
     right_search_opposed_patients = models.BooleanField(default=False, null=False)
-    # FHIR
-    right_read_practitioner_data = models.BooleanField(default=False, null=False)   # todo: how to use ?
 
 
     class Meta:
