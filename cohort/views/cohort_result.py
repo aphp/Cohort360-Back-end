@@ -1,7 +1,6 @@
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Q, F, BooleanField, When, Case, Value
-from django.shortcuts import get_list_or_404
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_spectacular.utils import extend_schema, PolymorphicProxySerializer
 from rest_framework import status
@@ -141,27 +140,6 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                 export_service.check_all_cohort_subsets_created(export=cohort.export_table.first().export)
         cohort_service.ws_send_to_client(cohort=cohort)
         return response
-
-
-    def destroy(self, request, *args, **kwargs):
-        """Delete multiple objects if multiple UUIDs are provided, separated by commas."""
-        uuids_arg = kwargs.get("uuid", "")
-        if isinstance(uuids_arg, str) and "," in uuids_arg:  # Detect multiple UUIDs
-            try:
-                uuids = [u for u in uuids_arg.split(",")]  # Validate UUIDs
-            except ValueError:
-                return Response({"error": "Invalid UUID format"}, status=status.HTTP_400_BAD_REQUEST)
-
-            get_list_or_404(CohortResult, uuid__in=uuids)
-            deleted_count, _ = CohortResult.objects.filter(uuid__in=uuids).delete()
-
-            return Response(
-                {"message": f"Deleted {deleted_count} objects."},
-                status=status.HTTP_204_NO_CONTENT,
-            )
-
-        # Default single-object delete behavior
-        return super().destroy(request, uuids_arg)
 
 
     @action(methods=['get'], detail=False, url_path='jobs/active')

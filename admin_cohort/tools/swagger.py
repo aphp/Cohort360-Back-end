@@ -28,10 +28,9 @@ class SchemaMeta(type):
         new_cls = super().__new__(cls, name, bases, dct)
         tags = getattr(new_cls, "swagger_tags", "")
 
-        funcs = inspect.getmembers(new_cls, predicate=inspect.isfunction)
-        action_funcs = map(lambda f: f[1],
-                           filter(lambda f: "mapping" in f[1].__dict__, funcs))
-        decorated_action_funcs = {f.__name__: extend_schema(tags=tags) for f in action_funcs}
+        functions = inspect.getmembers(new_cls, predicate=inspect.isfunction)
+        action_functions = [f[1] for f in filter(lambda f: "mapping" in f[1].__dict__, functions)]
+        decorated_action_functions = {f.__name__: extend_schema(tags=tags) for f in action_functions}
 
         schema_decorator = extend_schema_view(
             list=extend_schema(tags=tags),
@@ -40,6 +39,6 @@ class SchemaMeta(type):
             update=extend_schema(tags=tags),
             partial_update=extend_schema(tags=tags),
             destroy=extend_schema(tags=tags),
-            **decorated_action_funcs)
+            **decorated_action_functions)
 
         return schema_decorator(new_cls)

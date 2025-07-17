@@ -1,4 +1,5 @@
 from django.utils import timezone
+from drf_spectacular.utils import extend_schema_view, extend_schema
 from django_filters.filters import OrderingFilter, CharFilter
 from rest_framework import viewsets
 from rest_framework.decorators import action
@@ -40,10 +41,22 @@ class ContentFilter(FilterSet):
                                       'title'))
 
 
+extended_schema = extend_schema(tags=["Web Content"])
+
+
+@extend_schema_view(
+    list=extended_schema,
+    retrieve=extended_schema,
+    create=extended_schema,
+    partial_update=extended_schema,
+    destroy=extended_schema,
+    content_types=extended_schema
+)
 class ContentViewSet(viewsets.ModelViewSet):
     permission_classes = [ContentManagementPermission]
     queryset = Content.objects.filter(deleted_at__isnull=True)
     serializer_class = ContentSerializer
+    http_method_names = ["post", "get", "patch", "delete"]
     filterset_class = ContentFilter
     search_fields = ['$title', '$content']
 

@@ -102,7 +102,7 @@ class ContentViewSetTest(TestCaseWithDBs):
             **self.valid_content_data,
             'title': 'Updated Title'
         }
-        response = self.admin_client.put(self.detail_url, updated_data, format='json')
+        response = self.admin_client.patch(self.detail_url, updated_data, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['title'], 'Updated Title')
 
@@ -111,7 +111,7 @@ class ContentViewSetTest(TestCaseWithDBs):
             **self.valid_content_data,
             'title': 'Updated Title'
         }
-        response = self.client.put(self.detail_url, updated_data, format='json')
+        response = self.client.patch(self.detail_url, updated_data, format='json')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_partial_update_content(self):
@@ -171,7 +171,7 @@ class ContentViewSetTest(TestCaseWithDBs):
             **self.valid_content_data,
             'metadata': {}
         }
-        response = self.admin_client.put(
+        response = self.admin_client.patch(
             reverse('webcontent:contents-detail', kwargs={'pk': content_id}),
             update_data,
             format='json'

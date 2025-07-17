@@ -17,7 +17,14 @@ class CustomCacheResponse(CacheResponse):
 cache_response = CustomCacheResponse
 
 
-def construct_cache_key(view_instance=None, view_method=None, request=None, *args, **kwargs):
+def construct_cache_key(view_instance=None, view_method=None, request=None, args=None, kwargs=None):
+    """
+    Constructs a unique cache key based on the user, view, and request path.
+    The `args` and `kwargs` parameters are required by the `key_constructor`
+    interface of the rest_framework_extensions library but are intentionally
+    not used in this implementation to ensure consistent caching for the view.
+    """
+    _ = args, kwargs
     session_id = None
     if hasattr(request, "session"):
         session_id = request.session.session_key
@@ -42,4 +49,10 @@ def invalidate_cache(model_name: str, user: str = "*"):
 
 class CustomDummyCache(DummyCache):
     def delete_pattern(self, key, version=None):
+        """
+        Implements the `delete_pattern` interface required by the cache backend.
+        This is a dummy cache, so this operation intentionally does nothing and
+        returns False. The `key` and `version` parameters are therefore unused.
+        """
+        _ = key, version
         return False

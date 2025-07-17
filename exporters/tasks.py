@@ -36,12 +36,13 @@ def notify_export_received(export_id: str) -> None:
 
     try:
         cohort = get_cohort(export=export)
-        notification_data = dict(recipient_name=export.owner.display_name,
-                                 recipient_email=export.owner.email,
-                                 retried=export.retried,
-                                 cohort_id=cohort and cohort.group_id or None,
-                                 cohort_name=cohort and cohort.name or None,
-                                 selected_tables=get_selected_tables(export=export))
+        notification_data = {"recipient_name": export.owner.display_name,
+                             "recipient_email": export.owner.email,
+                             "retried": export.retried,
+                             "cohort_id": cohort and cohort.group_id or None,
+                             "cohort_name": cohort and cohort.name or None,
+                             "selected_tables": get_selected_tables(export=export)
+                             }
         push_email_notification(base_notification=EXPORT_RECEIVED_NOTIFICATIONS[export_type],
                                 **notification_data)
     except Exception as e:
@@ -52,13 +53,14 @@ def notify_export_received(export_id: str) -> None:
 def notify_export_succeeded(export_id: str) -> None:
     export = get_export_by_id(export_id)
     cohort = get_cohort(export=export)
-    notification_data = dict(recipient_name=export.owner.display_name,
-                             recipient_email=export.owner.email,
-                             export_request_id=export.pk,
-                             cohort_id=cohort and cohort.group_id or None,
-                             cohort_name=cohort and cohort.name or None,
-                             database_name=export.target_name,
-                             selected_tables=get_selected_tables(export=export))
+    notification_data = {"recipient_name": export.owner.display_name,
+                         "recipient_email": export.owner.email,
+                         "export_request_id": export.pk,
+                         "cohort_id": cohort and cohort.group_id or None,
+                         "cohort_name": cohort and cohort.name or None,
+                         "database_name": export.target_name,
+                         "selected_tables": get_selected_tables(export=export)
+                         }
     try:
         push_email_notification(base_notification=EXPORT_SUCCEEDED_NOTIFICATIONS.get(export.output_format),
                                 **notification_data)
@@ -102,9 +104,9 @@ def notify_export_failed(export_id: str, reason: str) -> None:
     _logger.info(f"[Export {export_id}] {reason}")
     export = get_export_by_id(export_id)
     cohort = get_cohort(export=export)
-    base_notification_data = dict(cohort_id=cohort and cohort.group_id or None,
-                                  cohort_name=cohort and cohort.name or None,
-                                  error_message=reason
-                                  )
+    base_notification_data = {"cohort_id": cohort and cohort.group_id or None,
+                              "cohort_name": cohort and cohort.name or None,
+                              "error_message": reason
+                              }
     notify_export_owner(export, base_notification_data)
     notify_admins(export, base_notification_data)

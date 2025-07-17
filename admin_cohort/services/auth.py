@@ -49,6 +49,8 @@ class Auth(ABC):
         self.algorithms = env("JWT_ALGORITHMS", default="RS256,HS256")
 
     def logout(self, *args):
+        # JWT based auth does not do extra logout logic.
+        # the 'logout' from 'django.contrib.auth' module is called from the logout view
         pass
 
     def decode_token(self, token: str, verify_signature=True, key="", issuer=None, audience=None):
@@ -266,8 +268,10 @@ class JWTAuth(Auth):
             raise AuthenticationFailed(f"User `{username}` does not exist")
 
         try:
+            _logger.info("[Authentication] Attempting authentication with external services")
             return self.authenticate_with_external_services(username=username, password=password)
         except NoAuthenticationHookDefined:
+            _logger.info("[Authentication] Fallback to local authentication")
             return self.check_credentials_locally(username=username, password=password)
 
     @staticmethod
@@ -343,7 +347,7 @@ class AuthService:
     def load_post_auth_hooks():
         post_auth_hooks = []
         for app in settings.INCLUDED_APPS:
-            hooks = getattr(apps.get_app_config(app), "POST_AUTH_HOOKS", list())
+            hooks = getattr(apps.get_app_config(app), "POST_AUTH_HOOKS", [])
             for hook_path in hooks:
                 hook = import_string(hook_path)
                 if hook:

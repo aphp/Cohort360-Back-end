@@ -29,9 +29,9 @@ class QueryExecutorRequester:
             response = cohort_request.launch(cohort_query)
         except Exception as e:
             _logger_err.error(f"Error sending request to Query Executor: {e}")
-            response_data = dict(success=False, err_msg=str(e), status="ERROR")
+            response_data = {"success": False, "err_msg": str(e), "status": "ERROR"}
         else:
-            response_data = dict(success=True, **response.json())
+            response_data = {"success": True, **response.json()}
         response = QueryExecutorResponse(**response_data)
         _logger(msg=f"Received Query Executor response {response.__dict__}")
         if instance_id is not None and cohort_request.model is not None:

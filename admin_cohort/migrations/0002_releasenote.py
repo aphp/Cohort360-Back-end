@@ -4,14 +4,6 @@ import django.contrib.postgres.fields
 from django.db import migrations, models
 
 
-def create_old_release_notes(apps, schema_editor):
-    release_notes = []
-    release_note_model = apps.get_model('admin_cohort', 'ReleaseNote')
-    db_alias = schema_editor.connection.alias
-    for note in release_notes:
-        release_note_model.objects.using(db_alias).create(**note)
-
-
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -34,5 +26,4 @@ class Migration(migrations.Migration):
                 'db_table': 'release_note',
             },
         ),
-        migrations.RunPython(code=create_old_release_notes)
     ]

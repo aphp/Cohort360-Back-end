@@ -62,7 +62,7 @@ jobs:
           version: "latest"
           enable-cache: true
 
-      - name: Install Python 3.12 and deps
+      - name: Install Python 3.12
         run: uv python install 3.12
 
       - name: Install system deps
@@ -71,13 +71,11 @@ jobs:
           sudo locale-gen fr_FR.utf8
           sudo update-locale 
 
-      - name: Install dependencies
+      - name: Install project dependencies
         run: uv sync
 
-      - name: Set up log dir and DB config
-        run: |
-          mkdir log
-          echo "DATABASE_URL=postgres://portail_dev_limited_rw:portail_psswd@localhost:5432/portail_test" >> $GITHUB_ENV
+      - name: Create logs dir
+        run: mkdir log
 
       - name: Run Django migrations
         run: |

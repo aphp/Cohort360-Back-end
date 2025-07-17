@@ -41,7 +41,7 @@ extended_schema = extend_schema(tags=["Users"])
     retrieve=extended_schema,
     create=extended_schema,
     partial_update=extended_schema,
-    check_user_existence=extended_schema,
+    check_user_exists=extended_schema,
 )
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()

@@ -34,13 +34,15 @@ class Perimeter(BaseModel):
 
     @cached_property
     def names(self):
-        return dict(name=self.name, short=self.short_name,
-                    source_value=self.source_value)
+        return {"name": self.name,
+                "short": self.short_name,
+                "source_value": self.source_value
+                }
 
     @cached_property
     def above_levels(self):
         if not self.above_levels_ids:
-            return list()
+            return []
         try:
             return [int(i) for i in self.above_levels_ids.split(",") if i]
         except (AttributeError, ValueError) as e:
@@ -50,7 +52,7 @@ class Perimeter(BaseModel):
     @cached_property
     def inferior_levels(self):
         if not self.inferior_levels_ids:
-            return list()
+            return []
         try:
             return [int(i) for i in self.inferior_levels_ids.split(",") if i]
         except (AttributeError, ValueError) as e:
