@@ -117,8 +117,8 @@ class ExportService:
     def retry(export: Export):
         export.request_job_status = JobStatus.new
         export.retried = True
-        export.request_job_fail_msg = None
-        export.request_job_duration = None
+        export.request_job_fail_msg = ""
+        export.request_job_duration = ""
         export.save()
         launch_export_task.delay(export.pk)
 
