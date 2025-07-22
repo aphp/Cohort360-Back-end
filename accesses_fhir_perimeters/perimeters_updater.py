@@ -15,8 +15,7 @@ from accesses.services.accesses import AccessesService
 from accesses_fhir_perimeters.apps import AccessesFhirAuxConfig
 from admin_cohort.tools.cache import invalidate_cache
 
-_logger = logging.getLogger("info")
-_logger_err = logging.getLogger("django.request")
+logger = logging.getLogger(__name__)
 
 env = os.environ
 
@@ -63,7 +62,7 @@ def build_tree(all_valid_care_sites: Dict[int, FhirOrganization], main_root_defa
             if parent:
                 parent.children.append(care_site)
             else:
-                _logger.warning(f"Parent {care_site.part_of} not found for {care_site.id}")
+                logger.warning(f"Parent {care_site.part_of} not found for {care_site.id}")
                 roots.append(care_site)
     if len(roots) > 1:
         main_root_default.children = roots
@@ -107,7 +106,7 @@ def update_perimeter(perimeter: Perimeter, cohort_id: str, cohort_size: int):
     """
     Update a perimeter with new cohort_id and cohort_size
     """
-    _logger.info("Updating perimeter %s with cohort_id %s and cohort_size %s", perimeter.id, cohort_id, cohort_size)
+    logger.info("Updating perimeter %s with cohort_id %s and cohort_size %s", perimeter.id, cohort_id, cohort_size)
     perimeter.cohort_id = cohort_id
     perimeter.cohort_size = cohort_size
     perimeter.save()
@@ -173,35 +172,35 @@ def create_virtual_cohorts(perimeter_to_create: List[Perimeter], perimeter_to_up
     for perimeter in perimeters:
         children_ids = sorted(get_all_children_perimeters(perimeter, perimeters))
         if perimeter.cohort_id:
-            _logger.info(f"Updating virtual cohort {perimeter.cohort_id} for perimeter {perimeter.id}")
+            logger.info(f"Updating virtual cohort {perimeter.cohort_id} for perimeter {perimeter.id}")
             create_virtual_cohort.s(str(perimeter.id), children_ids, int(perimeter.cohort_id)).apply_async()
         else:
-            _logger.info(f"Creating virtual cohort for perimeter {perimeter.id}")
+            logger.info(f"Creating virtual cohort for perimeter {perimeter.id}")
             create_virtual_cohort.s(str(perimeter.id), children_ids).apply_async()
 
 
 def perimeters_data_model_objects_update():
-    _logger.info("1. Get All care sites from FHIR")
+    logger.info("1. Get All care sites from FHIR")
     all_valid_care_sites = get_organization_care_sites()
     care_sites_tree = build_tree(all_valid_care_sites, main_root_default=FhirOrganization(id=1, name="All Hospitals"))
-    _logger.info(f"2. All care sites: {len(all_valid_care_sites)}")
+    logger.info(f"2. All care sites: {len(all_valid_care_sites)}")
     all_perimeters = Perimeter.objects.all(even_deleted=True)
-    _logger.info(f"3. All perimeters: {len(all_perimeters)}")
+    logger.info(f"3. All perimeters: {len(all_perimeters)}")
 
-    _logger.info("4. Create top hierarchy perimeter")
-    _logger.info("5. Start recursive Perimeter objects creation")
+    logger.info("4. Create top hierarchy perimeter")
+    logger.info("5. Start recursive Perimeter objects creation")
     perimeter_to_create, perimeter_to_update = recursively_create_child_perimeters(
         care_sites=care_sites_tree,
         existing_perimeters=all_perimeters,
         previous_level_perimeters=[],
         level=1)
-    _logger.info(f"6. Creating/Updating new virtual cohorts for perimeters {len(perimeter_to_create)}")
+    logger.info(f"6. Creating/Updating new virtual cohorts for perimeters {len(perimeter_to_create)}")
     create_virtual_cohorts(perimeter_to_create, perimeter_to_update)
-    _logger.info("7. Deleting removed perimeters")
+    logger.info("7. Deleting removed perimeters")
     perimeters_to_delete = delete_perimeters(perimeters=all_perimeters,
                                              care_sites=list(all_valid_care_sites.values()) + care_sites_tree)
-    _logger.info("8. Closing linked accesses")
+    logger.info("8. Closing linked accesses")
     AccessesService.close_accesses(perimeters_to_delete)
-    _logger.info("End of perimeters updating. Invalidating cache for Perimeters and Accesses")
+    logger.info("End of perimeters updating. Invalidating cache for Perimeters and Accesses")
     invalidate_cache(model_name=Perimeter.__name__)
     invalidate_cache(model_name=Access.__name__)

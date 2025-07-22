@@ -8,7 +8,7 @@ from accesses.services.accesses import accesses_service
 from admin_cohort.models import User
 
 
-_logger = logging.getLogger("django.request")
+logger = logging.getLogger(__name__)
 
 def impersonate_hook(user: User, headers: Dict[str, str]) -> Optional[User]:
     if settings.IMPERSONATING_HEADER in headers:
@@ -17,7 +17,7 @@ def impersonate_hook(user: User, headers: Dict[str, str]) -> Optional[User]:
             try:
                 return User.objects.get(username=impersonated)
             except User.DoesNotExist:
-                _logger.warning(f"Failed to impersonate inexistent user {impersonated}")
+                logger.warning(f"Failed to impersonate inexistent user {impersonated}")
                 return user
         else:
             raise PermissionDenied("Vous n'avez pas le droit d'impersonnifier un autre utilisateur")

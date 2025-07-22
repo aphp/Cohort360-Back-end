@@ -9,7 +9,7 @@ from django.db.backends.base.base import BaseDatabaseWrapper
 
 from cohort.models import RequestQuerySnapshot, FhirFilter
 
-LOGGER = logging.getLogger("info")
+logger = logging.getLogger(__name__)
 
 RESOURCE_DEFAULT = "_"
 MATCH_ALL_VALUES = "__MATCH_ALL_VALUES__"
@@ -19,7 +19,7 @@ def find_mapped_code(code: str, src_system: str, target_system: str, default_val
                      db: BaseDatabaseWrapper, code_mapping_cache: Dict[str, str]) -> str:
     if code in code_mapping_cache:
         return code_mapping_cache[code]
-    LOGGER.info(f"Searching for code {code}")
+    logger.info(f"Searching for code {code}")
     cursor = db.cursor()
     q = '''
         WITH src_codes AS (
@@ -42,7 +42,7 @@ def find_mapped_code(code: str, src_system: str, target_system: str, default_val
     cursor.execute(q, (src_system, target_system, code))
     res = cursor.fetchone()
     if not res:
-        LOGGER.info(f"Failed to find related atc code {code}")
+        logger.info(f"Failed to find related atc code {code}")
         code_mapping_cache[code] = default_value(code)
         return code_mapping_cache[code]
     code_mapping_cache[code] = target_system + "|" + res[0]
@@ -79,11 +79,11 @@ class QueryRequestUpdater:
     def map_filter_name(self, filter_name: str, resource: str) -> Tuple[str, bool]:
         if resource in self.filter_mapping and filter_name in self.filter_mapping[resource]:
             new_name = self.filter_mapping[resource][filter_name]
-            LOGGER.info(f"Remapping {filter_name} for {resource} into {new_name}")
+            logger.info(f"Remapping {filter_name} for {resource} into {new_name}")
             return new_name, True
         elif RESOURCE_DEFAULT in self.filter_mapping and filter_name in self.filter_mapping[RESOURCE_DEFAULT]:
             new_name = self.filter_mapping[RESOURCE_DEFAULT][filter_name]
-            LOGGER.info(f"Remapping {filter_name} for {resource} into {new_name}")
+            logger.info(f"Remapping {filter_name} for {resource} into {new_name}")
             return new_name, True
         return filter_name, False
 
@@ -193,10 +193,10 @@ class QueryRequestUpdater:
         # skip queries already updated
         query_version = query.get("version", None)
         if query_version == self.version_name:
-            LOGGER.info("Skipping already updated query")
+            logger.info("Skipping already updated query")
             return False, False
         elif self.previous_version_name is not None and query_version not in self.previous_version_name:
-            LOGGER.info(
+            logger.info(
                 f"Won't upgrade a query which is not from previous version (expected: {self.previous_version_name},"
                 f" actual {self.version_name})")
             return False, False
@@ -214,7 +214,7 @@ class QueryRequestUpdater:
 
             query["version"] = self.version_name
         except Exception as e:
-            LOGGER.error(f"Failed to process query {query}", exc_info=e)
+            logger.error(f"Failed to process query {query}", exc_info=e)
             if debug_path:
                 failed_path, _ = tempfile.mkstemp(dir=str(debug_path))
                 with open(failed_path, "w") as fh:
@@ -237,7 +237,7 @@ class QueryRequestUpdater:
                 query_version = query.get("version", None)
             except Exception as e:
                 error_loading += 1
-                LOGGER.error("Could not load query %s", rqs.serialized_query, exc_info=e)
+                logger.error("Could not load query %s", rqs.serialized_query, exc_info=e)
                 continue
             has_changed, was_upgraded = self.process_query(query, debug_path)
             updated_query = json.dumps(query)
@@ -248,15 +248,15 @@ class QueryRequestUpdater:
                 if was_upgraded:
                     upgraded += 1
                     if debug:
-                        LOGGER.info(f"Updating query from {rqs.serialized_query} to {updated_query}")
+                        logger.info(f"Updating query from {rqs.serialized_query} to {updated_query}")
                         changed_queries.append({"before": rqs.serialized_query, "after": updated_query})
                 rqs.serialized_query = updated_query
                 if not dry_run:
                     save_query(rqs)
-        LOGGER.info(f"Processed {processed} queries ({upgraded} upgraded)")
-        LOGGER.info(f"Versions recap : {versions_recap}")
+        logger.info(f"Processed {processed} queries ({upgraded} upgraded)")
+        logger.info(f"Versions recap : {versions_recap}")
         if error_loading:
-            LOGGER.warning(f"{error_loading} failed to load")
+            logger.warning(f"{error_loading} failed to load")
         if debug:
             with open(debug_path / "before", "w") as fh:
                 json.dump([json.loads(c["before"]) for c in changed_queries], fh, indent=2)
@@ -264,7 +264,7 @@ class QueryRequestUpdater:
                 json.dump([json.loads(c["after"]) for c in changed_queries], fh, indent=2)
 
     def update_old_query_snapshots(self, dry_run: bool = True, debug: bool = True, with_filters: bool = True):
-        LOGGER.info(f"Will update requests to version {self.version_name}. Dry run : {dry_run}")
+        logger.info(f"Will update requests to version {self.version_name}. Dry run : {dry_run}")
         all_rqs: List[RequestQuerySnapshot] = RequestQuerySnapshot.objects.all()
         self.do_update_old_query_snapshots(all_rqs, lambda r: r.save(), dry_run, debug)
         if with_filters:
@@ -280,7 +280,7 @@ class QueryRequestUpdater:
                 return
 
     def update_old_filters(self, dry_run: bool = True, debug: bool = True):
-        LOGGER.info(f"Will update filters to version {self.version_name}. Dry run : {dry_run}")
+        logger.info(f"Will update filters to version {self.version_name}. Dry run : {dry_run}")
         all_filters: List[FhirFilter] = FhirFilter.objects.all()
         self.do_update_old_query_snapshots([RequestQuerySnapshot(
             title=f.uuid,

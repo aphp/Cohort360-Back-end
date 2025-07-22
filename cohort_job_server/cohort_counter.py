@@ -8,9 +8,9 @@ from admin_cohort.types import JobStatus
 from cohort_job_server.base_operator import BaseCohortOperator
 from cohort_job_server.query_executor_api import CohortCount, CohortCountAll, FeasibilityCount, query_executor_status_mapper,\
 QueryExecutorClient, CohortQuery
-from cohort_job_server.utils import _logger, JOB_STATUS, COUNT, MINIMUM, MAXIMUM, EXTRA, ERR_MESSAGE
+from cohort_job_server.utils import JOB_STATUS, COUNT, MINIMUM, MAXIMUM, EXTRA, ERR_MESSAGE
 
-_logger_err = logging.getLogger('django.request')
+logger = logging.getLogger(__name__)
 
 
 class CohortCounter(BaseCohortOperator):
@@ -58,7 +58,7 @@ class CohortCounter(BaseCohortOperator):
 
     @staticmethod
     def handle_patch_dated_measure(dm, data) -> None:
-        _logger.info(f"DatedMeasure[{dm.uuid}] Received patch data: {data}")
+        logger.info(f"DatedMeasure[{dm.uuid}] Received patch data: {data}")
         job_status = query_executor_status_mapper(data.get(JOB_STATUS))
         if not job_status:
             raise ValueError(f"Bad Request: Invalid job status: {data.get(JOB_STATUS)}")
@@ -69,18 +69,18 @@ class CohortCounter(BaseCohortOperator):
             if dm.is_global:
                 data.update({"measure_min": data.pop(MINIMUM, None),
                              "measure_max": data.pop(MAXIMUM, None)})
-            _logger.info(f"DatedMeasure[{dm.uuid}] successfully updated from Query Executor")
+            logger.info(f"DatedMeasure[{dm.uuid}] successfully updated from Query Executor")
         elif job_status == JobStatus.failed:
             data["request_job_fail_msg"] = data.pop(ERR_MESSAGE, None)
-            _logger_err.error(f"DatedMeasure[{dm.uuid}] - Failed")
+            logger.error(f"DatedMeasure[{dm.uuid}] - Failed")
         else:
-            _logger.info(f"DatedMeasure[{dm.uuid}] - Ended with status: {job_status}")
+            logger.info(f"DatedMeasure[{dm.uuid}] - Ended with status: {job_status}")
         data.update({"request_job_status": job_status,
                      "request_job_duration": job_duration})
 
     @staticmethod
     def handle_patch_feasibility_study(fs, data) -> Tuple[JobStatus, dict]:
-        _logger.info(f"FeasibilityStudy[{fs.uuid}] Received patch data: {data}")
+        logger.info(f"FeasibilityStudy[{fs.uuid}] Received patch data: {data}")
         job_status = data.get(JOB_STATUS, "")
         job_status = query_executor_status_mapper(job_status)
         counts_per_perimeter = {}
@@ -94,11 +94,11 @@ class CohortCounter(BaseCohortOperator):
                     raise ValueError(f"Bad Request: Payload missing `{EXTRA}` key")
             elif job_status == JobStatus.failed:
                 data["request_job_fail_msg"] = data.pop(ERR_MESSAGE, None)
-                _logger_err.error(f"FeasibilityStudy[{fs.uuid}] - Failed")
+                logger.error(f"FeasibilityStudy[{fs.uuid}] - Failed")
             else:
-                _logger.info(f"FeasibilityStudy[{fs.uuid}] - Ended with status: {job_status}")
+                logger.info(f"FeasibilityStudy[{fs.uuid}] - Ended with status: {job_status}")
         except ValueError as ve:
-            _logger_err.error(f"FeasibilityStudy[{fs.uuid}] - Error on Query Executor callback - {ve}")
+            logger.error(f"FeasibilityStudy[{fs.uuid}] - Error on Query Executor callback - {ve}")
             raise ve
         data[JOB_STATUS] = job_status
         return job_status, counts_per_perimeter

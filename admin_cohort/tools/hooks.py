@@ -15,7 +15,7 @@ IDENTITY_SERVER_AUTH_ENDPOINT = f"{IDENTITY_SERVER_URL}/user/authenticate"
 IDENTITY_SERVER_USER_INFO_ENDPOINT = f"{IDENTITY_SERVER_URL}/user/info"
 IDENTITY_SERVER_HEADERS = {"Key-auth": env.get("IDENTITY_SERVER_AUTH_TOKEN", "")}
 
-_logger = logging.getLogger('django.request')
+logger = logging.getLogger(__name__)
 
 
 def authenticate_user(username: str, password: str) -> Optional[bool]:
@@ -26,7 +26,7 @@ def authenticate_user(username: str, password: str) -> Optional[bool]:
                                  )
         return response.status_code == status.HTTP_200_OK
     except Exception as e:
-        _logger.error(f"[Identity Server] Error authenticating user `{username}`: {e}")
+        logger.error(f"[Identity Server] Error authenticating user `{username}`: {e}")
         raise APIException()
 
 

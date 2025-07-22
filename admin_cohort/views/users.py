@@ -1,5 +1,4 @@
 import json
-import logging
 import re
 
 from django.http import Http404
@@ -18,8 +17,6 @@ from admin_cohort.services.users import users_service
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.exceptions import ServerError
 from admin_cohort.tools.request_log_mixin import RequestLogMixin
-
-_logger = logging.getLogger('django.request')
 
 
 class UserFilter(filters.FilterSet):

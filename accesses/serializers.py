@@ -7,7 +7,7 @@ from admin_cohort.serializers import BaseSerializer
 from accesses.models import Role, Access, Profile, Perimeter, Right
 from accesses.services.roles import roles_service
 
-_logger = logging.getLogger('django.request')
+logger = logging.getLogger(__name__)
 
 
 class RightSerializer(ModelSerializer):

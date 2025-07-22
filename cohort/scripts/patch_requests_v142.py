@@ -6,7 +6,7 @@ from cohort.scripts.patch_requests_v140 import NEW_VERSION as PREV_VERSION
 from cohort.scripts.patch_requests_v141 import NEW_VERSION as PREV_VERSION_2
 from cohort.scripts.query_request_updater import RESOURCE_DEFAULT, MATCH_ALL_VALUES, QueryRequestUpdater
 
-LOGGER = logging.getLogger("info")
+logger = logging.getLogger(__name__)
 
 NEW_VERSION = "v1.4.2"
 
@@ -29,7 +29,7 @@ code_mapping_cache = {
 def find_related_atih(code: str):
     if code in code_mapping_cache:
         return code_mapping_cache[code]
-    LOGGER.info(f"Searching for code {code}")
+    logger.info(f"Searching for code {code}")
     cursor = connections["omop"].cursor()
     q = '''
         WITH orbis AS (
@@ -52,7 +52,7 @@ def find_related_atih(code: str):
     cursor.execute(q, (ORBIS_CODESYSTEM, ATIH_CODEYSTEM, code))
     res = cursor.fetchone()
     if not res:
-        LOGGER.info(f"Failed to find related atc code {code}")
+        logger.info(f"Failed to find related atc code {code}")
         code_mapping_cache[code] = ATIH_CODEYSTEM + "|NON RENSEIGNE"
         return code_mapping_cache[code]
     code_mapping_cache[code] = ATIH_CODEYSTEM + "|" + res[0]
@@ -60,7 +60,7 @@ def find_related_atih(code: str):
 
 
 def find_related_atih_codes(codes: str):
-    LOGGER.info(f"Translating codes {codes}")
+    logger.info(f"Translating codes {codes}")
     return ",".join([find_related_atih(code) for code in codes.split(",")])
 
 

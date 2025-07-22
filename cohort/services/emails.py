@@ -7,7 +7,7 @@ from admin_cohort.models import User
 
 
 BASE_CONTEXT = {"contact_email_address": settings.EMAIL_SUPPORT_CONTACT}
-_logger = logging.getLogger('info')
+logger = logging.getLogger(__name__)
 
 
 def send_email_notif_about_shared_request(request_name: str, owner: User, recipient: User) -> None:
