@@ -1,13 +1,8 @@
-import logging
-import sys
 from typing import List, Optional
 
 from cohort.scripts.patch_requests_v144 import NEW_VERSION as PREV_VERSION
 from cohort.scripts.query_request_updater import RESOURCE_DEFAULT, QueryRequestUpdater
 
-LOGGER = logging.getLogger("info")
-stream_handler = logging.StreamHandler(stream=sys.stdout)
-LOGGER.addHandler(stream_handler)
 
 NEW_VERSION = "v1.4.5"
 

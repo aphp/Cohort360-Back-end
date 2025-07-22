@@ -17,14 +17,14 @@ class UsersServiceTests(TestCase):
             _ = users_service.hash_password(None)
 
     @patch.object(AdminCohortConfig, attribute="HOOKS", new={})
-    @patch("admin_cohort.services.users._logger.error")
+    @patch("admin_cohort.services.users.logger.error")
     def test_try_hooks_no_hooks_configured(self, mock_logger):
         res = users_service.try_hooks(username="1234567")
         mock_logger.assert_called_once()
         self.assertIsNone(res)
 
     @patch.object(AdminCohortConfig, attribute="HOOKS", new={"USER_IDENTITY": ["some.bad.path.to.hook"]})
-    @patch("admin_cohort.services.users._logger.error")
+    @patch("admin_cohort.services.users.logger.error")
     def test_try_hooks_hook_improperly_configured(self, mock_logger):
         res = users_service.try_hooks(username="1234567")
         mock_logger.assert_called()
@@ -33,7 +33,7 @@ class UsersServiceTests(TestCase):
 
     @patch.object(AdminCohortConfig, attribute="HOOKS", new={"USER_IDENTITY": ["path.to.some.hook"]})
     @patch("admin_cohort.services.users.import_string")
-    @patch("admin_cohort.services.users._logger.error")
+    @patch("admin_cohort.services.users.logger.error")
     def test_try_hooks_hook_raises_error(self, mock_logger, mock_import_string):
         def raise_error(username: str):
             raise APIException()
@@ -46,7 +46,7 @@ class UsersServiceTests(TestCase):
 
     @patch.object(AdminCohortConfig, attribute="HOOKS", new={"USER_IDENTITY": ["path.to.some.hook"]})
     @patch("admin_cohort.services.users.import_string")
-    @patch("admin_cohort.services.users._logger.error")
+    @patch("admin_cohort.services.users.logger.error")
     def test_try_hooks_return_none(self, mock_logger, mock_import_string):
         mock_import_string.return_value = lambda username: None
         res = users_service.try_hooks(username="1234567")
@@ -55,7 +55,7 @@ class UsersServiceTests(TestCase):
 
     @patch.object(AdminCohortConfig, attribute="HOOKS", new={"USER_IDENTITY": ["path.to.some.valid.hook"]})
     @patch("admin_cohort.services.users.import_string")
-    @patch("admin_cohort.services.users._logger.error")
+    @patch("admin_cohort.services.users.logger.error")
     def test_try_hooks_return_value(self, mock_logger, mock_import_string):
         test_username = "1234567"
         mock_import_string.return_value = lambda username: {"username": test_username}

@@ -6,7 +6,7 @@ import requests
 from admin_cohort.http_timeout import HTTP_REQUEST_TIMEOUT
 from exporters.apps import ExportersConfig
 
-_logger = logging.getLogger("django.request")
+logger = logging.getLogger(__name__)
 
 
 class BaseAPI:

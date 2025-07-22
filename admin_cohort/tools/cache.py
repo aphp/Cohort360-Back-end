@@ -1,22 +1,15 @@
-import logging
 from typing import Any, cast
 
 from django.core.cache import cache
 from django.core.cache.backends.dummy import DummyCache
 from rest_framework_extensions.cache.decorators import CacheResponse
 
-
-_logger = logging.getLogger("info")
-
-
 class CustomCacheResponse(CacheResponse):
     def process_cache_response(self, view_instance, view_method, request, args, kwargs):
         response = super(CustomCacheResponse, self).process_cache_response(view_instance, view_method, request, args, kwargs)
         return response
 
-
 cache_response = CustomCacheResponse
-
 
 def construct_cache_key(view_instance=None, view_method=None, request=None, args=None, kwargs=None):
     """
@@ -41,12 +34,10 @@ def construct_cache_key(view_instance=None, view_method=None, request=None, args
         key = f"{key}." + ".".join(map(str, (f"{k}={v}" for k, v in request.query_params.items())))
     return key
 
-
 def invalidate_cache(model_name: str, user: str = "*"):
     view_name = f"*{model_name}ViewSet"
     key = f"*{user}.{view_name}.*"
     cast(Any, cache).delete_pattern(key)
-
 
 class CustomDummyCache(DummyCache):
     def delete_pattern(self, key, version=None):

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import logging
 import os
 from typing import TYPE_CHECKING
 
@@ -12,9 +11,6 @@ from admin_cohort.http_timeout import HTTP_REQUEST_TIMEOUT
 
 if TYPE_CHECKING:
     from cohort_job_server.query_executor_api import CohortQuery, SparkJobObject
-
-_logger = logging.getLogger("info")
-
 
 class QueryExecutorClient:
     APP_NAME = "omop-spark-job"
@@ -38,19 +34,16 @@ class QueryExecutorClient:
     def delete(self, job_id: str) -> Response:
         return requests.delete(f"{self.api_url}/{job_id}", timeout=HTTP_REQUEST_TIMEOUT)
 
-
 def replace_pattern(text: str, replacements: list[tuple[str, str]]) -> str:
     for pattern, replacement in replacements:
         text = text.replace(pattern, replacement)
     return text
-
 
 def format_syntax(request: CohortQuery) -> str:
     json_data = request.model_dump_json(by_alias=True, exclude_none=True)
     replacements = [('["All"]', '"all"'), ("[true]", "true"), ("[false]", "false")]
     formatted_json = replace_pattern(json_data, replacements)
     return json.dumps(formatted_json)
-
 
 def format_spark_job_request_for_query_executor(spark_job_request: SparkJobObject) -> str:
     callback_path = spark_job_request.callback_path

@@ -21,7 +21,7 @@ from accesses.q_expressions import (
 from accesses.models import Perimeter, Access, Role
 from accesses.services.shared import DataRight
 
-_logger = logging.getLogger("info")
+logger = logging.getLogger(__name__)
 
 
 class AccessesService:
@@ -423,7 +423,7 @@ class AccessesService:
             accesses_service.q_access_is_valid() & (Q(perimeter_id__in=perimeters_to_delete_ids) | Q(perimeter_id__isnull=True))
         )
         accesses_to_delete.update(end_datetime=timezone.now())
-        _logger.info(f"{len(accesses_to_delete)} accesses have been closed: {accesses_to_delete}")
+        logger.info(f"{len(accesses_to_delete)} accesses have been closed: {accesses_to_delete}")
 
 
 accesses_service = AccessesService()
