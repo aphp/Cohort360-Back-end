@@ -1,11 +1,15 @@
 from unittest import mock
 
+from django.test.utils import override_settings
 from django.urls import reverse
+from requests.exceptions import RequestException
 from rest_framework import status
 
 from admin_cohort.permissions import IsAuthenticated
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult, FhirFilter
+from exporters.apis.base import BaseAPI
+from exporters.enums import APIJobStatus
 from exports.models import Export, Datalab
 from exports.tests.base_test import ExportsTestBase
 from exports.views import ExportViewSet
@@ -48,10 +52,18 @@ class ExportViewSetTest(ExportsTestBase):
         self.target_export_to_delete = self.exports[2]
 
         self.failed_export = self.exports[3]
+        self.failed_export.request_job_id = "some_job_id"
         self.failed_export.request_job_status = JobStatus.failed
         self.failed_export.save()
+
+        self.finished_export = self.exports[4]
+        self.finished_export.request_job_status = JobStatus.finished
+        self.finished_export.request_job_id = "some_job_id"
+        self.finished_export.save()
+
         self.retry_view = self.view_set.as_view({'post': 'retry'})
         self.retry_url = f"/exports/{self.failed_export.uuid}/retry/"
+        self.get_logs_view = self.view_set.as_view({'get': 'get_logs'})
 
     def test_list_exports(self):
         list_url = reverse(viewname=self.viewname_list)
@@ -134,3 +146,61 @@ class ExportViewSetTest(ExportsTestBase):
         self.failed_export.refresh_from_db()
         self.assertEqual(self.failed_export.request_job_status, JobStatus.failed)
         self.assertFalse(self.failed_export.retried)
+
+    @mock.patch.object(BaseAPI, "get_export_logs")
+    @mock.patch.object(ExportViewSet, "get_object")
+    @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
+    def test_get_logs_for_failed_export(self, mock_get_object, mock_logs_response):
+        mock_get_object.return_value = self.failed_export
+        mock_logs_response.return_value = {"status": APIJobStatus.FinishedWithError,
+                                           "stdout": "logs for failed export",
+                                           "stderr": ""
+                                           }
+        request = self.make_request(url=f"/exports/{self.failed_export.uuid}/logs/", http_verb="get", request_user=self.admin_user)
+        self.get_logs_view.kwargs = {'uuid': self.failed_export.uuid}
+        response = self.get_logs_view(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.headers['content-type'], 'application/json')
+
+    @mock.patch.object(BaseAPI, "get_export_logs")
+    @mock.patch.object(ExportViewSet, "get_object")
+    @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
+    def test_get_logs_for_failed_export_api_error(self, mock_get_object, mock_logs_response):
+        mock_get_object.return_value = self.failed_export
+        mock_logs_response.side_effect = RequestException()
+        request = self.make_request(url=f"/exports/{self.failed_export.uuid}/logs/", http_verb="get", request_user=self.admin_user)
+        self.get_logs_view.kwargs = {'uuid': self.failed_export.uuid}
+        response = self.get_logs_view(request)
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertIsNotNone(response.data)
+
+    @mock.patch.object(BaseAPI, "get_export_logs")
+    @mock.patch.object(ExportViewSet, "get_object")
+    @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
+    def test_get_logs_for_failed_export_api_timeout(self, mock_get_object, mock_logs_response):
+        mock_get_object.return_value = self.failed_export
+        mock_logs_response.side_effect = TimeoutError()
+        request = self.make_request(url=f"/exports/{self.failed_export.uuid}/logs/", http_verb="get", request_user=self.admin_user)
+        self.get_logs_view.kwargs = {'uuid': self.failed_export.uuid}
+        response = self.get_logs_view(request)
+        self.assertEqual(response.status_code, status.HTTP_408_REQUEST_TIMEOUT)
+        self.assertIsNotNone(response.data)
+
+    @mock.patch.object(ExportViewSet, "get_object")
+    def test_get_logs_for_export_missing_job_id(self, mock_get_object):
+        export_missing_job_id = self.exports[0]
+        mock_get_object.return_value = export_missing_job_id
+        request = self.make_request(url=f"/exports/{export_missing_job_id.uuid}/logs/", http_verb="get", request_user=self.admin_user)
+        self.get_logs_view.kwargs = {'uuid': export_missing_job_id.uuid}
+        response = self.get_logs_view(request)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIsNotNone(response.data)
+
+    @mock.patch.object(ExportViewSet, "get_object")
+    def test_get_logs_for_finished_export(self, mock_get_object):
+        mock_get_object.return_value = self.finished_export
+        request = self.make_request(url=f"/exports/{self.finished_export.uuid}/logs/", http_verb="get", request_user=self.admin_user)
+        self.get_logs_view.kwargs = {'uuid': self.finished_export.uuid}
+        response = self.get_logs_view(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsNotNone(response.data)

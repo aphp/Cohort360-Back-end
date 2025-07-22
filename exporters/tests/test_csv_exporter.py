@@ -37,7 +37,7 @@ class TestCSVExporter(ExportersTestBase):
         self.mock_export_api.required_table = "person"
         self.mock_export_api.target_environment = "target_environment"
         self.mock_export_api.launch_export.return_value = "some-job-id"
-        self.mock_export_api.get_job_status.return_value = JobStatus.finished
+        self.mock_export_api.get_export_logs.return_value = {"task_status": "FinishedSuccessfully"}
         self.exporter.handle_export(export=self.csv_export)
         mock_notify_export_received.assert_called_once()
         mock_notify_export_succeeded.assert_called_once()

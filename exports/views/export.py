@@ -4,9 +4,11 @@ import logging
 from django.db import transaction
 from django.db.models import Q
 from django.db.models.expressions import Subquery, OuterRef
+from django.http.response import HttpResponse
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema, OpenApiParameter, PolymorphicProxySerializer
+from requests.exceptions import RequestException
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -151,3 +153,22 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
             return Response(data="The export did not fail. Cannot relaunch it", status=status.HTTP_400_BAD_REQUEST)
         export_service.retry(export=export)
         return Response(data=f"The export `{export.uuid}` has been relaunched", status=status.HTTP_200_OK)
+
+
+    @extend_schema(responses={(status.HTTP_200_OK, "application/json"): OpenApiTypes.BINARY})
+    @action(detail=True, methods=['get'], url_path="logs")
+    def get_logs(self, request, *args, **kwargs):
+        export = self.get_object()
+        if export.request_job_status == JobStatus.finished:
+            return Response(data="No logs available. The target export has finished successfully", status=status.HTTP_200_OK)
+        if not export.request_job_id:
+            return Response(data="The target export has no job ID", status=status.HTTP_400_BAD_REQUEST)
+        try:
+            logs_data = export_service.get_execution_logs(export=export)
+            response = HttpResponse(json.dumps(logs_data, indent=4), content_type='application/json', status=status.HTTP_200_OK)
+            response['Content-Disposition'] = f'attachment; filename="logs_export_{export.target_name}.json"'
+            return response
+        except TimeoutError:
+            return Response(data="Timeout while fetching logs. Please try again later.", status=status.HTTP_408_REQUEST_TIMEOUT)
+        except RequestException as e:
+            return Response(data=f"Error fetching logs: {e}", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
