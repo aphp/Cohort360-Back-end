@@ -3,9 +3,7 @@ from typing import Literal
 
 import requests
 
-from admin_cohort.types import JobStatus
 from exporters.apps import ExportersConfig
-from exporters.enums import status_mapper
 
 _logger = logging.getLogger('django.request')
 
@@ -19,7 +17,7 @@ class BaseAPI:
         self.auth_token = self.api_conf.get('AUTH_TOKEN')
         self.task_status_endpoint = self.api_conf.get('TASK_STATUS_ENDPOINT')
 
-    def get_job_status(self, job_id: str) -> JobStatus:
+    def get_export_logs(self, job_id: str) -> dict:
         params = {"task_uuid": job_id,
                   "return_out_logs": True,
                   "return_err_logs": True
@@ -27,6 +25,4 @@ class BaseAPI:
         response = requests.get(url=f"{self.url}{self.task_status_endpoint}",
                                 params=params,
                                 headers={'auth-token': self.auth_token})
-        response = response.json()
-        return status_mapper.get(response.get('task_status'),
-                                 JobStatus.unknown)
+        return response.json()

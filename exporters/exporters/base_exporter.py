@@ -9,7 +9,7 @@ from admin_cohort.models import User
 from admin_cohort.types import JobStatus
 from exporters.apis.export_api import ExportAPI
 from exporters.apis.hadoop_api import HadoopAPI
-from exporters.enums import APIJobType
+from exporters.enums import APIJobType, status_mapper
 from exports.emails import check_email_address
 from exports.models import Export, ExportTable
 from exports.services.rights_checker import rights_checker
@@ -123,7 +123,8 @@ class BaseExporter:
                           or job_type == APIJobType.HIVE_DB_CREATE and self.hadoop_api
                           or None)
             try:
-                job_status = target_api.get_job_status(job_id=job_id)
+                logs_response = target_api.get_export_logs(job_id=job_id)
+                job_status = status_mapper.get(logs_response.get('task_status'), JobStatus.unknown)
                 self.log_export_task(export.uuid, f"Job `{job_id}` is {job_status}")
                 export.request_job_status = job_status.value
                 export.save()

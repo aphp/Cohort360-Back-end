@@ -1,5 +1,4 @@
-import enum
-from enum import Enum
+from enum import Enum, StrEnum
 
 from admin_cohort.types import JobStatus
 
@@ -23,12 +22,12 @@ class ExportTypes(Enum):
         return self.allow_download
 
 
-class APIJobType(enum.Enum):
+class APIJobType(StrEnum):
     EXPORT = "export"
     HIVE_DB_CREATE = "hive_db_create"
 
 
-class APIJobStatus(enum.Enum):
+class APIJobStatus(StrEnum):
     Received = 'Received'
     Running = 'Running'
     Pending = 'Pending'

@@ -5,7 +5,6 @@ import uuid
 from django.test import TestCase
 from rest_framework import status
 
-from admin_cohort.types import JobStatus
 from exporters.apis.export_api import ExportAPI
 from exporters.enums import ExportTypes
 
@@ -16,7 +15,7 @@ class TestExportAPI(TestCase):
         self.api_conf = {
             "EXPORT_API": {
                 "API_URL": 'https://export-api.fr/api',
-                "AUTH_TOKEN": "bigdata-token",
+                "AUTH_TOKEN": "export-token",
                 "TASK_STATUS_ENDPOINT": '/task_status',
             },
         }
@@ -47,14 +46,14 @@ class TestExportAPI(TestCase):
         mock_requests.post.assert_called_once()
 
     @mock.patch('exporters.apis.base.requests')
-    def test_get_export_job_status(self, mock_requests):
+    def test_get_export_logs(self, mock_requests):
         mock_response = MagicMock()
         mock_response.json.return_value = {'task_status': 'FinishedSuccessfully'}
         mock_requests.get.return_value = mock_response
-        job_status = self.export_api.get_job_status(job_id='123456')
-        self.assertEqual(job_status, JobStatus.finished)
+        res = self.export_api.get_export_logs(job_id='123456')
+        self.assertIn("task_status", res)
         mock_requests.get.assert_called_once_with(url='https://export-api.fr/api/task_status',
                                                   params={'task_uuid': '123456',
                                                           'return_out_logs': True,
                                                           'return_err_logs': True},
-                                                  headers={'auth-token': 'bigdata-token'})
+                                                  headers={'auth-token': 'export-token'})

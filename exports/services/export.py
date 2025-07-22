@@ -3,6 +3,7 @@ from typing import List
 from urllib.parse import quote_plus
 
 from django.http import StreamingHttpResponse
+from requests.exceptions import RequestException
 from rest_framework.exceptions import ValidationError
 
 from admin_cohort.types import JobStatus
@@ -10,7 +11,7 @@ from cohort.models import CohortResult, FhirFilter
 from cohort.services.cohort_result import cohort_service
 from exports.models import ExportTable, Export
 from exports.services.export_operators import ExportDownloader, ExportManager
-from exports.tasks import launch_export_task
+from exports.tasks import launch_export_task, get_logs
 
 _logger = logging.getLogger('info')
 
@@ -124,6 +125,15 @@ class ExportService:
         export.request_job_duration = ""
         export.save()
         launch_export_task.delay(export.pk)
+
+    @staticmethod
+    def get_execution_logs(export: Export, timeout: int = 30):
+        try:
+            result = get_logs.s(export_id=export.uuid).apply_async()
+            return result.get(timeout=timeout)
+        except (RequestException, TimeoutError) as e:
+            _logger.error(f"Export[{export.uuid}] Failed to retrieve logs: {e}")
+            raise e
 
 
 export_service = ExportService()

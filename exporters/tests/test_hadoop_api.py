@@ -5,7 +5,6 @@ from requests import RequestException
 from rest_framework import status
 
 from admin_cohort.tests.tests_tools import TestCaseWithDBs
-from admin_cohort.types import JobStatus
 from exporters.apis.hadoop_api import HadoopAPI
 
 
@@ -31,8 +30,8 @@ class TestInfraAPI(TestCaseWithDBs):
         mock_response = MagicMock()
         mock_response.json.return_value = {'task_status': 'FinishedSuccessfully'}
         mock_requests.get.return_value = mock_response
-        job_status = self.hadoop_api.get_job_status(job_id='123456')
-        self.assertEqual(job_status, JobStatus.finished)
+        res = self.hadoop_api.get_export_logs(job_id='123456')
+        self.assertIn("task_status", res)
         mock_requests.get.assert_called_once_with(url='https://hadoop-api.fr/api/hadoop/task_status',
                                                   params={'task_uuid': '123456',
                                                           'return_out_logs': True,
@@ -44,8 +43,8 @@ class TestInfraAPI(TestCaseWithDBs):
         mock_response = MagicMock()
         mock_response.json.return_value = {'task_status': 'Running'}
         mock_requests.get.return_value = mock_response
-        job_status = self.hadoop_api.get_job_status(job_id='123456',)
-        self.assertEqual(job_status, JobStatus.started)
+        res = self.hadoop_api.get_export_logs(job_id='123456', )
+        self.assertIn("task_status", res)
         mock_requests.get.assert_called_once_with(url='https://hadoop-api.fr/api/hadoop/task_status',
                                                   params={'task_uuid': '123456',
                                                           'return_out_logs': True,
