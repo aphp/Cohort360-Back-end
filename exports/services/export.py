@@ -43,7 +43,7 @@ class ExportService:
             raise ValidationError(f'Invalid export data: {e}')
 
     def proceed_with_export(self, export: Export, tables: List[dict], **kwargs) -> None:
-        _logger.info(f"Export[{export.uuid}]: Creating tables {tables}")
+        _logger.info(f"Export[{export.uuid}]: Creating tables ...")
         requires_cohort_subsets = self.create_tables(export, tables, **kwargs)
         _logger.info(f"Export[{export.uuid}]: tables created. Required cohort subsets ? {requires_cohort_subsets}")
         if not requires_cohort_subsets:
@@ -96,14 +96,17 @@ class ExportService:
     @staticmethod
     def check_all_cohort_subsets_created(export: Export):
         _logger.info(f"Export[{export.uuid}]: Checking if all cohort subsets were created...")
+        if export.request_job_status == JobStatus.failed:
+            _logger.info(f"Export[{export.uuid}]: export has already been marked failed")
+            return
         for table in export.export_tables.filter(cohort_result_subset__isnull=False):
             cohort_subset_status = table.cohort_result_subset.request_job_status
-            if cohort_subset_status == JobStatus.failed.value:
+            if cohort_subset_status == JobStatus.failed:
                 failure_reason = "One or multiple cohort subsets has failed"
                 _logger.info(f"Export[{export.uuid}]: Aborting export - {failure_reason}")
                 ExportManager().mark_as_failed(export=export, reason=failure_reason)
                 return
-            elif cohort_subset_status != JobStatus.finished.value:
+            elif cohort_subset_status != JobStatus.finished:
                 _logger.info(f"Export[{export.uuid}]: waiting for cohort subsets to finish before launching export")
                 return
         _logger.info(f"Export[{export.uuid}]: all cohort subsets were successfully created. Launching export.")
