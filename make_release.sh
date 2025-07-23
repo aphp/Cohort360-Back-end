@@ -64,4 +64,4 @@ git add "$PYPROJECT_FILE" CHANGELOG.md
 git commit -m "chore: update CHANGELOG.md and bump version to $NEXT_DEV_VERSION"
 
 echo "Pushing branch $SOURCE_BRANCH"
-git push $DRY_RUN_FLAG
+git push --tags $DRY_RUN_FLAG
