@@ -2,6 +2,44 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.28.0] - 2025-07-23
+
+### 🚀 Features
+
+- Add snapshot_id in ws dated_measure response
+- *(RQSReducedSerializer)* Return null instead of NA for empty dated measure
+- *(exports)* Download logs (#487)
+
+### 🐛 Bug Fixes
+
+- *(accesses)* Fix search fields  and pagination
+- *(exports)* Missing attr for ExportTable (#482)
+- *(logs)* Add info and error messages (#484)
+- Add snapshot_id in ws dated_measure response
+- Load initial data for app setup
+- Fix error in RQS serializer and improve code quality
+- *(migrations)* Remove null=True from string based fields
+- *(exports)* Send single notification for failed export (#486)
+
+### 🚜 Refactor
+
+- Access and roles management (#483)
+- Improve make_release.sh
+
+### 🎨 Styling
+
+- Improve maintainability (#485)
+- *(accesses)* Remove unused attrs from serializer
+
+### ⚙️ Miscellaneous Tasks
+
+- New release 3.28.0
+
+### Build
+
+- Set version to 3.28.0-dev
+- Set version 3.28.0-dev
+
 ## [3.27.0] - 2025-06-03
 
 ### 🚀 Features
