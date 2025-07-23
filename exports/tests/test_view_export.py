@@ -63,7 +63,7 @@ class ExportViewSetTest(ExportsTestBase):
 
         self.retry_view = self.view_set.as_view({'post': 'retry'})
         self.retry_url = f"/exports/{self.failed_export.uuid}/retry/"
-        self.get_logs_view = self.view_set.as_view({'get': 'get_logs'})
+        self.logs_view = self.view_set.as_view({'get': 'logs'})
 
     def test_list_exports(self):
         list_url = reverse(viewname=self.viewname_list)
@@ -157,8 +157,8 @@ class ExportViewSetTest(ExportsTestBase):
                                            "stderr": ""
                                            }
         request = self.make_request(url=f"/exports/{self.failed_export.uuid}/logs/", http_verb="get", request_user=self.admin_user)
-        self.get_logs_view.kwargs = {'uuid': self.failed_export.uuid}
-        response = self.get_logs_view(request)
+        self.logs_view.kwargs = {'uuid': self.failed_export.uuid}
+        response = self.logs_view(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.headers['content-type'], 'application/json')
 
@@ -169,8 +169,8 @@ class ExportViewSetTest(ExportsTestBase):
         mock_get_object.return_value = self.failed_export
         mock_logs_response.side_effect = RequestException()
         request = self.make_request(url=f"/exports/{self.failed_export.uuid}/logs/", http_verb="get", request_user=self.admin_user)
-        self.get_logs_view.kwargs = {'uuid': self.failed_export.uuid}
-        response = self.get_logs_view(request)
+        self.logs_view.kwargs = {'uuid': self.failed_export.uuid}
+        response = self.logs_view(request)
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
         self.assertIsNotNone(response.data)
 
@@ -181,8 +181,8 @@ class ExportViewSetTest(ExportsTestBase):
         mock_get_object.return_value = self.failed_export
         mock_logs_response.side_effect = TimeoutError()
         request = self.make_request(url=f"/exports/{self.failed_export.uuid}/logs/", http_verb="get", request_user=self.admin_user)
-        self.get_logs_view.kwargs = {'uuid': self.failed_export.uuid}
-        response = self.get_logs_view(request)
+        self.logs_view.kwargs = {'uuid': self.failed_export.uuid}
+        response = self.logs_view(request)
         self.assertEqual(response.status_code, status.HTTP_408_REQUEST_TIMEOUT)
         self.assertIsNotNone(response.data)
 
@@ -191,8 +191,8 @@ class ExportViewSetTest(ExportsTestBase):
         export_missing_job_id = self.exports[0]
         mock_get_object.return_value = export_missing_job_id
         request = self.make_request(url=f"/exports/{export_missing_job_id.uuid}/logs/", http_verb="get", request_user=self.admin_user)
-        self.get_logs_view.kwargs = {'uuid': export_missing_job_id.uuid}
-        response = self.get_logs_view(request)
+        self.logs_view.kwargs = {'uuid': export_missing_job_id.uuid}
+        response = self.logs_view(request)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIsNotNone(response.data)
 
@@ -200,7 +200,7 @@ class ExportViewSetTest(ExportsTestBase):
     def test_get_logs_for_finished_export(self, mock_get_object):
         mock_get_object.return_value = self.finished_export
         request = self.make_request(url=f"/exports/{self.finished_export.uuid}/logs/", http_verb="get", request_user=self.admin_user)
-        self.get_logs_view.kwargs = {'uuid': self.finished_export.uuid}
-        response = self.get_logs_view(request)
+        self.logs_view.kwargs = {'uuid': self.finished_export.uuid}
+        response = self.logs_view(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIsNotNone(response.data)

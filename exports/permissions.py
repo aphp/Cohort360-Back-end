@@ -41,6 +41,15 @@ class ExportPermission(IsAuthenticated):
         return obj.owner == request.user and request.method in SAFE_METHODS
 
 
+class ExportLogsPermission(IsAuthenticated):
+    def has_permission(self, request, view):
+        authenticated = super().has_permission(request, view)
+        return request.method in SAFE_METHODS and authenticated and accesses_service.user_is_full_admin(request.user)
+
+    def has_object_permission(self, request, view, obj):
+        return self.has_permission(request, view)
+
+
 class RetryExportPermission(IsAuthenticated):
 
     def has_permission(self, request, view):

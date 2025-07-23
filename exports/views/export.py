@@ -20,7 +20,7 @@ from admin_cohort.tools.request_log_mixin import RequestLogMixin
 from admin_cohort.types import JobStatus
 from exports.exceptions import FilesNoLongerAvailable, BadRequestError, StorageProviderException
 from exports.models import Export, ExportTable
-from exports.permissions import ExportPermission, RetryExportPermission
+from exports.permissions import ExportPermission, RetryExportPermission, ExportLogsPermission
 from exports.serializers import ExportSerializer, ExportsListSerializer, ExportCreateSerializer
 from exports.services.export import export_service
 from exports.views import ExportsBaseViewSet
@@ -92,6 +92,8 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
     def get_permissions(self):
         if self.action == self.retry.__name__:
             return [RetryExportPermission()]
+        if self.action == self.logs.__name__:
+            return [ExportLogsPermission()]
         return super().get_permissions()
 
     def should_log(self, request, response):
@@ -157,7 +159,7 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
 
     @extend_schema(responses={(status.HTTP_200_OK, "application/json"): OpenApiTypes.BINARY})
     @action(detail=True, methods=['get'], url_path="logs")
-    def get_logs(self, request, *args, **kwargs):
+    def logs(self, request, *args, **kwargs):
         export = self.get_object()
         if export.request_job_status == JobStatus.finished:
             return Response(data="No logs available. The target export has finished successfully", status=status.HTTP_200_OK)
