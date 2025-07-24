@@ -4,6 +4,7 @@ from django.utils import timezone
 
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult
+from cohort_job_server.apps import CohortJobServerConfig
 from cohort_job_server.base_operator import BaseCohortOperator
 from cohort_job_server.query_executor_api import query_executor_status_mapper, CohortCreate
 from cohort_job_server.tasks import notify_large_cohort_ready
@@ -52,12 +53,12 @@ class CohortCreator(BaseCohortOperator):
             cohort.dated_measure.save()
 
     @staticmethod
-    def handle_cohort_post_update(cohort: CohortResult, data: dict) -> None:
-        query_executor_data_keys = (JOB_STATUS, GROUP_ID, GROUP_COUNT)
-        is_update_from_query_executor = all(key in data for key in query_executor_data_keys)
-        is_update_from_etl = JOB_STATUS in data and len(data) == 1
+    def handle_cohort_post_update(cohort: CohortResult, caller: str) -> None:
+        is_update_from_query_executor = caller == CohortJobServerConfig.query_executor_username
+        is_update_from_etl = caller == CohortJobServerConfig.solr_etl_username
 
         if is_update_from_query_executor:
             _logger.info(f"Cohort[{cohort.uuid}] successfully updated from Query Executor")
         if is_update_from_etl:
             notify_large_cohort_ready.s(cohort_id=cohort.uuid).apply_async()
+            _logger.info(f"Cohort[{cohort.uuid}] successfully updated from Solr ETL. Owner notified by email")

@@ -1,7 +1,6 @@
 import json
 from typing import Type, Callable
 
-from django.conf import settings
 from django.db.models import Model
 from requests import HTTPError
 from rest_framework import status
@@ -46,10 +45,11 @@ class QueryExecutorRequester:
         if response.success:
             instance.request_job_id = response.job_id
             if instance_model is CohortResult:
-                count = instance.dated_measure.measure
-                if instance.parent_cohort:
-                    count = instance.parent_cohort.dated_measure.measure
-                job_status = count >= settings.COHORT_SIZE_LIMIT and JobStatus.long_pending or JobStatus.pending
+                current_job_status = instance.request_job_status
+                # At this point, current_job_status is either `pending` or `long_pending`
+                # if `long_pending`, leave it as is. if `pending`, update it to job_status (`started`)
+                if current_job_status == JobStatus.long_pending:
+                    job_status = current_job_status
         else:
             instance.request_job_fail_msg = response.err_msg
         instance.request_job_status = job_status

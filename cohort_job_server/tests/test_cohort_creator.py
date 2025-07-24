@@ -6,6 +6,7 @@ from rest_framework import status
 
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult
+from cohort_job_server.apps import CohortJobServerConfig
 from cohort_job_server.cohort_creator import CohortCreator
 from cohort_job_server.query_executor_api import CohortCreate
 from cohort_job_server.tests.base import BaseTest
@@ -38,7 +39,7 @@ class CohortCreatorTest(BaseTest):
         self.cohort_creator.launch_cohort_creation(self.cohort.pk, self.json_query, self.auth_headers)
         mock_launch.assert_called_once()
         self.cohort.refresh_from_db()
-        self.assertEqual(self.cohort.request_job_status, JobStatus.pending.value)
+        self.assertEqual(self.cohort.request_job_status, JobStatus.started)
         self.assertEqual(self.cohort.request_job_id, self.test_job_id)
 
     @mock.patch.object(CohortCreate, 'launch')
@@ -49,10 +50,12 @@ class CohortCreatorTest(BaseTest):
         response.status_code = status.HTTP_200_OK
         response._content = self.create_cohort_success_resp_content
         mock_launch.return_value = response
+        self.cohort.request_job_status = JobStatus.long_pending
+        self.cohort.save()
         self.cohort_creator.launch_cohort_creation(self.cohort.pk, self.json_query, self.auth_headers)
         mock_launch.assert_called_once()
         self.cohort.refresh_from_db()
-        self.assertEqual(self.cohort.request_job_status, JobStatus.long_pending.value)
+        self.assertEqual(self.cohort.request_job_status, JobStatus.long_pending)
         self.assertEqual(self.cohort.request_job_id, self.test_job_id)
 
     @mock.patch.object(CohortCreate, 'launch')
@@ -97,10 +100,7 @@ class CohortCreatorTest(BaseTest):
     def test_handle_cohort_post_update_query_executor_callback(self, mock_logger, mock_notify):
         mock_logger.return_value = None
         mock_notify.return_value = None
-        patch_data = {'request_job_status': 'FINISHED',
-                      'group.id': '12345',
-                      'group.count': '777'}
-        self.cohort_creator.handle_cohort_post_update(cohort=self.cohort, data=patch_data)
+        self.cohort_creator.handle_cohort_post_update(cohort=self.cohort, caller=CohortJobServerConfig.query_executor_username)
         mock_logger.assert_called_once()
         mock_notify.assert_not_called()
 
@@ -109,7 +109,6 @@ class CohortCreatorTest(BaseTest):
     def test_handle_cohort_post_update_etl_callback(self, mock_logger, mock_notify):
         mock_logger.return_value = None
         mock_notify.return_value = None
-        patch_data = {'request_job_status': 'FINISHED'}
-        self.cohort_creator.handle_cohort_post_update(cohort=self.cohort, data=patch_data)
-        mock_logger.assert_not_called()
+        self.cohort_creator.handle_cohort_post_update(cohort=self.cohort, caller=CohortJobServerConfig.solr_etl_username)
+        mock_logger.assert_called_once()
         mock_notify.assert_called_once()

@@ -135,7 +135,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             response = Response(data=str(ve), status=status.HTTP_400_BAD_REQUEST)
         else:
             response = super().partial_update(request, *args, **kwargs)
-            cohort_service.handle_cohort_post_update(cohort=cohort, data=request.data)
+            cohort_service.handle_cohort_post_update(cohort=cohort, caller=request.user.username)
             if cohort.export_table.exists():
                 export_service.check_all_cohort_subsets_created(export=cohort.export_table.first().export)
         cohort_service.ws_send_to_client(cohort=cohort)
