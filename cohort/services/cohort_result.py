@@ -1,5 +1,6 @@
 import json
 
+from django.conf import settings
 from django.db import transaction
 
 from admin_cohort.types import JobStatus
@@ -77,16 +78,23 @@ class CohortResultService(CommonService):
         if global_estimate:
             dm_service.handle_global_count(cohort, request)
         try:
-           if cohort.parent_cohort and cohort.sampling_ratio:
-               json_query = self.build_query(cohort_source_id=cohort.parent_cohort.group_id)
-           else:
-               json_query = cohort.request_query_snapshot.serialized_query
-           create_cohort.s(cohort_id=cohort.pk,
-                           json_query=json_query,
-                           auth_headers=get_authorization_header(request),
-                           cohort_creator_cls=self.operator_cls,
-                           sampling_ratio=cohort.sampling_ratio) \
-                        .apply_async()
+            if cohort.parent_cohort and cohort.sampling_ratio:
+                json_query = self.build_query(cohort_source_id=cohort.parent_cohort.group_id)
+                count = (cohort.parent_cohort.dated_measure.measure or 0) * cohort.sampling_ratio
+            else:
+                json_query = cohort.request_query_snapshot.serialized_query
+                count = cohort.dated_measure.measure or 0
+
+            job_status = count >= settings.COHORT_SIZE_LIMIT and JobStatus.long_pending or JobStatus.pending
+            cohort.request_job_status = job_status
+            cohort.save()
+
+            create_cohort.s(cohort_id=cohort.pk,
+                            json_query=json_query,
+                            auth_headers=get_authorization_header(request),
+                            cohort_creator_cls=self.operator_cls,
+                            sampling_ratio=cohort.sampling_ratio) \
+                         .apply_async()
         except Exception as e:
             cohort.delete()
             raise ServerError("Could not launch cohort creation") from e
@@ -94,8 +102,8 @@ class CohortResultService(CommonService):
     def handle_patch_cohort(self, cohort: CohortResult, data: dict) -> None:
         self.operator.handle_patch_cohort(cohort, data)
 
-    def handle_cohort_post_update(self, cohort: CohortResult, data: dict) -> None:
-        self.operator.handle_cohort_post_update(cohort, data)
+    def handle_cohort_post_update(self, cohort: CohortResult, caller: str) -> None:
+        self.operator.handle_cohort_post_update(cohort, caller)
 
     @staticmethod
     def mark_cohort_as_failed(cohort: CohortResult, reason: str) -> None:

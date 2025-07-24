@@ -66,7 +66,7 @@ def send_email_notification(notification: Callable, **kwargs) -> None:
 
 
 def get_authorization_header(request: Request) -> dict:
-    headers = {"Authorization": f"Bearer {request.META.get('HTTP_AUTHORIZATION')}",
+    headers = {"Authorization": request.META.get('HTTP_AUTHORIZATION'),
                settings.AUTHORIZATION_METHOD_HEADER: request.META.get(f"HTTP_{settings.AUTHORIZATION_METHOD_HEADER}")
                }
     return headers
