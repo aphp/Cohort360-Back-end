@@ -4,7 +4,7 @@ import logging
 from django.db import migrations, models
 import django.db.models.deletion
 
-from accesses.migrations.data.rights import rights, dependent_rights
+from accesses.data.rights import rights, dependent_rights
 from accesses.serializers import RightSerializer
 
 

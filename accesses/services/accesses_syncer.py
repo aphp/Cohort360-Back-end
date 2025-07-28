@@ -8,7 +8,7 @@ from django.utils import timezone
 from fhirpy import SyncFHIRClient
 
 from accesses.apps import AccessConfig
-from accesses.migrations.data.orbis_roles_map import roles_map
+from accesses.data.orbis_roles_map import roles_map
 from accesses.models import Role, Profile, Perimeter, Access
 from admin_cohort.emails import EmailNotification
 from admin_cohort.models import User
@@ -18,6 +18,8 @@ from admin_cohort.services.auth import jwt_auth_service
 _logger = logging.getLogger("info")
 
 _, ORBIS = settings.ACCESS_SOURCES
+
+TARGET_ROLES = list(roles_map.values())[0]
 
 
 @dataclass
@@ -115,8 +117,11 @@ class AccessesSynchronizer:
 
             if bundle.total > 0:
                 for e in filter(lambda i: i.resource.resource_type == "PractitionerRole", bundle.entry):
-                    count_orbis_accesses += 1
                     pr = e.resource
+                    role_name = pr.code[0].coding[0].code
+                    if role_name not in TARGET_ROLES:
+                        continue
+                    count_orbis_accesses += 1
                     if pr.active:
                         default_end_datetime = timezone.now() + timezone.timedelta(days=settings.DEFAULT_ACCESS_VALIDITY_IN_DAYS)
                         fpr = FhirPractitionerRole(id=pr.id,
@@ -160,22 +165,28 @@ class AccessesSynchronizer:
             self.log(f"The following ORBIS roles were not correctly mapped: {skipped_roles}")
         if missing_perimeters:
             self.log(f"The following perimeters were not found: {missing_perimeters}")
-        self.send_report_notification(skipped_roles, missing_perimeters, count_orbis_accesses, count_new_accesses)
+        self.send_report_notification(skipped_roles, missing_perimeters,
+                                      count_orbis_accesses,
+                                      count_new_accesses,
+                                      user_id=target_user)
         self.log(f"{count_orbis_accesses} accesses were fetched from ORBIS. "
                  f"{count_new_accesses} new accesses were created. "
                  f"{len(skipped_roles)} roles were skipped (no matching found).")
 
 
     @staticmethod
-    def send_report_notification(skipped_roles, missing_perimeters, count_orbis_accesses, count_new_accesses):
-        context = {"sync_time": datetime.now(),
+    def send_report_notification(skipped_roles, missing_perimeters, count_orbis_accesses, count_new_accesses, user_id=None):
+        context = {"sync_time": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
                    "skipped_roles": sorted(skipped_roles),
                    "missing_perimeters": sorted(missing_perimeters),
                    "count_orbis_accesses": count_orbis_accesses,
                    "count_new_accesses": count_new_accesses,
                    }
         recipients_addresses = [a[1] for a in settings.ADMINS]
-        email_notif = EmailNotification(subject="Rapport de synchronisation des accès ORBIS",
+        subject = "Rapport de synchronisation des accès ORBIS"
+        if user_id is not None:
+            subject = f"{subject} pour l'utilisateur {user_id}"
+        email_notif = EmailNotification(subject=subject,
                                         to=recipients_addresses,
                                         html_template="sync_orbis_accesses_report.html",
                                         txt_template="sync_orbis_accesses_report.txt",

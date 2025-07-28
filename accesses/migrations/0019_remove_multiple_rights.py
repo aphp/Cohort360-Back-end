@@ -3,7 +3,7 @@ import logging
 
 from django.db import migrations
 
-from accesses.migrations.data.new_rights import rights, dependent_rights
+from accesses.data.new_rights import rights, dependent_rights
 from accesses.serializers import RightSerializer
 
 

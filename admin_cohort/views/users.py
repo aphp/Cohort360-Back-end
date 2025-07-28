@@ -17,6 +17,7 @@ from admin_cohort.serializers import UserSerializer, UserCheckSerializer
 from admin_cohort.services.users import users_service
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.exceptions import ServerError
+from admin_cohort.tools.request_log_mixin import RequestLogMixin
 
 _logger = logging.getLogger('django.request')
 
@@ -43,7 +44,7 @@ extended_schema = extend_schema(tags=["Users"])
     partial_update=extended_schema,
     check_user_exists=extended_schema,
 )
-class UserViewSet(viewsets.ModelViewSet):
+class UserViewSet(RequestLogMixin, viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     lookup_field = "username"
@@ -51,6 +52,7 @@ class UserViewSet(viewsets.ModelViewSet):
     search_fields = UserFilter.Meta.fields
     permission_classes = (UsersPermission,)
     http_method_names = ["post", "get", "patch"]
+    logging_methods = ["POST", "PATCH"]
 
     def get_serializer_context(self):
         return {'request': self.request}
