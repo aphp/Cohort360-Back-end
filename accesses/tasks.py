@@ -22,6 +22,6 @@ def count_users_on_perimeters():
 def sync_orbis_accesses():
     # todo: ensure scheduled tasks to be ran in this order:
     #   1. sync perimeters
-    #   2. sync ORBIS users/accesses
+    #   2. sync ORBIS accesses
     #   3. count users on perimeters
     AccessesSynchronizer().sync_orbis_resources()

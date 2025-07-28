@@ -56,8 +56,8 @@ class AccessesSynchronizerTests(TestCase):
         for access in orbis_profile.accesses.all():
             self.assertFalse(access.is_valid)
 
-    @patch.object(AccessesSynchronizer, attribute="get_mapped_role")
     @patch.object(AccessesSynchronizer, attribute="send_report_notification")
+    @patch.object(AccessesSynchronizer, attribute="get_mapped_role")
     def test_sync_accesses_creates_accesses(self, mock_mapped_role, mock_report_notif):
         """Test that sync_accesses creates new accesses when required."""
         mock_report_notif.return_value = None
@@ -70,7 +70,7 @@ class AccessesSynchronizerTests(TestCase):
         mock_practitioner_role.id = 1234
         mock_practitioner_role.practitioner.to_resource.return_value = MagicMock(identifier=[MagicMock(value="test_user")])
         mock_practitioner_role.organization.id = 2
-        mock_practitioner_role.code = [MagicMock(coding=[MagicMock(code="admin_role")])]
+        mock_practitioner_role.code = [MagicMock(coding=[MagicMock(code="0_ASSISTANTDENTAIRE")])]
         mock_practitioner_role.period = MagicMock(start=timezone.now(), end=timezone.now() + timedelta(days=10))
 
         self.syncer.fhir_client.resources.return_value.\

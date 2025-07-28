@@ -5,13 +5,12 @@ from rest_framework import status
 from accesses.views import BaseViewSet
 from admin_cohort.permissions import IsAuthenticated
 from admin_cohort.tools.cache import cache_response
-from admin_cohort.tools.request_log_mixin import RequestLogMixin
 from accesses.models import Profile
 from accesses.permissions import ProfilesPermission
 from accesses.serializers import ProfileSerializer
 
 
-class ProfileViewSet(RequestLogMixin, BaseViewSet):
+class ProfileViewSet(BaseViewSet):
     queryset = Profile.objects.filter(delete_datetime__isnull=True).all()
     lookup_field = "id"
     serializer_class = ProfileSerializer
