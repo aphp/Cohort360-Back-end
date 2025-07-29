@@ -43,6 +43,10 @@ updater_v{version} = QueryRequestUpdater(
 
 ## Creating a New Patch Script
 
+:warning: **Also update the version in the [front repository](https://github.com/aphp/Cohort360-FrontEnd/blob/ceb22ba975e2969c97a99b8d15b29fe53c50fb71/src/utils/cohortCreation.ts#L49) so that migration will only apply to old queries**
+
+When creating a new patch script, follow these steps to ensure consistency and correctness:
+
 To create a new patch script (e.g., `patch_requests_v162.py`):
 
 1. **Create the file**: Follow the naming convention `patch_requests_v{version}.py`
