@@ -14,8 +14,7 @@ from cohort.serializers import FeasibilityStudySerializer, FeasibilityStudyCreat
 from cohort.services.feasibility_study import feasibility_study_service
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
-_logger = logging.getLogger('info')
-_logger_err = logging.getLogger('django.request')
+logger = logging.getLogger(__name__)
 
 
 class FeasibilityStudyViewSet(UserObjectsRestrictedViewSet):

@@ -9,7 +9,7 @@ from admin_cohort.tools.cache import invalidate_cache
 from cohort.services.emails import send_email_notif_about_shared_request
 from cohort.models import RequestQuerySnapshot, Folder, Request
 
-_logger_err = logging.getLogger('django.request')
+logger = logging.getLogger(__name__)
 
 
 class RequestQuerySnapshotService:
@@ -128,7 +128,7 @@ class RequestQuerySnapshotService:
             return perimeters_ids
         except (json.JSONDecodeError, TypeError, KeyError) as e:
             msg = f"Error extracting perimeters ids from JSON query - {e}"
-            _logger_err.exception(msg=msg)
+            logger.exception(msg=msg)
             raise ValueError(msg)
 
     @staticmethod
@@ -141,7 +141,7 @@ class RequestQuerySnapshotService:
             return json.dumps(query)
         except (json.JSONDecodeError, TypeError, KeyError) as e:
             msg = f"Error updating perimeters ids from JSON query - {e}"
-            _logger_err.exception(msg=msg)
+            logger.exception(msg=msg)
             if raise_on_error:
                 raise ValueError(msg)
             return json_query

@@ -26,7 +26,7 @@ from exports.services.export import export_service
 from exports.views import ExportsBaseViewSet
 
 
-_logger = logging.getLogger("django.request")
+logger = logging.getLogger(__name__)
 
 
 class ExportFilter(filters.FilterSet):
@@ -123,7 +123,7 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
         try:
             export_service.validate_export_data(data=request.data, owner=request.user)
         except ValidationError as ve:
-            _logger.error(f"Export creation: Bad request - {ve}")
+            logger.error(f"Export creation: Bad request - {ve}")
             return Response(data=ve.detail, status=status.HTTP_400_BAD_REQUEST)
         tables = request.data.pop("export_tables", [])
         response = super().create(request, *args, **kwargs)

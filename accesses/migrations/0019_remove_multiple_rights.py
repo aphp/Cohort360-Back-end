@@ -7,7 +7,7 @@ from accesses.data.new_rights import rights, dependent_rights
 from accesses.serializers import RightSerializer
 
 
-_logger = logging.getLogger('info')
+logger = logging.getLogger(__name__)
 
 
 delete_old_rights = "DELETE FROM accesses_right WHERE True;"
@@ -27,7 +27,7 @@ def load_new_rights(apps, schema_editor):
         if right_serializer.is_valid():
             right_serializer.save()
         else:
-            _logger.error(f"Error on loading rights: {right_serializer.errors}")
+            logger.error(f"Error on loading rights: {right_serializer.errors}")
             return
 
 

@@ -31,8 +31,7 @@ from admin_cohort.exceptions import ServerError, NoAuthenticationHookDefined
 
 
 env = environ.Env()
-_logger = logging.getLogger('info')
-_logger_err = logging.getLogger('django.request')
+logger = logging.getLogger(__name__)
 
 extra_applicative_users = {}
 
@@ -63,7 +62,7 @@ class Auth(ABC):
         try:
             return jwt.decode(jwt=token, options=options, **kwargs)
         except jwt.PyJWTError as e:
-            _logger.info(f"Error decoding token: {e}")
+            logger.info(f"Error decoding token: {e}")
             raise e
 
 
@@ -144,7 +143,7 @@ class OIDCAuth(Auth):
         elif redirect_uri:
             attr, val = "redirect_uri", redirect_uri
         else:
-            _logger.warning("No `client_id` or `redirect_uri` provided, using first OIDC config")
+            logger.warning("No `client_id` or `redirect_uri` provided, using first OIDC config")
             return self.oidc_configs[0]
         return next((conf for conf in self.oidc_configs if getattr(conf, attr, None) == val))
 
@@ -268,10 +267,10 @@ class JWTAuth(Auth):
             raise AuthenticationFailed(f"User `{username}` does not exist")
 
         try:
-            _logger.info("[Authentication] Attempting authentication with external services")
+            logger.info("[Authentication] Attempting authentication with external services")
             return self.authenticate_with_external_services(username=username, password=password)
         except NoAuthenticationHookDefined:
-            _logger.info("[Authentication] Fallback to local authentication")
+            logger.info("[Authentication] Fallback to local authentication")
             return self.check_credentials_locally(username=username, password=password)
 
     @staticmethod
@@ -286,10 +285,10 @@ class JWTAuth(Auth):
                 if authenticated:
                     return True
             except ImportError as e:
-                _logger.error(f"[Authentication] hook improperly configured: {str(e)}")
+                logger.error(f"[Authentication] hook improperly configured: {str(e)}")
             except APIException:
                 continue
-        _logger.error("[Authentication] All external services failed. Review defined hooks or remove them")
+        logger.error("[Authentication] All external services failed. Review defined hooks or remove them")
         return False
 
 
@@ -322,13 +321,13 @@ class JWTAuth(Auth):
                                   start_datetime=now,
                                   end_datetime=now + timedelta(weeks=52 * 100)  # grant access forever
                                   )
-            _logger.info(f"System user created and granted `{admin_role.name}` role on perimeter `{root_perimeter.name}`")
+            logger.info(f"System user created and granted `{admin_role.name}` role on perimeter `{root_perimeter.name}`")
         try:
             serializer = TokenObtainPairSerializer()
             token = serializer.get_token(system_user)
             return str(token.access_token)
         except Exception as e:
-            _logger_err.error(f"Failed to generate system token: {e}")
+            logger.error(f"Failed to generate system token: {e}")
             raise ServerError(f"Error generating system token: {e}")
 
 
@@ -349,18 +348,18 @@ class AuthService:
         for app in settings.INCLUDED_APPS:
             hooks = getattr(apps.get_app_config(app), "POST_AUTH_HOOKS", [])
             for hook_path in hooks:
-                hook = import_string(hook_path)
-                if hook:
+                try:
+                    hook = import_string(hook_path)
                     post_auth_hooks.append(hook)
-                else:
-                    _logger.warning(f"Improperly configured post authentication hook `{hook_path}`")
+                except ImportError:
+                    logger.error(f"Improperly configured post authentication hook `{hook_path}`")
         return post_auth_hooks
 
     def _get_authenticator(self, auth_method: str):
         try:
             return self.authenticators[auth_method]
         except KeyError as ke:
-            _logger.error(f"Invalid authentication method : {auth_method}")
+            logger.error(f"Invalid authentication method : {auth_method}")
             raise ke
 
     def refresh_token(self, request) -> Optional[AuthTokens]:
@@ -389,7 +388,7 @@ class AuthService:
                 user = post_auth_hook(user, headers)
             return user, token
         except (InvalidTokenError, ValueError, User.DoesNotExist) as e:
-            _logger.error(f"Error authenticating request: {e}")
+            logger.error(f"Error authenticating request: {e}")
             return None
 
     def authenticate_http_request(self, request) -> Optional[Tuple[User, str]]:
@@ -403,7 +402,7 @@ class AuthService:
         res = self.authenticate_request(token=token, auth_method=auth_method, headers=headers)
         if res is not None:
             return res[0]
-        _logger.info("Error authenticating WS request")
+        logger.info("Error authenticating WS request")
 
     def get_token_from_headers(self, request) -> Tuple[Optional[str], Optional[str]]:
         authorization = request.META.get('HTTP_AUTHORIZATION')

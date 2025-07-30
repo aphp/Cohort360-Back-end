@@ -96,7 +96,7 @@ class CohortCreatorTest(BaseTest):
             self.cohort_creator.handle_patch_cohort(cohort=self.cohort, data=patch_data)
 
     @mock.patch('cohort_job_server.cohort_creator.notify_large_cohort_ready.apply_async')
-    @mock.patch('cohort_job_server.cohort_creator._logger.info')
+    @mock.patch('cohort_job_server.cohort_creator.logger.info')
     def test_handle_cohort_post_update_query_executor_callback(self, mock_logger, mock_notify):
         mock_logger.return_value = None
         mock_notify.return_value = None
@@ -105,7 +105,7 @@ class CohortCreatorTest(BaseTest):
         mock_notify.assert_not_called()
 
     @mock.patch('cohort_job_server.cohort_creator.notify_large_cohort_ready.apply_async')
-    @mock.patch('cohort_job_server.cohort_creator._logger.info')
+    @mock.patch('cohort_job_server.cohort_creator.logger.info')
     def test_handle_cohort_post_update_etl_callback(self, mock_logger, mock_notify):
         mock_logger.return_value = None
         mock_notify.return_value = None

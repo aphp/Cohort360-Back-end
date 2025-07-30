@@ -1,5 +1,3 @@
-import logging
-
 from admin_cohort.services.auth import auth_service
 from cohort_job_server.apps import CohortJobServerConfig
 
@@ -12,10 +10,6 @@ MAXIMUM = "maximum"
 MINIMUM = "minimum"
 ERR_MESSAGE = "message"
 EXTRA = "extra"
-
-
-_logger_err = logging.getLogger("django.request")
-_logger = logging.getLogger("info")
 
 
 def allow_request_during_maintenance(request):

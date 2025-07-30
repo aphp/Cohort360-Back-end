@@ -37,8 +37,7 @@ It is a mono-hierarchy => one parent maximum for 1.n children
 3) We save all perimeters objects in that order
 """
 
-_logger = logging.getLogger("info")
-_logger_err = logging.getLogger("django.request")
+logger = logging.getLogger(__name__)
 
 CARE_SITE_DOMAIN_CONCEPT_NAME = "Care site"
 IS_PART_OF_RELATIONSHIP_NAME = "Care Site is part of Care Site"
@@ -47,9 +46,9 @@ IS_PART_OF_RELATIONSHIP_NAME = "Care Site is part of Care Site"
 def log(message: str, is_error: bool = False):
     message = f"[perimeters_updater] {message}"
     if is_error:
-        _logger_err.error(message)
+        logger.error(message)
     else:
-        _logger.info(message)
+        logger.info(message)
 
 
 class RelationPerimeter:
@@ -232,7 +231,7 @@ def recursively_create_child_perimeters(parents_ids: List[int],
     for care_site in care_sites:
         if care_site.care_site_parent_id in parents_ids:
             if care_site.care_site_id in current_parents_ids:
-                _logger.warning(f"Care site {care_site.care_site_id} has 2 or more parents !")
+                logger.warning(f"Care site {care_site.care_site_id} has 2 or more parents !")
                 continue
 
             # We get the previous above_levels_ids value from parent perimeter and add current id

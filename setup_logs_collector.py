@@ -10,8 +10,10 @@ from typing import List
 
 from pythonjsonlogger.json import JsonFormatter
 
-BUILTIN_WARNINGS_LOGGER_NAME = 'py.warnings'
-INFO_LOGGER_NAME = 'info'
+INFO_HANDLER = 'info'
+ERROR_HANDLER = 'error'
+CELERY_HANDLER = 'celery'
+GUNICORN_HANDLER = 'gunicorn.error'
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -19,55 +21,57 @@ BASE_DIR = Path(__file__).resolve().parent
 class CustomFileHandler(logging.FileHandler):
 
     def __init__(self, name, *args, **kwargs):
+        # each handler has filename matching its name
+        kwargs["filename"] = BASE_DIR / f"log/{name}.log"
         super().__init__(*args, **kwargs)
         self.name = name
 
-    def handle(self, record):
-        if record.name == BUILTIN_WARNINGS_LOGGER_NAME:
-            record.name = INFO_LOGGER_NAME
-        if record.name == self.name:
+    @staticmethod
+    def get_handler_name(record: logging.LogRecord) -> str:
+        record_name = record.name
+        if 'celery' in record_name:                                               # Route Celery related logs
+            return CELERY_HANDLER
+        if record_name == GUNICORN_HANDLER:                                       # Route Gunicorn errors
+            return GUNICORN_HANDLER
+        if record_name.startswith('django') or record.levelno >= logging.ERROR:   # Route Django/DRF errors
+            return ERROR_HANDLER
+        return INFO_HANDLER                                                       # Route logs from apps (and maybe other logs)
+
+    def handle(self, record: logging.LogRecord):
+        """
+        This is the core routing logic. It renames incoming log records
+        to match the target log file handler.
+         - cover all loggers created in modules ex: admin_cohort.views.users.py
+         - cover all Celery loggers like: celery, celery.task, celery.worker, ...
+        """
+        handler_name = self.get_handler_name(record)
+        if handler_name == self.name:
             return super().handle(record)
         return None
 
 
 def configure_handlers() -> List[logging.Handler]:
-    dj_info_handler = CustomFileHandler(name='info', filename=BASE_DIR / "log/django.log")
-    dj_error_handler = CustomFileHandler(name='django.request', filename=BASE_DIR / "log/django.error.log")
-    guni_error_handler = CustomFileHandler(name='gunicorn.error', filename=BASE_DIR / "log/gunicorn.error.log")
-    guni_access_handler = CustomFileHandler(name='gunicorn.access', filename=BASE_DIR / "log/gunicorn.access.log")
-
-    handlers = [dj_info_handler,
-                dj_error_handler,
-                guni_error_handler,
-                guni_access_handler]
-
-    formatter = JsonFormatter("%(asctime)s"
-                              " - %(process)s"
-                              " - %(name)s"
+    handlers = [CustomFileHandler(name=name) for name in (INFO_HANDLER, ERROR_HANDLER, CELERY_HANDLER, GUNICORN_HANDLER)]
+    formatter = JsonFormatter("%(name)s"
                               " - %(filename)s"
+                              " - %(message)s"
+                              " - %(asctime)s"
+                              " - %(process)s"
                               " - %(trace_id)s"
                               " - %(user_id)s"
                               " - %(impersonating)s"
-                              " - %(threadName)s"
-                              " - %(levelname)s"
-                              " - %(message)s",
+                              " - %(levelname)s",
                               rename_fields={
                                   "asctime": "timestamp",
                                   "trace_id": "x_traceId",
                                   "user_id": "x_userId",
                                   "impersonating": "x_impersonating",
                                   "levelname": "level",
-                                  "threadName": "thread",
                                   "filename": "logger"
                               })
     for handler in handlers:
         handler.setFormatter(formatter)
     return handlers
-
-
-def handle_log_record(record):
-    logger = logging.getLogger('root')
-    logger.handle(record)
 
 
 class LogRecordStreamHandler(socketserver.StreamRequestHandler):
@@ -76,6 +80,8 @@ class LogRecordStreamHandler(socketserver.StreamRequestHandler):
             followed by the LogRecord in pickle format. Logs the record
             according to whatever policy is configured locally.
         """
+        logger = logging.getLogger('root')
+
         while True:
             chunk = self.connection.recv(4)
             if len(chunk) < 4:
@@ -86,7 +92,7 @@ class LogRecordStreamHandler(socketserver.StreamRequestHandler):
                 chunk = chunk + self.connection.recv(slen - len(chunk))
             obj = json.loads(chunk)
             record = logging.makeLogRecord(obj)
-            handle_log_record(record)
+            logger.handle(record)
 
 
 class LogRecordSocketReceiver(socketserver.ThreadingTCPServer):

@@ -13,7 +13,7 @@ from exports.models import ExportTable, Export
 from exports.services.export_operators import ExportDownloader, ExportManager
 from exports.tasks import launch_export_task, get_logs
 
-_logger = logging.getLogger('info')
+logger = logging.getLogger(__name__)
 
 
 def get_encoded_doc_ref_filter() -> str:
@@ -44,9 +44,9 @@ class ExportService:
             raise ValidationError(f'Invalid export data: {e}')
 
     def proceed_with_export(self, export: Export, tables: List[dict], **kwargs) -> None:
-        _logger.info(f"Export[{export.uuid}]: Creating tables ...")
+        logger.info(f"Export[{export.uuid}]: Creating tables ...")
         requires_cohort_subsets = self.create_tables(export, tables, **kwargs)
-        _logger.info(f"Export[{export.uuid}]: tables created. Required cohort subsets ? {requires_cohort_subsets}")
+        logger.info(f"Export[{export.uuid}]: tables created. Required cohort subsets ? {requires_cohort_subsets}")
         if not requires_cohort_subsets:
             launch_export_task.delay(export.pk)
 
@@ -91,26 +91,26 @@ class ExportService:
                                            pivot_merge=bool(table.get("pivot_merge")),
                                            pivot_merge_columns=table.get("pivot_merge_columns"),
                                            pivot_merge_ids=table.get("pivot_merge_ids"))
-            _logger.info(f"Export[{export.uuid}]: table `{t.name}` created")
+            logger.info(f"Export[{export.uuid}]: table `{t.name}` created")
         return requires_cohort_subsets
 
     @staticmethod
     def check_all_cohort_subsets_created(export: Export):
-        _logger.info(f"Export[{export.uuid}]: Checking if all cohort subsets were created...")
+        logger.info(f"Export[{export.uuid}]: Checking if all cohort subsets were created...")
         if export.request_job_status == JobStatus.failed:
-            _logger.info(f"Export[{export.uuid}]: export has already been marked failed")
+            logger.info(f"Export[{export.uuid}]: export has already been marked failed")
             return
         for table in export.export_tables.filter(cohort_result_subset__isnull=False):
             cohort_subset_status = table.cohort_result_subset.request_job_status
             if cohort_subset_status == JobStatus.failed:
                 failure_reason = "One or multiple cohort subsets has failed"
-                _logger.info(f"Export[{export.uuid}]: Aborting export - {failure_reason}")
+                logger.info(f"Export[{export.uuid}]: Aborting export - {failure_reason}")
                 ExportManager().mark_as_failed(export=export, reason=failure_reason)
                 return
             elif cohort_subset_status != JobStatus.finished:
-                _logger.info(f"Export[{export.uuid}]: waiting for cohort subsets to finish before launching export")
+                logger.info(f"Export[{export.uuid}]: waiting for cohort subsets to finish before launching export")
                 return
-        _logger.info(f"Export[{export.uuid}]: all cohort subsets were successfully created. Launching export.")
+        logger.info(f"Export[{export.uuid}]: all cohort subsets were successfully created. Launching export.")
         launch_export_task.delay(export.pk)
 
     @staticmethod
@@ -132,7 +132,7 @@ class ExportService:
             result = get_logs.s(export_id=export.uuid).apply_async()
             return result.get(timeout=timeout)
         except (RequestException, TimeoutError) as e:
-            _logger.error(f"Export[{export.uuid}] Failed to retrieve logs: {e}")
+            logger.error(f"Export[{export.uuid}] Failed to retrieve logs: {e}")
             raise e
 
 

@@ -13,7 +13,7 @@ from admin_cohort import settings
 from admin_cohort.models import MaintenancePhase
 from admin_cohort.services.ws_event_manager import WebSocketMessage, WebsocketManager, WebSocketMessageType
 
-_logger = logging.getLogger("info")
+logger = logging.getLogger(__name__)
 
 
 class WSMaintenanceInfo(BaseModel):
@@ -71,7 +71,7 @@ class MaintenanceService:
         start_time = dateutil.parser.parse(maintenance_info.maintenance_start)
         end_time = dateutil.parser.parse(maintenance_info.maintenance_end)
         maintenance_info.active = force_active_state if force_active_state is not None else start_time < now < end_time
-        logging.info(f"Sending maintenance notification: {maintenance_info}")
+        logger.info(f"Sending maintenance notification: {maintenance_info}")
         current_maintenances = MaintenancePhase.objects.filter(start_datetime__lte=now, end_datetime__gte=now).order_by('-end_datetime').all()
         current_active_maintenances = [cur for cur in
                                        current_maintenances

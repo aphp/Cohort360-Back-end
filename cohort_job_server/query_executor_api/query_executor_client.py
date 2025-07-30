@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import logging
 import os
 from typing import TYPE_CHECKING
 
@@ -10,8 +9,6 @@ from requests import Response
 
 if TYPE_CHECKING:
     from cohort_job_server.query_executor_api import CohortQuery, SparkJobObject
-
-_logger = logging.getLogger('info')
 
 
 class QueryExecutorClient:

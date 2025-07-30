@@ -10,7 +10,7 @@ from exports.models import Export, Datalab
 from exporters.exporters.base_exporter import BaseExporter
 from exporters.enums import ExportTypes, APIJobType
 
-_logger = logging.getLogger('django.request')
+logger = logging.getLogger(__name__)
 
 
 class HiveExporter(BaseExporter):
@@ -85,7 +85,7 @@ class HiveExporter(BaseExporter):
             self.log_export_task(export.pk, f"Received Hive DB creation job_id: {job_id}")
             self.wait_for_job(export=export, job_id=job_id, job_type=APIJobType.HIVE_DB_CREATE)
         except RequestException as e:
-            _logger.error(f"Error on call to create Hive DB: {e}")
+            logger.error(f"Error on call to create Hive DB: {e}")
             raise e
         self.log_export_task(export.pk, f"DB '{export.target_name}' created.")
 

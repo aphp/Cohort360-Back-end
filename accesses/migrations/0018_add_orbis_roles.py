@@ -4,7 +4,7 @@ import logging
 from django.conf import settings
 from django.db import migrations, models
 
-_logger = logging.getLogger('info')
+logger = logging.getLogger(__name__)
 
 ORBIS = settings.ACCESS_SOURCES[1]
 
@@ -13,7 +13,7 @@ def delete_existing_orbis_profiles(apps, schema_editor):
     db_alias = schema_editor.connection.alias
     profile_model = apps.get_model('accesses', 'Profile')
     deleted_count, _ = profile_model.objects.using(db_alias).filter(source=ORBIS).delete()
-    _logger.info(f"Deleted {deleted_count} old profiles with source `ORBIS`")
+    logger.info(f"Deleted {deleted_count} old profiles with source `ORBIS`")
 
 
 class Migration(migrations.Migration):
