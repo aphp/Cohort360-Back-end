@@ -119,34 +119,6 @@ class ExportViewSetTest(ExportsTestBase):
                                     request_data=self.export_data_error,
                                     expected_resp_status=status.HTTP_400_BAD_REQUEST)
 
-    @mock.patch("exports.services.export.launch_export_task.delay")
-    @mock.patch.object(ExportViewSet, "get_object")
-    def test_successfully_retry_export(self, mock_get_object, mock_task):
-        mock_task.return_value = None
-        mock_get_object.return_value = self.failed_export
-        request = self.make_request(url=self.retry_url, http_verb="post", request_user=self.admin_user)
-        self.retry_view.kwargs = {'uuid': self.failed_export.pk}
-        response = self.retry_view(request)
-        mock_task.assert_called_once_with(self.failed_export.pk)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.failed_export.refresh_from_db()
-        self.assertEqual(self.failed_export.request_job_status, JobStatus.new)
-        self.assertTrue(self.failed_export.retried)
-
-    @mock.patch("exports.services.export.launch_export_task.delay")
-    @mock.patch.object(ExportViewSet, "get_object")
-    def test_error_retry_export(self, mock_get_object, mock_task):
-        self.failed_export.request_job_status = JobStatus.finished
-        mock_get_object.return_value = self.failed_export
-        request = self.make_request(url=self.retry_url, http_verb="post", request_user=self.admin_user)
-        self.retry_view.kwargs = {'uuid': self.failed_export.pk}
-        response = self.retry_view(request)
-        mock_task.assert_not_called()
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.failed_export.refresh_from_db()
-        self.assertEqual(self.failed_export.request_job_status, JobStatus.failed)
-        self.assertFalse(self.failed_export.retried)
-
     @mock.patch.object(BaseAPI, "get_export_logs")
     @mock.patch.object(ExportViewSet, "get_object")
     @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
@@ -204,3 +176,28 @@ class ExportViewSetTest(ExportsTestBase):
         response = self.logs_view(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIsNotNone(response.data)
+
+    def test_retry_export_as_non_admin_user(self):
+        request = self.make_request(url=self.retry_url, http_verb="post", request_user=self.exporter_user)
+        self.retry_view.kwargs = {'uuid': self.failed_export.uuid}
+        response = self.retry_view(request)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    @mock.patch('exports.views.export.export_service')
+    @mock.patch.object(ExportViewSet, "get_object")
+    def test_retry_failed_export_success(self, mock_get_object, mock_export_service):
+        mock_get_object.return_value = self.failed_export
+        request = self.make_request(url=self.retry_url, http_verb="post", request_user=self.admin_user)
+        self.retry_view.kwargs = {'uuid': self.failed_export.uuid}
+        response = self.retry_view(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        mock_export_service.retry.assert_called_once()
+
+    @mock.patch.object(ExportViewSet, "get_object")
+    def test_retry_finished_export_fail(self, mock_get_object):
+        mock_get_object.return_value = self.finished_export
+        retry_url_finished = f"/exports/{self.finished_export.uuid}/retry/"
+        request = self.make_request(url=retry_url_finished, http_verb="post", request_user=self.admin_user)
+        self.retry_view.kwargs = {'uuid': self.finished_export.uuid}
+        response = self.retry_view(request)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

@@ -6,5 +6,5 @@ class XLSXExporter(CSVExporter):
 
     def __init__(self):
         super().__init__()
-        self.type = ExportTypes.XLSX.value
+        self.type = ExportTypes.XLSX
         self.target_location = self.export_api.export_xlsx_path

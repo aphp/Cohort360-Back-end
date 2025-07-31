@@ -18,6 +18,7 @@ from admin_cohort.tools import join_qs
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools.request_log_mixin import RequestLogMixin
 from admin_cohort.types import JobStatus
+from cohort.services.utils import get_authorization_header
 from exports.exceptions import FilesNoLongerAvailable, BadRequestError, StorageProviderException
 from exports.models import Export, ExportTable
 from exports.permissions import ExportPermission, RetryExportPermission, ExportLogsPermission
@@ -121,18 +122,16 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         try:
-            export_service.validate_export_data(data=request.data, owner=request.user)
+            export_service.validate(data=request.data, owner=request.user)
         except ValidationError as ve:
             _logger.error(f"Export creation: Bad request - {ve}")
             return Response(data=ve.detail, status=status.HTTP_400_BAD_REQUEST)
         tables = request.data.pop("export_tables", [])
         response = super().create(request, *args, **kwargs)
-        try:
-            transaction.on_commit(lambda: export_service.proceed_with_export(export=response.data.serializer.instance,
-                                                                             tables=tables,
-                                                                             http_request=request))
-        except ValidationError as ve:
-            return Response(data=ve.detail, status=status.HTTP_400_BAD_REQUEST)
+        auth_headers = get_authorization_header(request)
+        transaction.on_commit(lambda: export_service.proceed_with_export(export=response.data.serializer.instance,
+                                                                         tables=tables,
+                                                                         auth_headers=auth_headers))
         return response
 
 
@@ -153,7 +152,8 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
         export = self.get_object()
         if export.request_job_status != JobStatus.failed:
             return Response(data="The export did not fail. Cannot relaunch it", status=status.HTTP_400_BAD_REQUEST)
-        export_service.retry(export=export)
+        auth_headers = get_authorization_header(request)
+        export_service.retry(export=export, auth_headers=auth_headers)
         return Response(data=f"The export `{export.uuid}` has been relaunched", status=status.HTTP_200_OK)
 
 
