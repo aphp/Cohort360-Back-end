@@ -124,6 +124,7 @@ class BaseExporter:
                           or None)
             try:
                 logs_response = target_api.get_export_logs(job_id=job_id)
+                self.log_export_task(export.uuid, f"Job `{job_id}` log response: {logs_response}")
                 job_status = status_mapper.get(logs_response.get('task_status'), JobStatus.unknown)
                 self.log_export_task(export.uuid, f"Job `{job_id}` is {job_status}")
                 export.request_job_status = job_status.value

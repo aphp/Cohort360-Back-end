@@ -26,6 +26,7 @@ class ExportAPI(BaseAPI):
 
     def launch_export(self, export_id: UUID, params: dict) -> Union[str, JsonResponse]:
         try:
+            _logger.error(f"Params to yaml[{export_id}] : {params}")
             yaml_data = yaml.dump(params, default_flow_style=False, sort_keys=False)
             yaml_file = BytesIO(yaml_data.encode("utf-8"))
         except yaml.YAMLError as e:
@@ -35,6 +36,7 @@ class ExportAPI(BaseAPI):
                                  files={"yaml_file": ("yaml_file.yaml", yaml_file, "application/x-yaml")},
                                  headers={'auth-token': self.auth_token})
         if response.status_code == status.HTTP_200_OK:
+            _logger.info(f"Export[{export_id}] - INFO launching export: {response.json()}")
             return response.json().get('task_id')
         _logger.error(f"Export[{export_id}] Error launching export: {response.json()}")
         return JsonResponse(data=response.json(), status=response.status_code)
