@@ -10,7 +10,6 @@ from rest_framework import status
 
 from exporters.apis.base import BaseAPI
 
-
 _logger = logging.getLogger('django.request')
 
 
@@ -35,8 +34,8 @@ class ExportAPI(BaseAPI):
         response = requests.post(url=f"{self.url}/yaml",
                                  files={"yaml_file": ("yaml_file.yaml", yaml_file, "application/x-yaml")},
                                  headers={'auth-token': self.auth_token})
+        _logger.error(f"Export[{export_id}] - INFO launching export: \n {response.json()}\n")
         if response.status_code == status.HTTP_200_OK:
-            _logger.info(f"Export[{export_id}] - INFO launching export: {response.json()}")
             return response.json().get('task_id')
         _logger.error(f"Export[{export_id}] Error launching export: {response.json()}")
         return JsonResponse(data=response.json(), status=response.status_code)
