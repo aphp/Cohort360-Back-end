@@ -122,6 +122,7 @@ class ExportsListSerializer(serializers.ModelSerializer):
                   "cohort_name",
                   "patients_count",
                   "created_at",
+                  "modified_at",
                   "request_job_status",
                   "target_datalab",
                   "target_name",]
