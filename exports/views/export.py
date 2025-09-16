@@ -48,6 +48,7 @@ class ExportFilter(filters.FilterSet):
     owner = filters.CharFilter(method="owner_filter", field_name="owner")
     motivation = filters.CharFilter(field_name="motivation", lookup_expr='icontains')
     ordering = OrderingFilter(fields=('created_at',
+                                      'modified_at',
                                       'output_format',
                                       ('request_job_status', 'status'),
                                       'patients_count',
