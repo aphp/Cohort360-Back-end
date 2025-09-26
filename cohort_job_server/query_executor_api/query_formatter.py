@@ -21,7 +21,7 @@ env = os.environ
 FHIR_URL = env.get("FHIR_URL")
 META_SECURITY_PSEUDED = "meta.security=http://terminology.hl7.org/CodeSystem/v3-ObservationValue|PSEUDED"
 
-_logger = logging.getLogger("info")
+logger = logging.getLogger(__name__)
 
 
 def query_fhir(resource: str, params: dict[str, list[str]], auth_headers: dict) -> FhirParameters:
@@ -30,11 +30,11 @@ def query_fhir(resource: str, params: dict[str, list[str]], auth_headers: dict) 
     # this additional query is made to the real endpoint because the $query one does not check for params
     if CohortJobServerConfig.TEST_FHIR_QUERIES:
         url_test = f"{FHIR_URL}/{resource}"
-        _logger.info(f"Testing real fhir query with {url_test=} {params=}")
+        logger.info(f"Testing real fhir query with {url_test=} {params=}")
         response = requests.get(url_test, params={**params, "_count": 0}, headers=auth_headers)
         response.raise_for_status()
 
-    _logger.info(f"Attempting to query fhir with {url=} {params=}")
+    logger.info(f"Attempting to query fhir with {url=} {params=}")
 
     auth_headers[settings.TRACE_ID_HEADER] = get_trace_id()
 
@@ -66,7 +66,7 @@ class QueryFormatter:
                                                                           source_population,
                                                                           is_pseudo)
 
-                _logger.info(f"filterFhirEnriched {filter_fhir_enriched}")
+                logger.info(f"filterFhirEnriched {filter_fhir_enriched}")
 
                 if CohortJobServerConfig.USE_SOLR:
                     solr_filter = self.get_mapping_criteria_filter_fhir_to_solr(criteria.filter_fhir,
@@ -95,7 +95,7 @@ class QueryFormatter:
 
         fhir_resources_filters = self.call_fhir_resource(resource_type, filter_fhir)
         full_query = fhir_resources_filters['fq']
-        _logger.info(f"FQ: {full_query}")
+        logger.info(f"FQ: {full_query}")
         return self.merge_fq(full_query, ipp_list_filter)
 
     def is_ipp_list(self, resource_type, filter_fhir) -> bool:
@@ -129,12 +129,12 @@ class QueryFormatter:
                 else:
                     fhir_params[key] = [decoded_value]
         params = query_fhir(resource_type, fhir_params, self.auth_headers)
-        _logger.info(f"output: {params}")
+        logger.info(f"output: {params}")
         return params.to_dict()
 
     def merge_fq(self, full_query, ipp_list_filter) -> str:
         if ipp_list_filter is None:
             return full_query
-        _logger.info("Add Ipp list")
+        logger.info("Add Ipp list")
         formatted_filter = ipp_list_filter.replace(",", " ")
         return f"{full_query}&fq={self.IDENTIFIER_VALUE}:({formatted_filter})"

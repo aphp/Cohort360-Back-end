@@ -1,12 +1,8 @@
-import logging
-
 import requests
 from requests import Response, RequestException
 from rest_framework import status
 
 from exporters.apis.base import BaseAPI
-
-_logger = logging.getLogger('django.request')
 
 
 class HadoopAPI(BaseAPI):

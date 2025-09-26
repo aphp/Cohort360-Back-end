@@ -9,7 +9,7 @@ from exports.emails import push_email_notification
 from exporters.notifications import export_failed_notif_for_owner, export_failed_notif_for_admins, \
     EXPORT_RECEIVED_NOTIFICATIONS, EXPORT_SUCCEEDED_NOTIFICATIONS
 
-_logger = logging.getLogger('django.request')
+logger = logging.getLogger(__name__)
 
 
 def get_export_by_id(export_id: str | int) -> Export:
@@ -46,7 +46,7 @@ def notify_export_received(export_id: str) -> None:
         push_email_notification(base_notification=EXPORT_RECEIVED_NOTIFICATIONS[export_type],
                                 **notification_data)
     except Exception as e:
-        _logger.error(f"Error sending export confirmation email - {e}")
+        logger.error(f"Error sending export confirmation email - {e}")
 
 
 @shared_task
@@ -65,7 +65,7 @@ def notify_export_succeeded(export_id: str) -> None:
         push_email_notification(base_notification=EXPORT_SUCCEEDED_NOTIFICATIONS.get(export.output_format),
                                 **notification_data)
     except OSError:
-        _logger.error(f"[Export {export.pk}] Error sending export success notification")
+        logger.error(f"[Export {export.pk}] Error sending export success notification")
     else:
         export.is_user_notified = True
         export.save()
@@ -79,7 +79,7 @@ def notify_export_owner(export: Export, base_notification_data: dict) -> None:
     try:
         push_email_notification(base_notification=export_failed_notif_for_owner, **notification_data)
     except OSError:
-        _logger.error(f"[Export {export.pk}] Error sending export failure notification")
+        logger.error(f"[Export {export.pk}] Error sending export failure notification")
     else:
         export.is_user_notified = True
         export.save()
@@ -96,12 +96,12 @@ def notify_admins(export: Export, base_notification_data: dict) -> None:
     try:
         push_email_notification(base_notification=export_failed_notif_for_admins, **notification_data)
     except OSError:
-        _logger.error(f"[Export {export.pk}] Error sending export failure notification to admins")
+        logger.error(f"[Export {export.pk}] Error sending export failure notification to admins")
 
 
 @shared_task
 def notify_export_failed(export_id: str, reason: str) -> None:
-    _logger.info(f"[Export {export_id}] {reason}")
+    logger.info(f"[Export {export_id}] {reason}")
     export = get_export_by_id(export_id)
     cohort = get_cohort(export=export)
     base_notification_data = {"cohort_id": cohort and cohort.group_id or None,

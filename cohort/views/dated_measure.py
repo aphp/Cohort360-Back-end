@@ -13,8 +13,7 @@ from cohort.services.request_refresh_schedule import requests_refresher_service
 from cohort.services.utils import await_celery_task
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
-_logger = logging.getLogger('info')
-_logger_err = logging.getLogger('django.request')
+logger = logging.getLogger(__name__)
 
 
 @extend_schema_view(

@@ -31,8 +31,7 @@ ERR_MESSAGE = "message"
 EXTRA = "extra"
 
 
-_logger = logging.getLogger('info')
-_logger_err = logging.getLogger('django.request')
+logger = logging.getLogger(__name__)
 
 
 def bound_number(n: int) -> str:

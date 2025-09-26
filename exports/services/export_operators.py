@@ -17,11 +17,11 @@ from exports.models import Export
 from exports.services.storage_provider import HDFSStorageProvider
 
 
-_logger = logging.getLogger('django.request')
+logger = logging.getLogger(__name__)
 
 STORAGE_PROVIDERS = os.environ.get("STORAGE_PROVIDERS", "").split(',')
 if not STORAGE_PROVIDERS:
-    _logger.warning("No storage provider is configured!")
+    logger.warning("No storage provider is configured!")
 
 ExportTypes = ExportsConfig.ExportTypes
 EXPORTERS = ExportsConfig.EXPORTERS
@@ -41,7 +41,7 @@ def load_available_exporters() -> dict:
         if exporter:
             exporters[export_type] = exporter
         else:
-            _logger.warning(f"Improperly configured exporter `{cls_path}`")
+            logger.warning(f"Improperly configured exporter `{cls_path}`")
     if not exporters:
         raise ImproperlyConfigured("No exporter is configured")
     return exporters
@@ -112,7 +112,7 @@ class ExportDownloader:
             response["Content-Disposition"] = f"attachment; filename={download_file_name}"
             return response
         except StorageProviderException as e:
-            _logger.exception(f"Error occurred on Storage Provider `{self.storage_provider.name}` - {e}")
+            logger.exception(f"Error occurred on Storage Provider `{self.storage_provider.name}` - {e}")
             raise e
 
     def stream_file(self, file_name: str):
@@ -141,7 +141,7 @@ class ExportCleaner:
             try:
                 self.storage_provider.delete_file(file_name=f"{export.target_full_path}.zip")
             except (RequestException, StorageProviderException) as e:
-                _logger.exception(f"Export {export.pk}: {e}")
+                logger.exception(f"Export {export.pk}: {e}")
                 return
 
             notification_data = {"recipient_name": export.owner.display_name,

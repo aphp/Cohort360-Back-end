@@ -1,14 +1,12 @@
 import logging
-import sys
 import urllib.parse
 from typing import Any
 
 from cohort.scripts.patch_requests_v145 import NEW_VERSION as PREV_VERSION
 from cohort.scripts.query_request_updater import RESOURCE_DEFAULT, QueryRequestUpdater
 
-LOGGER = logging.getLogger("info")
-stream_handler = logging.StreamHandler(stream=sys.stdout)
-LOGGER.addHandler(stream_handler)
+
+logger = logging.getLogger(__name__)
 
 NEW_VERSION = "v1.5.0"
 
@@ -90,7 +88,7 @@ def replace_date_options_with_filter(query: Any) -> bool:
     has_changed = False
     if "dateRangeList" in query:
         if resource not in RESOURCE_DATE_MAPPING:
-            logging.error(f"Resource {resource} does not have a date field")
+            logger.error(f"Resource {resource} does not have a date field")
         else:
             date_range_option = query["dateRangeList"]
             for date_range in date_range_option:
@@ -98,7 +96,7 @@ def replace_date_options_with_filter(query: Any) -> bool:
                 has_changed = True
     if "encounterDateRange" in query:
         if resource not in RESOURCE_ENCOUNTER_DATE_MAPPING:
-            logging.error(f"Resource {resource} does not have a date field")
+            logger.error(f"Resource {resource} does not have a date field")
         else:
             update_filter(query["encounterDateRange"], query, RESOURCE_ENCOUNTER_DATE_MAPPING[resource])
             has_changed = True

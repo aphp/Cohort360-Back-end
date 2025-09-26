@@ -15,7 +15,7 @@ from admin_cohort.models import User
 from admin_cohort.services.auth import jwt_auth_service
 
 
-_logger = logging.getLogger("info")
+logger = logging.getLogger(__name__)
 
 _, ORBIS = settings.ACCESS_SOURCES
 
@@ -49,7 +49,7 @@ class AccessesSynchronizer:
 
     @staticmethod
     def log(message: str):
-        _logger.info(f"[ORBIS sync] {message}")
+        logger.info(f"[ORBIS sync] {message}")
 
     def sync_orbis_resources(self):
         # self.sync_profiles()

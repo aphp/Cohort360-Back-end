@@ -12,7 +12,7 @@ from rest_framework.request import Request
 from cohort.models import FeasibilityStudy
 
 
-_logger = logging.getLogger('django.request')
+logger = logging.getLogger(__name__)
 
 
 class ServerError(Exception):
@@ -62,7 +62,7 @@ def send_email_notification(notification: Callable, **kwargs) -> None:
     try:
         notification(**kwargs)
     except (ValueError, SMTPException) as e:
-        _logger.exception(f"FeasibilityStudy[{kwargs.get('fs_id')}] Couldn't send email notification: {e}")
+        logger.exception(f"FeasibilityStudy[{kwargs.get('fs_id')}] Couldn't send email notification: {e}")
 
 
 def get_authorization_header(request: Request) -> dict:

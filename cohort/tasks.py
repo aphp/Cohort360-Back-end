@@ -11,7 +11,7 @@ from cohort.services.emails import send_email_notif_feasibility_report_requested
     send_email_notif_feasibility_report_ready, send_email_notif_count_request_refreshed
 from cohort.services.utils import locked_instance_task, get_feasibility_study_by_id, send_email_notification, ServerError
 
-_logger = logging.getLogger('django.request')
+logger = logging.getLogger(__name__)
 
 
 @shared_task
@@ -76,7 +76,7 @@ def cancel_previous_count_jobs(dm_id: str, cohort_counter_cls: str):
                 r_dm.request_job_status = JobStatus.cancelled
         except Exception as e:
             msg = f"Error cancelling a {job_status} DM job [{r_dm.request_job_id}] - {e}"
-            _logger.exception(msg)
+            logger.exception(msg)
             r_dm.request_job_status = JobStatus.failed
             r_dm.request_job_fail_msg = msg
         finally:
@@ -135,7 +135,7 @@ def send_email_count_request_refreshed(snapshot_id: str) -> None:
 @shared_task
 def refresh_count_request(dm_id: str, translated_query: str, cohort_counter_cls: str):
     dm = DatedMeasure.objects.get(uuid=dm_id)
-    _logger.info(f"Request Snapshot Refreshing [{dm.request_query_snapshot.uuid}]")
+    logger.info(f"Request Snapshot Refreshing [{dm.request_query_snapshot.uuid}]")
     try:
         dm.count_task_id = current_task.request.id or ""
         dm.request_job_status = JobStatus.pending

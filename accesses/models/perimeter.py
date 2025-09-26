@@ -8,7 +8,7 @@ from django.db.models import Q
 
 from admin_cohort.models import BaseModel
 
-_logger = logging.getLogger("django.request")
+logger = logging.getLogger(__name__)
 
 
 class Perimeter(BaseModel):
@@ -46,7 +46,7 @@ class Perimeter(BaseModel):
         try:
             return [int(i) for i in self.above_levels_ids.split(",") if i]
         except (AttributeError, ValueError) as e:
-            _logger.error(f"Error getting above levels ids for perimeter {self}.\n {e}")
+            logger.error(f"Error getting above levels ids for perimeter {self}.\n {e}")
             raise e
 
     @cached_property
@@ -56,7 +56,7 @@ class Perimeter(BaseModel):
         try:
             return [int(i) for i in self.inferior_levels_ids.split(",") if i]
         except (AttributeError, ValueError) as e:
-            _logger.error(f"Error getting inferior levels ids for perimeter {self}.\n {e}")
+            logger.error(f"Error getting inferior levels ids for perimeter {self}.\n {e}")
             raise e
 
     @lru_cache(maxsize=None)

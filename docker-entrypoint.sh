@@ -71,7 +71,7 @@ if [ "$WITH_KERBEROS" = true ]; then
 fi
 
 if [ "$WITH_LOGGING" = true ]; then
-  python setup_logging.py &
+  python setup_logs_collector.py &
   if [ "$WITHOUT_APP_SERVER" = true ]; then
     wait -n
   fi
@@ -80,7 +80,7 @@ fi
 if [ "$WITHOUT_APP_SERVER" = false ]; then
   python manage.py collectstatic --noinput
 
-  celery -A admin_cohort worker $WITH_CELERY_BEAT --loglevel=INFO --logfile=log/celery.log &
+  celery -A admin_cohort worker $WITH_CELERY_BEAT --loglevel=INFO &
   sleep 5
 
   # For websockets

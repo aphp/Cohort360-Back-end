@@ -5,7 +5,7 @@ import requests
 
 from exporters.apps import ExportersConfig
 
-_logger = logging.getLogger('django.request')
+logger = logging.getLogger(__name__)
 
 
 class BaseAPI:

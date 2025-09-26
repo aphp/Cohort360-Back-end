@@ -4,7 +4,7 @@ import logging
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import migrations
 
-_logger = logging.getLogger('info')
+logger = logging.getLogger(__name__)
 
 
 def populate_exports_with_export_requests(apps, schema_editor):
@@ -50,7 +50,7 @@ def populate_exports_with_export_requests(apps, schema_editor):
                                                               name=table.omop_table_name,
                                                               respect_table_relationships=True)
         count += 1
-    _logger.info(f'Populated {count} exports from old records')
+    logger.info(f'Populated {count} exports from old records')
 
 
 class Migration(migrations.Migration):

@@ -11,7 +11,7 @@ from rest_framework import status
 from exporters.apis.base import BaseAPI
 
 
-_logger = logging.getLogger('django.request')
+logger = logging.getLogger(__name__)
 
 
 class ExportAPI(BaseAPI):
@@ -29,12 +29,12 @@ class ExportAPI(BaseAPI):
             yaml_data = yaml.dump(params, default_flow_style=False, sort_keys=False)
             yaml_file = BytesIO(yaml_data.encode("utf-8"))
         except yaml.YAMLError as e:
-            _logger.error(f"Export[{export_id}] Error generating the yaml config from export params")
+            logger.error(f"Export[{export_id}] Error generating the yaml config from export params")
             raise e
         response = requests.post(url=f"{self.url}/yaml",
                                  files={"yaml_file": ("yaml_file.yaml", yaml_file, "application/x-yaml")},
                                  headers={'auth-token': self.auth_token})
         if response.status_code == status.HTTP_200_OK:
             return response.json().get('task_id')
-        _logger.error(f"Export[{export_id}] Error launching export: {response.json()}")
+        logger.error(f"Export[{export_id}] Error launching export: {response.json()}")
         return JsonResponse(data=response.json(), status=response.status_code)

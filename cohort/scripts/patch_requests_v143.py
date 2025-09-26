@@ -5,7 +5,7 @@ from cohort.scripts.patch_requests_v142 import NEW_VERSION as PREV_VERSION_3
 from cohort.scripts.patch_requests_v140 import NEW_VERSION as PREV_VERSION, find_related_atc as find_related_atc_v140
 from cohort.scripts.query_request_updater import RESOURCE_DEFAULT, MATCH_ALL_VALUES, QueryRequestUpdater
 
-LOGGER = logging.getLogger("info")
+logger = logging.getLogger(__name__)
 
 NEW_VERSION = "v1.4.3"
 
@@ -29,7 +29,7 @@ def find_related_atc(code: str):
 
 
 def find_related_atc_codes(codes: str):
-    LOGGER.info(f"Translating codes {codes}")
+    logger.info(f"Translating codes {codes}")
     return ",".join([find_related_atc(code) for code in codes.split(",")])
 
 

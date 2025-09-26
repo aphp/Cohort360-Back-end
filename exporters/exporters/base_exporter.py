@@ -15,8 +15,7 @@ from exports.models import Export, ExportTable
 from exports.services.rights_checker import rights_checker
 from exporters.tasks import notify_export_received, notify_export_succeeded, notify_export_failed
 
-_celery_logger = logging.getLogger('celery.app')
-_logger = logging.getLogger('django.request')
+logger = logging.getLogger(__name__)
 
 
 class BaseExporter:
@@ -155,4 +154,4 @@ class BaseExporter:
 
     @staticmethod
     def log_export_task(export_id, msg):
-        _celery_logger.info(f"[Export {export_id}] {msg}")
+        logger.info(f"[Export {export_id}] {msg}")

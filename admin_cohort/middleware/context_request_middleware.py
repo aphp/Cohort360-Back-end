@@ -1,11 +1,15 @@
+import logging
+import time
 import uuid
 from contextvars import ContextVar, Token
 from typing import Optional, Any, Type
 
-import jwt
+import environ
 from django.conf import settings
 from django.http import HttpRequest
 
+env = environ.Env()
+logger = logging.getLogger(__name__)
 
 context_request: ContextVar[Optional[HttpRequest]] = ContextVar("context_request", default=None)
 
@@ -17,17 +21,15 @@ def get_trace_id() -> str:
     trace_id_header = settings.TRACE_ID_HEADER
     return request.headers.get(trace_id_header, request.META.get(f"HTTP_{trace_id_header}"))
 
+
 def get_request_user_id(request) -> str:
-    user_id = "Anonymous"
-    bearer_token = request.META.get("HTTP_AUTHORIZATION")
-    auth_token = bearer_token and bearer_token.split("Bearer ")[1] or None
-    if auth_token is not None:
-        try:
-            decoded = jwt.decode(jwt=auth_token, options={'verify_signature': True})
-            user_id = decoded.get("preferred_username", decoded.get("username"))
-        except jwt.PyJWTError:
-            pass
-    return user_id
+    # /!\ local import to avoid Django's loading apps error: AppRegistryNotReady
+    from admin_cohort.services.auth import auth_service
+    try:
+        user_id, _ = auth_service.authenticate_http_request(request)
+        return user_id
+    except TypeError:
+        return "Anonymous"
 
 
 class ContextRequestHolder:
@@ -51,11 +53,19 @@ class ContextRequestMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
+        user_id = get_request_user_id(request)
+        trace_id = request.headers.get(settings.TRACE_ID_HEADER, str(uuid.uuid4()))
+        impersonating = request.headers.get(settings.IMPERSONATING_HEADER, "-")
         request.environ.update({
-            'user_id': get_request_user_id(request),
-            'trace_id': request.headers.get(settings.TRACE_ID_HEADER, str(uuid.uuid4())),
-            'impersonating': request.headers.get(settings.IMPERSONATING_HEADER, "-")
+            'user_id': user_id,
+            'trace_id': trace_id,
+            'impersonating': impersonating
         })
+        logger.info(f"Request[{trace_id}] {request.method} {request.get_full_path()} | User: {user_id} | Impersonating: {impersonating}")
         with ContextRequestHolder(request):
+            start_time = time.perf_counter()
             response = self.get_response(request)
+            process_time = f"{time.perf_counter() - start_time:.2f}s"
+            response.headers["X-Process-Time"] = process_time
+            logger.info(f"Response[{trace_id}] {request.method} {request.get_full_path()} | {response.status_code} | Process-Time: {process_time}")
         return response

@@ -6,7 +6,7 @@ from django.core.mail import EmailMultiAlternatives
 from django.template.loader import get_template
 from django.conf import settings
 
-_logger = logging.getLogger('django.request')
+logger = logging.getLogger(__name__)
 
 
 class EmailNotification(EmailMultiAlternatives):
@@ -41,4 +41,4 @@ class EmailNotification(EmailMultiAlternatives):
         try:
             self.send()
         except (SMTPException, TimeoutError):
-            _logger.exception(f"Error sending email notification. Email Subject was: {self.subject}")
+            logger.exception(f"Error sending email notification. Email Subject was: {self.subject}")

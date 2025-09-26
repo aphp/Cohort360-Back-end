@@ -14,7 +14,7 @@ from cohort_job_server.query_executor_api import Mode, QueryExecutorClient, Quer
 if TYPE_CHECKING:
     from cohort_job_server.query_executor_api import CohortQuery
 
-_celery_logger = logging.getLogger("celery.app")
+logger = logging.getLogger(__name__)
 
 
 class BaseCohortRequest:
@@ -73,7 +73,7 @@ class BaseCohortRequest:
         return format_spark_job_request_for_query_executor(spark_job_request)
 
     def log(self, msg: str) -> None:
-        _celery_logger.info(f"Task {self.model.__name__}[{self.instance_id}] {msg}")
+        logger.info(f"Task {self.model.__name__}[{self.instance_id}] {msg}")
 
     def launch(self, cohort_query: CohortQuery):
         """Perform an action (count, countAll, create) based on the cohort_query"""

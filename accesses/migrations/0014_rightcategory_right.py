@@ -8,7 +8,7 @@ from accesses.data.rights import rights, dependent_rights
 from accesses.serializers import RightSerializer
 
 
-_logger = logging.getLogger('info')
+logger = logging.getLogger(__name__)
 
 
 def load_rights(apps, schema_editor):
@@ -17,7 +17,7 @@ def load_rights(apps, schema_editor):
         if right_serializer.is_valid():
             right_serializer.save()
         else:
-            _logger.error(f"Error on loading initial rights data: {right_serializer.errors}")
+            logger.error(f"Error on loading initial rights data: {right_serializer.errors}")
             return
 
 

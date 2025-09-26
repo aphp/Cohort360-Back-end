@@ -5,13 +5,14 @@ from unittest.mock import patch, MagicMock
 from django.conf import settings
 from django.test import TestCase
 from rest_framework import status
-from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.exceptions import AuthenticationFailed, APIException
 
 from admin_cohort.exceptions import NoAuthenticationHookDefined
 
 from accesses.models import Perimeter, Role, Access, Profile
 from admin_cohort.models import User
 from admin_cohort.services.auth import JWTAuth
+from admin_cohort.tests.tests_auth import AuthBaseTests
 
 
 class JWTAuthTestCase(TestCase):
@@ -117,3 +118,63 @@ class JWTAuthTestCase(TestCase):
         mock_get_token.side_effect = Exception("Token error")
         with self.assertRaises(Exception):
             self.jwt_auth.generate_system_token()
+
+
+class TestAuthenticateWithExternalServices(AuthBaseTests):
+
+    def setUp(self):
+        super().setUp()
+        self.jwt_auth_service = JWTAuth()
+        self.username = "testuser"
+        self.password = "testpass"
+
+    @patch("admin_cohort.services.auth.AdminCohortConfig.HOOKS", {"USER_AUTHENTICATION": []})
+    def test_authenticate_with_external_services_no_hooks(self):
+        with self.assertRaises(NoAuthenticationHookDefined):
+            self.jwt_auth_service.authenticate_with_external_services(self.username, self.password)
+
+    @patch("admin_cohort.services.auth.import_string")
+    @patch("admin_cohort.services.auth.AdminCohortConfig.HOOKS", {"USER_AUTHENTICATION": ["some.hook"]})
+    def test_authenticate_with_external_services_one_hook_success(self, mock_import_string):
+        mock_hook = MagicMock(return_value=True)
+        mock_import_string.return_value = mock_hook
+
+        result = self.jwt_auth_service.authenticate_with_external_services(self.username, self.password)
+
+        self.assertTrue(result)
+        mock_import_string.assert_called_once_with("some.hook")
+        mock_hook.assert_called_once_with(username=self.username, password=self.password)
+
+    @patch("admin_cohort.services.auth.import_string")
+    @patch("admin_cohort.services.auth.AdminCohortConfig.HOOKS", {"USER_AUTHENTICATION": ["failing.hook", "successful.hook"]})
+    def test_authenticate_with_external_services_multiple_hooks_one_success(self, mock_import_string):
+        failing_hook = MagicMock(side_effect=APIException("failed"))
+        successful_hook = MagicMock(return_value=True)
+        mock_import_string.side_effect = [failing_hook, successful_hook]
+
+        result = self.jwt_auth_service.authenticate_with_external_services(self.username, self.password)
+
+        self.assertTrue(result)
+        self.assertEqual(mock_import_string.call_count, 2)
+        failing_hook.assert_called_once_with(username=self.username, password=self.password)
+        successful_hook.assert_called_once_with(username=self.username, password=self.password)
+
+    @patch("admin_cohort.services.auth.import_string")
+    @patch("admin_cohort.services.auth.AdminCohortConfig.HOOKS", {"USER_AUTHENTICATION": ["failing.hook1", "failing.hook2"]})
+    def test_authenticate_with_external_services_all_hooks_fail(self, mock_import_string):
+        failing_hook1 = MagicMock(side_effect=APIException("failed1"))
+        failing_hook2 = MagicMock(return_value=False)
+        mock_import_string.side_effect = [failing_hook1, failing_hook2]
+
+        result = self.jwt_auth_service.authenticate_with_external_services(self.username, self.password)
+
+        self.assertFalse(result)
+        self.assertEqual(mock_import_string.call_count, 2)
+        failing_hook1.assert_called_once_with(username=self.username, password=self.password)
+        failing_hook2.assert_called_once_with(username=self.username, password=self.password)
+
+    @patch("admin_cohort.services.auth.AdminCohortConfig.HOOKS", {"USER_AUTHENTICATION": ["path.to.some.missing.hook"]})
+    def test_authenticate_with_external_services_improperly_configured_hooks(self):
+        result = self.jwt_auth_service.authenticate_with_external_services(self.username, self.password)
+        self.assertFalse(result)
+

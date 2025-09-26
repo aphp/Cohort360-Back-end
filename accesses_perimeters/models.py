@@ -8,14 +8,14 @@ from accesses_perimeters.apps import AccessesPerimetersConfig
 APP_LABEL = AccessesPerimetersConfig.name
 DB_ALIAS = AccessesPerimetersConfig.DB_ALIAS
 
-_logger = logging.getLogger("django.request")
+logger = logging.getLogger(__name__)
 
 
 class ModelManager(models.Manager):
 
     def get_queryset(self):
         if DB_ALIAS not in settings.DATABASES:
-            _logger.error(f"`{DB_ALIAS}` is missing from settings.DATABASES")
+            logger.error(f"`{DB_ALIAS}` is missing from settings.DATABASES")
             return
         q = super().get_queryset()
         q._db = DB_ALIAS
