@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from accesses.models import Perimeter, Access
 from accesses.services.accesses import AccessesService
-from accesses_perimeters.models import Concept, CareSite
+from accesses_perimeters.models import ConceptFhir, CareSite
 from admin_cohort.tools.cache import invalidate_cache
 from cohort.models import RequestQuerySnapshot
 from cohort.services.request_query_snapshot import RequestQuerySnapshotService
@@ -26,7 +26,7 @@ New Data Models:
 - Provider: the user object reference. it will be mapped by omop.provider, it contains user information id, name etc...
 - CareSite: the medical service reference. it will be mapped by omop.care_site, it contains user information like
   care site id, care site name, type of care site (if it is an hospital lower or bigger service) etc...
-- Concept: the translation of reference concept table from omop. It used to get technical id from concept label
+- ConceptFhir: the translation of reference concept table from omop. It used to get technical id from concept label
   (concept name) to finally apply filter on other table.
 
 Care site Hierarchy: each care site must have a type, which correspond to the "level" of this care site in the hierarchy
@@ -68,9 +68,9 @@ def get_concept_filter_id() -> tuple:
     It is used to define the relation between fact_id_1 and fact_id_2 in Where clause in psql query.
     """
     try:
-        is_part_of_rel_id = Concept.objects.get(concept_name=IS_PART_OF_RELATIONSHIP_NAME).concept_id
-        cs_domain_concept_id = Concept.objects.get(concept_name=CARE_SITE_DOMAIN_CONCEPT_NAME).concept_id
-    except Concept.DoesNotExist as e:
+        is_part_of_rel_id = ConceptFhir.objects.get(source_concept_name=IS_PART_OF_RELATIONSHIP_NAME).source_concept_id
+        cs_domain_concept_id = ConceptFhir.objects.get(source_concept_name=CARE_SITE_DOMAIN_CONCEPT_NAME).source_concept_id
+    except ConceptFhir.DoesNotExist as e:
         raise ValueError(f"Error while getting Concepts: {e}")
     return str(is_part_of_rel_id), str(cs_domain_concept_id)
 

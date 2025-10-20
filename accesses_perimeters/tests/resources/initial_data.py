@@ -1,7 +1,7 @@
 ROOT_PERIMETER_ID = 999999
 
-concepts_data = [{'concept_id': 1, 'concept_name': 'Care site'},
-                 {'concept_id': 2, 'concept_name': 'Care Site is part of Care Site'}]
+concepts_data = [{'source_concept_id': 1, 'source_concept_name': 'Care site'},
+                 {'source_concept_id': 2, 'source_concept_name': 'Care Site is part of Care Site'}]
 
 lists_data = [['id', 'size', 'source_reference_id', 'source_type', 'delete_datetime'],
               [(1, 100, f'{ROOT_PERIMETER_ID}', 'Organization', None),

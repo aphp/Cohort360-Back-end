@@ -5,7 +5,7 @@ from django.db.utils import DEFAULT_DB_ALIAS
 from django.db import models
 
 from accesses.models import Perimeter
-from accesses_perimeters.models import Concept, CareSite, ModelManager, APP_LABEL
+from accesses_perimeters.models import ConceptFhir, CareSite, ModelManager, APP_LABEL
 from accesses_perimeters.perimeters_updater import perimeters_data_model_objects_update, psql_query_care_site_relationship
 from accesses_perimeters.tests.resources.initial_data import care_sites_data, concepts_data, fact_rels_data, lists_data, ROOT_PERIMETER_ID, \
     request_query_snapshots_data, users_data, folders_data, requests_data, existing_perimeter_data
@@ -49,13 +49,13 @@ class PerimetersUpdaterTests(TestCaseWithDBs):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        Concept._meta.managed = True
+        ConceptFhir._meta.managed = True
         CareSite._meta.managed = True
         ListCohortDef._meta.managed = True
         FactRelationship._meta.managed = True
 
         with connection.schema_editor() as schema_editor:
-            schema_editor.create_model(Concept)
+            schema_editor.create_model(ConceptFhir)
             schema_editor.create_model(CareSite)
             schema_editor.create_model(ListCohortDef)
             schema_editor.create_model(FactRelationship)
@@ -64,7 +64,7 @@ class PerimetersUpdaterTests(TestCaseWithDBs):
         super().setUp()
         with patch(target="accesses_perimeters.models.DB_ALIAS", new=DEFAULT_DB_ALIAS):
             for c_data in concepts_data:
-                Concept.objects.create(**c_data)
+                ConceptFhir.objects.create(**c_data)
 
             for l_vals in lists_data[1]:
                 ListCohortDef.objects.create(**dict(zip(lists_data[0], l_vals)))
