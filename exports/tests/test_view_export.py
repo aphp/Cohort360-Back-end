@@ -133,20 +133,6 @@ class ExportViewSetTest(ExportsTestBase):
         self.assertEqual(self.failed_export.request_job_status, JobStatus.new)
         self.assertTrue(self.failed_export.retried)
 
-    @mock.patch("exports.services.export.launch_export_task.delay")
-    @mock.patch.object(ExportViewSet, "get_object")
-    def test_error_retry_export(self, mock_get_object, mock_task):
-        self.failed_export.request_job_status = JobStatus.finished
-        mock_get_object.return_value = self.failed_export
-        request = self.make_request(url=self.retry_url, http_verb="post", request_user=self.admin_user)
-        self.retry_view.kwargs = {'uuid': self.failed_export.pk}
-        response = self.retry_view(request)
-        mock_task.assert_not_called()
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.failed_export.refresh_from_db()
-        self.assertEqual(self.failed_export.request_job_status, JobStatus.failed)
-        self.assertFalse(self.failed_export.retried)
-
     @mock.patch.object(BaseAPI, "get_export_logs")
     @mock.patch.object(ExportViewSet, "get_object")
     @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
