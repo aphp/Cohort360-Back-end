@@ -152,8 +152,6 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
     @action(detail=True, methods=['post'], url_path="retry")
     def retry(self, request, *args, **kwargs):
         export = self.get_object()
-        if export.request_job_status != JobStatus.failed:
-            return Response(data="The export did not fail. Cannot relaunch it", status=status.HTTP_400_BAD_REQUEST)
         export_service.retry(export=export)
         return Response(data=f"The export `{export.uuid}` has been relaunched", status=status.HTTP_200_OK)
 
