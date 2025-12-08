@@ -4,33 +4,33 @@ import django.db.models.deletion
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("cohort", "0022_alter_string_based_fields"),
+        ("cohort", "0023_requestquerysnapshotpatch"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name="RequestQuerySnapshotPatch",
+            name="FilterFhirPatch",
             fields=[
                 ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
                 ("uuid", models.CharField(max_length=64)),
-                ("serialized_query", models.TextField()),
+                ("filter", models.TextField()),
                 ("patch_version", models.PositiveIntegerField()),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 (
-                    "snapshot",
+                    "filter_fhir",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
                         related_name="patches",
-                        to="cohort.requestquerysnapshot",
+                        to="cohort.fhirfilter",
                     ),
                 ),
             ],
             options={
-                "ordering": ["snapshot_id", "uuid", "patch_version"],
+                "ordering": ["filter_fhir_id", "uuid", "patch_version"],
             },
         ),
         migrations.AlterUniqueTogether(
-            name="requestquerysnapshotpatch",
-            unique_together={("snapshot", "uuid", "patch_version")},
+            name="filterfhirpatch",
+            unique_together={("filter_fhir", "uuid", "patch_version")},
         ),
     ]
