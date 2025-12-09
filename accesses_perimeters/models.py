@@ -21,16 +21,15 @@ class ModelManager(models.Manager):
         q._db = DB_ALIAS
         return q
 
-
-class Concept(models.Model):
-    concept_id = models.IntegerField(primary_key=True)
-    concept_name = models.TextField(blank=True, null=True)
+class ConceptFhir(models.Model):
+    source_concept_id = models.IntegerField(primary_key=True)
+    source_concept_name = models.TextField(blank=True, null=True)
     objects = ModelManager()
 
     class Meta:
         app_label = APP_LABEL
         managed = False
-        db_table = 'concept'
+        db_table = 'concept_fhir'
 
 
 class CareSite(models.Model):
