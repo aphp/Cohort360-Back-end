@@ -44,10 +44,31 @@ class ExportService:
             raise ValidationError(f'Invalid export data: {e}')
 
     def proceed_with_export(self, export: Export, tables: List[dict], **kwargs) -> None:
-        _logger.info(f"Export[{export.uuid}]: Creating tables ...")
+        _logger.info(
+            "Export[%s]: "
+            "target_name=%s, "
+            "target_location=%s, "
+            "owner=%s, "
+            "datalab=%s, "
+            "group_tables=%s, "
+            "output_format=%s, "
+            "request_job_id=%s, "
+            "pk=%s. "
+            "Creating tables...",
+            export.uuid,
+            export.target_name,
+            export.target_location,
+            export.owner,
+            export.datalab,
+            export.group_tables,
+            export.output_format,
+            export.request_job_id,
+            export.pk
+        )
         requires_cohort_subsets = self.create_tables(export, tables, **kwargs)
         _logger.info(f"Export[{export.uuid}]: tables created. Required cohort subsets ? {requires_cohort_subsets}")
         if not requires_cohort_subsets:
+            _logger.info(f"Export[{export.uuid}]: launch_export_task.delay() START")
             launch_export_task.delay(export.pk)
 
     @staticmethod
