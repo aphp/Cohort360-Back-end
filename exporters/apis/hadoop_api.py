@@ -6,7 +6,7 @@ from rest_framework import status
 
 from exporters.apis.base import BaseAPI
 
-_logger = logging.getLogger('django.request')
+_logger = logging.getLogger('info')
 
 
 class HadoopAPI(BaseAPI):
@@ -25,6 +25,7 @@ class HadoopAPI(BaseAPI):
                   "if_not_exists": True
                   }
         response = self.query_hadoop(endpoint=self.create_db_endpoint, params=params)
+        _logger.info(f"create_db: Received response:{response.status_code} - {response.text} ")
         return response.json().get('task_id')
 
     def change_db_ownership(self, location: str, db_user: str) -> None:
@@ -34,6 +35,7 @@ class HadoopAPI(BaseAPI):
                   "recursive": True
                   }
         response = self.query_hadoop(endpoint=self.alter_db_endpoint, params=params)
+        _logger.info(f"create_db: Received response:{response.status_code} - {response.text} ")
         if not status.is_success(response.status_code):
             raise RequestException(response.text)
         response = response.json()
@@ -41,6 +43,8 @@ class HadoopAPI(BaseAPI):
             raise RequestException(f"Granting rights did not succeed: {response.get('err')}")
 
     def query_hadoop(self, endpoint: str, params: dict) -> Response:
+        _logger.info(
+            f"hive_user: {self.hive_user} / query_hadoop: Sending request to Hadoop API with params: \n- -X POST {self.url}{endpoint} -H \"Content-Type: application/json\" -d {params} \n- api conf:{self.api_conf} \ntoken: {self.auth_token}")
         return requests.post(url=f"{self.url}{endpoint}",
                              params=params,
                              headers={'auth-token': self.auth_token})

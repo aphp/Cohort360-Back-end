@@ -16,7 +16,6 @@ from exports.exceptions import BadRequestError, FilesNoLongerAvailable, StorageP
 from exports.models import Export
 from exports.services.storage_provider import HDFSStorageProvider
 
-
 _logger = logging.getLogger('django.request')
 
 STORAGE_PROVIDERS = os.environ.get("STORAGE_PROVIDERS", "").split(',')
@@ -28,22 +27,29 @@ EXPORTERS = ExportsConfig.EXPORTERS
 
 
 def load_available_exporters() -> dict:
+    _logger.info("Loading available exporters...")
     exporters = {}
     for exporter_conf in EXPORTERS:
         try:
             export_type, cls_path = exporter_conf["TYPE"], exporter_conf["EXPORTER_CLASS"]
+            _logger.info(f"Processing exporter config: type='{export_type}', class='{cls_path}'")
             export_type = ExportTypes(export_type).value
         except KeyError:
+            _logger.error("Missing `TYPE` or `EXPORTER_CLASS` key in exporter configuration")
             raise ImproperlyConfigured("Missing `TYPE` or `EXPORTER_CLASS` key in exporter configuration")
         except ValueError as e:
+            _logger.error(f"Invalid export type: {e}")
             raise ImproperlyConfigured(f"Invalid export type: {e}")
         exporter = import_string(cls_path)
         if exporter:
+            _logger.info(f"Successfully loaded exporter '{cls_path}' for type '{export_type}'")
             exporters[export_type] = exporter
         else:
             _logger.warning(f"Improperly configured exporter `{cls_path}`")
     if not exporters:
+        _logger.error("No exporter is configured")
         raise ImproperlyConfigured("No exporter is configured")
+    _logger.info(f"Loaded {len(exporters)} exporter(s): {list(exporters.keys())}")
     return exporters
 
 
@@ -63,12 +69,17 @@ class ExportManager:
         exporter().validate(export_data=export_data, **kwargs)
 
     def handle_export(self, export_id: str) -> None:
+        _logger.info(f"Export[{export_id}] handle_export: Starting export handling")
         try:
             export = Export.objects.get(pk=export_id)
+            _logger.info(f"Export[{export_id}] handle_export: Found export with output_format='{export.output_format}'")
         except Export.DoesNotExist:
+            _logger.error(f"Export[{export_id}] handle_export: No export matches the given ID")
             raise ValueError(f'No export matches the given ID : {export_id}')
         exporter = self._get_exporter(export.output_format)
+        _logger.info(f"Export[{export_id}] handle_export: Using exporter '{exporter.__name__}'")
         exporter().handle_export(export=export)
+        _logger.info(f"Export[{export_id}] handle_export: Export handling completed")
 
     def mark_as_failed(self, export: Export, reason: str) -> None:
         exporter = self._get_exporter(export.output_format)
@@ -98,7 +109,7 @@ class ExportDownloader:
 
     def download(self, export: Export) -> StreamingHttpResponse:
         if export.request_job_status != JobStatus.finished.value \
-           or export.output_format not in self.downloadable_export_types:
+                or export.output_format not in self.downloadable_export_types:
             raise BadRequestError("The export is not done yet or has failed or not downloadable")
         if not export.available_for_download():
             raise FilesNoLongerAvailable("The exported files are no longer available on the server.")
@@ -151,6 +162,3 @@ class ExportCleaner:
             push_email_notification(base_notification=exported_files_deleted, **notification_data)
             export.clean_datetime = timezone.now()
             export.save()
-
-
-

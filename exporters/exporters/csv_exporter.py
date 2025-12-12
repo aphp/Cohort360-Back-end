@@ -1,3 +1,4 @@
+import logging
 from django.db.models import Q
 from typing import List
 
@@ -6,6 +7,8 @@ from cohort.models import CohortResult
 from exports.models import Export
 from exporters.exporters.base_exporter import BaseExporter
 from exporters.enums import ExportTypes
+
+_logger = logging.getLogger('info')
 
 
 class CSVExporter(BaseExporter):
@@ -24,7 +27,7 @@ class CSVExporter(BaseExporter):
         source_cohort_id = source_cohorts_ids[0]
         if not CohortResult.objects.filter(Q(pk=source_cohort_id) &
                                            Q(owner=kwargs.get("owner"))) \
-                                   .exists():
+                .exists():
             raise ValueError(f"Missing cohort with id {source_cohort_id}")
         return source_cohorts_ids
 
@@ -40,15 +43,18 @@ class CSVExporter(BaseExporter):
         super().complete_data(export_data=export_data, owner=owner, **kwargs)
 
     def handle_export(self, export: Export, params: dict = None) -> None:
+        _logger.info(f"Export[{export.pk}] handle_export: Starting CSV export handling")
         self.confirm_export_received(export=export)
         params = params or {"joinOnPrimaryKey": export.group_tables,
                             "output": {"type": self.type,
                                        "filePath": f"{export.target_full_path}.zip"
                                        }
                             }
+        _logger.info(f"Export[{export.pk}] handle_export: Base params initialized: {params}")
         pivot_merge = list(export.export_tables.filter(pivot_merge=True).values_list("name", flat=True))
 
         if pivot_merge:
+            _logger.info(f"Export[{export.pk}] handle_export: Adding pivotMerge tables: {pivot_merge}")
             params["pivotMerge"] = pivot_merge
 
         pivot_merge_2 = []
@@ -60,7 +66,13 @@ class CSVExporter(BaseExporter):
             if t.pivot_merge_ids:
                 d["idsToMerge"] = t.pivot_merge_ids
             pivot_merge_2.append(d)
+            _logger.info(f"Export[{export.pk}] handle_export: Built pivot_merge_2 entry for table '{t.name}': {d}")
 
         if pivot_merge_2:
+            _logger.info(
+                f"Export[{export.pk}] handle_export: Overriding pivotMerge with pivot_merge_2: {pivot_merge_2}")
             params["pivotMerge"] = pivot_merge_2
+
+        _logger.info(f"Export[{export.pk}] handle_export: Final params before calling parent: {params}")
         super().handle_export(export=export, params=params)
+        _logger.info(f"Export[{export.pk}] handle_export: CSV export handling completed")
