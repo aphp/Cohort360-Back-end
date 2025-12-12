@@ -94,14 +94,16 @@ class ExportService:
                                                                     table_name=table_name,
                                                                     fhir_filter_id=fhir_filter_id,
                                                                     source_cohort=cohort_source)
+
+                subset_id = cohort_subset.pk if cohort_subset else None
+                group_id = cohort_subset.group_id if cohort_subset else None
                 _logger.info(
-                    "Export[%s]: cohort subset created for table=%s (subset_id=%s, group_id=%s)",
+                    "Export[%s]: cohort subset created for table=%s (subset_id='%s', group_id='%s')",
                     export.uuid,
                     table_name,
-                    cohort_subset.pk,
-                    cohort_subset.group_id,
+                    subset_id,
+                    group_id,
                 )
-
 
             else:
                 cohort_subset = None
