@@ -62,6 +62,7 @@ class ExportService:
     def create_tables(self, export: Export, tables: List[dict], **kwargs) -> bool:
         requires_cohort_subsets = False
         for table in tables:
+
             fhir_filter_id = table.get("fhir_filter")
             cohort_source_id = table.get("cohort_result_source")
             cohort_source = cohort_source_id and CohortResult.objects.get(pk=cohort_source_id) or None
@@ -71,14 +72,37 @@ class ExportService:
             if cohort_source and table_name in TABLES_REQUIRING_SUB_COHORTS and not fhir_filter_id:
                 fhir_filter_id = self.force_generate_fhir_filter(export=export,
                                                                  table_name=table_name)
+                _logger.info(
+                    "Export[%s]: auto-generated FHIR filter id=%s for table=%s",
+                    export.uuid,
+                    fhir_filter_id,
+                    table_name,
+                )
 
             if cohort_source and fhir_filter_id and table_name not in EXCLUDED_TABLES:
                 requires_cohort_subsets = True
+                _logger.info(
+                    "Export[%s]: creating cohort subset for table=%s (source_cohort_id=%s, fhir_filter_id=%s)",
+                    export.uuid,
+                    table_name,
+                    cohort_source_id,
+                    fhir_filter_id,
+                )
+
                 cohort_subset = cohort_service.create_cohort_subset(request=kwargs.get("http_request"),
                                                                     owner_id=export.owner_id,
                                                                     table_name=table_name,
                                                                     fhir_filter_id=fhir_filter_id,
                                                                     source_cohort=cohort_source)
+                _logger.info(
+                    "Export[%s]: cohort subset created for table=%s (subset_id=%s, group_id=%s)",
+                    export.uuid,
+                    table_name,
+                    cohort_subset.pk,
+                    cohort_subset.group_id,
+                )
+
+
             else:
                 cohort_subset = None
 
