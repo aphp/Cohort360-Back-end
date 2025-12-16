@@ -21,6 +21,7 @@ class ModelManager(models.Manager):
         q._db = DB_ALIAS
         return q
 
+
 class ConceptFhir(models.Model):
     source_concept_id = models.IntegerField(primary_key=True)
     source_concept_name = models.TextField(blank=True, null=True)
@@ -51,8 +52,9 @@ class CareSite(models.Model):
 
     @staticmethod
     def sql_get_deleted_care_sites() -> str:
-        return """SELECT DISTINCT care_site_id, delete_datetime 
-                  FROM omop.care_site WHERE delete_datetime IS NOT NULL
+        return """SELECT DISTINCT care_site_id, delete_datetime
+                  FROM omop.care_site
+                  WHERE delete_datetime IS NOT NULL
                """
 
 
@@ -66,27 +68,39 @@ class ListCohort(models.Model):
     id = models.BigIntegerField(null=True)
     status = models.TextField(blank=True, null=True)
     _sourcereferenceid = models.BigIntegerField(null=True)
-    source__reference = models.TextField(blank=True, null=True)
-    source__type = models.TextField(blank=True, null=True)
+    source_reference = models.TextField(
+        blank=True, null=True, db_column="source__reference"
+    )
+    source_type = models.TextField(
+        blank=True, null=True, db_column="source__type"
+    )
     mode = models.TextField(blank=True, null=True)
     title = models.TextField(blank=True, null=True)
-    subject__type = models.TextField(blank=True, null=True)
+    subject_type = models.TextField(
+        blank=True, null=True, db_column="subject__type"
+    )
     date = models.DateTimeField(null=True)
-    note___query__text = models.TextField(blank=True, null=True)
-    objects = ModelManager()
+    note_query_text = models.TextField(
+        blank=True, null=True, db_column="note___query__text"
+    )
 
-    class Meta:
-        app_label = APP_LABEL
-        managed = False
-        db_table = 'list'
 
-    @classmethod
-    def get_practitioner_patient_lists_since(cls, since_dt: str):
-        sql = f"""
+objects = ModelManager()
+
+
+class Meta:
+    app_label = APP_LABEL
+    managed = False
+    db_table = 'list'
+
+
+@classmethod
+def get_practitioner_patient_lists_since(cls, since_dt: str):
+    sql = f"""
               SELECT *
               FROM omop.list
               WHERE source__type = 'Practitioner'
                 AND subject__type = 'Patient'
                 AND insert_datetime >= '{since_dt}';
               """
-        return ListCohort.objects.raw(sql)
+    return ListCohort.objects.raw(sql)

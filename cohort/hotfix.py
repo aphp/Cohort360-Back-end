@@ -3,8 +3,7 @@ from __future__ import annotations
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import connection, transaction
-from django.db.models import Q, QuerySet
-from django.db.models.query import RawQuerySet
+from django.db.models import Q
 from django.utils import timezone
 
 from accesses_perimeters.models import ListCohort
@@ -12,7 +11,7 @@ from cohort.models import RequestQuerySnapshot
 from cohort.services.request_query_snapshot import RequestQuerySnapshotService
 from cohort.models.cohort_result import CohortResult
 from cohort.models.request import Request
-from admin_cohort.models.user import *
+from admin_cohort.models.user import User
 from cohort.models.dated_measure import DatedMeasure
 
 date_input_limit = "2025-08-15"
