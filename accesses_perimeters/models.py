@@ -83,9 +83,7 @@ class ListCohort(models.Model):
     note_query_text = models.TextField(
         blank=True, null=True, db_column="note___query__text"
     )
-
-
-objects = ModelManager()
+    objects = ModelManager()
 
 
 class Meta:
@@ -104,3 +102,18 @@ def get_practitioner_patient_lists_since(cls, since_dt: str):
                 AND insert_datetime >= '{since_dt}';
               """
     return ListCohort.objects.raw(sql)
+
+
+class CareSiteMapperMep(models.Model):
+    # Colonnes de la table
+    new_prod_a_id = models.BigIntegerField(db_column="new_prod_a_id")
+    old_prod_b_id = models.BigIntegerField(db_column="old_prod_b_id")
+    care_site_id = models.BigIntegerField(db_column="care_site_id")
+    objects = ModelManager()
+    class Meta:
+        app_label = APP_LABEL
+        managed = False
+        db_table = "caresite_mapper_mep"
+
+    def __str__(self) -> str:
+        return f"{self.old_prod_b_id} -> {self.new_prod_a_id} (care_site_id={self.care_site_id})"
