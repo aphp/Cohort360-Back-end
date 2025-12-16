@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import json
 from typing import List
 
@@ -46,8 +44,10 @@ def _retrieve_perimeters_hotfix(json_query: str) -> List[str]:
         raise ValueError(f"Error extracting perimeters ids from JSON query - {e}") from e
 
 
-def _get_practitioner_patient_lists_since(since_dt: str):
+def _get_practitioner_patient_lists_since(since_dt: str, specify_user: str = None):
     # IMPORTANT: exécuter sur la DB où le schéma `omop` existe (même DB que perimeters_updater).
+    default_where = f" AND _sourcereferenceid = '{specify_user}'" if specify_user else ""
+    _debug(f"default_where is: {default_where})")
     db_alias = AccessesPerimetersConfig.DB_ALIAS
     sql = f"""
               SELECT *
@@ -56,7 +56,7 @@ def _get_practitioner_patient_lists_since(since_dt: str):
                 AND subject__type = 'Patient'
                 AND insert_datetime >= '{since_dt}'
                 AND delete_datetime IS NULL
-                AND _size > 0;
+                AND _size > 0 {default_where};
               """
     return ListCohort.objects.using(db_alias).raw(sql)
 
@@ -67,7 +67,7 @@ def _debug(msg: str) -> None:
 
 def patch_cohort_test(date_input_limit: str, specify_user: str = None):
     _debug(f"START patch(date_input_limit={date_input_limit!r})")
-    list_listcohort = _get_practitioner_patient_lists_since(date_input_limit)
+    list_listcohort = _get_practitioner_patient_lists_since(date_input_limit, specify_user)
     _debug(f"ListCohort fetched: count={len(list_listcohort)}")
     if not list_listcohort:
         _debug(f"No ListCohort found -> raising ValueError (date_input_limit={date_input_limit!r})")
@@ -93,10 +93,16 @@ def patch_cohort_test(date_input_limit: str, specify_user: str = None):
     _debug(f"cohort_description={cohort_description!r}")
     _debug(f"cohort_size={cohort_size!r}")
     _debug("Entering transaction.atomic()")
+    existing = CohortResult.objects.filter(group_id=str(cohort_group_id)).order_by("-pk").first()
+    if existing is not None:
+        _debug(
+            f"CohortResult already exists for this group_id -> skipping creation steps in transaction.atomic(): group_id: {existing.group_id} -  owner: {existing.owner}pk={getattr(existing, 'pk', None)!r}, uuid={getattr(existing, 'uuid', None)!r}, group_id={getattr(existing, 'group_id', None)!r}")
+        _debug("END patch() - returning existing cohort_result")
+        return existing
     with transaction.atomic():
         _debug("Getting/Creating Folder ...")
-        folder_name = "Cohortes de fin 2025"
-        folder_description = "backup de cohortes de fin 2025"
+        folder_name = "Cohortes postérieures au 2025-07-21"
+        folder_description = "Projet créé par des cohortes générées après le 2025-07-21"
         folder, created = Folder.objects.get_or_create(
             owner=cohort_user,
             name=folder_name,
@@ -104,14 +110,10 @@ def patch_cohort_test(date_input_limit: str, specify_user: str = None):
         )
         if created:
             _debug(
-                f"Folder created: pk={getattr(folder, 'pk', None)!r}, "
-                f"uuid={getattr(folder, 'uuid', None)!r}, name={getattr(folder, 'name', None)!r}"
-            )
+                f"Folder created: pk={getattr(folder, 'pk', None)!r}, uuid={getattr(folder, 'uuid', None)!r}, name={getattr(folder, 'name', None)!r}")
         else:
             _debug(
-                f"Folder found: pk={getattr(folder, 'pk', None)!r}, "
-                f"uuid={getattr(folder, 'uuid', None)!r}, name={getattr(folder, 'name', None)!r}"
-            )
+                f"Folder found: pk={getattr(folder, 'pk', None)!r}, uuid={getattr(folder, 'uuid', None)!r}, name={getattr(folder, 'name', None)!r}")
         _debug("Creating Request ...")
         req = Request.objects.create(
             owner=cohort_user,
@@ -169,3 +171,4 @@ def patch_cohort_test(date_input_limit: str, specify_user: str = None):
     return cohort_result
 
 # patch_cohort("2025-07-21")
+# patch_cohort_test("2025-07-21","4210878")
