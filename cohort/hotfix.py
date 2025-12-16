@@ -18,8 +18,8 @@ from accesses_perimeters.apps import AccessesPerimetersConfig
 def get_old_to_new_prod_mapping_from_model() -> Dict[int, int]:
     db_alias = AccessesPerimetersConfig.DB_ALIAS
     sql = """
-          SELECT old_prod_b_id, new_prod_a_id
-          FROM caresite_mapper_mep; \
+          SELECT *
+          FROM omop.caresite_mapper_mep;
           """
     mapping: Dict[int, int] = {}
     for row in CareSiteMapperMep.objects.using(db_alias).raw(sql):
