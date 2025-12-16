@@ -54,3 +54,39 @@ class CareSite(models.Model):
         return """SELECT DISTINCT care_site_id, delete_datetime 
                   FROM omop.care_site WHERE delete_datetime IS NOT NULL
                """
+
+
+class ListCohort(models.Model):
+    row_id = models.BigIntegerField(primary_key=True)
+    hash = models.BigIntegerField(null=True)
+    insert_datetime = models.DateTimeField(null=True)
+    update_datetime = models.DateTimeField(null=True)
+    delete_datetime = models.DateTimeField(null=True)
+    change_datetime = models.DateTimeField(null=True)
+    id = models.BigIntegerField(null=True)
+    status = models.TextField(blank=True, null=True)
+    _sourcereferenceid = models.BigIntegerField(null=True)
+    source__reference = models.TextField(blank=True, null=True)
+    source__type = models.TextField(blank=True, null=True)
+    mode = models.TextField(blank=True, null=True)
+    title = models.TextField(blank=True, null=True)
+    subject__type = models.TextField(blank=True, null=True)
+    date = models.DateTimeField(null=True)
+    note___query__text = models.TextField(blank=True, null=True)
+    objects = ModelManager()
+
+    class Meta:
+        app_label = APP_LABEL
+        managed = False
+        db_table = 'list'
+
+    @classmethod
+    def get_practitioner_patient_lists_since(cls, since_dt: str):
+        sql = f"""
+              SELECT *
+              FROM omop.list
+              WHERE source__type = 'Practitioner'
+                AND subject__type = 'Patient'
+                AND insert_datetime >= '{since_dt}';
+              """
+        return ListCohort.objects.raw(sql)
