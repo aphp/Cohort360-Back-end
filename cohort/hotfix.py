@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-from django.conf import settings
-from django.contrib.auth import get_user_model
-from django.db import connection, transaction
-from django.db.models import Q
+from django.db import transaction
 from django.utils import timezone
 
 from accesses_perimeters.models import ListCohort
