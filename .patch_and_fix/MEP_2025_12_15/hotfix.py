@@ -1,8 +1,9 @@
 import json
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from django.db import transaction
 from django.utils import timezone
+from collections import Counter
 
 from accesses.models import Access, Perimeter
 from accesses_perimeters.apps import AccessesPerimetersConfig
@@ -232,8 +233,8 @@ def patch_cohorts(date_input_limit: str, specify_user: Optional[str] = None) -> 
     - runs each cohort creation in its own `transaction.atomic()`
     - logs errors and continues for next items (same behavior as before)
     """
-    mapping = get_old_to_new_prod_mapping_from_model()
     _debug(f"START patch(date_input_limit={date_input_limit!r})")
+    mapping = get_old_to_new_prod_mapping_from_model()
 
     list_listcohort = _get_practitioner_patient_lists_since(date_input_limit, specify_user)
     _debug(f"ListCohort fetched: count={len(list_listcohort)}")
@@ -248,10 +249,10 @@ def patch_cohorts(date_input_limit: str, specify_user: Optional[str] = None) -> 
         _debug(f"Processing ListCohort #{idx}/{count}")
         _debug(
             "Using first ListCohort: "
-            f"id={getattr(list_cohort, 'id', None)!r}, "
-            f"insert_datetime={getattr(list_cohort, 'insert_datetime', None)!r}, "
-            f"_sourcereferenceid={getattr(list_cohort, '_sourcereferenceid', None)!r}, "
-            f"_size={getattr(list_cohort, '_size', None)!r}"
+            f"\nid={getattr(list_cohort, 'id', None)!r}, "
+            f"\ninsert_datetime={getattr(list_cohort, 'insert_datetime', None)!r}, "
+            f"\n_sourcereferenceid={getattr(list_cohort, '_sourcereferenceid', None)!r}, "
+            f"\n_size={getattr(list_cohort, '_size', None)!r}"
         )
 
         user_aph_id = specify_user if specify_user else list_cohort._sourcereferenceid
@@ -278,8 +279,8 @@ def patch_cohorts(date_input_limit: str, specify_user: Optional[str] = None) -> 
 
         _debug(
             f"cohort_name={cohort_name!r}"
-            f"cohort_description={cohort_description!r}"
-            f"cohort_size={cohort_size!r}",
+            f"\ncohort_description={cohort_description!r}"
+            f"\ncohort_size={cohort_size!r}",
             user_aph_id,
         )
 
@@ -295,10 +296,10 @@ def patch_cohorts(date_input_limit: str, specify_user: Optional[str] = None) -> 
             )
             _debug(
                 "go to next CR... CohortResult already exists for this group_id -> "
-                "skipping creation steps in transaction.atomic(): "
-                f"group_id: {existing.group_id} - owner: {existing.owner} "
-                f"pk={getattr(existing, 'pk', None)!r}, uuid={getattr(existing, 'uuid', None)!r}, "
-                f"group_id={getattr(existing, 'group_id', None)!r}",
+                "\nskipping creation steps in transaction.atomic(): "
+                f"\ngroup_id: {existing.group_id} - owner: {existing.owner} "
+                f"\npk={getattr(existing, 'pk', None)!r}, uuid={getattr(existing, 'uuid', None)!r}, "
+                f"\ngroup_id={getattr(existing, 'group_id', None)!r}",
                 user_aph_id,
             )
             continue
@@ -316,6 +317,7 @@ def patch_cohorts(date_input_limit: str, specify_user: Optional[str] = None) -> 
                 error_list.append(f"cohort_group_id: {cohort_group_id} no perimeters ids mapped")
                 continue
 
+            # Only for get an alert on user - it was chosen to create cohort instead accesses are not provided
             for pid in perimeters_ids:
                 _debug(f"perimeters_ids: {pid}", user_aph_id)
                 perimeter = Perimeter.objects.filter(cohort_id=pid).first()
@@ -426,5 +428,119 @@ def patch_cohorts(date_input_limit: str, specify_user: Optional[str] = None) -> 
         _debug(error)
     return
 
+
 # Command to run
 # patch_cohorts("2025-07-21")  # Date from last MEP with switch prod a / prod b
+
+# PATCH PERIMETERS IN REQUESTQUERYSNAPSHOT
+def _remap_perimeters_in_json_query(request_query_snapshot: RequestQuerySnapshot, owner: Optional[str] = None):
+    """
+    À partir d'un `json_query` et d'un mapping ancien_id -> nouvel_id, remplace les ids
+    trouvés dans `sourcePopulation.caresiteCohortList` par les nouveaux ids.
+
+    Sécurités :
+    - si `json_query` est vide ou None : log et return None
+    - si `mapping` est vide ou None : log et return None
+    - si le JSON est invalide ou ne contient pas la clé attendue : log et return None
+    - si aucun id n'est mappé : log et return None
+
+    Retourne :
+    - None si rien n'a pu être mappé / modifié
+    - sinon `(nouveau_json_query, nouvelle_liste_de_perimetres_ids_str)`
+    """
+    json_query = request_query_snapshot.serialized_query
+    perimeters_ids = request_query_snapshot.perimeters_ids
+    if not json_query:
+        _debug("WARN _remap_perimeters_in_json_query called with empty json_query", owner)
+        return None
+    if not perimeters_ids:
+        _debug("WARN _remap_perimeters_in_json_query called with empty perimeters_ids", owner)
+        return None
+    new_perimeters_ids = []
+    for id in perimeters_ids:
+        perimeter = Perimeter.objects.filter(cohort_id=id).first()
+        if perimeter:
+            new_perimeters_ids.append(id)
+            continue
+        _debug(f"WARN perimeter with cohort_id {id} is not define", owner)
+        cohort = CohortResult.objects.filter(group_id=id).first()
+        if cohort:
+            new_perimeters_ids.extend(cohort.request_query_snapshot.perimeters_ids)
+            continue
+        _debug(f"WARN cohort with group_id {id} is not define", owner)
+        return None
+    _debug(f"old perimeters_ids: {json_query[78:125]}", owner)
+    try:
+        query_dict = json.loads(json_query)
+    except json.JSONDecodeError as e:
+        _debug(f"ERROR invalid JSON in json_query: {e}", owner)
+        return None
+    try:
+        source_pop = query_dict.setdefault("sourcePopulation", {})
+        source_pop["caresiteCohortList"] = [int(pid) for pid in new_perimeters_ids]
+    except Exception as e:  # garde-fou, on ne veut pas faire planter un hotfix
+        _debug(f"ERROR while injecting new perimeters into json_query: {e}", owner)
+        return None
+    try:
+        new_json_query = json.dumps(query_dict)
+    except TypeError as e:
+        _debug(f"ERROR while dumping updated json_query: {e}", owner)
+        return None
+    _debug(f"_remap_perimeters_in_json_query: new={new_perimeters_ids!r}", owner)
+    return new_json_query, new_perimeters_ids
+
+
+def patch_request_source_population(user_aph: str = None) -> None:
+    _debug(
+        f"START patch_request_source_population Single User Mode {user_aph}" if user_aph else "START patch_request_source_population"
+    )
+    all_request_to_patch = (
+        RequestQuerySnapshot.objects.filter(name__contains="Cohorte du 2025")
+        .filter(owner_id=user_aph)
+        .all()
+        if user_aph
+        else RequestQuerySnapshot.objects.filter(name__contains="Cohorte du 2025").all()
+    )
+    total = all_request_to_patch.count()
+    _debug(f"RequestQuerySnapshot to patch: count={total}")
+    skipped_reasons = Counter()
+    for idx, rqs in enumerate(all_request_to_patch, start=1):
+        _debug(
+            f"[{idx}/{total}] Patching RequestQuerySnapshot pk={getattr(rqs, 'pk', None)!r}, "
+            f"\nname={getattr(rqs, 'name', None)!r}"
+        )
+        json_query = rqs.serialized_query
+        if not json_query:
+            _debug(f"WARN serialized_query is empty -> skipping request {rqs.pk}", rqs.owner)
+            skipped_reasons["skipped"] += 1
+            skipped_reasons["empty_serialized_query"] += 1
+            continue
+        remap_result = _remap_perimeters_in_json_query(rqs, owner=getattr(rqs.owner, "pk", None))
+        if remap_result is None:
+            _debug("WARN nothing remapped for this RequestQuerySnapshot -> skipping save", rqs.owner)
+            skipped_reasons["skipped"] += 1
+            skipped_reasons["remap_failed"] += 1
+            continue
+        new_json_query, new_perimeters_ids = remap_result
+        new_json_query = new_json_query.replace(": ", ":").replace(", ", ",")
+        if new_json_query == json_query:
+            _debug("INFO json_query unchanged after remap -> skipping save", rqs.owner)
+            skipped_reasons["skipped"] += 1
+            skipped_reasons["json_unchanged"] += 1
+            continue
+        rqs.serialized_query = new_json_query
+        rqs.perimeters_ids = new_perimeters_ids
+        rqs.save(update_fields=["serialized_query", "perimeters_ids", "modified_at"])
+        skipped_reasons["patched"] += 1
+        _debug("RequestQuerySnapshot patched successfully", rqs.owner)
+    _debug(
+        "END patch_request_source_population "
+        f"\n- patched={skipped_reasons.get('patched', 0)}"
+        f"\n- skipped={skipped_reasons.get('skipped', 0)}"
+        f"\n  * empty_serialized_query={skipped_reasons.get('empty_serialized_query', 0)}"
+        f"\n  * remap_failed={skipped_reasons.get('remap_failed', 0)}"
+        f"\n  * json_unchanged={skipped_reasons.get('json_unchanged', 0)}"
+        f"\n- total={total}"
+    )
+
+#patch_request_source_population()
