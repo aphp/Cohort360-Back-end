@@ -51,11 +51,16 @@ class ContextRequestMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        request.environ.update({
+        context_data = {
             'user_id': get_request_user_id(request),
             'trace_id': request.headers.get(settings.TRACE_ID_HEADER, str(uuid.uuid4())),
             'impersonating': request.headers.get(settings.IMPERSONATING_HEADER, "-")
-        })
+        }
+        # WSGI uses environ, ASGI uses scope - support both
+        if hasattr(request, 'environ'):
+            request.environ.update(context_data)
+        elif hasattr(request, 'scope'):
+            request.scope.update(context_data)
         with ContextRequestHolder(request):
             response = self.get_response(request)
         return response

@@ -52,7 +52,7 @@ CORS_ALLOW_HEADERS = ['access-control-allow-origin',
 ALLOWED_HOSTS = ['localhost',
                  '127.0.0.1',
                  '0.0.0.0',
-                 BACKEND_HOST]
+                 BACKEND_HOST] + env.list("EXTRA_ALLOWED_HOSTS", default=[])
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
