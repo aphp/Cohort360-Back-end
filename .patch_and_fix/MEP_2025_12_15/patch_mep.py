@@ -1,6 +1,3 @@
-from cohort.patch_utils import *
-
-
 """
 Patch MEP (mise en production) — migration des requêtes et filtres sauvegardés.
 
@@ -38,9 +35,10 @@ Attention / Exploitation
 - Il n’est pas idempotent par conception si les remplacements ne sont pas strictement uniques
   (à vérifier avant relance).
 - Toujours valider sur un environnement de recette/staging et/ou faire un backup avant exécution.
-"""
 
+----------------------------------------------------------------------------------------------------
 
+from cohort.patch_utils import *
 # Condition
 ## SOURCE
 ### AREM
@@ -97,3 +95,4 @@ for old, new in mappings.items():
     print("Request Query Snapshot patched")
     patch_filter(old, new)
     print("Filter patched")
+"""

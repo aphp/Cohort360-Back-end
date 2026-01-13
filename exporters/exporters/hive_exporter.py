@@ -48,7 +48,8 @@ class HiveExporter(BaseExporter):
                     raise ValueError(f"Cohort `{source_cohort_id}` not found or did not finish successfully")
 
         if not required_table_provided and not base_cohort_provided:
-            raise ValueError(f"`{required_table}` table was not specified; must then provide source cohort for all tables")
+            raise ValueError(
+                f"`{required_table}` table was not specified; must then provide source cohort for all tables")
         return True
 
     def complete_data(self, export_data: dict, owner: User, **kwargs) -> None:
@@ -95,7 +96,7 @@ class HiveExporter(BaseExporter):
         try:
             _logger.info(f"Export[{export.pk}] create_db: Calling hadoop_api.create_db(name='{export.target_name}')")
             job_id = self.hadoop_api.create_db(name=export.target_name,
-                                              location=db_location)
+                                               location=db_location)
             _logger.info(f"Export[{export.pk}] create_db: Received job_id='{job_id}'")
             self.log_export_task(export.pk, f"Received Hive DB creation job_id: {job_id}")
             _logger.info(f"Export[{export.pk}] create_db: Waiting for job completion...")
