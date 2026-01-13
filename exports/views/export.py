@@ -164,7 +164,7 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
         export_data = {
             "motivation": original_export.motivation,
             "nominative": original_export.nominative,
-            "shift_date": original_export.shift_dates,
+            "shift_dates": original_export.shift_dates,
             "output_format": original_export.output_format,
             "group_tables": original_export.group_tables,
         }

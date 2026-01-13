@@ -85,23 +85,22 @@ class ListCohort(models.Model):
     )
     objects = ModelManager()
 
+    class Meta:
+        app_label = APP_LABEL
+        managed = False
+        db_table = 'list'
 
-class Meta:
-    app_label = APP_LABEL
-    managed = False
-    db_table = 'list'
 
-
-@classmethod
-def get_practitioner_patient_lists_since(cls, since_dt: str):
-    sql = f"""
-              SELECT *
-              FROM omop.list
-              WHERE source__type = 'Practitioner'
-                AND subject__type = 'Patient'
-                AND insert_datetime >= '{since_dt}';
-              """
-    return ListCohort.objects.raw(sql)
+    @classmethod
+    def get_practitioner_patient_lists_since(cls, since_dt: str):
+        sql = f"""
+                  SELECT *
+                  FROM omop.list
+                  WHERE source__type = 'Practitioner'
+                    AND subject__type = 'Patient'
+                    AND insert_datetime >= '{since_dt}';
+                  """
+        return ListCohort.objects.raw(sql)
 
 
 class CareSiteMapperMep(models.Model):

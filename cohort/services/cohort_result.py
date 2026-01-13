@@ -120,7 +120,7 @@ class CohortResultService(CommonService):
                 count = (cohort.parent_cohort.dated_measure.measure or 0) * cohort.sampling_ratio
             else:
                 json_query = cohort.request_query_snapshot.serialized_query
-                count = cohort.dated_measure.measure or 0
+                count = getattr(cohort.dated_measure, "measure", 0) or 0
 
             job_status = count >= settings.COHORT_SIZE_LIMIT and JobStatus.long_pending or JobStatus.pending
             cohort.request_job_status = job_status
