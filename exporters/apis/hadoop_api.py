@@ -43,8 +43,6 @@ class HadoopAPI(BaseAPI):
             raise RequestException(f"Granting rights did not succeed: {response.get('err')}")
 
     def query_hadoop(self, endpoint: str, params: dict) -> Response:
-        _logger.info(
-            f"hive_user: {self.hive_user} / query_hadoop: Sending request to Hadoop API with params: \n- -X POST {self.url}{endpoint} -H \"Content-Type: application/json\" -d {params} \n- api conf:{self.api_conf} \ntoken: {self.auth_token}")
         return requests.post(url=f"{self.url}{endpoint}",
                              params=params,
                              headers={'auth-token': self.auth_token})
