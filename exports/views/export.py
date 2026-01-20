@@ -42,9 +42,23 @@ class ExportFilter(filters.FilterSet):
             return queryset.filter(join_qs([Q(**{f"{field}__{f}__icontains": value}) for f in search_fields]))
         return queryset
 
+    def cohort_id_filter(self, queryset, field, value: str):
+        if not value:
+            return queryset
+        sub_values = [val.strip() for val in value.split(",") if val.strip()]
+        if not sub_values:
+            return queryset
+        cohort_qs = [
+            Q(export_tables__cohort_result_source__group_id=v) |
+            Q(export_tables__cohort_result_subset__group_id=v)
+            for v in sub_values
+        ]
+        return queryset.filter(join_qs(cohort_qs)).distinct()
+
     output_format = filters.CharFilter(method="multi_value_filter", field_name="output_format")
     status = filters.CharFilter(method="multi_value_filter", field_name="request_job_status")
     owner = filters.CharFilter(method="owner_filter", field_name="owner")
+    cohort_id = filters.CharFilter(method="cohort_id_filter", field_name="cohort_id")
     motivation = filters.CharFilter(field_name="motivation", lookup_expr='icontains')
     ordering = OrderingFilter(fields=('created_at',
                                       'modified_at',
@@ -58,6 +72,7 @@ class ExportFilter(filters.FilterSet):
         fields = ("motivation",
                   "output_format",
                   "status",
+                  "cohort_id",
                   "owner")
 
 
