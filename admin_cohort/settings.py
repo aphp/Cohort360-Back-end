@@ -346,6 +346,9 @@ REST_FRAMEWORK_EXTENSIONS = {"DEFAULT_PARENT_LOOKUP_KWARG_NAME_PREFIX": "",
 ACCESS_MANAGERS_LIST_LINK = env.str("ACCESS_MANAGERS_LIST_LINK", default="")
 ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS = env.int("ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS", default=30)
 ACCESS_EXPIRY_SECOND_ALERT_IN_DAYS = env.int("ACCESS_EXPIRY_SECOND_ALERT_IN_DAYS", default=2)
+# Enable access expiry alert emails. Should be True in PROD only, False in preprod/qualif/dev
+# to prevent non-prod environments from sending alert emails after prod<->preprod swaps.
+ENABLE_ACCESS_EXPIRY_ALERTS = env.bool("ENABLE_ACCESS_EXPIRY_ALERTS", default=False)
 DEFAULT_ACCESS_VALIDITY_IN_DAYS = env.int("DEFAULT_ACCESS_VALIDITY_IN_DAYS", default=365)
 
 # EXPORTS

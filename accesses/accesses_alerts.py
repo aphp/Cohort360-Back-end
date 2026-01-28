@@ -28,6 +28,9 @@ def send_alert_email(user: User, days: int):
 
 
 def send_access_expiry_alerts(days: int):
+    if not settings.ENABLE_ACCESS_EXPIRY_ALERTS:
+        _logger.info("Access expiry alerts are disabled (ENABLE_ACCESS_EXPIRY_ALERTS=False)")
+        return
     _logger.info("Checking expiring accesses")
     expiry_date = date.today() + timedelta(days=days)
     expiring_accesses = Access.objects.filter(accesses_service.q_access_is_valid() &
