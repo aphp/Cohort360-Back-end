@@ -1,4 +1,5 @@
 import json
+import logging
 
 from django.db.models import BooleanField, When, Case, Value, QuerySet
 from django.db.models.query_utils import Q
@@ -21,6 +22,8 @@ from admin_cohort.tools.request_log_mixin import RequestLogMixin
 from accesses.models import Access
 from accesses.permissions import AccessesPermission
 from accesses.serializers import AccessSerializer, DataRightSerializer, ExpiringAccessesSerializer
+
+_logger = logging.getLogger('info')
 
 
 class AccessFilter(filters.FilterSet):
@@ -71,8 +74,9 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
     def get_queryset(self) -> QuerySet:
         queryset = super().get_queryset()
         now = timezone.now()
-        queryset = queryset.annotate(sql_is_valid=Case(When(start_datetime__lte=now, end_datetime__gte=now, then=Value(True)),
-                                                       default=Value(False), output_field=BooleanField()))
+        queryset = queryset.annotate(
+            sql_is_valid=Case(When(start_datetime__lte=now, end_datetime__gte=now, then=Value(True)),
+                              default=Value(False), output_field=BooleanField()))
         return queryset
 
     @extend_schema(responses={status.HTTP_200_OK: AccessSerializer},
@@ -88,8 +92,12 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
             accesses = accesses_service.get_accesses_on_perimeter(user=request.user,
                                                                   accesses=valid_accesses,
                                                                   perimeter_id=request.query_params.get("perimeter_id"),
-                                                                  include_parents=json.loads(request.query_params.get("include_parents", "false")),
-                                                                  include_children=json.loads(request.query_params.get("include_children", "false")))
+                                                                  include_parents=json.loads(
+                                                                      request.query_params.get("include_parents",
+                                                                                               "false")),
+                                                                  include_children=json.loads(
+                                                                      request.query_params.get("include_children",
+                                                                                               "false")))
         page = self.paginate_queryset(accesses)
         if page:
             serializer = self.get_serializer(page, many=True)
@@ -102,6 +110,7 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
     def create(self, request, *args, **kwargs):
         try:
             accesses_service.process_create_data(data=request.data)
+            _logger.info(f"Access created by user {request.user.username} - request data: {request.data}")
         except ValueError as e:
             return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return super().create(request, *args, **kwargs)
@@ -111,6 +120,7 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
     def partial_update(self, request, *args, **kwargs):
         try:
             accesses_service.process_patch_data(access=self.get_object(), data=request.data)
+            _logger.info(f"Access updated by user {request.user.username} - request data: {request.data}")
         except ValueError as e:
             return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return super().partial_update(request, *args, **kwargs)
@@ -125,6 +135,7 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
         except ValueError as e:
             return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         request.data.update({'end_datetime': now})
+        _logger.info(f"Access closed by user {request.user.username} - request data: {request.data}")
         return super().partial_update(request, *args, **kwargs)
 
     @extend_schema(responses={status.HTTP_204_NO_CONTENT: None})
@@ -134,6 +145,7 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
             return Response(data={"error": "L'accès est déjà activé, il ne peut plus être supprimé."},
                             status=status.HTTP_400_BAD_REQUEST)
         self.perform_destroy(access)
+        _logger.info(f"Access deleted by user {request.user.username} - access id: {access.id}")
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @extend_schema(responses={status.HTTP_200_OK: AccessSerializer(many=True)})
@@ -146,7 +158,8 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
         if expiring:
             accesses = accesses_service.get_expiring_accesses(user=user, accesses=accesses)
             if not accesses:
-                return Response(data={"message": f"No accesses to expire in the next {settings.ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS} days"},
+                return Response(data={
+                    "message": f"No accesses to expire in the next {settings.ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS} days"},
                                 status=status.HTTP_200_OK)
         return Response(data=self.get_serializer(accesses, many=True).data,
                         status=status.HTTP_200_OK)
@@ -161,6 +174,7 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
         except ValueError:
             return Response(data=f"`perimeters_ids` must be integers, got `{perimeters_ids}` instead",
                             status=status.HTTP_400_BAD_REQUEST)
-        data_rights = accesses_service.get_data_reading_rights(user=request.user, target_perimeters_ids=target_perimeters_ids)
+        data_rights = accesses_service.get_data_reading_rights(user=request.user,
+                                                               target_perimeters_ids=target_perimeters_ids)
         return Response(data=DataRightSerializer(data_rights, many=True).data,
                         status=status.HTTP_200_OK)

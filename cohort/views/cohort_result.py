@@ -1,3 +1,5 @@
+import logging
+
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Q, F, BooleanField, When, Case, Value
@@ -19,7 +21,7 @@ from cohort.services.cohort_rights import cohort_rights_service
 from cohort.views.shared import UserObjectsRestrictedViewSet
 from exports.services.export import export_service
 
-
+_logger_info = logging.getLogger('info')
 class CohortFilter(filters.FilterSet):
 
     def multi_value_filter(self, queryset, field, value: str):
@@ -119,6 +121,7 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         transaction.on_commit(lambda: cohort_service.handle_cohort_creation(request=request,
                                                                             cohort=response.data.serializer.instance,
                                                                             global_estimate=global_estimate))
+        _logger_info.info(f"Cohort created by user {request.user.username} - request data: {request.data}")
         return response
 
 
