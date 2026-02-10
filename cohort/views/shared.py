@@ -1,3 +1,5 @@
+import logging
+
 from django.http import QueryDict
 from rest_framework import viewsets
 from rest_framework.relations import RelatedField
@@ -8,6 +10,8 @@ from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagin
 from admin_cohort.tools.request_log_mixin import RequestLogMixin
 from admin_cohort.tools.swagger import SchemaMeta
 from cohort.permissions import IsOwnerPermission
+
+_logger = logging.getLogger('info')
 
 
 class UserObjectsRestrictedViewSet(RequestLogMixin, viewsets.ModelViewSet, metaclass=SchemaMeta):
@@ -27,6 +31,7 @@ class UserObjectsRestrictedViewSet(RequestLogMixin, viewsets.ModelViewSet, metac
         if type(request.data) is QueryDict:
             request.data._mutable = True
         request.data['owner'] = request.data.get('owner', request.user.pk)
+        _logger.info(f"User {request.user.username} created object {request.data}")
         return super().create(request, *args, **kwargs)
 
     # todo : remove when front is ready
@@ -49,10 +54,21 @@ class UserObjectsRestrictedViewSet(RequestLogMixin, viewsets.ModelViewSet, metac
         uuids = str(kwargs.get("uuid", "")).split(",")
         if len(uuids) > 1:
             try:
-                return self.destroy_many(uuids=uuids)
+                response = self.destroy_many(uuids=uuids)
+                _logger.info(
+                    "User %s (id=%s) deleted %d objects: %s",
+                    request.user.username, request.user.pk, len(uuids), uuids
+                )
+                return response
             except ValueError:
-                return Response(data={"error": f"Invalid value for uuid param, {uuids=}"}, status=status.HTTP_400_BAD_REQUEST)
-        return super().destroy(request, *args, **kwargs)
+                return Response(data={"error": f"Invalid value for uuid param, {uuids=}"},
+                                status=status.HTTP_400_BAD_REQUEST)
+        response = super().destroy(request, *args, **kwargs)
+        _logger.info(
+            "User %s (id=%s) deleted object uuid=%s",
+            request.user.username, request.user.pk, kwargs.get("uuid")
+        )
+        return response
 
     def destroy_many(self, uuids):
         self.queryset.filter(uuid__in=uuids).delete()

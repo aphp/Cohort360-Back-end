@@ -1,3 +1,5 @@
+import logging
+
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Q, F, BooleanField, When, Case, Value
@@ -13,11 +15,14 @@ from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools import join_qs
 from cohort.services.cohort_result import cohort_service
 from cohort.models import CohortResult
-from cohort.serializers import CohortResultSerializer, CohortRightsSerializer, CohortResultPatchSerializer, CohortResultCreateSerializer, \
+from cohort.serializers import CohortResultSerializer, CohortRightsSerializer, CohortResultPatchSerializer, \
+    CohortResultCreateSerializer, \
     SampledCohortResultCreateSerializer
 from cohort.services.cohort_rights import cohort_rights_service
 from cohort.views.shared import UserObjectsRestrictedViewSet
 from exports.services.export import export_service
+
+_logger = logging.getLogger('info')
 
 
 class CohortFilter(filters.FilterSet):
@@ -66,16 +71,16 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     queryset = CohortResult.objects.select_related('dated_measure',
                                                    'dated_measure_global',
                                                    'request_query_snapshot__request') \
-                                   .annotate(request_id=F('request_query_snapshot__request__uuid'),
-                                             result_size=F('dated_measure__measure'),
-                                             measure_min=F('dated_measure_global__measure_min'),
-                                             measure_max=F('dated_measure_global__measure_max'),
-                                             exportable=Case(When(result_size__isnull=False,
-                                                                  result_size__lte=settings.COHORT_SIZE_LIMIT,
-                                                                  then=Value(True)),
-                                                               default=Value(False),
-                                                               output_field=BooleanField()
-                                                               ))
+        .annotate(request_id=F('request_query_snapshot__request__uuid'),
+                  result_size=F('dated_measure__measure'),
+                  measure_min=F('dated_measure_global__measure_min'),
+                  measure_max=F('dated_measure_global__measure_max'),
+                  exportable=Case(When(result_size__isnull=False,
+                                       result_size__lte=settings.COHORT_SIZE_LIMIT,
+                                       then=Value(True)),
+                                  default=Value(False),
+                                  output_field=BooleanField()
+                                  ))
     serializer_class = CohortResultSerializer
     http_method_names = ['get', 'post', 'patch', 'delete']
     swagger_tags = ["Cohorts"]
@@ -85,7 +90,6 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
                             'request_query_snapshot', 'request_query_snapshot_id',
                             'dated_measure', 'dated_measure_id']
 
-
     def get_permissions(self):
         special_permissions = cohort_service.get_special_permissions(self.request)
         if special_permissions:
@@ -94,17 +98,14 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             return [AllowAny()]
         return super().get_permissions()
 
-
     def get_queryset(self):
         if cohort_service.allow_use_full_queryset(request=self.request):
             return self.queryset
         return super().get_queryset().filter(is_subset=False)
 
-
     @cache_response()
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
-
 
     @extend_schema(
         request=PolymorphicProxySerializer(
@@ -119,8 +120,9 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         transaction.on_commit(lambda: cohort_service.handle_cohort_creation(request=request,
                                                                             cohort=response.data.serializer.instance,
                                                                             global_estimate=global_estimate))
+        _logger.info(
+            f"Cohort created by user {request.user.username} - cohort: {response.data.serializer.instance} - global estimation: {global_estimate}")
         return response
-
 
     @extend_schema(request=CohortResultPatchSerializer, responses={status.HTTP_200_OK: CohortResultSerializer})
     def partial_update(self, request, *args, **kwargs):
@@ -141,18 +143,17 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         cohort_service.ws_send_to_client(cohort=cohort)
         return response
 
-
     @action(methods=['get'], detail=False, url_path='jobs/active')
     def get_active_jobs(self, request, *args, **kwargs):
         return Response(data={"jobs_count": cohort_service.count_active_jobs()},
                         status=status.HTTP_200_OK)
 
-
     @extend_schema(responses={status.HTTP_200_OK: CohortRightsSerializer(many=True)})
     @action(detail=False, methods=['get'], url_path="cohort-rights")
     def get_rights_on_cohorts(self, request, *args, **kwargs):
-        cohorts_rights = cohort_rights_service.get_user_rights_on_cohorts(group_ids=request.query_params.get('group_id'),
-                                                                          user=request.user)
+        cohorts_rights = cohort_rights_service.get_user_rights_on_cohorts(
+            group_ids=request.query_params.get('group_id'),
+            user=request.user)
         serializer = CohortRightsSerializer(data=cohorts_rights, many=True)
         serializer.is_valid()
         return Response(data=serializer.data,

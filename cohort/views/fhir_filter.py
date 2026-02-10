@@ -1,3 +1,5 @@
+import logging
+
 from django.db.utils import IntegrityError
 from django_filters import rest_framework as filters
 from drf_spectacular.utils import extend_schema
@@ -10,6 +12,8 @@ from admin_cohort.tools.cache import cache_response
 from cohort.models import FhirFilter
 from cohort.serializers import FhirFilterSerializer, FhirFilterCreateSerializer, FhirFilterPatchSerializer
 from cohort.views.shared import UserObjectsRestrictedViewSet
+
+_logger = logging.getLogger('info')
 
 
 class FhirFilterFilter(filters.FilterSet):
@@ -49,7 +53,9 @@ class FhirFilterViewSet(UserObjectsRestrictedViewSet):
                    responses={status.HTTP_201_CREATED: FhirFilterSerializer})
     def create(self, request, *args, **kwargs):
         try:
-            return super().create(request, *args, **kwargs)
+            response = super().create(request, *args, **kwargs)
+            _logger.info(f"FhirFilter created by user {request.user.username} - request data: {request.data}")
+            return response
         except IntegrityError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -57,17 +63,21 @@ class FhirFilterViewSet(UserObjectsRestrictedViewSet):
                    responses={status.HTTP_200_OK: FhirFilterSerializer})
     def partial_update(self, request, *args, **kwargs):
         try:
-            return super().partial_update(request, *args, **kwargs)
+            response = super().partial_update(request, *args, **kwargs)
+            _logger.info(f"FhirFilter updated by user {request.user.username} - request data: {request.data}")
+            return response
         except IntegrityError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     @extend_schema(responses={status.HTTP_204_NO_CONTENT: None})
     def destroy(self, request, *args, **kwargs):
-        return super().destroy(request, *args, **kwargs)
+        response = super().destroy(request, *args, **kwargs)
+        _logger.info(f"FhirFilter deleted by user {request.user.username} - request data: {request.data}")
+        return response
 
     @extend_schema(responses={status.HTTP_204_NO_CONTENT: None})
     @action(methods=['delete'], detail=False)
     def delete_multiple(self, request):
         FhirFilter.objects.filter(uuid__in=request.data.get('uuids', [])).delete()
+        _logger.info(f"Multiple FhirFilters deleted by user {request.user.username} - request data: {request.data}")
         return Response(status=status.HTTP_204_NO_CONTENT)
-
