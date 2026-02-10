@@ -1,130 +1,166 @@
 import logging
-from typing import List
-from urllib.parse import quote_plus
+from typing import List, Dict
 
+from celery import chain
+from django.db.models.query_utils import Q
 from django.http import StreamingHttpResponse
+from django.core.exceptions import ImproperlyConfigured
+from django.utils.module_loading import import_string
 from requests.exceptions import RequestException
 from rest_framework.exceptions import ValidationError
 
 from admin_cohort.types import JobStatus
-from cohort.models import CohortResult, FhirFilter
-from cohort.services.cohort_result import cohort_service
-from exports.models import ExportTable, Export
-from exports.services.export_operators import ExportDownloader, ExportManager
-from exports.tasks import launch_export_task, get_logs
+from cohort.models import CohortResult
+from exports.apps import ExportsConfig
+from exports.models import Export, ExportTable
+from exports.services.export_operators import ExportDownloader
+from exports.tasks import get_logs
+from exports.export_tasks import (notify_export_received,
+                                  create_cohort_subsets,
+                                  relaunch_cohort_subsets,
+                                  create_export_tables,
+                                  await_cohort_subsets,
+                                  prepare_export,
+                                  send_export_request,
+                                  track_export_job,
+                                  finalize_export,
+                                  notify_export_succeeded,
+                                  mark_export_as_failed)
 
-_logger = logging.getLogger('info')
+
+logger = logging.getLogger("info")
+
+ExportTypes = ExportsConfig.ExportTypes
+EXPORTERS = ExportsConfig.EXPORTERS
 
 
-def get_encoded_doc_ref_filter() -> str:
-    filter_values = {"type:not": "https://terminology.eds.aphp.fr/aphp-orbis-document-textuel-hospitalier|doc-impor",
-                     "contenttype": "text/plain"
-                     }
-    return "&".join([f"{key}={quote_plus(val)}" for key, val in filter_values.items()])
-
-
-EXCLUDED_TABLES = ('imaging_series',
-                   'questionnaire__item',
-                   'questionnaireresponse__item',
-                   'questionnaireresponse__item__answer')
-
-TABLES_REQUIRING_SUB_COHORTS = ('note',)
-
-RESOURCE_FILTERS = {TABLES_REQUIRING_SUB_COHORTS[0]: ("DocumentReference", get_encoded_doc_ref_filter())
-                    }
+def load_available_exporters() -> dict:
+    exporters = {}
+    for exporter_conf in EXPORTERS:
+        try:
+            export_type, cls_path = exporter_conf["TYPE"], exporter_conf["EXPORTER_CLASS"]
+            export_type = ExportTypes(export_type)
+        except KeyError:
+            raise ImproperlyConfigured("Missing `TYPE` or `EXPORTER_CLASS` key in exporter configuration")
+        except ValueError as e:
+            raise ImproperlyConfigured(f"Invalid export type: {e}")
+        exporter = import_string(cls_path)
+        if exporter:
+            exporters[export_type] = exporter
+        else:
+            logger.warning(f"Improperly configured exporter `{cls_path}`")
+    if not exporters:
+        raise ImproperlyConfigured("No exporter is configured")
+    return exporters
 
 
 class ExportService:
 
-    @staticmethod
-    def validate_export_data(data: dict, **kwargs) -> None:
+    def __init__(self):
+        self.exporters = load_available_exporters()
+
+    def _get_exporter(self, export_type: str):
         try:
-            ExportManager().validate(export_data=data, **kwargs)
+            return self.exporters[export_type]
+        except KeyError:
+            raise ImproperlyConfigured(f"Missing exporter configuration for type `{export_type}`")
+
+    def validate(self, data: Dict, **kwargs) -> None:
+        exporter = self._get_exporter(data.get("output_format"))
+        try:
+            exporter().validate(export_data=data, **kwargs)
         except Exception as e:
             raise ValidationError(f'Invalid export data: {e}')
 
-    def proceed_with_export(self, export: Export, tables: List[dict], **kwargs) -> None:
-        _logger.info(f"Export[{export.uuid}]: Creating tables ...")
-        requires_cohort_subsets = self.create_tables(export, tables, **kwargs)
-        _logger.info(f"Export[{export.uuid}]: tables created. Required cohort subsets ? {requires_cohort_subsets}")
-        if not requires_cohort_subsets:
-            launch_export_task.delay(export.pk)
-
     @staticmethod
-    def force_generate_fhir_filter(export: Export, table_name: str) -> str:
-        resource, _filter = RESOURCE_FILTERS[table_name]
-        return FhirFilter.objects.create(auto_generated=True,
-                                         fhir_resource=resource,
-                                         filter=_filter,
-                                         name=f'{str(export.uuid)[:8]}_{table_name}_(auto generated)',
-                                         owner=export.owner).uuid
+    def proceed_with_export(export: Export, tables: List[Dict], auth_headers: Dict) -> bool:
+        """ The tasks are chained in this specific order to reflect the export workflow.
+            /!\ MODIFY WITH CAUTION /!\
+            - Some tasks are called with .s() to take the output of the previous task as the 1st arg in their signature.
+            - Others are called with .si() to ignore it
+            - If a task fails, it passes the "failure reason" to the next tasks until it reaches the "mark_export_as_failed" task
+        """
+        source_cohorts_ids = [t.get("cohort_result_source") for t in tables if t.get("cohort_result_source")]
+        assert source_cohorts_ids, "No `cohort_result_source` was provided for all tables"
 
-    def create_tables(self, export: Export, tables: List[dict], **kwargs) -> bool:
-        requires_cohort_subsets = False
-        for table in tables:
-            fhir_filter_id = table.get("fhir_filter")
-            cohort_source_id = table.get("cohort_result_source")
-            cohort_source = cohort_source_id and CohortResult.objects.get(pk=cohort_source_id) or None
-            table_name = table.get("table_name")
-            if fhir_filter_id and cohort_source is None:
-                raise ValidationError("A FHIR filter was provided but not a cohort source to filter")
-            if cohort_source and table_name in TABLES_REQUIRING_SUB_COHORTS and not fhir_filter_id:
-                fhir_filter_id = self.force_generate_fhir_filter(export=export,
-                                                                 table_name=table_name)
+        export_id = export.uuid
+        main_cohort = CohortResult.objects.filter(uuid=source_cohorts_ids[0]).only("group_id", "name").first()
 
-            if cohort_source and fhir_filter_id and table_name not in EXCLUDED_TABLES:
-                requires_cohort_subsets = True
-                cohort_subset = cohort_service.create_cohort_subset(request=kwargs.get("http_request"),
-                                                                    owner_id=export.owner_id,
-                                                                    table_name=table_name,
-                                                                    fhir_filter_id=fhir_filter_id,
-                                                                    source_cohort=cohort_source)
-            else:
-                cohort_subset = None
-
-            t = ExportTable.objects.create(export=export,
-                                           name=table_name,
-                                           fhir_filter_id=fhir_filter_id,
-                                           cohort_result_source=cohort_source,
-                                           cohort_result_subset=cohort_subset,
-                                           columns=table.get("columns"),
-                                           pivot_merge=bool(table.get("pivot_merge")),
-                                           pivot_merge_columns=table.get("pivot_merge_columns"),
-                                           pivot_merge_ids=table.get("pivot_merge_ids"))
-            _logger.info(f"Export[{export.uuid}]: table `{t.name}` created")
-        return requires_cohort_subsets
-
-    @staticmethod
-    def check_all_cohort_subsets_created(export: Export):
-        _logger.info(f"Export[{export.uuid}]: Checking if all cohort subsets were created...")
-        if export.request_job_status == JobStatus.failed:
-            _logger.info(f"Export[{export.uuid}]: export has already been marked failed")
-            return
-        for table in export.export_tables.filter(cohort_result_subset__isnull=False):
-            cohort_subset_status = table.cohort_result_subset.request_job_status
-            if cohort_subset_status == JobStatus.failed:
-                failure_reason = "One or multiple cohort subsets has failed"
-                _logger.info(f"Export[{export.uuid}]: Aborting export - {failure_reason}")
-                ExportManager().mark_as_failed(export=export, reason=failure_reason)
-                return
-            elif cohort_subset_status != JobStatus.finished:
-                _logger.info(f"Export[{export.uuid}]: waiting for cohort subsets to finish before launching export")
-                return
-        _logger.info(f"Export[{export.uuid}]: all cohort subsets were successfully created. Launching export.")
-        launch_export_task.delay(export.pk)
+        tasks = chain(notify_export_received.s(export_id=export_id, cohort_id=main_cohort.group_id, cohort_name=main_cohort.name),
+                      create_cohort_subsets.si(export_id=export_id, tables=tables, auth_headers=auth_headers),
+                      create_export_tables.s(export_id=export_id, tables=tables),
+                      await_cohort_subsets.s(export_id=export_id),
+                      prepare_export.s(export_id=export_id),
+                      send_export_request.s(export_id=export_id),
+                      track_export_job.s(export_id=export_id),
+                      finalize_export.s(export_id=export_id),
+                      notify_export_succeeded.s(export_id=export_id),
+                      mark_export_as_failed.s(export_id=export_id)
+                      )
+        tasks.apply_async()
+        return True
 
     @staticmethod
     def download(export: Export) -> StreamingHttpResponse:
         return ExportDownloader().download(export=export)
 
     @staticmethod
-    def retry(export: Export):
+    def retry(export: Export, auth_headers: Dict) -> bool:
+        """
+        For safety, restore related export tables if deleted
+        - If the export has a valid value of 'request_job_id', it would have failed at the Export-API side, relaunch it as is
+        - Otherwise, make sure cohort subsets were created or retry them as well.
+        """
         export.request_job_status = JobStatus.new
-        export.retried = True
         export.request_job_fail_msg = ""
         export.request_job_duration = ""
         export.save()
-        launch_export_task.delay(export.pk)
+
+        export_id = export.uuid
+
+        # restore deleted tables if any
+        deleted_tables = ExportTable.deleted_objects.filter(export_id=export_id)
+        if deleted_tables:
+            logger.info(f"Export[{export_id}] Retry - Restoring deleted tables")
+            deleted_tables.update(deleted=None)
+
+        source_cohorts_ids = [t.cohort_result_source_id for t in export.export_tables.all()]
+        assert source_cohorts_ids, "No `cohort_result_source` was provided for all tables"
+        main_cohort = CohortResult.objects.filter(uuid=source_cohorts_ids[0]).only("group_id", "name").first()
+
+        retry_tasks = [notify_export_received.s(export_id=export_id,
+                                                cohort_id=main_cohort.group_id,
+                                                cohort_name=main_cohort.name)]
+        if export.request_job_id:
+            logger.info(f"Export[{export_id}] Failed on the Export-API side")
+        else:
+            failed_cohort_subsets = export.export_tables.filter(Q(cohort_result_subset__isnull=False)
+                                                                & ~Q(cohort_result_subset__request_job_status=JobStatus.finished))
+            if failed_cohort_subsets.exists():
+                # some cohort subsets failed. must try to re-launch them before proceeding to next steps
+                # tables are already created as well as corresponding cohort subsets.
+                # /!\ ensure cohort subsets are not deleted and restore them otherwise
+                logger.info(f"Export[{export_id}] Retry - Found failed cohorts subsets. Will try to re-launch them")
+                failed_cohort_subsets_ids = failed_cohort_subsets.values_list("uuid", flat=True)
+                retry_tasks += [relaunch_cohort_subsets.si(export_id=export_id,
+                                                           failed_cohort_subsets_ids=failed_cohort_subsets_ids,
+                                                           auth_headers=auth_headers),
+                                await_cohort_subsets.s(export_id=export_id),
+                                ]
+            else:
+                logger.info(f"Export[{export_id}] Retry - No failed cohorts subsets found.")
+
+        retry_tasks += [prepare_export.s(export_id=export_id),
+                        send_export_request.s(export_id=export_id),
+                        track_export_job.s(export_id=export_id),
+                        finalize_export.s(export_id=export_id),
+                        notify_export_succeeded.s(export_id=export_id),
+                        mark_export_as_failed.s(export_id=export_id)
+                        ]
+        chain(*retry_tasks).apply_async()
+        export.retried = True
+        export.save()
+        return True
 
     @staticmethod
     def get_execution_logs(export: Export, timeout: int = 30):
@@ -132,7 +168,7 @@ class ExportService:
             result = get_logs.s(export_id=export.uuid).apply_async()
             return result.get(timeout=timeout)
         except (RequestException, TimeoutError) as e:
-            _logger.error(f"Export[{export.uuid}] Failed to retrieve logs: {e}")
+            logger.error(f"Export[{export.uuid}] Failed to retrieve logs: {e}")
             raise e
 
 

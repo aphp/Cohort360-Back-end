@@ -43,6 +43,14 @@ class DatalabViewSetTest(ExportsTestBase):
                                     request_data={"name": "main_datalab", "infrastructure_provider": self.infra_provider_aphp.uuid},
                                     expected_resp_status=status.HTTP_201_CREATED)
 
+    def test_create_datalab_with_invalid_names(self):
+        create_url = reverse(viewname=self.viewname_list)
+        for name in ["name-with-hyphens", "name with spaces"]:
+            self.check_test_create_view(request_user=self.datalabs_manager_user,
+                                        create_url=create_url,
+                                        request_data={"name": name, "infrastructure_provider": self.infra_provider_aphp.uuid},
+                                        expected_resp_status=status.HTTP_400_BAD_REQUEST)
+
     def test_error_create_datalab_with_no_right(self):
         create_url = reverse(viewname=self.viewname_list)
         self.check_test_create_view(request_user=self.user_without_rights,

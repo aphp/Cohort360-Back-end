@@ -166,19 +166,16 @@ class DatedMeasuresCreateTests(DatedMeasuresTests):
                                                       request_job_status=JobStatus.pending,
                                                       owner=self.user1)
 
-    @mock.patch('cohort.services.dated_measure.get_authorization_header')
     @mock.patch('cohort.services.dated_measure.cancel_previous_count_jobs.apply_async')
     @mock.patch('cohort.services.dated_measure.count_cohort.apply_async')
-    def check_create_case_with_mock(self, case: DMCreateCase, mock_count_task: MagicMock, mock_cancel_task: MagicMock, mock_header: MagicMock,
+    def check_create_case_with_mock(self, case: DMCreateCase, mock_count_task: MagicMock, mock_cancel_task: MagicMock,
                                     other_view: any, view_kwargs: dict):
-        mock_header.return_value = None
         mock_cancel_task.return_value = None
         mock_count_task.return_value = None
 
         with self.captureOnCommitCallbacks(execute=True):
             super(DatedMeasuresCreateTests, self).check_create_case(case, other_view, **(view_kwargs or {}))
 
-        mock_header.assert_called() if case.mock_header_called else mock_header.assert_not_called()
         mock_cancel_task.assert_called() if case.mock_cancel_task_called else mock_cancel_task.assert_not_called()
         mock_count_task.assert_called() if case.mock_count_task_called else mock_count_task.assert_not_called()
 

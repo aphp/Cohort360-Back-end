@@ -16,8 +16,8 @@ from cohort.models import CohortResult
 from cohort.serializers import CohortResultSerializer, CohortRightsSerializer, CohortResultPatchSerializer, CohortResultCreateSerializer, \
     SampledCohortResultCreateSerializer
 from cohort.services.cohort_rights import cohort_rights_service
+from cohort.services.utils import get_authorization_header
 from cohort.views.shared import UserObjectsRestrictedViewSet
-from exports.services.export import export_service
 
 
 class CohortFilter(filters.FilterSet):
@@ -116,7 +116,8 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     def create(self, request, *args, **kwargs):
         global_estimate = request.data.pop("global_estimate", False)
         response = super().create(request, *args, **kwargs)
-        transaction.on_commit(lambda: cohort_service.handle_cohort_creation(request=request,
+        auth_headers = get_authorization_header(request)
+        transaction.on_commit(lambda: cohort_service.handle_cohort_creation(auth_headers=auth_headers,
                                                                             cohort=response.data.serializer.instance,
                                                                             global_estimate=global_estimate))
         return response
@@ -136,8 +137,6 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         else:
             response = super().partial_update(request, *args, **kwargs)
             cohort_service.handle_cohort_post_update(cohort=cohort, caller=request.user.username)
-            if cohort.export_table.exists():
-                export_service.check_all_cohort_subsets_created(export=cohort.export_table.first().export)
         cohort_service.ws_send_to_client(cohort=cohort)
         return response
 

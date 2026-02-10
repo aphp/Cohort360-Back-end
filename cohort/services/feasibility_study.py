@@ -15,7 +15,7 @@ from admin_cohort.types import JobStatus
 from cohort.models import FeasibilityStudy
 from cohort.services.base_service import CommonService
 
-from cohort.services.utils import get_authorization_header, ServerError
+from cohort.services.utils import ServerError
 from cohort.tasks import feasibility_study_count, send_feasibility_study_notification, send_email_feasibility_report_error, \
                          send_email_feasibility_report_ready
 
@@ -49,11 +49,11 @@ def bound_number(n: int) -> str:
 class FeasibilityStudyService(CommonService):
     job_type = "count"
 
-    def handle_feasibility_study_count(self, fs: FeasibilityStudy, request) -> None:
+    def handle_feasibility_study_count(self, fs: FeasibilityStudy, auth_headers: dict) -> None:
         try:
             chain(*(feasibility_study_count.s(fs_id=fs.uuid,
                                               json_query=fs.request_query_snapshot.serialized_query,
-                                              auth_headers=get_authorization_header(request),
+                                              auth_headers=auth_headers,
                                               cohort_counter_cls=self.operator_cls),
                     send_feasibility_study_notification.s(fs.uuid)))()
         except Exception as e:

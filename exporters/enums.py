@@ -1,16 +1,16 @@
-from enum import Enum, StrEnum
+from enum import StrEnum
 
 from admin_cohort.types import JobStatus
 
 
-class ExportTypes(Enum):
+class ExportTypes(StrEnum):
     CSV = "csv"
     XLSX = "xlsx"
     HIVE = "hive"
 
     @staticmethod
     def default() -> str:
-        return ExportTypes.CSV.value
+        return ExportTypes.CSV
 
     @property
     def allow_download(self) -> bool:
@@ -41,15 +41,15 @@ class APIJobStatus(StrEnum):
     flowerNotAccessible = 'flowerNotAccessible'
 
 
-status_mapper = {APIJobStatus.Received.value: JobStatus.new,
-                 APIJobStatus.Pending.value: JobStatus.pending,
-                 APIJobStatus.Retry.value: JobStatus.pending,
-                 APIJobStatus.Running.value: JobStatus.started,
-                 APIJobStatus.FinishedSuccessfully.value: JobStatus.finished,
-                 APIJobStatus.FinishedWithError.value: JobStatus.failed,
-                 APIJobStatus.FinishedWithTimeout.value: JobStatus.failed,
-                 APIJobStatus.flowerNotAccessible.value: JobStatus.failed,
-                 APIJobStatus.Failure.value: JobStatus.failed,
-                 APIJobStatus.NotFound.value: JobStatus.failed,
-                 APIJobStatus.Revoked.value: JobStatus.cancelled
+status_mapper = {APIJobStatus.Received: JobStatus.new,
+                 APIJobStatus.Pending: JobStatus.pending,
+                 APIJobStatus.Retry: JobStatus.pending,
+                 APIJobStatus.Running: JobStatus.started,
+                 APIJobStatus.FinishedSuccessfully: JobStatus.finished,
+                 APIJobStatus.FinishedWithError: JobStatus.failed,
+                 APIJobStatus.FinishedWithTimeout: JobStatus.failed,
+                 APIJobStatus.flowerNotAccessible: JobStatus.failed,
+                 APIJobStatus.Failure: JobStatus.failed,
+                 APIJobStatus.NotFound: JobStatus.failed,
+                 APIJobStatus.Revoked: JobStatus.cancelled
                  }

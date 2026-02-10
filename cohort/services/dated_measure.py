@@ -3,7 +3,7 @@ from cohort.models import DatedMeasure, CohortResult
 from cohort.models.dated_measure import GLOBAL_DM_MODE
 from cohort.serializers import WSJobStatus, JobName
 from cohort.services.base_service import CommonService
-from cohort.services.utils import get_authorization_header, ServerError
+from cohort.services.utils import ServerError
 from admin_cohort.services.ws_event_manager import WebsocketManager, WebSocketMessageType
 from cohort.tasks import cancel_previous_count_jobs, count_cohort
 
@@ -11,13 +11,12 @@ from cohort.tasks import cancel_previous_count_jobs, count_cohort
 class DatedMeasureService(CommonService):
     job_type = "count"
 
-    def handle_count(self, dm: DatedMeasure, request) -> None:
-        stage_details = request.data.get("stageDetails", None)
+    def handle_count(self, dm: DatedMeasure, auth_headers: dict, stage_details) -> None:
         cancel_previous_count_jobs.s(dm_id=dm.uuid, cohort_counter_cls=self.operator_cls).apply_async()
         try:
             count_cohort.s(dm_id=dm.uuid,
                            json_query=dm.request_query_snapshot.serialized_query,
-                           auth_headers=get_authorization_header(request),
+                           auth_headers=auth_headers,
                            cohort_counter_cls=self.operator_cls,
                            stage_details=stage_details
                            ) \
@@ -26,14 +25,14 @@ class DatedMeasureService(CommonService):
             dm.delete()
             raise ServerError("Could not launch count request") from e
 
-    def handle_global_count(self, cohort: CohortResult, request) -> None:
+    def handle_global_count(self, cohort: CohortResult, auth_headers: dict) -> None:
         dm_global = DatedMeasure.objects.create(mode=GLOBAL_DM_MODE,
-                                                owner=request.user,
-                                                request_query_snapshot_id=request.data.get("request_query_snapshot"))
+                                                owner=cohort.owner,
+                                                request_query_snapshot=cohort.request_query_snapshot)
         try:
             count_cohort.s(dm_id=dm_global.uuid,
                            json_query=dm_global.request_query_snapshot.serialized_query,
-                           auth_headers=get_authorization_header(request),
+                           auth_headers=auth_headers,
                            cohort_counter_cls=self.operator_cls,
                            global_estimate=True) \
                 .apply_async()

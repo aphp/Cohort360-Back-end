@@ -3,10 +3,8 @@ import os
 from datetime import timedelta
 
 from django.conf import settings
-from django.core.exceptions import ImproperlyConfigured
 from django.http import StreamingHttpResponse
 from django.utils import timezone
-from django.utils.module_loading import import_string
 from requests import RequestException
 
 from admin_cohort.types import JobStatus
@@ -24,55 +22,6 @@ if not STORAGE_PROVIDERS:
     _logger.warning("No storage provider is configured!")
 
 ExportTypes = ExportsConfig.ExportTypes
-EXPORTERS = ExportsConfig.EXPORTERS
-
-
-def load_available_exporters() -> dict:
-    exporters = {}
-    for exporter_conf in EXPORTERS:
-        try:
-            export_type, cls_path = exporter_conf["TYPE"], exporter_conf["EXPORTER_CLASS"]
-            export_type = ExportTypes(export_type).value
-        except KeyError:
-            raise ImproperlyConfigured("Missing `TYPE` or `EXPORTER_CLASS` key in exporter configuration")
-        except ValueError as e:
-            raise ImproperlyConfigured(f"Invalid export type: {e}")
-        exporter = import_string(cls_path)
-        if exporter:
-            exporters[export_type] = exporter
-        else:
-            _logger.warning(f"Improperly configured exporter `{cls_path}`")
-    if not exporters:
-        raise ImproperlyConfigured("No exporter is configured")
-    return exporters
-
-
-class ExportManager:
-
-    def __init__(self):
-        self.exporters = load_available_exporters()
-
-    def _get_exporter(self, export_type: str):
-        try:
-            return self.exporters[export_type]
-        except KeyError:
-            raise ImproperlyConfigured(f"Missing exporter configuration for type `{export_type}`")
-
-    def validate(self, export_data: dict, **kwargs) -> None:
-        exporter = self._get_exporter(export_data.get("output_format"))
-        exporter().validate(export_data=export_data, **kwargs)
-
-    def handle_export(self, export_id: str) -> None:
-        try:
-            export = Export.objects.get(pk=export_id)
-        except Export.DoesNotExist:
-            raise ValueError(f'No export matches the given ID : {export_id}')
-        exporter = self._get_exporter(export.output_format)
-        exporter().handle_export(export=export)
-
-    def mark_as_failed(self, export: Export, reason: str) -> None:
-        exporter = self._get_exporter(export.output_format)
-        exporter().mark_export_as_failed(export=export, reason=reason)
 
 
 class DefaultExporter:
@@ -82,12 +31,6 @@ class DefaultExporter:
 
     def handle_export(self, export: Export):
         raise NotImplementedError("Missing exporter implementation")
-
-    @staticmethod
-    def mark_export_as_failed(export: Export, reason: str) -> None:
-        export.request_job_status = JobStatus.failed
-        export.request_job_fail_msg = reason
-        export.save()
 
 
 class ExportDownloader:
@@ -151,6 +94,3 @@ class ExportCleaner:
             push_email_notification(base_notification=exported_files_deleted, **notification_data)
             export.clean_datetime = timezone.now()
             export.save()
-
-
-

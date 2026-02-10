@@ -12,6 +12,7 @@ from rest_framework.response import Response
 from cohort.models import FeasibilityStudy
 from cohort.serializers import FeasibilityStudySerializer, FeasibilityStudyCreateSerializer, FeasibilityStudyPatchSerializer
 from cohort.services.feasibility_study import feasibility_study_service
+from cohort.services.utils import get_authorization_header
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
 _logger = logging.getLogger('info')
@@ -48,7 +49,8 @@ class FeasibilityStudyViewSet(UserObjectsRestrictedViewSet):
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
-        transaction.on_commit(lambda: feasibility_study_service.handle_feasibility_study_count(request=request,
+        auth_headers = get_authorization_header(request)
+        transaction.on_commit(lambda: feasibility_study_service.handle_feasibility_study_count(auth_headers=auth_headers,
                                                                                                fs=response.data.serializer.instance))
         return response
 

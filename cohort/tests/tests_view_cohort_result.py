@@ -231,12 +231,10 @@ class CohortsCreateTests(CohortsTests):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    @mock.patch('cohort.services.cohort_result.get_authorization_header')
     @mock.patch('cohort.services.cohort_result.create_cohort.apply_async')
     @mock.patch('cohort.services.dated_measure.count_cohort.apply_async')
     def check_create_case_with_mock(self, case: CohortCreateCase, mock_count_task: MagicMock, mock_create_task: MagicMock,
-                                    mock_header: MagicMock, other_view: any, view_kwargs: dict):
-        mock_header.return_value = None
+                                    other_view: any, view_kwargs: dict):
         mock_create_task.return_value = None
         mock_count_task.return_value = None
 
@@ -253,7 +251,6 @@ class CohortsCreateTests(CohortsTests):
                 mock_create_task.assert_called() if case.mock_create_task_called else mock_create_task.assert_not_called()
 
         mock_create_task.assert_called() if case.mock_create_task_called else mock_create_task.assert_not_called()
-        mock_header.assert_called() if case.mock_create_task_called else mock_header.assert_not_called()
 
     def check_create_case(self, case: CohortCreateCase, other_view: Any = None, **view_kwargs):
         return self.check_create_case_with_mock(case, other_view=other_view or None, view_kwargs=view_kwargs)

@@ -5,9 +5,9 @@ from django.utils import timezone
 
 from exporters.enums import ExportTypes
 
-CSV = ExportTypes.CSV.value
-HIVE = ExportTypes.HIVE.value
-XLSX = ExportTypes.XLSX.value
+CSV = ExportTypes.CSV
+HIVE = ExportTypes.HIVE
+XLSX = ExportTypes.XLSX
 
 BASE_CONTEXT = {"contact_email_address": settings.EMAIL_SUPPORT_CONTACT}
 
@@ -28,7 +28,7 @@ def export_received(action: str, export_type: str, **kwargs):
 
 
 def export_succeeded(export_type: str, **kwargs):
-    subject = f"[Cohorte {kwargs.get('cohort_id')}] Export `{kwargs.get('cohort_name', '')}` terminé"
+    subject = f"""[Cohorte {kwargs.get('cohort_id')}] Export "{kwargs.get('cohort_name', '')}" terminé"""
     context = {**BASE_CONTEXT,
                "recipient_name": kwargs.get('recipient_name'),
                "cohort_id": kwargs.get('cohort_id'),
@@ -46,7 +46,7 @@ def export_succeeded(export_type: str, **kwargs):
 
 
 def export_failed_notif_for_owner(**kwargs):
-    subject = f"[Cohorte {kwargs.get('cohort_id')}] Votre demande d'export `{kwargs.get('cohort_name', '')}` n'a pas abouti"
+    subject = f"""[Cohorte {kwargs.get('cohort_id')}] Votre demande d'export "{kwargs.get('cohort_name', '')}" n'a pas abouti"""
     context = {**BASE_CONTEXT,
                "recipient_name": kwargs.get('recipient_name'),
                "cohort_id": kwargs.get('cohort_id')
@@ -73,7 +73,7 @@ def export_failed_notif_for_admins(**kwargs):
 
 
 def csv_export_received(**kwargs):
-    return export_received(action=f"Demande d'export `{kwargs.get('cohort_name', CSV)}` reçue",
+    return export_received(action=f"""Demande d'export "{kwargs.get('cohort_name', CSV)}" reçue""",
                            export_type=CSV,
                            **kwargs)
 

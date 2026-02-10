@@ -10,7 +10,7 @@ from cohort.models import DatedMeasure
 from cohort.serializers import DatedMeasureSerializer, DatedMeasureCreateSerializer, DatedMeasurePatchSerializer
 from cohort.services.dated_measure import dm_service
 from cohort.services.request_refresh_schedule import requests_refresher_service
-from cohort.services.utils import await_celery_task
+from cohort.services.utils import await_celery_task, get_authorization_header
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
 _logger = logging.getLogger('info')
@@ -44,8 +44,11 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
-        transaction.on_commit(lambda: dm_service.handle_count(request=request,
-                                                              dm=response.data.serializer.instance))
+        auth_headers = get_authorization_header(request)
+        stage_details = request.data.get("stageDetails", None)
+        transaction.on_commit(lambda: dm_service.handle_count(dm=response.data.serializer.instance,
+                                                              auth_headers=auth_headers,
+                                                              stage_details=stage_details))
         return response
 
     @await_celery_task
