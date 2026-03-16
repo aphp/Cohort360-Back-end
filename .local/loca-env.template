@@ -1,0 +1,67 @@
+# Configuration locale pour Cohort360-Backend
+# --- Système ---
+DEBUG=True
+DJANGO_SECRET_KEY={SECRET_KEY}
+INCLUDED_APPS=accesses,cohort_job_server,cohort,exporters,exports,content_management,accesses_fhir_perimeters
+BACKEND_HOST=localhost:8000
+FRONTEND_URL=http://localhost:5003
+FRONTEND_URLS=http://localhost:3000,http://localhost:3001
+
+# --- Base de données (PostgreSQL) ---
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=cohort_db
+DB_USER=cohort_dev
+DB_PASSWORD=cohort_dev_pwd
+
+PERIMETERS_SOURCE_DB_HOST=localhost
+PERIMETERS_SOURCE_DB_PORT=5432
+PERIMETERS_SOURCE_DB_NAME=edsomop_test
+PERIMETERS_SOURCE_DB_USER=cohort_dev
+PERIMETERS_SOURCE_DB_PASSWORD=cohort_dev_pwd
+PERIMETERS_SOURCE_DB_SCHEMA=public
+ROOT_PERIMETER_ID=0
+PERIMETER_TYPES=AP-HP,GHU,Hôpital,Groupe hospitalier (GH),Pôle/DMU,Unité Fonctionnelle (UF)
+REPORTING_PERIMETER_TYPES=AP-HP,GHU,Hôpital,Groupe hospitalier (GH),Pôle/DMU,Unité Fonctionnelle (UF)
+
+# --- Redis & Celery ---
+CELERY_BROKER_URL=redis://localhost:6379/
+
+# --- Authentification ---
+JWT_ALGORITHMS=RS256,HS256
+JWT_SIGNING_KEY=33eecb0be4a628a8645bb9b5059300c69bbe3032568ae424591f44b3b56c35c4
+ENABLE_OIDC_AUTH=true
+OIDC_AUTH_SERVER_1=http://localhost:8090/auth/realms/master
+OIDC_REDIRECT_URI_1=https://localhost:8090/
+OIDC_CLIENT_SECRET_1=test
+OIDC_CLIENT_ID_1=test
+OIDC_AUTH_SERVER_2=http://localhost:8090/auth/realms/AP-HP
+OIDC_REDIRECT_URI_2=https://localhost:8090/
+OIDC_CLIENT_SECRET_2=test
+OIDC_CLIENT_ID_2=test
+OIDC_AUTH_SERVER_3=http://localhost:8090/auth/realms/ID-Interne
+OIDC_REDIRECT_URI_3=https://localhost:8090/
+OIDC_CLIENT_SECRET_3=test
+OIDC_CLIENT_ID_3=test
+OIDC_AUDIENCE=cohort360,api-fhir,api-portal,api-portal-dev
+
+ROLLOUT_TOKEN=local-dev-token
+ROLLOUT_USERNAME=testuser
+
+# --- Cohort ---
+FHIR_URL=http://localhost:8080/fhir
+QUERY_EXECUTOR_URL=http://localhost:8091
+
+# ... generate token and use it in both environment variables Query Server and Django
+QUERY_EXECUTOR_TOKEN=eyJhbGciOiJSUzI1NiIsImtpZCI6ImxvY2FsLXRlc3Qta2V5IiwidHlwIjoiSldUIn0.eyJleHAiOjE3NzM3MTcyODQsImlhdCI6MTc3MzY4MTI4NCwiYXV0aF90aW1lIjoxNzczNjgxMjI0LCJqdGkiOiIyOTkzNmQ2MC04YjE1LTQzMTYtYTRmYS1mYjcwMDkxNGRiNjMiLCJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjgwOTAvYXV0aC9yZWFsbXMvQVAtSFAiLCJhdWQiOlsiYXBpLWZoaXIiLCJjb2hvcnQzNjAiLCJhcGktcG9ydGFsIl0sInN1YiI6InRlc3QtdXNlci1pZCIsInVzZXJuYW1lIjoidGVzdHVzZXIiLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJ0ZXN0dXNlciIsImI2NCI6dHJ1ZSwidHlwIjoiQmVhcmVyIiwiYXpwIjoiY29ob3J0MzYwLWxvY2FsIiwic2Vzc2lvbl9zdGF0ZSI6IjA4NTlkNTllLTY0MGEtNDQyNC04NzUxLWQ2YjM5MmI3OThkYyIsImFsbG93ZWQtb3JpZ2lucyI6WyJodHRwOi8vbG9jYWxob3N0OjgwOTAvYXV0aC9yZWFsbXMvbWFzdGVyIiwiaHR0cDovL2xvY2FsaG9zdDo4MDkwL2F1dGgvcmVhbG1zL0FQLUhQIl0sInNjb3BlIjoib3BlbmlkIGVtYWlsIHByb2ZpbGUiLCJzaWQiOiIxZjBjMDNmOS0xZDUzLTQ2YzctOGFiOC02OGQyYzQ0MWZjMzIiLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsIm5hbWUiOiJMb2NhbCBUZXN0IFVzZXIiLCJnaXZlbl9uYW1lIjoiTG9jYWwiLCJmYW1pbHlfbmFtZSI6IlVzZXIiLCJlbWFpbCI6InRlc3QudXNlckBleGFtcGxlLmxvY2FsIn0.SlrUaoXMoGtNpj6H3afMI7a692SpTisQz3Rq7RCTmFaZdUVDyRaL12j3_zao5S2yBF2SkoxyCquaGF4dWEDGRhINfYW2vWINmlsUw1DJ1dI3Qk0Wl8h4GlgLLdO1iW3g5GaQyzI67qBs6qL8yhll2N6Utmwmaf5JiZ10ovEJ-3fOwM52XBJr_jidKJA62WO4jeScbfBU8jqRLTULUe_0dojZRbhf4fTXeQZpKq8mlyLOa3yFn9NAYBLduLa8K-zkfhlMp4qxTi70fOmhbEu_YvADDcmQ_aZAcAWGIhCeco7WTOUi29QORDsALxn6QnBFT5_wwKS1qR1u2s3vXl79ow
+QUERY_EXECUTOR_USERNAME=SPARK_JOB_SERVER
+# ... neeed Use solr to do real fq solr query with fhir criteria translation
+USE_SOLR=True
+
+# --- Email (Dummy for local) ---
+EMAIL_HOST=localhost
+EMAIL_PORT=1025
+DEFAULT_FROM_EMAIL=noreply@cohort360.local
+EMAIL_USE_TLS=False
+IDENTITY_SERVER_URL=http://localhost:8090
+DISABLE_DATA_TRANSLATION=false
