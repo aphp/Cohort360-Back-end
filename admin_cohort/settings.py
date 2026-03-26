@@ -24,7 +24,7 @@ TITLE, VERSION, DESCRIPTION = get_project_info()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 env = environ.Env()
-environ.Env.read_env()
+environ.Env.read_env(BASE_DIR / ".env")
 
 NOTSET = environ.Env.NOTSET
 
@@ -301,7 +301,7 @@ SESSION_COOKIE_AGE = 24 * 60 * 60
 
 SIMPLE_JWT = {"USER_ID_FIELD": "username",
               "USER_ID_CLAIM": "username",
-              "SIGNING_KEY": env.str("JWT_SIGNING_KEY"),
+              "SIGNING_KEY": env.str("JWT_SIGNING_KEY").replace("\\n", "\n"),
               "ROTATE_REFRESH_TOKENS": True,
               }
 
