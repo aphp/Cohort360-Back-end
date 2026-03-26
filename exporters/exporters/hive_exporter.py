@@ -47,7 +47,8 @@ class HiveExporter(BaseExporter):
                     raise ValueError(f"Cohort `{source_cohort_id}` not found or did not finish successfully")
 
         if not required_table_provided and not base_cohort_provided:
-            raise ValueError(f"`{required_table}` table was not specified; must then provide source cohort for all tables")
+            raise ValueError(
+                f"`{required_table}` table was not specified; must then provide source cohort for all tables")
         return True
 
     def complete_data(self, export_data: dict, owner: User, **kwargs) -> None:
@@ -55,39 +56,56 @@ class HiveExporter(BaseExporter):
         super().complete_data(export_data=export_data, owner=owner, **kwargs)
 
     def handle_export(self, export: Export, params: dict = None) -> None:
+        _logger.info(f"Export[{export.pk}] Starting Hive export process for target: {export.target_name}")
         self.confirm_export_received(export=export)
         try:
+            _logger.info(f"Export[{export.pk}] Preparing database...")
             self.prepare_db(export)
+            _logger.info(f"Export[{export.pk}] Database preparation completed successfully")
         except RequestException as e:
+            _logger.error(f"Export[{export.pk}] Failed to prepare database: {e}")
             self.mark_export_as_failed(export=export, reason=f"Error while preparing DB for export: {e}")
         else:
             params = params or {"output": {"type": self.type,
                                            "databaseName": export.target_name
                                            }
                                 }
+            _logger.info(f"Export[{export.pk}] Calling parent handle_export with params: {params}")
             super().handle_export(export=export, params=params)
+            _logger.info(f"Export[{export.pk}] Concluding export...")
             self.conclude_export(export=export)
+            _logger.info(f"Export[{export.pk}] Hive export process finished")
 
     def prepare_db(self, export: Export) -> None:
+        _logger.info(f"Export[{export.pk}] prepare_db: Creating database")
         self.create_db(export=export)
+        _logger.info(f"Export[{export.pk}] prepare_db: Changing database ownership to user '{self.user}'")
         self.change_db_ownership(export=export, db_user=self.user)
+        _logger.info(f"Export[{export.pk}] prepare_db: Database preparation steps completed")
 
     @staticmethod
     def get_db_location(export: Export) -> str:
         return f"{export.target_full_path}.db"
 
     def create_db(self, export: Export) -> None:
+        _logger.info(f"Export[{export.pk}] create_db: Starting database creation")
         db_location = self.get_db_location(export=export)
+        _logger.info(f"Export[{export.pk}] create_db: DB location resolved to '{db_location}'")
         self.log_export_task(export.pk, f"Creating DB '{export.target_name}', location: {db_location}")
         try:
+            _logger.info(f"Export[{export.pk}] create_db: Calling hadoop_api.create_db(name='{export.target_name}')")
             job_id = self.hadoop_api.create_db(name=export.target_name,
-                                              location=db_location)
+                                               location=db_location)
+            _logger.info(f"Export[{export.pk}] create_db: Received job_id='{job_id}'")
             self.log_export_task(export.pk, f"Received Hive DB creation job_id: {job_id}")
+            _logger.info(f"Export[{export.pk}] create_db: Waiting for job completion...")
             self.wait_for_job(export=export, job_id=job_id, job_type=APIJobType.HIVE_DB_CREATE)
+            _logger.info(f"Export[{export.pk}] create_db: Job completed successfully")
         except RequestException as e:
-            _logger.error(f"Error on call to create Hive DB: {e}")
+            _logger.error(f"Export[{export.pk}] create_db: Error on call to create Hive DB: {e}")
             raise e
         self.log_export_task(export.pk, f"DB '{export.target_name}' created.")
+        _logger.info(f"Export[{export.pk}] create_db: Database '{export.target_name}' created successfully")
 
     def change_db_ownership(self, export: Export, db_user: str) -> None:
         try:

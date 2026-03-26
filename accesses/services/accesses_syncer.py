@@ -14,12 +14,11 @@ from admin_cohort.emails import EmailNotification
 from admin_cohort.models import User
 from admin_cohort.services.auth import jwt_auth_service
 
-
 _logger = logging.getLogger("info")
 
 _, ORBIS = settings.ACCESS_SOURCES
 
-TARGET_ROLES = list(roles_map.values())[0]
+TARGET_ROLES = next(iter(roles_map.values()), None)
 
 
 @dataclass
@@ -55,12 +54,10 @@ class AccessesSynchronizer:
         # self.sync_profiles()
         self.sync_accesses()
 
-
     @staticmethod
     def get_mapped_role(role_name) -> Role:
         mapped_role_name = [k for k in roles_map if role_name in roles_map[k]]
         return Role.objects.filter(name__in=mapped_role_name).first()
-
 
     def sync_profiles(self):
         """
@@ -88,7 +85,6 @@ class AccessesSynchronizer:
                 self.log(f"{count_deactivated} ORBIS profiles have been deactivated for user `{p.identifier[0].value}`")
         self.log(f"{practitioner_res.count()} users have been synchronized with ORBIS")
 
-
     def sync_accesses(self, target_user: str = None):
         """
         - Fetch the PractitionerRole resource which represents an authorization for a Practitioner
@@ -110,9 +106,9 @@ class AccessesSynchronizer:
         skipped_roles, missing_perimeters = set(), set()
 
         for batch in users_batches:
-            res = self.fhir_client.resources("Practitioner")\
-                                  .revinclude("PractitionerRole", "practitioner")\
-                                  .search(identifier=",".join(batch))
+            res = self.fhir_client.resources("Practitioner") \
+                .revinclude("PractitionerRole", "practitioner") \
+                .search(identifier=",".join(batch))
             bundle = res.fetch_raw()
 
             if bundle.total > 0:
@@ -123,14 +119,17 @@ class AccessesSynchronizer:
                         continue
                     count_orbis_accesses += 1
                     if pr.active:
-                        default_end_datetime = timezone.now() + timezone.timedelta(days=settings.DEFAULT_ACCESS_VALIDITY_IN_DAYS)
+                        default_end_datetime = timezone.now() + timezone.timedelta(
+                            days=settings.DEFAULT_ACCESS_VALIDITY_IN_DAYS)
                         fpr = FhirPractitionerRole(id=pr.id,
                                                    active=pr.active,
                                                    practitioner_id=pr.practitioner.to_resource().identifier[0].value,
                                                    perimeter_id=int(pr.organization.id),
                                                    role_name=pr.code[0].coding[0].code,
-                                                   start_datetime=hasattr(pr.period, "start") and pr.period.start or None,
-                                                   end_datetime=hasattr(pr.period, "end") and pr.period.end or default_end_datetime
+                                                   start_datetime=hasattr(pr.period,
+                                                                          "start") and pr.period.start or None,
+                                                   end_datetime=hasattr(pr.period,
+                                                                        "end") and pr.period.end or default_end_datetime
                                                    )
                         profile = Profile.objects.filter(user_id=fpr.practitioner_id, source=ORBIS).first()
                         if profile is None:
@@ -141,19 +140,20 @@ class AccessesSynchronizer:
                         perimeter = Perimeter.objects.filter(id=fpr.perimeter_id).first()
                         if role is not None:
                             if perimeter is not None:
-                                defaults =  {"source": ORBIS,
-                                             "external_id": fpr.id,
-                                             "role_id": role.id,
-                                             "profile_id": profile.id,
-                                             "perimeter_id": perimeter.id,
-                                             "start_datetime": fpr.start_datetime,
-                                             "end_datetime": fpr.end_datetime
-                                             }
+                                defaults = {"source": ORBIS,
+                                            "external_id": fpr.id,
+                                            "role_id": role.id,
+                                            "profile_id": profile.id,
+                                            "perimeter_id": perimeter.id,
+                                            "start_datetime": fpr.start_datetime,
+                                            "end_datetime": fpr.end_datetime
+                                            }
                                 _, created = Access.objects.get_or_create(defaults=defaults, external_id=fpr.id)
                                 if created:
                                     count_new_accesses += 1
                             else:
-                                self.log(f"Could not find a match for the `perimeter` {fpr.perimeter_id=} to create access.")
+                                self.log(
+                                    f"Could not find a match for the `perimeter` {fpr.perimeter_id=} to create access.")
                                 missing_perimeters.add(fpr.perimeter_id)
                         else:
                             self.log(f"Could not find a match for the ORBIS role `{fpr.role_name}`")
@@ -173,9 +173,9 @@ class AccessesSynchronizer:
                  f"{count_new_accesses} new accesses were created. "
                  f"{len(skipped_roles)} roles were skipped (no matching found).")
 
-
     @staticmethod
-    def send_report_notification(skipped_roles, missing_perimeters, count_orbis_accesses, count_new_accesses, user_id=None):
+    def send_report_notification(skipped_roles, missing_perimeters, count_orbis_accesses, count_new_accesses,
+                                 user_id=None):
         context = {"sync_time": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
                    "skipped_roles": sorted(skipped_roles),
                    "missing_perimeters": sorted(missing_perimeters),
@@ -192,5 +192,3 @@ class AccessesSynchronizer:
                                         txt_template="sync_orbis_accesses_report.txt",
                                         context=context)
         email_notif.push()
-
-

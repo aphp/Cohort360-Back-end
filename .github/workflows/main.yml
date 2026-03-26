@@ -95,6 +95,7 @@ jobs:
   sonar:
     needs: test
     runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'run-sonar')
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
