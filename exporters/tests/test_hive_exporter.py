@@ -9,12 +9,12 @@ from exporters.tests.base_test import ExportersTestBase
 class TestHiveExporter(ExportersTestBase):
     def setUp(self):
         super().setUp()
-        self.person_table_name = "person"
+        self.person_table_name = "Patient"
         self.cohorts = [self.cohort, self.cohort2]
         with mock.patch('exporters.exporters.base_exporter.HadoopAPI'):
             self.exporter = HiveExporter()
             self.mock_hadoop_api = self.exporter.hadoop_api
-            self.mock_hadoop_api.required_table = "person"
+            self.mock_hadoop_api.required_table = "Patient"
 
     def test_validate_tables_data_all_tables_have_source_cohort(self):
         # all tables have a linked source cohort
@@ -24,7 +24,7 @@ class TestHiveExporter(ExportersTestBase):
         self.assertTrue(check)
 
     def test_validate_tables_data_only_person_table_has_source_cohort(self):
-        # only `person` table has a linked source cohort, the other tables don't
+        # only `Patient` table has a linked source cohort, the other tables don't
         tables_data = [{"table_name": "table_01"},
                        {"table_name": self.person_table_name, "cohort_result_source": self.cohorts[0].uuid},
                        {"table_name": "table_02"}]
@@ -38,20 +38,20 @@ class TestHiveExporter(ExportersTestBase):
         self.assertTrue(check)
 
     def test_validate_tables_data_missing_source_cohort_for_person_table(self):
-        # tables tada is not valid if the `person` table dict is in the list but missing the source cohort
+        # tables tada is not valid if the `Patient` table dict is in the list but missing the source cohort
         tables_data = [{"table_name": self.person_table_name},
                        {"table_name": "table_01", "cohort_result_source": self.cohorts[0].uuid}]
         with self.assertRaises(ValueError):
             self.exporter.validate_tables_data(tables_data=tables_data)
 
     def test_validate_tables_data_with_only_person_table_without_source_cohort(self):
-        # tables data is not valid if the `person` table has no source cohort
+        # tables data is not valid if the `Patient` table has no source cohort
         tables_data = [{"table_name": self.person_table_name}]
         with self.assertRaises(ValueError):
             self.exporter.validate_tables_data(tables_data=tables_data)
 
     def test_validate_tables_data_all_tables_without_source_cohort_nor_person_table(self):
-        # tables data is not valid if the `person` table has no source cohort
+        # tables data is not valid if the `Patient` table has no source cohort
         tables_data = [{"table_name": "table_01"},
                        {"table_name": "table_02"}]
         with self.assertRaises(ValueError):
