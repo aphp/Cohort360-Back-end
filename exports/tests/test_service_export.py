@@ -68,7 +68,7 @@ class TestServiceExport(ExportsTests):
     @mock.patch("exports.services.export.cohort_service.create_cohort_subset")
     def test_create_cohort_subsets_when_create_tables(self, mock_create_cohort_subset):
         mock_create_cohort_subset.return_value = None
-        tables = [{'table_name': 'person',
+        tables = [{'table_name': 'Patient',
                    'cohort_result_source': self.main_cohort.uuid,
                    'fhir_filter': self.fhir_filter.uuid,
                    }]

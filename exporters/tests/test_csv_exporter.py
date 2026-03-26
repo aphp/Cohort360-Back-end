@@ -34,7 +34,7 @@ class TestCSVExporter(ExportersTestBase):
     @mock.patch('exporters.exporters.base_exporter.notify_export_succeeded.delay')
     @mock.patch('exporters.exporters.base_exporter.notify_export_received.delay')
     def test_successfully_handle_export(self, mock_notify_export_received, mock_notify_export_succeeded):
-        self.mock_export_api.required_table = "person"
+        self.mock_export_api.required_table = "Patient"
         self.mock_export_api.target_environment = "target_environment"
         self.mock_export_api.launch_export.return_value = "some-job-id"
         self.mock_export_api.get_export_logs.return_value = {"task_status": "FinishedSuccessfully"}
@@ -52,7 +52,7 @@ class TestCSVExporter(ExportersTestBase):
                            export_tables=[{"table_name": "table1",
                                            "cohort_result_source": self.cohort.pk
                                            },
-                                          {"table_name": "person",
+                                          {"table_name": "Patient",
                                            "cohort_result_source": self.cohort.pk
                                            }
                                           ]
@@ -64,7 +64,7 @@ class TestCSVExporter(ExportersTestBase):
                            nominative=True,
                            motivation='motivation',
                            export_tables=[{"table_name": "table1"},
-                                          {"table_name": "person"}
+                                          {"table_name": "Patient"}
                                           ]
                            )
         with self.assertRaises(ValueError):

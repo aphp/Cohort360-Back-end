@@ -54,9 +54,9 @@ class ExportersTestBase(TestCaseWithDBs):
                            )
         self.csv_export = Export.objects.create(**export_vals, output_format=ExportTypes.CSV.value)
         self.csv_export_table = ExportTable.objects.create(export=self.csv_export,
-                                                           name="person",
+                                                           name="Patient",
                                                            cohort_result_source=self.cohort,
-                                                           columns=["person_id", "person_name"])
+                                                           columns=["id", "name___official__family"])
         self.csv_export_table_with_options = ExportTable.objects.create(export=self.csv_export,
                                                                         name="special_table",
                                                                         cohort_result_source=self.cohort,
@@ -65,11 +65,11 @@ class ExportersTestBase(TestCaseWithDBs):
                                                                         pivot_merge_ids=["col_03", "col_04"])
         self.xlsx_export = Export.objects.create(**export_vals, output_format=ExportTypes.XLSX.value, group_tables=True)
         self.xlsx_export_table = ExportTable.objects.create(export=self.xlsx_export,
-                                                            name="person",
+                                                            name="Patient",
                                                             cohort_result_source=self.cohort)
         self.hive_export = Export.objects.create(**export_vals,
                                                  output_format=ExportTypes.HIVE.value,
                                                  datalab=self.datalab)
         self.hive_export_table = ExportTable.objects.create(export=self.hive_export,
-                                                            name="person",
+                                                            name="Patient",
                                                             cohort_result_source=self.cohort)
