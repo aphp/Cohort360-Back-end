@@ -236,7 +236,7 @@ class ExportsWithSimpleSetUp(ExportsTests):
             output_format=self.export_type, owner=self.user1, target_name="12345_09092023_151500", datalab=self.datalab
         )
         ExportTable.objects.create(
-            export=self.user1_export, name="person", cohort_result_source=self.user1_cohort, cohort_result_subset=self.user1_cohort
+            export=self.user1_export, name="Patient", cohort_result_source=self.user1_cohort, cohort_result_subset=self.user1_cohort
         )
         ExportTable.objects.create(
             export=self.user1_export, name="other_table", cohort_result_source=self.user1_cohort, cohort_result_subset=self.user1_cohort

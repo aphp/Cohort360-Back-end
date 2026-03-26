@@ -54,7 +54,7 @@ class TestServiceExport(ExportsTests):
         mock_create_cohort_subset.return_value = None
         tables = [
             {
-                "table_name": "person",
+                "table_name": "Patient",
                 "cohort_result_source": self.main_cohort.uuid,
                 "fhir_filter": self.fhir_filter.uuid,
             }
