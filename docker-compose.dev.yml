@@ -19,6 +19,11 @@ services:
 
   redis:
     image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 5s
+      retries: 5
     ports:
       - "6380:6379"
 
@@ -29,7 +34,7 @@ services:
     command: ["-d"]
     env_file:
       - path: .local/env.docker.example
-        required: false
+        required: true
       - path: .env
         required: false
     environment:
@@ -44,7 +49,7 @@ services:
       redis:
         condition: service_started
     ports:
-      - "8000:8080"
+      - "8000:8000"
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
