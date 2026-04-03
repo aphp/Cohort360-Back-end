@@ -1,0 +1,52 @@
+# Stack dev : Postgres + Redis + image Dockerfile (nginx :8080 → gunicorn, daphne, celery).
+# Usage : voir starter-pack/README.md (§ Environnement local) et starter-pack/FAKE_DATA.md (§ 4.3).
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: cohort_dev
+      POSTGRES_PASSWORD: cohort_dev_pwd
+      POSTGRES_DB: cohort_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - cohort360_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cohort_dev -d cohort_db"]
+      interval: 3s
+      timeout: 5s
+      retries: 15
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["-d"]
+    env_file:
+      - path: .local/env.docker.example
+        required: false
+      - path: .env
+        required: false
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      PERIMETERS_SOURCE_DB_HOST: postgres
+      PERIMETERS_SOURCE_DB_PORT: "5432"
+      CELERY_BROKER_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    ports:
+      - "8000:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  cohort360_pgdata:
