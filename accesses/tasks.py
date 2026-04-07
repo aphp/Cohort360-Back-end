@@ -2,7 +2,11 @@ from accesses.accesses_alerts import send_access_expiry_alerts
 from accesses.services.accesses_syncer import AccessesSynchronizer
 from accesses.services.perimeters import count_allowed_users, count_allowed_users_from_above_levels, count_allowed_users_in_inferior_levels
 from admin_cohort import celery_app
-from admin_cohort.settings import ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS, ACCESS_EXPIRY_SECOND_ALERT_IN_DAYS
+from admin_cohort.settings import (
+    ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS,
+    ACCESS_EXPIRY_SECOND_ALERT_IN_DAYS,
+    ORBIS_ACCESSES_SYNC_ENABLED,
+)
 
 
 @celery_app.task()
@@ -20,6 +24,8 @@ def count_users_on_perimeters():
 
 @celery_app.task()
 def sync_orbis_accesses():
+    if not ORBIS_ACCESSES_SYNC_ENABLED:
+        return
     # todo: ensure scheduled tasks to be ran in this order:
     #   1. sync perimeters
     #   2. sync ORBIS accesses
