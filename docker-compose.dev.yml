@@ -49,7 +49,7 @@ services:
       redis:
         condition: service_started
     ports:
-      - "8000:8000"
+      - "8000:8080"
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
