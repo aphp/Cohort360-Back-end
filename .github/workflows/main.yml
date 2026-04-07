@@ -79,7 +79,7 @@ jobs:
 
       - name: Run Django migrations
         run: |
-          cp .conf/.test.env admin_cohort/.env
+          cp .conf/.test.env .env
           uv run python manage.py migrate
 
       - name: Run tests
