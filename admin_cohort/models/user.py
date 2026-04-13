@@ -11,6 +11,10 @@ class User(AbstractBaseUser, BaseModel):
     firstname = models.CharField(blank=True, null=True)
     lastname = models.CharField(blank=True, null=True)
     password = models.CharField(blank=True, null=True, max_length=128)
+    created_by = models.ForeignKey("self", on_delete=models.SET_NULL, related_name="created_users",
+                                   null=True, blank=True, db_column="created_by")
+    updated_by = models.ForeignKey("self", on_delete=models.SET_NULL, related_name="updated_users",
+                                   null=True, blank=True, db_column="updated_by")
 
     def __str__(self):
         return f"{self.firstname} {self.lastname} ({self.username})"
