@@ -50,6 +50,8 @@ class MaintenancePhaseSerializer(BaseSerializer):
 class UserSerializer(serializers.ModelSerializer):
     display_name = serializers.CharField(read_only=True)
     password = serializers.CharField(write_only=True, required=False)
+    created_by = serializers.SlugRelatedField(read_only=True, slug_field="display_name")
+    updated_by = serializers.SlugRelatedField(read_only=True, slug_field="display_name")
 
     class Meta:
         model = User
@@ -58,7 +60,9 @@ class UserSerializer(serializers.ModelSerializer):
                   "lastname",
                   "email",
                   "password",
-                  "display_name"]
+                  "display_name",
+                  "created_by",
+                  "updated_by"]
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
