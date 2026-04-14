@@ -27,8 +27,9 @@ def set_creator_for_existing_users(apps, schema_editor):
             continue
         user = User.objects.using(db_alias).filter(pk=created_username).first()
         if user and not user.created_by_id:
-            user.created_by_id = creator_id
-            user.save(update_fields=["created_by_id"])
+            if User.objects.using(db_alias).filter(pk=creator_id).exists():
+                user.created_by_id = creator_id
+                user.save(update_fields=["created_by_id"])
 
 
 def set_last_updater_for_existing_users(apps, schema_editor):
@@ -56,7 +57,7 @@ def set_last_updater_for_existing_users(apps, schema_editor):
 
     for username, updater_id in users_updaters.items():
         user = User.objects.using(db_alias).filter(pk=username).first()
-        if user:
+        if user and User.objects.using(db_alias).filter(pk=updater_id).exists():
             user.updated_by_id = updater_id
             user.save(update_fields=["updated_by_id"])
 

@@ -73,7 +73,7 @@ class UserViewSet(RequestLogMixin, viewsets.ModelViewSet):
                 profiles__accesses__start_datetime__lte=now,
                 profiles__accesses__end_datetime__gte=now
             )
-        return base_results.distinct()
+        return base_results.select_related("created_by", "updated_by").distinct()
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user, updated_by=self.request.user)
