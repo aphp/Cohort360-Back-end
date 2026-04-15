@@ -24,6 +24,7 @@ class MaintenancePhase(BaseModel):
     type = models.CharField(max_length=10, choices=MAINTENANCE_TYPE_CHOICES, default=MaintenanceType.PARTIAL)
     start_datetime = models.DateTimeField(null=False)
     end_datetime = models.DateTimeField(null=False)
+    is_data_saved_message_hidden = models.BooleanField(default=False)
 
     @property
     def active(self):
