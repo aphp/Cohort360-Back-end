@@ -17,7 +17,7 @@ class TestMaintenanceService(TestCase):
         maintenance_info.end_datetime = now + timedelta(minutes=5)
         mock_phase_to_info.return_value = WSMaintenanceInfo(id=1, maintenance_start=str(maintenance_info.start_datetime),
                                                             maintenance_end=str(maintenance_info.end_datetime), active=True, type='test',
-                                                            subject='test', message='test')
+                                                            subject='test', message='test', is_data_saved_message_hidden=False)
 
         MaintenanceService.send_deleted_maintenance_notification(maintenance_info)
         mock_send_notification.assert_called_once()
@@ -40,7 +40,7 @@ class TestMaintenanceService(TestCase):
         now = timezone.now()
         maintenance_info = WSMaintenanceInfo(id=1, maintenance_start=str(now - timedelta(minutes=5)),
                                              maintenance_end=str(now + timedelta(minutes=5)), active=True, type='test',
-                                             subject='test', message='test')
+                                             subject='test', message='test', is_data_saved_message_hidden=False)
         mock_parse.side_effect = [now - timedelta(minutes=5), now + timedelta(minutes=5)]
         mock_filter.return_value.exclude.return_value = []
 
@@ -54,7 +54,7 @@ class TestMaintenanceService(TestCase):
         now = timezone.now()
         maintenance_info = WSMaintenanceInfo(id=1, maintenance_start=str(now - timedelta(minutes=10)),
                                              maintenance_end=str(now - timedelta(minutes=5)), active=False, type='test',
-                                             subject='test', message='test')
+                                             subject='test', message='test', is_data_saved_message_hidden=False)
         mock_parse.side_effect = [now - timedelta(minutes=10), now - timedelta(minutes=5)]
         mock_filter.return_value.order_by.return_value.all.return_value = [MagicMock()]
 
