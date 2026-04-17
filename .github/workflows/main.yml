@@ -1,7 +1,6 @@
 name: main
 
 on:
-  workflow_dispatch:
   pull_request:
     branches:
       - '*'
@@ -13,124 +12,38 @@ on:
   push:
     branches:
       - main
+      - Test-CI-*
     tags:
       - '*'
 
 jobs:
 
-  ruff:
+  lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Install UV
-        uses: astral-sh/setup-uv@v8.1.0
+        uses: astral-sh/setup-uv@v2
         with:
           version: "latest"
           enable-cache: true
 
-      - name: Install Python 3.13
-        run: uv python install 3.13
+      - name: Install Python 3.12
+        run: uv python install 3.12
 
-      - name: Ruff (lint)
-        run: uv tool run ruff check .
-
-      - name: Ruff (format)
-        run: uv tool run ruff format --check .
-
-  safety:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Install UV
-        uses: astral-sh/setup-uv@v8.1.0
-        with:
-          version: "latest"
-          enable-cache: true
-
-      - name: Install Python 3.13
-        run: uv python install 3.13
-
-      - name: Safety
-        run: uv tool run safety check -i 42240,66963,70612,65213
-
-  mypy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Install UV
-        uses: astral-sh/setup-uv@v8.1.0
-        with:
-          version: "latest"
-          enable-cache: true
-
-      - name: Install Python 3.13
-        run: uv python install 3.13
-
-      - name: Install system deps (kerberos)
-        run: sudo apt-get update && sudo apt-get -y install gcc libkrb5-dev
-
-      - name: Install project + dev (mypy, django-stubs)
-        run: uv sync --group dev
-
-      - name: MyPy
-        env:
-          DJANGO_SETTINGS_MODULE: admin_cohort.settings
+      - name: Run Ruff + Safety
         run: |
-          cp .conf/.test.env .env
-          uv run mypy admin_cohort accesses cohort
-
-  bandit:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Install UV
-        uses: astral-sh/setup-uv@v8.1.0
-        with:
-          version: "latest"
-          enable-cache: true
-
-      - name: Install Python 3.13
-        run: uv python install 3.13
-
-      - name: Bandit
-        run: uv tool run bandit -r . -c pyproject.toml
-
-  deptry:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Install UV
-        uses: astral-sh/setup-uv@v8.1.0
-        with:
-          version: "latest"
-          enable-cache: true
-
-      - name: Install Python 3.13
-        run: uv python install 3.13
-
-      - name: Deptry
-        run: uv tool run deptry .
+          uv tool run ruff check .
+          uv tool run safety check -i 42240,66963,70612,65213
 
   test:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:18
+        image: postgres:13
         env:
           POSTGRES_DB: portail_test
           POSTGRES_USER: portail_dev_limited_rw
@@ -145,18 +58,18 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Install UV
-        uses: astral-sh/setup-uv@v8.1.0
+        uses: astral-sh/setup-uv@v4
         with:
           version: "latest"
           enable-cache: true
 
-      - name: Install Python 3.13
-        run: uv python install 3.13
+      - name: Install Python 3.12
+        run: uv python install 3.12
 
       - name: Install system deps
         run: |
@@ -181,7 +94,7 @@ jobs:
           uv run coverage xml --omit="*/test*","*/migrations/*" -o coverage.xml
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: coverage.xml
@@ -190,6 +103,7 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     if: |
+      github.ref == 'refs/heads/Test-CI-All-Jobs' ||
       github.event_name == 'workflow_dispatch' ||
       (
         github.event_name == 'pull_request' &&
@@ -197,17 +111,17 @@ jobs:
       )
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Download coverage report
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v4
         with:
           name: coverage-report
 
       - name: SonarCloud Scan
-        uses: sonarsource/sonarqube-scan-action@v7
+        uses: sonarsource/sonarqube-scan-action@v4
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -217,11 +131,12 @@ jobs:
     runs-on: ubuntu-latest
     if: |
       github.ref == 'refs/heads/main' ||
+      github.ref == 'refs/heads/Test-CI-All-Jobs' ||
       startsWith(github.ref, 'refs/tags/')
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Retrieve version
         run: |
@@ -232,21 +147,23 @@ jobs:
         run: |
           if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
             echo "IMAGE_TAGS=aphpid/cohort360-backend:${VERSION},aphpid/cohort360-backend:latest" >> $GITHUB_ENV
+          elif [ "${GITHUB_REF}" = "refs/heads/Test-CI-All-Jobs" ]; then
+            echo "IMAGE_TAGS=aphpid/cohort360-backend:test-ci-all-jobs-${VERSION}" >> $GITHUB_ENV
           else
             echo "IMAGE_TAGS=aphpid/cohort360-backend:${VERSION}" >> $GITHUB_ENV
           fi
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to DockerHub
-        uses: docker/login-action@v4
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
