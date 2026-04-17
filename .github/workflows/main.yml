@@ -12,7 +12,8 @@ on:
   push:
     branches:
       - main
-      - Test-CI-*
+      - Test-CI-All-Jobs
+      - branch-Test-CI-All-Jobs
     tags:
       - '*'
 
