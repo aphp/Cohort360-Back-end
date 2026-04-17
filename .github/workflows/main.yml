@@ -12,8 +12,6 @@ on:
   push:
     branches:
       - main
-      - Test-CI-All-Jobs
-      - branch-Test-CI-All-Jobs
     tags:
       - '*'
 
@@ -104,8 +102,6 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     if: |
-      github.ref == 'refs/heads/Test-CI-All-Jobs' ||
-      github.ref == 'refs/heads/branch-Test-CI-All-Jobs' ||
       github.event_name == 'workflow_dispatch' ||
       (
         github.event_name == 'pull_request' &&
@@ -133,8 +129,6 @@ jobs:
     runs-on: ubuntu-latest
     if: |
       github.ref == 'refs/heads/main' ||
-      github.ref == 'refs/heads/Test-CI-All-Jobs' ||
-      github.ref == 'refs/heads/branch-Test-CI-All-Jobs' ||
       startsWith(github.ref, 'refs/tags/')
 
     steps:
@@ -150,10 +144,6 @@ jobs:
         run: |
           if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
             echo "IMAGE_TAGS=aphpid/cohort360-backend:${VERSION},aphpid/cohort360-backend:latest" >> $GITHUB_ENV
-          elif [ "${GITHUB_REF}" = "refs/heads/Test-CI-All-Jobs" ]; then
-            echo "IMAGE_TAGS=aphpid/cohort360-backend:test-ci-all-jobs-${VERSION}" >> $GITHUB_ENV
-          elif [ "${GITHUB_REF}" = "refs/heads/branch-Test-CI-All-Jobs" ]; then
-            echo "IMAGE_TAGS=aphpid/cohort360-backend:branch-test-ci-all-jobs-${VERSION}" >> $GITHUB_ENV
           else
             echo "IMAGE_TAGS=aphpid/cohort360-backend:${VERSION}" >> $GITHUB_ENV
           fi
