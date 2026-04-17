@@ -12,7 +12,7 @@ on:
   push:
     branches:
       - main
-      - Test-CI-All-Jobs
+      - Test-CI-*
     tags:
       - '*'
 
