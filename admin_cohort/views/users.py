@@ -27,7 +27,9 @@ class UserFilter(filters.FilterSet):
     firstname = filters.CharFilter(field_name='firstname', lookup_expr='icontains')
     lastname = filters.CharFilter(field_name='lastname', lookup_expr='icontains')
     email = filters.CharFilter(field_name='email', lookup_expr='icontains')
-    ordering = OrderingFilter(fields=('firstname', "lastname", "username", "email"))
+    ordering = OrderingFilter(fields=('firstname', "lastname", "username", "email",
+                                      ('created_by__lastname', 'created_by'),
+                                      ('updated_by__lastname', 'updated_by')))
 
     class Meta:
         model = User
@@ -71,7 +73,13 @@ class UserViewSet(RequestLogMixin, viewsets.ModelViewSet):
                 profiles__accesses__start_datetime__lte=now,
                 profiles__accesses__end_datetime__gte=now
             )
-        return base_results.distinct()
+        return base_results.select_related("created_by", "updated_by").distinct()
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user, updated_by=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save(updated_by=self.request.user)
 
     @extend_schema(responses={status.HTTP_201_CREATED: UserSerializer})
     def create(self, request, *args, **kwargs):
