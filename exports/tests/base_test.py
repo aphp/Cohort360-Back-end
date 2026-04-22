@@ -21,11 +21,11 @@ class ExportsTestBase(TestCaseWithDBs):
     def setUp(self):
         self.factory = APIRequestFactory()
         if self.view_set:
-            self.list_view = self.view_set.as_view({'get': 'list'})
-            self.retrieve_view = self.view_set.as_view({'get': 'retrieve'})
-            self.create_view = self.view_set.as_view({'post': 'create'})
-            self.patch_view = self.view_set.as_view({'patch': 'partial_update'})
-            self.delete_view = self.view_set.as_view({'delete': 'destroy'})
+            self.list_view = self.view_set.as_view({"get": "list"})
+            self.retrieve_view = self.view_set.as_view({"get": "retrieve"})
+            self.create_view = self.view_set.as_view({"post": "create"})
+            self.patch_view = self.view_set.as_view({"patch": "partial_update"})
+            self.delete_view = self.view_set.as_view({"delete": "destroy"})
         self.viewname_list = f"{self.view_root}-list"
         self.viewname_detail = f"{self.view_root}-detail"
 
@@ -42,38 +42,45 @@ class ExportsTestBase(TestCaseWithDBs):
         self.admin_user, self.admin_profile = new_user_and_profile()
         self.user_without_rights, _ = new_user_and_profile()
 
-        self.datalabs_reader_access = Access.objects.create(profile=self.datalabs_reader_profile,
-                                                            perimeter=self.perimeter_aphp,
-                                                            role=self.datalab_reader_role,
-                                                            start_datetime=timezone.now(),
-                                                            end_datetime=timezone.now() + timedelta(days=365))
-        self.datalabs_manager_access = Access.objects.create(profile=self.datalabs_manager_profile,
-                                                             perimeter=self.perimeter_aphp,
-                                                             role=self.datalab_manager_role,
-                                                             start_datetime=timezone.now(),
-                                                             end_datetime=timezone.now() + timedelta(days=365))
-        self.csv_exporter_access = Access.objects.create(profile=self.exporter_profile,
-                                                         perimeter=self.perimeter_aphp,
-                                                         role=self.csv_exporter_role,
-                                                         start_datetime=timezone.now(),
-                                                         end_datetime=timezone.now() + timedelta(days=365))
-        self.admin_access = Access.objects.create(profile=self.admin_profile,
-                                                  perimeter=self.perimeter_aphp,
-                                                  role=self.full_admin_role,
-                                                  start_datetime=timezone.now(),
-                                                  end_datetime=timezone.now() + timedelta(days=365))
+        self.datalabs_reader_access = Access.objects.create(
+            profile=self.datalabs_reader_profile,
+            perimeter=self.perimeter_aphp,
+            role=self.datalab_reader_role,
+            start_datetime=timezone.now(),
+            end_datetime=timezone.now() + timedelta(days=365),
+        )
+        self.datalabs_manager_access = Access.objects.create(
+            profile=self.datalabs_manager_profile,
+            perimeter=self.perimeter_aphp,
+            role=self.datalab_manager_role,
+            start_datetime=timezone.now(),
+            end_datetime=timezone.now() + timedelta(days=365),
+        )
+        self.csv_exporter_access = Access.objects.create(
+            profile=self.exporter_profile,
+            perimeter=self.perimeter_aphp,
+            role=self.csv_exporter_role,
+            start_datetime=timezone.now(),
+            end_datetime=timezone.now() + timedelta(days=365),
+        )
+        self.admin_access = Access.objects.create(
+            profile=self.admin_profile,
+            perimeter=self.perimeter_aphp,
+            role=self.full_admin_role,
+            start_datetime=timezone.now(),
+            end_datetime=timezone.now() + timedelta(days=365),
+        )
         self.infra_provider_aphp = InfrastructureProvider.objects.create(name="APHP")
         self.folder = Folder.objects.create(name="TestFolder", owner=self.exporter_user)
         self.request = Request.objects.create(name="TestRequest", owner=self.exporter_user, parent_folder=self.folder)
-        self.rqs = RequestQuerySnapshot.objects.create(owner=self.exporter_user,
-                                                       request=self.request,
-                                                       serialized_query="{}",
-                                                       perimeters_ids=[self.perimeter_aphp.cohort_id])
+        self.rqs = RequestQuerySnapshot.objects.create(
+            owner=self.exporter_user, request=self.request, serialized_query="{}", perimeters_ids=[self.perimeter_aphp.cohort_id]
+        )
         self.export_type = ExportsConfig.ExportTypes.default()
 
     def make_request(self, url, http_verb, request_user, request_data=None):
         handler = getattr(self.factory, http_verb)
-        request = handler(path=url, data=request_data, format='json')
+        request = handler(path=url, data=request_data, format="json")
         force_authenticate(request, request_user)
         return request
 
@@ -94,8 +101,9 @@ class ExportsTestBase(TestCaseWithDBs):
         response = self.create_view(request)
         self.assertEqual(response.status_code, expected_resp_status)
 
-    def check_test_patch_view(self, request_user, patch_url: str, request_data, obj_id, expected_resp_status, to_read_from_response,
-                              to_check_against):
+    def check_test_patch_view(
+        self, request_user, patch_url: str, request_data, obj_id, expected_resp_status, to_read_from_response, to_check_against
+    ):
         request = self.make_request(url=patch_url, http_verb="patch", request_user=request_user, request_data=request_data)
         response = self.patch_view(request, **{self.lookup_field: obj_id})
         self.assertEqual(response.status_code, expected_resp_status)

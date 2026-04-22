@@ -4,8 +4,4 @@ from .cohort_create import CohortCreate
 from .feasibility_count import FeasibilityCount
 from .base_cohort_request import BaseCohortRequest
 
-__all__ = ["CohortCount",
-           "CohortCountAll",
-           "CohortCreate",
-           "FeasibilityCount",
-           "BaseCohortRequest"]
+__all__ = ["CohortCount", "CohortCountAll", "CohortCreate", "FeasibilityCount", "BaseCohortRequest"]

@@ -13,35 +13,28 @@ from exports.models import ExportTable, Export
 from exports.services.export_operators import ExportDownloader, ExportManager
 from exports.tasks import launch_export_task, get_logs
 
-_logger = logging.getLogger('info')
+_logger = logging.getLogger("info")
 
 
 def get_encoded_doc_ref_filter() -> str:
-    filter_values = {"type:not": "https://terminology.eds.aphp.fr/aphp-orbis-document-textuel-hospitalier|doc-impor",
-                     "contenttype": "text/plain"
-                     }
+    filter_values = {"type:not": "https://terminology.eds.aphp.fr/aphp-orbis-document-textuel-hospitalier|doc-impor", "contenttype": "text/plain"}
     return "&".join([f"{key}={quote_plus(val)}" for key, val in filter_values.items()])
 
 
-EXCLUDED_TABLES = ('imaging_series',
-                   'questionnaire__item',
-                   'questionnaireresponse__item',
-                   'questionnaireresponse__item__answer')
+EXCLUDED_TABLES = ("imaging_series", "questionnaire__item", "questionnaireresponse__item", "questionnaireresponse__item__answer")
 
-TABLES_REQUIRING_SUB_COHORTS = ('note',)
+TABLES_REQUIRING_SUB_COHORTS = ("note",)
 
-RESOURCE_FILTERS = {TABLES_REQUIRING_SUB_COHORTS[0]: ("DocumentReference", get_encoded_doc_ref_filter())
-                    }
+RESOURCE_FILTERS = {TABLES_REQUIRING_SUB_COHORTS[0]: ("DocumentReference", get_encoded_doc_ref_filter())}
 
 
 class ExportService:
-
     @staticmethod
     def validate_export_data(data: dict, **kwargs) -> None:
         try:
             ExportManager().validate(export_data=data, **kwargs)
         except Exception as e:
-            raise ValidationError(f'Invalid export data: {e}')
+            raise ValidationError(f"Invalid export data: {e}")
 
     def proceed_with_export(self, export: Export, tables: List[dict], **kwargs) -> None:
         _logger.info(
@@ -63,7 +56,7 @@ class ExportService:
             export.group_tables,
             export.output_format,
             export.request_job_id,
-            export.pk
+            export.pk,
         )
         requires_cohort_subsets = self.create_tables(export, tables, **kwargs)
         _logger.info(f"Export[{export.uuid}]: tables created. Required cohort subsets ? {requires_cohort_subsets}")
@@ -74,16 +67,19 @@ class ExportService:
     @staticmethod
     def force_generate_fhir_filter(export: Export, table_name: str) -> str:
         resource, _filter = RESOURCE_FILTERS[table_name]
-        return FhirFilter.objects.create(auto_generated=True,
-                                         fhir_resource=resource,
-                                         filter=_filter,
-                                         name=f'{str(export.uuid)[:8]}_{table_name}_(auto generated)',
-                                         owner=export.owner).uuid
+        return str(
+            FhirFilter.objects.create(
+                auto_generated=True,
+                fhir_resource=resource,
+                filter=_filter,
+                name=f"{str(export.uuid)[:8]}_{table_name}_(auto generated)",
+                owner=export.owner,
+            ).uuid
+        )
 
     def create_tables(self, export: Export, tables: List[dict], **kwargs) -> bool:
         requires_cohort_subsets = False
         for table in tables:
-
             fhir_filter_id = table.get("fhir_filter")
             cohort_source_id = table.get("cohort_result_source")
             cohort_source = cohort_source_id and CohortResult.objects.get(pk=cohort_source_id) or None
@@ -91,8 +87,7 @@ class ExportService:
             if fhir_filter_id and cohort_source is None:
                 raise ValidationError("A FHIR filter was provided but not a cohort source to filter")
             if cohort_source and table_name in TABLES_REQUIRING_SUB_COHORTS and not fhir_filter_id:
-                fhir_filter_id = self.force_generate_fhir_filter(export=export,
-                                                                 table_name=table_name)
+                fhir_filter_id = self.force_generate_fhir_filter(export=export, table_name=table_name)
                 _logger.info(
                     "Export[%s]: auto-generated FHIR filter id=%s for table=%s",
                     export.uuid,
@@ -109,12 +104,15 @@ class ExportService:
                     cohort_source_id,
                     fhir_filter_id,
                 )
-
-                cohort_subset = cohort_service.create_cohort_subset(request=kwargs.get("http_request"),
-                                                                    owner_id=export.owner_id,
-                                                                    table_name=table_name,
-                                                                    fhir_filter_id=fhir_filter_id,
-                                                                    source_cohort=cohort_source)
+                if not isinstance(table_name, str) or not table_name or not fhir_filter_id:
+                    raise ValidationError("table_name and fhir_filter_id are required for cohort subset")
+                cohort_subset = cohort_service.create_cohort_subset(
+                    request=kwargs.get("http_request"),
+                    owner_id=export.owner_id,
+                    table_name=table_name,
+                    fhir_filter_id=fhir_filter_id,
+                    source_cohort=cohort_source,
+                )
 
                 subset_id = cohort_subset.pk if cohort_subset else None
                 group_id = cohort_subset.group_id if cohort_subset else None
@@ -129,15 +127,17 @@ class ExportService:
             else:
                 cohort_subset = None
 
-            t = ExportTable.objects.create(export=export,
-                                           name=table_name,
-                                           fhir_filter_id=fhir_filter_id,
-                                           cohort_result_source=cohort_source,
-                                           cohort_result_subset=cohort_subset,
-                                           columns=table.get("columns"),
-                                           pivot_merge=bool(table.get("pivot_merge")),
-                                           pivot_merge_columns=table.get("pivot_merge_columns"),
-                                           pivot_merge_ids=table.get("pivot_merge_ids"))
+            t = ExportTable.objects.create(
+                export=export,
+                name=table_name or "",
+                fhir_filter_id=fhir_filter_id,
+                cohort_result_source=cohort_source,
+                cohort_result_subset=cohort_subset,
+                columns=table.get("columns"),
+                pivot_merge=bool(table.get("pivot_merge")),
+                pivot_merge_columns=table.get("pivot_merge_columns"),
+                pivot_merge_ids=table.get("pivot_merge_ids"),
+            )
             _logger.info(f"Export[{export.uuid}]: table `{t.name}` created")
         return requires_cohort_subsets
 
@@ -148,7 +148,10 @@ class ExportService:
             _logger.info(f"Export[{export.uuid}]: export has already been marked failed")
             return
         for table in export.export_tables.filter(cohort_result_subset__isnull=False):
-            cohort_subset_status = table.cohort_result_subset.request_job_status
+            subset = table.cohort_result_subset
+            if subset is None:
+                continue
+            cohort_subset_status = subset.request_job_status
             if cohort_subset_status == JobStatus.failed:
                 failure_reason = "One or multiple cohort subsets has failed"
                 _logger.info(f"Export[{export.uuid}]: Aborting export - {failure_reason}")

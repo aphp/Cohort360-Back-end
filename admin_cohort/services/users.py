@@ -16,7 +16,6 @@ _logger = logging.getLogger("info")
 
 
 class UsersService:
-
     def validate_user_data(self, data: dict):
         self.check_fields_against_regex(data=data)
         if "password" in data:

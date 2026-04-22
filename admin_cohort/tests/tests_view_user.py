@@ -30,31 +30,23 @@ class UserTests(BaseTests):
         # u1admin(h1)  u2admin(h2)
         #                |
         #             u1pseudo(h3)
-        self.aphp = Perimeter.objects.create(**dict(local_id=1,
-                                                    name="APHP",
-                                                    parent=None,
-                                                    type_source_value=settings.PERIMETER_TYPES[0],
-                                                    source_value="APHP"))
-        self.hospital1 = Perimeter.objects.create(**dict(local_id=11,
-                                                         name="Hospital 01",
-                                                         parent=self.aphp,
-                                                         type_source_value=settings.PERIMETER_TYPES[2],
-                                                         source_value="Hospital 01"))
-        self.hospital2 = Perimeter.objects.create(**dict(local_id=12,
-                                                         name="Hospital 02",
-                                                         parent=self.aphp,
-                                                         type_source_value=settings.PERIMETER_TYPES[2],
-                                                         source_value="Hospital 02"))
-        self.hospital3 = Perimeter.objects.create(**dict(local_id=13,
-                                                         name="Hospital 03",
-                                                         parent=self.aphp,
-                                                         type_source_value=settings.PERIMETER_TYPES[2],
-                                                         source_value="Hospital 03"))
+        self.aphp = Perimeter.objects.create(
+            **dict(local_id=1, name="APHP", parent=None, type_source_value=settings.PERIMETER_TYPES[0], source_value="APHP")
+        )
+        self.hospital1 = Perimeter.objects.create(
+            **dict(local_id=11, name="Hospital 01", parent=self.aphp, type_source_value=settings.PERIMETER_TYPES[2], source_value="Hospital 01")
+        )
+        self.hospital2 = Perimeter.objects.create(
+            **dict(local_id=12, name="Hospital 02", parent=self.aphp, type_source_value=settings.PERIMETER_TYPES[2], source_value="Hospital 02")
+        )
+        self.hospital3 = Perimeter.objects.create(
+            **dict(local_id=13, name="Hospital 03", parent=self.aphp, type_source_value=settings.PERIMETER_TYPES[2], source_value="Hospital 03")
+        )
 
-        self.role_full_admin = Role.objects.create(**dict([(f, True) for f in self.all_rights]), name='Admin full role')
-        self.pseudo_anonymised_data_role = Role.objects.create(**{**dict([(f, False) for f in self.all_rights]),
-                                                                  "right_read_patient_pseudonymized": True},
-                                                               name='Pseudo anonymised data role')
+        self.role_full_admin = Role.objects.create(**dict([(f, True) for f in self.all_rights]), name="Admin full role")
+        self.pseudo_anonymised_data_role = Role.objects.create(
+            **{**dict([(f, False) for f in self.all_rights]), "right_read_patient_pseudonymized": True}, name="Pseudo anonymised data role"
+        )
 
         self.admin_user = User.objects.create(username="000000", firstname="Admin", lastname="ADMIN", email="admin@aphp.fr")
         self.user1 = User.objects.create(username="1111111", firstname="User 01", lastname="USER01", email="user01@aphp.fr")
@@ -66,35 +58,42 @@ class UserTests(BaseTests):
         self.profile2 = Profile.objects.create(source=MANUAL_SOURCE, user=self.user2, is_active=True)
         self.profile3 = Profile.objects.create(source=MANUAL_SOURCE, user=self.user3, is_active=False)
 
-        self.admin_access = Access.objects.create(perimeter_id=self.aphp.id,
-                                                  role=self.role_full_admin,
-                                                  profile=self.admin_profile,
-                                                  start_datetime=timezone.now(),
-                                                  end_datetime=timezone.now() + timedelta(days=365))
-        self.access_user1_admin_h1 = Access.objects.create(perimeter_id=self.hospital1.id,
-                                                           role=self.role_full_admin,
-                                                           profile=self.profile1,
-                                                           start_datetime=timezone.now(),
-                                                           end_datetime=timezone.now() + timedelta(days=365))
-        self.access_user2_admin_h2 = Access.objects.create(perimeter_id=self.hospital2.id,
-                                                           role=self.role_full_admin,
-                                                           profile=self. profile2,
-                                                           start_datetime=timezone.now(),
-                                                           end_datetime=timezone.now() + timedelta(days=365))
-        self.access_user1_pseudo_h3 = Access.objects.create(perimeter_id=self.hospital3.id,
-                                                            role=self.pseudo_anonymised_data_role,
-                                                            profile=self. profile1,
-                                                            start_datetime=timezone.now(),
-                                                            end_datetime=timezone.now() + timedelta(days=365))
+        self.admin_access = Access.objects.create(
+            perimeter_id=self.aphp.id,
+            role=self.role_full_admin,
+            profile=self.admin_profile,
+            start_datetime=timezone.now(),
+            end_datetime=timezone.now() + timedelta(days=365),
+        )
+        self.access_user1_admin_h1 = Access.objects.create(
+            perimeter_id=self.hospital1.id,
+            role=self.role_full_admin,
+            profile=self.profile1,
+            start_datetime=timezone.now(),
+            end_datetime=timezone.now() + timedelta(days=365),
+        )
+        self.access_user2_admin_h2 = Access.objects.create(
+            perimeter_id=self.hospital2.id,
+            role=self.role_full_admin,
+            profile=self.profile2,
+            start_datetime=timezone.now(),
+            end_datetime=timezone.now() + timedelta(days=365),
+        )
+        self.access_user1_pseudo_h3 = Access.objects.create(
+            perimeter_id=self.hospital3.id,
+            role=self.pseudo_anonymised_data_role,
+            profile=self.profile1,
+            start_datetime=timezone.now(),
+            end_datetime=timezone.now() + timedelta(days=365),
+        )
 
 
 class UserTestsAsAdmin(UserTests):
-
     def test_get_user_as_main_admin(self):
         # As a main admin, I can get a user's full data
         request = self.factory.get(USERS_URL)
         force_authenticate(request, self.admin_user)
-        response = UserViewSet.as_view({'get': 'retrieve'})(request, username=self.user1.username)
+        response = UserViewSet.as_view({"get": "retrieve"})(request, username=self.user1.username)
         response.render()
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
         user_found = ObjectView(self.get_response_payload(response))
@@ -102,9 +101,9 @@ class UserTestsAsAdmin(UserTests):
         self.assertEqual(user_found.email, self.user1.email)
 
     def _get_users(self, filter_active: bool):
-        request = self.factory.get(USERS_URL+("?with_access=true" if filter_active else ""))
+        request = self.factory.get(USERS_URL + ("?with_access=true" if filter_active else ""))
         force_authenticate(request, self.admin_user)
-        response = UserViewSet.as_view({'get': 'list'})(request)
+        response = UserViewSet.as_view({"get": "list"})(request)
         response.render()
         return response
 
@@ -132,29 +131,22 @@ class UserTestsAsAdmin(UserTests):
         self._check_users(response, users_to_find)
 
     def test_create_user_with_password(self):
-        data = dict(username="999999",
-                    firstname="New",
-                    lastname="USER",
-                    email="new.user@aphp.fr",
-                    password="password")
-        request = self.factory.post(USERS_URL, data, format='json')
+        data = dict(username="999999", firstname="New", lastname="USER", email="new.user@aphp.fr", password="password")
+        request = self.factory.post(USERS_URL, data, format="json")
         force_authenticate(request, self.admin_user)
-        response = UserViewSet.as_view({'post': 'create'})(request)
+        response = UserViewSet.as_view({"post": "create"})(request)
         response.render()
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertNotIn("password", response.data)
         user = User.objects.get(pk=data["username"])
         self.assertTrue(user.password is not None)
-        self.assertNotEqual(user.password, data["password"])    # password is hashed
+        self.assertNotEqual(user.password, data["password"])  # password is hashed
 
     def test_create_user_without_password(self):
-        data = dict(username="999999",
-                    firstname="New",
-                    lastname="USER",
-                    email="new.user@aphp.fr")
-        request = self.factory.post(USERS_URL, data, format='json')
+        data = dict(username="999999", firstname="New", lastname="USER", email="new.user@aphp.fr")
+        request = self.factory.post(USERS_URL, data, format="json")
         force_authenticate(request, self.admin_user)
-        response = UserViewSet.as_view({'post': 'create'})(request)
+        response = UserViewSet.as_view({"post": "create"})(request)
         response.render()
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         user = User.objects.get(pk=data["username"])
@@ -162,9 +154,9 @@ class UserTestsAsAdmin(UserTests):
 
     def test_update_user_success(self):
         patch_data = dict(email="updated.email.address@aphp.fr")
-        request = self.factory.patch(USERS_URL, patch_data, format='json')
+        request = self.factory.patch(USERS_URL, patch_data, format="json")
         force_authenticate(request, self.admin_user)
-        response = UserViewSet.as_view({'patch': 'partial_update'})(request, username=self.user2.username)
+        response = UserViewSet.as_view({"patch": "partial_update"})(request, username=self.user2.username)
         response.render()
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
         user = User.objects.get(pk=self.user2.username)
@@ -173,7 +165,7 @@ class UserTestsAsAdmin(UserTests):
     def test_delete_user_permission_denied(self):
         request = self.factory.delete(USERS_URL)
         force_authenticate(request, self.admin_user)
-        response = UserViewSet.as_view({'delete': 'destroy'})(request, username=self.user2.username)
+        response = UserViewSet.as_view({"delete": "destroy"})(request, username=self.user2.username)
         response.render()
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN, response.content)
         user2 = User.objects.get(pk=self.user2.username)
@@ -182,7 +174,7 @@ class UserTestsAsAdmin(UserTests):
     def test_check_user_exists_in_db(self):
         request = self.factory.get(f"{USERS_URL}/{self.user1.username}/check")
         force_authenticate(request, self.admin_user)
-        response = UserViewSet.as_view({'get': 'check_user_exists'})(request, username=self.user1.username)
+        response = UserViewSet.as_view({"get": "check_user_exists"})(request, username=self.user1.username)
         response.render()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         result = response.data
@@ -193,43 +185,44 @@ class UserTestsAsAdmin(UserTests):
         invalid_username = "!@#$%^&*()"
         request = self.factory.get(f"{USERS_URL}/{invalid_username}/check")
         force_authenticate(request, self.admin_user)
-        response = UserViewSet.as_view({'get': 'check_user_exists'})(request, username=invalid_username)
+        response = UserViewSet.as_view({"get": "check_user_exists"})(request, username=invalid_username)
         response.render()
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    @mock.patch('admin_cohort.views.users.users_service.try_hooks')
+    @mock.patch("admin_cohort.views.users.users_service.try_hooks")
     def test_check_user_exists_found_using_hooks_success(self, mock_try_hooks):
-        mock_try_hooks.return_value = {"username": "username",
-                                       "firstname": "Firstname",
-                                       "lastname": "LASTNAME",
-                                       "email": "username.email@backend.com"
-                                       }
+        mock_try_hooks.return_value = {
+            "username": "username",
+            "firstname": "Firstname",
+            "lastname": "LASTNAME",
+            "email": "username.email@backend.com",
+        }
         random_username = "1234567"
         request = self.factory.get(f"{USERS_URL}/{random_username}/check")
         force_authenticate(request, self.admin_user)
-        response = UserViewSet.as_view({'get': 'check_user_exists'})(request, username=random_username)
+        response = UserViewSet.as_view({"get": "check_user_exists"})(request, username=random_username)
         response.render()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         result = response.data
         self.assertFalse(result["already_exists"])
         self.assertTrue(result["found"])
 
-    @mock.patch('admin_cohort.views.users.users_service.try_hooks')
+    @mock.patch("admin_cohort.views.users.users_service.try_hooks")
     def test_check_user_exists_not_found_using_hooks_success(self, mock_try_hooks):
         mock_try_hooks.return_value = None
         random_username = "1234567"
         request = self.factory.get(f"{USERS_URL}/{random_username}/check")
         force_authenticate(request, self.admin_user)
-        response = UserViewSet.as_view({'get': 'check_user_exists'})(request, username=random_username)
+        response = UserViewSet.as_view({"get": "check_user_exists"})(request, username=random_username)
         response.render()
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-    @mock.patch('admin_cohort.views.users.users_service.try_hooks')
+    @mock.patch("admin_cohort.views.users.users_service.try_hooks")
     def test_check_user_exists_hooks_error(self, mock_try_hooks):
         mock_try_hooks.side_effect = ServerError()
         random_username = "1234567"
         request = self.factory.get(f"{USERS_URL}/{random_username}/check")
         force_authenticate(request, self.admin_user)
-        response = UserViewSet.as_view({'get': 'check_user_exists'})(request, username=random_username)
+        response = UserViewSet.as_view({"get": "check_user_exists"})(request, username=random_username)
         response.render()
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)

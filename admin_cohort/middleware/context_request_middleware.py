@@ -15,7 +15,9 @@ def get_trace_id() -> str:
     if not request:
         return str(uuid.uuid4())
     trace_id_header = settings.TRACE_ID_HEADER
-    return request.headers.get(trace_id_header, request.META.get(f"HTTP_{trace_id_header}"))
+    meta_val = request.META.get(f"HTTP_{trace_id_header}")
+    return request.headers.get(trace_id_header, str(meta_val) if meta_val is not None else "")
+
 
 def get_request_user_id(request) -> str:
     user_id = "Anonymous"
@@ -23,7 +25,7 @@ def get_request_user_id(request) -> str:
     auth_token = bearer_token and bearer_token.split("Bearer ")[1] or None
     if auth_token is not None:
         try:
-            decoded = jwt.decode(jwt=auth_token, options={'verify_signature': True})
+            decoded = jwt.decode(jwt=auth_token, options={"verify_signature": True})
             user_id = decoded.get("preferred_username", decoded.get("username"))
         except jwt.PyJWTError:
             pass
@@ -51,11 +53,13 @@ class ContextRequestMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        request.environ.update({
-            'user_id': get_request_user_id(request),
-            'trace_id': request.headers.get(settings.TRACE_ID_HEADER, str(uuid.uuid4())),
-            'impersonating': request.headers.get(settings.IMPERSONATING_HEADER, "-")
-        })
+        request.environ.update(
+            {
+                "user_id": get_request_user_id(request),
+                "trace_id": request.headers.get(settings.TRACE_ID_HEADER, str(uuid.uuid4())),
+                "impersonating": request.headers.get(settings.IMPERSONATING_HEADER, "-"),
+            }
+        )
         with ContextRequestHolder(request):
             response = self.get_response(request)
         return response

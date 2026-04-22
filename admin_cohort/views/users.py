@@ -19,21 +19,21 @@ from admin_cohort.tools.cache import cache_response
 from admin_cohort.exceptions import ServerError
 from admin_cohort.tools.request_log_mixin import RequestLogMixin
 
-_logger = logging.getLogger('django.request')
+_logger = logging.getLogger("django.request")
 
 
 class UserFilter(filters.FilterSet):
-    username = filters.CharFilter(field_name='username', lookup_expr='icontains')
-    firstname = filters.CharFilter(field_name='firstname', lookup_expr='icontains')
-    lastname = filters.CharFilter(field_name='lastname', lookup_expr='icontains')
-    email = filters.CharFilter(field_name='email', lookup_expr='icontains')
-    ordering = OrderingFilter(fields=('firstname', "lastname", "username", "email",
-                                      ('created_by__lastname', 'created_by'),
-                                      ('updated_by__lastname', 'updated_by')))
+    username = filters.CharFilter(field_name="username", lookup_expr="icontains")
+    firstname = filters.CharFilter(field_name="firstname", lookup_expr="icontains")
+    lastname = filters.CharFilter(field_name="lastname", lookup_expr="icontains")
+    email = filters.CharFilter(field_name="email", lookup_expr="icontains")
+    ordering = OrderingFilter(
+        fields=("firstname", "lastname", "username", "email", ("created_by__lastname", "created_by"), ("updated_by__lastname", "updated_by"))
+    )
 
     class Meta:
         model = User
-        fields = ['firstname', "lastname", "username", "email"]
+        fields = ["firstname", "lastname", "username", "email"]
 
 
 extended_schema = extend_schema(tags=["Users"])
@@ -57,7 +57,7 @@ class UserViewSet(RequestLogMixin, viewsets.ModelViewSet):
     logging_methods = ["POST", "PATCH"]
 
     def get_serializer_context(self):
-        return {'request': self.request}
+        return {"request": self.request}
 
     def get_queryset(self):
         # todo : to test manual_only
@@ -65,13 +65,11 @@ class UserViewSet(RequestLogMixin, viewsets.ModelViewSet):
         with_access = json.loads(self.request.GET.get("with_access", "false"))
         base_results = super().get_queryset()
         if manual_only:
-            base_results = base_results.filter(profiles__source='Manual')
+            base_results = base_results.filter(profiles__source="Manual")
         if with_access:
             now = timezone.now()
             base_results = base_results.filter(
-                profiles__is_active=True,
-                profiles__accesses__start_datetime__lte=now,
-                profiles__accesses__end_datetime__gte=now
+                profiles__is_active=True, profiles__accesses__start_datetime__lte=now, profiles__accesses__end_datetime__gte=now
             )
         return base_results.select_related("created_by", "updated_by").distinct()
 
@@ -97,7 +95,7 @@ class UserViewSet(RequestLogMixin, viewsets.ModelViewSet):
         return super().partial_update(request, *args, **kwargs)
 
     @extend_schema(responses={status.HTTP_200_OK: UserCheckSerializer})
-    @action(detail=True, methods=['get'], url_path="check")
+    @action(detail=True, methods=["get"], url_path="check")
     def check_user_exists(self, request, *args, **kwargs):
         user, exists, found = None, False, False
         try:
@@ -113,11 +111,13 @@ class UserViewSet(RequestLogMixin, viewsets.ModelViewSet):
             except ServerError as e:
                 return Response(data={"message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         if user is not None:
-            res = {"username": user["username"],
-                   "firstname": user["firstname"],
-                   "lastname": user["lastname"],
-                   "email": user["email"],
-                   "already_exists": exists,
-                   "found": found}
+            res = {
+                "username": user["username"],
+                "firstname": user["firstname"],
+                "lastname": user["lastname"],
+                "email": user["email"],
+                "already_exists": exists,
+                "found": found,
+            }
             return Response(data=UserCheckSerializer(res).data, status=status.HTTP_200_OK)
         return Response(data={"message": "User not found"}, status=status.HTTP_404_NOT_FOUND)

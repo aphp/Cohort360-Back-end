@@ -8,12 +8,14 @@ from .cohort_result import CohortResult
 from .feasibility_study import FeasibilityStudy
 from .request_refresh_schedule import RequestRefreshSchedule
 
-__all__ = ["CohortBaseModel",
-           "Folder",
-           "Request",
-           "RequestQuerySnapshot",
-           "DatedMeasure",
-           "CohortResult",
-           "FhirFilter",
-           "FeasibilityStudy",
-           "RequestRefreshSchedule"]
+__all__ = [
+    "CohortBaseModel",
+    "Folder",
+    "Request",
+    "RequestQuerySnapshot",
+    "DatedMeasure",
+    "CohortResult",
+    "FhirFilter",
+    "FeasibilityStudy",
+    "RequestRefreshSchedule",
+]

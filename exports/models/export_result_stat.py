@@ -14,4 +14,4 @@ class ExportResultStat(ExportsBaseModel):
     value = models.CharField(null=False, max_length=55)
 
     class Meta:
-        db_table = 'export_result_stat'
+        db_table = "export_result_stat"

@@ -14,28 +14,20 @@ FILTER_MAPPING = {
     "MedicationAdministration": {
         "medication": "code",
     },
-    "MedicationRequest": {
-        "medication": "code"
-    },
-    RESOURCE_DEFAULT: {
-    }
+    "MedicationRequest": {"medication": "code"},
+    RESOURCE_DEFAULT: {},
 }
 
-FILTER_NAME_TO_SKIP = {
-}
+FILTER_NAME_TO_SKIP = {}
 
-code_mapping_cache = {
-}
+code_mapping_cache = {}
 
 
-FILTER_VALUE_MAPPING = {
-}
+FILTER_VALUE_MAPPING = {}
 
-STATIC_REQUIRED_FILTERS = {
-}
+STATIC_REQUIRED_FILTERS = {}
 
-RESOURCE_NAME_MAPPING = {
-}
+RESOURCE_NAME_MAPPING = {}
 
 
 updater_v161 = QueryRequestUpdater(

@@ -8,30 +8,17 @@ from exports.tests.test_view_export_request import ExportsTests
 
 
 class TestServiceExport(ExportsTests):
-
     def setUp(self):
         super().setUp()
-        self.basic_export_data = dict(output_format="csv",
-                                      nominative=True,
-                                      motivation='motivation')
-        self.basic_export = Export.objects.create(**self.basic_export_data,
-                                                  owner=self.user1)
+        self.basic_export_data = dict(output_format="csv", nominative=True, motivation="motivation")
+        self.basic_export = Export.objects.create(**self.basic_export_data, owner=self.user1)
         for i in range(3):
-            cr = CohortResult.objects.create(is_subset=True,
-                                             name=f'cohort subset {i}',
-                                             owner=self.user1,
-                                             request_job_status=JobStatus.finished)
+            cr = CohortResult.objects.create(is_subset=True, name=f"cohort subset {i}", owner=self.user1, request_job_status=JobStatus.finished)
             ExportTable.objects.create(export=self.basic_export, cohort_result_subset=cr)
 
-        self.second_export = Export.objects.create(**self.basic_export_data,
-                                                   owner=self.user2)
-        self.main_cohort = CohortResult.objects.create(name='cohort of user2',
-                                                       owner=self.user2,
-                                                       request_job_status=JobStatus.finished)
-        self.fhir_filter = FhirFilter.objects.create(fhir_resource='Patient',
-                                                     filter='param=value',
-                                                     name='patient filter',
-                                                     owner=self.user2)
+        self.second_export = Export.objects.create(**self.basic_export_data, owner=self.user2)
+        self.main_cohort = CohortResult.objects.create(name="cohort of user2", owner=self.user2, request_job_status=JobStatus.finished)
+        self.fhir_filter = FhirFilter.objects.create(fhir_resource="Patient", filter="param=value", name="patient filter", owner=self.user2)
 
     @mock.patch("exports.services.export.launch_export_task.delay")
     def test_export_is_launched_after_check_all_cohort_subsets_created(self, mock_launch_export_task):
@@ -44,10 +31,7 @@ class TestServiceExport(ExportsTests):
     def test_export_is_not_launched_if_some_cohort_subset_failed(self, mock_notify_export_failed_task, mock_launch_export_task):
         mock_notify_export_failed_task.return_value = None
         mock_launch_export_task.return_value = None
-        cr = CohortResult.objects.create(is_subset=True,
-                                         name='failed cohort subset',
-                                         owner=self.user1,
-                                         request_job_status=JobStatus.failed)
+        cr = CohortResult.objects.create(is_subset=True, name="failed cohort subset", owner=self.user1, request_job_status=JobStatus.failed)
         ExportTable.objects.create(export=self.basic_export, cohort_result_subset=cr)
         export_service.check_all_cohort_subsets_created(export=self.basic_export)
         self.assertEqual(self.basic_export.request_job_status, JobStatus.failed.value)
@@ -68,10 +52,13 @@ class TestServiceExport(ExportsTests):
     @mock.patch("exports.services.export.cohort_service.create_cohort_subset")
     def test_create_cohort_subsets_when_create_tables(self, mock_create_cohort_subset):
         mock_create_cohort_subset.return_value = None
-        tables = [{'table_name': 'person',
-                   'cohort_result_source': self.main_cohort.uuid,
-                   'fhir_filter': self.fhir_filter.uuid,
-                   }]
+        tables = [
+            {
+                "table_name": "person",
+                "cohort_result_source": self.main_cohort.uuid,
+                "fhir_filter": self.fhir_filter.uuid,
+            }
+        ]
         requires_cohort_subsets = export_service.create_tables(export=self.second_export, tables=tables)
         mock_create_cohort_subset.assert_called_once()
         self.assertTrue(requires_cohort_subsets)
@@ -79,9 +66,7 @@ class TestServiceExport(ExportsTests):
     @mock.patch("exports.services.export.cohort_service.create_cohort_subset")
     def test_force_create_cohort_subsets_without_filter_when_create_tables(self, mock_create_cohort_subset):
         mock_create_cohort_subset.return_value = None
-        tables = [{'table_name': TABLES_REQUIRING_SUB_COHORTS[0],
-                   'cohort_result_source': self.main_cohort.uuid
-                   }]
+        tables = [{"table_name": TABLES_REQUIRING_SUB_COHORTS[0], "cohort_result_source": self.main_cohort.uuid}]
         requires_cohort_subsets = export_service.create_tables(export=self.second_export, tables=tables)
         mock_create_cohort_subset.assert_called_once()
         self.assertTrue(requires_cohort_subsets)
@@ -89,12 +74,7 @@ class TestServiceExport(ExportsTests):
     @mock.patch("exports.services.export.cohort_service.create_cohort_subset")
     def test_not_create_cohort_subsets_when_create_tables(self, mock_create_cohort_subset):
         mock_create_cohort_subset.return_value = None
-        tables = [{'table_name': EXCLUDED_TABLES[0],
-                   'cohort_result_source': self.main_cohort.uuid
-                   }]
+        tables = [{"table_name": EXCLUDED_TABLES[0], "cohort_result_source": self.main_cohort.uuid}]
         requires_cohort_subsets = export_service.create_tables(export=self.second_export, tables=tables)
         mock_create_cohort_subset.assert_not_called()
         self.assertFalse(requires_cohort_subsets)
-
-
-

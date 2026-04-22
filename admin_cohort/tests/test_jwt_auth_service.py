@@ -15,15 +15,16 @@ from admin_cohort.services.auth import JWTAuth
 
 
 class JWTAuthTestCase(TestCase):
-
     def setUp(self):
         self.jwt_auth = JWTAuth()
         self.test_password = "1234"
-        self.test_user = User.objects.create(username='test_user',
-                                             email='test.user@backend.fr',
-                                             firstname='Test',
-                                             lastname='User',
-                                             password=hashlib.sha256(self.test_password.encode("utf-8")).hexdigest())
+        self.test_user = User.objects.create(
+            username="test_user",
+            email="test.user@backend.fr",
+            firstname="Test",
+            lastname="User",
+            password=hashlib.sha256(self.test_password.encode("utf-8")).hexdigest(),
+        )
 
     def test_jwt_auth_authenticate(self):
         with patch.object(JWTAuth, "decode_token", return_value={"username": "test_user"}):
@@ -33,25 +34,21 @@ class JWTAuthTestCase(TestCase):
     @patch.object(JWTAuth, attribute="authenticate_with_external_services")
     def test_jwt_auth_check_credentials_locally(self, mock_check_against_server):
         mock_check_against_server.side_effect = NoAuthenticationHookDefined()
-        self.assertTrue(self.jwt_auth.check_credentials(username=self.test_user.username,
-                                                        password=self.test_password))
+        self.assertTrue(self.jwt_auth.check_credentials(username=self.test_user.username, password=self.test_password))
         mock_check_against_server.assert_called()
 
     def test_jwt_authenticate_with_external_services(self):
         with patch(target="requests.post", return_value=MagicMock(status_code=status.HTTP_200_OK)):
-            res = self.jwt_auth.check_credentials(username=self.test_user.username,
-                                                  password=self.test_password)
+            res = self.jwt_auth.check_credentials(username=self.test_user.username, password=self.test_password)
             self.assertTrue(res)
 
     def test_jwt_auth_check_credentials_wrong_password(self):
-        res = self.jwt_auth.check_credentials(username=self.test_user.username,
-                                              password="wrong-password")
+        res = self.jwt_auth.check_credentials(username=self.test_user.username, password="wrong-password")
         self.assertFalse(res)
 
     def test_jwt_auth_check_credentials_user_not_found(self):
         with self.assertRaises(AuthenticationFailed):
-            self.jwt_auth.check_credentials(username="wrong-username",
-                                            password=self.test_password)
+            self.jwt_auth.check_credentials(username="wrong-username", password=self.test_password)
 
     def test_jwt_auth_login(self):
         mock_request = MagicMock()
@@ -95,20 +92,16 @@ class JWTAuthTestCase(TestCase):
         self.assertEqual(access.perimeter, root_perimeter)
         self.assertEqual(access.role, admin_role)
         self.assertIsInstance(token, str)
-        decoded = jwt.decode(jwt=token, options={'verify_signature': False})
+        decoded = jwt.decode(jwt=token, options={"verify_signature": False})
         self.assertEqual(decoded["username"], "system")
-
 
     def test_generate_system_token_uses_existing_user(self):
         """Test that generate_system_token for an existing system user."""
-        _ = User.objects.create(username="system",
-                                firstname="System",
-                                lastname="System",
-                                email="system.dj@system.com")
+        _ = User.objects.create(username="system", firstname="System", lastname="System", email="system.dj@system.com")
         token = self.jwt_auth.generate_system_token()
         self.assertEqual(User.objects.filter(username="system").count(), 1)
         self.assertIsInstance(token, str)
-        decoded = jwt.decode(jwt=token, options={'verify_signature': False})
+        decoded = jwt.decode(jwt=token, options={"verify_signature": False})
         self.assertEqual(decoded["username"], "system")
 
     @patch("admin_cohort.services.auth.TokenObtainPairSerializer.get_token")

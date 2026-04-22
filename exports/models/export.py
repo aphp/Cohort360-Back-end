@@ -30,7 +30,7 @@ class Export(ExportsBaseModel, JobModel):
     retried = models.BooleanField(null=False, default=False)
 
     class Meta:
-        db_table = 'export'
+        db_table = "export"
 
     @property
     def target_full_path(self) -> str:

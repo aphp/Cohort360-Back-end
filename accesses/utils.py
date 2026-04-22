@@ -10,6 +10,7 @@ from admin_cohort.models import User
 
 _logger = logging.getLogger("django.request")
 
+
 def impersonate_hook(user: User, headers: Dict[str, str]) -> Optional[User]:
     if settings.IMPERSONATING_HEADER in headers:
         if accesses_service.user_is_full_admin(user):

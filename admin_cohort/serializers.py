@@ -18,25 +18,25 @@ class OmopBaseSerializer(BaseSerializer):
 
 
 class MaintenanceValidator:
-    message = 'end_datetime is lower than start_datetime'
+    message = "end_datetime is lower than start_datetime"
     requires_context = True
 
     def __call__(self, attrs, serializer):
         if serializer.partial:
             inst: MaintenancePhase = serializer.instance
-            start = attrs.get('start_datetime', inst.start_datetime)
-            end = attrs.get('end_datetime', inst.end_datetime)
+            start = attrs.get("start_datetime", inst.start_datetime)
+            end = attrs.get("end_datetime", inst.end_datetime)
         else:
-            start = attrs.get('start_datetime')
-            end = attrs.get('end_datetime')
+            start = attrs.get("start_datetime")
+            end = attrs.get("end_datetime")
 
         if start > end:
             raise ValidationError(self.message)
 
 
 class MaintenancePhaseSerializer(BaseSerializer):
-    maintenance_start = serializers.DateTimeField(read_only=True, allow_null=True, source='start_datetime')
-    maintenance_end = serializers.DateTimeField(read_only=True, allow_null=True, source='end_datetime')
+    maintenance_start = serializers.DateTimeField(read_only=True, allow_null=True, source="start_datetime")
+    maintenance_end = serializers.DateTimeField(read_only=True, allow_null=True, source="end_datetime")
     active = serializers.BooleanField(read_only=True)
 
     class Meta:
@@ -50,19 +50,12 @@ class MaintenancePhaseSerializer(BaseSerializer):
 class UserSerializer(serializers.ModelSerializer):
     display_name = serializers.CharField(read_only=True)
     password = serializers.CharField(write_only=True, required=False)
-    created_by = serializers.SlugRelatedField(read_only=True, slug_field="display_name")
-    updated_by = serializers.SlugRelatedField(read_only=True, slug_field="display_name")
+    created_by: serializers.SlugRelatedField = serializers.SlugRelatedField(read_only=True, slug_field="display_name")
+    updated_by: serializers.SlugRelatedField = serializers.SlugRelatedField(read_only=True, slug_field="display_name")
 
     class Meta:
         model = User
-        fields = ["username",
-                  "firstname",
-                  "lastname",
-                  "email",
-                  "password",
-                  "display_name",
-                  "created_by",
-                  "updated_by"]
+        fields = ["username", "firstname", "lastname", "email", "password", "display_name", "created_by", "updated_by"]
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
@@ -73,18 +66,13 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["username",
-                  "firstname",
-                  "lastname",
-                  "email"]
+        fields = ["username", "firstname", "lastname", "email"]
 
 
 class UserPatchSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["firstname",
-                  "lastname",
-                  "email"]
+        fields = ["firstname", "lastname", "email"]
 
 
 class UserCheckSerializer(serializers.Serializer):

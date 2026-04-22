@@ -26,7 +26,7 @@ def load_operator_cls(job_type: str) -> Optional[str]:
 
 
 class CommonService:
-    job_type = None
+    job_type: str | None = None
 
     def __init__(self):
         self.operator_cls = load_operator_cls(job_type=self.job_type)

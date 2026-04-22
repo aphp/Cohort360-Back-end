@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 import requests
 from django.conf import settings
 
+from admin_cohort.http_timeout import HTTP_REQUEST_TIMEOUT
 from admin_cohort.middleware.context_request_middleware import get_trace_id
 from cohort_job_server.apps import CohortJobServerConfig
 from cohort_job_server.query_executor_api.enums import CriteriaType, ResourceType
@@ -31,14 +32,14 @@ def query_fhir(resource: str, params: dict[str, list[str]], auth_headers: dict) 
     if CohortJobServerConfig.TEST_FHIR_QUERIES:
         url_test = f"{FHIR_URL}/{resource}"
         _logger.info(f"Testing real fhir query with {url_test=} {params=}")
-        response = requests.get(url_test, params={**params, "_count": 0}, headers=auth_headers)
+        response = requests.get(url_test, params={**params, "_count": 0}, headers=auth_headers, timeout=HTTP_REQUEST_TIMEOUT)
         response.raise_for_status()
 
     _logger.info(f"Attempting to query fhir with {url=} {params=}")
 
     auth_headers[settings.TRACE_ID_HEADER] = get_trace_id()
 
-    response = requests.get(url, params=params, headers=auth_headers)
+    response = requests.get(url, params=params, headers=auth_headers, timeout=HTTP_REQUEST_TIMEOUT)
     response.raise_for_status()
     result = response.json()
     return FhirParameters(**result)
@@ -62,15 +63,12 @@ class QueryFormatter:
                 return None
 
             if criteria.criteria_type == CriteriaType.BASIC_RESOURCE:
-                filter_fhir_enriched = add_security_params_to_filter_fhir(criteria,
-                                                                          source_population,
-                                                                          is_pseudo)
+                filter_fhir_enriched = add_security_params_to_filter_fhir(criteria, source_population, is_pseudo)
 
                 _logger.info(f"filterFhirEnriched {filter_fhir_enriched}")
 
                 if CohortJobServerConfig.USE_SOLR:
-                    solr_filter = self.get_mapping_criteria_filter_fhir_to_solr(criteria.filter_fhir,
-                                                                                criteria.resource_type)
+                    solr_filter = self.get_mapping_criteria_filter_fhir_to_solr(criteria.filter_fhir, criteria.resource_type)
                     criteria.filter_solr = solr_filter
                 return criteria
 
@@ -80,9 +78,7 @@ class QueryFormatter:
 
         return build_solr_criteria(cohort_query.criteria, cohort_query.source_population)
 
-    def get_mapping_criteria_filter_fhir_to_solr(
-            self, filter_fhir: str, original_resource_type: ResourceType
-    ) -> str:
+    def get_mapping_criteria_filter_fhir_to_solr(self, filter_fhir: str, original_resource_type: ResourceType) -> str:
 
         ipp_list_filter = None
         resource_type = original_resource_type
@@ -94,20 +90,16 @@ class QueryFormatter:
             resource_type = ResourceType.PATIENT
 
         fhir_resources_filters = self.call_fhir_resource(resource_type, filter_fhir)
-        full_query = fhir_resources_filters['fq']
+        full_query = fhir_resources_filters["fq"]
         _logger.info(f"FQ: {full_query}")
         return self.merge_fq(full_query, ipp_list_filter)
 
     def is_ipp_list(self, resource_type, filter_fhir) -> bool:
-        return (
-                resource_type is not None
-                and resource_type.value == ResourceType.IPP_LIST
-                and self.IDENTIFIER_VALUE in filter_fhir
-        )
+        return resource_type is not None and resource_type.value == ResourceType.IPP_LIST and self.IDENTIFIER_VALUE in filter_fhir
 
     def filter_fhir_to_ipp(self, filter_fhir: str) -> str:
         """Remove identifier value from the filter_fhir"""
-        return ''.join([s.replace(f'{self.IDENTIFIER_VALUE}=', '') for s in filter_fhir.split("&")])
+        return "".join([s.replace(f"{self.IDENTIFIER_VALUE}=", "") for s in filter_fhir.split("&")])
 
     def remove_identifier(self, filter_fhir: str) -> str:
         return "&".join([s for s in filter_fhir.split("&") if self.IDENTIFIER_VALUE not in s])

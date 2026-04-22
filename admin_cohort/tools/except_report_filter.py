@@ -5,13 +5,12 @@ SENSITIVE_PARAMS = ["password"]
 
 
 class CustomExceptionReporterFilter(SafeExceptionReporterFilter):
-
     def get_safe_settings(self):
-        """ hide settings within the error report """
+        """hide settings within the error report"""
         return {"hidden": f"Override {self.__class__.__name__} to show settings"}
 
     def get_safe_request_meta(self, request):
-        """ hide request META within the error report """
+        """hide request META within the error report"""
         return {"hidden": f"Override {self.__class__.__name__} to show request META"}
 
     def get_post_parameters(self, request):

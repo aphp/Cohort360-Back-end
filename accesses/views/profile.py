@@ -14,17 +14,17 @@ class ProfileViewSet(BaseViewSet):
     queryset = Profile.objects.filter(delete_datetime__isnull=True).all()
     lookup_field = "id"
     serializer_class = ProfileSerializer
-    http_method_names = ['get']
+    http_method_names = ["get"]
     permission_classes = (IsAuthenticated, ProfilesPermission)
-    swagger_tags = ['Profiles']
+    swagger_tags = ["Profiles"]
     filterset_fields = ("user_id",)
     search_fields = ["user__firstname", "user__lastname", "user__username"]
 
     def get_queryset(self) -> QuerySet:
         queryset = super().get_queryset()
-        queryset = queryset.annotate(sql_provider_id=F("user__username"),
-                                     sql_provider_name=Func(F('user__firstname'), Value(' '), F('user__lastname'),
-                                                            function='CONCAT'))
+        queryset = queryset.annotate(
+            sql_provider_id=F("user__username"), sql_provider_name=Func(F("user__firstname"), Value(" "), F("user__lastname"), function="CONCAT")
+        )
         return queryset
 
     @extend_schema(responses={status.HTTP_200_OK: ProfileSerializer(many=True)})
