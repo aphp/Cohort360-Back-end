@@ -47,6 +47,7 @@ services:
     environment:
       DB_HOST: postgres
       DB_PORT: "5432"
+      PERIMETERS_SOURCE_DB_NAME: cohort_db
       PERIMETERS_SOURCE_DB_HOST: postgres
       PERIMETERS_SOURCE_DB_PORT: "5432"
       CELERY_BROKER_URL: redis://redis:6379/0
