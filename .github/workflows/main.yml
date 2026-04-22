@@ -74,8 +74,18 @@ jobs:
       - name: Install Python 3.13
         run: uv python install 3.13
 
+      - name: Install system deps (kerberos)
+        run: sudo apt-get update && sudo apt-get -y install gcc libkrb5-dev
+
+      - name: Install project + dev (mypy, django-stubs)
+        run: uv sync --group dev
+
       - name: MyPy
-        run: uv tool run mypy admin_cohort accesses cohort
+        env:
+          DJANGO_SETTINGS_MODULE: admin_cohort.settings
+        run: |
+          cp .conf/.test.env .env
+          uv run mypy admin_cohort accesses cohort
 
   bandit:
     runs-on: ubuntu-latest
