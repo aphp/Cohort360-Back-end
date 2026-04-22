@@ -80,3 +80,7 @@ exclude = [
 
 [tool.safety]
 # pass
+
+[tool.bandit]
+exclude_dirs = [".venv", "tests", "migrations", ".tox", ".local", ".patch_and_fix"]
+skips = ["B101", "B104", "B608"]

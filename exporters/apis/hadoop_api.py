@@ -1,9 +1,10 @@
 import logging
 
 import requests
-from requests import Response, RequestException
+from requests import RequestException, Response
 from rest_framework import status
 
+from admin_cohort.http_timeout import HTTP_REQUEST_TIMEOUT
 from exporters.apis.base import BaseAPI
 
 _logger = logging.getLogger("django.request")
@@ -34,4 +35,9 @@ class HadoopAPI(BaseAPI):
             raise RequestException(f"Granting rights did not succeed: {response.get('err')}")
 
     def query_hadoop(self, endpoint: str, params: dict) -> Response:
-        return requests.post(url=f"{self.url}{endpoint}", params=params, headers={"auth-token": self.auth_token})
+        return requests.post(
+            url=f"{self.url}{endpoint}",
+            params=params,
+            headers={"auth-token": self.auth_token},
+            timeout=HTTP_REQUEST_TIMEOUT,
+        )

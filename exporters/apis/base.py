@@ -3,6 +3,7 @@ from typing import Literal
 
 import requests
 
+from admin_cohort.http_timeout import HTTP_REQUEST_TIMEOUT
 from exporters.apps import ExportersConfig
 
 _logger = logging.getLogger("django.request")
@@ -19,5 +20,10 @@ class BaseAPI:
 
     def get_export_logs(self, job_id: str) -> dict:
         params = {"task_uuid": job_id, "return_out_logs": True, "return_err_logs": True}
-        response = requests.get(url=f"{self.url}{self.task_status_endpoint}", params=params, headers={"auth-token": self.auth_token})
+        response = requests.get(
+            url=f"{self.url}{self.task_status_endpoint}",
+            params=params,
+            headers={"auth-token": self.auth_token},
+            timeout=HTTP_REQUEST_TIMEOUT,
+        )
         return response.json()

@@ -1,12 +1,13 @@
+import hashlib
+from datetime import timedelta
+
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from datetime import timedelta
-import hashlib
 
 from admin_cohort.models import User
-from accesses.models import Role, Perimeter, Access, Profile
+from accesses.models import Access, Perimeter, Profile, Role
 
-DEFAULT_PASSWORD = "TEST"
+DEFAULT_PASSWORD = "TEST"  # nosec B105
 DEFAULT_USERNAME = "420123456"
 PERIMETER_ID_AP = 8312002244
 

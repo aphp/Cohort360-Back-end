@@ -25,6 +25,7 @@ from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 
 from accesses.models import Profile, Role, Perimeter, Access
 from admin_cohort.apps import AdminCohortConfig
+from admin_cohort.http_timeout import HTTP_REQUEST_TIMEOUT
 from admin_cohort.models import User
 from admin_cohort.types import OIDCAuthTokens, JWTAuthTokens, AuthTokens
 from admin_cohort.exceptions import ServerError, NoAuthenticationHookDefined
@@ -113,7 +114,7 @@ def build_oidc_configs() -> List[OIDCAuthConfig]:
 @lru_cache
 def get_issuer_certs(issuer: str) -> dict:
     issuer_certs_url = f"{issuer}/protocol/openid-connect/certs"
-    response = requests.get(url=issuer_certs_url)
+    response = requests.get(url=issuer_certs_url, timeout=HTTP_REQUEST_TIMEOUT)
     if response.status_code != status.HTTP_200_OK:
         raise ServerError(f"Error {response.status_code} from OIDC Auth Server ({issuer_certs_url}): {response.text}")
     jwks = response.json()
@@ -155,7 +156,7 @@ class OIDCAuth(Auth):
         oidc_conf = self.get_oidc_config(redirect_uri=redirect_uri)
         data = {**oidc_conf.client_identity, "redirect_uri": oidc_conf.redirect_uri, "grant_type": oidc_conf.grant_type, "code": code}
         try:
-            response = requests.post(url=oidc_conf.token_url, data=data)
+            response = requests.post(url=oidc_conf.token_url, data=data, timeout=HTTP_REQUEST_TIMEOUT)
             if response.status_code == status.HTTP_200_OK:
                 return OIDCAuthTokens(**response.json())
             return None
@@ -167,7 +168,7 @@ class OIDCAuth(Auth):
         oidc_conf = self.get_oidc_config(client_id)
         data = {**oidc_conf.client_identity, "grant_type": "refresh_token", "refresh_token": token}
         try:
-            response = requests.post(url=oidc_conf.token_url, data=data)
+            response = requests.post(url=oidc_conf.token_url, data=data, timeout=HTTP_REQUEST_TIMEOUT)
             if response.status_code == status.HTTP_200_OK:
                 return OIDCAuthTokens(**response.json())
             raise InvalidToken("Token is invalid or expired")
@@ -211,6 +212,7 @@ class OIDCAuth(Auth):
             url=oidc_conf.logout_url,
             data={**oidc_conf.client_identity, "refresh_token": refresh_token},
             headers={"Authorization": f"Bearer {access_token}"},
+            timeout=HTTP_REQUEST_TIMEOUT,
         )
         if response.status_code != status.HTTP_204_NO_CONTENT:
             raise RequestException(f"Error during logout: {response.text}")

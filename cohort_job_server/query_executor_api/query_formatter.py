@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 import requests
 from django.conf import settings
 
+from admin_cohort.http_timeout import HTTP_REQUEST_TIMEOUT
 from admin_cohort.middleware.context_request_middleware import get_trace_id
 from cohort_job_server.apps import CohortJobServerConfig
 from cohort_job_server.query_executor_api.enums import CriteriaType, ResourceType
@@ -31,14 +32,14 @@ def query_fhir(resource: str, params: dict[str, list[str]], auth_headers: dict) 
     if CohortJobServerConfig.TEST_FHIR_QUERIES:
         url_test = f"{FHIR_URL}/{resource}"
         _logger.info(f"Testing real fhir query with {url_test=} {params=}")
-        response = requests.get(url_test, params={**params, "_count": 0}, headers=auth_headers)
+        response = requests.get(url_test, params={**params, "_count": 0}, headers=auth_headers, timeout=HTTP_REQUEST_TIMEOUT)
         response.raise_for_status()
 
     _logger.info(f"Attempting to query fhir with {url=} {params=}")
 
     auth_headers[settings.TRACE_ID_HEADER] = get_trace_id()
 
-    response = requests.get(url, params=params, headers=auth_headers)
+    response = requests.get(url, params=params, headers=auth_headers, timeout=HTTP_REQUEST_TIMEOUT)
     response.raise_for_status()
     result = response.json()
     return FhirParameters(**result)
