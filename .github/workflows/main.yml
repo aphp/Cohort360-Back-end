@@ -129,10 +129,6 @@ jobs:
     runs-on: ubuntu-latest
     if: |
       github.ref == 'refs/heads/main' ||
-      (
-        github.event_name == 'pull_request' &&
-        contains(github.event.pull_request.labels.*.name, 'run-sonar')
-      ) ||
       startsWith(github.ref, 'refs/tags/')
 
     steps:
@@ -167,4 +163,4 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          tags: aphpid/cohort360-backend:Test-CI-All-Jobs # ${{ env.IMAGE_TAGS }}
+          tags: aphpid/cohort360-backend:${{ env.IMAGE_TAGS }}
