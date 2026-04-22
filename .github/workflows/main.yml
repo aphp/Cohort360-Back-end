@@ -35,8 +35,8 @@ jobs:
 
       - name: Run Ruff + Safety
         run: |
-          uv tool run ruff check .
-          uv tool run safety check -i 42240,66963,70612,65213
+          uv tool run ruff scan .
+          uv tool run safety scan -i 42240,66963,70612,65213
 
   test:
     runs-on: ubuntu-latest
