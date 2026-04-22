@@ -129,7 +129,10 @@ jobs:
     runs-on: ubuntu-latest
     if: |
       github.ref == 'refs/heads/main' ||
-      github.ref == 'refs/heads/Test-CI-All-Jobs' ||
+      (
+        github.event_name == 'pull_request' &&
+        contains(github.event.pull_request.labels.*.name, 'run-sonar')
+      ) ||
       startsWith(github.ref, 'refs/tags/')
 
     steps:
