@@ -31,13 +31,14 @@ from admin_cohort.exceptions import ServerError, NoAuthenticationHookDefined
 
 
 env = environ.Env()
-_logger = logging.getLogger('info')
-_logger_err = logging.getLogger('django.request')
+_logger = logging.getLogger("info")
+_logger_err = logging.getLogger("django.request")
 
 extra_applicative_users = {}
 
 if apps.is_installed("cohort_job_server"):
     from cohort_job_server.apps import CohortJobServerConfig
+
     extra_applicative_users = CohortJobServerConfig.APPLICATIVE_USERS_TOKENS
 
 
@@ -54,12 +55,8 @@ class Auth(ABC):
         pass
 
     def decode_token(self, token: str, verify_signature=True, key="", issuer=None, audience=None):
-        options = {'verify_signature': verify_signature}
-        kwargs = {'algorithms': self.algorithms,
-                  'key': key,
-                  'issuer': issuer,
-                  'audience': audience
-                  }
+        options = {"verify_signature": verify_signature}
+        kwargs = {"algorithms": self.algorithms, "key": key, "issuer": issuer, "audience": audience}
         try:
             return jwt.decode(jwt=token, options=options, **kwargs)
         except jwt.PyJWTError as e:
@@ -77,9 +74,7 @@ class OIDCAuthConfig:
 
     @property
     def client_identity(self) -> dict[str, str]:
-        return {"client_id": self.client_id,
-                "client_secret": self.client_secret
-                }
+        return {"client_id": self.client_id, "client_secret": self.client_secret}
 
     @property
     def oidc_url(self):
@@ -100,11 +95,15 @@ def build_oidc_configs() -> List[OIDCAuthConfig]:
     while True:
         issuer = env(f"OIDC_AUTH_SERVER_{i}", default=None)
         if issuer is not None:
-            configs.append(OIDCAuthConfig(issuer=issuer,
-                                          client_id=env(f"OIDC_CLIENT_ID_{i}"),
-                                          client_secret=env(f"OIDC_CLIENT_SECRET_{i}"),
-                                          grant_type="authorization_code",
-                                          redirect_uri=env(f"OIDC_REDIRECT_URI_{i}")))
+            configs.append(
+                OIDCAuthConfig(
+                    issuer=issuer,
+                    client_id=env(f"OIDC_CLIENT_ID_{i}"),
+                    client_secret=env(f"OIDC_CLIENT_SECRET_{i}"),
+                    grant_type="authorization_code",
+                    redirect_uri=env(f"OIDC_REDIRECT_URI_{i}"),
+                )
+            )
             i += 1
         else:
             break
@@ -119,8 +118,8 @@ def get_issuer_certs(issuer: str) -> dict:
         raise ServerError(f"Error {response.status_code} from OIDC Auth Server ({issuer_certs_url}): {response.text}")
     jwks = response.json()
     certs = {}
-    for jwk in jwks['keys']:
-        kid = jwk['kid']
+    for jwk in jwks["keys"]:
+        kid = jwk["kid"]
         certs[kid] = RSAAlgorithm.from_jwk(json.dumps(jwk))
     return certs
 
@@ -131,7 +130,7 @@ class OIDCAuth(Auth):
     def __init__(self):
         super().__init__()
         self.oidc_extra_allowed_servers = env("OIDC_EXTRA_SERVER_URLS", default="").split(",")
-        self.audience = env("OIDC_AUDIENCE", default="").split(',')
+        self.audience = env("OIDC_AUDIENCE", default="").split(",")
         self.oidc_configs = build_oidc_configs()
 
     def get_oidc_config(self, client_id: Optional[str] = None, redirect_uri: Optional[str] = None):
@@ -154,11 +153,7 @@ class OIDCAuth(Auth):
 
     def get_tokens(self, code: str, redirect_uri: Optional[str] = None) -> Optional[OIDCAuthTokens]:
         oidc_conf = self.get_oidc_config(redirect_uri=redirect_uri)
-        data = {**oidc_conf.client_identity,
-                "redirect_uri": oidc_conf.redirect_uri,
-                "grant_type": oidc_conf.grant_type,
-                "code": code
-                }
+        data = {**oidc_conf.client_identity, "redirect_uri": oidc_conf.redirect_uri, "grant_type": oidc_conf.grant_type, "code": code}
         try:
             response = requests.post(url=oidc_conf.token_url, data=data)
             if response.status_code == status.HTTP_200_OK:
@@ -170,10 +165,7 @@ class OIDCAuth(Auth):
     def refresh_token(self, token: str) -> Optional[OIDCAuthTokens]:
         client_id = self.decode_token(token=token, verify_signature=False).get("azp")
         oidc_conf = self.get_oidc_config(client_id)
-        data = {**oidc_conf.client_identity,
-                "grant_type": "refresh_token",
-                "refresh_token": token
-                }
+        data = {**oidc_conf.client_identity, "grant_type": "refresh_token", "refresh_token": token}
         try:
             response = requests.post(url=oidc_conf.token_url, data=data)
             if response.status_code == status.HTTP_200_OK:
@@ -189,7 +181,7 @@ class OIDCAuth(Auth):
         issuer = decoded_token.get("iss")
         assert issuer in self.recognised_issuers, f"Unrecognised issuer: `{issuer}`"
         certs = get_issuer_certs(issuer=issuer)
-        kid = jwt.get_unverified_header(token)['kid']
+        kid = jwt.get_unverified_header(token)["kid"]
         key = certs.get(kid)
         decoded = self.decode_token(token=token, key=key, issuer=issuer, audience=self.audience)
         return decoded.get(self.USERNAME_LOOKUP)
@@ -215,10 +207,11 @@ class OIDCAuth(Auth):
             raise RequestException(f"Logout request missing `refresh_token` - {e}")
         client_id = self.decode_token(token=refresh_token, verify_signature=False).get("azp")
         oidc_conf = self.get_oidc_config(client_id)
-        response = requests.post(url=oidc_conf.logout_url,
-                                 data={**oidc_conf.client_identity,
-                                       "refresh_token": refresh_token},
-                                 headers={"Authorization": f"Bearer {access_token}"})
+        response = requests.post(
+            url=oidc_conf.logout_url,
+            data={**oidc_conf.client_identity, "refresh_token": refresh_token},
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
         if response.status_code != status.HTTP_204_NO_CONTENT:
             raise RequestException(f"Error during logout: {response.text}")
 
@@ -292,7 +285,6 @@ class JWTAuth(Auth):
         _logger.error("[Authentication] All external services failed. Review defined hooks or remove them")
         return False
 
-
     @staticmethod
     def check_credentials_locally(username, password):
         hashed_password = hashlib.sha256(password.encode("utf-8")).hexdigest()
@@ -305,23 +297,21 @@ class JWTAuth(Auth):
         Generate a system JWT token for internal API calls.
         @returns: str: The generated access token
         """
-        system_user, created = User.objects.get_or_create(username="system",
-                                                          defaults={"username": "system",
-                                                                    "firstname": "System",
-                                                                    "lastname": "SYSTEM",
-                                                                    "email": "system.dj@aphp.fr"
-                                                                    })
+        system_user, created = User.objects.get_or_create(
+            username="system", defaults={"username": "system", "firstname": "System", "lastname": "SYSTEM", "email": "system.dj@aphp.fr"}
+        )
         if created:
             p = Profile.objects.create(user_id=system_user.username, is_active=True)
             root_perimeter = Perimeter.objects.get(pk=settings.ROOT_PERIMETER_ID)
             admin_role = Role.objects.filter(right_full_admin=True).first()
             now = timezone.now()
-            Access.objects.create(profile=p,
-                                  perimeter=root_perimeter,
-                                  role=admin_role,
-                                  start_datetime=now,
-                                  end_datetime=now + timedelta(weeks=52 * 100)  # grant access forever
-                                  )
+            Access.objects.create(
+                profile=p,
+                perimeter=root_perimeter,
+                role=admin_role,
+                start_datetime=now,
+                end_datetime=now + timedelta(weeks=52 * 100),  # grant access forever
+            )
             _logger.info(f"System user created and granted `{admin_role.name}` role on perimeter `{root_perimeter.name}`")
         try:
             serializer = TokenObtainPairSerializer()
@@ -333,12 +323,8 @@ class JWTAuth(Auth):
 
 
 class AuthService:
-    authenticators = {settings.JWT_AUTH_MODE: JWTAuth(),
-                      **({settings.OIDC_AUTH_MODE: OIDCAuth()} if settings.ENABLE_OIDC_AUTH else {})
-                      }
-    applicative_users = {env("ROLLOUT_TOKEN", default=""): env("ROLLOUT_USERNAME", default="ROLLOUT_PIPELINE"),
-                         **extra_applicative_users
-                         }
+    authenticators = {settings.JWT_AUTH_MODE: JWTAuth(), **({settings.OIDC_AUTH_MODE: OIDCAuth()} if settings.ENABLE_OIDC_AUTH else {})}
+    applicative_users = {env("ROLLOUT_TOKEN", default=""): env("ROLLOUT_USERNAME", default="ROLLOUT_PIPELINE"), **extra_applicative_users}
 
     def __init__(self):
         self.post_auth_hooks: List[Callable[[User, Dict[str, str]], Optional[User]]] = self.load_post_auth_hooks()
@@ -366,7 +352,7 @@ class AuthService:
     def refresh_token(self, request) -> Optional[AuthTokens]:
         _, auth_method = self.get_token_from_headers(request)
         authenticator = self._get_authenticator(auth_method)
-        token = request.data.get('refresh_token')
+        token = request.data.get("refresh_token")
         return authenticator.refresh_token(token=token)
 
     def login(self, request, auth_method: str) -> User:
@@ -406,7 +392,7 @@ class AuthService:
         _logger.info("Error authenticating WS request")
 
     def get_token_from_headers(self, request) -> Tuple[Optional[str], Optional[str]]:
-        authorization = request.META.get('HTTP_AUTHORIZATION')
+        authorization = request.META.get("HTTP_AUTHORIZATION")
         authorization_method = request.META.get(f"HTTP_{settings.AUTHORIZATION_METHOD_HEADER}")
         if isinstance(authorization, str):
             authorization = authorization.encode(HTTP_HEADER_ENCODING)
@@ -420,12 +406,11 @@ class AuthService:
         if not parts:
             return None
         if len(parts) != 2:
-            raise AuthenticationFailed(code='bad_authorization_header',
-                                       detail='Authorization header must contain two space-delimited values')
+            raise AuthenticationFailed(code="bad_authorization_header", detail="Authorization header must contain two space-delimited values")
         if parts[0] != "Bearer".encode(HTTP_HEADER_ENCODING):
             return None
         res = parts[1]
-        token = res if not isinstance(res, bytes) else res.decode('utf-8')
+        token = res if not isinstance(res, bytes) else res.decode("utf-8")
         return token
 
 

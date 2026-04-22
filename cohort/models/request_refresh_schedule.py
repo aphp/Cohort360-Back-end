@@ -10,8 +10,8 @@ REFRESH_FREQUENCIES = [(rf.value, rf.value) for rf in RefreshFrequency]
 
 
 class RequestRefreshSchedule(CohortBaseModel):
-    request_snapshot = models.ForeignKey(RequestQuerySnapshot, on_delete=models.CASCADE, related_name='refresh_schedules')
-    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='refresh_schedules')
+    request_snapshot = models.ForeignKey(RequestQuerySnapshot, on_delete=models.CASCADE, related_name="refresh_schedules")
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="refresh_schedules")
     refresh_time = models.TimeField()
     refresh_frequency = models.CharField(choices=REFRESH_FREQUENCIES, default=RefreshFrequency.WEEKLY.value)
     last_refresh = models.DateTimeField(null=True)
@@ -21,6 +21,6 @@ class RequestRefreshSchedule(CohortBaseModel):
     notify_owner = models.BooleanField(default=False)
 
     class Meta:
-        constraints = [UniqueConstraint(name='unique_request_snapshot_refresh_schedule',
-                                        fields=['request_snapshot'],
-                                        condition=Q(deleted__isnull=True))]
+        constraints = [
+            UniqueConstraint(name="unique_request_snapshot_refresh_schedule", fields=["request_snapshot"], condition=Q(deleted__isnull=True))
+        ]

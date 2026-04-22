@@ -9,10 +9,10 @@ from cohort.models import CohortBaseModel
 class FhirFilter(CohortBaseModel):
     fhir_resource = models.CharField(max_length=255)
     fhir_version = models.CharField(max_length=50)
-    query_version = models.CharField(max_length=50, default='v1.4.4')
+    query_version = models.CharField(max_length=50, default="v1.4.4")
     name = models.CharField(max_length=50, validators=[MinLengthValidator(2)])
     filter = models.TextField()
-    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='fhir_filters')
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="fhir_filters")
     identifying = models.BooleanField(default=False)
     auto_generated = models.BooleanField(default=False)
 
@@ -20,29 +20,20 @@ class FhirFilter(CohortBaseModel):
     all_objects = models.Manager()
 
     class Meta:
-        constraints = [UniqueConstraint(name='unique_name_fhir_resource_owner',
-                                        fields=['name', 'fhir_resource', 'owner'],
-                                        condition=Q(deleted__isnull=True))]
+        constraints = [
+            UniqueConstraint(name="unique_name_fhir_resource_owner", fields=["name", "fhir_resource", "owner"], condition=Q(deleted__isnull=True))
+        ]
 
     def save(self, *args, **kwargs):
-        self.filter = self.filter.strip('&=')
+        self.filter = self.filter.strip("&=")
         uuid = str(self.uuid)
         update_fields = kwargs.get("update_fields")
-        should_check_serialized = (
-                update_fields is None or (
-                isinstance(update_fields, (list, set, tuple)) and "filter" in update_fields)
-        )
+        should_check_serialized = update_fields is None or (isinstance(update_fields, (list, set, tuple)) and "filter" in update_fields)
         with transaction.atomic():
             # For updates, check if filter has changed and create a patch
             if self.pk is not None and uuid and should_check_serialized:
                 # Lock the current row to avoid race conditions on patch_version
-                old = (
-                    type(self).all_objects
-                    .select_for_update()
-                    .only("filter")
-                    .filter(pk=self.pk)
-                    .first()
-                )
+                old = type(self).all_objects.select_for_update().only("filter").filter(pk=self.pk).first()
                 if old is not None and old.filter != self.filter:
                     FilterFhirPatch.create_from_snapshot(
                         filter_fhir=self,
@@ -83,13 +74,7 @@ class FilterFhirPatch(models.Model):
         Create the next patch row for this (snapshot, uuid) based on the previous max patch_version.
         """
         # Find current max patch_version for this filter_fhir+uuid
-        last = (
-            cls.objects
-            .filter(filter_fhir=filter_fhir, uuid=uuid)
-            .order_by("-patch_version")
-            .only("patch_version")
-            .first()
-        )
+        last = cls.objects.filter(filter_fhir=filter_fhir, uuid=uuid).order_by("-patch_version").only("patch_version").first()
         next_version = 1 if last is None else last.patch_version + 1
 
         return cls.objects.create(

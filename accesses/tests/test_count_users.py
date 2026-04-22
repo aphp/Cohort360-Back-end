@@ -10,7 +10,6 @@ from accesses.tests.base import create_perimeters_hierarchy
 from admin_cohort.tests.tests_tools import new_user_and_profile
 
 
-
 class CountUsersOnPerimetersBaseTest(TestCase):
     """
     for the tests, we'll be using the perimeters hierarchy defined in the base.py file
@@ -32,7 +31,7 @@ class CountUsersOnPerimetersBaseTest(TestCase):
         self.p12 = Perimeter.objects.get(id=12)
 
         # create some basic role to assign for all users (doesn't matter)
-        self.some_role = Role.objects.create(name='some role', right_read_patient_nominative=True)
+        self.some_role = Role.objects.create(name="some role", right_read_patient_nominative=True)
 
         # creates profiles: each one named according to a perimeter
         self.profile_aphp = new_user_and_profile()[1]
@@ -45,10 +44,7 @@ class CountUsersOnPerimetersBaseTest(TestCase):
         self.profile_p12 = new_user_and_profile()[1]
 
         # create accesses: one access per profile per perimeter
-        defaults = dict(role=self.some_role,
-                        start_datetime=now(),
-                        end_datetime=now() + datetime.timedelta(days=100)
-                        )
+        defaults = dict(role=self.some_role, start_datetime=now(), end_datetime=now() + datetime.timedelta(days=100))
         Access.objects.create(perimeter=self.aphp, profile=self.profile_aphp, **defaults)
 
         Access.objects.create(perimeter=self.p0, profile=self.profile_p0, **defaults)
@@ -74,7 +70,6 @@ class CountUsersOnPerimetersBaseTest(TestCase):
 
 
 class CountAllowedUsersTest(CountUsersOnPerimetersBaseTest):
-
     def test_user_count_update(self):
         """
         Ensure user counts are correctly updated for perimeters with valid access profiles.
@@ -104,7 +99,6 @@ class CountAllowedUsersTest(CountUsersOnPerimetersBaseTest):
 
 
 class CountAllowedUsersFromAboveLevelsTest(CountUsersOnPerimetersBaseTest):
-
     def test_user_count_update(self):
         count_allowed_users_from_above_levels()
 
@@ -118,7 +112,6 @@ class CountAllowedUsersFromAboveLevelsTest(CountUsersOnPerimetersBaseTest):
 
 
 class CountAllowedUsersInInferiorLevelsTest(CountUsersOnPerimetersBaseTest):
-
     def test_user_count_update(self):
         count_allowed_users_in_inferior_levels()
 
@@ -131,5 +124,5 @@ class CountAllowedUsersInInferiorLevelsTest(CountUsersOnPerimetersBaseTest):
         self.assertEqual(self.aphp.count_allowed_users_inferior_levels, 7)
         self.assertEqual(self.p0.count_allowed_users_inferior_levels, 4)
         self.assertEqual(self.p4.count_allowed_users_inferior_levels, 2)
-        self.assertEqual(self.p11.count_allowed_users_inferior_levels, 0)   # leaf perimeter
-        self.assertEqual(self.p12.count_allowed_users_inferior_levels, 0)   # leaf perimeter
+        self.assertEqual(self.p11.count_allowed_users_inferior_levels, 0)  # leaf perimeter
+        self.assertEqual(self.p12.count_allowed_users_inferior_levels, 0)  # leaf perimeter

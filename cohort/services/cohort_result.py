@@ -32,16 +32,12 @@ class CohortResultService(CommonService):
                 resource_type,
             )
 
-        query = {"_type": "request",
-                 "resourceType": resource_type,
-                 "sourcePopulation": {"caresiteCohortList": [cohort_source_id]},
-                 "request": {"_id": 0,
-                             "_type": "basicResource",
-                             "isInclusive": True,
-                             "filterFhir": f_filter,
-                             "resourceType": resource_type
-                             }
-                 }
+        query = {
+            "_type": "request",
+            "resourceType": resource_type,
+            "sourcePopulation": {"caresiteCohortList": [cohort_source_id]},
+            "request": {"_id": 0, "_type": "basicResource", "isInclusive": True, "filterFhir": f_filter, "resourceType": resource_type},
+        }
         _logger.debug(
             "Cohort subset build_query: cohort_source_id=%s, resourceType=%s, filter_length=%s",
             cohort_source_id,
@@ -50,21 +46,21 @@ class CohortResultService(CommonService):
         )
         return json.dumps(query)
 
-    def create_cohort_subset(self, request, owner_id: str, table_name: str, source_cohort: CohortResult,
-                             fhir_filter_id: str) -> CohortResult:
+    def create_cohort_subset(self, request, owner_id: str, table_name: str, source_cohort: CohortResult, fhir_filter_id: str) -> CohortResult:
         def copy_query_snapshot(snapshot: RequestQuerySnapshot) -> RequestQuerySnapshot:
-            return RequestQuerySnapshot.objects.create(owner=snapshot.owner,
-                                                       request=snapshot.request,
-                                                       perimeters_ids=snapshot.perimeters_ids,
-                                                       serialized_query=query)
+            return RequestQuerySnapshot.objects.create(
+                owner=snapshot.owner, request=snapshot.request, perimeters_ids=snapshot.perimeters_ids, serialized_query=query
+            )
 
         def copy_dated_measure(dm: DatedMeasure) -> DatedMeasure:
-            return DatedMeasure.objects.create(mode=dm.mode,
-                                               owner=dm.owner,
-                                               request_query_snapshot=new_rqs,
-                                               measure=dm.measure,
-                                               request_job_status=dm.request_job_status,
-                                               request_job_duration=dm.request_job_duration)
+            return DatedMeasure.objects.create(
+                mode=dm.mode,
+                owner=dm.owner,
+                request_query_snapshot=new_rqs,
+                measure=dm.measure,
+                request_job_status=dm.request_job_status,
+                request_job_duration=dm.request_job_duration,
+            )
 
         _logger.info(
             "Creating cohort subset: table=%s, source_group_id=%s, owner_id=%s, fhir_filter_id=%s",
@@ -74,16 +70,12 @@ class CohortResultService(CommonService):
             fhir_filter_id,
         )
 
-        query = self.build_query(cohort_source_id=source_cohort.group_id,
-                                 fhir_filter_id=fhir_filter_id
-                                 )
+        query = self.build_query(cohort_source_id=source_cohort.group_id, fhir_filter_id=fhir_filter_id)
         new_rqs = copy_query_snapshot(source_cohort.request_query_snapshot)
         new_dm = copy_dated_measure(source_cohort.dated_measure)
-        cohort_subset = CohortResult.objects.create(is_subset=True,
-                                                    name=f"{table_name}_{source_cohort.group_id}",
-                                                    owner_id=owner_id,
-                                                    dated_measure=new_dm,
-                                                    request_query_snapshot=new_rqs)
+        cohort_subset = CohortResult.objects.create(
+            is_subset=True, name=f"{table_name}_{source_cohort.group_id}", owner_id=owner_id, dated_measure=new_dm, request_query_snapshot=new_rqs
+        )
         _logger.info(
             "Cohort subset object created: id=%s, name=%s, group_id=%s",
             cohort_subset.pk,
@@ -104,12 +96,8 @@ class CohortResultService(CommonService):
 
     @staticmethod
     def count_active_jobs():
-        active_statuses = [JobStatus.new,
-                           JobStatus.validated,
-                           JobStatus.started,
-                           JobStatus.pending]
-        return CohortResult.objects.filter(request_job_status__in=active_statuses) \
-            .count()
+        active_statuses = [JobStatus.new, JobStatus.validated, JobStatus.started, JobStatus.pending]
+        return CohortResult.objects.filter(request_job_status__in=active_statuses).count()
 
     def handle_cohort_creation(self, cohort: CohortResult, request, global_estimate: bool) -> None:
         if global_estimate:
@@ -132,12 +120,13 @@ class CohortResultService(CommonService):
                 job_status,
                 count,
             )
-            create_cohort.s(cohort_id=cohort.pk,
-                            json_query=json_query,
-                            auth_headers=get_authorization_header(request),
-                            cohort_creator_cls=self.operator_cls,
-                            sampling_ratio=cohort.sampling_ratio) \
-                .apply_async()
+            create_cohort.s(
+                cohort_id=cohort.pk,
+                json_query=json_query,
+                auth_headers=get_authorization_header(request),
+                cohort_creator_cls=self.operator_cls,
+                sampling_ratio=cohort.sampling_ratio,
+            ).apply_async()
         except Exception as e:
             _logger.error(
                 "Failed to launch cohort creation job: cohort_id=%s, error=%s",
@@ -163,21 +152,25 @@ class CohortResultService(CommonService):
     def ws_send_to_client(cohort: CohortResult) -> None:
         cohort.refresh_from_db()
         global_dm = cohort.dated_measure_global
-        extra_info = {'request_job_status': cohort.request_job_status,
-                      'group_id': cohort.group_id,
-                      'result_size': cohort.dated_measure.measure,
-                      'request_job_fail_msg': cohort.request_job_fail_msg
-                      }
+        extra_info = {
+            "request_job_status": cohort.request_job_status,
+            "group_id": cohort.group_id,
+            "result_size": cohort.dated_measure.measure,
+            "request_job_fail_msg": cohort.request_job_fail_msg,
+        }
         if global_dm:
-            extra_info['global'] = {'measure_min': global_dm.measure_min,
-                                    'measure_max': global_dm.measure_max
-                                    }
+            extra_info["global"] = {"measure_min": global_dm.measure_min, "measure_max": global_dm.measure_max}
 
-        WebsocketManager.send_to_client(str(cohort.owner_id), WSJobStatus(type=WebSocketMessageType.JOB_STATUS,
-                                                                          status=cohort.request_job_status,
-                                                                          uuid=str(cohort.uuid),
-                                                                          job_name=JobName.CREATE,
-                                                                          extra_info=extra_info))
+        WebsocketManager.send_to_client(
+            str(cohort.owner_id),
+            WSJobStatus(
+                type=WebSocketMessageType.JOB_STATUS,
+                status=cohort.request_job_status,
+                uuid=str(cohort.uuid),
+                job_name=JobName.CREATE,
+                extra_info=extra_info,
+            ),
+        )
 
 
 cohort_service = CohortResultService()

@@ -43,11 +43,7 @@ class Command(BaseCommand):
             defaults={
                 "firstname": "John",
                 "lastname": "DOE",
-                "email": (
-                    f"john.doe.{username}@aphp.fr"
-                    if username != DEFAULT_USERNAME
-                    else "john.doe@aphp.fr"
-                ),
+                "email": (f"john.doe.{username}@aphp.fr" if username != DEFAULT_USERNAME else "john.doe@aphp.fr"),
                 "password": hashed_password,
             },
         )
@@ -88,34 +84,24 @@ class Command(BaseCommand):
         else:
             role = Role.objects.filter(name=role_name).first()
             if role:
-                self.stdout.write(
-                    f"Role with name '{role_name}' found (ID {role.id}). Updating it..."
-                )
+                self.stdout.write(f"Role with name '{role_name}' found (ID {role.id}). Updating it...")
                 for key, value in role_data.items():
                     setattr(role, key, value)
                 role.save()
                 created = False
             else:
-                self.stdout.write(
-                    f"Creating new role with ID {role_id} and name '{role_name}'..."
-                )
+                self.stdout.write(f"Creating new role with ID {role_id} and name '{role_name}'...")
                 role = Role.objects.create(id=role_id, **role_data)
                 created = True
 
-        self.stdout.write(
-            f"Role {role.id} ({role.name}) {'created' if created else 'updated'}."
-        )
+        self.stdout.write(f"Role {role.id} ({role.name}) {'created' if created else 'updated'}.")
 
         # 3. Perimeter
         try:
             perimeter = Perimeter.objects.get(id=PERIMETER_ID_AP)
-            self.stdout.write(
-                f"Perimeter {PERIMETER_ID_AP} found: {perimeter.name}"
-            )
+            self.stdout.write(f"Perimeter {PERIMETER_ID_AP} found: {perimeter.name}")
         except Perimeter.DoesNotExist:
-            self.stdout.write(
-                f"Perimeter {PERIMETER_ID_AP} NOT found. Creating it..."
-            )
+            self.stdout.write(f"Perimeter {PERIMETER_ID_AP} NOT found. Creating it...")
             perimeter = Perimeter.objects.create(
                 id=PERIMETER_ID_AP,
                 local_id=f"LOCAL_{PERIMETER_ID_AP}",
@@ -146,17 +132,13 @@ class Command(BaseCommand):
         )
 
         if created:
-            self.stdout.write(
-                f"Access created for user {username} on perimeter {PERIMETER_ID_AP} with role {role.id}."
-            )
+            self.stdout.write(f"Access created for user {username} on perimeter {PERIMETER_ID_AP} with role {role.id}.")
         else:
             access.role = role
             access.start_datetime = now - timedelta(days=1)
             access.end_datetime = now + timedelta(weeks=52 * 100)
             access.save()
 
-            self.stdout.write(
-                f"Access updated for user {username} on perimeter {PERIMETER_ID_AP} with role {role.id}."
-            )
+            self.stdout.write(f"Access updated for user {username} on perimeter {PERIMETER_ID_AP} with role {role.id}.")
 
         self.stdout.write(self.style.SUCCESS("✔ User generation completed successfully"))

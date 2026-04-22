@@ -10,14 +10,15 @@ limit_request_line = 8190
 
 
 class CustomLogger(Logger):
-
     def atoms(self, resp, req, environ, request_time):
         atoms = super().atoms(resp, req, environ, request_time)
-        atoms.update({
-            "user_id": environ.get('user_id', '---'),
-            "trace_id": environ.get('trace_id', '---'),
-            "impersonating": environ.get('impersonating', '---'),
-        })
+        atoms.update(
+            {
+                "user_id": environ.get("user_id", "---"),
+                "trace_id": environ.get("trace_id", "---"),
+                "impersonating": environ.get("impersonating", "---"),
+            }
+        )
         return atoms
 
 
@@ -30,24 +31,11 @@ logconfig_dict = dict(
     disable_existing_loggers=False,
     root={"level": "INFO", "handlers": ["error"]},
     loggers={
-        "gunicorn.error": {
-            "level": "INFO",
-            "handlers": ["error"],
-            "propagate": False,
-            "qualname": "gunicorn.error"
-        },
-        "gunicorn.access": {
-            "level": "INFO",
-            "handlers": ["access"],
-            "propagate": False,
-            "qualname": "gunicorn.access"
-        }},
+        "gunicorn.error": {"level": "INFO", "handlers": ["error"], "propagate": False, "qualname": "gunicorn.error"},
+        "gunicorn.access": {"level": "INFO", "handlers": ["access"], "propagate": False, "qualname": "gunicorn.access"},
+    },
     handlers={
-        "console": {
-            "class": "logging.StreamHandler",
-            "formatter": "generic",
-            "stream": "ext://sys.stdout"
-        },
+        "console": {"class": "logging.StreamHandler", "formatter": "generic", "stream": "ext://sys.stdout"},
         "access": {
             "class": "admin_cohort.tools.logging.CustomSocketHandler",
             "host": SOCKET_LOGGER_HOST,
@@ -57,5 +45,6 @@ logconfig_dict = dict(
             "class": "admin_cohort.tools.logging.CustomSocketHandler",
             "host": SOCKET_LOGGER_HOST,
             "port": DEFAULT_TCP_LOGGING_PORT,
-        }}
+        },
+    },
 )

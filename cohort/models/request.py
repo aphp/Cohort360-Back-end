@@ -9,12 +9,12 @@ from cohort.models import Folder, CohortBaseModel
 
 
 class Request(CohortBaseModel):
-    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='user_requests')
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="user_requests")
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     favorite = models.BooleanField(default=False)
     parent_folder = models.ForeignKey(Folder, on_delete=models.CASCADE, related_name="requests", null=False)
-    shared_by = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='shared_requests', null=True, default=None)
+    shared_by = models.ForeignKey(User, on_delete=models.SET_NULL, related_name="shared_requests", null=True, default=None)
 
     @property
     def dated_measures(self):

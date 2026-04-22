@@ -11,4 +11,4 @@ class ReleaseNote(BaseModel):
     author = models.TextField(null=True)
 
     class Meta:
-        db_table = 'release_note'
+        db_table = "release_note"

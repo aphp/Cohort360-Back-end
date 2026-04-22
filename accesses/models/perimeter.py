@@ -19,8 +19,8 @@ class Perimeter(BaseModel):
     short_name = models.TextField(blank=True, null=True)
     type_source_value = models.TextField(blank=True, null=True)
     parent = models.ForeignKey("accesses.perimeter", on_delete=models.CASCADE, related_name="children", null=True)
-    above_levels_ids = models.TextField(blank=True, null=True)      # todo: make it ArrayField instead
-    inferior_levels_ids = models.TextField(blank=True, null=True)   # todo: make it ArrayField instead
+    above_levels_ids = models.TextField(blank=True, null=True)  # todo: make it ArrayField instead
+    inferior_levels_ids = models.TextField(blank=True, null=True)  # todo: make it ArrayField instead
     cohort_id = models.TextField(blank=True, null=True)
     full_path = models.TextField(blank=True, null=True)
     cohort_size = models.TextField(blank=True, null=True)
@@ -34,10 +34,7 @@ class Perimeter(BaseModel):
 
     @cached_property
     def names(self):
-        return {"name": self.name,
-                "short": self.short_name,
-                "source_value": self.source_value
-                }
+        return {"name": self.name, "short": self.short_name, "source_value": self.source_value}
 
     @cached_property
     def above_levels(self):

@@ -14,11 +14,11 @@ class UserObjectsRestrictedViewSet(RequestLogMixin, viewsets.ModelViewSet, metac
     lookup_field = "uuid"
     permission_classes = (IsOwnerPermission,)
     pagination_class = NegativeLimitOffsetPagination
-    logging_methods = ['POST', 'PATCH', 'DELETE']
+    logging_methods = ["POST", "PATCH", "DELETE"]
     swagger_tags = []
 
     def get_serializer_context(self):
-        return {'request': self.request}
+        return {"request": self.request}
 
     def get_queryset(self):
         return self.__class__.queryset.filter(owner=self.request.user)
@@ -26,7 +26,7 @@ class UserObjectsRestrictedViewSet(RequestLogMixin, viewsets.ModelViewSet, metac
     def create(self, request, *args, **kwargs):
         if type(request.data) is QueryDict:
             request.data._mutable = True
-        request.data['owner'] = request.data.get('owner', request.user.pk)
+        request.data["owner"] = request.data.get("owner", request.user.pk)
         return super().create(request, *args, **kwargs)
 
     # todo : remove when front is ready
@@ -40,7 +40,7 @@ class UserObjectsRestrictedViewSet(RequestLogMixin, viewsets.ModelViewSet, metac
             request.data._mutable = True
 
         for field_name in primary_key_fields:
-            field_name_with_id = f'{field_name}_id'
+            field_name_with_id = f"{field_name}_id"
             if field_name_with_id in request.data:
                 request.data[field_name] = request.data[field_name_with_id]
 

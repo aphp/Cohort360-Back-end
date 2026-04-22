@@ -40,11 +40,9 @@ class FhirPractitionerRole:
 
 
 class AccessesSynchronizer:
-
     def __init__(self):
         token = jwt_auth_service.generate_system_token()
-        self.fhir_client = SyncFHIRClient(url=AccessConfig.FHIR_URL,
-                                          authorization=f"Bearer {token}")
+        self.fhir_client = SyncFHIRClient(url=AccessConfig.FHIR_URL, authorization=f"Bearer {token}")
 
     @staticmethod
     def log(message: str):
@@ -70,10 +68,7 @@ class AccessesSynchronizer:
 
         for p in practitioner_res.fetch_all():
             if p.active:
-                practitioner = FhirPractitioner(username=p.identifier[0].value,
-                                                firstname=p.name[0].given[0],
-                                                lastname=p.name[0].family
-                                                )
+                practitioner = FhirPractitioner(username=p.identifier[0].value, firstname=p.name[0].given[0], lastname=p.name[0].family)
                 user = User.objects.filter(username=practitioner.username).first()
                 if user or not user.profiles.filter(source=ORBIS, is_active=True).exists():
                     Profile.objects.create(user=user, source=ORBIS, is_active=True)
@@ -106,9 +101,7 @@ class AccessesSynchronizer:
         skipped_roles, missing_perimeters = set(), set()
 
         for batch in users_batches:
-            res = self.fhir_client.resources("Practitioner") \
-                .revinclude("PractitionerRole", "practitioner") \
-                .search(identifier=",".join(batch))
+            res = self.fhir_client.resources("Practitioner").revinclude("PractitionerRole", "practitioner").search(identifier=",".join(batch))
             bundle = res.fetch_raw()
 
             if bundle.total > 0:
@@ -119,41 +112,37 @@ class AccessesSynchronizer:
                         continue
                     count_orbis_accesses += 1
                     if pr.active:
-                        default_end_datetime = timezone.now() + timezone.timedelta(
-                            days=settings.DEFAULT_ACCESS_VALIDITY_IN_DAYS)
-                        fpr = FhirPractitionerRole(id=pr.id,
-                                                   active=pr.active,
-                                                   practitioner_id=pr.practitioner.to_resource().identifier[0].value,
-                                                   perimeter_id=int(pr.organization.id),
-                                                   role_name=pr.code[0].coding[0].code,
-                                                   start_datetime=hasattr(pr.period,
-                                                                          "start") and pr.period.start or None,
-                                                   end_datetime=hasattr(pr.period,
-                                                                        "end") and pr.period.end or default_end_datetime
-                                                   )
+                        default_end_datetime = timezone.now() + timezone.timedelta(days=settings.DEFAULT_ACCESS_VALIDITY_IN_DAYS)
+                        fpr = FhirPractitionerRole(
+                            id=pr.id,
+                            active=pr.active,
+                            practitioner_id=pr.practitioner.to_resource().identifier[0].value,
+                            perimeter_id=int(pr.organization.id),
+                            role_name=pr.code[0].coding[0].code,
+                            start_datetime=hasattr(pr.period, "start") and pr.period.start or None,
+                            end_datetime=hasattr(pr.period, "end") and pr.period.end or default_end_datetime,
+                        )
                         profile = Profile.objects.filter(user_id=fpr.practitioner_id, source=ORBIS).first()
                         if profile is None:
-                            profile = Profile.objects.create(user_id=fpr.practitioner_id,
-                                                             source=ORBIS,
-                                                             is_active=True)
+                            profile = Profile.objects.create(user_id=fpr.practitioner_id, source=ORBIS, is_active=True)
                         role = self.get_mapped_role(fpr.role_name)
                         perimeter = Perimeter.objects.filter(id=fpr.perimeter_id).first()
                         if role is not None:
                             if perimeter is not None:
-                                defaults = {"source": ORBIS,
-                                            "external_id": fpr.id,
-                                            "role_id": role.id,
-                                            "profile_id": profile.id,
-                                            "perimeter_id": perimeter.id,
-                                            "start_datetime": fpr.start_datetime,
-                                            "end_datetime": fpr.end_datetime
-                                            }
+                                defaults = {
+                                    "source": ORBIS,
+                                    "external_id": fpr.id,
+                                    "role_id": role.id,
+                                    "profile_id": profile.id,
+                                    "perimeter_id": perimeter.id,
+                                    "start_datetime": fpr.start_datetime,
+                                    "end_datetime": fpr.end_datetime,
+                                }
                                 _, created = Access.objects.get_or_create(defaults=defaults, external_id=fpr.id)
                                 if created:
                                     count_new_accesses += 1
                             else:
-                                self.log(
-                                    f"Could not find a match for the `perimeter` {fpr.perimeter_id=} to create access.")
+                                self.log(f"Could not find a match for the `perimeter` {fpr.perimeter_id=} to create access.")
                                 missing_perimeters.add(fpr.perimeter_id)
                         else:
                             self.log(f"Could not find a match for the ORBIS role `{fpr.role_name}`")
@@ -165,30 +154,31 @@ class AccessesSynchronizer:
             self.log(f"The following ORBIS roles were not correctly mapped: {skipped_roles}")
         if missing_perimeters:
             self.log(f"The following perimeters were not found: {missing_perimeters}")
-        self.send_report_notification(skipped_roles, missing_perimeters,
-                                      count_orbis_accesses,
-                                      count_new_accesses,
-                                      user_id=target_user)
-        self.log(f"{count_orbis_accesses} accesses were fetched from ORBIS. "
-                 f"{count_new_accesses} new accesses were created. "
-                 f"{len(skipped_roles)} roles were skipped (no matching found).")
+        self.send_report_notification(skipped_roles, missing_perimeters, count_orbis_accesses, count_new_accesses, user_id=target_user)
+        self.log(
+            f"{count_orbis_accesses} accesses were fetched from ORBIS. "
+            f"{count_new_accesses} new accesses were created. "
+            f"{len(skipped_roles)} roles were skipped (no matching found)."
+        )
 
     @staticmethod
-    def send_report_notification(skipped_roles, missing_perimeters, count_orbis_accesses, count_new_accesses,
-                                 user_id=None):
-        context = {"sync_time": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
-                   "skipped_roles": sorted(skipped_roles),
-                   "missing_perimeters": sorted(missing_perimeters),
-                   "count_orbis_accesses": count_orbis_accesses,
-                   "count_new_accesses": count_new_accesses,
-                   }
+    def send_report_notification(skipped_roles, missing_perimeters, count_orbis_accesses, count_new_accesses, user_id=None):
+        context = {
+            "sync_time": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+            "skipped_roles": sorted(skipped_roles),
+            "missing_perimeters": sorted(missing_perimeters),
+            "count_orbis_accesses": count_orbis_accesses,
+            "count_new_accesses": count_new_accesses,
+        }
         recipients_addresses = [a[1] for a in settings.ADMINS]
         subject = "Rapport de synchronisation des accès ORBIS"
         if user_id is not None:
             subject = f"{subject} pour l'utilisateur {user_id}"
-        email_notif = EmailNotification(subject=subject,
-                                        to=recipients_addresses,
-                                        html_template="sync_orbis_accesses_report.html",
-                                        txt_template="sync_orbis_accesses_report.txt",
-                                        context=context)
+        email_notif = EmailNotification(
+            subject=subject,
+            to=recipients_addresses,
+            html_template="sync_orbis_accesses_report.html",
+            txt_template="sync_orbis_accesses_report.txt",
+            context=context,
+        )
         email_notif.push()

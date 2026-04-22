@@ -3,8 +3,13 @@ from typing import Optional
 from rest_framework.permissions import IsAuthenticated, SAFE_METHODS
 from rest_framework.exceptions import PermissionDenied
 
-from accesses.permissions import can_user_make_export_jupyter_nomi, can_user_make_export_jupyter_pseudo, \
-                                 can_user_read_datalabs, can_user_manage_datalabs, can_user_make_export_csv_xlsx_nomi
+from accesses.permissions import (
+    can_user_make_export_jupyter_nomi,
+    can_user_make_export_jupyter_pseudo,
+    can_user_read_datalabs,
+    can_user_manage_datalabs,
+    can_user_make_export_csv_xlsx_nomi,
+)
 from accesses.services.accesses import accesses_service
 from exports.apps import ExportsConfig
 
@@ -31,10 +36,10 @@ class ExportPermission(IsAuthenticated):
     def has_permission(self, request, view):
         authenticated = super().has_permission(request, view)
         if authenticated and request.method == "POST":
-            if request.data.get('nominative', False):
-                return check_allow_nomi_export(request.user, request.data.get('output_format'))
+            if request.data.get("nominative", False):
+                return check_allow_nomi_export(request.user, request.data.get("output_format"))
             else:
-                return check_allow_pseudo_export(request.user, request.data.get('output_format'))
+                return check_allow_pseudo_export(request.user, request.data.get("output_format"))
         return authenticated
 
     def has_object_permission(self, request, view, obj):
@@ -51,12 +56,9 @@ class ExportLogsPermission(IsAuthenticated):
 
 
 class RetryExportPermission(IsAuthenticated):
-
     def has_permission(self, request, view):
         authenticated = super().has_permission(request, view)
-        return (authenticated
-                and request.method == "POST"
-                and accesses_service.user_is_full_admin(request.user))
+        return authenticated and request.method == "POST" and accesses_service.user_is_full_admin(request.user)
 
 
 class ReadDatalabsPermission(IsAuthenticated):

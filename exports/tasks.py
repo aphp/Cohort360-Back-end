@@ -7,7 +7,7 @@ from exporters.exporters.base_exporter import BaseExporter
 from exports.models import Export
 from exports.services.export_operators import ExportManager, ExportCleaner
 
-_logger = logging.getLogger('django.request')
+_logger = logging.getLogger("django.request")
 
 
 @shared_task

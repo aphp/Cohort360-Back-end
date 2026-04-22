@@ -15,13 +15,14 @@ RESOURCE_DEFAULT = "_"
 MATCH_ALL_VALUES = "__MATCH_ALL_VALUES__"
 
 
-def find_mapped_code(code: str, src_system: str, target_system: str, default_value: Callable[[str], str],
-                     db: BaseDatabaseWrapper, code_mapping_cache: Dict[str, str]) -> str:
+def find_mapped_code(
+    code: str, src_system: str, target_system: str, default_value: Callable[[str], str], db: BaseDatabaseWrapper, code_mapping_cache: Dict[str, str]
+) -> str:
     if code in code_mapping_cache:
         return code_mapping_cache[code]
     LOGGER.info(f"Searching for code {code}")
     cursor = db.cursor()
-    q = '''
+    q = """
         WITH src_codes AS (
             SELECT source_concept_id as src_id,source_concept_code as src_code 
             FROM omop.concept_fhir 
@@ -38,7 +39,7 @@ def find_mapped_code(code: str, src_system: str, target_system: str, default_val
         INNER JOIN target_codes a
         ON a.target_id = r.concept_id_2
         WHERE relationship_id = 'Maps to' AND r.delete_datetime IS NULL AND o.src_code = %s;
-        '''
+        """
     cursor.execute(q, (src_system, target_system, code))
     res = cursor.fetchone()
     if not res:
@@ -50,17 +51,18 @@ def find_mapped_code(code: str, src_system: str, target_system: str, default_val
 
 
 class QueryRequestUpdater:
-    def __init__(self,
-                 version_name: str,
-                 previous_version_name: Optional[List[str]],
-                 filter_mapping: Dict[str, Dict[str, str]],
-                 filter_names_to_skip: Dict[str, List[str]],
-                 filter_values_mapping: Dict[str, Dict[str, Dict[str, Union[str, Callable[[str], str]]]]],
-                 static_required_filters: Dict[str, List[Union[str, Callable[[List[str]], Optional[str]]]]],
-                 resource_name_mapping: Dict[str, str],
-                 post_process_basic_resource: Optional[Callable[[Any], bool]] = lambda x: False,
-                 post_process_group_resource: Optional[Callable[[Any], bool]] = lambda x: False,
-                 ):
+    def __init__(
+        self,
+        version_name: str,
+        previous_version_name: Optional[List[str]],
+        filter_mapping: Dict[str, Dict[str, str]],
+        filter_names_to_skip: Dict[str, List[str]],
+        filter_values_mapping: Dict[str, Dict[str, Dict[str, Union[str, Callable[[str], str]]]]],
+        static_required_filters: Dict[str, List[Union[str, Callable[[List[str]], Optional[str]]]]],
+        resource_name_mapping: Dict[str, str],
+        post_process_basic_resource: Optional[Callable[[Any], bool]] = lambda x: False,
+        post_process_group_resource: Optional[Callable[[Any], bool]] = lambda x: False,
+    ):
         self.version_name = version_name
         self.previous_version_name = previous_version_name
         self.filter_mapping = filter_mapping
@@ -157,13 +159,10 @@ class QueryRequestUpdater:
         group_changed = self.post_process_group_resource(resource)
         return reduce(lambda x, y: x or y, has_changed, group_changed)
 
-    T = TypeVar('T')
+    T = TypeVar("T")
 
     def walk_query(
-            self,
-            query: Any,
-            basic_resource_visitor: Callable[[Any], T],
-            group_resource_visitor: Callable[[Any, List[T]], Optional[T]]
+        self, query: Any, basic_resource_visitor: Callable[[Any], T], group_resource_visitor: Callable[[Any, List[T]], Optional[T]]
     ) -> Optional[T]:
         if "criteria" in query:
             group_criteria_expression_result = []
@@ -177,8 +176,7 @@ class QueryRequestUpdater:
 
     def process_request(self, query) -> bool:
         if "request" in query:
-            has_changed = self.walk_query(query["request"], self.process_basic_resource,
-                                          self.process_group_resource) or False
+            has_changed = self.walk_query(query["request"], self.process_basic_resource, self.process_group_resource) or False
             return has_changed
         return False
 
@@ -197,8 +195,8 @@ class QueryRequestUpdater:
             return False, False
         elif self.previous_version_name is not None and query_version not in self.previous_version_name:
             LOGGER.info(
-                f"Won't upgrade a query which is not from previous version (expected: {self.previous_version_name},"
-                f" actual {self.version_name})")
+                f"Won't upgrade a query which is not from previous version (expected: {self.previous_version_name}, actual {self.version_name})"
+            )
             return False, False
         _type = query.get("_type", None)
         was_upgraded = False
@@ -282,8 +280,17 @@ class QueryRequestUpdater:
     def update_old_filters(self, dry_run: bool = True, debug: bool = True):
         LOGGER.info(f"Will update filters to version {self.version_name}. Dry run : {dry_run}")
         all_filters: List[FhirFilter] = FhirFilter.objects.all()
-        self.do_update_old_query_snapshots([RequestQuerySnapshot(
-            title=f.uuid,
-            serialized_query=json.dumps({"version": f.query_version, "_type": "resource", "resourceType": f.fhir_resource, "fhirFilter": f.filter}))
-            for
-            f in all_filters], lambda r: self.save_filter(r, all_filters), dry_run, debug)
+        self.do_update_old_query_snapshots(
+            [
+                RequestQuerySnapshot(
+                    title=f.uuid,
+                    serialized_query=json.dumps(
+                        {"version": f.query_version, "_type": "resource", "resourceType": f.fhir_resource, "fhirFilter": f.filter}
+                    ),
+                )
+                for f in all_filters
+            ],
+            lambda r: self.save_filter(r, all_filters),
+            dry_run,
+            debug,
+        )

@@ -7,27 +7,29 @@ from admin_cohort.serializers import BaseSerializer
 from accesses.models import Role, Access, Profile, Perimeter, Right
 from accesses.services.roles import roles_service
 
-_logger = logging.getLogger('django.request')
+_logger = logging.getLogger("django.request")
 
 
 class RightSerializer(ModelSerializer):
-    depends_on = serializers.SlugRelatedField(slug_field='name', queryset=Right.objects.all(), required=False)
+    depends_on = serializers.SlugRelatedField(slug_field="name", queryset=Right.objects.all(), required=False)
 
     class Meta:
         model = Right
-        fields = ["name",
-                  "label",
-                  "depends_on",
-                  "category",
-                  "is_global",
-                  "allow_edit_accesses_on_same_level",
-                  "allow_edit_accesses_on_inf_levels",
-                  "impact_inferior_levels"
-                  ]
-        extra_kwargs = {'allow_edit_accesses_on_same_level': {'write_only': True},
-                        'allow_edit_accesses_on_inf_levels': {'write_only': True},
-                        'impact_inferior_levels': {'write_only': True}
-                        }
+        fields = [
+            "name",
+            "label",
+            "depends_on",
+            "category",
+            "is_global",
+            "allow_edit_accesses_on_same_level",
+            "allow_edit_accesses_on_inf_levels",
+            "impact_inferior_levels",
+        ]
+        extra_kwargs = {
+            "allow_edit_accesses_on_same_level": {"write_only": True},
+            "allow_edit_accesses_on_inf_levels": {"write_only": True},
+            "impact_inferior_levels": {"write_only": True},
+        }
 
 
 class RoleSerializer(BaseSerializer):
@@ -36,7 +38,7 @@ class RoleSerializer(BaseSerializer):
     class Meta:
         model = Role
         fields = "__all__"
-        read_only_fields = ['id']
+        read_only_fields = ["id"]
 
     def get_help_text(self, role) -> str:
         return roles_service.get_help_text(role=role)
@@ -53,7 +55,7 @@ class UsersInRoleSerializer(serializers.Serializer):
 
 
 class ReducedProfileSerializer(serializers.ModelSerializer):
-    username = serializers.CharField(read_only=True, source='user_id')
+    username = serializers.CharField(read_only=True, source="user_id")
     provider_id = serializers.CharField(required=False, source="user_id")
     firstname = serializers.CharField(required=False, source="user.firstname")
     lastname = serializers.CharField(required=False, source="user.lastname")
@@ -61,13 +63,7 @@ class ReducedProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Profile
-        fields = ["id",
-                  "provider_id",
-                  "username",
-                  "email",
-                  "firstname",
-                  "lastname",
-                  "source"]
+        fields = ["id", "provider_id", "username", "email", "firstname", "lastname", "source"]
 
 
 class ProfileSerializer(BaseSerializer):
@@ -81,22 +77,23 @@ class ProfileSerializer(BaseSerializer):
 
     class Meta:
         model = Profile
-        fields = '__all__'
-        read_only_fields = ["id",
-                            "source",
-                            "is_active",
-                            ]
+        fields = "__all__"
+        read_only_fields = [
+            "id",
+            "source",
+            "is_active",
+        ]
 
 
 class PerimeterSerializer(serializers.ModelSerializer):
     parent_id = serializers.CharField(read_only=True, allow_null=True)
     # old fields
-    care_site_id = serializers.IntegerField(read_only=True, source='id')
-    care_site_name = serializers.CharField(read_only=True, source='name')
-    care_site_source_value = serializers.CharField(read_only=True, source='source_value')
-    care_site_short_name = serializers.CharField(read_only=True, source='short_name')
-    care_site_type_source_value = serializers.CharField(read_only=True, source='type_source_value')
-    type = serializers.CharField(allow_null=True, source='type_source_value')
+    care_site_id = serializers.IntegerField(read_only=True, source="id")
+    care_site_name = serializers.CharField(read_only=True, source="name")
+    care_site_source_value = serializers.CharField(read_only=True, source="source_value")
+    care_site_short_name = serializers.CharField(read_only=True, source="short_name")
+    care_site_type_source_value = serializers.CharField(read_only=True, source="type_source_value")
+    type = serializers.CharField(allow_null=True, source="type_source_value")
     names = serializers.DictField(allow_null=True, read_only=True, child=serializers.CharField())
 
     class Meta:
@@ -106,20 +103,22 @@ class PerimeterSerializer(serializers.ModelSerializer):
 
 class PerimeterLiteSerializer(serializers.ModelSerializer):
     parent_id = serializers.CharField(read_only=True, allow_null=True)
-    type = serializers.CharField(allow_null=True, source='type_source_value')
+    type = serializers.CharField(allow_null=True, source="type_source_value")
 
     class Meta:
         model = Perimeter
-        fields = ['id',
-                  'name',
-                  'source_value',
-                  'parent_id',
-                  'type',
-                  'above_levels_ids',
-                  'inferior_levels_ids',
-                  'cohort_id',
-                  'cohort_size',
-                  'full_path']
+        fields = [
+            "id",
+            "name",
+            "source_value",
+            "parent_id",
+            "type",
+            "above_levels_ids",
+            "inferior_levels_ids",
+            "cohort_id",
+            "cohort_size",
+            "full_path",
+        ]
 
 
 class CareSiteSerializer(serializers.Serializer):
@@ -137,7 +136,7 @@ class AccessSerializer(BaseSerializer):
     perimeter = PerimeterSerializer(allow_null=True, required=False)
     perimeter_id = serializers.PrimaryKeyRelatedField(queryset=Perimeter.objects.all(), source="perimeter")
     # todo : remove when ready with perimeter
-    care_site = CareSiteSerializer(allow_null=True, required=False, source='perimeter')
+    care_site = CareSiteSerializer(allow_null=True, required=False, source="perimeter")
     role = RoleSerializer(read_only=True)
     role_id = serializers.PrimaryKeyRelatedField(queryset=Role.objects.all(), source="role", write_only=True)
     profile = ReducedProfileSerializer(read_only=True)
@@ -148,39 +147,34 @@ class AccessSerializer(BaseSerializer):
 
     class Meta:
         model = Access
-        fields = ["id",
-                  "is_valid",
-                  "profile",
-                  "profile_id",
-                  "care_site",
-                  "role",
-                  "actual_start_datetime",
-                  "actual_end_datetime",
-                  "start_datetime",
-                  "end_datetime",
-                  "role_id",
-                  "perimeter",
-                  "perimeter_id",
-                  "created_by",
-                  "updated_by",
-                  "editable"]
+        fields = [
+            "id",
+            "is_valid",
+            "profile",
+            "profile_id",
+            "care_site",
+            "role",
+            "actual_start_datetime",
+            "actual_end_datetime",
+            "start_datetime",
+            "end_datetime",
+            "role_id",
+            "perimeter",
+            "perimeter_id",
+            "created_by",
+            "updated_by",
+            "editable",
+        ]
         write_only_fields = ["start_datetime", "end_datetime"]
-        read_only_fields = ["is_valid",
-                            "care_site",
-                            "actual_start_datetime",
-                            "actual_end_datetime",
-                            "role",
-                            "perimeter",
-                            "profile_id"]
+        read_only_fields = ["is_valid", "care_site", "actual_start_datetime", "actual_end_datetime", "role", "perimeter", "profile_id"]
 
     def create(self, validated_data):
-        creator = self.context.get('request').user
-        validated_data.update({"created_by": creator,
-                               "updated_by": creator})
+        creator = self.context.get("request").user
+        validated_data.update({"created_by": creator, "updated_by": creator})
         return super(AccessSerializer, self).create(validated_data)
 
     def update(self, instance, validated_data):
-        validated_data["updated_by"] = self.context.get('request').user
+        validated_data["updated_by"] = self.context.get("request").user
         return super(AccessSerializer, self).update(instance, validated_data)
 
 
@@ -188,7 +182,7 @@ class ExpiringAccessesSerializer(serializers.Serializer):
     start_datetime = serializers.DateTimeField(read_only=True)
     end_datetime = serializers.DateTimeField(read_only=True)
     profile = serializers.SerializerMethodField()
-    perimeter = serializers.SlugRelatedField(slug_field='name', read_only=True)
+    perimeter = serializers.SlugRelatedField(slug_field="name", read_only=True)
 
     def get_profile(self, access):
         return access.profile.user.display_name

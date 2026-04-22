@@ -18,8 +18,7 @@ class MaintenancesPermission(IsAuthenticated):
             return True
         authenticated = super().has_permission(request, view)
         user = request.user
-        return authenticated and (accesses_service.user_is_full_admin(user) or
-                                  user.username == ROLLOUT_USERNAME)
+        return authenticated and (accesses_service.user_is_full_admin(user) or user.username == ROLLOUT_USERNAME)
 
 
 class LogsPermission(IsAuthenticated):
@@ -34,9 +33,7 @@ class LogsPermission(IsAuthenticated):
 class UsersPermission(IsAuthenticated):
     def has_permission(self, request, view):
         authenticated = super().has_permission(request, view)
-        return authenticated and \
-            (request.method == "GET" or
-             (request.method in ("POST", "PATCH") and can_user_manage_users(request.user)))
+        return authenticated and (request.method == "GET" or (request.method in ("POST", "PATCH") and can_user_manage_users(request.user)))
 
     def has_object_permission(self, request, view, obj):
         return self.has_permission(request, view)
@@ -45,9 +42,7 @@ class UsersPermission(IsAuthenticated):
 class CachePermission(IsAuthenticated):
     def has_permission(self, request, view):
         authenticated = super().has_permission(request, view)
-        return authenticated and \
-            request.method in ["GET", "DELETE"] and \
-            accesses_service.user_is_full_admin(user=request.user)
+        return authenticated and request.method in ["GET", "DELETE"] and accesses_service.user_is_full_admin(user=request.user)
 
 
 def either(*perms):

@@ -62,15 +62,12 @@ class QueryFormatter:
                 return None
 
             if criteria.criteria_type == CriteriaType.BASIC_RESOURCE:
-                filter_fhir_enriched = add_security_params_to_filter_fhir(criteria,
-                                                                          source_population,
-                                                                          is_pseudo)
+                filter_fhir_enriched = add_security_params_to_filter_fhir(criteria, source_population, is_pseudo)
 
                 _logger.info(f"filterFhirEnriched {filter_fhir_enriched}")
 
                 if CohortJobServerConfig.USE_SOLR:
-                    solr_filter = self.get_mapping_criteria_filter_fhir_to_solr(criteria.filter_fhir,
-                                                                                criteria.resource_type)
+                    solr_filter = self.get_mapping_criteria_filter_fhir_to_solr(criteria.filter_fhir, criteria.resource_type)
                     criteria.filter_solr = solr_filter
                 return criteria
 
@@ -80,9 +77,7 @@ class QueryFormatter:
 
         return build_solr_criteria(cohort_query.criteria, cohort_query.source_population)
 
-    def get_mapping_criteria_filter_fhir_to_solr(
-            self, filter_fhir: str, original_resource_type: ResourceType
-    ) -> str:
+    def get_mapping_criteria_filter_fhir_to_solr(self, filter_fhir: str, original_resource_type: ResourceType) -> str:
 
         ipp_list_filter = None
         resource_type = original_resource_type
@@ -94,20 +89,16 @@ class QueryFormatter:
             resource_type = ResourceType.PATIENT
 
         fhir_resources_filters = self.call_fhir_resource(resource_type, filter_fhir)
-        full_query = fhir_resources_filters['fq']
+        full_query = fhir_resources_filters["fq"]
         _logger.info(f"FQ: {full_query}")
         return self.merge_fq(full_query, ipp_list_filter)
 
     def is_ipp_list(self, resource_type, filter_fhir) -> bool:
-        return (
-                resource_type is not None
-                and resource_type.value == ResourceType.IPP_LIST
-                and self.IDENTIFIER_VALUE in filter_fhir
-        )
+        return resource_type is not None and resource_type.value == ResourceType.IPP_LIST and self.IDENTIFIER_VALUE in filter_fhir
 
     def filter_fhir_to_ipp(self, filter_fhir: str) -> str:
         """Remove identifier value from the filter_fhir"""
-        return ''.join([s.replace(f'{self.IDENTIFIER_VALUE}=', '') for s in filter_fhir.split("&")])
+        return "".join([s.replace(f"{self.IDENTIFIER_VALUE}=", "") for s in filter_fhir.split("&")])
 
     def remove_identifier(self, filter_fhir: str) -> str:
         return "&".join([s for s in filter_fhir.split("&") if self.IDENTIFIER_VALUE not in s])

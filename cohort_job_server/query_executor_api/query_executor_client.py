@@ -11,7 +11,7 @@ from requests import Response
 if TYPE_CHECKING:
     from cohort_job_server.query_executor_api import CohortQuery, SparkJobObject
 
-_logger = logging.getLogger('info')
+_logger = logging.getLogger("info")
 
 
 class QueryExecutorClient:
@@ -26,20 +26,11 @@ class QueryExecutorClient:
         self.api_url = f"{os.environ.get('QUERY_EXECUTOR_URL')}/jobs"
 
     def count(self, input_payload: str) -> Response:
-        params = {
-            'appName': self.APP_NAME,
-            'classPath': self.COUNT_CLASSPATH,
-            'context': self.CONTEXT
-        }
+        params = {"appName": self.APP_NAME, "classPath": self.COUNT_CLASSPATH, "context": self.CONTEXT}
         return requests.post(self.api_url, params=params, data=input_payload)
 
     def create(self, input_payload: str) -> Response:
-        params = {
-            'appName': self.APP_NAME,
-            'classPath': self.CREATE_CLASSPATH,
-            'context': self.CONTEXT,
-            'sync': 'false'
-        }
+        params = {"appName": self.APP_NAME, "classPath": self.CREATE_CLASSPATH, "context": self.CONTEXT, "sync": "false"}
         return requests.post(self.api_url, params=params, data=input_payload)
 
     def delete(self, job_id: str) -> Response:
@@ -54,20 +45,22 @@ def replace_pattern(text: str, replacements: list[tuple[str, str]]) -> str:
 
 def format_syntax(request: CohortQuery) -> str:
     json_data = request.model_dump_json(by_alias=True, exclude_none=True)
-    replacements = [('["All"]', '"all"'), ('[true]', 'true'), ('[false]', 'false')]
+    replacements = [('["All"]', '"all"'), ("[true]", "true"), ("[false]", "false")]
     formatted_json = replace_pattern(json_data, replacements)
     return json.dumps(formatted_json)
 
 
 def format_spark_job_request_for_query_executor(spark_job_request: SparkJobObject) -> str:
     callback_path = spark_job_request.callback_path
-    request_input = str(f"input.cohortDefinitionName = {spark_job_request.cohort_definition_name},"
-                        f"input.cohortDefinitionSyntax = {format_syntax(spark_job_request.cohort_definition_syntax)},"
-                        f"input.ownerEntityId = {spark_job_request.owner_entity_id},"
-                        f"input.mode = {spark_job_request.mode},"
-                        f"input.cohortUuid = {spark_job_request.cohort_definition_syntax.instance_id}")
+    request_input = str(
+        f"input.cohortDefinitionName = {spark_job_request.cohort_definition_name},"
+        f"input.cohortDefinitionSyntax = {format_syntax(spark_job_request.cohort_definition_syntax)},"
+        f"input.ownerEntityId = {spark_job_request.owner_entity_id},"
+        f"input.mode = {spark_job_request.mode},"
+        f"input.cohortUuid = {spark_job_request.cohort_definition_syntax.instance_id}"
+    )
     if callback_path:
         request_input += f",input.callbackPath = {callback_path}"
     if spark_job_request.mode_options is not None:
-        request_input += ',input.modeOptions = %s' % spark_job_request.mode_options.model_dump_json(exclude_unset=True)
+        request_input += ",input.modeOptions = %s" % spark_job_request.mode_options.model_dump_json(exclude_unset=True)
     return request_input

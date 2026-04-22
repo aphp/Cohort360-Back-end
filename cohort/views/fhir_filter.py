@@ -13,19 +13,14 @@ from cohort.views.shared import UserObjectsRestrictedViewSet
 
 
 class FhirFilterFilter(filters.FilterSet):
-    fhir_filter = filters.CharFilter(field_name='filter', lookup_expr='icontains')
-    fhir_resource = filters.CharFilter(field_name='fhir_resource', lookup_expr='icontains')
-    name = filters.CharFilter(field_name='name', lookup_expr='icontains')
-    ordering = filters.OrderingFilter(fields=('-created_at', 'modified_at'))
+    fhir_filter = filters.CharFilter(field_name="filter", lookup_expr="icontains")
+    fhir_resource = filters.CharFilter(field_name="fhir_resource", lookup_expr="icontains")
+    name = filters.CharFilter(field_name="name", lookup_expr="icontains")
+    ordering = filters.OrderingFilter(fields=("-created_at", "modified_at"))
 
     class Meta:
         model = FhirFilter
-        fields = ('name',
-                  'owner',
-                  'fhir_resource',
-                  'fhir_filter',
-                  'query_version',
-                  'identifying')
+        fields = ("name", "owner", "fhir_resource", "fhir_filter", "query_version", "identifying")
 
 
 class FhirFilterViewSet(UserObjectsRestrictedViewSet):
@@ -45,16 +40,14 @@ class FhirFilterViewSet(UserObjectsRestrictedViewSet):
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
-    @extend_schema(request=FhirFilterCreateSerializer,
-                   responses={status.HTTP_201_CREATED: FhirFilterSerializer})
+    @extend_schema(request=FhirFilterCreateSerializer, responses={status.HTTP_201_CREATED: FhirFilterSerializer})
     def create(self, request, *args, **kwargs):
         try:
             return super().create(request, *args, **kwargs)
         except IntegrityError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-    @extend_schema(request=FhirFilterPatchSerializer,
-                   responses={status.HTTP_200_OK: FhirFilterSerializer})
+    @extend_schema(request=FhirFilterPatchSerializer, responses={status.HTTP_200_OK: FhirFilterSerializer})
     def partial_update(self, request, *args, **kwargs):
         try:
             return super().partial_update(request, *args, **kwargs)
@@ -66,8 +59,7 @@ class FhirFilterViewSet(UserObjectsRestrictedViewSet):
         return super().destroy(request, *args, **kwargs)
 
     @extend_schema(responses={status.HTTP_204_NO_CONTENT: None})
-    @action(methods=['delete'], detail=False)
+    @action(methods=["delete"], detail=False)
     def delete_multiple(self, request):
-        FhirFilter.objects.filter(uuid__in=request.data.get('uuids', [])).delete()
+        FhirFilter.objects.filter(uuid__in=request.data.get("uuids", [])).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
-

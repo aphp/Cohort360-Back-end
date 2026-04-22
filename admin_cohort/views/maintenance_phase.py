@@ -14,14 +14,14 @@ extended_schema = extend_schema(tags=["Maintenance"])
 
 
 class MaintenancePhaseFilter(FilterSet):
-    min_start_datetime = IsoDateTimeFilter(field_name='start_datetime', lookup_expr='gte')
-    max_end_datetime = IsoDateTimeFilter(field_name='end_datetime', lookup_expr='lte')
+    min_start_datetime = IsoDateTimeFilter(field_name="start_datetime", lookup_expr="gte")
+    max_end_datetime = IsoDateTimeFilter(field_name="end_datetime", lookup_expr="lte")
 
-    ordering = OrderingFilter(fields=('start_datetime', 'end_datetime'))
+    ordering = OrderingFilter(fields=("start_datetime", "end_datetime"))
 
     class Meta:
         model = MaintenancePhase
-        fields = ['subject', 'start_datetime', 'end_datetime']
+        fields = ["subject", "start_datetime", "end_datetime"]
 
 
 @extend_schema_view(
@@ -30,7 +30,7 @@ class MaintenancePhaseFilter(FilterSet):
     create=extended_schema,
     partial_update=extended_schema,
     destroy=extended_schema,
-    next=extended_schema
+    next=extended_schema,
 )
 class MaintenancePhaseViewSet(viewsets.ModelViewSet):
     queryset = MaintenancePhase.objects.all()
@@ -41,10 +41,9 @@ class MaintenancePhaseViewSet(viewsets.ModelViewSet):
     http_method_names = ["get", "delete", "post", "patch"]
 
     def get_permissions(self):
-        return either(MaintenancesPermission(),
-                      AuthenticatedApplicativeUserPermission())
+        return either(MaintenancesPermission(), AuthenticatedApplicativeUserPermission())
 
-    @action(methods=['get'], detail=False, url_path='next')
+    @action(methods=["get"], detail=False, url_path="next")
     def next(self, request, *args, **kwargs):
         q = maintenance_service.get_next_maintenance()
         d = self.get_serializer(q).data if q is not None else {}

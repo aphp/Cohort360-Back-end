@@ -2,18 +2,18 @@ from enum import StrEnum
 
 
 class Mode(StrEnum):
-    COUNT = 'count'
-    COUNT_ALL = 'count_all'
-    COUNT_WITH_DETAILS = 'count_with_details'
-    CREATE = 'create'
+    COUNT = "count"
+    COUNT_ALL = "count_all"
+    COUNT_WITH_DETAILS = "count_with_details"
+    CREATE = "create"
 
 
 class CriteriaType(StrEnum):
-    BASIC_RESOURCE = 'basicResource'
-    AND_GROUP = 'andGroup'
-    OR_GROUP = 'orGroup'
-    N_AMONG_M = 'nAmongM'
-    REQUEST = 'request'
+    BASIC_RESOURCE = "basicResource"
+    AND_GROUP = "andGroup"
+    OR_GROUP = "orGroup"
+    N_AMONG_M = "nAmongM"
+    REQUEST = "request"
 
 
 class ResourceType(StrEnum):

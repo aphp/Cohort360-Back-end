@@ -7,7 +7,6 @@ from admin_cohort.tools.except_report_filter import CustomExceptionReporterFilte
 
 
 class CustomExceptionReporterFilterTests(TestCase):
-
     def setUp(self):
         self.filter = CustomExceptionReporterFilter()
         self.request_factory = RequestFactory()
@@ -32,10 +31,10 @@ class CustomExceptionReporterFilterTests(TestCase):
         self.assertEqual(post_params["password"], self.filter.cleansed_substitute)
         self.assertEqual(post_params["other"], "visible")
 
-    @patch.object(SafeExceptionReporterFilter, 'get_traceback_frame_variables')
+    @patch.object(SafeExceptionReporterFilter, "get_traceback_frame_variables")
     def test_get_traceback_frame_variables_hides_sensitive_data(self, mock_super_call):
         """Test that get_traceback_frame_variables redacts sensitive fields."""
-        mock_super_call.return_value={"password": "not-cleansed", "other": "visible"}
+        mock_super_call.return_value = {"password": "not-cleansed", "other": "visible"}
         tb_frame = MagicMock()
         tb_frame.f_locals = {"password": "secret", "other": "visible"}
 

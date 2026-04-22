@@ -15,18 +15,15 @@ FILTER_MAPPING = {
         "_has:Patient:encounter:active": "subject.active",
         "service-provider": "encounter-care-site",
         "destination-type": "admission-destination-type",
-        "destination": "discharge-disposition"
+        "destination": "discharge-disposition",
     },
-    "DocumentReference": {
-        "patient-active": "subject.active",
-        "encounter-service-provider": "encounter.encounter-care-site"
-    },
+    "DocumentReference": {"patient-active": "subject.active", "encounter-service-provider": "encounter.encounter-care-site"},
     "MedicationAdministration": {
         "hierarchy-ATC": "medication",
         "medication-simple": "medication",
         "patient-active": "subject.active",
         "route": "dosage-route",
-        "encounter-service-provider": "context.encounter-care-site"
+        "encounter-service-provider": "context.encounter-care-site",
     },
     "MedicationRequest": {
         "hierarchy-ATC": "medication",
@@ -34,24 +31,20 @@ FILTER_MAPPING = {
         "patient-active": "subject.active",
         "route": "dosage-instruction-route",
         "type": "category",
-        "encounter-service-provider": "encounter.encounter-care-site"
+        "encounter-service-provider": "encounter.encounter-care-site",
     },
     "Claim": {
         "code": "diagnosis",
         "codeList": "diagnosis",
         "patient-active": "patient.active",
-        "encounter-service-provider": "encounter.encounter-care-site"
+        "encounter-service-provider": "encounter.encounter-care-site",
     },
-    "Procedure": {
-        "codeList": "code",
-        "patient-active": "subject.active",
-        "encounter-service-provider": "encounter.encounter-care-site"
-    },
+    "Procedure": {"codeList": "code", "patient-active": "subject.active", "encounter-service-provider": "encounter.encounter-care-site"},
     "Condition": {
         "codeList": "code",
         "patient-active": "subject.active",
         "type": "orbis-status",
-        "encounter-service-provider": "encounter.encounter-care-site"
+        "encounter-service-provider": "encounter.encounter-care-site",
     },
     "Observation": {
         "part-of": "code",
@@ -60,20 +53,16 @@ FILTER_MAPPING = {
         "encounter-service-provider": "encounter.encounter-care-site",
         "patient-active": "subject.active",
     },
-    RESOURCE_DEFAULT: {
-    }
+    RESOURCE_DEFAULT: {},
 }
 
-FILTER_NAME_TO_SKIP = {
-    "DocumentReference": ["empty"]
-}
+FILTER_NAME_TO_SKIP = {"DocumentReference": ["empty"]}
 
 UCD_ORBIS_CODESYSTEM = "https://terminology.eds.aphp.fr/aphp-orbis-medicament-code-ucd"
 ATC_ORBIS_CODESYSTEM = "https://terminology.eds.aphp.fr/aphp-orbis-medicament-atc-article"
 ATC_CODEYSTEM = "https://terminology.eds.aphp.fr/atc"
 
-code_mapping_cache = {
-}
+code_mapping_cache = {}
 
 
 def find_related_atc(code: str):
@@ -81,7 +70,7 @@ def find_related_atc(code: str):
         return code_mapping_cache[code]
     LOGGER.info(f"Searching for code {code}")
     cursor = connections["omop"].cursor()
-    q = '''
+    q = """
         WITH orbis AS (
             SELECT source_concept_id as orbis_atc_id,source_concept_code as orbis_atc_code 
             FROM omop.concept_fhir 
@@ -98,7 +87,7 @@ def find_related_atc(code: str):
         INNER JOIN atc a
         ON a.atc_id = r.concept_id_2
         WHERE relationship_id = 'Maps to' AND r.delete_datetime IS NULL AND o.orbis_atc_code = %s;
-        '''
+        """
     cursor.execute(q, (ATC_ORBIS_CODESYSTEM, ATC_CODEYSTEM, code))
     res = cursor.fetchone()
     if not res:
@@ -116,31 +105,14 @@ def find_related_atc_codes(codes: str):
 
 
 FILTER_VALUE_MAPPING = {
-    "Observation": {
-        "row_status": {
-            "Validé": "Val"
-        }
-    },
-    "MedicationRequest": {
-        "hierarchy-ATC": {
-            MATCH_ALL_VALUES: find_related_atc_codes
-        }
-    },
-    "MedicationAdministration": {
-        "hierarchy-ATC": {
-            MATCH_ALL_VALUES: find_related_atc_codes
-        }
-    }
+    "Observation": {"row_status": {"Validé": "Val"}},
+    "MedicationRequest": {"hierarchy-ATC": {MATCH_ALL_VALUES: find_related_atc_codes}},
+    "MedicationAdministration": {"hierarchy-ATC": {MATCH_ALL_VALUES: find_related_atc_codes}},
 }
 
-STATIC_REQUIRED_FILTERS = {
-    "DocumentReference": [
-        "contenttype=http://terminology.hl7.org/CodeSystem/v3-mediatypes|text/plain"
-    ]
-}
+STATIC_REQUIRED_FILTERS = {"DocumentReference": ["contenttype=http://terminology.hl7.org/CodeSystem/v3-mediatypes|text/plain"]}
 
-RESOURCE_NAME_MAPPING = {
-}
+RESOURCE_NAME_MAPPING = {}
 
 updater_v140 = QueryRequestUpdater(
     version_name=NEW_VERSION,
@@ -149,7 +121,7 @@ updater_v140 = QueryRequestUpdater(
     filter_names_to_skip=FILTER_NAME_TO_SKIP,
     filter_values_mapping=FILTER_VALUE_MAPPING,
     static_required_filters=STATIC_REQUIRED_FILTERS,
-    resource_name_mapping=RESOURCE_NAME_MAPPING
+    resource_name_mapping=RESOURCE_NAME_MAPPING,
 )
 
 

@@ -1,4 +1,3 @@
-
 EXISTING_TARGET_ROLE = "Personnel médical - Equipe de soin"
 
 # not clean

@@ -31,7 +31,7 @@ class AccessExpiryAlertsDisabledTests(TestCase):
         profile = Profile.objects.create(user=user, is_active=True, source=settings.ACCESS_SOURCES[0])
         return user, profile
 
-    @patch('accesses.accesses_alerts.send_alert_email')
+    @patch("accesses.accesses_alerts.send_alert_email")
     def test_no_alerts_when_disabled_by_default(self, mock_send_alert_email: MagicMock):
         """
         Test that NO alerts are sent when ENABLE_ACCESS_EXPIRY_ALERTS=False (default).
@@ -50,7 +50,7 @@ class AccessExpiryAlertsDisabledTests(TestCase):
             role=self.role,
             perimeter=self.perimeter,
             start_datetime=timezone.now() - timedelta(days=10),
-            end_datetime=expiry_datetime
+            end_datetime=expiry_datetime,
         )
 
         # With ENABLE_ACCESS_EXPIRY_ALERTS=False (default), no alert should be sent
@@ -59,7 +59,7 @@ class AccessExpiryAlertsDisabledTests(TestCase):
         mock_send_alert_email.assert_not_called()
 
     @override_settings(ENABLE_ACCESS_EXPIRY_ALERTS=True)
-    @patch('accesses.accesses_alerts.send_alert_email')
+    @patch("accesses.accesses_alerts.send_alert_email")
     def test_alerts_sent_when_enabled(self, mock_send_alert_email: MagicMock):
         """Test that alerts ARE sent when ENABLE_ACCESS_EXPIRY_ALERTS=True."""
         days = 30
@@ -71,18 +71,18 @@ class AccessExpiryAlertsDisabledTests(TestCase):
             role=self.role,
             perimeter=self.perimeter,
             start_datetime=timezone.now() - timedelta(days=10),
-            end_datetime=expiry_datetime
+            end_datetime=expiry_datetime,
         )
 
         send_access_expiry_alerts(days=days)
 
         mock_send_alert_email.assert_called_once()
         call_args = mock_send_alert_email.call_args
-        self.assertEqual(call_args.kwargs['user'], user)
-        self.assertEqual(call_args.kwargs['days'], days)
+        self.assertEqual(call_args.kwargs["user"], user)
+        self.assertEqual(call_args.kwargs["days"], days)
 
     @override_settings(ENABLE_ACCESS_EXPIRY_ALERTS=True)
-    @patch('accesses.accesses_alerts.send_alert_email')
+    @patch("accesses.accesses_alerts.send_alert_email")
     def test_no_alert_when_access_not_expiring_on_target_date(self, mock_send_alert_email: MagicMock):
         """Test that no alert is sent when user's access expires on a different date."""
         days = 30
@@ -94,7 +94,7 @@ class AccessExpiryAlertsDisabledTests(TestCase):
             role=self.role,
             perimeter=self.perimeter,
             start_datetime=timezone.now() - timedelta(days=10),
-            end_datetime=timezone.now() + timedelta(days=60)
+            end_datetime=timezone.now() + timedelta(days=60),
         )
 
         send_access_expiry_alerts(days=days)

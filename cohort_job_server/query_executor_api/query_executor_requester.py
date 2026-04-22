@@ -8,8 +8,13 @@ from rest_framework import status
 from admin_cohort.types import JobStatus
 from admin_cohort.exceptions import MissingDataError
 from cohort.models import CohortResult
-from cohort_job_server.query_executor_api import BaseCohortRequest, CohortQuery, QueryExecutorClient, QueryExecutorResponse,\
-    query_executor_status_mapper
+from cohort_job_server.query_executor_api import (
+    BaseCohortRequest,
+    CohortQuery,
+    QueryExecutorClient,
+    QueryExecutorResponse,
+    query_executor_status_mapper,
+)
 from cohort_job_server.utils import _logger_err
 
 
@@ -17,7 +22,6 @@ LoggerType = Type[Callable[..., None]]
 
 
 class QueryExecutorRequester:
-
     def launch_request(self, cohort_request: BaseCohortRequest) -> QueryExecutorResponse:
         _logger = cohort_request.log
         instance_id = cohort_request.instance_id
@@ -66,9 +70,9 @@ class QueryExecutorRequester:
             return JobStatus.finished
         if response.status_code != status.HTTP_200_OK:
             raise HTTPError(f"Cancel request failed: {response.status_code}: {result}")
-        if 'status' not in result:
+        if "status" not in result:
             raise MissingDataError(f"`status` is missing in response: {result}")
-        job_status = query_executor_status_mapper(result.get('status'))
+        job_status = query_executor_status_mapper(result.get("status"))
         if job_status not in [JobStatus.cancelled, JobStatus.finished]:
             raise ValueError(f"Invalid job status {result.get('status')}")
         return job_status

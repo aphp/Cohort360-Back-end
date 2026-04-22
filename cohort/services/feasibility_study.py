@@ -16,8 +16,12 @@ from cohort.models import FeasibilityStudy
 from cohort.services.base_service import CommonService
 
 from cohort.services.utils import get_authorization_header, ServerError
-from cohort.tasks import feasibility_study_count, send_feasibility_study_notification, send_email_feasibility_report_error, \
-                         send_email_feasibility_report_ready
+from cohort.tasks import (
+    feasibility_study_count,
+    send_feasibility_study_notification,
+    send_email_feasibility_report_error,
+    send_email_feasibility_report_ready,
+)
 
 REPORTING_PERIMETER_TYPES = os.environ.get("REPORTING_PERIMETER_TYPES", "").split(",")
 
@@ -31,8 +35,8 @@ ERR_MESSAGE = "message"
 EXTRA = "extra"
 
 
-_logger = logging.getLogger('info')
-_logger_err = logging.getLogger('django.request')
+_logger = logging.getLogger("info")
+_logger_err = logging.getLogger("django.request")
 
 
 def bound_number(n: int) -> str:
@@ -41,7 +45,7 @@ def bound_number(n: int) -> str:
         return f"< {limit_10}"
     elif n >= limit_10:
         bound = 10 * (n // 10)
-        return f"{bound}-{bound+10}"
+        return f"{bound}-{bound + 10}"
     else:
         return str(n)
 
@@ -51,11 +55,17 @@ class FeasibilityStudyService(CommonService):
 
     def handle_feasibility_study_count(self, fs: FeasibilityStudy, request) -> None:
         try:
-            chain(*(feasibility_study_count.s(fs_id=fs.uuid,
-                                              json_query=fs.request_query_snapshot.serialized_query,
-                                              auth_headers=get_authorization_header(request),
-                                              cohort_counter_cls=self.operator_cls),
-                    send_feasibility_study_notification.s(fs.uuid)))()
+            chain(
+                *(
+                    feasibility_study_count.s(
+                        fs_id=fs.uuid,
+                        json_query=fs.request_query_snapshot.serialized_query,
+                        auth_headers=get_authorization_header(request),
+                        cohort_counter_cls=self.operator_cls,
+                    ),
+                    send_feasibility_study_notification.s(fs.uuid),
+                )
+            )()
         except Exception as e:
             fs.delete()
             raise ServerError("Could not launch feasibility request") from e
@@ -83,16 +93,15 @@ class FeasibilityStudyService(CommonService):
         try:
             json_content, html_content = self.build_feasibility_report(counts_per_perimeter=counts_per_perimeter)
             snapshot = fs.request_query_snapshot
-            context = {"request_name": snapshot.request.name,
-                       "request_version": snapshot.version,
-                       "request_date": snapshot.created_at,
-                       "request_url": f"{FRONT_REQUEST_URL}/{snapshot.request.uuid}",
-                       "html_content": html_content
-                       }
+            context = {
+                "request_name": snapshot.request.name,
+                "request_version": snapshot.version,
+                "request_date": snapshot.created_at,
+                "request_url": f"{FRONT_REQUEST_URL}/{snapshot.request.uuid}",
+                "html_content": html_content,
+            }
             html_content = get_template("feasibility_report.html").render(context)
-            contents = {"json": json.dumps(json_content),
-                        "html": html_content
-                        }
+            contents = {"json": json.dumps(json_content), "html": html_content}
             json_zip_bytes, html_zip_bytes = self.compress_report_contents(fs=fs, contents=contents)
             fs.report_json_content = json_zip_bytes
             fs.report_file = html_zip_bytes
@@ -105,7 +114,7 @@ class FeasibilityStudyService(CommonService):
         for content_type, content in contents.items():
             in_memory_zip = BytesIO()
             file_name = self.get_file_name(fs=fs)
-            with zipfile.ZipFile(in_memory_zip, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            with zipfile.ZipFile(in_memory_zip, "w", zipfile.ZIP_DEFLATED) as zip_file:
                 zip_file.writestr(f"{file_name}.{content_type}", str(content))
             zipped_bytes.append(in_memory_zip.getvalue())
             in_memory_zip.close()
@@ -113,8 +122,7 @@ class FeasibilityStudyService(CommonService):
 
     def build_feasibility_report(self, counts_per_perimeter: dict) -> Tuple[dict, str]:
         root_perimeter = Perimeter.objects.filter(parent__isnull=True, level=1)
-        return self.generate_report_content(perimeters=root_perimeter,
-                                            counts_per_perimeter=counts_per_perimeter)
+        return self.generate_report_content(perimeters=root_perimeter, counts_per_perimeter=counts_per_perimeter)
 
     def generate_report_content(self, perimeters: QuerySet, counts_per_perimeter: dict = None) -> Tuple[dict, str]:
         json_content = {}
@@ -136,8 +144,8 @@ class FeasibilityStudyService(CommonService):
                 content = self.generate_report_content(perimeters=children, counts_per_perimeter=counts_per_perimeter)
                 json_content.update(content[0])
                 html_content += content[1]
-            html_content += '</li>'
-        html_content += '</ul>'
+            html_content += "</li>"
+        html_content += "</ul>"
         return json_content, html_content
 
 

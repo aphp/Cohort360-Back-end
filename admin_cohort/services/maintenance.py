@@ -38,12 +38,11 @@ def maintenance_phase_to_info(maintenance: MaintenancePhase) -> WSMaintenanceInf
         maintenance_end=maintenance.end_datetime.isoformat(),
         active=maintenance.active,
         type=maintenance.type,
-        message=maintenance.message
+        message=maintenance.message,
     )
 
 
 class MaintenanceService:
-
     @staticmethod
     def get_maintenance_with_event():
         now = timezone.now()
@@ -72,19 +71,15 @@ class MaintenanceService:
         end_time = dateutil.parser.parse(maintenance_info.maintenance_end)
         maintenance_info.active = force_active_state if force_active_state is not None else start_time < now < end_time
         logging.info(f"Sending maintenance notification: {maintenance_info}")
-        current_maintenances = MaintenancePhase.objects.filter(start_datetime__lte=now, end_datetime__gte=now).order_by('-end_datetime').all()
-        current_active_maintenances = [cur for cur in
-                                       current_maintenances
-                                       if cur.id != maintenance_info.id]
+        current_maintenances = MaintenancePhase.objects.filter(start_datetime__lte=now, end_datetime__gte=now).order_by("-end_datetime").all()
+        current_active_maintenances = [cur for cur in current_maintenances if cur.id != maintenance_info.id]
         if maintenance_info.active or not current_active_maintenances:
             WebsocketManager.send_to_client("__all__", WSMaintenance(type=WebSocketMessageType.MAINTENANCE, info=maintenance_info))
 
     @staticmethod
     def get_current_maintenance(now: Optional[datetime] = None) -> Optional[MaintenancePhase]:
         ref_now = now or timezone.now()
-        return MaintenancePhase.objects.filter(start_datetime__lte=ref_now, end_datetime__gte=ref_now) \
-            .order_by('-end_datetime') \
-            .first()
+        return MaintenancePhase.objects.filter(start_datetime__lte=ref_now, end_datetime__gte=ref_now).order_by("-end_datetime").first()
 
     @staticmethod
     def get_next_maintenance() -> Union[MaintenancePhase, None]:
@@ -92,18 +87,15 @@ class MaintenanceService:
         current = MaintenanceService.get_current_maintenance(now)
         if current:
             return current
-        next_maintenance = MaintenancePhase.objects.filter(start_datetime__gte=now) \
-            .order_by('start_datetime') \
-            .first()
+        next_maintenance = MaintenancePhase.objects.filter(start_datetime__gte=now).order_by("start_datetime").first()
         return next_maintenance
 
     @staticmethod
     def is_allowed_request(request):
-        allowed = request.method in SAFE_METHODS or \
-                  request.path.startswith('/auth/') or \
-                  request.path.startswith('/maintenances/')
+        allowed = request.method in SAFE_METHODS or request.path.startswith("/auth/") or request.path.startswith("/maintenances/")
         if apps.is_installed("cohort_job_server"):
             from cohort_job_server.utils import allow_request_during_maintenance
+
             request_allowed = allow_request_during_maintenance(request)
             allowed = allowed or request_allowed
         return allowed

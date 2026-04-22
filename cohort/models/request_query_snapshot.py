@@ -8,21 +8,18 @@ from cohort.models import CohortBaseModel, Request
 
 
 class RequestQuerySnapshotManager(models.Manager):
-
     def get_queryset(self):
         queryset = self._queryset_class(self.model, using=self._db)
         return queryset.exclude(cohort_results__is_subset=True)
 
 
 class RequestQuerySnapshot(CohortBaseModel):
-    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='user_request_query_snapshots')
-    request = models.ForeignKey(Request, on_delete=models.CASCADE, related_name='query_snapshots')
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="user_request_query_snapshots")
+    request = models.ForeignKey(Request, on_delete=models.CASCADE, related_name="query_snapshots")
     serialized_query = models.TextField(default="{}")
     translated_query = models.TextField(null=True)
-    previous_snapshot = models.ForeignKey("RequestQuerySnapshot", related_name="next_snapshots",
-                                          on_delete=models.SET_NULL, null=True)
-    shared_by = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='shared_query_snapshots', null=True,
-                                  default=None)
+    previous_snapshot = models.ForeignKey("RequestQuerySnapshot", related_name="next_snapshots", on_delete=models.SET_NULL, null=True)
+    shared_by = models.ForeignKey(User, on_delete=models.SET_NULL, related_name="shared_query_snapshots", null=True, default=None)
     perimeters_ids = ArrayField(models.CharField(max_length=15), null=True, blank=True)
     version = models.IntegerField(default=1)
     name = models.CharField(null=True, blank=True)
@@ -40,21 +37,12 @@ class RequestQuerySnapshot(CohortBaseModel):
         ### Add backup for patched queries
         uuid = str(self.uuid)
         update_fields = kwargs.get("update_fields")
-        should_check_serialized = (
-                update_fields is None or (
-                isinstance(update_fields, (list, set, tuple)) and "serialized_query" in update_fields)
-        )
+        should_check_serialized = update_fields is None or (isinstance(update_fields, (list, set, tuple)) and "serialized_query" in update_fields)
         with transaction.atomic():
             # For updates, check if serialized_query has changed and create a patch
             if self.pk is not None and uuid and should_check_serialized:
                 # Lock the current row to avoid race conditions on patch_version
-                old = (
-                    type(self).all_objects
-                    .select_for_update()
-                    .only("serialized_query")
-                    .filter(pk=self.pk)
-                    .first()
-                )
+                old = type(self).all_objects.select_for_update().only("serialized_query").filter(pk=self.pk).first()
                 if old is not None and old.serialized_query != self.serialized_query:
                     RequestQuerySnapshotPatch.create_from_snapshot(
                         snapshot=self,
@@ -84,6 +72,7 @@ class RequestQuerySnapshotPatch(models.Model):
         - Increments by 1 on each new patch
         - Independent of RequestQuerySnapshot.version
     """
+
     snapshot = models.ForeignKey(
         RequestQuerySnapshot,
         on_delete=models.CASCADE,
@@ -106,13 +95,7 @@ class RequestQuerySnapshotPatch(models.Model):
         Create the next patch row for this (snapshot, uuid) based on the previous max patch_version.
         """
         # Find current max patch_version for this snapshot+uuid
-        last = (
-            cls.objects
-            .filter(snapshot=snapshot, uuid=uuid)
-            .order_by("-patch_version")
-            .only("patch_version")
-            .first()
-        )
+        last = cls.objects.filter(snapshot=snapshot, uuid=uuid).order_by("-patch_version").only("patch_version").first()
         next_version = 1 if last is None else last.patch_version + 1
 
         return cls.objects.create(

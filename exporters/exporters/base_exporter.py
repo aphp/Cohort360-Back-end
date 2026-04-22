@@ -15,12 +15,11 @@ from exports.models import Export, ExportTable
 from exports.services.rights_checker import rights_checker
 from exporters.tasks import notify_export_received, notify_export_succeeded, notify_export_failed
 
-_celery_logger = logging.getLogger('celery.app')
-_logger = logging.getLogger('django.request')
+_celery_logger = logging.getLogger("celery.app")
+_logger = logging.getLogger("django.request")
 
 
 class BaseExporter:
-
     def __init__(self):
         self.export_api = ExportAPI()
         self.hadoop_api = HadoopAPI()
@@ -31,24 +30,27 @@ class BaseExporter:
         owner = kwargs["owner"]
         check_email_address(owner.email)
         self.check_user_rights(export_data=export_data, **kwargs)
-        export_data['request_job_status'] = JobStatus.validated
+        export_data["request_job_status"] = JobStatus.validated
         self.complete_data(export_data=export_data, owner=owner)
-
 
     @staticmethod
     def check_user_rights(export_data: dict, **kwargs) -> None:
-        rights_checker.check_owner_rights(owner=kwargs.get("owner"),
-                                          output_format=export_data["output_format"],
-                                          nominative=export_data["nominative"],
-                                          source_cohorts_ids=kwargs.get("source_cohorts_ids"))
+        rights_checker.check_owner_rights(
+            owner=kwargs.get("owner"),
+            output_format=export_data["output_format"],
+            nominative=export_data["nominative"],
+            source_cohorts_ids=kwargs.get("source_cohorts_ids"),
+        )
 
     def complete_data(self, export_data: dict, owner: User, **kwargs) -> None:
-        export_data.update({
-            "owner": owner.pk,
-            "motivation": export_data.get('motivation', "").replace("\n", " - "),
-            "target_name": f"{kwargs.get('target_name')}_{timezone.now().strftime('%Y%m%d_%H%M%S%f')}",
-            "target_location": self.target_location
-        })
+        export_data.update(
+            {
+                "owner": owner.pk,
+                "motivation": export_data.get("motivation", "").replace("\n", " - "),
+                "target_name": f"{kwargs.get('target_name')}_{timezone.now().strftime('%Y%m%d_%H%M%S%f')}",
+                "target_location": self.target_location,
+            }
+        )
 
     def handle_export(self, export: Export, params: dict = None) -> None:
         self.log_export_task(export.pk, "Sending request to the Export API.")
@@ -76,10 +78,7 @@ class BaseExporter:
         try:
             required_table = export.export_tables.get(name=required_table_name)
             linked_cohort = required_table.cohort_result_subset or required_table.cohort_result_source
-            required_table_data = {"tableName": required_table_name,
-                                   "cohortId": linked_cohort.group_id,
-                                   "relation": True
-                                   }
+            required_table_data = {"tableName": required_table_name, "cohortId": linked_cohort.group_id, "relation": True}
             if required_table.columns:
                 required_table_data["columnsToExport"] = required_table.columns
         except ExportTable.DoesNotExist:
@@ -87,9 +86,7 @@ class BaseExporter:
 
         other_tables = []
         for t in export.export_tables.exclude(name=required_table_name):
-            t_data = {"tableName": t.name,
-                      "relation": True
-                      }
+            t_data = {"tableName": t.name, "relation": True}
             if t.cohort_result_subset:
                 t_data["cohortId"] = t.cohort_result_subset.group_id
             if t.columns:
@@ -99,10 +96,13 @@ class BaseExporter:
 
     def send_export(self, export: Export, params: dict) -> str:
         self.log_export_task(export.pk, f"Asking to export for '{export.target_name}'")
-        params.update({"tablesToExport": self.build_tables_input(export),
-                       "noDateShift": export.nominative or not export.shift_dates,
-                       "disableTerminology": self.export_api.disable_data_translation,
-                       })
+        params.update(
+            {
+                "tablesToExport": self.build_tables_input(export),
+                "noDateShift": export.nominative or not export.shift_dates,
+                "disableTerminology": self.export_api.disable_data_translation,
+            }
+        )
         if not export.nominative:
             params["pseudo"] = export.datalab.name
         return self.export_api.launch_export(export_id=export.uuid, params=params)
@@ -119,12 +119,10 @@ class BaseExporter:
         while errors_count < 5 and not job_status.is_end_state:
             time.sleep(10)
             self.log_export_task(export.uuid, f"Asking for status of job `{job_id}`")
-            target_api = (job_type == APIJobType.EXPORT and self.export_api
-                          or job_type == APIJobType.HIVE_DB_CREATE and self.hadoop_api
-                          or None)
+            target_api = job_type == APIJobType.EXPORT and self.export_api or job_type == APIJobType.HIVE_DB_CREATE and self.hadoop_api or None
             try:
                 logs_response = target_api.get_export_logs(job_id=job_id)
-                job_status = status_mapper.get(logs_response.get('task_status'), JobStatus.unknown)
+                job_status = status_mapper.get(logs_response.get("task_status"), JobStatus.unknown)
                 self.log_export_task(export.uuid, f"Job `{job_id}` is {job_status}")
                 export.request_job_status = job_status.value
                 export.save()
