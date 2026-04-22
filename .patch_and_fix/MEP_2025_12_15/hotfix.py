@@ -172,20 +172,23 @@ def _get_practitioner_patient_lists_since(since_dt: str, specify_user: Optional[
     - non empty
     Optionally filters by `_sourcereferenceid` when `specify_user` is provided.
     """
-    default_where = f" AND _sourcereferenceid = '{specify_user}'" if specify_user else ""
-    _debug(f"default_where is: {default_where})")
     db_alias = AccessesPerimetersConfig.DB_ALIAS
+    _debug("specify_user is set" if specify_user else "specify_user is not set")
 
-    sql = f"""
-              SELECT *
-              FROM omop.list
-              WHERE source__type = 'Practitioner'
-                AND subject__type = 'Patient'
-                AND insert_datetime >= '{since_dt}'
-                AND delete_datetime IS NULL
-                AND _size > 0 {default_where};
-              """
-    return ListCohort.objects.using(db_alias).raw(sql)
+    sql = """
+        SELECT *
+        FROM omop.list
+        WHERE source__type = 'Practitioner'
+          AND subject__type = 'Patient'
+          AND insert_datetime >= %s
+          AND delete_datetime IS NULL
+          AND _size > 0
+    """
+    params: List[object] = [since_dt]
+    if specify_user:
+        sql += " AND _sourcereferenceid = %s"
+        params.append(specify_user)
+    return ListCohort.objects.using(db_alias).raw(sql, params)
 
 
 def map_perimeters_ids_to_new_prod_ids(

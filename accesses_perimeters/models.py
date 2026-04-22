@@ -83,14 +83,14 @@ class ListCohort(models.Model):
 
     @classmethod
     def get_practitioner_patient_lists_since(cls, since_dt: str):
-        sql = f"""
-                  SELECT *
-                  FROM omop.list
-                  WHERE source__type = 'Practitioner'
-                    AND subject__type = 'Patient'
-                    AND insert_datetime >= '{since_dt}';
-                  """
-        return ListCohort.objects.raw(sql)
+        sql = """
+            SELECT *
+            FROM omop.list
+            WHERE source__type = 'Practitioner'
+              AND subject__type = 'Patient'
+              AND insert_datetime >= %s
+        """
+        return ListCohort.objects.raw(sql, [since_dt])
 
 
 class CareSiteMapperMep(models.Model):
