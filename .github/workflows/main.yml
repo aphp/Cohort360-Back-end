@@ -91,6 +91,7 @@ jobs:
         run: |
           uv run coverage run --source='.' --omit="*/test*","*/migrations/*" manage.py test
           uv run coverage xml --omit="*/test*","*/migrations/*" -o coverage.xml
+          uv run coverage report --format=markdown
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v7
@@ -141,9 +142,8 @@ jobs:
 
       - name: Retrieve version
         run: |
-          VERSION=Test-CI-All-Jobs
-          # VERSION=$(grep '^version =' pyproject.toml | sed -E 's/version = "(.*)"/\1/')
-          # echo "VERSION=$VERSION" >> $GITHUB_ENV
+          VERSION=$(grep '^version =' pyproject.toml | sed -E 's/version = "(.*)"/\1/')
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Compute Docker tags
         run: |
@@ -168,4 +168,4 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          tags: ${{ env.IMAGE_TAGS }}
+          tags: aphpid/cohort360-backend:Test-CI-All-Jobs # ${{ env.IMAGE_TAGS }}
