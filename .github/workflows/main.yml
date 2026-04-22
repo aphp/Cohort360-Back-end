@@ -35,7 +35,7 @@ jobs:
 
       - name: Ruff
         run: uv tool run ruff check .
-      
+
   safety:
     runs-on: ubuntu-latest
     steps:
@@ -70,6 +70,7 @@ jobs:
 
       - name: Install Python 3.13
         run: uv python install 3.13
+
       - name: MyPy
         run: uv tool run mypy admin_cohort accesses cohort
 
@@ -88,6 +89,7 @@ jobs:
 
       - name: Install Python 3.13
         run: uv python install 3.13
+
       - name: Bandit
         run: uv tool run bandit -r . -x tests,migrations
 
@@ -106,6 +108,7 @@ jobs:
 
       - name: Install Python 3.13
         run: uv python install 3.13
+
       - name: Deptry
         run: uv tool run deptry .
 
@@ -234,4 +237,4 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          tags: aphpid/cohort360-backend:${{ env.IMAGE_TAGS }}
+          tags: ${{ env.IMAGE_TAGS }}
