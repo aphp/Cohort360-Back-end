@@ -18,7 +18,7 @@ _logger = logging.getLogger("django.request")
 
 def get_export_by_id(export_id: str | int) -> Export:
     try:
-        return Export.objects.get(pk=export_id)
+        return Export.objects.get(pk=str(export_id))
     except Export.DoesNotExist:
         raise ValueError(f"No export matches the given ID : {export_id}")
 
@@ -26,11 +26,13 @@ def get_export_by_id(export_id: str | int) -> Export:
 @lru_cache(maxsize=None)
 def get_cohort(export: Export):
     sample_table = export.export_tables.filter(cohort_result_source__isnull=False).first()
+    if sample_table is None:
+        return None
     return sample_table.cohort_result_source
 
 
-def get_selected_tables(export: Export) -> str:
-    return export.export_tables.values_list("name", flat=True)
+def get_selected_tables(export: Export) -> list[str]:
+    return list(export.export_tables.values_list("name", flat=True))
 
 
 @shared_task
@@ -48,7 +50,10 @@ def notify_export_received(export_id: str) -> None:
             "cohort_name": cohort and cohort.name or None,
             "selected_tables": get_selected_tables(export=export),
         }
-        push_email_notification(base_notification=EXPORT_RECEIVED_NOTIFICATIONS[export_type], **notification_data)
+        notif = EXPORT_RECEIVED_NOTIFICATIONS[export_type]
+        if notif is None:
+            return
+        push_email_notification(base_notification=notif, **notification_data)
     except Exception as e:
         _logger.error(f"Error sending export confirmation email - {e}")
 
@@ -67,7 +72,10 @@ def notify_export_succeeded(export_id: str) -> None:
         "selected_tables": get_selected_tables(export=export),
     }
     try:
-        push_email_notification(base_notification=EXPORT_SUCCEEDED_NOTIFICATIONS.get(export.output_format), **notification_data)
+        notif = EXPORT_SUCCEEDED_NOTIFICATIONS.get(export.output_format)
+        if notif is None:
+            return
+        push_email_notification(base_notification=notif, **notification_data)
     except OSError:
         _logger.error(f"[Export {export.pk}] Error sending export success notification")
     else:

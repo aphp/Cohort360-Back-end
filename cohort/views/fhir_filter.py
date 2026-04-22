@@ -28,7 +28,7 @@ class FhirFilterViewSet(UserObjectsRestrictedViewSet):
     serializer_class = FhirFilterSerializer
     filterset_class = FhirFilterFilter
     http_method_names = ["get", "post", "patch", "delete"]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]  # type: ignore[assignment]
     swagger_tags = ["FHIR Filters"]
 
     @extend_schema(responses={status.HTTP_200_OK: FhirFilterSerializer})

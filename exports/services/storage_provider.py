@@ -8,7 +8,7 @@ from exports.exceptions import HdfsServerUnreachable, StorageProviderException
 
 
 class StorageProvider:
-    name = None
+    name: str | None = None
 
     def __init__(self, servers_urls: List[str]):
         self.servers_urls = servers_urls

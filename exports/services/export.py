@@ -67,13 +67,15 @@ class ExportService:
     @staticmethod
     def force_generate_fhir_filter(export: Export, table_name: str) -> str:
         resource, _filter = RESOURCE_FILTERS[table_name]
-        return FhirFilter.objects.create(
-            auto_generated=True,
-            fhir_resource=resource,
-            filter=_filter,
-            name=f"{str(export.uuid)[:8]}_{table_name}_(auto generated)",
-            owner=export.owner,
-        ).uuid
+        return str(
+            FhirFilter.objects.create(
+                auto_generated=True,
+                fhir_resource=resource,
+                filter=_filter,
+                name=f"{str(export.uuid)[:8]}_{table_name}_(auto generated)",
+                owner=export.owner,
+            ).uuid
+        )
 
     def create_tables(self, export: Export, tables: List[dict], **kwargs) -> bool:
         requires_cohort_subsets = False
@@ -102,7 +104,8 @@ class ExportService:
                     cohort_source_id,
                     fhir_filter_id,
                 )
-
+                if not isinstance(table_name, str) or not table_name or not fhir_filter_id:
+                    raise ValidationError("table_name and fhir_filter_id are required for cohort subset")
                 cohort_subset = cohort_service.create_cohort_subset(
                     request=kwargs.get("http_request"),
                     owner_id=export.owner_id,
@@ -126,7 +129,7 @@ class ExportService:
 
             t = ExportTable.objects.create(
                 export=export,
-                name=table_name,
+                name=table_name or "",
                 fhir_filter_id=fhir_filter_id,
                 cohort_result_source=cohort_source,
                 cohort_result_subset=cohort_subset,
@@ -145,7 +148,10 @@ class ExportService:
             _logger.info(f"Export[{export.uuid}]: export has already been marked failed")
             return
         for table in export.export_tables.filter(cohort_result_subset__isnull=False):
-            cohort_subset_status = table.cohort_result_subset.request_job_status
+            subset = table.cohort_result_subset
+            if subset is None:
+                continue
+            cohort_subset_status = subset.request_job_status
             if cohort_subset_status == JobStatus.failed:
                 failure_reason = "One or multiple cohort subsets has failed"
                 _logger.info(f"Export[{export.uuid}]: Aborting export - {failure_reason}")

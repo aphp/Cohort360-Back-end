@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 from requests import RequestException
 from rest_framework import status
 
+from admin_cohort.http_timeout import HTTP_REQUEST_TIMEOUT
 from admin_cohort.tests.tests_tools import TestCaseWithDBs
 from exporters.apis.hadoop_api import HadoopAPI
 
@@ -35,6 +36,7 @@ class TestInfraAPI(TestCaseWithDBs):
             url="https://hadoop-api.fr/api/hadoop/task_status",
             params={"task_uuid": "123456", "return_out_logs": True, "return_err_logs": True},
             headers={"auth-token": "hadoop-token"},
+            timeout=HTTP_REQUEST_TIMEOUT,
         )
 
     @mock.patch("exporters.apis.base.requests")
@@ -50,6 +52,7 @@ class TestInfraAPI(TestCaseWithDBs):
             url="https://hadoop-api.fr/api/hadoop/task_status",
             params={"task_uuid": "123456", "return_out_logs": True, "return_err_logs": True},
             headers={"auth-token": "hadoop-token"},
+            timeout=HTTP_REQUEST_TIMEOUT,
         )
 
     @mock.patch("exporters.apis.hadoop_api.requests")
@@ -63,6 +66,7 @@ class TestInfraAPI(TestCaseWithDBs):
             url="https://hadoop-api.fr/api/hadoop/create_db",
             params={"name": "some_db_name", "location": "/dir1/dir2", "if_not_exists": True},
             headers={"auth-token": "hadoop-token"},
+            timeout=HTTP_REQUEST_TIMEOUT,
         )
 
     @mock.patch("exporters.apis.hadoop_api.requests")
@@ -76,6 +80,7 @@ class TestInfraAPI(TestCaseWithDBs):
             url="https://hadoop-api.fr/api/hadoop/chown_db",
             params={"location": "/dir1/dir2", "uid": "future_owner", "gid": "hdfs", "recursive": True},
             headers={"auth-token": "hadoop-token"},
+            timeout=HTTP_REQUEST_TIMEOUT,
         )
 
     @mock.patch("exporters.apis.hadoop_api.requests")

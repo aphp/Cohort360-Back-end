@@ -58,6 +58,8 @@ class Perimeter(BaseModel):
 
     @lru_cache(maxsize=None)
     def is_child_of(self, perimeter: Perimeter) -> bool:
+        if self.level is None or perimeter.level is None:
+            return False
         return self.level > perimeter.level and perimeter.id in self.above_levels
 
     @lru_cache(maxsize=None)

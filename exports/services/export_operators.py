@@ -58,7 +58,10 @@ class ExportManager:
             raise ImproperlyConfigured(f"Missing exporter configuration for type `{export_type}`")
 
     def validate(self, export_data: dict, **kwargs) -> None:
-        exporter = self._get_exporter(export_data.get("output_format"))
+        fmt = export_data.get("output_format")
+        if not isinstance(fmt, str) or not fmt:
+            raise ImproperlyConfigured("output_format is required")
+        exporter = self._get_exporter(fmt)
         exporter().validate(export_data=export_data, **kwargs)
 
     def handle_export(self, export_id: str) -> None:
@@ -102,7 +105,10 @@ class ExportDownloader:
             file_path = f"{export.target_full_path}.zip"
             response = StreamingHttpResponse(streaming_content=self.stream_file(file_path))
             file_size = self.get_file_size(file_name=file_path)
-            download_file_name = f"export_{export.export_tables.first().cohort_result_source.group_id}.zip"
+            first = export.export_tables.first()
+            if first is None or first.cohort_result_source is None:
+                raise BadRequestError("Export has no table with cohort result source")
+            download_file_name = f"export_{first.cohort_result_source.group_id}.zip"
             response["Content-Type"] = "application/zip"
             response["Content-Length"] = file_size
             response["Content-Disposition"] = f"attachment; filename={download_file_name}"

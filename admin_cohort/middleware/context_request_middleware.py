@@ -15,7 +15,8 @@ def get_trace_id() -> str:
     if not request:
         return str(uuid.uuid4())
     trace_id_header = settings.TRACE_ID_HEADER
-    return request.headers.get(trace_id_header, request.META.get(f"HTTP_{trace_id_header}"))
+    meta_val = request.META.get(f"HTTP_{trace_id_header}")
+    return request.headers.get(trace_id_header, str(meta_val) if meta_val is not None else "")
 
 
 def get_request_user_id(request) -> str:

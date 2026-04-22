@@ -17,7 +17,7 @@ class FhirFilter(CohortBaseModel):
     auto_generated = models.BooleanField(default=False)
 
     # Keep a raw manager to bypass any default filters when needed (e.g., row locking on save)
-    all_objects = models.Manager()
+    all_objects = models.Manager()  # type: ignore[misc, assignment]
 
     class Meta:
         constraints = [

@@ -25,9 +25,9 @@ class RequestQuerySnapshot(CohortBaseModel):
     name = models.CharField(null=True, blank=True)
 
     # Default manager excludes some rows (e.g., subsets) from queries
-    objects = RequestQuerySnapshotManager()
+    objects = RequestQuerySnapshotManager()  # type: ignore[misc, assignment]
     # Keep a raw manager to bypass filters when needed (like row locking on save)
-    all_objects = models.Manager()
+    all_objects = models.Manager()  # type: ignore[misc, assignment]
 
     def save(self, *args, **kwargs):
         """

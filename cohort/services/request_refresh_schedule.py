@@ -16,7 +16,7 @@ class RequestRefreshScheduleService(CommonService):
         crontab_schedule = self.create_crontab_schedule(refresh_schedule)
         snapshot = refresh_schedule.request_snapshot
         dm_id = DatedMeasure.objects.create(owner=snapshot.owner, request_query_snapshot=snapshot).uuid
-        self.translate_snapshot_query(rqs=snapshot, dm_id=dm_id, auth_headers=get_authorization_header(http_request))
+        self.translate_snapshot_query(rqs=snapshot, dm_id=str(dm_id), auth_headers=get_authorization_header(http_request))
         task_args = [dm_id, snapshot.translated_query, self.operator_cls]
         task = f"{refresh_count_request.__module__}.{refresh_count_request.__name__}"
         PeriodicTask.objects.create(name=snapshot.uuid, crontab=crontab_schedule, task=task, args=str(task_args))
@@ -33,15 +33,17 @@ class RequestRefreshScheduleService(CommonService):
 
     @staticmethod
     def update_refresh_scheduler(dm: DatedMeasure) -> None:
-        refresh_schedule = dm.request_query_snapshot.refresh_schedules.all()
-        if refresh_schedule:
-            assert refresh_schedule.count() == 1, "Multiple refresh schedules found"
-            refresh_schedule.update(
-                last_refresh=now(), last_refresh_succeeded=True, last_refresh_count=dm.measure, last_refresh_error_msg=dm.request_job_fail_msg
-            )
-            refresh_schedule = refresh_schedule.last()
-            if refresh_schedule.notify_owner:
-                send_email_count_request_refreshed.s(snapshot_id=refresh_schedule.request_snapshot_id).apply_async()
+        rqs = dm.request_query_snapshot
+        if rqs is None:
+            return
+        qs = rqs.refresh_schedules.all()
+        if not qs.exists():
+            return
+        assert qs.count() == 1, "Multiple refresh schedules found"
+        qs.update(last_refresh=now(), last_refresh_succeeded=True, last_refresh_count=dm.measure, last_refresh_error_msg=dm.request_job_fail_msg)
+        refresh_schedule = qs.last()
+        if refresh_schedule and refresh_schedule.notify_owner:
+            send_email_count_request_refreshed.s(snapshot_id=refresh_schedule.request_snapshot_id).apply_async()
 
     @staticmethod
     def create_crontab_schedule(refresh_schedule: RequestRefreshSchedule):

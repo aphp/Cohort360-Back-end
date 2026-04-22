@@ -5,7 +5,7 @@ from admin_cohort.tools.swagger import SchemaMeta
 
 
 class BaseViewSet(viewsets.ModelViewSet, metaclass=SchemaMeta):
-    swagger_tags = []
+    swagger_tags: list[str] = []
 
     def get_serializer_context(self):
         return {"request": self.request}

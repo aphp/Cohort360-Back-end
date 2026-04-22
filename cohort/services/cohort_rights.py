@@ -37,13 +37,13 @@ class CohortRights:
 
 class CohortRightsService:
     def get_user_rights_on_cohorts(self, group_ids: str, user: User) -> List[dict]:
-        group_ids = [i.strip() for i in group_ids.split(",") if i]
-        if not CohortResult.objects.filter(group_id__in=group_ids).exists():
+        group_id_list = [i.strip() for i in group_ids.split(",") if i]
+        if not CohortResult.objects.filter(group_id__in=group_id_list).exists():
             raise Http404("No cohorts found. The provided `group_id`s are not valid")
         user_accesses = accesses_service.get_user_valid_accesses(user=user)
         if not user_accesses:
             raise Http404(f"The user `{user}` has no valid accesses")
-        cohort_perimeters = self.get_cohort_perimeters(cohorts_ids=group_ids, owner=user)
+        cohort_perimeters = self.get_cohort_perimeters(cohorts_ids=group_id_list, owner=user)
         accesses_per_right = self.get_accesses_per_right(user_accesses=user_accesses)
         cohort_rights = []
 
@@ -62,7 +62,14 @@ class CohortRightsService:
     @staticmethod
     def retrieve_virtual_cohorts_ids_from_snapshot(cohorts_ids: List[str]) -> dict[str, List[str]]:
         cohorts = CohortResult.objects.filter(group_id__in=cohorts_ids)
-        return {cohort.group_id: cohort.request_query_snapshot.perimeters_ids for cohort in cohorts}
+        out: dict[str, list[str]] = {}
+        for c in cohorts:
+            snap = c.request_query_snapshot
+            pids: list[str] = []
+            if snap is not None and snap.perimeters_ids is not None:
+                pids = list(snap.perimeters_ids)
+            out[c.group_id] = pids
+        return out
 
     @staticmethod
     def get_accesses_per_right(user_accesses: QuerySet) -> dict[str, QuerySet]:

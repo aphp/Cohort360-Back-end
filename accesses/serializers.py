@@ -33,7 +33,7 @@ class RightSerializer(ModelSerializer):
 
 
 class RoleSerializer(BaseSerializer):
-    help_text = serializers.SerializerMethodField()
+    help_text = serializers.SerializerMethodField()  # type: ignore[assignment]
 
     class Meta:
         model = Role
@@ -130,7 +130,7 @@ class CareSiteSerializer(serializers.Serializer):
 
 
 class AccessSerializer(BaseSerializer):
-    is_valid = serializers.BooleanField(read_only=True)
+    is_valid = serializers.BooleanField(read_only=True)  # type: ignore[assignment]
     actual_start_datetime = serializers.DateTimeField(read_only=True, source="start_datetime")
     actual_end_datetime = serializers.DateTimeField(read_only=True, source="end_datetime")
     perimeter = PerimeterSerializer(allow_null=True, required=False)
@@ -141,8 +141,8 @@ class AccessSerializer(BaseSerializer):
     role_id = serializers.PrimaryKeyRelatedField(queryset=Role.objects.all(), source="role", write_only=True)
     profile = ReducedProfileSerializer(read_only=True)
     profile_id = serializers.PrimaryKeyRelatedField(queryset=Profile.objects.all(), source="profile", write_only=True)
-    created_by = serializers.SlugRelatedField(read_only=True, slug_field="display_name")
-    updated_by = serializers.SlugRelatedField(read_only=True, slug_field="display_name")
+    created_by: serializers.SlugRelatedField = serializers.SlugRelatedField(read_only=True, slug_field="display_name")
+    updated_by: serializers.SlugRelatedField = serializers.SlugRelatedField(read_only=True, slug_field="display_name")
     editable = serializers.BooleanField(read_only=True)
 
     class Meta:
@@ -182,7 +182,7 @@ class ExpiringAccessesSerializer(serializers.Serializer):
     start_datetime = serializers.DateTimeField(read_only=True)
     end_datetime = serializers.DateTimeField(read_only=True)
     profile = serializers.SerializerMethodField()
-    perimeter = serializers.SlugRelatedField(slug_field="name", read_only=True)
+    perimeter: serializers.SlugRelatedField = serializers.SlugRelatedField(slug_field="name", read_only=True)
 
     def get_profile(self, access):
         return access.profile.user.display_name

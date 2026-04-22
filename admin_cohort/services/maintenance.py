@@ -1,6 +1,5 @@
-import datetime
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Union, Optional
 
 import dateutil.parser

@@ -1,6 +1,6 @@
 import logging
 from datetime import date, timedelta, datetime
-from typing import List, Dict, Union, Literal
+from typing import Any, Dict, List, Literal, Union
 
 from django.db.models import QuerySet, Q, Prefetch, F, Value
 from django.utils import timezone
@@ -34,7 +34,7 @@ class AccessesService:
         return Access.objects.filter(self.q_access_is_valid() & Q(profile__is_active=True) & Q(profile__user=user))
 
     def user_is_full_admin(self, user: User) -> bool:
-        return any(filter(lambda role: role.right_full_admin, [access.role for access in self.get_user_valid_accesses(user)]))
+        return any(access.role is not None and access.role.right_full_admin for access in self.get_user_valid_accesses(user))
 
     @staticmethod
     def get_expiring_accesses(user: User, accesses: QuerySet):
@@ -44,7 +44,7 @@ class AccessesService:
         accesses_to_expire = accesses.filter(Q(profile__user=user) & to_expire_soon)
         if not accesses_to_expire:
             return None
-        min_access_per_perimeter = {}
+        min_access_per_perimeter: dict[int, Access] = {}
         for a in accesses_to_expire:
             if a.perimeter.id not in min_access_per_perimeter or a.end_datetime < min_access_per_perimeter[a.perimeter.id].end_datetime:
                 min_access_per_perimeter[a.perimeter.id] = a
@@ -78,7 +78,7 @@ class AccessesService:
         if include_children:
             user_can_read_accesses_from_inferior_levels = user_accesses.filter(q_allow_manage_accesses_on_inf_levels()).exists()
             if user_can_read_accesses_from_inferior_levels:
-                all_child_perimeters_ids = Perimeter.objects.filter(above_levels_ids__contains=perimeter_id).values_list("id", flat=True)
+                all_child_perimeters_ids = Perimeter.objects.filter(above_levels_ids__contains=str(perimeter_id)).values_list("id", flat=True)
                 q = q | Q(perimeter_id__in=all_child_perimeters_ids)
         return self.filter_accesses_for_user(user=user, accesses=accesses.filter(q))
 
@@ -103,7 +103,7 @@ class AccessesService:
                 has_access = True
         return has_access
 
-    def get_nominative_perimeters(self, user: User) -> QuerySet[int]:
+    def get_nominative_perimeters(self, user: User) -> QuerySet[Any, Any]:
         return self.get_user_valid_accesses(user=user).filter(q_allow_read_patient_data_nominative).values_list("perimeter_id", flat=True)
 
     def user_can_access_at_least_one_target_perimeter_in_nomi(self, user: User, target_perimeters: QuerySet) -> bool:
@@ -174,28 +174,31 @@ class AccessesService:
         accesses_with_reading_patient_data_rights = data_accesses.filter(
             join_qs([Q(role__right_read_patient_nominative=True), Q(role__right_read_patient_pseudonymized=True)])
         )
-        return [
-            DataRight(
-                user_id=user.pk,
-                perimeter_id=access.perimeter.id,
-                right_read_patient_nominative=access.right_read_patient_nominative,
-                right_read_patient_pseudonymized=access.right_read_patient_pseudonymized,
-                right_search_patients_by_ipp=access.right_search_patients_by_ipp,
-                right_search_opposed_patients=access.right_search_opposed_patients,
-                right_export_csv_xlsx_nominative=access.right_export_csv_xlsx_nominative,
-                right_export_jupyter_nominative=access.right_export_jupyter_nominative,
-                right_export_jupyter_pseudonymized=access.right_export_jupyter_pseudonymized,
+        out: list[DataRight] = []
+        for access in accesses_with_reading_patient_data_rights:
+            a: Any = access
+            out.append(
+                DataRight(
+                    user_id=user.pk,
+                    perimeter_id=a.perimeter_id,
+                    right_read_patient_nominative=a.right_read_patient_nominative,
+                    right_read_patient_pseudonymized=a.right_read_patient_pseudonymized,
+                    right_search_patients_by_ipp=a.right_search_patients_by_ipp,
+                    right_search_opposed_patients=a.right_search_opposed_patients,
+                    right_export_csv_xlsx_nominative=a.right_export_csv_xlsx_nominative,
+                    right_export_jupyter_nominative=a.right_export_jupyter_nominative,
+                    right_export_jupyter_pseudonymized=a.right_export_jupyter_pseudonymized,
+                )
             )
-            for access in accesses_with_reading_patient_data_rights
-        ]
+        return out
 
     @staticmethod
     def get_data_rights_for_target_perimeters(user: User, target_perimeters_ids: List[int]) -> List[DataRight]:
         return [DataRight(user_id=user.pk, perimeter_id=perimeter_id) for perimeter_id in target_perimeters_ids]
 
     @staticmethod
-    def group_data_rights_by_perimeter(data_rights: List[DataRight]) -> Dict[int, DataRight]:
-        data_rights_per_perimeter = {}
+    def group_data_rights_by_perimeter(data_rights: List[DataRight]) -> Dict[int | None, DataRight]:
+        data_rights_per_perimeter: dict[int | None, DataRight] = {}
         for dr in data_rights:
             perimeter_id = dr.perimeter_id
             if perimeter_id not in data_rights_per_perimeter:
@@ -205,9 +208,11 @@ class AccessesService:
         return data_rights_per_perimeter
 
     @staticmethod
-    def share_data_reading_rights_over_relative_hierarchy(data_rights_per_perimeter: Dict[int, DataRight]) -> List[DataRight]:
+    def share_data_reading_rights_over_relative_hierarchy(data_rights_per_perimeter: Dict[int | None, DataRight]) -> List[DataRight]:
         processed_perimeters = []
         for perimeter_id, data_right in data_rights_per_perimeter.items():
+            if perimeter_id is None:
+                continue
             if perimeter_id in processed_perimeters:
                 continue
             processed_perimeters.append(perimeter_id)
@@ -240,16 +245,19 @@ class AccessesService:
                 ]
             )
         ):
+            role = access.role
+            if role is None:
+                continue
             global_dr = DataRight(
                 user_id=user.pk,
                 perimeter_id=None,
-                right_read_patient_nominative=access.right_read_patient_nominative,
-                right_read_patient_pseudonymized=access.right_read_patient_pseudonymized,
-                right_search_patients_by_ipp=access.right_search_patients_by_ipp,
-                right_search_opposed_patients=access.right_search_opposed_patients,
-                right_export_csv_xlsx_nominative=access.right_export_csv_xlsx_nominative,
-                right_export_jupyter_nominative=access.right_export_jupyter_nominative,
-                right_export_jupyter_pseudonymized=access.right_export_jupyter_pseudonymized,
+                right_read_patient_nominative=role.right_read_patient_nominative,
+                right_read_patient_pseudonymized=role.right_read_patient_pseudonymized,
+                right_search_patients_by_ipp=role.right_search_patients_by_ipp,
+                right_search_opposed_patients=role.right_search_opposed_patients,
+                right_export_csv_xlsx_nominative=role.right_export_csv_xlsx_nominative,
+                right_export_jupyter_nominative=role.right_export_jupyter_nominative,
+                right_export_jupyter_pseudonymized=role.right_export_jupyter_pseudonymized,
             )
             for dr in data_rights:
                 dr.acquire_extra_global_rights(global_dr)
@@ -270,7 +278,7 @@ class AccessesService:
 
         self.share_global_rights_over_relative_hierarchy(user=user, data_rights=data_rights, data_accesses=data_accesses)
         if target_perimeters:
-            data_rights = filter(lambda dr: dr.perimeter_id in target_perimeters_ids, data_rights)
+            data_rights = [dr for dr in data_rights if dr.perimeter_id in target_perimeters_ids]
 
         return [dr for dr in data_rights if any((dr.right_read_patient_nominative, dr.right_read_patient_pseudonymized))]
 
@@ -293,6 +301,8 @@ class AccessesService:
     @staticmethod
     def check_user_rights_on_perimeter(user_access: Access, target_perimeter: Perimeter):
         role = user_access.role
+        if role is None:
+            return False, False
         if target_perimeter == user_access.perimeter:
             right_on_admin_accesses = role.right_manage_admin_accesses_same_level
             right_on_data_accesses = role.right_manage_data_accesses_same_level
@@ -312,6 +322,8 @@ class AccessesService:
 
         perimeter = target_access.perimeter if isinstance(target_access, Access) else target_access.get("perimeter")
         role = target_access.role if isinstance(target_access, Access) else target_access.get("role")
+        if perimeter is None or role is None:
+            return False
 
         role_requires_full_admin_right_to_be_managed = role.requires_full_admin_right_to_be_managed()
         role_requires_admin_accesses_managing_right_to_be_managed = role.requires_admin_accesses_managing_right_to_be_managed()
@@ -343,6 +355,8 @@ class AccessesService:
 
     @staticmethod
     def check_access_closing_date(access: Access, end_datetime_now: datetime) -> None:
+        if access.end_datetime is None or access.start_datetime is None:
+            raise ValueError("Dates d'accès manquantes")
         if access.end_datetime < end_datetime_now:
             raise ValueError("L'accès est déjà clôturé")
         if access.start_datetime > end_datetime_now:

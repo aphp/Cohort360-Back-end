@@ -30,8 +30,13 @@ class RequestQuerySnapshotService:
             raise ValueError("Neither `previous_snapshot` nor `request` were provided")
 
         serialized_query = data.get("serialized_query")
+        if serialized_query is None or not isinstance(serialized_query, str):
+            raise ValueError("serialized_query is required")
         data["perimeters_ids"] = RequestQuerySnapshotService.retrieve_perimeters(json_query=serialized_query)
-        request = Request.objects.get(pk=data.get("request"))
+        req_id = data.get("request")
+        if req_id is None:
+            raise ValueError("request is required")
+        request = Request.objects.get(pk=req_id)
         data["version"] = request.query_snapshots.count() + 1
 
     @staticmethod
@@ -95,9 +100,9 @@ class RequestQuerySnapshotService:
         if not recipients_ids:
             raise ValueError("No 'recipients' provided")
 
-        recipients_ids = recipients_ids.split(",")
-        recipients = User.objects.filter(pk__in=recipients_ids)
-        missing_recipients_ids = [uid for uid in recipients_ids if uid not in recipients.values_list("pk", flat=True)]
+        id_list = recipients_ids.split(",")
+        recipients = User.objects.filter(pk__in=id_list)
+        missing_recipients_ids = [uid for uid in id_list if uid not in recipients.values_list("pk", flat=True)]
 
         if missing_recipients_ids:
             raise ValueError(f"No users found with the following IDs: {','.join(missing_recipients_ids)}")

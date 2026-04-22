@@ -24,7 +24,7 @@ class PerimetersService:
     @staticmethod
     @lru_cache(maxsize=None)
     def get_all_child_perimeters(perimeter_id: int) -> QuerySet:
-        return Perimeter.objects.filter(above_levels_ids__contains=perimeter_id)
+        return Perimeter.objects.filter(above_levels_ids__contains=str(perimeter_id))
 
     @staticmethod
     def get_top_perimeters_ids_same_level(same_level_perimeters_ids: List[int], all_perimeters_ids: List[int]) -> Set[int]:
@@ -144,7 +144,7 @@ class PerimetersService:
         allow_search_by_ipp: bool,
         allow_read_opposed_patient: bool,
     ) -> List[PerimeterReadRight]:
-        perimeter_read_rights = []
+        perimeter_read_rights: list[PerimeterReadRight] = []
 
         if not (top_read_nomi_perimeters_ids or top_read_pseudo_perimeters_ids):
             return perimeter_read_rights
@@ -226,8 +226,8 @@ def count_allowed_users():
         Perimeter.objects.bulk_update(perimeters_to_update, ["count_allowed_users"])
 
 
-def group_users_by_perimeter(accesses) -> dict[int, set]:
-    users_per_perimeter = {}
+def group_users_by_perimeter(accesses) -> dict[int, set[int]]:
+    users_per_perimeter: dict[int, set[int]] = {}
     for access in accesses:
         perimeter_id = access["perimeter_id"]
         user_id = access["profile__user_id"]

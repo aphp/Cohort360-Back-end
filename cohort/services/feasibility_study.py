@@ -124,13 +124,14 @@ class FeasibilityStudyService(CommonService):
         root_perimeter = Perimeter.objects.filter(parent__isnull=True, level=1)
         return self.generate_report_content(perimeters=root_perimeter, counts_per_perimeter=counts_per_perimeter)
 
-    def generate_report_content(self, perimeters: QuerySet, counts_per_perimeter: dict = None) -> Tuple[dict, str]:
+    def generate_report_content(self, perimeters: QuerySet, counts_per_perimeter: dict | None = None) -> Tuple[dict, str]:
         json_content = {}
         html_content = '<ul class="perimeters-tree">'
+        cpm = counts_per_perimeter or {}
 
         for p in perimeters:
             p_id = p.cohort_id
-            patients_count = bound_number(n=int(counts_per_perimeter.get(p_id, 0)))
+            patients_count = bound_number(n=int(cpm.get(p_id, 0)))
             json_content[p_id] = patients_count
             html_content += f"""<li class="item">
                                 <input type="checkbox" id="p{p_id}">
@@ -141,7 +142,7 @@ class FeasibilityStudyService(CommonService):
                              """
             children = p.children.filter(type_source_value__in=REPORTING_PERIMETER_TYPES)
             if children:
-                content = self.generate_report_content(perimeters=children, counts_per_perimeter=counts_per_perimeter)
+                content = self.generate_report_content(perimeters=children, counts_per_perimeter=cpm)
                 json_content.update(content[0])
                 html_content += content[1]
             html_content += "</li>"

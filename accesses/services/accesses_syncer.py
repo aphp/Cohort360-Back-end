@@ -1,6 +1,6 @@
 import logging
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from itertools import batched
 
 from django.conf import settings
@@ -35,7 +35,7 @@ class FhirPractitionerRole:
     practitioner_id: str
     perimeter_id: int
     role_name: str
-    start_datetime: datetime
+    start_datetime: datetime | None
     end_datetime: datetime
 
 
@@ -98,29 +98,32 @@ class AccessesSynchronizer:
         users_batches = batched(target_users, n=100)
 
         count_orbis_accesses, count_new_accesses = 0, 0
-        skipped_roles, missing_perimeters = set(), set()
+        skipped_roles: set[str] = set()
+        missing_perimeters: set[int] = set()
 
         for batch in users_batches:
             res = self.fhir_client.resources("Practitioner").revinclude("PractitionerRole", "practitioner").search(identifier=",".join(batch))
             bundle = res.fetch_raw()
 
             if bundle.total > 0:
-                for e in filter(lambda i: i.resource.resource_type == "PractitionerRole", bundle.entry):
+                for e in (i for i in (bundle.entry or []) if i.resource.resource_type == "PractitionerRole"):
                     pr = e.resource
                     role_name = pr.code[0].coding[0].code
-                    if role_name not in TARGET_ROLES:
+                    if TARGET_ROLES is None or role_name not in TARGET_ROLES:
                         continue
                     count_orbis_accesses += 1
                     if pr.active:
-                        default_end_datetime = timezone.now() + timezone.timedelta(days=settings.DEFAULT_ACCESS_VALIDITY_IN_DAYS)
+                        default_end_datetime = timezone.now() + timedelta(days=settings.DEFAULT_ACCESS_VALIDITY_IN_DAYS)
+                        period_start = getattr(pr.period, "start", None) if getattr(pr, "period", None) else None
+                        period_end = getattr(pr.period, "end", None) if getattr(pr, "period", None) else None
                         fpr = FhirPractitionerRole(
                             id=pr.id,
                             active=pr.active,
                             practitioner_id=pr.practitioner.to_resource().identifier[0].value,
                             perimeter_id=int(pr.organization.id),
                             role_name=pr.code[0].coding[0].code,
-                            start_datetime=hasattr(pr.period, "start") and pr.period.start or None,
-                            end_datetime=hasattr(pr.period, "end") and pr.period.end or default_end_datetime,
+                            start_datetime=period_start,
+                            end_datetime=period_end or default_end_datetime,
                         )
                         profile = Profile.objects.filter(user_id=fpr.practitioner_id, source=ORBIS).first()
                         if profile is None:

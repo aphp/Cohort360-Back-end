@@ -6,11 +6,11 @@ from admin_cohort.models import BaseModel
 
 class User(AbstractBaseUser, BaseModel):
     USERNAME_FIELD = "username"
-    username = models.CharField(unique=True, primary_key=True, null=False, max_length=30)
+    username = models.CharField(unique=True, primary_key=True, null=False, max_length=30)  # type: ignore[assignment]
     email = models.EmailField("email address", max_length=254, unique=True, null=True)
     firstname = models.CharField(blank=True, null=True)
     lastname = models.CharField(blank=True, null=True)
-    password = models.CharField(blank=True, null=True, max_length=128)
+    password = models.CharField(blank=True, null=True, max_length=128)  # type: ignore[assignment]
     created_by = models.ForeignKey("self", on_delete=models.SET_NULL, related_name="created_users", null=True, blank=True, db_column="created_by")
     updated_by = models.ForeignKey("self", on_delete=models.SET_NULL, related_name="updated_users", null=True, blank=True, db_column="updated_by")
 

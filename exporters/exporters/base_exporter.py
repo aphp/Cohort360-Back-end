@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import List
+from typing import Any, List
 
 from django.utils import timezone
 from requests import RequestException
@@ -35,11 +35,15 @@ class BaseExporter:
 
     @staticmethod
     def check_user_rights(export_data: dict, **kwargs) -> None:
+        owner = kwargs.get("owner")
+        source_ids = kwargs.get("source_cohorts_ids")
+        if owner is None or source_ids is None:
+            raise ValueError("owner and source_cohorts_ids are required")
         rights_checker.check_owner_rights(
-            owner=kwargs.get("owner"),
+            owner=owner,
             output_format=export_data["output_format"],
             nominative=export_data["nominative"],
-            source_cohorts_ids=kwargs.get("source_cohorts_ids"),
+            source_cohorts_ids=source_ids,
         )
 
     def complete_data(self, export_data: dict, owner: User, **kwargs) -> None:
@@ -52,11 +56,11 @@ class BaseExporter:
             }
         )
 
-    def handle_export(self, export: Export, params: dict = None) -> None:
+    def handle_export(self, export: Export, params: dict | None = None) -> None:
         self.log_export_task(export.pk, "Sending request to the Export API.")
         start_time = timezone.now()
         try:
-            params = {**params, "overwrite": True}
+            params = {**(params or {}), "overwrite": True}
             job_id = self.send_export(export=export, params=params)
             if job_id is None:
                 raise RequestException(f"Got an invalid Job ID: `{job_id}`")
@@ -68,7 +72,7 @@ class BaseExporter:
         except RequestException as e:
             self.mark_export_as_failed(export=export, reason=f"Export terminated with an error: {e}")
             return
-        export.request_job_duration = timezone.now() - start_time
+        export.request_job_duration = str(timezone.now() - start_time)
         export.save()
         self.log_export_task(export.pk, "Export job finished")
         self.confirm_export_succeeded(export=export)
@@ -104,6 +108,8 @@ class BaseExporter:
             }
         )
         if not export.nominative:
+            if export.datalab is None:
+                raise ValueError("export.datalab is required when nominative is False")
             params["pseudo"] = export.datalab.name
         return self.export_api.launch_export(export_id=export.uuid, params=params)
 
@@ -119,8 +125,16 @@ class BaseExporter:
         while errors_count < 5 and not job_status.is_end_state:
             time.sleep(10)
             self.log_export_task(export.uuid, f"Asking for status of job `{job_id}`")
-            target_api = job_type == APIJobType.EXPORT and self.export_api or job_type == APIJobType.HIVE_DB_CREATE and self.hadoop_api or None
+            target_api: Any
+            if job_type == APIJobType.EXPORT:
+                target_api = self.export_api
+            elif job_type == APIJobType.HIVE_DB_CREATE:
+                target_api = self.hadoop_api
+            else:
+                target_api = None
             try:
+                if target_api is None:
+                    raise RequestException("No API for job type")
                 logs_response = target_api.get_export_logs(job_id=job_id)
                 job_status = status_mapper.get(logs_response.get("task_status"), JobStatus.unknown)
                 self.log_export_task(export.uuid, f"Job `{job_id}` is {job_status}")

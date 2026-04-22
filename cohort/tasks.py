@@ -80,7 +80,7 @@ def cancel_previous_count_jobs(dm_id: str, cohort_counter_cls: str):
 @shared_task
 def feasibility_study_count(fs_id: str, json_query: str, auth_headers: dict, cohort_counter_cls: str) -> bool:
     fs = FeasibilityStudy.objects.get(uuid=fs_id)
-    fs.count_task_id = current_task.request.id or ""
+    fs.count_task_id = current_task.request.id or ""  # type: ignore[attr-defined]
     fs.save()
     cohort_counter = load_operator(cohort_counter_cls)
     return cohort_counter.launch_feasibility_study_count(fs_id=fs_id, json_query=json_query, auth_headers=auth_headers, owner_username=fs.owner_id)
