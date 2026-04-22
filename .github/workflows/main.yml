@@ -237,4 +237,4 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          tags: aphpid/cohort360-backend:Test-CI-All-Jobs # ${{ env.IMAGE_TAGS }}
+          tags: ${{ env.IMAGE_TAGS }}
