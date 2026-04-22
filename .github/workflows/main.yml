@@ -30,8 +30,8 @@ jobs:
           version: "latest"
           enable-cache: true
 
-      - name: Install Python 3.12
-        run: uv python install 3.12
+      - name: Install Python 3.14
+        run: uv python install 3.14
 
       - name: Run Ruff + Safety
         run: |
@@ -67,8 +67,8 @@ jobs:
           version: "latest"
           enable-cache: true
 
-      - name: Install Python 3.12
-        run: uv python install 3.12
+      - name: Install Python 3.14
+        run: uv python install 3.14
 
       - name: Install system deps
         run: |
