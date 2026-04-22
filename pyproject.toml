@@ -47,6 +47,15 @@ dependencies = [
     "djangorestframework-simplejwt>=5.4.0",
 ]
 
+[dependency-groups]
+dev = [
+    "mypy>=1.11",
+    "django-stubs>=5.0.4",
+    "djangorestframework-stubs>=3.15.0",
+    "types-pytz",
+    "types-PyYAML",
+]
+
 [tool.ruff]
 target-version = "py312"
 lint.select = ["E", "F"]
@@ -84,6 +93,33 @@ exclude = [
 
 [tool.safety]
 # pass
+
+# mypy: exclut tests/migrations (sinon bruit massif) ; plugin django-stubs (CI: .env + DJANGO_SETTINGS_MODULE).
+[tool.mypy]
+python_version = "3.13"
+plugins = ["mypy_django_plugin.main"]
+show_error_codes = true
+namespace_packages = true
+exclude = [
+    '(^|/)migrations(/|$)',
+    '(^|/)tests(/|$)',
+    '^conftest\\.py$',
+]
+disable_error_code = ["import-untyped"]
+no_implicit_optional = false
+
+# Scripts one-off (patch) : bruit inutile.
+[[tool.mypy.overrides]]
+module = "cohort.scripts.*"
+ignore_errors = true
+
+# DRF DefaultRouter() + register() : stubs DRF incompatibles (None vs chaînage).
+[[tool.mypy.overrides]]
+module = ["accesses.urls", "cohort.urls"]
+disable_error_code = ["func-returns-value", "attr-defined", "unreachable"]
+
+[tool.django-stubs]
+django_settings_module = "admin_cohort.settings"
 
 # deptry: voir package_module_name_map. DEP002 ignoré par paquet (pas globalement) : django/ASGI/outils sans import top-level.
 [tool.deptry]
