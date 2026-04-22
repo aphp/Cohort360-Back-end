@@ -94,7 +94,7 @@ jobs:
         run: uv python install 3.13
 
       - name: Bandit
-        run: uv tool run bandit -r . -x tests,migrations
+        run: uv tool run bandit -r . -c pyproject.toml
 
   deptry:
     runs-on: ubuntu-latest

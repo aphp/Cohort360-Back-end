@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING
 import requests
 from requests import Response
 
+from admin_cohort.http_timeout import HTTP_REQUEST_TIMEOUT
+
 if TYPE_CHECKING:
     from cohort_job_server.query_executor_api import CohortQuery, SparkJobObject
 
@@ -27,14 +29,14 @@ class QueryExecutorClient:
 
     def count(self, input_payload: str) -> Response:
         params = {"appName": self.APP_NAME, "classPath": self.COUNT_CLASSPATH, "context": self.CONTEXT}
-        return requests.post(self.api_url, params=params, data=input_payload)
+        return requests.post(self.api_url, params=params, data=input_payload, timeout=HTTP_REQUEST_TIMEOUT)
 
     def create(self, input_payload: str) -> Response:
         params = {"appName": self.APP_NAME, "classPath": self.CREATE_CLASSPATH, "context": self.CONTEXT, "sync": "false"}
-        return requests.post(self.api_url, params=params, data=input_payload)
+        return requests.post(self.api_url, params=params, data=input_payload, timeout=HTTP_REQUEST_TIMEOUT)
 
     def delete(self, job_id: str) -> Response:
-        return requests.delete(f"{self.api_url}/{job_id}")
+        return requests.delete(f"{self.api_url}/{job_id}", timeout=HTTP_REQUEST_TIMEOUT)
 
 
 def replace_pattern(text: str, replacements: list[tuple[str, str]]) -> str:

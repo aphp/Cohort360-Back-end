@@ -8,6 +8,7 @@ import yaml
 from django.http import JsonResponse
 from rest_framework import status
 
+from admin_cohort.http_timeout import HTTP_REQUEST_TIMEOUT
 from exporters.apis.base import BaseAPI
 
 
@@ -32,7 +33,10 @@ class ExportAPI(BaseAPI):
             _logger.error(f"Export[{export_id}] Error generating the yaml config from export params")
             raise e
         response = requests.post(
-            url=f"{self.url}/yaml", files={"yaml_file": ("yaml_file.yaml", yaml_file, "application/x-yaml")}, headers={"auth-token": self.auth_token}
+            url=f"{self.url}/yaml",
+            files={"yaml_file": ("yaml_file.yaml", yaml_file, "application/x-yaml")},
+            headers={"auth-token": self.auth_token},
+            timeout=HTTP_REQUEST_TIMEOUT,
         )
         if response.status_code == status.HTTP_200_OK:
             return response.json().get("task_id")
