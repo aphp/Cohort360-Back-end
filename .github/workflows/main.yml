@@ -33,10 +33,23 @@ jobs:
       - name: Install Python 3.13
         run: uv python install 3.13
 
-      - name: Run Ruff + Safety
-        run: |
-          uv tool run ruff check .
-          uv tool run safety check -i 42240,66963,70612,65213
+      - name: Ruff
+        run: uv tool run ruff check .
+
+      - name: Safety
+        run: uv tool run safety check -i 42240,66963,70612,65213
+
+      - name: MyPy
+        run: uv tool run mypy admin_cohort accesses cohort
+
+      - name: Bandit
+        run: uv tool run bandit -r . -x tests,migrations
+
+      - name: Deptry
+        run: uv tool run deptry .
+
+      - name: Check
+        run: uv run python manage.py check --deploy
 
   test:
     runs-on: ubuntu-latest
@@ -129,10 +142,6 @@ jobs:
     runs-on: ubuntu-latest
     if: |
       github.ref == 'refs/heads/main' ||
-      (
-        github.event_name == 'pull_request' &&
-        contains(github.event.pull_request.labels.*.name, 'run-sonar')
-      ) ||
       startsWith(github.ref, 'refs/tags/')
 
     steps:
