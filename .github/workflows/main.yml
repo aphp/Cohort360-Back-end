@@ -53,7 +53,7 @@ jobs:
         run: uv python install 3.13
 
       - name: Safety
-        run: uv tool run safety scan -i 42240,66963,70612,65213
+        run: uv tool run safety check -i 42240,66963,70612,65213
 
   mypy:
     runs-on: ubuntu-latest
