@@ -5,7 +5,7 @@ from abc import ABC
 from dataclasses import dataclass
 from datetime import timedelta
 from functools import lru_cache
-from typing import Tuple, Optional, Callable, Dict, List
+from typing import Any, Tuple, Optional, Callable, Dict, List
 
 import environ
 import jwt
@@ -44,7 +44,7 @@ if apps.is_installed("cohort_job_server"):
 
 
 class Auth(ABC):
-    USERNAME_LOOKUP = None
+    USERNAME_LOOKUP: str | None = None
 
     def __init__(self):
         assert self.USERNAME_LOOKUP is not None, "`USERNAME_LOOKUP` attribute is not defined"
@@ -165,7 +165,9 @@ class OIDCAuth(Auth):
 
     def refresh_token(self, token: str) -> Optional[OIDCAuthTokens]:
         client_id = self.decode_token(token=token, verify_signature=False).get("azp")
-        oidc_conf = self.get_oidc_config(client_id)
+        if not client_id or not isinstance(client_id, str):
+            raise InvalidToken("Token missing azp (client_id)")
+        oidc_conf = self.get_oidc_config(client_id=client_id)
         data = {**oidc_conf.client_identity, "grant_type": "refresh_token", "refresh_token": token}
         try:
             response = requests.post(url=oidc_conf.token_url, data=data, timeout=HTTP_REQUEST_TIMEOUT)
@@ -199,6 +201,8 @@ class OIDCAuth(Auth):
         except KeyError as e:
             raise AuthenticationFailed(f"Missing `{e}`")
         user = authenticate(request=request, code=code, redirect_uri=redirect_uri)
+        if user is None:
+            raise AuthenticationFailed("Authentication failed")
         return user
 
     def logout(self, payload: dict, access_token: str):
@@ -206,8 +210,12 @@ class OIDCAuth(Auth):
             refresh_token = payload.get("refresh_token")
         except json.JSONDecodeError as e:
             raise RequestException(f"Logout request missing `refresh_token` - {e}")
+        if not refresh_token or not isinstance(refresh_token, str):
+            raise RequestException("Logout request missing `refresh_token`")
         client_id = self.decode_token(token=refresh_token, verify_signature=False).get("azp")
-        oidc_conf = self.get_oidc_config(client_id)
+        if not client_id or not isinstance(client_id, str):
+            raise RequestException("Invalid token: missing azp")
+        oidc_conf = self.get_oidc_config(client_id=client_id)
         response = requests.post(
             url=oidc_conf.logout_url,
             data={**oidc_conf.client_identity, "refresh_token": refresh_token},
@@ -237,6 +245,8 @@ class JWTAuth(Auth):
         except (TokenError, AuthenticationFailed) as e:
             raise AuthenticationFailed(e.args[0])
         user, auth_tokens = serializer.user, serializer.validated_data
+        if user is None:
+            raise AuthenticationFailed("Invalid user")
         request.auth_tokens = JWTAuthTokens(**auth_tokens)
         return user
 
@@ -318,7 +328,7 @@ class JWTAuth(Auth):
         try:
             serializer = TokenObtainPairSerializer()
             token = serializer.get_token(system_user)
-            return str(token.access_token)
+            return str(token.access_token)  # type: ignore[attr-defined]
         except Exception as e:
             _logger_err.error(f"Failed to generate system token: {e}")
             raise ServerError(f"Error generating system token: {e}")
@@ -344,7 +354,7 @@ class AuthService:
                     _logger.warning(f"Improperly configured post authentication hook `{hook_path}`")
         return post_auth_hooks
 
-    def _get_authenticator(self, auth_method: str):
+    def _get_authenticator(self, auth_method: str) -> Any:
         try:
             return self.authenticators[auth_method]
         except KeyError as ke:
@@ -353,8 +363,12 @@ class AuthService:
 
     def refresh_token(self, request) -> Optional[AuthTokens]:
         _, auth_method = self.get_token_from_headers(request)
+        if auth_method is None:
+            return None
         authenticator = self._get_authenticator(auth_method)
         token = request.data.get("refresh_token")
+        if not isinstance(token, str):
+            return None
         return authenticator.refresh_token(token=token)
 
     def login(self, request, auth_method: str) -> User:
@@ -363,8 +377,10 @@ class AuthService:
 
     def logout(self, request):
         access_token, auth_method = self.get_token_from_headers(request)
+        if auth_method is None:
+            return
         authenticator = self._get_authenticator(auth_method)
-        authenticator.logout(request.data, access_token)
+        authenticator.logout(request.data, access_token or "")
 
     def authenticate_request(self, token: str, auth_method: str, headers: Dict[str, str]) -> Optional[Tuple[User, str]]:
         if token is None:
@@ -372,6 +388,8 @@ class AuthService:
         try:
             authenticator = self._get_authenticator(auth_method)
             username = authenticator.authenticate(token=token)
+            if username is None:
+                return None
             user = User.objects.get(username=username)
             for post_auth_hook in self.post_auth_hooks:
                 user = post_auth_hook(user, headers)
@@ -382,9 +400,11 @@ class AuthService:
 
     def authenticate_http_request(self, request) -> Optional[Tuple[User, str]]:
         token, auth_method = self.get_token_from_headers(request)
-        if token in self.applicative_users:
+        if token is not None and token in self.applicative_users:
             applicative_user = User.objects.get(username=self.applicative_users[token])
             return applicative_user, token
+        if token is None or auth_method is None:
+            return None
         return self.authenticate_request(token=token, auth_method=auth_method, headers=request.headers)
 
     def authenticate_ws_request(self, token: str, auth_method: str, headers: Dict[str, str]) -> Optional[User]:
@@ -392,6 +412,7 @@ class AuthService:
         if res is not None:
             return res[0]
         _logger.info("Error authenticating WS request")
+        return None
 
     def get_token_from_headers(self, request) -> Tuple[Optional[str], Optional[str]]:
         authorization = request.META.get("HTTP_AUTHORIZATION")

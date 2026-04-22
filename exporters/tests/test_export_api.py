@@ -5,6 +5,7 @@ import uuid
 from django.test import TestCase
 from rest_framework import status
 
+from admin_cohort.http_timeout import HTTP_REQUEST_TIMEOUT
 from exporters.apis.export_api import ExportAPI
 from exporters.enums import ExportTypes
 
@@ -56,4 +57,5 @@ class TestExportAPI(TestCase):
             url="https://export-api.fr/api/task_status",
             params={"task_uuid": "123456", "return_out_logs": True, "return_err_logs": True},
             headers={"auth-token": "export-token"},
+            timeout=HTTP_REQUEST_TIMEOUT,
         )

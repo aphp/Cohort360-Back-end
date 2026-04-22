@@ -1,5 +1,6 @@
 import json
 import logging
+from typing import Any
 
 from django.conf import settings
 from django.db import transaction
@@ -20,7 +21,7 @@ class CohortResultService(CommonService):
     job_type = "create"
 
     @staticmethod
-    def build_query(cohort_source_id: str, fhir_filter_id: str = None) -> str:
+    def build_query(cohort_source_id: str, fhir_filter_id: str | None = None) -> str:
         resource_type, f_filter = "Patient", ""
         if fhir_filter_id is not None:
             fhir_filter = FhirFilter.objects.get(pk=fhir_filter_id)
@@ -71,8 +72,12 @@ class CohortResultService(CommonService):
         )
 
         query = self.build_query(cohort_source_id=source_cohort.group_id, fhir_filter_id=fhir_filter_id)
-        new_rqs = copy_query_snapshot(source_cohort.request_query_snapshot)
-        new_dm = copy_dated_measure(source_cohort.dated_measure)
+        src_rqs = source_cohort.request_query_snapshot
+        src_dm = source_cohort.dated_measure
+        if src_rqs is None or src_dm is None:
+            raise ServerError("Source cohort is missing request_query_snapshot or dated_measure")
+        new_rqs = copy_query_snapshot(src_rqs)
+        new_dm = copy_dated_measure(src_dm)
         cohort_subset = CohortResult.objects.create(
             is_subset=True, name=f"{table_name}_{source_cohort.group_id}", owner_id=owner_id, dated_measure=new_dm, request_query_snapshot=new_rqs
         )
@@ -105,10 +110,15 @@ class CohortResultService(CommonService):
         try:
             if cohort.parent_cohort and cohort.sampling_ratio:
                 json_query = self.build_query(cohort_source_id=cohort.parent_cohort.group_id)
-                count = (cohort.parent_cohort.dated_measure.measure or 0) * cohort.sampling_ratio
+                parent_dm = cohort.parent_cohort.dated_measure
+                count = (parent_dm.measure or 0) * cohort.sampling_ratio if parent_dm is not None else 0
             else:
-                json_query = cohort.request_query_snapshot.serialized_query
-                count = getattr(cohort.dated_measure, "measure", 0) or 0
+                rqs = cohort.request_query_snapshot
+                dm = cohort.dated_measure
+                if rqs is None or dm is None:
+                    raise ValueError("Cohort is missing request_query_snapshot or dated_measure")
+                json_query = rqs.serialized_query
+                count = dm.measure or 0
 
             job_status = count >= settings.COHORT_SIZE_LIMIT and JobStatus.long_pending or JobStatus.pending
             cohort.request_job_status = job_status
@@ -152,10 +162,11 @@ class CohortResultService(CommonService):
     def ws_send_to_client(cohort: CohortResult) -> None:
         cohort.refresh_from_db()
         global_dm = cohort.dated_measure_global
-        extra_info = {
+        dm = cohort.dated_measure
+        extra_info: dict[str, Any] = {
             "request_job_status": cohort.request_job_status,
             "group_id": cohort.group_id,
-            "result_size": cohort.dated_measure.measure,
+            "result_size": dm.measure if dm is not None else None,
             "request_job_fail_msg": cohort.request_job_fail_msg,
         }
         if global_dm:
