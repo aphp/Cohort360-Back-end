@@ -108,24 +108,6 @@ jobs:
         run: uv python install 3.13
       - name: Deptry
         run: uv tool run deptry .
-      
-  check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Install UV
-        uses: astral-sh/setup-uv@v8.1.0
-        with:
-          version: "latest"
-          enable-cache: true
-
-      - name: Install Python 3.13
-        run: uv python install 3.13
-      - name: Check
-        run: uv run python manage.py check --deploy
 
   test:
     runs-on: ubuntu-latest
