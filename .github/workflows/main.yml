@@ -33,8 +33,11 @@ jobs:
       - name: Install Python 3.13
         run: uv python install 3.13
 
-      - name: Ruff
+      - name: Ruff (lint)
         run: uv tool run ruff check .
+
+      - name: Ruff (format)
+        run: uv tool run ruff format --check .
 
   safety:
     runs-on: ubuntu-latest
