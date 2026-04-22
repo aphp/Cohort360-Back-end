@@ -8,6 +8,7 @@ description = """Supports the official **Cohort360** web app and **Portail**
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "asgiref>=3.8",
     "channels-redis>=4.2.1",
     "channels>=4.2.0",
     "coverage>=7.6.9",
@@ -34,6 +35,9 @@ dependencies = [
     "psycopg[binary]>=3.2.3",
     "pydantic>=2.10.3",
     "pyjwt>=2.10.1",
+    "pytz",
+    "pyyaml>=6.0.1",
+    "python-dateutil>=2.8.2",
     "pytest>=8.3.4",
     "python-json-logger==3.2.0",
     "redis>=5.2.1",
@@ -80,6 +84,43 @@ exclude = [
 
 [tool.safety]
 # pass
+
+# deptry: voir package_module_name_map. DEP002 ignoré par paquet (pas globalement) : django/ASGI/outils sans import top-level.
+[tool.deptry]
+extend_exclude = ["^\\.conf/", "^\\.local/", "^\\.patch_and_fix/"]
+
+[tool.deptry.per_rule_ignores]
+DEP002 = [
+    "channels-redis",
+    "coverage",
+    "daphne",
+    "django-cors-headers",
+    "django-extensions",
+    "django-redis",
+    "django-websocket-redis",
+    "kerberos",
+    "krb5",
+    "psycopg",
+    "redis",
+    "requests-kerberos",
+]
+
+[tool.deptry.package_module_name_map]
+djangorestframework = "rest_framework"
+"django-environ" = "environ"
+"django-filter" = "django_filters"
+"django-cors-headers" = "corsheaders"
+"drf-api-tracking" = "rest_framework_tracking"
+"drf-extensions" = "rest_framework_extensions"
+"drf-spectacular" = "drf_spectacular"
+"djangorestframework-simplejwt" = "rest_framework_simplejwt"
+"python-json-logger" = "pythonjsonlogger"
+"django-safedelete" = "safedelete"
+pyyaml = "yaml"
+"python-dateutil" = "dateutil"
+pyjwt = "jwt"
+"influxdb-client" = "influxdb_client"
+"requests-kerberos" = "requests_kerberos"
 
 [tool.bandit]
 exclude_dirs = [".venv", "tests", "migrations", ".tox", ".local", ".patch_and_fix"]
