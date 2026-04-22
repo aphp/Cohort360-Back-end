@@ -256,7 +256,7 @@ class RQSSerializer(serializers.ModelSerializer):
 
     def get_dated_measures(self, obj) -> List[dict]:
         dms_with_normal_cohorts = obj.dated_measures.filter(cohorts__parent_cohort__isnull=True).order_by("-created_at")
-        return DatedMeasureSerializer(dms_with_normal_cohorts, many=True).data  # type: ignore[return-value]
+        return DatedMeasureSerializer(dms_with_normal_cohorts, many=True).data
 
 
 class RQSCreateSerializer(serializers.ModelSerializer):

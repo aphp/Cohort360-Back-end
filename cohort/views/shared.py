@@ -15,7 +15,7 @@ class UserObjectsRestrictedViewSet(RequestLogMixin, viewsets.ModelViewSet, metac
     permission_classes = (IsOwnerPermission,)
     pagination_class = NegativeLimitOffsetPagination
     logging_methods = ["POST", "PATCH", "DELETE"]
-    swagger_tags: list[str] = []
+    swagger_tags = []
 
     def get_serializer_context(self):
         return {"request": self.request}

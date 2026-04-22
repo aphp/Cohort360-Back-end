@@ -19,6 +19,7 @@ def get_trace_id() -> str:
     return request.headers.get(trace_id_header, str(meta_val) if meta_val is not None else "")
 
 
+
 def get_request_user_id(request) -> str:
     user_id = "Anonymous"
     bearer_token = request.META.get("HTTP_AUTHORIZATION")
