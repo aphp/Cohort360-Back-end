@@ -17,7 +17,7 @@ on:
 
 jobs:
 
-  lint:
+  ruff:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -36,17 +36,97 @@ jobs:
       - name: Ruff
         run: uv tool run ruff check .
 
+  safety:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Install UV
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Install Python 3.13
+        run: uv python install 3.13
+
       - name: Safety
         run: uv tool run safety check -i 42240,66963,70612,65213
+
+  mypy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Install UV
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Install Python 3.13
+        run: uv python install 3.13
 
       - name: MyPy
         run: uv tool run mypy admin_cohort accesses cohort
 
+  bandit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Install UV
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Install Python 3.13
+        run: uv python install 3.13
+
       - name: Bandit
         run: uv tool run bandit -r . -x tests,migrations
 
+  deptry:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Install UV
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Install Python 3.13
+        run: uv python install 3.13
+
       - name: Deptry
         run: uv tool run deptry .
+
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Install UV
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Install Python 3.13
+        run: uv python install 3.13
 
       - name: Check
         run: uv run python manage.py check --deploy
