@@ -5,9 +5,7 @@ on:
 
   pull_request:
     branches:
-      - develop
-      - main
-      - 'release/**'
+      - '*'
     types:
       - opened
       - synchronize
@@ -241,12 +239,6 @@ jobs:
 
   publish:
     needs:
-      - ruff
-      - safety
-      - mypy
-      - bandit
-      - deptry
-      - test
       - sonar
     runs-on: ubuntu-latest
     if: |
