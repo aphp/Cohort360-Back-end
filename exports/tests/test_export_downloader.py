@@ -31,7 +31,7 @@ class TestExportDownloader(ExportsTests):
                                              is_user_notified=True,
                                              nominative=True)
         ExportTable.objects.create(export=self.export1,
-                                   name="person",
+                                   name="Patient",
                                    cohort_result_source=self.user1_cohort)
 
     def test_successfully_download_export(self):

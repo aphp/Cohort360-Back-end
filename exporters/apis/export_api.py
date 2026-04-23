@@ -19,7 +19,7 @@ class ExportAPI(BaseAPI):
 
     def __init__(self):
         super().__init__()
-        self.required_table = "person"
+        self.required_table = "Patient"
         self.export_csv_path = self.api_conf.get('EXPORT_CSV_PATH')
         self.export_xlsx_path = self.api_conf.get('EXPORT_XLSX_PATH')
         self.disable_data_translation = self.api_conf.get('DISABLE_DATA_TRANSLATION')
