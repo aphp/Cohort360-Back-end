@@ -22,11 +22,7 @@ on:
       - 'release/**'
       - 'hotfix/**'
     tags:
-      - 'v*'
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+      - '*'
 
 jobs:
   ruff:
@@ -53,7 +49,6 @@ jobs:
         run: uv tool run ruff format --check .
 
   safety:
-    if: ${{ !startsWith(github.ref, 'refs/tags/') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -73,7 +68,6 @@ jobs:
         run: uv tool run safety check -i 42240,66963,70612,65213
 
   mypy:
-    if: ${{ !startsWith(github.ref, 'refs/tags/') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -103,7 +97,6 @@ jobs:
           uv run mypy admin_cohort accesses cohort
 
   bandit:
-    if: ${{ !startsWith(github.ref, 'refs/tags/') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -123,7 +116,6 @@ jobs:
         run: uv tool run bandit -r . -c pyproject.toml
 
   deptry:
-    if: ${{ !startsWith(github.ref, 'refs/tags/') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -143,7 +135,6 @@ jobs:
         run: uv tool run deptry .
 
   test:
-    if: ${{ !startsWith(github.ref, 'refs/tags/') }}
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -212,6 +203,7 @@ jobs:
           (
             github.base_ref == 'main' ||
             startsWith(github.base_ref, 'release/') ||
+            startsWith(github.base_ref, 'hotfix/') ||
             contains(github.event.pull_request.labels.*.name, 'run-sonar')
           )
         ) ||
@@ -248,7 +240,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-  publish_main:
+  publish:
     needs:
       - ruff
       - safety
@@ -257,8 +249,10 @@ jobs:
       - deptry
       - test
       - sonar
-    runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/main' }}
+   runs-on: ubuntu-latest
+    if: |
+      github.ref == 'refs/heads/main' ||
+      startsWith(github.ref, 'refs/tags/')
 
     steps:
       - name: Checkout code
@@ -271,7 +265,11 @@ jobs:
 
       - name: Compute Docker tags
         run: |
-          echo "IMAGE_TAGS=aphpid/cohort360-backend:${VERSION},aphpid/cohort360-backend:latest" >> $GITHUB_ENV
+          if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
+            echo "IMAGE_TAGS=aphpid/cohort360-backend:${VERSION},aphpid/cohort360-backend:latest" >> $GITHUB_ENV
+          else
+            echo "IMAGE_TAGS=aphpid/cohort360-backend:${VERSION}" >> $GITHUB_ENV
+          fi
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -290,36 +288,3 @@ jobs:
           push: true
           tags: ${{ env.IMAGE_TAGS }}
 
-  publish_tag:
-    runs-on: ubuntu-latest
-    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Retrieve version
-        run: |
-          VERSION=$(grep '^version =' pyproject.toml | sed -E 's/version = "(.*)"/\1/')
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-
-      - name: Compute Docker tags
-        run: |
-          echo "IMAGE_TAGS=aphpid/cohort360-backend:${VERSION}" >> $GITHUB_ENV
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Login to DockerHub
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          tags: ${{ env.IMAGE_TAGS }}
