@@ -34,54 +34,63 @@ class Role(BaseModel):
     right_search_patients_unlimited = models.BooleanField(default=False, null=False)
     right_search_opposed_patients = models.BooleanField(default=False, null=False)
 
-
     class Meta:
-        constraints = [UniqueConstraint(name="unique_name",
-                                        fields=["name"],
-                                        condition=Q(delete_datetime__isnull=True))
-                       ]
+        constraints = [UniqueConstraint(name="unique_name", fields=["name"], condition=Q(delete_datetime__isnull=True))]
 
     @lru_cache(maxsize=None)
     def has_any_global_management_right(self):
-        return any((self.right_full_admin,
-                    self.right_manage_users,
-                    self.right_manage_datalabs,))
+        return any(
+            (
+                self.right_full_admin,
+                self.right_manage_users,
+                self.right_manage_datalabs,
+            )
+        )
 
     @lru_cache(maxsize=None)
     def has_any_global_right(self):
-        return any((self.has_any_global_management_right(),
-                    self.right_read_datalabs,
-                    self.right_search_patients_by_ipp,
-                    self.right_search_opposed_patients))
+        return any(
+            (self.has_any_global_management_right(), self.right_read_datalabs, self.right_search_patients_by_ipp, self.right_search_opposed_patients)
+        )
 
     @lru_cache(maxsize=None)
     def has_any_level_dependent_management_right(self):
-        return any((self.right_manage_data_accesses_same_level,
-                    self.right_manage_data_accesses_inferior_levels,
-                    self.right_manage_admin_accesses_same_level,
-                    self.right_manage_admin_accesses_inferior_levels))
+        return any(
+            (
+                self.right_manage_data_accesses_same_level,
+                self.right_manage_data_accesses_inferior_levels,
+                self.right_manage_admin_accesses_same_level,
+                self.right_manage_admin_accesses_inferior_levels,
+            )
+        )
 
     def requires_full_admin_right_to_be_managed(self):
         # requires having: right_full_admin = True
-        return self.right_full_admin or \
-            self.right_search_patients_unlimited or \
-            self.right_manage_admin_accesses_same_level or \
-            self.right_manage_admin_accesses_inferior_levels
+        return (
+            self.right_full_admin
+            or self.right_search_patients_unlimited
+            or self.right_manage_admin_accesses_same_level
+            or self.right_manage_admin_accesses_inferior_levels
+        )
 
     def requires_admin_accesses_managing_right_to_be_managed(self):
         # requires having: right_manage_admin_accesses_same/inf_level = True
-        return self.right_manage_users or \
-            self.right_manage_data_accesses_same_level or \
-            self.right_manage_data_accesses_inferior_levels or \
-            self.right_manage_datalabs or \
-            self.right_read_datalabs
+        return (
+            self.right_manage_users
+            or self.right_manage_data_accesses_same_level
+            or self.right_manage_data_accesses_inferior_levels
+            or self.right_manage_datalabs
+            or self.right_read_datalabs
+        )
 
     def requires_data_accesses_managing_right_to_be_managed(self):
         # requires having: right_manage_data_accesses_same/inf_level = True
-        return self.right_read_patient_nominative or \
-            self.right_read_patient_pseudonymized or \
-            self.right_search_patients_by_ipp or \
-            self.right_search_opposed_patients or \
-            self.right_export_csv_xlsx_nominative or \
-            self.right_export_jupyter_nominative or \
-            self.right_export_jupyter_pseudonymized
+        return (
+            self.right_read_patient_nominative
+            or self.right_read_patient_pseudonymized
+            or self.right_search_patients_by_ipp
+            or self.right_search_opposed_patients
+            or self.right_export_csv_xlsx_nominative
+            or self.right_export_jupyter_nominative
+            or self.right_export_jupyter_pseudonymized
+        )

@@ -13,4 +13,4 @@ class Profile(BaseModel):
     id = models.AutoField(blank=True, null=False, primary_key=True)
     source = models.TextField(blank=True, null=True, default=MANUAL)
     is_active = models.BooleanField(blank=True, null=True)
-    user = models.ForeignKey(User, on_delete=CASCADE, related_name='profiles', null=True, blank=True)
+    user = models.ForeignKey(User, on_delete=CASCADE, related_name="profiles", null=True, blank=True)

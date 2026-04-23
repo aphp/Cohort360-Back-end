@@ -11,10 +11,10 @@ _URL_QUOTE_SAFE = "~()*!.'"
 
 
 def replace_in_filter_fhir_for_resource(
-        json_str: str,
-        resource_type: str,
-        old_value: str,
-        new_value: str,
+    json_str: str,
+    resource_type: str,
+    old_value: str,
+    new_value: str,
 ) -> str:
     """
     Replace occurrences of `old_value` with `new_value` inside the `filterFhir` field
@@ -150,9 +150,9 @@ def patch_filter(old_value: str, new_value: str) -> None:
 
 
 def _patch_filter_queryset(
-        filtered_queries: Iterable[FhirFilter],
-        old_value_encoded: str,
-        new_value_encoded: str,
+    filtered_queries: Iterable[FhirFilter],
+    old_value_encoded: str,
+    new_value_encoded: str,
 ) -> None:
     """Apply encoded replacement on an iterable of FhirFilter and save only when changed."""
     for filter_fhir_object in filtered_queries:

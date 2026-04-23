@@ -8,11 +8,11 @@ from exports.views import ExportsBaseViewSet
 
 
 class FhirFilterFilter(filters.FilterSet):
-    ordering = filters.OrderingFilter(fields=('-created_at', 'name'))
+    ordering = filters.OrderingFilter(fields=("-created_at", "name"))
 
     class Meta:
         model = FhirFilter
-        fields = ('fhir_resource', 'owner_id', 'identifying')
+        fields = ("fhir_resource", "owner_id", "identifying")
 
 
 @extend_schema_view(retrieve=extend_schema(exclude=True))
@@ -21,6 +21,6 @@ class FhirFilterViewSet(ExportsBaseViewSet):
     serializer_class = FhirFilterSerializer
     http_method_names = ["get"]
     permission_classes = [IsOwnerPermission]
-    swagger_tags = ['Exports - FHIR Filters']
+    swagger_tags = ["Exports - FHIR Filters"]
     filterset_class = FhirFilterFilter
-    search_fields = ('$name', '$fhir_resource', '$filter')
+    search_fields = ("$name", "$fhir_resource", "$filter")

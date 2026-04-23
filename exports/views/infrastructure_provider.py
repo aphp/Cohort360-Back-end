@@ -7,7 +7,7 @@ from exports.views import ExportsBaseViewSet
 
 
 class InfrastructureProviderFilter(filters.FilterSet):
-    ordering = OrderingFilter(fields=('name',))
+    ordering = OrderingFilter(fields=("name",))
 
     class Meta:
         model = InfrastructureProvider
@@ -18,12 +18,11 @@ class InfrastructureProviderViewSet(ExportsBaseViewSet):
     serializer_class = InfrastructureProviderSerializer
     queryset = InfrastructureProvider.objects.all()
     filterset_class = InfrastructureProviderFilter
-    http_method_names = ['get', 'post', 'patch', 'delete']
+    http_method_names = ["get", "post", "patch", "delete"]
     search_fields = ("$name",)
-    swagger_tags = ['Exports - Infrastructure Providers']
+    swagger_tags = ["Exports - Infrastructure Providers"]
 
     def get_permissions(self):
         if self.request.method in ("POST", "PATCH", "DELETE"):
             return [ManageDatalabsPermission()]
         return [ReadDatalabsPermission()]
-

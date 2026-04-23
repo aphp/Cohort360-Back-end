@@ -9,16 +9,11 @@ LOGGER = logging.getLogger("info")
 
 NEW_VERSION = "v1.4.3"
 
-FILTER_MAPPING = {
-    RESOURCE_DEFAULT: {
-    }
-}
+FILTER_MAPPING = {RESOURCE_DEFAULT: {}}
 
-FILTER_NAME_TO_SKIP = {
-}
+FILTER_NAME_TO_SKIP = {}
 
-code_mapping_cache = {
-}
+code_mapping_cache = {}
 
 
 def find_related_atc(code: str):
@@ -34,23 +29,13 @@ def find_related_atc_codes(codes: str):
 
 
 FILTER_VALUE_MAPPING = {
-    "MedicationRequest": {
-        "medication": {
-            MATCH_ALL_VALUES: find_related_atc_codes
-        }
-    },
-    "MedicationAdministration": {
-        "medication": {
-            MATCH_ALL_VALUES: find_related_atc_codes
-        }
-    }
+    "MedicationRequest": {"medication": {MATCH_ALL_VALUES: find_related_atc_codes}},
+    "MedicationAdministration": {"medication": {MATCH_ALL_VALUES: find_related_atc_codes}},
 }
 
-STATIC_REQUIRED_FILTERS = {
-}
+STATIC_REQUIRED_FILTERS = {}
 
-RESOURCE_NAME_MAPPING = {
-}
+RESOURCE_NAME_MAPPING = {}
 
 updater_v143 = QueryRequestUpdater(
     version_name=NEW_VERSION,
@@ -59,5 +44,5 @@ updater_v143 = QueryRequestUpdater(
     filter_names_to_skip=FILTER_NAME_TO_SKIP,
     filter_values_mapping=FILTER_VALUE_MAPPING,
     static_required_filters=STATIC_REQUIRED_FILTERS,
-    resource_name_mapping=RESOURCE_NAME_MAPPING
+    resource_name_mapping=RESOURCE_NAME_MAPPING,
 )

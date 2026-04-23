@@ -10,19 +10,16 @@ class AuthTokens:
 
 
 class OIDCAuthTokens(AuthTokens):
-
     def __init__(self, access_token: str, refresh_token: str, **kwargs):
         super().__init__(access_token, refresh_token)
 
 
 class JWTAuthTokens(AuthTokens):
-
     def __init__(self, access: str, refresh: str, **kwargs):
         super().__init__(access_token=access, refresh_token=refresh)
 
 
 class StrEnum(str, Enum):
-
     def __str__(self):
         return self.value
 
@@ -47,7 +44,4 @@ class JobStatus(StrEnum):
 
     @property
     def is_end_state(self):
-        return self in [JobStatus.failed,
-                        JobStatus.cancelled,
-                        JobStatus.finished,
-                        JobStatus.unknown]
+        return self in [JobStatus.failed, JobStatus.cancelled, JobStatus.finished, JobStatus.unknown]

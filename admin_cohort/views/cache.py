@@ -14,27 +14,23 @@ class CacheViewSet(APIView):
     queryset = None
     swagger_tags = ["Cache"]
 
-    @extend_schema(tags=swagger_tags,
-                   description="List cache keys",
-                   parameters=[OpenApiParameter(name='username', type=str)])
+    @extend_schema(tags=swagger_tags, description="List cache keys", parameters=[OpenApiParameter(name="username", type=str)])
     def get(self, request, *args, **kwargs):
         search_pattern = "*"
-        username = request.query_params.get('username')
+        username = request.query_params.get("username")
         if username:
             search_pattern = f"*{username}*"
         keys = sorted(cache.keys(search_pattern))
         data = {k: cache.get(k) for k in keys}
-        keys_only = request.query_params.get('keys_only')
+        keys_only = request.query_params.get("keys_only")
         if keys_only:
             return Response(data=keys, status=status.HTTP_200_OK)
         return Response(data=data, status=status.HTTP_200_OK)
 
-    @extend_schema(tags=swagger_tags,
-                   description="Delete cache entries",
-                   parameters=[OpenApiParameter(name='username', type=str)])
+    @extend_schema(tags=swagger_tags, description="Delete cache entries", parameters=[OpenApiParameter(name="username", type=str)])
     def delete(self, request, *args, **kwargs):
         target_pattern = "*"
-        username = request.query_params.get('username')
+        username = request.query_params.get("username")
         if username:
             target_pattern = f"*{username}*"
         cache.delete_pattern(target_pattern)

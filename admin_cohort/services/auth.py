@@ -5,7 +5,7 @@ from abc import ABC
 from dataclasses import dataclass
 from datetime import timedelta
 from functools import lru_cache
-from typing import Tuple, Optional, Callable, Dict, List
+from typing import Any, Tuple, Optional, Callable, Dict, List
 
 import environ
 import jwt
@@ -25,24 +25,26 @@ from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 
 from accesses.models import Profile, Role, Perimeter, Access
 from admin_cohort.apps import AdminCohortConfig
+from admin_cohort.http_timeout import HTTP_REQUEST_TIMEOUT
 from admin_cohort.models import User
 from admin_cohort.types import OIDCAuthTokens, JWTAuthTokens, AuthTokens
 from admin_cohort.exceptions import ServerError, NoAuthenticationHookDefined
 
 
 env = environ.Env()
-_logger = logging.getLogger('info')
-_logger_err = logging.getLogger('django.request')
+_logger = logging.getLogger("info")
+_logger_err = logging.getLogger("django.request")
 
 extra_applicative_users = {}
 
 if apps.is_installed("cohort_job_server"):
     from cohort_job_server.apps import CohortJobServerConfig
+
     extra_applicative_users = CohortJobServerConfig.APPLICATIVE_USERS_TOKENS
 
 
 class Auth(ABC):
-    USERNAME_LOOKUP = None
+    USERNAME_LOOKUP: str | None = None
 
     def __init__(self):
         assert self.USERNAME_LOOKUP is not None, "`USERNAME_LOOKUP` attribute is not defined"
@@ -54,12 +56,8 @@ class Auth(ABC):
         pass
 
     def decode_token(self, token: str, verify_signature=True, key="", issuer=None, audience=None):
-        options = {'verify_signature': verify_signature}
-        kwargs = {'algorithms': self.algorithms,
-                  'key': key,
-                  'issuer': issuer,
-                  'audience': audience
-                  }
+        options = {"verify_signature": verify_signature}
+        kwargs = {"algorithms": self.algorithms, "key": key, "issuer": issuer, "audience": audience}
         try:
             return jwt.decode(jwt=token, options=options, **kwargs)
         except jwt.PyJWTError as e:
@@ -77,9 +75,7 @@ class OIDCAuthConfig:
 
     @property
     def client_identity(self) -> dict[str, str]:
-        return {"client_id": self.client_id,
-                "client_secret": self.client_secret
-                }
+        return {"client_id": self.client_id, "client_secret": self.client_secret}
 
     @property
     def oidc_url(self):
@@ -100,11 +96,15 @@ def build_oidc_configs() -> List[OIDCAuthConfig]:
     while True:
         issuer = env(f"OIDC_AUTH_SERVER_{i}", default=None)
         if issuer is not None:
-            configs.append(OIDCAuthConfig(issuer=issuer,
-                                          client_id=env(f"OIDC_CLIENT_ID_{i}"),
-                                          client_secret=env(f"OIDC_CLIENT_SECRET_{i}"),
-                                          grant_type="authorization_code",
-                                          redirect_uri=env(f"OIDC_REDIRECT_URI_{i}")))
+            configs.append(
+                OIDCAuthConfig(
+                    issuer=issuer,
+                    client_id=env(f"OIDC_CLIENT_ID_{i}"),
+                    client_secret=env(f"OIDC_CLIENT_SECRET_{i}"),
+                    grant_type="authorization_code",
+                    redirect_uri=env(f"OIDC_REDIRECT_URI_{i}"),
+                )
+            )
             i += 1
         else:
             break
@@ -114,13 +114,13 @@ def build_oidc_configs() -> List[OIDCAuthConfig]:
 @lru_cache
 def get_issuer_certs(issuer: str) -> dict:
     issuer_certs_url = f"{issuer}/protocol/openid-connect/certs"
-    response = requests.get(url=issuer_certs_url)
+    response = requests.get(url=issuer_certs_url, timeout=HTTP_REQUEST_TIMEOUT)
     if response.status_code != status.HTTP_200_OK:
         raise ServerError(f"Error {response.status_code} from OIDC Auth Server ({issuer_certs_url}): {response.text}")
     jwks = response.json()
     certs = {}
-    for jwk in jwks['keys']:
-        kid = jwk['kid']
+    for jwk in jwks["keys"]:
+        kid = jwk["kid"]
         certs[kid] = RSAAlgorithm.from_jwk(json.dumps(jwk))
     return certs
 
@@ -131,7 +131,7 @@ class OIDCAuth(Auth):
     def __init__(self):
         super().__init__()
         self.oidc_extra_allowed_servers = env("OIDC_EXTRA_SERVER_URLS", default="").split(",")
-        self.audience = env("OIDC_AUDIENCE", default="").split(',')
+        self.audience = env("OIDC_AUDIENCE", default="").split(",")
         self.oidc_configs = build_oidc_configs()
 
     def get_oidc_config(self, client_id: Optional[str] = None, redirect_uri: Optional[str] = None):
@@ -154,13 +154,9 @@ class OIDCAuth(Auth):
 
     def get_tokens(self, code: str, redirect_uri: Optional[str] = None) -> Optional[OIDCAuthTokens]:
         oidc_conf = self.get_oidc_config(redirect_uri=redirect_uri)
-        data = {**oidc_conf.client_identity,
-                "redirect_uri": oidc_conf.redirect_uri,
-                "grant_type": oidc_conf.grant_type,
-                "code": code
-                }
+        data = {**oidc_conf.client_identity, "redirect_uri": oidc_conf.redirect_uri, "grant_type": oidc_conf.grant_type, "code": code}
         try:
-            response = requests.post(url=oidc_conf.token_url, data=data)
+            response = requests.post(url=oidc_conf.token_url, data=data, timeout=HTTP_REQUEST_TIMEOUT)
             if response.status_code == status.HTTP_200_OK:
                 return OIDCAuthTokens(**response.json())
             return None
@@ -169,13 +165,12 @@ class OIDCAuth(Auth):
 
     def refresh_token(self, token: str) -> Optional[OIDCAuthTokens]:
         client_id = self.decode_token(token=token, verify_signature=False).get("azp")
-        oidc_conf = self.get_oidc_config(client_id)
-        data = {**oidc_conf.client_identity,
-                "grant_type": "refresh_token",
-                "refresh_token": token
-                }
+        if not client_id or not isinstance(client_id, str):
+            raise InvalidToken("Token missing azp (client_id)")
+        oidc_conf = self.get_oidc_config(client_id=client_id)
+        data = {**oidc_conf.client_identity, "grant_type": "refresh_token", "refresh_token": token}
         try:
-            response = requests.post(url=oidc_conf.token_url, data=data)
+            response = requests.post(url=oidc_conf.token_url, data=data, timeout=HTTP_REQUEST_TIMEOUT)
             if response.status_code == status.HTTP_200_OK:
                 return OIDCAuthTokens(**response.json())
             raise InvalidToken("Token is invalid or expired")
@@ -189,7 +184,7 @@ class OIDCAuth(Auth):
         issuer = decoded_token.get("iss")
         assert issuer in self.recognised_issuers, f"Unrecognised issuer: `{issuer}`"
         certs = get_issuer_certs(issuer=issuer)
-        kid = jwt.get_unverified_header(token)['kid']
+        kid = jwt.get_unverified_header(token)["kid"]
         key = certs.get(kid)
         decoded = self.decode_token(token=token, key=key, issuer=issuer, audience=self.audience)
         return decoded.get(self.USERNAME_LOOKUP)
@@ -206,6 +201,8 @@ class OIDCAuth(Auth):
         except KeyError as e:
             raise AuthenticationFailed(f"Missing `{e}`")
         user = authenticate(request=request, code=code, redirect_uri=redirect_uri)
+        if user is None:
+            raise AuthenticationFailed("Authentication failed")
         return user
 
     def logout(self, payload: dict, access_token: str):
@@ -213,12 +210,18 @@ class OIDCAuth(Auth):
             refresh_token = payload.get("refresh_token")
         except json.JSONDecodeError as e:
             raise RequestException(f"Logout request missing `refresh_token` - {e}")
+        if not refresh_token or not isinstance(refresh_token, str):
+            raise RequestException("Logout request missing `refresh_token`")
         client_id = self.decode_token(token=refresh_token, verify_signature=False).get("azp")
-        oidc_conf = self.get_oidc_config(client_id)
-        response = requests.post(url=oidc_conf.logout_url,
-                                 data={**oidc_conf.client_identity,
-                                       "refresh_token": refresh_token},
-                                 headers={"Authorization": f"Bearer {access_token}"})
+        if not client_id or not isinstance(client_id, str):
+            raise RequestException("Invalid token: missing azp")
+        oidc_conf = self.get_oidc_config(client_id=client_id)
+        response = requests.post(
+            url=oidc_conf.logout_url,
+            data={**oidc_conf.client_identity, "refresh_token": refresh_token},
+            headers={"Authorization": f"Bearer {access_token}"},
+            timeout=HTTP_REQUEST_TIMEOUT,
+        )
         if response.status_code != status.HTTP_204_NO_CONTENT:
             raise RequestException(f"Error during logout: {response.text}")
 
@@ -242,6 +245,8 @@ class JWTAuth(Auth):
         except (TokenError, AuthenticationFailed) as e:
             raise AuthenticationFailed(e.args[0])
         user, auth_tokens = serializer.user, serializer.validated_data
+        if user is None:
+            raise AuthenticationFailed("Invalid user")
         request.auth_tokens = JWTAuthTokens(**auth_tokens)
         return user
 
@@ -292,7 +297,6 @@ class JWTAuth(Auth):
         _logger.error("[Authentication] All external services failed. Review defined hooks or remove them")
         return False
 
-
     @staticmethod
     def check_credentials_locally(username, password):
         hashed_password = hashlib.sha256(password.encode("utf-8")).hexdigest()
@@ -305,40 +309,34 @@ class JWTAuth(Auth):
         Generate a system JWT token for internal API calls.
         @returns: str: The generated access token
         """
-        system_user, created = User.objects.get_or_create(username="system",
-                                                          defaults={"username": "system",
-                                                                    "firstname": "System",
-                                                                    "lastname": "SYSTEM",
-                                                                    "email": "system.dj@aphp.fr"
-                                                                    })
+        system_user, created = User.objects.get_or_create(
+            username="system", defaults={"username": "system", "firstname": "System", "lastname": "SYSTEM", "email": "system.dj@aphp.fr"}
+        )
         if created:
             p = Profile.objects.create(user_id=system_user.username, is_active=True)
             root_perimeter = Perimeter.objects.get(pk=settings.ROOT_PERIMETER_ID)
             admin_role = Role.objects.filter(right_full_admin=True).first()
             now = timezone.now()
-            Access.objects.create(profile=p,
-                                  perimeter=root_perimeter,
-                                  role=admin_role,
-                                  start_datetime=now,
-                                  end_datetime=now + timedelta(weeks=52 * 100)  # grant access forever
-                                  )
+            Access.objects.create(
+                profile=p,
+                perimeter=root_perimeter,
+                role=admin_role,
+                start_datetime=now,
+                end_datetime=now + timedelta(weeks=52 * 100),  # grant access forever
+            )
             _logger.info(f"System user created and granted `{admin_role.name}` role on perimeter `{root_perimeter.name}`")
         try:
             serializer = TokenObtainPairSerializer()
             token = serializer.get_token(system_user)
-            return str(token.access_token)
+            return str(token.access_token)  # type: ignore[attr-defined]
         except Exception as e:
             _logger_err.error(f"Failed to generate system token: {e}")
             raise ServerError(f"Error generating system token: {e}")
 
 
 class AuthService:
-    authenticators = {settings.JWT_AUTH_MODE: JWTAuth(),
-                      **({settings.OIDC_AUTH_MODE: OIDCAuth()} if settings.ENABLE_OIDC_AUTH else {})
-                      }
-    applicative_users = {env("ROLLOUT_TOKEN", default=""): env("ROLLOUT_USERNAME", default="ROLLOUT_PIPELINE"),
-                         **extra_applicative_users
-                         }
+    authenticators = {settings.JWT_AUTH_MODE: JWTAuth(), **({settings.OIDC_AUTH_MODE: OIDCAuth()} if settings.ENABLE_OIDC_AUTH else {})}
+    applicative_users = {env("ROLLOUT_TOKEN", default=""): env("ROLLOUT_USERNAME", default="ROLLOUT_PIPELINE"), **extra_applicative_users}
 
     def __init__(self):
         self.post_auth_hooks: List[Callable[[User, Dict[str, str]], Optional[User]]] = self.load_post_auth_hooks()
@@ -356,7 +354,7 @@ class AuthService:
                     _logger.warning(f"Improperly configured post authentication hook `{hook_path}`")
         return post_auth_hooks
 
-    def _get_authenticator(self, auth_method: str):
+    def _get_authenticator(self, auth_method: str) -> Any:
         try:
             return self.authenticators[auth_method]
         except KeyError as ke:
@@ -365,8 +363,12 @@ class AuthService:
 
     def refresh_token(self, request) -> Optional[AuthTokens]:
         _, auth_method = self.get_token_from_headers(request)
+        if auth_method is None:
+            return None
         authenticator = self._get_authenticator(auth_method)
-        token = request.data.get('refresh_token')
+        token = request.data.get("refresh_token")
+        if not isinstance(token, str):
+            return None
         return authenticator.refresh_token(token=token)
 
     def login(self, request, auth_method: str) -> User:
@@ -375,8 +377,10 @@ class AuthService:
 
     def logout(self, request):
         access_token, auth_method = self.get_token_from_headers(request)
+        if auth_method is None:
+            return
         authenticator = self._get_authenticator(auth_method)
-        authenticator.logout(request.data, access_token)
+        authenticator.logout(request.data, access_token or "")
 
     def authenticate_request(self, token: str, auth_method: str, headers: Dict[str, str]) -> Optional[Tuple[User, str]]:
         if token is None:
@@ -384,6 +388,8 @@ class AuthService:
         try:
             authenticator = self._get_authenticator(auth_method)
             username = authenticator.authenticate(token=token)
+            if username is None:
+                return None
             user = User.objects.get(username=username)
             for post_auth_hook in self.post_auth_hooks:
                 user = post_auth_hook(user, headers)
@@ -394,9 +400,11 @@ class AuthService:
 
     def authenticate_http_request(self, request) -> Optional[Tuple[User, str]]:
         token, auth_method = self.get_token_from_headers(request)
-        if token in self.applicative_users:
+        if token is not None and token in self.applicative_users:
             applicative_user = User.objects.get(username=self.applicative_users[token])
             return applicative_user, token
+        if token is None or auth_method is None:
+            return None
         return self.authenticate_request(token=token, auth_method=auth_method, headers=request.headers)
 
     def authenticate_ws_request(self, token: str, auth_method: str, headers: Dict[str, str]) -> Optional[User]:
@@ -404,9 +412,10 @@ class AuthService:
         if res is not None:
             return res[0]
         _logger.info("Error authenticating WS request")
+        return None
 
     def get_token_from_headers(self, request) -> Tuple[Optional[str], Optional[str]]:
-        authorization = request.META.get('HTTP_AUTHORIZATION')
+        authorization = request.META.get("HTTP_AUTHORIZATION")
         authorization_method = request.META.get(f"HTTP_{settings.AUTHORIZATION_METHOD_HEADER}")
         if isinstance(authorization, str):
             authorization = authorization.encode(HTTP_HEADER_ENCODING)
@@ -420,12 +429,11 @@ class AuthService:
         if not parts:
             return None
         if len(parts) != 2:
-            raise AuthenticationFailed(code='bad_authorization_header',
-                                       detail='Authorization header must contain two space-delimited values')
+            raise AuthenticationFailed(code="bad_authorization_header", detail="Authorization header must contain two space-delimited values")
         if parts[0] != "Bearer".encode(HTTP_HEADER_ENCODING):
             return None
         res = parts[1]
-        token = res if not isinstance(res, bytes) else res.decode('utf-8')
+        token = res if not isinstance(res, bytes) else res.decode("utf-8")
         return token
 
 

@@ -7,7 +7,7 @@ from admin_cohort.tests.tests_tools import ViewSetTests, ListCase, new_user_and_
 
 class RightsViewTests(ViewSetTests):
     objects_url = "/rights/"
-    list_view = RightsViewSet.as_view({'get': 'list'})
+    list_view = RightsViewSet.as_view({"get": "list"})
     model = Right
     model_objects = Right.objects
 
@@ -20,19 +20,13 @@ class RightsViewTests(ViewSetTests):
         self.model_objects.all().delete()
         rights = []
         for i in range(10):
-            rights.append(self.model_objects.create(name=f'right_{i}',
-                                                    label=f'right_label_{i}',
-                                                    category=f'category_{i%2}'))
+            rights.append(self.model_objects.create(name=f"right_{i}", label=f"right_label_{i}", category=f"category_{i % 2}"))
         return rights
 
     def test_list_rights(self):
         right_categories_to_find = [
-            {'name': 'category_0', 'rights': [r for r in self.rights if r.name.endswith('0')]},
-            {'name': 'category_1', 'rights': [r for r in self.rights if r.name.endswith('1')]}
+            {"name": "category_0", "rights": [r for r in self.rights if r.name.endswith("0")]},
+            {"name": "category_1", "rights": [r for r in self.rights if r.name.endswith("1")]},
         ]
-        case = ListCase(to_find=right_categories_to_find,
-                        user=self.user,
-                        status=status.HTTP_200_OK,
-                        success=True)
+        case = ListCase(to_find=right_categories_to_find, user=self.user, status=status.HTTP_200_OK, success=True)
         self.check_list_case(case=case)
-

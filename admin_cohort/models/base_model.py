@@ -12,10 +12,10 @@ class UndeletableModelManager(models.Manager):
         return usual_all.filter(delete_datetime__isnull=True)
 
     def filter(self, *args, **kwargs):
-        return self.all(even_deleted=kwargs.get('even_deleted', False)).filter(*args, **kwargs)
+        return self.all(even_deleted=kwargs.get("even_deleted", False)).filter(*args, **kwargs)
 
     def get(self, *args, **kwargs):
-        return self.all(even_deleted=kwargs.get('even_deleted', False)).get(*args, **kwargs)
+        return self.all(even_deleted=kwargs.get("even_deleted", False)).get(*args, **kwargs)
 
 
 class BaseModel(models.Model):

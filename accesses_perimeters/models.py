@@ -12,7 +12,6 @@ _logger = logging.getLogger("django.request")
 
 
 class ModelManager(models.Manager):
-
     def get_queryset(self):
         if DB_ALIAS not in settings.DATABASES:
             _logger.error(f"`{DB_ALIAS}` is missing from settings.DATABASES")
@@ -30,7 +29,7 @@ class ConceptFhir(models.Model):
     class Meta:
         app_label = APP_LABEL
         managed = False
-        db_table = 'concept_fhir'
+        db_table = "concept_fhir"
 
 
 class CareSite(models.Model):
@@ -48,7 +47,7 @@ class CareSite(models.Model):
     class Meta:
         app_label = APP_LABEL
         managed = False
-        db_table = 'care_site'
+        db_table = "care_site"
 
     @staticmethod
     def sql_get_deleted_care_sites() -> str:
@@ -68,39 +67,30 @@ class ListCohort(models.Model):
     id = models.BigIntegerField(null=True)
     status = models.TextField(blank=True, null=True)
     _sourcereferenceid = models.BigIntegerField(null=True)
-    source_reference = models.TextField(
-        blank=True, null=True, db_column="source__reference"
-    )
-    source_type = models.TextField(
-        blank=True, null=True, db_column="source__type"
-    )
+    source_reference = models.TextField(blank=True, null=True, db_column="source__reference")
+    source_type = models.TextField(blank=True, null=True, db_column="source__type")
     mode = models.TextField(blank=True, null=True)
     title = models.TextField(blank=True, null=True)
-    subject_type = models.TextField(
-        blank=True, null=True, db_column="subject__type"
-    )
+    subject_type = models.TextField(blank=True, null=True, db_column="subject__type")
     date = models.DateTimeField(null=True)
-    note_query_text = models.TextField(
-        blank=True, null=True, db_column="note___query__text"
-    )
+    note_query_text = models.TextField(blank=True, null=True, db_column="note___query__text")
     objects = ModelManager()
 
     class Meta:
         app_label = APP_LABEL
         managed = False
-        db_table = 'list'
-
+        db_table = "list"
 
     @classmethod
     def get_practitioner_patient_lists_since(cls, since_dt: str):
-        sql = f"""
-                  SELECT *
-                  FROM omop.list
-                  WHERE source__type = 'Practitioner'
-                    AND subject__type = 'Patient'
-                    AND insert_datetime >= '{since_dt}';
-                  """
-        return ListCohort.objects.raw(sql)
+        sql = """
+            SELECT *
+            FROM omop.list
+            WHERE source__type = 'Practitioner'
+              AND subject__type = 'Patient'
+              AND insert_datetime >= %s
+        """
+        return ListCohort.objects.raw(sql, [since_dt])
 
 
 class CareSiteMapperMep(models.Model):

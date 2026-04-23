@@ -13,22 +13,20 @@ from cohort.services.request_refresh_schedule import requests_refresher_service
 from cohort.services.utils import await_celery_task
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
-_logger = logging.getLogger('info')
-_logger_err = logging.getLogger('django.request')
+_logger = logging.getLogger("info")
+_logger_err = logging.getLogger("django.request")
 
 
 @extend_schema_view(
     list=extend_schema(exclude=True),
-    create=extend_schema(request=DatedMeasureCreateSerializer,
-                         responses={status.HTTP_201_CREATED: DatedMeasureSerializer}),
-    partial_update=extend_schema(request=DatedMeasurePatchSerializer,
-                                 responses={status.HTTP_200_OK: DatedMeasureSerializer})
+    create=extend_schema(request=DatedMeasureCreateSerializer, responses={status.HTTP_201_CREATED: DatedMeasureSerializer}),
+    partial_update=extend_schema(request=DatedMeasurePatchSerializer, responses={status.HTTP_200_OK: DatedMeasureSerializer}),
 )
 class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     queryset = DatedMeasure.objects.all()
     serializer_class = DatedMeasureSerializer
-    http_method_names = ['get', 'post', 'patch']
-    swagger_tags = ['Dated Measures']
+    http_method_names = ["get", "post", "patch"]
+    swagger_tags = ["Dated Measures"]
 
     def get_permissions(self):
         special_permissions = dm_service.get_special_permissions(self.request)
@@ -44,8 +42,7 @@ class DatedMeasureViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
-        transaction.on_commit(lambda: dm_service.handle_count(request=request,
-                                                              dm=response.data.serializer.instance))
+        transaction.on_commit(lambda: dm_service.handle_count(request=request, dm=response.data.serializer.instance))
         return response
 
     @await_celery_task

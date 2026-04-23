@@ -15,28 +15,29 @@ class DatedMeasureService(CommonService):
         stage_details = request.data.get("stageDetails", None)
         cancel_previous_count_jobs.s(dm_id=dm.uuid, cohort_counter_cls=self.operator_cls).apply_async()
         try:
-            count_cohort.s(dm_id=dm.uuid,
-                           json_query=dm.request_query_snapshot.serialized_query,
-                           auth_headers=get_authorization_header(request),
-                           cohort_counter_cls=self.operator_cls,
-                           stage_details=stage_details
-                           ) \
-                .apply_async()
+            count_cohort.s(
+                dm_id=dm.uuid,
+                json_query=dm.request_query_snapshot.serialized_query,
+                auth_headers=get_authorization_header(request),
+                cohort_counter_cls=self.operator_cls,
+                stage_details=stage_details,
+            ).apply_async()
         except Exception as e:
             dm.delete()
             raise ServerError("Could not launch count request") from e
 
     def handle_global_count(self, cohort: CohortResult, request) -> None:
-        dm_global = DatedMeasure.objects.create(mode=GLOBAL_DM_MODE,
-                                                owner=request.user,
-                                                request_query_snapshot_id=request.data.get("request_query_snapshot"))
+        dm_global = DatedMeasure.objects.create(
+            mode=GLOBAL_DM_MODE, owner=request.user, request_query_snapshot_id=request.data.get("request_query_snapshot")
+        )
         try:
-            count_cohort.s(dm_id=dm_global.uuid,
-                           json_query=dm_global.request_query_snapshot.serialized_query,
-                           auth_headers=get_authorization_header(request),
-                           cohort_counter_cls=self.operator_cls,
-                           global_estimate=True) \
-                .apply_async()
+            count_cohort.s(
+                dm_id=dm_global.uuid,
+                json_query=dm_global.request_query_snapshot.serialized_query,
+                auth_headers=get_authorization_header(request),
+                cohort_counter_cls=self.operator_cls,
+                global_estimate=True,
+            ).apply_async()
         except Exception as e:
             raise ServerError("Could not launch count request") from e
         cohort.dated_measure_global = dm_global
@@ -55,16 +56,22 @@ class DatedMeasureService(CommonService):
     def ws_send_to_client(dm: DatedMeasure) -> None:
         dm.refresh_from_db()
         if not dm.is_global:
-            WebsocketManager.send_to_client(str(dm.owner_id), WSJobStatus(type=WebSocketMessageType.JOB_STATUS,
-                                                                          status=dm.request_job_status,
-                                                                          uuid=str(dm.uuid),
-                                                                          job_name=JobName.COUNT,
-                                                                          extra_info={"request_job_status": dm.request_job_status,
-                                                                                      "request_job_fail_msg": dm.request_job_fail_msg,
-                                                                                      "measure": dm.measure,
-                                                                                      "snapshot_id": str(dm.request_query_snapshot.uuid),
-                                                                                      "extra": dm.extra
-                                                                                      }))
+            WebsocketManager.send_to_client(
+                str(dm.owner_id),
+                WSJobStatus(
+                    type=WebSocketMessageType.JOB_STATUS,
+                    status=dm.request_job_status,
+                    uuid=str(dm.uuid),
+                    job_name=JobName.COUNT,
+                    extra_info={
+                        "request_job_status": dm.request_job_status,
+                        "request_job_fail_msg": dm.request_job_fail_msg,
+                        "measure": dm.measure,
+                        "snapshot_id": str(dm.request_query_snapshot.uuid),
+                        "extra": dm.extra,
+                    },
+                ),
+            )
 
 
 dm_service = DatedMeasureService()

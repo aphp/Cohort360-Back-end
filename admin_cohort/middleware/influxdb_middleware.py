@@ -19,16 +19,13 @@ class InfluxDBMiddleware:
             response = self.get_response(request)
         finally:
             end_time = time()
-            tags = {'method': request.method,
-                    'path': request.path_info,
-                    'env': not settings.DEBUG and 'prod' or 'dev_qua',
-                    }
-            fields = {'response_time': (end_time - start_time) * 10 ** 3}
-            point = {'measurement': 'django_requests',
-                     'tags': tags,
-                     'fields': fields,
-                     'time': int(end_time * 10 ** 9)
-                     }
+            tags = {
+                "method": request.method,
+                "path": request.path_info,
+                "env": not settings.DEBUG and "prod" or "dev_qua",
+            }
+            fields = {"response_time": (end_time - start_time) * 10**3}
+            point = {"measurement": "django_requests", "tags": tags, "fields": fields, "time": int(end_time * 10**9)}
             write_api = self.client.write_api(write_options=ASYNCHRONOUS)
             write_api.write(settings.INFLUXDB_BUCKET, settings.INFLUXDB_ORG, point)
         return response

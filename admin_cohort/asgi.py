@@ -9,13 +9,11 @@ from django.conf import settings
 
 WEBSOCKET_MANAGER = settings.WEBSOCKET_MANAGER
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'admin_cohort.settings')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "admin_cohort.settings")
 
 asgi_application = get_asgi_application()
 
 ws_manager_module = import_module(WEBSOCKET_MANAGER["module"])
 WebsocketManager = getattr(ws_manager_module, WEBSOCKET_MANAGER["manager_class"])
 
-application = ProtocolTypeRouter({
-    "websocket": URLRouter([re_path(r'ws', WebsocketManager.as_asgi())])
-})
+application = ProtocolTypeRouter({"websocket": URLRouter([re_path(r"ws", WebsocketManager.as_asgi())])})

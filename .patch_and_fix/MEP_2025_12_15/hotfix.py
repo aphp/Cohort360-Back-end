@@ -172,26 +172,29 @@ def _get_practitioner_patient_lists_since(since_dt: str, specify_user: Optional[
     - non empty
     Optionally filters by `_sourcereferenceid` when `specify_user` is provided.
     """
-    default_where = f" AND _sourcereferenceid = '{specify_user}'" if specify_user else ""
-    _debug(f"default_where is: {default_where})")
     db_alias = AccessesPerimetersConfig.DB_ALIAS
+    _debug("specify_user is set" if specify_user else "specify_user is not set")
 
-    sql = f"""
-              SELECT *
-              FROM omop.list
-              WHERE source__type = 'Practitioner'
-                AND subject__type = 'Patient'
-                AND insert_datetime >= '{since_dt}'
-                AND delete_datetime IS NULL
-                AND _size > 0 {default_where};
-              """
-    return ListCohort.objects.using(db_alias).raw(sql)
+    sql = """
+        SELECT *
+        FROM omop.list
+        WHERE source__type = 'Practitioner'
+          AND subject__type = 'Patient'
+          AND insert_datetime >= %s
+          AND delete_datetime IS NULL
+          AND _size > 0
+    """
+    params: List[object] = [since_dt]
+    if specify_user:
+        sql += " AND _sourcereferenceid = %s"
+        params.append(specify_user)
+    return ListCohort.objects.using(db_alias).raw(sql, params)
 
 
 def map_perimeters_ids_to_new_prod_ids(
-        mapping: Dict[int, int],
-        perimeters_ids: List[str],
-        owner: Optional[str] = None,
+    mapping: Dict[int, int],
+    perimeters_ids: List[str],
+    owner: Optional[str] = None,
 ) -> Optional[List[str]]:
     """
     Map OMOP/old perimeter ids to the new prod ids using `mapping`.
@@ -262,38 +265,23 @@ def patch_cohorts(date_input_limit: str, specify_user: Optional[str] = None) -> 
 
         _debug(f"cohort_date={cohort_date!r}")
         _debug(f"cohort_group_id={cohort_group_id!r}")
-        _debug(
-            f"cohort_json_query: type={type(cohort_json_query).__name__}, "
-            f"length={len(cohort_json_query) if cohort_json_query else 0}"
-        )
+        _debug(f"cohort_json_query: type={type(cohort_json_query).__name__}, length={len(cohort_json_query) if cohort_json_query else 0}")
 
         cohort_user = _get_owner_from_user_aph_id(user_aph_id=user_aph_id)
-        _debug(
-            f"Resolved owner user: id={getattr(cohort_user, 'pk', None)!r}, "
-            f"username={getattr(cohort_user, 'username', None)!r}"
-        )
+        _debug(f"Resolved owner user: id={getattr(cohort_user, 'pk', None)!r}, username={getattr(cohort_user, 'username', None)!r}")
 
         cohort_name = f"Cohorte du {cohort_date}"
         cohort_description = f"Cohorte de récupération de l'utilisateur: {cohort_user}, créée le {cohort_date}"
         cohort_size = list_cohort._size
 
         _debug(
-            f"cohort_name={cohort_name!r}"
-            f"\ncohort_description={cohort_description!r}"
-            f"\ncohort_size={cohort_size!r}",
+            f"cohort_name={cohort_name!r}\ncohort_description={cohort_description!r}\ncohort_size={cohort_size!r}",
             user_aph_id,
         )
 
-        existing = (
-            CohortResult.objects.filter(group_id=str(cohort_group_id))
-            .order_by("-pk")
-            .first()
-        )
+        existing = CohortResult.objects.filter(group_id=str(cohort_group_id)).order_by("-pk").first()
         if existing:
-            error_list.append(
-                f"cohort_group_id: {cohort_group_id} is already created : "
-                f"{existing.name} - {existing.owner} - {existing.created_at}"
-            )
+            error_list.append(f"cohort_group_id: {cohort_group_id} is already created : {existing.name} - {existing.owner} - {existing.created_at}")
             _debug(
                 "go to next CR... CohortResult already exists for this group_id -> "
                 "\nskipping creation steps in transaction.atomic(): "
@@ -339,8 +327,7 @@ def patch_cohorts(date_input_limit: str, specify_user: Optional[str] = None) -> 
 
             perimeters_len = len(perimeters_ids)
             _debug(
-                f"perimeters_ids computed: type={type(perimeters_ids).__name__}, "
-                f"len={perimeters_len}, value={perimeters_ids!r}",
+                f"perimeters_ids computed: type={type(perimeters_ids).__name__}, len={perimeters_len}, value={perimeters_ids!r}",
                 user_aph_id,
             )
 
@@ -371,8 +358,7 @@ def patch_cohorts(date_input_limit: str, specify_user: Optional[str] = None) -> 
                 description=f"Request issue de la cohorte ({cohort_name})",
             )
             _debug(
-                f"Request created: pk={getattr(req, 'pk', None)!r}, uuid={getattr(req, 'uuid', None)!r}, "
-                f"name={getattr(req, 'name', None)!r}",
+                f"Request created: pk={getattr(req, 'pk', None)!r}, uuid={getattr(req, 'uuid', None)!r}, name={getattr(req, 'name', None)!r}",
                 user_aph_id,
             )
 
@@ -402,8 +388,7 @@ def patch_cohorts(date_input_limit: str, specify_user: Optional[str] = None) -> 
                 request_job_status=JobStatus.finished,
             )
             _debug(
-                f"DatedMeasure created: pk={getattr(dm, 'pk', None)!r}, uuid={getattr(dm, 'uuid', None)!r}, "
-                f"measure={getattr(dm, 'measure', None)!r}",
+                f"DatedMeasure created: pk={getattr(dm, 'pk', None)!r}, uuid={getattr(dm, 'uuid', None)!r}, measure={getattr(dm, 'measure', None)!r}",
                 user_aph_id,
             )
 
@@ -431,6 +416,7 @@ def patch_cohorts(date_input_limit: str, specify_user: Optional[str] = None) -> 
 
 # Command to run
 # patch_cohorts("2025-07-21")  # Date from last MEP with switch prod a / prod b
+
 
 # PATCH PERIMETERS IN REQUESTQUERYSNAPSHOT
 def _remap_perimeters_in_json_query(request_query_snapshot: RequestQuerySnapshot, owner: Optional[str] = None):
@@ -491,13 +477,9 @@ def _remap_perimeters_in_json_query(request_query_snapshot: RequestQuerySnapshot
 
 
 def patch_request_source_population(user_aph: str = None) -> None:
-    _debug(
-        f"START patch_request_source_population Single User Mode {user_aph}" if user_aph else "START patch_request_source_population"
-    )
+    _debug(f"START patch_request_source_population Single User Mode {user_aph}" if user_aph else "START patch_request_source_population")
     all_request_to_patch = (
-        RequestQuerySnapshot.objects.filter(name__contains="Cohorte du 2025")
-        .filter(owner_id=user_aph)
-        .all()
+        RequestQuerySnapshot.objects.filter(name__contains="Cohorte du 2025").filter(owner_id=user_aph).all()
         if user_aph
         else RequestQuerySnapshot.objects.filter(name__contains="Cohorte du 2025").all()
     )
@@ -505,10 +487,7 @@ def patch_request_source_population(user_aph: str = None) -> None:
     _debug(f"RequestQuerySnapshot to patch: count={total}")
     skipped_reasons = Counter()
     for idx, rqs in enumerate(all_request_to_patch, start=1):
-        _debug(
-            f"[{idx}/{total}] Patching RequestQuerySnapshot pk={getattr(rqs, 'pk', None)!r}, "
-            f"\nname={getattr(rqs, 'name', None)!r}"
-        )
+        _debug(f"[{idx}/{total}] Patching RequestQuerySnapshot pk={getattr(rqs, 'pk', None)!r}, \nname={getattr(rqs, 'name', None)!r}")
         json_query = rqs.serialized_query
         if not json_query:
             _debug(f"WARN serialized_query is empty -> skipping request {rqs.pk}", rqs.owner)
@@ -542,5 +521,6 @@ def patch_request_source_population(user_aph: str = None) -> None:
         f"\n  * json_unchanged={skipped_reasons.get('json_unchanged', 0)}"
         f"\n- total={total}"
     )
+
 
 # patch_request_source_population()
