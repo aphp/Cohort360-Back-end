@@ -7,7 +7,6 @@ from cohort.permissions import IsOwnerPermission
 
 
 class DefaultCohortOperator:
-
     def __init__(self):
         self.applicative_users = []
 
@@ -17,7 +16,6 @@ class DefaultCohortOperator:
 
 
 class DefaultCohortCounter(DefaultCohortOperator):
-
     @staticmethod
     def launch_dated_measure_count(*args, **kwargs) -> None:
         """
@@ -76,7 +74,6 @@ class DefaultCohortCounter(DefaultCohortOperator):
 
 
 class DefaultCohortCreator(DefaultCohortOperator):
-
     @staticmethod
     def launch_cohort_creation(*args, **kwargs) -> None:
         """

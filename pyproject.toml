@@ -8,6 +8,7 @@ description = """Supports the official **Cohort360** web app and **Portail**
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "asgiref>=3.8",
     "channels-redis>=4.2.1",
     "channels>=4.2.0",
     "coverage>=7.6.9",
@@ -34,6 +35,9 @@ dependencies = [
     "psycopg[binary]>=3.2.3",
     "pydantic>=2.10.3",
     "pyjwt>=2.10.1",
+    "pytz",
+    "pyyaml>=6.0.1",
+    "python-dateutil>=2.8.2",
     "pytest>=8.3.4",
     "python-json-logger==3.2.0",
     "redis>=5.2.1",
@@ -41,6 +45,15 @@ dependencies = [
     "requests>=2.32.3",
     "celery>=5.4.0",
     "djangorestframework-simplejwt>=5.4.0",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.11",
+    "django-stubs>=5.0.4",
+    "djangorestframework-stubs>=3.15.0",
+    "types-pytz",
+    "types-PyYAML",
 ]
 
 [tool.ruff]
@@ -80,3 +93,71 @@ exclude = [
 
 [tool.safety]
 # pass
+
+# mypy: exclut tests/migrations (sinon bruit massif) ; plugin django-stubs (CI: .env + DJANGO_SETTINGS_MODULE).
+[tool.mypy]
+python_version = "3.13"
+plugins = ["mypy_django_plugin.main"]
+show_error_codes = true
+namespace_packages = true
+exclude = [
+    '(^|/)migrations(/|$)',
+    '(^|/)tests(/|$)',
+    '^conftest\\.py$',
+]
+disable_error_code = ["import-untyped"]
+no_implicit_optional = false
+
+# Scripts one-off (patch) : bruit inutile.
+[[tool.mypy.overrides]]
+module = "cohort.scripts.*"
+ignore_errors = true
+
+# DRF DefaultRouter() + register() : stubs DRF incompatibles (None vs chaînage).
+[[tool.mypy.overrides]]
+module = ["accesses.urls", "cohort.urls"]
+disable_error_code = ["func-returns-value", "attr-defined", "unreachable"]
+
+[tool.django-stubs]
+django_settings_module = "admin_cohort.settings"
+
+# deptry: voir package_module_name_map. DEP002 ignoré par paquet (pas globalement) : django/ASGI/outils sans import top-level.
+[tool.deptry]
+extend_exclude = ["^\\.conf/", "^\\.local/", "^\\.patch_and_fix/"]
+
+[tool.deptry.per_rule_ignores]
+DEP002 = [
+    "channels-redis",
+    "coverage",
+    "daphne",
+    "django-cors-headers",
+    "django-extensions",
+    "django-redis",
+    "django-websocket-redis",
+    "kerberos",
+    "krb5",
+    "psycopg",
+    "redis",
+    "requests-kerberos",
+]
+
+[tool.deptry.package_module_name_map]
+djangorestframework = "rest_framework"
+"django-environ" = "environ"
+"django-filter" = "django_filters"
+"django-cors-headers" = "corsheaders"
+"drf-api-tracking" = "rest_framework_tracking"
+"drf-extensions" = "rest_framework_extensions"
+"drf-spectacular" = "drf_spectacular"
+"djangorestframework-simplejwt" = "rest_framework_simplejwt"
+"python-json-logger" = "pythonjsonlogger"
+"django-safedelete" = "safedelete"
+pyyaml = "yaml"
+"python-dateutil" = "dateutil"
+pyjwt = "jwt"
+"influxdb-client" = "influxdb_client"
+"requests-kerberos" = "requests_kerberos"
+
+[tool.bandit]
+exclude_dirs = [".venv", "tests", "migrations", ".tox", ".local", ".patch_and_fix"]
+skips = ["B101", "B104", "B608"]

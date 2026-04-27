@@ -31,24 +31,26 @@ def create_virtual_cohort_query(perimeter_id: str) -> str:
                         "filterFhir": f"service-provider={perimeter_id}",
                         "isInclusive": True,
                         "resourceType": "Encounter",
-                        "temporalConstraints": []
+                        "temporalConstraints": [],
                     }
                 ],
                 "dateRangeList": [],
                 "isInclusive": True,
-                "temporalConstraints": []
+                "temporalConstraints": [],
             },
             "sourcePopulation": {},
-            "temporalConstraints": []
-        })
+            "temporalConstraints": [],
+        }
+    )
 
 
 @shared_task
 def create_virtual_cohort(perimeter_id: str, children_level_ids: List[str], existing_cohort_id: int = None):
-    CohortCreator().launch_cohort_creation(cohort_id=None,
-                                           json_query=create_virtual_cohort_query(",".join([perimeter_id] + children_level_ids)),
-                                           auth_headers={},
-                                           callback_path=f"/fhir-perimeters/{perimeter_id}/",
-                                           owner_username=ADMIN_USERNAME,
-                                           existing_cohort_id=existing_cohort_id
-                                           )
+    CohortCreator().launch_cohort_creation(
+        cohort_id=None,
+        json_query=create_virtual_cohort_query(",".join([perimeter_id] + children_level_ids)),
+        auth_headers={},
+        callback_path=f"/fhir-perimeters/{perimeter_id}/",
+        owner_username=ADMIN_USERNAME,
+        existing_cohort_id=existing_cohort_id,
+    )

@@ -12,7 +12,7 @@ from rest_framework.request import Request
 from cohort.models import FeasibilityStudy
 
 
-_logger = logging.getLogger('django.request')
+_logger = logging.getLogger("django.request")
 
 
 class ServerError(Exception):
@@ -32,12 +32,13 @@ def await_celery_task(func):
             sleep(0.5)
             lock = retrieve_lock(lock_id=dm_id)
         return func(request, *args, **kwargs)
+
     return wrapper
 
 
 def locked_instance_task(task):
     def acquire_lock(lock_id: str):
-        return cache.add(lock_id, lock_id, 5*60)
+        return cache.add(lock_id, lock_id, 5 * 60)
 
     def release_lock(lock_id: str):
         cache.delete(lock_id)
@@ -51,6 +52,7 @@ def locked_instance_task(task):
                 task(*args, **kwargs)
             finally:
                 release_lock(instance_id)
+
     return wrapper
 
 
@@ -66,13 +68,14 @@ def send_email_notification(notification: Callable, **kwargs) -> None:
 
 
 def get_authorization_header(request: Request) -> dict:
-    headers = {"Authorization": request.META.get('HTTP_AUTHORIZATION'),
-               settings.AUTHORIZATION_METHOD_HEADER: request.META.get(f"HTTP_{settings.AUTHORIZATION_METHOD_HEADER}")
-               }
+    headers = {
+        "Authorization": request.META.get("HTTP_AUTHORIZATION"),
+        settings.AUTHORIZATION_METHOD_HEADER: request.META.get(f"HTTP_{settings.AUTHORIZATION_METHOD_HEADER}"),
+    }
     return headers
 
 
 class RefreshFrequency(StrEnum):
-    DAILY = 'daily'
-    EVERY_OTHER_DAY = 'every_other_day'
-    WEEKLY = 'weekly'
+    DAILY = "daily"
+    EVERY_OTHER_DAY = "every_other_day"
+    WEEKLY = "weekly"

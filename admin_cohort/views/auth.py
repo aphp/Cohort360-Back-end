@@ -14,6 +14,7 @@ from admin_cohort.services.auth import auth_service
 from admin_cohort.tools.request_log_mixin import RequestLogMixin
 from admin_cohort.exceptions import ServerError
 
+
 class LoginView(RequestLogMixin, viewsets.GenericViewSet):
     authentication_classes = []
     permission_classes = []
@@ -21,11 +22,13 @@ class LoginView(RequestLogMixin, viewsets.GenericViewSet):
     logging_methods = ["POST"]
     swagger_tags = [".Authentication - Login"]
 
-    @extend_schema(tags=swagger_tags,
-                   summary="Login with username and password",
-                   description="Authenticate user and return an access token.",
-                   request=LoginFormSerializer,
-                   responses={200: LoginSerializer})
+    @extend_schema(
+        tags=swagger_tags,
+        summary="Login with username and password",
+        description="Authenticate user and return an access token.",
+        request=LoginFormSerializer,
+        responses={200: LoginSerializer},
+    )
     def post(self, request, *args, **kwargs):
         auth_method = request.META.get(f"HTTP_{settings.AUTHORIZATION_METHOD_HEADER}")
         try:
@@ -33,10 +36,14 @@ class LoginView(RequestLogMixin, viewsets.GenericViewSet):
         except (AuthenticationFailed, User.DoesNotExist, ServerError) as e:
             return JsonResponse(data={"error": str(e)}, status=status.HTTP_401_UNAUTHORIZED)
         login(request=request, user=user)
-        login_serializer = LoginSerializer(data={"user": UserSerializer(user).data,
-                                                 "last_login": user.last_login,
-                                                 "access_token": request.auth_tokens.access_token,
-                                                 "refresh_token": request.auth_tokens.refresh_token})
+        login_serializer = LoginSerializer(
+            data={
+                "user": UserSerializer(user).data,
+                "last_login": user.last_login,
+                "access_token": request.auth_tokens.access_token,
+                "refresh_token": request.auth_tokens.refresh_token,
+            }
+        )
         login_serializer.is_valid()
         update_last_login(None, user)
         return JsonResponse(data=login_serializer.data, status=status.HTTP_200_OK)

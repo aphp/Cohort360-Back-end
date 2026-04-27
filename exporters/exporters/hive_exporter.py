@@ -10,11 +10,10 @@ from exports.models import Export, Datalab
 from exporters.exporters.base_exporter import BaseExporter
 from exporters.enums import ExportTypes, APIJobType
 
-_logger = logging.getLogger('django.request')
+_logger = logging.getLogger("django.request")
 
 
 class HiveExporter(BaseExporter):
-
     def __init__(self):
         super().__init__()
         self.type = ExportTypes.HIVE.value
@@ -23,9 +22,7 @@ class HiveExporter(BaseExporter):
 
     def validate(self, export_data: dict, **kwargs) -> None:
         self.validate_tables_data(tables_data=export_data.get("export_tables", []))
-        kwargs["source_cohorts_ids"] = [t.get("cohort_result_source")
-                                        for t in export_data.get("export_tables", [])
-                                        if t.get("cohort_result_source")]
+        kwargs["source_cohorts_ids"] = [t.get("cohort_result_source") for t in export_data.get("export_tables", []) if t.get("cohort_result_source")]
         super().validate(export_data=export_data, **kwargs)
 
     def validate_tables_data(self, tables_data: List[dict]) -> bool:
@@ -33,7 +30,7 @@ class HiveExporter(BaseExporter):
         base_cohort_provided = False
         required_table_provided = False
         for td in tables_data:
-            source_cohort_id = td.get('cohort_result_source')
+            source_cohort_id = td.get("cohort_result_source")
 
             if td.get("table_name", "") == required_table:
                 required_table_provided = True
@@ -47,8 +44,7 @@ class HiveExporter(BaseExporter):
                     raise ValueError(f"Cohort `{source_cohort_id}` not found or did not finish successfully")
 
         if not required_table_provided and not base_cohort_provided:
-            raise ValueError(
-                f"`{required_table}` table was not specified; must then provide source cohort for all tables")
+            raise ValueError(f"`{required_table}` table was not specified; must then provide source cohort for all tables")
         return True
 
     def complete_data(self, export_data: dict, owner: User, **kwargs) -> None:
@@ -66,10 +62,7 @@ class HiveExporter(BaseExporter):
             _logger.error(f"Export[{export.pk}] Failed to prepare database: {e}")
             self.mark_export_as_failed(export=export, reason=f"Error while preparing DB for export: {e}")
         else:
-            params = params or {"output": {"type": self.type,
-                                           "databaseName": export.target_name
-                                           }
-                                }
+            params = params or {"output": {"type": self.type, "databaseName": export.target_name}}
             _logger.info(f"Export[{export.pk}] Calling parent handle_export with params: {params}")
             super().handle_export(export=export, params=params)
             _logger.info(f"Export[{export.pk}] Concluding export...")
@@ -94,8 +87,7 @@ class HiveExporter(BaseExporter):
         self.log_export_task(export.pk, f"Creating DB '{export.target_name}', location: {db_location}")
         try:
             _logger.info(f"Export[{export.pk}] create_db: Calling hadoop_api.create_db(name='{export.target_name}')")
-            job_id = self.hadoop_api.create_db(name=export.target_name,
-                                               location=db_location)
+            job_id = self.hadoop_api.create_db(name=export.target_name, location=db_location)
             _logger.info(f"Export[{export.pk}] create_db: Received job_id='{job_id}'")
             self.log_export_task(export.pk, f"Received Hive DB creation job_id: {job_id}")
             _logger.info(f"Export[{export.pk}] create_db: Waiting for job completion...")
@@ -109,8 +101,7 @@ class HiveExporter(BaseExporter):
 
     def change_db_ownership(self, export: Export, db_user: str) -> None:
         try:
-            self.hadoop_api.change_db_ownership(location=self.get_db_location(export=export),
-                                                db_user=db_user)
+            self.hadoop_api.change_db_ownership(location=self.get_db_location(export=export), db_user=db_user)
             self.log_export_task(export.pk, f"`{db_user}` granted rights on DB `{export.target_name}`")
         except RequestException as e:
             raise RequestException(f"Error granting `{db_user}` rights on DB `{export.target_name}` - {e}")

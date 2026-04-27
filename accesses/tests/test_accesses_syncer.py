@@ -13,7 +13,6 @@ MANUAL, ORBIS = settings.ACCESS_SOURCES
 
 
 class AccessesSynchronizerTests(TestCase):
-
     def setUp(self):
         super().setUp()
         self.token = "some-secret-token"
@@ -39,11 +38,9 @@ class AccessesSynchronizerTests(TestCase):
         orbis_profile = Profile.objects.create(user=self.test_user, is_active=True, source=ORBIS)
         role = Role.objects.create(name="Sample Role")
         perimeter = Perimeter.objects.create(id=1, name="P1", local_id="p1")
-        Access.objects.create(profile=orbis_profile,
-                              role=role,
-                              perimeter=perimeter,
-                              start_datetime=timezone.now(),
-                              end_datetime=timezone.now() + timedelta(days=10))
+        Access.objects.create(
+            profile=orbis_profile, role=role, perimeter=perimeter, start_datetime=timezone.now(), end_datetime=timezone.now() + timedelta(days=10)
+        )
 
         mock_practitioner = MagicMock()
         mock_practitioner.active = False
@@ -73,10 +70,9 @@ class AccessesSynchronizerTests(TestCase):
         mock_practitioner_role.code = [MagicMock(coding=[MagicMock(code="0_ASSISTANTDENTAIRE")])]
         mock_practitioner_role.period = MagicMock(start=timezone.now(), end=timezone.now() + timedelta(days=10))
 
-        self.syncer.fhir_client.resources.return_value.\
-            revinclude.return_value.\
-            search.return_value.\
-            fetch_raw.return_value = MagicMock(total=1, entry=[MagicMock(resource=mock_practitioner_role)])
+        self.syncer.fhir_client.resources.return_value.revinclude.return_value.search.return_value.fetch_raw.return_value = MagicMock(
+            total=1, entry=[MagicMock(resource=mock_practitioner_role)]
+        )
         self.syncer.sync_accesses()
         mock_report_notif.assert_called_once()
 

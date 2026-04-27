@@ -10,20 +10,14 @@ LOGGER = logging.getLogger("info")
 
 NEW_VERSION = "v1.4.2"
 
-FILTER_MAPPING = {
-    RESOURCE_DEFAULT: {
-    }
-}
+FILTER_MAPPING = {RESOURCE_DEFAULT: {}}
 
-FILTER_NAME_TO_SKIP = {
-    "DocumentReference": ["empty"]
-}
+FILTER_NAME_TO_SKIP = {"DocumentReference": ["empty"]}
 
 ORBIS_CODESYSTEM = "https://terminology.eds.aphp.fr/aphp-orbis-ccam"
 ATIH_CODEYSTEM = "https://www.atih.sante.fr/plateformes-de-transmission-et-logiciels/logiciels-espace-de-telechargement/id_lot/3550"
 
-code_mapping_cache = {
-}
+code_mapping_cache = {}
 
 
 def find_related_atih(code: str):
@@ -31,7 +25,7 @@ def find_related_atih(code: str):
         return code_mapping_cache[code]
     LOGGER.info(f"Searching for code {code}")
     cursor = connections["omop"].cursor()
-    q = '''
+    q = """
         WITH orbis AS (
             SELECT source_concept_id as orbis_id,source_concept_code as orbis_code 
             FROM omop.concept_fhir 
@@ -48,7 +42,7 @@ def find_related_atih(code: str):
         INNER JOIN atih a
         ON a.atih_id = r.concept_id_2
         WHERE relationship_id = 'Maps to' AND r.delete_datetime IS NULL AND o.orbis_code = %s;
-        '''
+        """
     cursor.execute(q, (ORBIS_CODESYSTEM, ATIH_CODEYSTEM, code))
     res = cursor.fetchone()
     if not res:
@@ -64,19 +58,11 @@ def find_related_atih_codes(codes: str):
     return ",".join([find_related_atih(code) for code in codes.split(",")])
 
 
-FILTER_VALUE_MAPPING = {
-    "Procedure": {
-        "code": {
-            MATCH_ALL_VALUES: find_related_atih_codes
-        }
-    }
-}
+FILTER_VALUE_MAPPING = {"Procedure": {"code": {MATCH_ALL_VALUES: find_related_atih_codes}}}
 
-STATIC_REQUIRED_FILTERS = {
-}
+STATIC_REQUIRED_FILTERS = {}
 
-RESOURCE_NAME_MAPPING = {
-}
+RESOURCE_NAME_MAPPING = {}
 
 updater_v142 = QueryRequestUpdater(
     version_name=NEW_VERSION,
@@ -85,5 +71,5 @@ updater_v142 = QueryRequestUpdater(
     filter_names_to_skip=FILTER_NAME_TO_SKIP,
     filter_values_mapping=FILTER_VALUE_MAPPING,
     static_required_filters=STATIC_REQUIRED_FILTERS,
-    resource_name_mapping=RESOURCE_NAME_MAPPING
+    resource_name_mapping=RESOURCE_NAME_MAPPING,
 )

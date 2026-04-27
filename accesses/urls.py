@@ -4,12 +4,12 @@ from accesses.views import NestedPerimeterViewSet, PerimeterViewSet, AccessViewS
 from admin_cohort.urls import NestedDefaultRouter
 
 router = NestedDefaultRouter()
-router.register(r'rights', RightsViewSet, basename="rights")
-router.register(r'accesses', AccessViewSet, basename="accesses")
-router.register(r'roles', RoleViewSet, basename="roles")
-router.register(r'profiles', ProfileViewSet, basename="profiles")
+router.register(r"rights", RightsViewSet, basename="rights")
+router.register(r"accesses", AccessViewSet, basename="accesses")
+router.register(r"roles", RoleViewSet, basename="roles")
+router.register(r"profiles", ProfileViewSet, basename="profiles")
 
-p_router = router.register(r'perimeters', PerimeterViewSet, basename="perimeters")
-p_router.register('children', NestedPerimeterViewSet, basename="perimeter-children", parents_query_lookups=["parent"])
+p_router = router.register(r"perimeters", PerimeterViewSet, basename="perimeters")
+p_router.register("children", NestedPerimeterViewSet, basename="perimeter-children", parents_query_lookups=["parent"])
 
-urlpatterns = [path('', include(router.urls))]
+urlpatterns = [path("", include(router.urls))]

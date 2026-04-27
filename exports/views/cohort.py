@@ -13,10 +13,9 @@ from exports.views import ExportsBaseViewSet
     list=extend_schema(responses={status.HTTP_200_OK: ExportsCohortResultSerializer(many=True)}),
 )
 class CohortViewSet(ExportsBaseViewSet):
-    queryset = CohortResult.objects.filter(request_job_status=JobStatus.finished,
-                                           is_subset=False)
+    queryset = CohortResult.objects.filter(request_job_status=JobStatus.finished, is_subset=False)
     http_method_names = ["get"]
     permission_classes = [IsOwnerPermission]
     serializer_class = ExportsCohortResultSerializer
     filterset_fields = ("owner_id",)
-    swagger_tags = ['Exports - cohorts']
+    swagger_tags = ["Exports - cohorts"]

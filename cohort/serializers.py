@@ -33,16 +33,8 @@ class FolderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Folder
-        fields = ["uuid",
-                  "name",
-                  "description",
-                  "owner",
-                  "created_at",
-                  "requests_count"
-                  ]
-        read_only_fields = ["uuid",
-                            "created_at"
-                            ]
+        fields = ["uuid", "name", "description", "owner", "created_at", "requests_count"]
+        read_only_fields = ["uuid", "created_at"]
 
     def get_requests_count(self, obj) -> int:
         return obj.requests.count()
@@ -53,19 +45,13 @@ class FolderCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Folder
-        fields = ["name",
-                  "owner",
-                  "description"
-                  ]
+        fields = ["name", "owner", "description"]
 
 
 class FolderPatchSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Folder
-        fields = ["name",
-                  "description"
-                  ]
+        fields = ["name", "description"]
 
 
 class DatedMeasureCreateSerializer(serializers.ModelSerializer):
@@ -74,8 +60,7 @@ class DatedMeasureCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DatedMeasure
-        fields = ["request",
-                  "request_query_snapshot"]
+        fields = ["request", "request_query_snapshot"]
 
 
 class DatedMeasurePatchSerializer(serializers.ModelSerializer):
@@ -87,11 +72,7 @@ class DatedMeasurePatchSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DatedMeasure
-        fields = ["request_job_status",
-                  "group_count",
-                  "message",
-                  "minimum",
-                  "maximum"]
+        fields = ["request_job_status", "group_count", "message", "minimum", "maximum"]
 
     def to_internal_value(self, data):
         if "group_count" in data:
@@ -101,7 +82,7 @@ class DatedMeasurePatchSerializer(serializers.ModelSerializer):
 
 class DatedMeasureSerializer(serializers.ModelSerializer):
     owner = UserPrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
-    request = serializers.UUIDField(read_only=True, required=False, source='request_query_snapshot__request__pk')
+    request = serializers.UUIDField(read_only=True, required=False, source="request_query_snapshot__request__pk")
     request_query_snapshot = PrimaryKeyRelatedFieldWithOwner(queryset=RequestQuerySnapshot.objects.all())
     count_outdated = serializers.BooleanField(read_only=True)
     cohort_limit = serializers.IntegerField(read_only=True)
@@ -109,19 +90,13 @@ class DatedMeasureSerializer(serializers.ModelSerializer):
     class Meta:
         model = DatedMeasure
         fields = "__all__"
-        read_only_fields = ["count_task_id",
-                            "request_job_id",
-                            "mode",
-                            "request"]
+        read_only_fields = ["count_task_id", "request_job_id", "mode", "request"]
 
 
 class SampledCohortResultSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = CohortResult
-        fields = ["uuid",
-                  "name",
-                  "sampling_ratio"]
+        fields = ["uuid", "name", "sampling_ratio"]
 
 
 class SampledCohortResultCreateSerializer(serializers.ModelSerializer):
@@ -132,11 +107,7 @@ class SampledCohortResultCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CohortResult
-        fields = ["name",
-                  "description",
-                  "owner",
-                  "parent_cohort",
-                  "sampling_ratio"]
+        fields = ["name", "description", "owner", "parent_cohort", "sampling_ratio"]
 
 
 class CohortResultSerializer(serializers.ModelSerializer):
@@ -159,34 +130,36 @@ class CohortResultSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CohortResult
-        fields = ["uuid",
-                  "name",
-                  "owner",
-                  "request_query_snapshot",
-                  "dated_measure",
-                  "parent_cohort",
-                  "sampling_ratio",
-                  "sample_cohorts",
-                  "result_size",
-                  "measure_min",
-                  "measure_max",
-                  "group_id",
-                  "request_job_status",
-                  "request_job_fail_msg",
-                  "request_job_duration",
-                  "exportable",
-                  "created_at",
-                  "modified_at",
-                  "description",
-                  "favorite",
-                  "request",
-                  ]
+        fields = [
+            "uuid",
+            "name",
+            "owner",
+            "request_query_snapshot",
+            "dated_measure",
+            "parent_cohort",
+            "sampling_ratio",
+            "sample_cohorts",
+            "result_size",
+            "measure_min",
+            "measure_max",
+            "group_id",
+            "request_job_status",
+            "request_job_fail_msg",
+            "request_job_duration",
+            "exportable",
+            "created_at",
+            "modified_at",
+            "description",
+            "favorite",
+            "request",
+        ]
 
     def get_request(self, obj) -> dict:
-        return {'uuid': obj.request_query_snapshot.request_id,
-                'name': obj.request_query_snapshot.request.name,
-                'description': obj.request_query_snapshot.request.description
-                }
+        return {
+            "uuid": obj.request_query_snapshot.request_id,
+            "name": obj.request_query_snapshot.request.name,
+            "description": obj.request_query_snapshot.request.description,
+        }
 
     def validate_sampling_ratio(self, value):
         if value is not None and not 0 < value < 1:
@@ -197,22 +170,13 @@ class CohortResultSerializer(serializers.ModelSerializer):
         parent_cohort = validated_data.get("parent_cohort")
         if parent_cohort is not None:
             # complete data to create sampled cohort
-            new_dm = DatedMeasure.objects.create(owner=parent_cohort.owner,
-                                                 request_query_snapshot=parent_cohort.request_query_snapshot
-                                                 )
-            validated_data.update({"request_query_snapshot": parent_cohort.request_query_snapshot,
-                                   "dated_measure": new_dm
-                                   })
+            new_dm = DatedMeasure.objects.create(owner=parent_cohort.owner, request_query_snapshot=parent_cohort.request_query_snapshot)
+            validated_data.update({"request_query_snapshot": parent_cohort.request_query_snapshot, "dated_measure": new_dm})
         return super().create(validated_data)
 
     def to_representation(self, instance):
         res = super().to_representation(instance)
-        res.update({"parent_cohort": instance.parent_cohort and
-                                     {"uuid": instance.parent_cohort.uuid,
-                                      "name": instance.parent_cohort.name
-                                      }
-                                     or None
-                    })
+        res.update({"parent_cohort": instance.parent_cohort and {"uuid": instance.parent_cohort.uuid, "name": instance.parent_cohort.name} or None})
         return res
 
 
@@ -225,11 +189,7 @@ class CohortResultCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CohortResult
-        fields = ["name",
-                  "description",
-                  "owner",
-                  "request_query_snapshot",
-                  "dated_measure"]
+        fields = ["name", "description", "owner", "request_query_snapshot", "dated_measure"]
 
 
 class CohortResultPatchSerializer(serializers.ModelSerializer):
@@ -242,13 +202,7 @@ class CohortResultPatchSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CohortResult
-        fields = ["name",
-                  "description",
-                  "favorite",
-                  "request_job_status",
-                  "group_id",
-                  "request_job_fail_msg"
-                  ]
+        fields = ["name", "description", "favorite", "request_job_status", "group_id", "request_job_fail_msg"]
 
 
 class CohortRightsSerializer(serializers.Serializer):
@@ -262,12 +216,7 @@ class RQSReducedSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = RequestQuerySnapshot
-        fields = ["uuid",
-                  "name",
-                  "created_at",
-                  "cohorts_count",
-                  "patients_count",
-                  "version"]
+        fields = ["uuid", "name", "created_at", "cohorts_count", "patients_count", "version"]
 
     def get_cohorts_count(self, obj) -> int:
         return obj.cohort_results.count()
@@ -290,24 +239,24 @@ class RQSSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = RequestQuerySnapshot
-        fields = ["uuid",
-                  "owner",
-                  "name",
-                  "version",
-                  "created_at",
-                  "modified_at",
-                  "request",
-                  "previous_snapshot",
-                  "serialized_query",
-                  "perimeters_ids",
-                  "dated_measures",
-                  "cohort_results",
-                  ]
+        fields = [
+            "uuid",
+            "owner",
+            "name",
+            "version",
+            "created_at",
+            "modified_at",
+            "request",
+            "previous_snapshot",
+            "serialized_query",
+            "perimeters_ids",
+            "dated_measures",
+            "cohort_results",
+        ]
 
     def get_dated_measures(self, obj) -> List[dict]:
-        dms_with_normal_cohorts = obj.dated_measures.filter(cohorts__parent_cohort__isnull=True) \
-                                                    .order_by('-created_at')
-        return DatedMeasureSerializer(dms_with_normal_cohorts, many=True).data
+        dms_with_normal_cohorts = obj.dated_measures.filter(cohorts__parent_cohort__isnull=True).order_by("-created_at")
+        return DatedMeasureSerializer(dms_with_normal_cohorts, many=True).data  # type: ignore[return-value]
 
 
 class RQSCreateSerializer(serializers.ModelSerializer):
@@ -317,11 +266,7 @@ class RQSCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = RequestQuerySnapshot
-        fields = ["request",
-                  "previous_snapshot",
-                  "serialized_query",
-                  "owner"
-                  ]
+        fields = ["request", "previous_snapshot", "serialized_query", "owner"]
 
 
 class RQSShareSerializer(serializers.Serializer):
@@ -331,9 +276,7 @@ class RQSShareSerializer(serializers.Serializer):
 
     class Meta:
         model = RequestQuerySnapshot
-        fields = ["name",
-                  "recipients",
-                  "notify_by_email"]
+        fields = ["name", "recipients", "notify_by_email"]
 
 
 class RequestSerializer(serializers.ModelSerializer):
@@ -345,25 +288,30 @@ class RequestSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Request
-        fields = ["uuid",
-                  "name",
-                  "description",
-                  "favorite",
-                  "owner",
-                  "query_snapshots",
-                  "shared_by",
-                  "parent_folder",
-                  "updated_at",
-                  ]
+        fields = [
+            "uuid",
+            "name",
+            "description",
+            "favorite",
+            "owner",
+            "query_snapshots",
+            "shared_by",
+            "parent_folder",
+            "updated_at",
+        ]
 
     def to_representation(self, instance):
         res = super().to_representation(instance)
-        res.update({"query_snapshots": sorted(res["query_snapshots"], key=lambda rqs: rqs["created_at"], reverse=True),
-                    "parent_folder": {"uuid": instance.parent_folder.uuid,
-                                      "name": instance.parent_folder.name,
-                                      "description": instance.parent_folder.description,
-                                      }
-                    })
+        res.update(
+            {
+                "query_snapshots": sorted(res["query_snapshots"], key=lambda rqs: rqs["created_at"], reverse=True),
+                "parent_folder": {
+                    "uuid": instance.parent_folder.uuid,
+                    "name": instance.parent_folder.name,
+                    "description": instance.parent_folder.description,
+                },
+            }
+        )
         return res
 
     def get_shared_by(self, obj) -> Optional[str]:
@@ -376,11 +324,7 @@ class RequestCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Request
-        fields = ["name",
-                  "description",
-                  "favorite",
-                  "owner",
-                  "parent_folder"]
+        fields = ["name", "description", "favorite", "owner", "parent_folder"]
 
 
 class RequestPatchSerializer(serializers.ModelSerializer):
@@ -389,10 +333,7 @@ class RequestPatchSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Request
-        fields = ["name",
-                  "description",
-                  "favorite",
-                  "parent_folder"]
+        fields = ["name", "description", "favorite", "parent_folder"]
 
 
 class FhirFilterSerializer(serializers.ModelSerializer):
@@ -400,25 +341,20 @@ class FhirFilterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = FhirFilter
-        fields = '__all__'
+        fields = "__all__"
 
     def create(self, validated_data):
-        validated_data["owner"] = self.context.get('request').user
+        validated_data["owner"] = self.context.get("request").user
         return super().create(validated_data)
 
 
 class FhirFilterCreateSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = FhirFilter
-        fields = ["fhir_resource",
-                  "fhir_version",
-                  "filter",
-                  "name"]
+        fields = ["fhir_resource", "fhir_version", "filter", "name"]
 
 
-class FhirFilterPatchSerializer(FhirFilterCreateSerializer):
-    ...
+class FhirFilterPatchSerializer(FhirFilterCreateSerializer): ...
 
 
 class FeasibilityStudySerializer(serializers.ModelSerializer):
@@ -426,12 +362,7 @@ class FeasibilityStudySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = FeasibilityStudy
-        fields = ["uuid",
-                  "owner",
-                  "created_at",
-                  "request_job_status",
-                  "total_count",
-                  "request_query_snapshot"]
+        fields = ["uuid", "owner", "created_at", "request_job_status", "total_count", "request_query_snapshot"]
 
 
 class FeasibilityStudyCreateSerializer(serializers.ModelSerializer):
@@ -442,16 +373,12 @@ class FeasibilityStudyCreateSerializer(serializers.ModelSerializer):
         fields = ["request_query_snapshot"]
 
 
-
 class FeasibilityStudyPatchSerializer(DatedMeasurePatchSerializer):
     extra = serializers.DictField(required=True)
 
     class Meta:
         model = FeasibilityStudy
-        fields = ["request_job_status",
-                  "group_count",
-                  "message",
-                  "extra"]
+        fields = ["request_job_status", "group_count", "message", "extra"]
 
     def to_internal_value(self, data):
         if "group_count" in data:
@@ -462,16 +389,13 @@ class FeasibilityStudyPatchSerializer(DatedMeasurePatchSerializer):
 class RequestRefreshScheduleSerializer(serializers.ModelSerializer):
     class Meta:
         model = RequestRefreshSchedule
-        fields = '__all__'
-        read_only_fields = ["last_refresh",
-                            "last_refresh_succeeded",
-                            "last_refresh_count",
-                            "last_refresh_error_msg"]
+        fields = "__all__"
+        read_only_fields = ["last_refresh", "last_refresh_succeeded", "last_refresh_count", "last_refresh_error_msg"]
 
 
 class JobName(StrEnum):
-    COUNT = 'count'
-    CREATE = 'create'
+    COUNT = "count"
+    CREATE = "create"
 
 
 class WSJobStatus(WebSocketMessage):
@@ -479,4 +403,3 @@ class WSJobStatus(WebSocketMessage):
     uuid: str
     job_name: JobName
     extra_info: dict
-

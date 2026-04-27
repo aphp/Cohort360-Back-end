@@ -23,30 +23,26 @@ class ExportViewSetTest(ExportsTestBase):
     def setUp(self):
         super().setUp()
         self.datalab = Datalab.objects.create(name="main_datalab", infrastructure_provider=self.infra_provider_aphp)
-        self.cohort_result = CohortResult.objects.create(name="Cohort For Export Purposes",
-                                                         owner=self.exporter_user,
-                                                         request_query_snapshot=self.rqs,
-                                                         request_job_status=JobStatus.finished)
-        self.fhir_filter = FhirFilter.objects.create(name="Some FHIR Filter",
-                                                     owner=self.exporter_user,
-                                                     fhir_resource="some_resource",
-                                                     filter="some_filter")
-        self.export_basic_data = {"name": "Special Export",
-                                  "output_format": self.export_type,
-                                  "nominative": True,
-                                  "export_tables": [{"table_name": "person",
-                                                     "cohort_result_source": self.cohort_result.uuid,
-                                                     "fhir_filter": self.fhir_filter.uuid}]
-                                  }
-        self.export_data_error = {**self.export_basic_data,
-                                  "export_tables": [{"table_name": "person"},
-                                                    {"table_name": "table01"},
-                                                    {"table_name": "table02"}]
-                                  }
-        self.exports = [Export.objects.create(**dict(output_format=self.export_type,
-                                                     owner=self.exporter_user,
-                                                     target_name="12345_09092023_151500"
-                                                     )) for _ in range(5)]
+        self.cohort_result = CohortResult.objects.create(
+            name="Cohort For Export Purposes", owner=self.exporter_user, request_query_snapshot=self.rqs, request_job_status=JobStatus.finished
+        )
+        self.fhir_filter = FhirFilter.objects.create(
+            name="Some FHIR Filter", owner=self.exporter_user, fhir_resource="some_resource", filter="some_filter"
+        )
+        self.export_basic_data = {
+            "name": "Special Export",
+            "output_format": self.export_type,
+            "nominative": True,
+            "export_tables": [{"table_name": "person", "cohort_result_source": self.cohort_result.uuid, "fhir_filter": self.fhir_filter.uuid}],
+        }
+        self.export_data_error = {
+            **self.export_basic_data,
+            "export_tables": [{"table_name": "person"}, {"table_name": "table01"}, {"table_name": "table02"}],
+        }
+        self.exports = [
+            Export.objects.create(**dict(output_format=self.export_type, owner=self.exporter_user, target_name="12345_09092023_151500"))
+            for _ in range(5)
+        ]
         self.target_export_to_retrieve = self.exports[0]
         self.target_export_to_patch = self.exports[1]
         self.target_export_to_delete = self.exports[2]
@@ -61,63 +57,62 @@ class ExportViewSetTest(ExportsTestBase):
         self.finished_export.request_job_id = "some_job_id"
         self.finished_export.save()
 
-        self.retry_view = self.view_set.as_view({'post': 'retry'})
+        self.retry_view = self.view_set.as_view({"post": "retry"})
         self.retry_url = f"/exports/{self.failed_export.uuid}/retry/"
-        self.logs_view = self.view_set.as_view({'get': 'logs'})
+        self.logs_view = self.view_set.as_view({"get": "logs"})
 
     def test_list_exports(self):
         list_url = reverse(viewname=self.viewname_list)
-        self.check_test_list_view(list_url=list_url,
-                                  request_user=self.datalabs_reader_user,
-                                  expected_resp_status=status.HTTP_200_OK,
-                                  result_count=len(self.exports)-1)
+        self.check_test_list_view(
+            list_url=list_url, request_user=self.datalabs_reader_user, expected_resp_status=status.HTTP_200_OK, result_count=len(self.exports) - 1
+        )
 
-    @mock.patch.object(ExportViewSet, 'permission_classes', [IsAuthenticated])
+    @mock.patch.object(ExportViewSet, "permission_classes", [IsAuthenticated])
     def test_create_export_success(self):
         create_url = reverse(viewname=self.viewname_list)
-        self.check_test_create_view(request_user=self.exporter_user,
-                                    create_url=create_url,
-                                    request_data=self.export_basic_data,
-                                    expected_resp_status=status.HTTP_201_CREATED)
+        self.check_test_create_view(
+            request_user=self.exporter_user, create_url=create_url, request_data=self.export_basic_data, expected_resp_status=status.HTTP_201_CREATED
+        )
 
-    @mock.patch.object(ExportViewSet, 'permission_classes', [IsAuthenticated])
+    @mock.patch.object(ExportViewSet, "permission_classes", [IsAuthenticated])
     def test_create_export_with_pivot_merge_success(self):
         create_url = reverse(viewname=self.viewname_list)
-        export_data = {**self.export_basic_data,
-                       "export_tables": [{"table_name": "person",
-                                          "cohort_result_source": self.cohort_result.uuid,
-                                          "pivot_merge": True,
-                                          "columns": None
-                                          }]
-                      }
-        self.check_test_create_view(request_user=self.exporter_user,
-                                    create_url=create_url,
-                                    request_data=export_data,
-                                    expected_resp_status=status.HTTP_201_CREATED)
+        export_data = {
+            **self.export_basic_data,
+            "export_tables": [{"table_name": "person", "cohort_result_source": self.cohort_result.uuid, "pivot_merge": True, "columns": None}],
+        }
+        self.check_test_create_view(
+            request_user=self.exporter_user, create_url=create_url, request_data=export_data, expected_resp_status=status.HTTP_201_CREATED
+        )
 
-    @mock.patch.object(ExportViewSet, 'permission_classes', [IsAuthenticated])
+    @mock.patch.object(ExportViewSet, "permission_classes", [IsAuthenticated])
     def test_create_export_with_pivot_merge_columns_success(self):
         create_url = reverse(viewname=self.viewname_list)
-        export_data = {**self.export_basic_data,
-                       "export_tables": [{"table_name": "person",
-                                          "cohort_result_source": self.cohort_result.uuid,
-                                          "pivot_merge_columns": ["col_01", "col_02", "col_03"],
-                                          "pivot_merge_ids": ["col_01", "col_02"],
-                                          "columns": None
-                                          }]
-                       }
-        self.check_test_create_view(request_user=self.exporter_user,
-                                    create_url=create_url,
-                                    request_data=export_data,
-                                    expected_resp_status=status.HTTP_201_CREATED)
+        export_data = {
+            **self.export_basic_data,
+            "export_tables": [
+                {
+                    "table_name": "person",
+                    "cohort_result_source": self.cohort_result.uuid,
+                    "pivot_merge_columns": ["col_01", "col_02", "col_03"],
+                    "pivot_merge_ids": ["col_01", "col_02"],
+                    "columns": None,
+                }
+            ],
+        }
+        self.check_test_create_view(
+            request_user=self.exporter_user, create_url=create_url, request_data=export_data, expected_resp_status=status.HTTP_201_CREATED
+        )
 
-    @mock.patch.object(ExportViewSet, 'permission_classes', [IsAuthenticated])
+    @mock.patch.object(ExportViewSet, "permission_classes", [IsAuthenticated])
     def test_create_export_error(self):
         create_url = reverse(viewname=self.viewname_list)
-        self.check_test_create_view(request_user=self.exporter_user,
-                                    create_url=create_url,
-                                    request_data=self.export_data_error,
-                                    expected_resp_status=status.HTTP_400_BAD_REQUEST)
+        self.check_test_create_view(
+            request_user=self.exporter_user,
+            create_url=create_url,
+            request_data=self.export_data_error,
+            expected_resp_status=status.HTTP_400_BAD_REQUEST,
+        )
 
     @mock.patch("exports.services.export.launch_export_task.delay")
     @mock.patch.object(ExportViewSet, "get_object")
@@ -125,7 +120,7 @@ class ExportViewSetTest(ExportsTestBase):
         mock_task.return_value = None
         mock_get_object.return_value = self.failed_export
         request = self.make_request(url=self.retry_url, http_verb="post", request_user=self.admin_user)
-        self.retry_view.kwargs = {'uuid': self.failed_export.pk}
+        self.retry_view.kwargs = {"uuid": self.failed_export.pk}
         response = self.retry_view(request)
         mock_task.assert_called_once_with(self.failed_export.pk)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -138,15 +133,12 @@ class ExportViewSetTest(ExportsTestBase):
     @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
     def test_get_logs_for_failed_export(self, mock_get_object, mock_logs_response):
         mock_get_object.return_value = self.failed_export
-        mock_logs_response.return_value = {"status": APIJobStatus.FinishedWithError,
-                                           "stdout": "logs for failed export",
-                                           "stderr": ""
-                                           }
+        mock_logs_response.return_value = {"status": APIJobStatus.FinishedWithError, "stdout": "logs for failed export", "stderr": ""}
         request = self.make_request(url=f"/exports/{self.failed_export.uuid}/logs/", http_verb="get", request_user=self.admin_user)
-        self.logs_view.kwargs = {'uuid': self.failed_export.uuid}
+        self.logs_view.kwargs = {"uuid": self.failed_export.uuid}
         response = self.logs_view(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.headers['content-type'], 'application/json')
+        self.assertEqual(response.headers["content-type"], "application/json")
 
     @mock.patch.object(BaseAPI, "get_export_logs")
     @mock.patch.object(ExportViewSet, "get_object")
@@ -155,7 +147,7 @@ class ExportViewSetTest(ExportsTestBase):
         mock_get_object.return_value = self.failed_export
         mock_logs_response.side_effect = RequestException()
         request = self.make_request(url=f"/exports/{self.failed_export.uuid}/logs/", http_verb="get", request_user=self.admin_user)
-        self.logs_view.kwargs = {'uuid': self.failed_export.uuid}
+        self.logs_view.kwargs = {"uuid": self.failed_export.uuid}
         response = self.logs_view(request)
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
         self.assertIsNotNone(response.data)
@@ -167,7 +159,7 @@ class ExportViewSetTest(ExportsTestBase):
         mock_get_object.return_value = self.failed_export
         mock_logs_response.side_effect = TimeoutError()
         request = self.make_request(url=f"/exports/{self.failed_export.uuid}/logs/", http_verb="get", request_user=self.admin_user)
-        self.logs_view.kwargs = {'uuid': self.failed_export.uuid}
+        self.logs_view.kwargs = {"uuid": self.failed_export.uuid}
         response = self.logs_view(request)
         self.assertEqual(response.status_code, status.HTTP_408_REQUEST_TIMEOUT)
         self.assertIsNotNone(response.data)
@@ -177,7 +169,7 @@ class ExportViewSetTest(ExportsTestBase):
         export_missing_job_id = self.exports[0]
         mock_get_object.return_value = export_missing_job_id
         request = self.make_request(url=f"/exports/{export_missing_job_id.uuid}/logs/", http_verb="get", request_user=self.admin_user)
-        self.logs_view.kwargs = {'uuid': export_missing_job_id.uuid}
+        self.logs_view.kwargs = {"uuid": export_missing_job_id.uuid}
         response = self.logs_view(request)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIsNotNone(response.data)
@@ -186,7 +178,7 @@ class ExportViewSetTest(ExportsTestBase):
     def test_get_logs_for_finished_export(self, mock_get_object):
         mock_get_object.return_value = self.finished_export
         request = self.make_request(url=f"/exports/{self.finished_export.uuid}/logs/", http_verb="get", request_user=self.admin_user)
-        self.logs_view.kwargs = {'uuid': self.finished_export.uuid}
+        self.logs_view.kwargs = {"uuid": self.finished_export.uuid}
         response = self.logs_view(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIsNotNone(response.data)

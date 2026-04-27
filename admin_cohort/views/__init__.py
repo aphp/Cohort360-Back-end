@@ -5,5 +5,14 @@ from .users import UserViewSet
 from .cache import CacheViewSet
 from .release_notes import ReleaseNotesViewSet
 
-__all__ = ["LoginView", "LogoutView", "TokenRefreshView", "NotFoundView",
-           "RequestLogViewSet", "MaintenancePhaseViewSet", "UserViewSet", "CacheViewSet", "ReleaseNotesViewSet"]
+__all__ = [
+    "LoginView",
+    "LogoutView",
+    "TokenRefreshView",
+    "NotFoundView",
+    "RequestLogViewSet",
+    "MaintenancePhaseViewSet",
+    "UserViewSet",
+    "CacheViewSet",
+    "ReleaseNotesViewSet",
+]

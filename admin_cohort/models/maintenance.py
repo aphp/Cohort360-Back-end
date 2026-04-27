@@ -7,13 +7,13 @@ from admin_cohort.models import BaseModel
 
 
 class MaintenanceType(StrEnum):
-    PARTIAL = 'partial'
-    FULL = 'full'
+    PARTIAL = "partial"
+    FULL = "full"
 
 
 MAINTENANCE_TYPE_CHOICES = [
-    (MaintenanceType.PARTIAL, 'Partial'),
-    (MaintenanceType.FULL, 'Full'),
+    (MaintenanceType.PARTIAL, "Partial"),
+    (MaintenanceType.FULL, "Full"),
 ]
 
 
@@ -28,4 +28,3 @@ class MaintenancePhase(BaseModel):
     @property
     def active(self):
         return self.start_datetime < timezone.now() < self.end_datetime
-

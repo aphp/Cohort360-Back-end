@@ -24,19 +24,8 @@ payload = {
     "b64": True,
     "typ": "Bearer",
     "azp": "cohort360-local",
-    "allowed-origins": [
-        base_url + "/auth/realms/master",
-        base_url + "/auth/realms/AP-HP"
-    ],
+    "allowed-origins": [base_url + "/auth/realms/master", base_url + "/auth/realms/AP-HP"],
 }
-token = jwt.encode(
-    payload,
-    private_key,
-    algorithm="RS256",
-    headers={
-        "typ": "JWT",
-        "kid": "local-test-key"
-    }
-)
+token = jwt.encode(payload, private_key, algorithm="RS256", headers={"typ": "JWT", "kid": "local-test-key"})
 
 print(token)

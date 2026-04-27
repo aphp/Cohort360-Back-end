@@ -12,23 +12,27 @@ from cohort_job_server.utils import _logger, _logger_err, JOB_STATUS, GROUP_ID, 
 
 
 class CohortCreator(BaseCohortOperator):
-
-    def launch_cohort_creation(self,
-                               cohort_id: Optional[str],
-                               json_query: str,
-                               auth_headers: dict,
-                               callback_path: Optional[str] = None,
-                               existing_cohort_id: Optional[int] = None,
-                               owner_username: Optional[str] = None,
-                               sampling_ratio: Optional[float] = None) -> None:
-        self.query_executor_requester.launch_request(CohortCreate(instance_id=cohort_id,
-                                                       json_query=json_query,
-                                                       auth_headers=auth_headers,
-                                                       callback_path=callback_path,
-                                                       owner_username=owner_username,
-                                                       existing_cohort_id=existing_cohort_id,
-                                                       sampling_ratio=sampling_ratio
-                                                       ))
+    def launch_cohort_creation(
+        self,
+        cohort_id: Optional[str],
+        json_query: str,
+        auth_headers: dict,
+        callback_path: Optional[str] = None,
+        existing_cohort_id: Optional[int] = None,
+        owner_username: Optional[str] = None,
+        sampling_ratio: Optional[float] = None,
+    ) -> None:
+        self.query_executor_requester.launch_request(
+            CohortCreate(
+                instance_id=cohort_id,
+                json_query=json_query,
+                auth_headers=auth_headers,
+                callback_path=callback_path,
+                owner_username=owner_username,
+                existing_cohort_id=existing_cohort_id,
+                sampling_ratio=sampling_ratio,
+            )
+        )
 
     @staticmethod
     def handle_patch_cohort(cohort: CohortResult, data: dict) -> None:
@@ -44,11 +48,11 @@ class CohortCreator(BaseCohortOperator):
                     _logger_err.error(f"CohortResult[{cohort.uuid}] - Failed")
             else:
                 _logger.info(f"CohortResult[{cohort.uuid}] - Ended with status: {job_status}")
-            data['request_job_status'] = job_status
+            data["request_job_status"] = job_status
         if GROUP_ID in data:
             data["group_id"] = data.pop(GROUP_ID)
         if GROUP_COUNT in data:
-            cohort.dated_measure.request_job_status = data['request_job_status']
+            cohort.dated_measure.request_job_status = data["request_job_status"]
             cohort.dated_measure.measure = data.pop(GROUP_COUNT)
             cohort.dated_measure.save()
 

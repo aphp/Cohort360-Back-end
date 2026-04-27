@@ -12,25 +12,17 @@ LOGGER.addHandler(stream_handler)
 
 NEW_VERSION = "v1.5.0"
 
-FILTER_MAPPING = {
-    RESOURCE_DEFAULT: {
-    }
-}
+FILTER_MAPPING = {RESOURCE_DEFAULT: {}}
 
-FILTER_NAME_TO_SKIP = {
-}
+FILTER_NAME_TO_SKIP = {}
 
-code_mapping_cache = {
-}
+code_mapping_cache = {}
 
-FILTER_VALUE_MAPPING = {
-}
+FILTER_VALUE_MAPPING = {}
 
-STATIC_REQUIRED_FILTERS = {
-}
+STATIC_REQUIRED_FILTERS = {}
 
-RESOURCE_NAME_MAPPING = {
-}
+RESOURCE_NAME_MAPPING = {}
 
 RESOURCE_DATE_MAPPING = {
     "Condition": "recorded-date",
@@ -42,7 +34,7 @@ RESOURCE_DATE_MAPPING = {
     "ImagingStudy": "started",
     "Observation": "date",
     "QuestionnaireResponse": "authored",
-    "Encounter": "period-start"
+    "Encounter": "period-start",
 }
 
 RESOURCE_ENCOUNTER_DATE_MAPPING = {
@@ -55,13 +47,13 @@ RESOURCE_ENCOUNTER_DATE_MAPPING = {
     "ImagingStudy": "encounter.period-start",
     "Observation": "encounter.period-start",
     "QuestionnaireResponse": "encounter.period-start",
-    "Encounter": "encounter.period-start"
+    "Encounter": "encounter.period-start",
 }
 
 
 def add_null_filter(allow_null, date_field_name, filter_value):
     if allow_null:
-        filter_param_value = "({}) or not ({} eq \"*\")".format(filter_value, date_field_name)
+        filter_param_value = '({}) or not ({} eq "*")'.format(filter_value, date_field_name)
         return "_filter={}".format(urllib.parse.quote(filter_param_value))
     return filter_value
 
@@ -70,19 +62,14 @@ def update_filter(date_range, query, date_field):
     allow_null_date = "dateIsNotNull" not in date_range or date_range["dateIsNotNull"]
     filters = []
     if "minDate" in date_range:
-        filters.append("{}{}{}".format(date_field, " gt " if allow_null_date else "=gt",
-                                       date_range["minDate"]))
+        filters.append("{}{}{}".format(date_field, " gt " if allow_null_date else "=gt", date_range["minDate"]))
     if "maxDate" in date_range:
-        filters.append("{}{}{}".format(date_field, " lt " if allow_null_date else "=lt",
-                                       date_range["maxDate"]))
+        filters.append("{}{}{}".format(date_field, " lt " if allow_null_date else "=lt", date_range["maxDate"]))
     if filters:
         query["filterFhir"] = query.get("filterFhir", "")
         has_already_filter = query["filterFhir"].strip() != ""
         join = "&" if has_already_filter else ""
-        query["filterFhir"] += join + add_null_filter(allow_null_date, date_field,
-                                                      " and ".join(
-                                                          filters) if allow_null_date else "&".join(
-                                                          filters))
+        query["filterFhir"] += join + add_null_filter(allow_null_date, date_field, " and ".join(filters) if allow_null_date else "&".join(filters))
 
 
 def replace_date_options_with_filter(query: Any) -> bool:
@@ -113,5 +100,5 @@ updater_v150 = QueryRequestUpdater(
     filter_values_mapping=FILTER_VALUE_MAPPING,
     static_required_filters=STATIC_REQUIRED_FILTERS,
     resource_name_mapping=RESOURCE_NAME_MAPPING,
-    post_process_basic_resource=replace_date_options_with_filter
+    post_process_basic_resource=replace_date_options_with_filter,
 )

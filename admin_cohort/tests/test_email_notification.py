@@ -7,7 +7,6 @@ from admin_cohort.tests.tests_tools import TestCaseWithDBs
 
 
 class EmailNotificationTest(TestCaseWithDBs):
-
     def setUp(self) -> None:
         super().setUp()
         self.recipient_name = "Some ONE"
@@ -19,11 +18,7 @@ class EmailNotificationTest(TestCaseWithDBs):
     def create_email_notif(self, mock_attach_logo: MagicMock, mock_build_email_contents: MagicMock):
         mock_attach_logo.return_value = None
         mock_build_email_contents.return_value = None
-        email_notif = EmailNotification(subject="Email subject",
-                                        to=["some.one@aphp.fr"],
-                                        html_template='',
-                                        txt_template='',
-                                        context=self.context)
+        email_notif = EmailNotification(subject="Email subject", to=["some.one@aphp.fr"], html_template="", txt_template="", context=self.context)
         return email_notif
 
     @mock.patch("admin_cohort.emails.EmailNotification.send")

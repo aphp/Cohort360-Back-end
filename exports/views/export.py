@@ -29,7 +29,6 @@ _logger = logging.getLogger("django.request")
 
 
 class ExportFilter(filters.FilterSet):
-
     def multi_value_filter(self, queryset, field, value: str):
         if value:
             sub_values = [val.strip() for val in value.split(",")]
@@ -45,49 +44,43 @@ class ExportFilter(filters.FilterSet):
     output_format = filters.CharFilter(method="multi_value_filter", field_name="output_format")
     status = filters.CharFilter(method="multi_value_filter", field_name="request_job_status")
     owner = filters.CharFilter(method="owner_filter", field_name="owner")
-    motivation = filters.CharFilter(field_name="motivation", lookup_expr='icontains')
-    ordering = OrderingFilter(fields=('created_at',
-                                      'modified_at',
-                                      'output_format',
-                                      ('request_job_status', 'status'),
-                                      'patients_count',
-                                      ('owner__firstname', 'owner')))
+    motivation = filters.CharFilter(field_name="motivation", lookup_expr="icontains")
+    ordering = OrderingFilter(
+        fields=("created_at", "modified_at", "output_format", ("request_job_status", "status"), "patients_count", ("owner__firstname", "owner"))
+    )
 
     class Meta:
         model = Export
-        fields = ("motivation",
-                  "output_format",
-                  "status",
-                  "owner")
+        fields = ("motivation", "output_format", "status", "owner")
 
 
 class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
-    export_table_subquery = ExportTable.objects.filter(export_id=OuterRef('uuid'),
-                                                       cohort_result_source__isnull=False) \
-        .values('cohort_result_source__name',
-                'cohort_result_source__group_id',
-                'cohort_result_source__dated_measure__measure'
-                )[:1]
-    queryset = Export.objects.prefetch_related('export_tables__cohort_result_source__dated_measure') \
-        .annotate(cohort_name=Subquery(export_table_subquery.values('cohort_result_source__name')),
-                  cohort_id=Subquery(export_table_subquery.values('cohort_result_source__group_id')),
-                  patients_count=Subquery(export_table_subquery.values('cohort_result_source__dated_measure__measure')))
+    export_table_subquery = ExportTable.objects.filter(export_id=OuterRef("uuid"), cohort_result_source__isnull=False).values(
+        "cohort_result_source__name", "cohort_result_source__group_id", "cohort_result_source__dated_measure__measure"
+    )[:1]
+    queryset = Export.objects.prefetch_related("export_tables__cohort_result_source__dated_measure").annotate(
+        cohort_name=Subquery(export_table_subquery.values("cohort_result_source__name")),
+        cohort_id=Subquery(export_table_subquery.values("cohort_result_source__group_id")),
+        patients_count=Subquery(export_table_subquery.values("cohort_result_source__dated_measure__measure")),
+    )
     serializer_class = ExportSerializer
     permission_classes = [ExportPermission]
-    swagger_tags = ['Exports']
+    swagger_tags = ["Exports"]
     filterset_class = ExportFilter
-    http_method_names = ['get', 'post']
-    logging_methods = ['POST']
-    search_fields = ("owner__username",
-                     "owner__firstname",
-                     "owner__lastname",
-                     "motivation",
-                     "request_job_status",
-                     "output_format",
-                     "target_name",
-                     "datalab__name",
-                     "cohort_name",
-                     "cohort_id")
+    http_method_names = ["get", "post"]
+    logging_methods = ["POST"]
+    search_fields = (
+        "owner__username",
+        "owner__firstname",
+        "owner__lastname",
+        "motivation",
+        "request_job_status",
+        "output_format",
+        "target_name",
+        "datalab__name",
+        "cohort_name",
+        "cohort_id",
+    )
 
     def get_permissions(self):
         if self.action == self.retry.__name__ or self.action == self.relaunch.__name__:
@@ -99,10 +92,14 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
     def should_log(self, request, response):
         return super().should_log(request, response) or self.action == self.download.__name__
 
-    @extend_schema(parameters=[OpenApiParameter("return_full_objects", OpenApiTypes.BOOL)],
-                   responses={status.HTTP_200_OK: PolymorphicProxySerializer(
-                       component_name="", many=True, resource_type_field_name=None,
-                       serializers=[ExportSerializer, ExportsListSerializer])})
+    @extend_schema(
+        parameters=[OpenApiParameter("return_full_objects", OpenApiTypes.BOOL)],
+        responses={
+            status.HTTP_200_OK: PolymorphicProxySerializer(
+                component_name="", many=True, resource_type_field_name=None, serializers=[ExportSerializer, ExportsListSerializer]
+            )
+        },
+    )
     @cache_response()
     def list(self, request, *args, **kwargs):
         q = self.filter_queryset(self.queryset)
@@ -116,8 +113,7 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
             return self.get_paginated_response(serializer.data)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @extend_schema(request=ExportCreateSerializer,
-                   responses={status.HTTP_201_CREATED: ExportSerializer})
+    @extend_schema(request=ExportCreateSerializer, responses={status.HTTP_201_CREATED: ExportSerializer})
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         try:
@@ -128,15 +124,15 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
         tables = request.data.pop("export_tables", [])
         response = super().create(request, *args, **kwargs)
         try:
-            transaction.on_commit(lambda: export_service.proceed_with_export(export=response.data.serializer.instance,
-                                                                             tables=tables,
-                                                                             http_request=request))
+            transaction.on_commit(
+                lambda: export_service.proceed_with_export(export=response.data.serializer.instance, tables=tables, http_request=request)
+            )
         except ValidationError as ve:
             return Response(data=ve.detail, status=status.HTTP_400_BAD_REQUEST)
         return response
 
     @extend_schema(responses={(status.HTTP_200_OK, "application/zip"): OpenApiTypes.BINARY})
-    @action(detail=True, methods=['get'], url_path="download")
+    @action(detail=True, methods=["get"], url_path="download")
     def download(self, request, *args, **kwargs):
         try:
             return export_service.download(export=self.get_object())
@@ -146,14 +142,14 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
             return Response(data=f"Storage provider error: {e}", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @extend_schema(responses={status.HTTP_200_OK: OpenApiTypes.STR})
-    @action(detail=True, methods=['post'], url_path="retry")
+    @action(detail=True, methods=["post"], url_path="retry")
     def retry(self, request, *args, **kwargs):
         export = self.get_object()
         export_service.retry(export=export)
         return Response(data=f"The export `{export.uuid}` has been relaunched", status=status.HTTP_200_OK)
 
     @extend_schema(responses={status.HTTP_201_CREATED: ExportSerializer})
-    @action(detail=True, methods=['post'], url_path="relaunch")
+    @action(detail=True, methods=["post"], url_path="relaunch")
     @transaction.atomic
     def relaunch(self, request, *args, **kwargs):
         """
@@ -200,38 +196,33 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
         tables_to_create = export_data.pop("export_tables", [])
 
         # Create serializer and save
-        serializer = ExportSerializer(data=export_data, context={'request': request})
+        serializer = ExportSerializer(data=export_data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         serializer.save(owner=original_export.owner)
         # Proceed with export processing asynchronously
         try:
-            transaction.on_commit(lambda: export_service.proceed_with_export(
-                export=serializer.instance,
-                tables=tables_to_create,
-                http_request=request
-            ))
+            transaction.on_commit(
+                lambda: export_service.proceed_with_export(export=serializer.instance, tables=tables_to_create, http_request=request)
+            )
         except ValidationError as ve:
             return Response(data=ve.detail, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(data=serializer.data, status=status.HTTP_201_CREATED)
 
     @extend_schema(responses={(status.HTTP_200_OK, "application/json"): OpenApiTypes.BINARY})
-    @action(detail=True, methods=['get'], url_path="logs")
+    @action(detail=True, methods=["get"], url_path="logs")
     def logs(self, request, *args, **kwargs):
         export = self.get_object()
         if export.request_job_status == JobStatus.finished:
-            return Response(data="No logs available. The target export has finished successfully",
-                            status=status.HTTP_200_OK)
+            return Response(data="No logs available. The target export has finished successfully", status=status.HTTP_200_OK)
         if not export.request_job_id:
             return Response(data="The target export has no job ID", status=status.HTTP_400_BAD_REQUEST)
         try:
             logs_data = export_service.get_execution_logs(export=export)
-            response = HttpResponse(json.dumps(logs_data, indent=4), content_type='application/json',
-                                    status=status.HTTP_200_OK)
-            response['Content-Disposition'] = f'attachment; filename="logs_export_{export.target_name}.json"'
+            response = HttpResponse(json.dumps(logs_data, indent=4), content_type="application/json", status=status.HTTP_200_OK)
+            response["Content-Disposition"] = f'attachment; filename="logs_export_{export.target_name}.json"'
             return response
         except TimeoutError:
-            return Response(data="Timeout while fetching logs. Please try again later.",
-                            status=status.HTTP_408_REQUEST_TIMEOUT)
+            return Response(data="Timeout while fetching logs. Please try again later.", status=status.HTTP_408_REQUEST_TIMEOUT)
         except RequestException as e:
             return Response(data=f"Error fetching logs: {e}", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
