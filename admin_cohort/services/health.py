@@ -113,16 +113,13 @@ def _check_identity_server() -> Optional[str]:
 def _check_hadoop_api() -> Optional[str]:
     if not apps.is_installed("exporters"):
         return "skipped"
-    from exporters.apps import ExportersConfig
-
-    conf = ExportersConfig.THIRD_PARTY_API_CONF.get("HADOOP_API", {})
-    base = conf.get("API_URL")
+    base = os.environ.get("HADOOP_API_URL")
     if not base:
         return "skipped"
     _http_reachable(
-        f"{base.rstrip('/')}{conf.get('TASK_STATUS_ENDPOINT', '')}",
+        f"{base.rstrip('/')}/hadoop/task_status",
         params={"task_uuid": "_healthcheck_"},
-        headers={"auth-token": conf.get("AUTH_TOKEN") or ""},
+        headers={"auth-token": os.environ.get("HADOOP_API_AUTH_TOKEN", "")},
     )
     return None
 
@@ -130,16 +127,13 @@ def _check_hadoop_api() -> Optional[str]:
 def _check_export_api() -> Optional[str]:
     if not apps.is_installed("exporters"):
         return "skipped"
-    from exporters.apps import ExportersConfig
-
-    conf = ExportersConfig.THIRD_PARTY_API_CONF.get("EXPORT_API", {})
-    base = conf.get("API_URL")
+    base = os.environ.get("EXPORT_API_URL")
     if not base:
         return "skipped"
     _http_reachable(
-        f"{base.rstrip('/')}{conf.get('TASK_STATUS_ENDPOINT', '')}",
+        f"{base.rstrip('/')}/task_status",
         params={"task_uuid": "_healthcheck_"},
-        headers={"auth-token": conf.get("AUTH_TOKEN") or ""},
+        headers={"auth-token": os.environ.get("EXPORT_API_AUTH_TOKEN", "")},
     )
     return None
 
@@ -219,10 +213,7 @@ def run_health_checks() -> dict:
     results: dict[str, dict] = {}
     pending: dict[str, dict] = {}
     with ThreadPoolExecutor(max_workers=len(CHECKS)) as executor:
-        future_to_name = {
-            executor.submit(_run_check, fn, critical): (name, critical)
-            for name, fn, critical in CHECKS
-        }
+        future_to_name = {executor.submit(_run_check, fn, critical): (name, critical) for name, fn, critical in CHECKS}
         try:
             for future in as_completed(future_to_name, timeout=GLOBAL_TIMEOUT_SECONDS):
                 name, _ = future_to_name[future]
@@ -245,14 +236,14 @@ def run_health_checks() -> dict:
     has_critical_ko = any(c["critical"] and not c["ok"] for c in results.values())
     has_any_ko = any(not c["ok"] for c in results.values())
     if has_critical_ko:
-        status = "ko"
+        global_status = "ko"
     elif has_any_ko:
-        status = "degraded"
+        global_status = "degraded"
     else:
-        status = "ok"
+        global_status = "ok"
 
     return {
-        "status": status,
+        "status": global_status,
         "version": settings.VERSION,
         "checks": results,
     }
