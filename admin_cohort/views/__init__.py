@@ -1,4 +1,5 @@
 from .auth import LogoutView, LoginView, TokenRefreshView, NotFoundView
+from .health import HealthView
 from .request_log import RequestLogViewSet
 from .maintenance_phase import MaintenancePhaseViewSet
 from .users import UserViewSet
@@ -10,6 +11,7 @@ __all__ = [
     "LogoutView",
     "TokenRefreshView",
     "NotFoundView",
+    "HealthView",
     "RequestLogViewSet",
     "MaintenancePhaseViewSet",
     "UserViewSet",
