@@ -6,7 +6,7 @@ from rest_framework import routers
 from rest_framework.routers import SimpleRouter
 from rest_framework_extensions.routers import NestedRouterMixin
 
-from admin_cohort.views import LoginView, UserViewSet, RequestLogViewSet, MaintenancePhaseViewSet, CacheViewSet, ReleaseNotesViewSet, \
+from admin_cohort.views import LoginView, UserViewSet, RequestLogViewSet, MaintenancePhaseViewSet, CacheViewSet, HealthView, ReleaseNotesViewSet, \
     TokenRefreshView, LogoutView, NotFoundView
 
 DOCS_ENDPOINT = "docs"
@@ -27,6 +27,7 @@ urlpatterns = [re_path(r'^$', NotFoundView.as_view({'post': 'dispatch'}), name="
                re_path(r'^auth/logout/$', LogoutView.as_view({'post': 'post'}), name='logout'),
                re_path(r'^auth/refresh/$', TokenRefreshView.as_view({'post': 'post'}), name='token-refresh'),
                re_path(r'^cache', CacheViewSet.as_view(), name='cache'),
+               re_path(r"^health/?$", HealthView.as_view(), name="health"),
                re_path(r'^', include(router.urls)),
                path('webcontent/', include(('content_management.urls', 'webcontent'), namespace='content')),
                path("accesses/", include(("accesses.urls", "accesses"), namespace="accesses")),
