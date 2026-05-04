@@ -208,6 +208,7 @@ jobs:
           github.event_name == 'push' &&
           (
             github.ref == 'refs/heads/main' ||
+            github.ref == 'refs/heads/develop' ||
             startsWith(github.ref, 'refs/heads/release/')
           )
         )
@@ -258,6 +259,8 @@ jobs:
         run: |
           if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
             echo "IMAGE_TAGS=aphpid/cohort360-backend:${VERSION},aphpid/cohort360-backend:latest" >> $GITHUB_ENV
+          else if [ "${GITHUB_REF}" = "refs/heads/develop" ]; then
+            echo "IMAGE_TAGS=aphpid/cohort360-backend:develop" >> $GITHUB_ENV          
           else
             echo "IMAGE_TAGS=aphpid/cohort360-backend:${VERSION}" >> $GITHUB_ENV
           fi
