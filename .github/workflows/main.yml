@@ -257,16 +257,31 @@ jobs:
           VERSION=$(grep '^version =' pyproject.toml | sed -E 's/version = "(.*)"/\1/')
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
+      - name: Align release branch with pyproject version
+        run: |
+          if [[ "${GITHUB_REF}" != refs/heads/release/* ]]; then
+            exit 0
+          fi
+          BRANCH_VER="${GITHUB_REF#refs/heads/release/}"
+          if [ "${BRANCH_VER}" != "${VERSION}" ]; then
+            echo "::error title=Version mismatch::Release branch suffix '${BRANCH_VER}' must equal pyproject version '${VERSION}' (refs: ${GITHUB_REF})."
+            exit 1
+          fi
+
       - name: Compute Docker tags
         run: |
+          SHORT_SHA="${GITHUB_SHA:0:7}"
           if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
             echo "IMAGE_TAGS=aphpid/cohort360-backend:${VERSION},aphpid/cohort360-backend:latest" >> $GITHUB_ENV
           elif [ "${GITHUB_REF}" = "refs/heads/develop" ]; then
             echo "IMAGE_TAGS=aphpid/cohort360-backend:develop" >> $GITHUB_ENV
           elif [[ "${GITHUB_REF}" == refs/heads/release/* ]]; then
-            echo "IMAGE_TAGS=aphpid/cohort360-backend:${VERSION}-rc" >> $GITHUB_ENV
-          else
+            echo "IMAGE_TAGS=aphpid/cohort360-backend:${VERSION}-rc,aphpid/cohort360-backend:${VERSION}-rc.${SHORT_SHA}" >> $GITHUB_ENV
+          elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             echo "IMAGE_TAGS=aphpid/cohort360-backend:${VERSION}" >> $GITHUB_ENV
+          else
+            echo "::error::Unexpected ref for Docker publish: ${GITHUB_REF}"
+            exit 1
           fi
 
       - name: Set up Docker Buildx
@@ -285,4 +300,9 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: ${{ env.IMAGE_TAGS }}
+          labels: |
+            org.opencontainers.image.title=Cohort360 Backend
+            org.opencontainers.image.version=${{ env.VERSION }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
 
