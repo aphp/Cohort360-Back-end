@@ -244,6 +244,8 @@ jobs:
     runs-on: ubuntu-latest
     if: |
       github.ref == 'refs/heads/main' ||
+      github.ref == 'refs/heads/develop' ||
+      startsWith(github.ref, 'refs/heads/release/') ||
       startsWith(github.ref, 'refs/tags/')
 
     steps:
@@ -259,8 +261,10 @@ jobs:
         run: |
           if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
             echo "IMAGE_TAGS=aphpid/cohort360-backend:${VERSION},aphpid/cohort360-backend:latest" >> $GITHUB_ENV
-          else if [ "${GITHUB_REF}" = "refs/heads/develop" ]; then
-            echo "IMAGE_TAGS=aphpid/cohort360-backend:develop" >> $GITHUB_ENV          
+          elif [ "${GITHUB_REF}" = "refs/heads/develop" ]; then
+            echo "IMAGE_TAGS=aphpid/cohort360-backend:develop" >> $GITHUB_ENV
+          elif [[ "${GITHUB_REF}" == refs/heads/release/* ]]; then
+            echo "IMAGE_TAGS=aphpid/cohort360-backend:${VERSION}-rc" >> $GITHUB_ENV
           else
             echo "IMAGE_TAGS=aphpid/cohort360-backend:${VERSION}" >> $GITHUB_ENV
           fi
