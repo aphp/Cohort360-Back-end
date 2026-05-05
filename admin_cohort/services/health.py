@@ -38,14 +38,6 @@ def _check_db_default() -> None:
         cursor.execute("SELECT 1")
 
 
-def _check_db_perimeters() -> Optional[str]:
-    if "accesses_perimeters" not in connections.databases:
-        return "skipped"
-    with connections["accesses_perimeters"].cursor() as cursor:
-        cursor.execute("SELECT 1")
-    return None
-
-
 def _check_redis() -> Optional[str]:
     backend = settings.CACHES["default"]["BACKEND"]
     if "RedisCache" not in backend:
@@ -53,18 +45,6 @@ def _check_redis() -> Optional[str]:
     from django_redis import get_redis_connection
 
     get_redis_connection("default").ping()
-    return None
-
-
-def _check_fhir() -> Optional[str]:
-    fhir_url = os.environ.get("FHIR_URL")
-    if not fhir_url:
-        return "skipped"
-    headers = {}
-    token = os.environ.get("FHIR_ACCESS_TOKEN", "")
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-    _http_reachable(f"{fhir_url.rstrip('/')}/metadata", headers=headers)
     return None
 
 
@@ -172,9 +152,7 @@ def _check_influxdb() -> Optional[str]:
 CHECKS: list[tuple[str, Callable[[], Optional[str]], bool]] = [
     ("django", _check_django, True),
     ("db_default", _check_db_default, True),
-    ("db_perimeters", _check_db_perimeters, False),
     ("redis", _check_redis, True),
-    ("fhir", _check_fhir, False),
     ("query_executor", _check_query_executor, False),
     ("oidc", _check_oidc, False),
     ("identity_server", _check_identity_server, False),
