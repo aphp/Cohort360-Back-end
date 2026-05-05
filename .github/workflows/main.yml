@@ -193,17 +193,10 @@ jobs:
 
   sonar:
     if: |
-      !startsWith(github.ref, 'refs/tags/') && (
+      !startsWith(github.ref, 'refs/tags/') && 
+      (
         github.event_name == 'workflow_dispatch' ||
-        (
-          github.event_name == 'pull_request' &&
-          (
-            github.base_ref == 'main' ||
-            startsWith(github.base_ref, 'release/') ||
-            startsWith(github.base_ref, 'hotfix/') ||
-            contains(github.event.pull_request.labels.*.name, 'run-sonar')
-          )
-        ) ||
+        github.event_name == 'pull_request' ||
         (
           github.event_name == 'push' &&
           (
