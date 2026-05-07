@@ -33,11 +33,11 @@ class ExportViewSetTest(ExportsTestBase):
             "name": "Special Export",
             "output_format": self.export_type,
             "nominative": True,
-            "export_tables": [{"table_name": "person", "cohort_result_source": self.cohort_result.uuid, "fhir_filter": self.fhir_filter.uuid}],
+            "export_tables": [{"table_name": "Patient", "cohort_result_source": self.cohort_result.uuid, "fhir_filter": self.fhir_filter.uuid}],
         }
         self.export_data_error = {
             **self.export_basic_data,
-            "export_tables": [{"table_name": "person"}, {"table_name": "table01"}, {"table_name": "table02"}],
+            "export_tables": [{"table_name": "Patient"}, {"table_name": "table01"}, {"table_name": "table02"}],
         }
         self.exports = [
             Export.objects.create(**dict(output_format=self.export_type, owner=self.exporter_user, target_name="12345_09092023_151500"))
@@ -79,7 +79,7 @@ class ExportViewSetTest(ExportsTestBase):
         create_url = reverse(viewname=self.viewname_list)
         export_data = {
             **self.export_basic_data,
-            "export_tables": [{"table_name": "person", "cohort_result_source": self.cohort_result.uuid, "pivot_merge": True, "columns": None}],
+            "export_tables": [{"table_name": "Patient", "cohort_result_source": self.cohort_result.uuid, "pivot_merge": True, "columns": None}],
         }
         self.check_test_create_view(
             request_user=self.exporter_user, create_url=create_url, request_data=export_data, expected_resp_status=status.HTTP_201_CREATED
@@ -92,7 +92,7 @@ class ExportViewSetTest(ExportsTestBase):
             **self.export_basic_data,
             "export_tables": [
                 {
-                    "table_name": "person",
+                    "table_name": "Patient",
                     "cohort_result_source": self.cohort_result.uuid,
                     "pivot_merge_columns": ["col_01", "col_02", "col_03"],
                     "pivot_merge_ids": ["col_01", "col_02"],
