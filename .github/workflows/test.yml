@@ -1,0 +1,243 @@
+name: cohort360-backend-test
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - main
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches:
+      - develop
+      - main
+      - 'release/**'
+      - 'hotfix/**'
+
+jobs:
+  pr-target-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Vers main — uniquement hotfix/** ou release/**
+        if: github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'main'
+        run: |
+          case "${{ github.head_ref }}" in
+            hotfix/*|release/*) ;;
+            *)
+              echo "::error title=PR invalide vers main::Seules les branches hotfix/** ou release/** peuvent cibler main (reçu: ${{ github.head_ref }})."
+              exit 1
+              ;;
+          esac
+      - name: Garde OK
+        run: echo "PR target OK"
+
+  ruff:
+    needs: [pr-target-guard]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Install UV
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: latest
+          enable-cache: true
+
+      - name: Install Python 3.13
+        run: uv python install 3.13
+
+      - name: Ruff (lint)
+        run: uv tool run ruff check .
+
+      - name: Ruff (format)
+        run: uv tool run ruff format --check .
+
+  safety:
+    needs: [pr-target-guard]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Install UV
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: latest
+          enable-cache: true
+
+      - name: Install Python 3.13
+        run: uv python install 3.13
+
+      - name: Safety
+        run: uv tool run safety check -i 42240,66963,70612,65213
+
+  mypy:
+    needs: [pr-target-guard]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Install UV
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: latest
+          enable-cache: true
+
+      - name: Install Python 3.13
+        run: uv python install 3.13
+
+      - name: Install system deps (kerberos)
+        run: sudo apt-get update && sudo apt-get -y install gcc libkrb5-dev
+
+      - name: Install project + dev (mypy, django-stubs)
+        run: uv sync --group dev
+
+      - name: MyPy
+        env:
+          DJANGO_SETTINGS_MODULE: admin_cohort.settings
+        run: |
+          cp .conf/.test.env .env
+          uv run mypy admin_cohort accesses cohort
+
+  bandit:
+    needs: [pr-target-guard]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Install UV
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: latest
+          enable-cache: true
+
+      - name: Install Python 3.13
+        run: uv python install 3.13
+
+      - name: Bandit
+        run: uv tool run bandit -r . -c pyproject.toml
+
+  deptry:
+    needs: [pr-target-guard]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Install UV
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: latest
+          enable-cache: true
+
+      - name: Install Python 3.13
+        run: uv python install 3.13
+
+      - name: Deptry
+        run: uv tool run deptry .
+
+  test:
+    needs: [pr-target-guard]
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: portail_test
+          POSTGRES_USER: portail_dev_limited_rw
+          POSTGRES_PASSWORD: portail_psswd
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U portail_dev_limited_rw -d portail_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Install UV
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: latest
+          enable-cache: true
+
+      - name: Install Python 3.13
+        run: uv python install 3.13
+
+      - name: Install system deps
+        run: |
+          sudo apt-get update && sudo apt-get -y install gcc libkrb5-dev
+          sudo locale-gen fr_FR.utf8
+          sudo update-locale
+
+      - name: Install project dependencies
+        run: uv sync
+
+      - name: Create logs dir
+        run: mkdir log
+
+      - name: Run Django migrations
+        run: |
+          cp .conf/.test.env .env
+          uv run python manage.py migrate
+
+      - name: Run tests
+        run: |
+          uv run coverage run --source='.' --omit="*/test*","*/migrations/*" manage.py test
+          uv run coverage xml --omit="*/test*","*/migrations/*" -o coverage.xml
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: coverage-report
+          path: coverage.xml
+
+  sonar:
+    if: |
+      github.event_name == 'pull_request'
+      || (
+        github.event_name == 'push'
+        && (
+          github.ref == 'refs/heads/main'
+          || github.ref == 'refs/heads/develop'
+          || startsWith(github.ref, 'refs/heads/release/')
+          || startsWith(github.ref, 'refs/heads/hotfix/')
+        )
+      )
+    needs:
+      - ruff
+      - safety
+      - mypy
+      - bandit
+      - deptry
+      - test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Download coverage report
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: coverage-report
+
+      - name: SonarCloud Scan
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: SonarSource/sonarqube-scan-action@299e4b793aaa83bf2aba7c9c14bedbb485688ec4 # v7
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
