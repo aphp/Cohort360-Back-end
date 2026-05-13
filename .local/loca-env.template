@@ -3,7 +3,7 @@
 DEBUG=True
 DJANGO_SECRET_KEY={SECRET_KEY}
 INCLUDED_APPS=accesses,cohort_job_server,cohort,exporters,exports,content_management,accesses_fhir_perimeters
-BACKEND_HOST=localhost:8000
+BACKEND_HOST=localhost:8080
 FRONTEND_URL=http://localhost:5003
 FRONTEND_URLS=http://localhost:3000,http://localhost:3001
 
