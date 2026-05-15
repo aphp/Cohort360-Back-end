@@ -23,6 +23,7 @@ class WSMaintenanceInfo(BaseModel):
     active: bool
     type: str
     message: Optional[str]
+    is_data_saved_message_hidden: bool
 
 
 class WSMaintenance(WebSocketMessage):
@@ -38,6 +39,7 @@ def maintenance_phase_to_info(maintenance: MaintenancePhase) -> WSMaintenanceInf
         active=maintenance.active,
         type=maintenance.type,
         message=maintenance.message,
+        is_data_saved_message_hidden=maintenance.is_data_saved_message_hidden,
     )
 
 
