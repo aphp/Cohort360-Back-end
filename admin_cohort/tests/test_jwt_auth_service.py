@@ -114,7 +114,6 @@ class JWTAuthTestCase(TestCase):
 
 
 class TestAuthenticateWithExternalServices(AuthBaseTests):
-
     def setUp(self):
         super().setUp()
         self.jwt_auth_service = JWTAuth()
@@ -170,4 +169,3 @@ class TestAuthenticateWithExternalServices(AuthBaseTests):
     def test_authenticate_with_external_services_improperly_configured_hooks(self):
         result = self.jwt_auth_service.authenticate_with_external_services(self.username, self.password)
         self.assertFalse(result)
-

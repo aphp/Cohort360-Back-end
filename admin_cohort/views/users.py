@@ -18,6 +18,7 @@ from admin_cohort.tools.cache import cache_response
 from admin_cohort.exceptions import ServerError
 from admin_cohort.tools.request_log_mixin import RequestLogMixin
 
+
 class UserFilter(filters.FilterSet):
     username = filters.CharFilter(field_name="username", lookup_expr="icontains")
     firstname = filters.CharFilter(field_name="firstname", lookup_expr="icontains")
@@ -31,7 +32,9 @@ class UserFilter(filters.FilterSet):
         model = User
         fields = ["firstname", "lastname", "username", "email"]
 
+
 extended_schema = extend_schema(tags=["Users"])
+
 
 @extend_schema_view(
     list=extended_schema,

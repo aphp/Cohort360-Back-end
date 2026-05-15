@@ -23,15 +23,15 @@ def get_trace_id() -> str:
     return request.headers.get(trace_id_header, str(meta_val) if meta_val is not None else "")
 
 
-
 def get_request_user_id(request) -> str:
     # /!\ local import to avoid Django's loading apps error: AppRegistryNotReady
     from admin_cohort.services.auth import auth_service
-    try:
-        user_id, _ = auth_service.authenticate_http_request(request)
-        return user_id
-    except TypeError:
+
+    result = auth_service.authenticate_http_request(request)
+    if result is None:
         return "Anonymous"
+    user, _ = result
+    return user.username
 
 
 class ContextRequestHolder:

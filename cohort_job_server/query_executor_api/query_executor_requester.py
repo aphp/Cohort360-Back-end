@@ -15,6 +15,7 @@ from cohort_job_server.query_executor_api import (
     QueryExecutorResponse,
     query_executor_status_mapper,
 )
+
 LoggerType = Type[Callable[..., None]]
 
 
