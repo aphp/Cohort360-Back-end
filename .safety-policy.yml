@@ -1,0 +1,22 @@
+version: "3.0"
+
+security:
+  ignore-vulnerabilities:
+    "42240":
+      reason: "Inherited exclusion (jinja2): re-evaluate at next dependency bump"
+    "66963":
+      reason: "Inherited exclusion: re-evaluate at next dependency bump"
+    "70612":
+      reason: "Inherited exclusion (jinja2 sandbox escape): re-evaluate at next dependency bump"
+    "65213":
+      reason: "Inherited exclusion: re-evaluate at next dependency bump"
+  ignore-unpinned-requirements: true
+
+scan:
+  max-depth: 4
+  ignore:
+    - ".venv"
+    - "build"
+    - "dist"
+    - "node_modules"
+    - "log"
