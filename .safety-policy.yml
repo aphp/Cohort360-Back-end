@@ -20,12 +20,16 @@ report:
       vulnerabilities:
         42240:
           reason: "Inherited exclusion (jinja2): re-evaluate at next dependency bump"
+          expires: '2026-11-18'
         66963:
           reason: "Inherited exclusion: re-evaluate at next dependency bump"
+          expires: '2026-11-18'
         70612:
           reason: "Inherited exclusion (jinja2 sandbox escape): re-evaluate at next dependency bump"
+          expires: '2026-11-18'
         65213:
           reason: "Inherited exclusion: re-evaluate at next dependency bump"
+          expires: '2026-11-18'
 
 fail-scan-with-exit-code:
   dependency-vulnerabilities:
