@@ -81,7 +81,6 @@ jobs:
         run: |
           uv tool run --from "safety==3.7.0" safety scan \
             --target . \
-            --policy-file .safety-policy.yml \
             --disable-optional-telemetry
 
   mypy:
