@@ -1,22 +1,42 @@
-version: "3.0"
+version: '3.0'
 
-security:
-  ignore-vulnerabilities:
-    "42240":
-      reason: "Inherited exclusion (jinja2): re-evaluate at next dependency bump"
-    "66963":
-      reason: "Inherited exclusion: re-evaluate at next dependency bump"
-    "70612":
-      reason: "Inherited exclusion (jinja2 sandbox escape): re-evaluate at next dependency bump"
-    "65213":
-      reason: "Inherited exclusion: re-evaluate at next dependency bump"
-  ignore-unpinned-requirements: true
-
-scan:
+scanning-settings:
   max-depth: 4
-  ignore:
+  exclude:
     - ".venv"
     - "build"
     - "dist"
-    - "node_modules"
     - "log"
+  include-files: []
+
+report:
+  dependency-vulnerabilities:
+    enabled: true
+    auto-ignore-in-report:
+      python:
+        environment-results: true
+        unpinned-requirements: true
+      cvss-severity: []
+      vulnerabilities:
+        42240:
+          reason: "Inherited exclusion (jinja2): re-evaluate at next dependency bump"
+        66963:
+          reason: "Inherited exclusion: re-evaluate at next dependency bump"
+        70612:
+          reason: "Inherited exclusion (jinja2 sandbox escape): re-evaluate at next dependency bump"
+        65213:
+          reason: "Inherited exclusion: re-evaluate at next dependency bump"
+
+fail-scan-with-exit-code:
+  dependency-vulnerabilities:
+    enabled: true
+    fail-on-any-of:
+      cvss-severity:
+        - critical
+        - high
+        - medium
+
+security-updates:
+  dependency-vulnerabilities:
+    auto-security-updates-limit:
+      - patch
