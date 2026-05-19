@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 
 from django.views.debug import SafeExceptionReporterFilter
 
-from admin_cohort.tools.except_report_filter import CustomExceptionReporterFilter
+from admin_cohort.tools.exception_report_filter import CustomExceptionReporterFilter
 
 
 class CustomExceptionReporterFilterTests(TestCase):

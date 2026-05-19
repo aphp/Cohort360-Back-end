@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import logging
 import os
 from typing import TYPE_CHECKING
 
@@ -12,8 +11,6 @@ from admin_cohort.http_timeout import HTTP_REQUEST_TIMEOUT
 
 if TYPE_CHECKING:
     from cohort_job_server.query_executor_api import CohortQuery, SparkJobObject
-
-_logger = logging.getLogger("info")
 
 
 class QueryExecutorClient:

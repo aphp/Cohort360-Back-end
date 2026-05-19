@@ -5,7 +5,7 @@ from django.db import migrations, models
 from accesses.serializers import RightSerializer
 
 
-_logger = logging.getLogger('info')
+logger = logging.getLogger(__name__)
 
 
 def load_new_right(apps, schema_editor):
@@ -17,7 +17,7 @@ def load_new_right(apps, schema_editor):
     if right_serializer.is_valid():
         right_serializer.save()
     else:
-        _logger.error(f"Error on loading right: {right_serializer.errors}")
+        logger.error(f"Error on loading right: {right_serializer.errors}")
         return
 
 

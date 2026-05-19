@@ -1,13 +1,9 @@
-import logging
-
 import requests
 from requests import RequestException, Response
 from rest_framework import status
 
 from admin_cohort.http_timeout import HTTP_REQUEST_TIMEOUT
 from exporters.apis.base import BaseAPI
-
-_logger = logging.getLogger("django.request")
 
 
 class HadoopAPI(BaseAPI):

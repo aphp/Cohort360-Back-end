@@ -4,7 +4,7 @@ from typing import List
 
 from django.db import migrations
 
-_logger = logging.getLogger('info')
+logger = logging.getLogger(__name__)
 
 
 def retrieve_unix_accounts(connection) -> List[str]:
@@ -31,7 +31,7 @@ def populate_datalabs(apps, schema_editor):
         datalab_model.objects.using(db_alias).create(name=account_name,
                                                      infrastructure_provider=infra_provider)
         count += 1
-    _logger.info(f'Populated {count} datalab accounts')
+    logger.info(f'Populated {count} datalab accounts')
 
 
 class Migration(migrations.Migration):
