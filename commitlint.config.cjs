@@ -3,5 +3,6 @@ module.exports = {
   rules: {
     'header-max-length': [0],
     'subject-max-length': [0],
+    'body-max-line-length': [0],
   },
 };
