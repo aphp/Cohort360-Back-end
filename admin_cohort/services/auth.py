@@ -290,7 +290,7 @@ class JWTAuth(Auth):
                 if authenticated:
                     return True
             except ImportError as e:
-                logger.error(f"[Authentication] hook improperly configured: {str(e)}")
+                logger.exception(f"[Authentication] hook improperly configured: {str(e)}")
             except APIException:
                 continue
         logger.error("[Authentication] All external services failed. Review defined hooks or remove them")
