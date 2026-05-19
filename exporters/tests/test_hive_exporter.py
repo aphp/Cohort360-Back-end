@@ -93,3 +93,30 @@ class TestHiveExporter(ExportersTestBase):
         self.mock_hadoop_api.change_db_ownership.side_effect = RequestException()
         self.exporter.conclude_export(export=self.hive_export)
         mock_notify_export_failed.assert_called_once()
+
+    def test_prepare_db(self):
+        self.mock_hadoop_api.create_db.return_value = "some-job-id"
+        self.mock_hadoop_api.get_export_logs.return_value = {"task_status": "FinishedSuccessfully"}
+        self.exporter.prepare_db(export=self.hive_export)
+        self.mock_hadoop_api.create_db.assert_called_once()
+        self.mock_hadoop_api.change_db_ownership.assert_called_once()
+
+    @mock.patch.object(HiveExporter, "conclude_export")
+    @mock.patch("exporters.exporters.base_exporter.BaseExporter.handle_export")
+    @mock.patch.object(HiveExporter, "prepare_db")
+    @mock.patch.object(HiveExporter, "confirm_export_received")
+    def test_handle_export_success(self, mock_confirm, mock_prepare, mock_super_handle, mock_conclude):
+        self.exporter.handle_export(export=self.hive_export)
+        mock_confirm.assert_called_once_with(export=self.hive_export)
+        mock_prepare.assert_called_once_with(self.hive_export)
+        mock_super_handle.assert_called_once()
+        mock_conclude.assert_called_once_with(export=self.hive_export)
+
+    @mock.patch.object(HiveExporter, "mark_export_as_failed")
+    @mock.patch.object(HiveExporter, "prepare_db", side_effect=RequestException("boom"))
+    @mock.patch.object(HiveExporter, "confirm_export_received")
+    def test_handle_export_prepare_db_failure(self, mock_confirm, mock_prepare, mock_mark_failed):
+        self.exporter.handle_export(export=self.hive_export)
+        mock_confirm.assert_called_once()
+        mock_prepare.assert_called_once()
+        mock_mark_failed.assert_called_once()
