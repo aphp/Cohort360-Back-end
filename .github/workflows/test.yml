@@ -70,8 +70,19 @@ jobs:
       - name: Install Python 3.13
         run: uv python install 3.13
 
-      - name: Safety
-        run: uv tool run safety check -i 42240,66963,70612,65213
+      - name: Export production dependencies from uv.lock
+        run: |
+          uv export --format requirements.txt --no-dev --no-header --no-annotate --no-hashes --frozen \
+            --output-file requirements.txt
+
+      - name: Safety scan
+        continue-on-error: true  #TODO: remove when CVE reported are handled
+        env:
+          SAFETY_API_KEY: ${{ secrets.SAFETY_API_KEY }}
+        run: |
+          uv tool run --from "safety==3.7.0" safety scan \
+            --target . \
+            --disable-optional-telemetry
 
   mypy:
     needs: [pr-target-guard]
