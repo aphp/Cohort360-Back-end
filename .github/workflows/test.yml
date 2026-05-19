@@ -55,7 +55,6 @@ jobs:
 
   safety:
     needs: [pr-target-guard]
-    continue-on-error: true  #TODO: remove when CVE reported are handled
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -77,6 +76,7 @@ jobs:
             --output-file requirements.txt
 
       - name: Safety scan
+        continue-on-error: true  #TODO: remove when CVE reported are handled
         env:
           SAFETY_API_KEY: ${{ secrets.SAFETY_API_KEY }}
         run: |
