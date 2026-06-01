@@ -57,3 +57,35 @@ class RequestLogTests(BaseTests):
         response = RequestLogViewSet.as_view({"get": "list"})(request)
         response.render()
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
+
+    def test_list_request_logs_with_only_right_read_logs(self):
+        user, profile = new_user_and_profile()
+        role = Role.objects.create(name="LogsReader", right_read_logs=True)
+        Access.objects.create(
+            perimeter=self.aphp,
+            role=role,
+            profile=profile,
+            start_datetime=timezone.now(),
+            end_datetime=timezone.now() + timedelta(days=365),
+        )
+        request = self.factory.get(REQUEST_LOGS_URL)
+        force_authenticate(request, user)
+        response = RequestLogViewSet.as_view({"get": "list"})(request)
+        response.render()
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
+
+    def test_list_request_logs_without_right_is_forbidden(self):
+        user, profile = new_user_and_profile()
+        role = Role.objects.create(name="NoRights")
+        Access.objects.create(
+            perimeter=self.aphp,
+            role=role,
+            profile=profile,
+            start_datetime=timezone.now(),
+            end_datetime=timezone.now() + timedelta(days=365),
+        )
+        request = self.factory.get(REQUEST_LOGS_URL)
+        force_authenticate(request, user)
+        response = RequestLogViewSet.as_view({"get": "list"})(request)
+        response.render()
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN, response.content)

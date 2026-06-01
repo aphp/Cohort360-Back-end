@@ -24,7 +24,7 @@ class MaintenancesPermission(IsAuthenticated):
 class LogsPermission(IsAuthenticated):
     def has_permission(self, request, view):
         authenticated = super().has_permission(request, view)
-        return authenticated and accesses_service.user_is_full_admin(request.user)
+        return authenticated and accesses_service.user_can_read_logs(request.user)
 
     def has_object_permission(self, request, view, obj):
         return self.has_permission(request=request, view=view)

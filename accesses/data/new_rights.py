@@ -103,6 +103,12 @@ rights = [
         "category": "Datalabs",
         "is_global": True,
     },
+    {
+        "name": "right_read_logs",
+        "label": "Consulter les logs",
+        "category": "Logs",
+        "is_global": True,
+    },
 ]
 
 dependent_rights = [
