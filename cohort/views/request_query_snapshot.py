@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.http import QueryDict
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status
@@ -22,13 +23,19 @@ class RequestQuerySnapshotViewSet(NestedViewSetMixin, UserObjectsRestrictedViewS
     swagger_tags = ["Request Query Snapshots"]
     filterset_fields = ["request", "name", "shared_by", "previous_snapshot", "request", "request__parent_folder"]
 
-    @extend_schema(request=RQSCreateSerializer, responses={status.HTTP_201_CREATED: RQSSerializer})
+    @extend_schema(
+        request=RQSCreateSerializer,
+        responses={status.HTTP_200_OK: RQSSerializer, status.HTTP_201_CREATED: RQSSerializer},
+    )
     def create(self, request, *args, **kwargs):
         try:
-            rqs_service.process_creation_data(data=request.data)
+            with transaction.atomic():
+                existing = rqs_service.process_creation_data(data=request.data)
+                if existing is not None:
+                    return Response(RQSSerializer(existing).data, status=status.HTTP_200_OK)
+                return super().create(request, *args, **kwargs)
         except ValueError as ve:
             return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
-        return super().create(request, *args, **kwargs)
 
     @extend_schema(request=RQSShareSerializer, responses={status.HTTP_201_CREATED: None})
     @action(detail=True, methods=["post"], url_path="share")
