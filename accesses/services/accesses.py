@@ -36,6 +36,11 @@ class AccessesService:
     def user_is_full_admin(self, user: User) -> bool:
         return any(access.role is not None and access.role.right_full_admin for access in self.get_user_valid_accesses(user))
 
+    def user_can_read_logs(self, user: User) -> bool:
+        return any(
+            access.role is not None and (access.role.right_full_admin or access.role.right_read_logs) for access in self.get_user_valid_accesses(user)
+        )
+
     @staticmethod
     def get_expiring_accesses(user: User, accesses: QuerySet):
         today = date.today()
