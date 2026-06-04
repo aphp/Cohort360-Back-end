@@ -226,9 +226,7 @@ class CheckFhirTests(SimpleTestCase):
             params={"active": "true", "_count": "0"},
             headers={"Authorization": "Bearer sys-token", "Accept": "application/fhir+json"},
         )
-        mock_cache.set.assert_called_once_with(
-            FHIR_CACHE_KEY, {"ok": True, "error": None}, FHIR_CACHE_TTL_SECONDS
-        )
+        mock_cache.set.assert_called_once_with(FHIR_CACHE_KEY, {"ok": True, "error": None}, FHIR_CACHE_TTL_SECONDS)
 
     @patch("admin_cohort.services.auth.jwt_auth_service.generate_system_token", return_value="sys-token")
     @patch("admin_cohort.services.health._http_reachable", side_effect=RuntimeError("HTTP 500"))
@@ -238,9 +236,7 @@ class CheckFhirTests(SimpleTestCase):
         with patch.dict("os.environ", {"FHIR_URL": "http://fhir/"}):
             with self.assertRaises(RuntimeError):
                 _check_fhir()
-        mock_cache.set.assert_called_once_with(
-            FHIR_CACHE_KEY, {"ok": False, "error": "HTTP 500"}, FHIR_CACHE_TTL_SECONDS
-        )
+        mock_cache.set.assert_called_once_with(FHIR_CACHE_KEY, {"ok": False, "error": "HTTP 500"}, FHIR_CACHE_TTL_SECONDS)
 
 
 class RunCheckTests(SimpleTestCase):
