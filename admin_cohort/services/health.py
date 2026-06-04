@@ -7,6 +7,7 @@ from typing import Callable, Optional
 import requests
 from django.apps import apps
 from django.conf import settings
+from django.core.cache import cache
 from django.db import connections
 from rest_framework import status
 
@@ -15,6 +16,9 @@ _logger = logging.getLogger(__name__)
 
 CHECK_TIMEOUT_SECONDS = 2.0
 GLOBAL_TIMEOUT_SECONDS = CHECK_TIMEOUT_SECONDS + 1.0
+
+FHIR_CACHE_KEY = "health:fhir"
+FHIR_CACHE_TTL_SECONDS = 300
 
 _HTTP_HARD_FAIL_CODES = {status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN}
 
@@ -149,6 +153,31 @@ def _check_influxdb() -> Optional[str]:
     return None
 
 
+def _check_fhir() -> Optional[str]:
+    fhir_url = os.environ.get("FHIR_URL")
+    if not fhir_url:
+        return "skipped"
+    cached = cache.get(FHIR_CACHE_KEY)
+    if cached is not None:
+        if cached.get("ok"):
+            return None
+        raise RuntimeError(cached.get("error") or "cached failure")
+    from admin_cohort.services.auth import jwt_auth_service
+
+    token = jwt_auth_service.generate_system_token()
+    try:
+        _http_reachable(
+            f"{fhir_url.rstrip('/')}/Patient",
+            params={"active": "true", "_count": "0"},
+            headers={"Authorization": f"Bearer {token}", "Accept": "application/fhir+json"},
+        )
+    except Exception as exc:
+        cache.set(FHIR_CACHE_KEY, {"ok": False, "error": str(exc)[:300]}, FHIR_CACHE_TTL_SECONDS)
+        raise
+    cache.set(FHIR_CACHE_KEY, {"ok": True, "error": None}, FHIR_CACHE_TTL_SECONDS)
+    return None
+
+
 CHECKS: list[tuple[str, Callable[[], Optional[str]], bool]] = [
     ("django", _check_django, True),
     ("db_default", _check_db_default, True),
@@ -160,6 +189,7 @@ CHECKS: list[tuple[str, Callable[[], Optional[str]], bool]] = [
     ("export_api", _check_export_api, False),
     ("smtp", _check_smtp, False),
     ("influxdb", _check_influxdb, False),
+    ("fhir", _check_fhir, False),
 ]
 
 

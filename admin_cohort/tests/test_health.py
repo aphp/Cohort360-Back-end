@@ -9,9 +9,12 @@ from rest_framework.test import APIClient
 
 from admin_cohort.services import health as health_module
 from admin_cohort.services.health import (
+    FHIR_CACHE_KEY,
+    FHIR_CACHE_TTL_SECONDS,
     _check_db_default,
     _check_django,
     _check_export_api,
+    _check_fhir,
     _check_hadoop_api,
     _check_identity_server,
     _check_influxdb,
@@ -184,6 +187,60 @@ class IndividualChecksTests(SimpleTestCase):
         with self.assertRaises(RuntimeError):
             _check_influxdb()
         client.close.assert_called_once()
+
+
+class CheckFhirTests(SimpleTestCase):
+    def test_skipped_when_no_url(self):
+        with patch.dict("os.environ", {"FHIR_URL": ""}):
+            self.assertEqual(_check_fhir(), "skipped")
+
+    @patch("admin_cohort.services.health._http_reachable")
+    @patch("admin_cohort.services.health.cache")
+    def test_cache_hit_ok_skips_http_call(self, mock_cache, mock_http):
+        mock_cache.get.return_value = {"ok": True, "error": None}
+        with patch.dict("os.environ", {"FHIR_URL": "http://fhir/"}):
+            self.assertIsNone(_check_fhir())
+        mock_http.assert_not_called()
+        mock_cache.set.assert_not_called()
+
+    @patch("admin_cohort.services.health._http_reachable")
+    @patch("admin_cohort.services.health.cache")
+    def test_cache_hit_ko_raises_without_http_call(self, mock_cache, mock_http):
+        mock_cache.get.return_value = {"ok": False, "error": "previous boom"}
+        with patch.dict("os.environ", {"FHIR_URL": "http://fhir/"}):
+            with self.assertRaises(RuntimeError) as ctx:
+                _check_fhir()
+        self.assertIn("previous boom", str(ctx.exception))
+        mock_http.assert_not_called()
+        mock_cache.set.assert_not_called()
+
+    @patch("admin_cohort.services.auth.jwt_auth_service.generate_system_token", return_value="sys-token")
+    @patch("admin_cohort.services.health._http_reachable")
+    @patch("admin_cohort.services.health.cache")
+    def test_cache_miss_success_caches_ok(self, mock_cache, mock_http, _mock_token):
+        mock_cache.get.return_value = None
+        with patch.dict("os.environ", {"FHIR_URL": "http://fhir/"}):
+            self.assertIsNone(_check_fhir())
+        mock_http.assert_called_once_with(
+            "http://fhir/Patient",
+            params={"active": "true", "_count": "0"},
+            headers={"Authorization": "Bearer sys-token", "Accept": "application/fhir+json"},
+        )
+        mock_cache.set.assert_called_once_with(
+            FHIR_CACHE_KEY, {"ok": True, "error": None}, FHIR_CACHE_TTL_SECONDS
+        )
+
+    @patch("admin_cohort.services.auth.jwt_auth_service.generate_system_token", return_value="sys-token")
+    @patch("admin_cohort.services.health._http_reachable", side_effect=RuntimeError("HTTP 500"))
+    @patch("admin_cohort.services.health.cache")
+    def test_cache_miss_failure_caches_ko_and_raises(self, mock_cache, _mock_http, _mock_token):
+        mock_cache.get.return_value = None
+        with patch.dict("os.environ", {"FHIR_URL": "http://fhir/"}):
+            with self.assertRaises(RuntimeError):
+                _check_fhir()
+        mock_cache.set.assert_called_once_with(
+            FHIR_CACHE_KEY, {"ok": False, "error": "HTTP 500"}, FHIR_CACHE_TTL_SECONDS
+        )
 
 
 class RunCheckTests(SimpleTestCase):
