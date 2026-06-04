@@ -309,6 +309,57 @@ class RqsCreateTests(RqsTests):
             )
         )
 
+    def _make_previous_with_test_query(self) -> RequestQuerySnapshot:
+        return RequestQuerySnapshot.objects.create(
+            owner=self.user1,
+            request=self.user1_req2,
+            serialized_query=self.test_query,
+        )
+
+    def test_idempotent_create_returns_previous_when_same_serialized_query(self):
+        # As a user, if I POST a snapshot whose serialized_query equals its
+        # previous_snapshot's serialized_query, the back must not create a
+        # duplicate row: it returns the previous snapshot with status 200.
+        # This absorbs the duplicated-POST case from the front.
+        previous = self._make_previous_with_test_query()
+        request_pre_count = previous.request.query_snapshots.count()
+
+        data = {
+            "owner": self.user1.pk,
+            "request": previous.request.pk,
+            "previous_snapshot": previous.pk,
+            "serialized_query": previous.serialized_query,
+        }
+        request = self.factory.post(self.objects_url, data=data, format="json")
+        force_authenticate(request, self.user1)
+        response = self.__class__.create_view(request)
+        response.render()
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK, msg=response.content)
+        self.assertEqual(response.data["uuid"], str(previous.pk))
+        self.assertEqual(previous.request.query_snapshots.count(), request_pre_count)
+
+    def test_create_with_different_serialized_query_still_creates(self):
+        # Sanity check: idempotency must not block a legitimate edit on top of
+        # the same previous_snapshot.
+        previous = self._make_previous_with_test_query()
+        request_pre_count = previous.request.query_snapshots.count()
+
+        edited_query = '{"test": "edited", "sourcePopulation": {"caresiteCohortList": ["1", "2", "3"]}}'
+        data = {
+            "owner": self.user1.pk,
+            "request": previous.request.pk,
+            "previous_snapshot": previous.pk,
+            "serialized_query": edited_query,
+        }
+        request = self.factory.post(self.objects_url, data=data, format="json")
+        force_authenticate(request, self.user1)
+        response = self.__class__.create_view(request)
+        response.render()
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, msg=response.content)
+        self.assertEqual(previous.request.query_snapshots.count(), request_pre_count + 1)
+
     # def test_error_create_unvalid_query(self):
     #     # As a user, I cannot create a RQS if the query server deny the query
     #     # or the query is not a json
