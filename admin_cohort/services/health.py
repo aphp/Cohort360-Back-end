@@ -162,14 +162,10 @@ def _check_fhir() -> Optional[str]:
         if cached.get("ok"):
             return None
         raise RuntimeError(cached.get("error") or "cached failure")
-    from admin_cohort.services.auth import jwt_auth_service
-
-    token = jwt_auth_service.generate_system_token()
     try:
         _http_reachable(
-            f"{fhir_url.rstrip('/')}/Patient",
-            params={"active": "true", "_count": "0"},
-            headers={"Authorization": f"Bearer {token}", "Accept": "application/fhir+json"},
+            f"{fhir_url.rstrip('/')}/metadata",
+            headers={"Accept": "application/fhir+json"},
         )
     except Exception as exc:
         cache.set(FHIR_CACHE_KEY, {"ok": False, "error": str(exc)[:300]}, FHIR_CACHE_TTL_SECONDS)
