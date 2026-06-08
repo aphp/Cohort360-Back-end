@@ -6,6 +6,7 @@ from django.utils import timezone
 from requests import RequestException
 
 from admin_cohort.models import User
+from admin_cohort.services.prometheus_metrics import EXPORTS_TOTAL
 from admin_cohort.types import JobStatus
 from exporters.apis.export_api import ExportAPI
 from exporters.apis.hadoop_api import HadoopAPI
@@ -156,6 +157,7 @@ class BaseExporter:
 
     @staticmethod
     def confirm_export_succeeded(export: Export) -> None:
+        EXPORTS_TOTAL.labels(status=JobStatus.finished.value, output_format=export.output_format).inc()
         notify_export_succeeded.delay(export.pk)
 
     @staticmethod
@@ -163,6 +165,7 @@ class BaseExporter:
         export.request_job_status = JobStatus.failed
         export.request_job_fail_msg = reason
         export.save()
+        EXPORTS_TOTAL.labels(status=JobStatus.failed.value, output_format=export.output_format).inc()
         notify_export_failed.delay(export.pk, reason)
 
     @staticmethod
