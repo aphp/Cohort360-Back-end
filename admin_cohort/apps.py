@@ -17,4 +17,5 @@ class AdminCohortConfig(AppConfig):
 
     def ready(self):
         from admin_cohort.services.prometheus_metrics import register_collectors
+
         register_collectors()
