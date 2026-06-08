@@ -36,5 +36,6 @@ urlpatterns = [re_path(r'^$', NotFoundView.as_view({'post': 'dispatch'}), name="
                path("fhir-perimeters/", include(("accesses_fhir_perimeters.urls", "accesses_fhir_perimeters"), namespace="accesses_fhir_perimeters")),
                path(f"{DOCS_ENDPOINT}", SpectacularSwaggerView.as_view(), name='swagger-ui'),
                re_path(r"^schema", SpectacularAPIView.as_view(), name='schema'),
-               re_path(r"^redoc/$", SpectacularRedocView.as_view(), name='redoc')
+               re_path(r"^redoc/$", SpectacularRedocView.as_view(), name='redoc'),
+               path("", include("django_prometheus.urls"))
                ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

@@ -2,6 +2,7 @@ from typing import Optional
 
 from django.utils import timezone
 
+from admin_cohort.services.prometheus_metrics import COHORT_GENERATION_DURATION_SECONDS
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult
 from cohort_job_server.apps import CohortJobServerConfig
@@ -38,7 +39,9 @@ class CohortCreator(BaseCohortOperator):
             if not job_status:
                 raise ValueError(f"Bad Request: Invalid job status: {data.get(JOB_STATUS)}")
             if job_status in (JobStatus.finished, JobStatus.failed):
-                data["request_job_duration"] = str(timezone.now() - cohort.created_at)
+                duration = timezone.now() - cohort.created_at
+                data["request_job_duration"] = str(duration)
+                COHORT_GENERATION_DURATION_SECONDS.labels(status=job_status.value).observe(duration.total_seconds())
                 if job_status == JobStatus.failed:
                     data["request_job_fail_msg"] = data.pop(ERR_MESSAGE, None)
                     _logger_err.error(f"CohortResult[{cohort.uuid}] - Failed")
