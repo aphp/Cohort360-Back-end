@@ -45,6 +45,8 @@ dependencies = [
     "requests>=2.32.3",
     "celery>=5.4.0",
     "djangorestframework-simplejwt>=5.4.0",
+    "django-prometheus>=2.3.1",
+    "prometheus-client>=0.25.0",
 ]
 
 [dependency-groups]
@@ -139,6 +141,7 @@ DEP002 = [
     "psycopg",
     "redis",
     "requests-kerberos",
+    "django-prometheus",
 ]
 
 [tool.deptry.package_module_name_map]
