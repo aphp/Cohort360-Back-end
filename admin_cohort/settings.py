@@ -108,9 +108,11 @@ INSTALLED_APPS = [
     "channels",
     "django_celery_beat",
     "admin_cohort",
+    "django_prometheus",
 ] + INCLUDED_APPS
 
 MIDDLEWARE = [
+    "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",
@@ -123,6 +125,7 @@ MIDDLEWARE = [
     "admin_cohort.middleware.context_request_middleware.ContextRequestMiddleware",
     "admin_cohort.middleware.jwt_session_middleware.JWTSessionMiddleware",
     "admin_cohort.middleware.swagger_headers_middleware.SwaggerHeadersMiddleware",
+    "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]
 
 INFLUXDB_ENABLED = env.bool("INFLUXDB_ENABLED", default=False)

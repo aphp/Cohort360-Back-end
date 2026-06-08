@@ -46,4 +46,5 @@ urlpatterns = [
     path(f"{DOCS_ENDPOINT}", SpectacularSwaggerView.as_view(), name="swagger-ui"),
     re_path(r"^schema", SpectacularAPIView.as_view(), name="schema"),
     re_path(r"^redoc/$", SpectacularRedocView.as_view(), name="redoc"),
+    path("", include("django_prometheus.urls")),
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
