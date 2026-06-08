@@ -131,7 +131,10 @@ MIDDLEWARE = [
 INFLUXDB_ENABLED = env.bool("INFLUXDB_ENABLED", default=False)
 
 if INFLUXDB_ENABLED:
-    MIDDLEWARE = ["admin_cohort.middleware.influxdb_middleware.InfluxDBMiddleware"] + MIDDLEWARE
+    _prom_before = "django_prometheus.middleware.PrometheusBeforeMiddleware"
+    _influx = "admin_cohort.middleware.influxdb_middleware.InfluxDBMiddleware"
+    _idx = MIDDLEWARE.index(_prom_before) + 1 if _prom_before in MIDDLEWARE else 0
+    MIDDLEWARE = MIDDLEWARE[:_idx] + [_influx] + MIDDLEWARE[_idx:]
 
 TEMPLATES = [
     {
