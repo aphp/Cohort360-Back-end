@@ -140,6 +140,7 @@ DEP002 = [
     "psycopg",
     "redis",
     "requests-kerberos",
+    "django-prometheus",
 ]
 
 [tool.deptry.package_module_name_map]
