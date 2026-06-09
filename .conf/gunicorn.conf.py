@@ -1,7 +1,9 @@
+import os
 from logging.handlers import DEFAULT_TCP_LOGGING_PORT
 
 from environ import environ
 from gunicorn.glogging import Logger
+from prometheus_client import multiprocess
 
 env = environ.Env()
 workers = 7
@@ -43,3 +45,8 @@ logconfig_dict = {
         },
     },
 }
+
+
+def child_exit(server, worker):
+    if os.environ.get("PROMETHEUS_MULTIPROC_DIR"):
+        multiprocess.mark_process_dead(worker.pid)
