@@ -8,7 +8,8 @@ from admin_cohort.services.prometheus_metrics import JobsInProgressCollector
 
 
 def metrics_view(request):
-    if "PROMETHEUS_MULTIPROC_DIR" in os.environ:
+    multiproc_dir = os.environ.get("PROMETHEUS_MULTIPROC_DIR")
+    if multiproc_dir and os.path.isdir(multiproc_dir):
         registry = prometheus_client.CollectorRegistry()
         multiprocess.MultiProcessCollector(registry)
         registry.register(JobsInProgressCollector())
