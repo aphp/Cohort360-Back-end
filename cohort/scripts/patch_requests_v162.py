@@ -6,7 +6,7 @@ from django.db import connections
 from cohort.scripts.patch_requests_v161 import NEW_VERSION as PREV_VERSION
 from cohort.scripts.query_request_updater import RESOURCE_DEFAULT, MATCH_ALL_VALUES, QueryRequestUpdater, find_mapped_code
 
-LOGGER = logging.getLogger("info")
+LOGGER = logging.getLogger(__name__)
 stream_handler = logging.StreamHandler(stream=sys.stdout)
 LOGGER.addHandler(stream_handler)
 

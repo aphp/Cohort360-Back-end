@@ -1,3 +1,5 @@
+import logging
+
 from django.db import IntegrityError
 from django_filters import OrderingFilter
 from django_filters import rest_framework as filters
@@ -16,6 +18,8 @@ from admin_cohort.tools.cache import cache_response
 from admin_cohort.permissions import IsAuthenticated, UsersPermission
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from admin_cohort.tools.request_log_mixin import RequestLogMixin
+
+_logger = logging.getLogger(__name__)
 
 
 class RoleFilter(filters.FilterSet):
@@ -52,7 +56,9 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
             roles_service.check_role_has_inconsistent_rights(data=request.data.copy())
         except IntegrityError as e:
             return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        return super(RoleViewSet, self).create(request, *args, **kwargs)
+        resp = super(RoleViewSet, self).create(request, *args, **kwargs)
+        _logger.info("Role created by user %s - request data: %s", request.user.username, request.data)
+        return resp
 
     @extend_schema(request=RoleSerializer, responses={status.HTTP_200_OK: RoleSerializer})
     def partial_update(self, request, *args, **kwargs):
@@ -63,7 +69,9 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
             roles_service.check_role_has_inconsistent_rights(data=data)
         except IntegrityError as e:
             return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        return super(RoleViewSet, self).partial_update(request, *args, **kwargs)
+        resp = super(RoleViewSet, self).partial_update(request, *args, **kwargs)
+        _logger.info("Role updated by user %s - request data: %s", request.user.username, request.data)
+        return resp
 
     @extend_schema(responses={status.HTTP_204_NO_CONTENT: None})
     def destroy(self, request, *args, **kwargs):
@@ -73,6 +81,7 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
         if role.accesses.all().exists():
             return Response(data={"error": "This role is attached to existing accesses"}, status=status.HTTP_403_FORBIDDEN)
         self.perform_destroy(role)
+        _logger.info("Role deleted by user %s - role id: %s", request.user.username, role.id)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @extend_schema(responses={status.HTTP_200_OK: UsersInRoleSerializer(many=True)})
