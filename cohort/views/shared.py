@@ -31,7 +31,7 @@ class UserObjectsRestrictedViewSet(RequestLogMixin, viewsets.ModelViewSet, metac
         if type(request.data) is QueryDict:
             request.data._mutable = True
         request.data["owner"] = request.data.get("owner", request.user.pk)
-        _logger.info(f"User {request.user.username} created object {request.data}")
+        _logger.info("User %s created object %s", request.user.username, request.data)
         return super().create(request, *args, **kwargs)
 
     # todo : remove when front is ready

@@ -57,7 +57,7 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
         except IntegrityError as e:
             return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         resp = super(RoleViewSet, self).create(request, *args, **kwargs)
-        _logger.info(f"Role created by user {request.user.username} - request data: {request.data}")
+        _logger.info("Role created by user %s - request data: %s", request.user.username, request.data)
         return resp
 
     @extend_schema(request=RoleSerializer, responses={status.HTTP_200_OK: RoleSerializer})
@@ -70,7 +70,7 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
         except IntegrityError as e:
             return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         resp = super(RoleViewSet, self).partial_update(request, *args, **kwargs)
-        _logger.info(f"Role updated by user {request.user.username} - request data: {request.data}")
+        _logger.info("Role updated by user %s - request data: %s", request.user.username, request.data)
         return resp
 
     @extend_schema(responses={status.HTTP_204_NO_CONTENT: None})
@@ -81,7 +81,7 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
         if role.accesses.all().exists():
             return Response(data={"error": "This role is attached to existing accesses"}, status=status.HTTP_403_FORBIDDEN)
         self.perform_destroy(role)
-        _logger.info(f"Role deleted by user {request.user.username} - role id: {role.id}")
+        _logger.info("Role deleted by user %s - role id: %s", request.user.username, role.id)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @extend_schema(responses={status.HTTP_200_OK: UsersInRoleSerializer(many=True)})

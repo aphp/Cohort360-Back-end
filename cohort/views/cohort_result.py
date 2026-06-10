@@ -121,7 +121,9 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
             lambda: cohort_service.handle_cohort_creation(request=request, cohort=response.data.serializer.instance, global_estimate=global_estimate)
         )
         _logger.info(
-            f"Cohort created by user {request.user.username} - cohort: {response.data.serializer.instance} - global estimation: {global_estimate}")
+            "Cohort created by user %s - cohort: %s - global estimation: %s",
+            request.user.username, response.data.serializer.instance, global_estimate
+        )
         return response
 
     @extend_schema(request=CohortResultPatchSerializer, responses={status.HTTP_200_OK: CohortResultSerializer})

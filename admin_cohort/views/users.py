@@ -84,7 +84,7 @@ class UserViewSet(RequestLogMixin, viewsets.ModelViewSet):
         users_service.validate_user_data(data=request.data)
         response = super().create(request, *args, **kwargs)
         users_service.setup_profile(data=request.data)
-        _logger_info.info(f"User created by user {request.user.username}")
+        _logger_info.info("User created by user %s", request.user.username)
         return response
 
     @cache_response()

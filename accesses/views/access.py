@@ -111,7 +111,7 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
         except ValueError as e:
             return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         resp = super().create(request, *args, **kwargs)
-        _logger.info(f"Access created by user {request.user.username} - request data: {request.data}")
+        _logger.info("Access created by user %s - request data: %s", request.user.username, request.data)
         return resp
 
     @extend_schema(request=AccessSerializer, responses={status.HTTP_200_OK: AccessSerializer})
@@ -121,7 +121,7 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
         except ValueError as e:
             return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         resp = super().partial_update(request, *args, **kwargs)
-        _logger.info(f"Access updated by user {request.user.username} - request data: {request.data}")
+        _logger.info("Access updated by user %s - request data: %s", request.user.username, request.data)
         return resp
 
     @extend_schema(request=AccessSerializer, responses={status.HTTP_200_OK: AccessSerializer})
@@ -133,7 +133,7 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
         except ValueError as e:
             return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         request.data.update({"end_datetime": now})
-        _logger.info(f"Access closed by user {request.user.username} - request data: {request.data}")
+        _logger.info("Access closed by user %s - request data: %s", request.user.username, request.data)
         return super().partial_update(request, *args, **kwargs)
 
     @extend_schema(responses={status.HTTP_204_NO_CONTENT: None})
@@ -142,7 +142,7 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
         if access.start_datetime and access.start_datetime < timezone.now():
             return Response(data={"error": "L'accès est déjà activé, il ne peut plus être supprimé."}, status=status.HTTP_400_BAD_REQUEST)
         self.perform_destroy(access)
-        _logger.info(f"Access deleted by user {request.user.username} - access id: {access.id}")
+        _logger.info("Access deleted by user %s - access id: %s", request.user.username, access.id)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @extend_schema(responses={status.HTTP_200_OK: AccessSerializer(many=True)})

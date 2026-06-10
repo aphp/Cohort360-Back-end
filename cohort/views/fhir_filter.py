@@ -48,7 +48,7 @@ class FhirFilterViewSet(UserObjectsRestrictedViewSet):
     def create(self, request, *args, **kwargs):
         try:
             response = super().create(request, *args, **kwargs)
-            _logger.info(f"FhirFilter created by user {request.user.username} - request data: {request.data}")
+            _logger.info("FhirFilter created by user %s - request data: %s", request.user.username, request.data)
             return response
         except IntegrityError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -57,7 +57,7 @@ class FhirFilterViewSet(UserObjectsRestrictedViewSet):
     def partial_update(self, request, *args, **kwargs):
         try:
             response = super().partial_update(request, *args, **kwargs)
-            _logger.info(f"FhirFilter updated by user {request.user.username} - request data: {request.data}")
+            _logger.info("FhirFilter updated by user %s - request data: %s", request.user.username, request.data)
             return response
         except IntegrityError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -65,12 +65,12 @@ class FhirFilterViewSet(UserObjectsRestrictedViewSet):
     @extend_schema(responses={status.HTTP_204_NO_CONTENT: None})
     def destroy(self, request, *args, **kwargs):
         response = super().destroy(request, *args, **kwargs)
-        _logger.info(f"FhirFilter deleted by user {request.user.username} - request data: {request.data}")
+        _logger.info("FhirFilter deleted by user %s - request data: %s", request.user.username, request.data)
         return response
 
     @extend_schema(responses={status.HTTP_204_NO_CONTENT: None})
     @action(methods=["delete"], detail=False)
     def delete_multiple(self, request):
         FhirFilter.objects.filter(uuid__in=request.data.get("uuids", [])).delete()
-        _logger.info(f"Multiple FhirFilters deleted by user {request.user.username} - request data: {request.data}")
+        _logger.info("Multiple FhirFilters deleted by user %s - request data: %s", request.user.username, request.data)
         return Response(status=status.HTTP_204_NO_CONTENT)
