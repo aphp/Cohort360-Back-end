@@ -13,7 +13,7 @@ from cohort.models import FhirFilter
 from cohort.serializers import FhirFilterSerializer, FhirFilterCreateSerializer, FhirFilterPatchSerializer
 from cohort.views.shared import UserObjectsRestrictedViewSet
 
-_logger = logging.getLogger('info')
+_logger = logging.getLogger(__name__)
 
 
 class FhirFilterFilter(filters.FilterSet):

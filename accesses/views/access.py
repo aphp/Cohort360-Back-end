@@ -23,7 +23,7 @@ from accesses.models import Access
 from accesses.permissions import AccessesPermission
 from accesses.serializers import AccessSerializer, DataRightSerializer, ExpiringAccessesSerializer
 
-_logger = logging.getLogger('info')
+_logger = logging.getLogger(__name__)
 
 
 class AccessFilter(filters.FilterSet):

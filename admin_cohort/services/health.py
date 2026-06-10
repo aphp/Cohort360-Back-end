@@ -11,7 +11,7 @@ from django.db import connections
 from rest_framework import status
 
 
-_logger = logging.getLogger("info")
+_logger = logging.getLogger(__name__)
 
 CHECK_TIMEOUT_SECONDS = 2.0
 GLOBAL_TIMEOUT_SECONDS = CHECK_TIMEOUT_SECONDS + 1.0

@@ -26,7 +26,7 @@ from cohort.services.cohort_rights import cohort_rights_service
 from cohort.views.shared import UserObjectsRestrictedViewSet
 from exports.services.export import export_service
 
-_logger = logging.getLogger('info')
+_logger = logging.getLogger(__name__)
 
 
 class CohortFilter(filters.FilterSet):

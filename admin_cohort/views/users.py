@@ -19,7 +19,7 @@ from admin_cohort.tools.cache import cache_response
 from admin_cohort.exceptions import ServerError
 from admin_cohort.tools.request_log_mixin import RequestLogMixin
 
-_logger_info = logging.getLogger('info')
+_logger_info = logging.getLogger(__name__)
 
 
 class UserFilter(filters.FilterSet):

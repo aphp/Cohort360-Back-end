@@ -19,7 +19,7 @@ from admin_cohort.permissions import IsAuthenticated, UsersPermission
 from admin_cohort.tools.negative_limit_paginator import NegativeLimitOffsetPagination
 from admin_cohort.tools.request_log_mixin import RequestLogMixin
 
-_logger = logging.getLogger('info')
+_logger = logging.getLogger(__name__)
 
 
 class RoleFilter(filters.FilterSet):

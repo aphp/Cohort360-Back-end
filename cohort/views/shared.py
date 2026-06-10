@@ -11,7 +11,7 @@ from admin_cohort.tools.request_log_mixin import RequestLogMixin
 from admin_cohort.tools.swagger import SchemaMeta
 from cohort.permissions import IsOwnerPermission
 
-_logger = logging.getLogger('info')
+_logger = logging.getLogger(__name__)
 
 
 class UserObjectsRestrictedViewSet(RequestLogMixin, viewsets.ModelViewSet, metaclass=SchemaMeta):
