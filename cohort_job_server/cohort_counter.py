@@ -4,6 +4,7 @@ from typing import Tuple, Optional
 
 from django.utils import timezone
 
+from admin_cohort.services.prometheus_metrics import QUERY_EXECUTOR_REQUEST_DURATION_SECONDS
 from admin_cohort.types import JobStatus
 from cohort_job_server.base_operator import BaseCohortOperator
 from cohort_job_server.query_executor_api import CohortCount, CohortCountAll, FeasibilityCount, query_executor_status_mapper,\
@@ -62,7 +63,10 @@ class CohortCounter(BaseCohortOperator):
         job_status = query_executor_status_mapper(data.get(JOB_STATUS))
         if not job_status:
             raise ValueError(f"Bad Request: Invalid job status: {data.get(JOB_STATUS)}")
-        job_duration = str(timezone.now() - dm.created_at)
+        duration = timezone.now() - dm.created_at
+        job_duration = str(duration)
+        if job_status in (JobStatus.finished, JobStatus.failed):
+            QUERY_EXECUTOR_REQUEST_DURATION_SECONDS.labels(request_type="count", status=job_status.value).observe(duration.total_seconds())
         if job_status == JobStatus.finished:
             data["measure"] = data.pop(COUNT, None)
             data["extra"] = data.pop(EXTRA, None)
@@ -87,6 +91,9 @@ class CohortCounter(BaseCohortOperator):
         try:
             if not job_status:
                 raise ValueError(f"Bad Request: Invalid job status: {data.get(JOB_STATUS)}")
+            if job_status in (JobStatus.finished, JobStatus.failed):
+                duration = timezone.now() - fs.created_at
+                QUERY_EXECUTOR_REQUEST_DURATION_SECONDS.labels(request_type="feasibility", status=job_status.value).observe(duration.total_seconds())
             if job_status == JobStatus.finished:
                 data["total_count"] = int(data.pop(COUNT, 0))
                 counts_per_perimeter = data.pop(EXTRA, {})
