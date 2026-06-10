@@ -120,7 +120,7 @@ rights = [
         "name": "right_read_accesses_above_levels",
         "category": "Divers",
         "is_global": True,
-    }
+    },
 ]
 
 dependent_rights = [
@@ -129,14 +129,14 @@ dependent_rights = [
         "label": "Consulter la liste des utilisateurs / profils",
         "category": "Utilisateurs",
         "is_global": True,
-        "depends_on": "right_manage_users"
+        "depends_on": "right_manage_users",
     },
     {
         "name": "right_read_datalabs",
         "label": "Consulter la liste des environnements de travail",
         "category": "Datalabs",
         "is_global": True,
-        "depends_on": "right_manage_datalabs"
+        "depends_on": "right_manage_datalabs",
     },
     {
         "name": "right_read_admin_accesses_same_level",
@@ -144,7 +144,7 @@ dependent_rights = [
         "allow_read_accesses_on_same_level": True,
         "category": "Gestion des Accès Admin",
         "is_global": False,
-        "depends_on": "right_manage_admin_accesses_same_level"
+        "depends_on": "right_manage_admin_accesses_same_level",
     },
     {
         "name": "right_read_admin_accesses_inferior_levels",
@@ -153,7 +153,7 @@ dependent_rights = [
         "impact_inferior_levels": True,
         "category": "Gestion des Accès Admin",
         "is_global": False,
-        "depends_on": "right_manage_admin_accesses_inferior_levels"
+        "depends_on": "right_manage_admin_accesses_inferior_levels",
     },
     {
         "name": "right_read_data_accesses_same_level",
@@ -161,7 +161,7 @@ dependent_rights = [
         "allow_read_accesses_on_same_level": True,
         "category": "Gestion des Accès Données",
         "is_global": False,
-        "depends_on": "right_manage_data_accesses_same_level"
+        "depends_on": "right_manage_data_accesses_same_level",
     },
     {
         "name": "right_read_data_accesses_inferior_levels",
@@ -170,6 +170,6 @@ dependent_rights = [
         "impact_inferior_levels": True,
         "category": "Gestion des Accès Données",
         "is_global": False,
-        "depends_on": "right_manage_data_accesses_inferior_levels"
-    }
+        "depends_on": "right_manage_data_accesses_inferior_levels",
+    },
 ]

@@ -10,11 +10,10 @@ from exports.models import Export, Datalab
 from exporters.exporters.base_exporter import BaseExporter
 from exporters.enums import ExportTypes, APIJobType
 
-_logger = logging.getLogger('django.request')
+logger = logging.getLogger(__name__)
 
 
 class HiveExporter(BaseExporter):
-
     def __init__(self):
         super().__init__()
         self.type = ExportTypes.HIVE.value
@@ -23,9 +22,7 @@ class HiveExporter(BaseExporter):
 
     def validate(self, export_data: dict, **kwargs) -> None:
         self.validate_tables_data(tables_data=export_data.get("export_tables", []))
-        kwargs["source_cohorts_ids"] = [t.get("cohort_result_source")
-                                        for t in export_data.get("export_tables", [])
-                                        if t.get("cohort_result_source")]
+        kwargs["source_cohorts_ids"] = [t.get("cohort_result_source") for t in export_data.get("export_tables", []) if t.get("cohort_result_source")]
         super().validate(export_data=export_data, **kwargs)
 
     def validate_tables_data(self, tables_data: List[dict]) -> bool:
@@ -33,7 +30,7 @@ class HiveExporter(BaseExporter):
         base_cohort_provided = False
         required_table_provided = False
         for td in tables_data:
-            source_cohort_id = td.get('cohort_result_source')
+            source_cohort_id = td.get("cohort_result_source")
 
             if td.get("table_name", "") == required_table:
                 required_table_provided = True
@@ -55,44 +52,56 @@ class HiveExporter(BaseExporter):
         super().complete_data(export_data=export_data, owner=owner, **kwargs)
 
     def handle_export(self, export: Export, params: dict = None) -> None:
+        logger.info(f"Export[{export.pk}] Starting Hive export process for target: {export.target_name}")
         self.confirm_export_received(export=export)
         try:
+            logger.info(f"Export[{export.pk}] Preparing database...")
             self.prepare_db(export)
+            logger.info(f"Export[{export.pk}] Database preparation completed successfully")
         except RequestException as e:
+            logger.error(f"Export[{export.pk}] Failed to prepare database: {e}")
             self.mark_export_as_failed(export=export, reason=f"Error while preparing DB for export: {e}")
         else:
-            params = params or {"output": {"type": self.type,
-                                           "databaseName": export.target_name
-                                           }
-                                }
+            params = params or {"output": {"type": self.type, "databaseName": export.target_name}}
+            logger.info(f"Export[{export.pk}] Calling parent handle_export with params: {params}")
             super().handle_export(export=export, params=params)
+            logger.info(f"Export[{export.pk}] Concluding export...")
             self.conclude_export(export=export)
+            logger.info(f"Export[{export.pk}] Hive export process finished")
 
     def prepare_db(self, export: Export) -> None:
+        logger.info(f"Export[{export.pk}] prepare_db: Creating database")
         self.create_db(export=export)
+        logger.info(f"Export[{export.pk}] prepare_db: Changing database ownership to user '{self.user}'")
         self.change_db_ownership(export=export, db_user=self.user)
+        logger.info(f"Export[{export.pk}] prepare_db: Database preparation steps completed")
 
     @staticmethod
     def get_db_location(export: Export) -> str:
         return f"{export.target_full_path}.db"
 
     def create_db(self, export: Export) -> None:
+        logger.info(f"Export[{export.pk}] create_db: Starting database creation")
         db_location = self.get_db_location(export=export)
+        logger.info(f"Export[{export.pk}] create_db: DB location resolved to '{db_location}'")
         self.log_export_task(export.pk, f"Creating DB '{export.target_name}', location: {db_location}")
         try:
-            job_id = self.hadoop_api.create_db(name=export.target_name,
-                                              location=db_location)
+            logger.info(f"Export[{export.pk}] create_db: Calling hadoop_api.create_db(name='{export.target_name}')")
+            job_id = self.hadoop_api.create_db(name=export.target_name, location=db_location)
+            logger.info(f"Export[{export.pk}] create_db: Received job_id='{job_id}'")
             self.log_export_task(export.pk, f"Received Hive DB creation job_id: {job_id}")
+            logger.info(f"Export[{export.pk}] create_db: Waiting for job completion...")
             self.wait_for_job(export=export, job_id=job_id, job_type=APIJobType.HIVE_DB_CREATE)
+            logger.info(f"Export[{export.pk}] create_db: Job completed successfully")
         except RequestException as e:
-            _logger.error(f"Error on call to create Hive DB: {e}")
+            logger.error(f"Export[{export.pk}] create_db: Error on call to create Hive DB: {e}")
             raise e
         self.log_export_task(export.pk, f"DB '{export.target_name}' created.")
+        logger.info(f"Export[{export.pk}] create_db: Database '{export.target_name}' created successfully")
 
     def change_db_ownership(self, export: Export, db_user: str) -> None:
         try:
-            self.hadoop_api.change_db_ownership(location=self.get_db_location(export=export),
-                                                db_user=db_user)
+            self.hadoop_api.change_db_ownership(location=self.get_db_location(export=export), db_user=db_user)
             self.log_export_task(export.pk, f"`{db_user}` granted rights on DB `{export.target_name}`")
         except RequestException as e:
             raise RequestException(f"Error granting `{db_user}` rights on DB `{export.target_name}` - {e}")

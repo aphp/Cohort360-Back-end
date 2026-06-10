@@ -5,20 +5,15 @@ from cohort.scripts.patch_requests_v142 import NEW_VERSION as PREV_VERSION_3
 from cohort.scripts.patch_requests_v140 import NEW_VERSION as PREV_VERSION, find_related_atc as find_related_atc_v140
 from cohort.scripts.query_request_updater import RESOURCE_DEFAULT, MATCH_ALL_VALUES, QueryRequestUpdater
 
-LOGGER = logging.getLogger("info")
+logger = logging.getLogger(__name__)
 
 NEW_VERSION = "v1.4.3"
 
-FILTER_MAPPING = {
-    RESOURCE_DEFAULT: {
-    }
-}
+FILTER_MAPPING = {RESOURCE_DEFAULT: {}}
 
-FILTER_NAME_TO_SKIP = {
-}
+FILTER_NAME_TO_SKIP = {}
 
-code_mapping_cache = {
-}
+code_mapping_cache = {}
 
 
 def find_related_atc(code: str):
@@ -29,28 +24,18 @@ def find_related_atc(code: str):
 
 
 def find_related_atc_codes(codes: str):
-    LOGGER.info(f"Translating codes {codes}")
+    logger.info(f"Translating codes {codes}")
     return ",".join([find_related_atc(code) for code in codes.split(",")])
 
 
 FILTER_VALUE_MAPPING = {
-    "MedicationRequest": {
-        "medication": {
-            MATCH_ALL_VALUES: find_related_atc_codes
-        }
-    },
-    "MedicationAdministration": {
-        "medication": {
-            MATCH_ALL_VALUES: find_related_atc_codes
-        }
-    }
+    "MedicationRequest": {"medication": {MATCH_ALL_VALUES: find_related_atc_codes}},
+    "MedicationAdministration": {"medication": {MATCH_ALL_VALUES: find_related_atc_codes}},
 }
 
-STATIC_REQUIRED_FILTERS = {
-}
+STATIC_REQUIRED_FILTERS = {}
 
-RESOURCE_NAME_MAPPING = {
-}
+RESOURCE_NAME_MAPPING = {}
 
 updater_v143 = QueryRequestUpdater(
     version_name=NEW_VERSION,
@@ -59,5 +44,5 @@ updater_v143 = QueryRequestUpdater(
     filter_names_to_skip=FILTER_NAME_TO_SKIP,
     filter_values_mapping=FILTER_VALUE_MAPPING,
     static_required_filters=STATIC_REQUIRED_FILTERS,
-    resource_name_mapping=RESOURCE_NAME_MAPPING
+    resource_name_mapping=RESOURCE_NAME_MAPPING,
 )

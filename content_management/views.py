@@ -13,16 +13,16 @@ from content_management.serializers import ContentSerializer
 
 
 class ContentFilter(FilterSet):
-    content_type = CharFilter(method='filter_content_type')
-    page_source = CharFilter(method='filter_page')
+    content_type = CharFilter(method="filter_content_type")
+    page_source = CharFilter(method="filter_page")
 
     class Meta:
         model = Content
-        fields = ['content_type', 'page']
+        fields = ["content_type", "page"]
 
     def filter_content_type(self, queryset, name, value):
         if value:
-            content_types = value.split(',')
+            content_types = value.split(",")
             valid_types = set(ContentManagementConfig.CONTENT_TYPES.keys())
             valid_content_types = [ct for ct in content_types if ct in valid_types]
             if not valid_content_types:
@@ -32,13 +32,11 @@ class ContentFilter(FilterSet):
 
     def filter_page(self, queryset, name, value):
         if value:
-            pages = value.split(',')
+            pages = value.split(",")
             return queryset.filter(page__in=pages)
         return queryset
 
-    ordering = OrderingFilter(fields=('created_at',
-                                      'modified_at',
-                                      'title'))
+    ordering = OrderingFilter(fields=("created_at", "modified_at", "title"))
 
 
 extended_schema = extend_schema(tags=["Web Content"])
@@ -50,7 +48,7 @@ extended_schema = extend_schema(tags=["Web Content"])
     create=extended_schema,
     partial_update=extended_schema,
     destroy=extended_schema,
-    content_types=extended_schema
+    content_types=extended_schema,
 )
 class ContentViewSet(viewsets.ModelViewSet):
     permission_classes = [ContentManagementPermission]
@@ -58,9 +56,9 @@ class ContentViewSet(viewsets.ModelViewSet):
     serializer_class = ContentSerializer
     http_method_names = ["post", "get", "patch", "delete"]
     filterset_class = ContentFilter
-    search_fields = ['$title', '$content']
+    search_fields = ["$title", "$content"]
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=["get"])
     def content_types(self, request):
         return Response(ContentManagementConfig.CONTENT_TYPES)
 

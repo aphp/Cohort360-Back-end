@@ -2,9 +2,7 @@ from django.conf import settings
 from rest_framework.pagination import LimitOffsetPagination
 
 
-
 class NegativeLimitOffsetPagination(LimitOffsetPagination):
-
     def get_limit(self, request):
         if self.limit_query_param:
             limit = request.query_params.get(self.limit_query_param)

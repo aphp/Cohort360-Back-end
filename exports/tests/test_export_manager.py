@@ -16,20 +16,17 @@ ExportTypes = ExportsConfig.ExportTypes
 
 
 class TestExportersLoader(TestCaseWithDBs):
-
     def setUp(self):
         super().setUp()
 
     def test_error_load_available_exporters_wrong_export_type(self):
-        mock_exports_list = [{"TYPE": "wrong",
-                              "EXPORTER_CLASS": "exports.services.export_operators.DefaultExporter"
-                              }]
-        with mock.patch('exports.services.export_operators.EXPORTERS', mock_exports_list):
+        mock_exports_list = [{"TYPE": "wrong", "EXPORTER_CLASS": "exports.services.export_operators.DefaultExporter"}]
+        with mock.patch("exports.services.export_operators.EXPORTERS", mock_exports_list):
             with self.assertRaises(ImproperlyConfigured):
                 _ = load_available_exporters()
 
     def test_error_load_available_exporters_no_exporters(self):
-        with mock.patch('exports.services.export_operators.EXPORTERS', []):
+        with mock.patch("exports.services.export_operators.EXPORTERS", []):
             with self.assertRaises(ImproperlyConfigured):
                 _ = load_available_exporters()
 
@@ -42,25 +39,22 @@ class TestExportersLoader(TestCaseWithDBs):
 
 
 class TestExportManager(ExportsTests):
-
     def setUp(self):
         super().setUp()
-        self.basic_export_data = dict(output_format="plain",
-                                      nominative=True,
-                                      motivation='motivation')
-        self.basic_export = Export.objects.create(**self.basic_export_data,
-                                                  owner=self.user1)
+        self.basic_export_data = dict(output_format="plain", nominative=True, motivation="motivation")
+        self.basic_export = Export.objects.create(**self.basic_export_data, owner=self.user1)
         with mock.patch("exports.services.export_operators.load_available_exporters") as mock_load_available_exporters:
             mock_load_available_exporters.return_value = {"plain": DefaultExporter}
             self.export_manager = ExportManager()
 
     def test_validate(self):
-        export_data = dict(output_format="plain",
-                           nominative=True,
-                           cohort_result_source=self.user1_cohort.uuid,
-                           motivation='motivation',
-                           export_tables=[{"table_name": "table1"}]
-                           )
+        export_data = dict(
+            output_format="plain",
+            nominative=True,
+            cohort_result_source=self.user1_cohort.uuid,
+            motivation="motivation",
+            export_tables=[{"table_name": "table1"}],
+        )
         with self.assertRaises(NotImplementedError):
             self.export_manager.validate(export_data=export_data, owner=self.user1)
 

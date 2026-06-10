@@ -24,7 +24,7 @@ _logger = logging.getLogger('info')
 
 class RoleFilter(filters.FilterSet):
     name = filters.CharFilter(lookup_expr="icontains")
-    ordering = OrderingFilter(fields=('name',))
+    ordering = OrderingFilter(fields=("name",))
 
     class Meta:
         model = Role
@@ -38,9 +38,9 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
     queryset = Role.objects.filter(delete_datetime__isnull=True).all()
     serializer_class = RoleSerializer
     lookup_field = "id"
-    http_method_names = ['get', 'post', 'patch', 'delete']
-    logging_methods = ['POST', 'PATCH', 'DELETE']
-    swagger_tags = ['Roles']
+    http_method_names = ["get", "post", "patch", "delete"]
+    logging_methods = ["POST", "PATCH", "DELETE"]
+    swagger_tags = ["Roles"]
     filterset_class = RoleFilter
     permission_classes = [IsAuthenticated, RolesPermission]
     pagination_class = NegativeLimitOffsetPagination
@@ -50,8 +50,7 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
     def list(self, request, *args, **kwargs):
         return super(RoleViewSet, self).list(request, *args, **kwargs)
 
-    @extend_schema(request=RoleSerializer,
-                   responses={status.HTTP_201_CREATED: RoleSerializer})
+    @extend_schema(request=RoleSerializer, responses={status.HTTP_201_CREATED: RoleSerializer})
     def create(self, request, *args, **kwargs):
         try:
             roles_service.check_role_has_inconsistent_rights(data=request.data.copy())
@@ -61,14 +60,11 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
         _logger.info(f"Role created by user {request.user.username} - request data: {request.data}")
         return resp
 
-    @extend_schema(request=RoleSerializer,
-                   responses={status.HTTP_200_OK: RoleSerializer})
+    @extend_schema(request=RoleSerializer, responses={status.HTTP_200_OK: RoleSerializer})
     def partial_update(self, request, *args, **kwargs):
         role = self.get_object()
-        data = {'name': request.data.get('name', role.name)
-                }
-        data.update({right: request.data.get(right, getattr(role, right, False)) for right in all_rights
-                     })
+        data = {"name": request.data.get("name", role.name)}
+        data.update({right: request.data.get(right, getattr(role, right, False)) for right in all_rights})
         try:
             roles_service.check_role_has_inconsistent_rights(data=data)
         except IntegrityError as e:
@@ -83,45 +79,50 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
         if role.right_full_admin:
             return Response(data={"error": "Cannot delete the Full Admin role"}, status=status.HTTP_403_FORBIDDEN)
         if role.accesses.all().exists():
-            return Response(data={"error": "This role is attached to existing accesses"},
-                            status=status.HTTP_403_FORBIDDEN)
+            return Response(data={"error": "This role is attached to existing accesses"}, status=status.HTTP_403_FORBIDDEN)
         self.perform_destroy(role)
         _logger.info(f"Role deleted by user {request.user.username} - role id: {role.id}")
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @extend_schema(responses={status.HTTP_200_OK: UsersInRoleSerializer(many=True)})
-    @action(url_path="users", detail=True, methods=['get'], permission_classes=permission_classes + [UsersPermission])
+    @action(url_path="users", detail=True, methods=["get"], permission_classes=permission_classes + [UsersPermission])
     def users_within_role(self, request, *args, **kwargs):
         role = self.get_object()
         users_perimeters = []
         valid_accesses = [a for a in role.accesses.all() if a.is_valid]
         for access in valid_accesses:
             user = access.profile.user
-            users_perimeters.append({"username": user.username,
-                                     "firstname": user.firstname,
-                                     "lastname": user.lastname,
-                                     "email": user.email,
-                                     "perimeter": access.perimeter.name,
-                                     "start_datetime": access.start_datetime,
-                                     "end_datetime": access.end_datetime,
-                                     })
+            users_perimeters.append(
+                {
+                    "username": user.username,
+                    "firstname": user.firstname,
+                    "lastname": user.lastname,
+                    "email": user.email,
+                    "perimeter": access.perimeter.name,
+                    "start_datetime": access.start_datetime,
+                    "end_datetime": access.end_datetime,
+                }
+            )
 
         # filtering
-        filter_by_name = request.query_params.get('filter_by_name')
+        filter_by_name = request.query_params.get("filter_by_name")
         if filter_by_name:
             normalized_filter = filter_by_name.lower()
-            users_perimeters = [user_perimeter for user_perimeter in users_perimeters if
-                                normalized_filter in user_perimeter["username"] or
-                                normalized_filter in user_perimeter['firstname'].lower() or
-                                normalized_filter in user_perimeter["lastname"].lower()]
+            users_perimeters = [
+                user_perimeter
+                for user_perimeter in users_perimeters
+                if normalized_filter in user_perimeter["username"]
+                or normalized_filter in user_perimeter["firstname"].lower()
+                or normalized_filter in user_perimeter["lastname"].lower()
+            ]
 
         # sorting
         order = request.query_params.get("order", "lastname")
         reverse_order = False
-        if order.startswith('-'):
+        if order.startswith("-"):
             reverse_order = True
             order = order[1:]
-        users_perimeters = sorted(users_perimeters, key=lambda x: x.get(order, ''), reverse=reverse_order)
+        users_perimeters = sorted(users_perimeters, key=lambda x: x.get(order, ""), reverse=reverse_order)
 
         if users_perimeters:
             page = self.paginate_queryset(users_perimeters)
@@ -130,15 +131,12 @@ class RoleViewSet(RequestLogMixin, BaseViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @extend_schema(responses={status.HTTP_200_OK: RoleSerializer(many=True)})
-    @action(url_path="assignable", detail=False, methods=['get'])
+    @action(url_path="assignable", detail=False, methods=["get"])
     @cache_response()
     def get_assignable_roles(self, request, *args, **kwargs):
         perimeter_id = request.GET.get("perimeter_id")
         if not perimeter_id:
             return Response(data={"error": "Missing parameter: `perimeter_id`"}, status=status.HTTP_400_BAD_REQUEST)
-        assignable_roles_ids = roles_service.get_assignable_roles_ids(user=request.user,
-                                                                      perimeter_id=perimeter_id,
-                                                                      all_roles=self.get_queryset())
+        assignable_roles_ids = roles_service.get_assignable_roles_ids(user=request.user, perimeter_id=perimeter_id, all_roles=self.get_queryset())
         assignable_roles = self.get_queryset().filter(id__in=assignable_roles_ids)
-        return Response(data=RoleSerializer(assignable_roles, many=True).data,
-                        status=status.HTTP_200_OK)
+        return Response(data=RoleSerializer(assignable_roles, many=True).data, status=status.HTTP_200_OK)

@@ -6,11 +6,11 @@ from django.core.mail import EmailMultiAlternatives
 from django.template.loader import get_template
 from django.conf import settings
 
-_logger = logging.getLogger('django.request')
+logger = logging.getLogger(__name__)
 
 
 class EmailNotification(EmailMultiAlternatives):
-    mixed_subtype = 'related'
+    mixed_subtype = "related"
 
     def __init__(self, **kwargs):
         self.html_template = kwargs.pop("html_template", None)
@@ -30,15 +30,15 @@ class EmailNotification(EmailMultiAlternatives):
         self.txt_content = get_template(self.txt_template).render(context)
 
     def attach_logo(self) -> None:
-        logo = 'logo_cohort360.png'
-        logo_path = settings.STATIC_ROOT/"admin_cohort"/"img"/logo
-        with open(logo_path, 'rb') as f:
+        logo = "logo_cohort360.png"
+        logo_path = settings.STATIC_ROOT / "admin_cohort" / "img" / logo
+        with open(logo_path, "rb") as f:
             img = MIMEImage(f.read())
-            img.add_header('Content-ID', f'<{logo}>')
+            img.add_header("Content-ID", f"<{logo}>")
         self.attach(img)
 
     def push(self) -> None:
         try:
             self.send()
         except (SMTPException, TimeoutError):
-            _logger.exception(f"Error sending email notification. Email Subject was: {self.subject}")
+            logger.exception(f"Error sending email notification. Email Subject was: {self.subject}")

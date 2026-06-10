@@ -102,7 +102,13 @@ rights = [
         "label": "Gérer la liste des datalabs",
         "category": "Datalabs",
         "is_global": True,
-    }
+    },
+    {
+        "name": "right_read_logs",
+        "label": "Consulter les logs",
+        "category": "Logs",
+        "is_global": True,
+    },
 ]
 
 dependent_rights = [
@@ -111,6 +117,6 @@ dependent_rights = [
         "label": "Consulter la liste des datalabs",
         "category": "Datalabs",
         "is_global": True,
-        "depends_on": "right_manage_datalabs"
+        "depends_on": "right_manage_datalabs",
     },
 ]

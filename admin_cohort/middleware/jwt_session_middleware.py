@@ -8,7 +8,7 @@ LOGOUT_URL = "/auth/logout/"
 
 class JWTSessionMiddleware(MiddlewareMixin):
     def process_request(self, request):
-        request.META['HTTP_SESSION_ID'] = request.COOKIES.get(settings.SESSION_COOKIE_NAME)
+        request.META["HTTP_SESSION_ID"] = request.COOKIES.get(settings.SESSION_COOKIE_NAME)
 
     def process_response(self, request, response):
         if request.path.startswith(LOGOUT_URL):

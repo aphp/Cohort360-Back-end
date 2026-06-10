@@ -8,7 +8,7 @@ from exports.exceptions import HdfsServerUnreachable, StorageProviderException
 
 
 class StorageProvider:
-    name = None
+    name: str | None = None
 
     def __init__(self, servers_urls: List[str]):
         self.servers_urls = servers_urls
@@ -52,7 +52,7 @@ class HDFSStorageProvider(StorageProvider):
         for server in self.servers_urls:
             client = KerberosClient(server)
             try:
-                client.status('/')
+                client.status("/")
             except HdfsError:
                 continue
             return client
@@ -66,6 +66,7 @@ class HDFSStorageProvider(StorageProvider):
                 return func(*args, **kwargs)
             except HdfsError as e:
                 raise StorageProviderException(e.message)
+
         return wrapper
 
     @catch_hdfs_error
@@ -74,13 +75,7 @@ class HDFSStorageProvider(StorageProvider):
 
     @catch_hdfs_error
     def stream_file(self, file_name: str):
-        return self.client.read(hdfs_path=file_name,
-                                offset=0,
-                                length=None,
-                                encoding=None,
-                                chunk_size=1000000,
-                                delimiter=None,
-                                progress=None)
+        return self.client.read(hdfs_path=file_name, offset=0, length=None, encoding=None, chunk_size=1000000, delimiter=None, progress=None)
 
     @catch_hdfs_error
     def delete_file(self, file_name: str):

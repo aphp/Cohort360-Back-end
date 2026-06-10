@@ -19,4 +19,4 @@ class ExportTable(ExportsBaseModel):
     pivot_merge_ids = ArrayField(models.CharField(max_length=255), null=True, blank=True)
 
     class Meta:
-        db_table = 'export_table'
+        db_table = "export_table"

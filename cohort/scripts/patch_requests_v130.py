@@ -20,82 +20,34 @@ FILTER_MAPPING = {
         "patient.active": "_has:Patient:encounter:active",
         "patient.birthdate": "_has:Patient:encounter:birthdate",
     },
-    "Composition": {
-        "status": "docstatus"
-    },
-    "IPPList": {
-        "identifier-simple": "identifier.value"
-    },
-    RESOURCE_DEFAULT: {
-        "patient.active": "patient-active"
-    }
+    "Composition": {"status": "docstatus"},
+    "IPPList": {"identifier-simple": "identifier.value"},
+    RESOURCE_DEFAULT: {"patient.active": "patient-active"},
 }
 
-FILTER_NAME_TO_SKIP = {
-    "MedicationRequest": ["medication-simple"],
-    "MedicationAdministration": ["medication-simple"],
-    "Encounter": ["fileStatus"]
-}
+FILTER_NAME_TO_SKIP = {"MedicationRequest": ["medication-simple"], "MedicationAdministration": ["medication-simple"], "Encounter": ["fileStatus"]}
 
 FILTER_VALUE_MAPPING = {
-    "Condition": {
-        "code": {
-            "*": "https://terminology.eds.aphp.fr/aphp-orbis-cim10|*"
-        }
-    },
-    "Claim": {
-        "code": {
-            "*": "https://terminology.eds.aphp.fr/aphp-orbis-ghm|*"
-        }
-    },
-    "Observation": {
-        "code": {
-            "*": "https://terminology.eds.aphp.fr/aphp-itm-anabio|*"
-        }
-    },
-    "Procedure": {
-        "code": {
-            "*": "https://terminology.eds.aphp.fr/aphp-orbis-ccam|*"
-        }
-    }
+    "Condition": {"code": {"*": "https://terminology.eds.aphp.fr/aphp-orbis-cim10|*"}},
+    "Claim": {"code": {"*": "https://terminology.eds.aphp.fr/aphp-orbis-ghm|*"}},
+    "Observation": {"code": {"*": "https://terminology.eds.aphp.fr/aphp-itm-anabio|*"}},
+    "Procedure": {"code": {"*": "https://terminology.eds.aphp.fr/aphp-orbis-ccam|*"}},
 }
 
 STATIC_REQUIRED_FILTERS = {
-    "Claim": [
-        "patient-active=true"
-    ],
-    "Composition": [
-        "patient-active=true"
-    ],
-    "DocumentReference": [
-        "patient-active=true"
-    ],
-    "Condition": [
-        "patient-active=true"
-    ],
-    "Encounter": [
-        "_has:Patient:encounter:active=true"
-    ],
-    "MedicationAdministration": [
-        "patient-active=true"
-    ],
-    "MedicationRequest": [
-        "patient-active=true"
-    ],
-    "Observation": [
-        "patient-active=true"
-    ],
-    "Patient": [
-        "active=true"
-    ],
-    "Procedure": [
-        "patient-active=true"
-    ]
+    "Claim": ["patient-active=true"],
+    "Composition": ["patient-active=true"],
+    "DocumentReference": ["patient-active=true"],
+    "Condition": ["patient-active=true"],
+    "Encounter": ["_has:Patient:encounter:active=true"],
+    "MedicationAdministration": ["patient-active=true"],
+    "MedicationRequest": ["patient-active=true"],
+    "Observation": ["patient-active=true"],
+    "Patient": ["active=true"],
+    "Procedure": ["patient-active=true"],
 }
 
-RESOURCE_NAME_MAPPING = {
-    "Composition": "DocumentReference"
-}
+RESOURCE_NAME_MAPPING = {"Composition": "DocumentReference"}
 
 updater_v130 = QueryRequestUpdater(
     version_name=NEW_VERSION,
@@ -104,5 +56,5 @@ updater_v130 = QueryRequestUpdater(
     filter_names_to_skip=FILTER_NAME_TO_SKIP,
     filter_values_mapping=FILTER_VALUE_MAPPING,
     static_required_filters=STATIC_REQUIRED_FILTERS,
-    resource_name_mapping=RESOURCE_NAME_MAPPING
+    resource_name_mapping=RESOURCE_NAME_MAPPING,
 )

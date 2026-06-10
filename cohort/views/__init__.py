@@ -7,13 +7,15 @@ from .request_query_snapshot import RequestQuerySnapshotViewSet, NestedRqsViewSe
 from .feasibility_study import FeasibilityStudyViewSet
 from .request_refresh_schedule import RequestRefreshScheduleViewSet
 
-__all__ = ["CohortResultViewSet",
-           "DatedMeasureViewSet",
-           "FolderViewSet",
-           "RequestViewSet",
-           "NestedRequestViewSet",
-           "RequestQuerySnapshotViewSet",
-           "NestedRqsViewSet",
-           "FhirFilterViewSet",
-           "FeasibilityStudyViewSet",
-           "RequestRefreshScheduleViewSet"]
+__all__ = [
+    "CohortResultViewSet",
+    "DatedMeasureViewSet",
+    "FolderViewSet",
+    "RequestViewSet",
+    "NestedRequestViewSet",
+    "RequestQuerySnapshotViewSet",
+    "NestedRqsViewSet",
+    "FhirFilterViewSet",
+    "FeasibilityStudyViewSet",
+    "RequestRefreshScheduleViewSet",
+]

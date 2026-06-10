@@ -5,7 +5,6 @@ from accesses.tests.base import AccessesAppTestsBase
 
 
 class TestImpersonateHook(AccessesAppTestsBase):
-
     def test_no_impersonating(self):
         impersonated = impersonate_hook(self.user_y, {})
         assert impersonated == self.user_y

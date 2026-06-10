@@ -11,15 +11,14 @@ env = os.environ
 
 class JWTAuthScheme(OpenApiAuthenticationExtension):
     target_class = Authentication
-    name = 'Token based authentication'
+    name = "Token based authentication"
 
     def get_security_definition(self, auto_schema):
         return {
-            'type': 'http',
-            'scheme': 'bearer',
-            'bearerFormat': 'JWT',
-            'description': "Use the **access_token** obtained after login.\n\n"
-                           "Login at `/auth/login/`\n\n\n"
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+            "description": "Use the **access_token** obtained after login.\n\nLogin at `/auth/login/`\n\n\n",
         }
 
 
@@ -39,6 +38,7 @@ class SchemaMeta(type):
             update=extend_schema(tags=tags),
             partial_update=extend_schema(tags=tags),
             destroy=extend_schema(tags=tags),
-            **decorated_action_functions)
+            **decorated_action_functions,
+        )
 
         return schema_decorator(new_cls)

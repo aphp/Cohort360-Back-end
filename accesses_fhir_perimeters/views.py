@@ -27,16 +27,17 @@ class FhirPerimeterResultSerializer(serializers.Serializer):
 
 
 class FhirPerimeterResult(GenericViewSet):
-    swagger_tags = ['Fhir Perimeters - Cohort Result']
+    swagger_tags = ["Fhir Perimeters - Cohort Result"]
     permission_classes = (FhirPerimeterResultPermission,)
-    http_method_names = ['put', 'patch']
+    http_method_names = ["put", "patch"]
     lookup_field = "id"
     queryset = Perimeter.objects.all()
     serializer_class = FhirPerimeterResultSerializer
 
-    @extend_schema(summary="Used by QueryExecutor to update cohort status",
-                   responses={status.HTTP_200_OK: OpenApiTypes.STR,
-                              status.HTTP_400_BAD_REQUEST: OpenApiTypes.STR})
+    @extend_schema(
+        summary="Used by QueryExecutor to update cohort status",
+        responses={status.HTTP_200_OK: OpenApiTypes.STR, status.HTTP_400_BAD_REQUEST: OpenApiTypes.STR},
+    )
     def partial_update(self, request, *args, **kwargs):
         perimeter = self.get_object()
         group_id = request.data.get("group.id")
@@ -50,8 +51,9 @@ class FhirPerimeterResult(GenericViewSet):
     @extend_schema(
         summary="Syncs the perimeters with fhir Organization and Encounter resources",
         request=None,
-        responses={status.HTTP_200_OK: None, status.HTTP_500_INTERNAL_SERVER_ERROR: None})
-    @action(detail=False, methods=['put'], url_path="_sync")
+        responses={status.HTTP_200_OK: None, status.HTTP_500_INTERNAL_SERVER_ERROR: None},
+    )
+    @action(detail=False, methods=["put"], url_path="_sync")
     def update_perimeters(self, request, *args, **kwargs):
         perimeters_data_model_objects_update()
         return Response(data=None, status=status.HTTP_200_OK)

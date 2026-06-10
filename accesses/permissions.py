@@ -21,43 +21,43 @@ class IsAuthenticatedReadOnly(IsAuthenticated):
 
 
 def get_bound_roles(user: User) -> List[Role]:
-    return [access.role for access in accesses_service.get_user_valid_accesses(user)]
+    return [r for a in accesses_service.get_user_valid_accesses(user) if (r := a.role) is not None]
 
 
 def can_user_manage_accesses(user: User) -> bool:
-    return any(filter(lambda role: roles_service.role_allows_to_manage_accesses(role), get_bound_roles(user)))
+    return any(roles_service.role_allows_to_manage_accesses(r) for r in get_bound_roles(user))
 
 
 def can_user_read_accesses(user: User) -> bool:
-    return any(filter(lambda role: roles_service.role_allows_to_read_accesses(role), get_bound_roles(user)))
+    return any(roles_service.role_allows_to_read_accesses(r) for r in get_bound_roles(user))
 
 
 def can_user_manage_users(user: User) -> bool:
-    return any(filter(lambda role: role.right_manage_users, get_bound_roles(user)))
+    return any(r.right_manage_users for r in get_bound_roles(user))
 
 
 def can_user_manage_profiles(user: User) -> bool:
-    return any(filter(lambda role: role.right_manage_users, get_bound_roles(user)))
+    return any(r.right_manage_users for r in get_bound_roles(user))
 
 
 def can_user_make_export_jupyter_nomi(user: User):
-    return any(filter(lambda role: role.right_export_jupyter_nominative, get_bound_roles(user)))
+    return any(r.right_export_jupyter_nominative for r in get_bound_roles(user))
 
 
 def can_user_make_export_jupyter_pseudo(user: User):
-    return any(filter(lambda role: role.right_export_jupyter_pseudonymized, get_bound_roles(user)))
+    return any(r.right_export_jupyter_pseudonymized for r in get_bound_roles(user))
 
 
 def can_user_make_export_csv_xlsx_nomi(user: User):
-    return any(filter(lambda role: role.right_export_csv_xlsx_nominative, get_bound_roles(user)))
+    return any(r.right_export_csv_xlsx_nominative for r in get_bound_roles(user))
 
 
 def can_user_read_datalabs(user: User) -> bool:
-    return any(filter(lambda role: role.right_read_datalabs, get_bound_roles(user)))
+    return any(r.right_read_datalabs for r in get_bound_roles(user))
 
 
 def can_user_manage_datalabs(user: User) -> bool:
-    return any(filter(lambda role: role.right_manage_datalabs, get_bound_roles(user)))
+    return any(r.right_manage_datalabs for r in get_bound_roles(user))
 
 
 class RolesPermission(permissions.BasePermission):

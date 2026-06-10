@@ -1,29 +1,18 @@
-import logging
-import sys
 from typing import List, Optional
 
 from cohort.scripts.patch_requests_v144 import NEW_VERSION as PREV_VERSION
 from cohort.scripts.query_request_updater import RESOURCE_DEFAULT, QueryRequestUpdater
 
-LOGGER = logging.getLogger("info")
-stream_handler = logging.StreamHandler(stream=sys.stdout)
-LOGGER.addHandler(stream_handler)
 
 NEW_VERSION = "v1.4.5"
 
-FILTER_MAPPING = {
-    RESOURCE_DEFAULT: {
-    }
-}
+FILTER_MAPPING = {RESOURCE_DEFAULT: {}}
 
-FILTER_NAME_TO_SKIP = {
-}
+FILTER_NAME_TO_SKIP = {}
 
-code_mapping_cache = {
-}
+code_mapping_cache = {}
 
-FILTER_VALUE_MAPPING = {
-}
+FILTER_VALUE_MAPPING = {}
 
 
 def return_filter_if_not_exist(filters: List[str], filter_name: str, filter_value: str) -> Optional[str]:
@@ -33,14 +22,9 @@ def return_filter_if_not_exist(filters: List[str], filter_name: str, filter_valu
     return None
 
 
-STATIC_REQUIRED_FILTERS = {
-    "Observation": [
-        lambda filters: return_filter_if_not_exist(filters, "value-quantity", "ge0,le0")
-    ]
-}
+STATIC_REQUIRED_FILTERS = {"Observation": [lambda filters: return_filter_if_not_exist(filters, "value-quantity", "ge0,le0")]}
 
-RESOURCE_NAME_MAPPING = {
-}
+RESOURCE_NAME_MAPPING = {}
 
 
 updater_v145 = QueryRequestUpdater(

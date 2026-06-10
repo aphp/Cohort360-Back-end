@@ -9,25 +9,29 @@ from exporters.tests.base_test import ExportersTestBase
 class TestHiveExporter(ExportersTestBase):
     def setUp(self):
         super().setUp()
-        self.person_table_name = "person"
+        self.person_table_name = "Patient"
         self.cohorts = [self.cohort, self.cohort2]
-        with mock.patch('exporters.exporters.base_exporter.HadoopAPI'):
+        with mock.patch("exporters.exporters.base_exporter.HadoopAPI"):
             self.exporter = HiveExporter()
             self.mock_hadoop_api = self.exporter.hadoop_api
-            self.mock_hadoop_api.required_table = "person"
+            self.mock_hadoop_api.required_table = "Patient"
 
     def test_validate_tables_data_all_tables_have_source_cohort(self):
         # all tables have a linked source cohort
-        tables_data = [{"table_name": self.person_table_name, "cohort_result_source": self.cohorts[0].uuid},
-                       {"table_name": "other_table_01", "cohort_result_source": self.cohorts[1].uuid}]
+        tables_data = [
+            {"table_name": self.person_table_name, "cohort_result_source": self.cohorts[0].uuid},
+            {"table_name": "other_table_01", "cohort_result_source": self.cohorts[1].uuid},
+        ]
         check = self.exporter.validate_tables_data(tables_data=tables_data)
         self.assertTrue(check)
 
     def test_validate_tables_data_only_person_table_has_source_cohort(self):
-        # only `person` table has a linked source cohort, the other tables don't
-        tables_data = [{"table_name": "table_01"},
-                       {"table_name": self.person_table_name, "cohort_result_source": self.cohorts[0].uuid},
-                       {"table_name": "table_02"}]
+        # only `Patient` table has a linked source cohort, the other tables don't
+        tables_data = [
+            {"table_name": "table_01"},
+            {"table_name": self.person_table_name, "cohort_result_source": self.cohorts[0].uuid},
+            {"table_name": "table_02"},
+        ]
         check = self.exporter.validate_tables_data(tables_data=tables_data)
         self.assertTrue(check)
 
@@ -38,35 +42,33 @@ class TestHiveExporter(ExportersTestBase):
         self.assertTrue(check)
 
     def test_validate_tables_data_missing_source_cohort_for_person_table(self):
-        # tables tada is not valid if the `person` table dict is in the list but missing the source cohort
-        tables_data = [{"table_name": self.person_table_name},
-                       {"table_name": "table_01", "cohort_result_source": self.cohorts[0].uuid}]
+        # tables tada is not valid if the `Patient` table dict is in the list but missing the source cohort
+        tables_data = [{"table_name": self.person_table_name}, {"table_name": "table_01", "cohort_result_source": self.cohorts[0].uuid}]
         with self.assertRaises(ValueError):
             self.exporter.validate_tables_data(tables_data=tables_data)
 
     def test_validate_tables_data_with_only_person_table_without_source_cohort(self):
-        # tables data is not valid if the `person` table has no source cohort
+        # tables data is not valid if the `Patient` table has no source cohort
         tables_data = [{"table_name": self.person_table_name}]
         with self.assertRaises(ValueError):
             self.exporter.validate_tables_data(tables_data=tables_data)
 
     def test_validate_tables_data_all_tables_without_source_cohort_nor_person_table(self):
-        # tables data is not valid if the `person` table has no source cohort
-        tables_data = [{"table_name": "table_01"},
-                       {"table_name": "table_02"}]
+        # tables data is not valid if the `Patient` table has no source cohort
+        tables_data = [{"table_name": "table_01"}, {"table_name": "table_02"}]
         with self.assertRaises(ValueError):
             self.exporter.validate_tables_data(tables_data=tables_data)
 
     def test_successfully_create_db(self):
         self.mock_hadoop_api.create_db.return_value = "some-job-id"
-        self.mock_hadoop_api.get_export_logs.return_value = {'task_status': 'FinishedSuccessfully'}
+        self.mock_hadoop_api.get_export_logs.return_value = {"task_status": "FinishedSuccessfully"}
         self.exporter.create_db(export=self.hive_export)
         self.mock_hadoop_api.create_db.assert_called_once()
         self.mock_hadoop_api.get_export_logs.assert_called_once()
 
     def test_error_create_db(self):
         self.mock_hadoop_api.create_db.return_value = "some-job-id"
-        self.mock_hadoop_api.get_export_logs.return_value = {'task_status': 'FinishedWithError'}
+        self.mock_hadoop_api.get_export_logs.return_value = {"task_status": "FinishedWithError"}
         with self.assertRaises(RequestException):
             self.exporter.create_db(export=self.hive_export)
 
@@ -86,8 +88,35 @@ class TestHiveExporter(ExportersTestBase):
         self.exporter.conclude_export(export=self.hive_export)
         self.mock_hadoop_api.change_db_ownership.assert_called_once()
 
-    @mock.patch('exporters.exporters.base_exporter.notify_export_failed.delay')
+    @mock.patch("exporters.exporters.base_exporter.notify_export_failed.delay")
     def test_error_conclude_export(self, mock_notify_export_failed):
         self.mock_hadoop_api.change_db_ownership.side_effect = RequestException()
         self.exporter.conclude_export(export=self.hive_export)
         mock_notify_export_failed.assert_called_once()
+
+    def test_prepare_db(self):
+        self.mock_hadoop_api.create_db.return_value = "some-job-id"
+        self.mock_hadoop_api.get_export_logs.return_value = {"task_status": "FinishedSuccessfully"}
+        self.exporter.prepare_db(export=self.hive_export)
+        self.mock_hadoop_api.create_db.assert_called_once()
+        self.mock_hadoop_api.change_db_ownership.assert_called_once()
+
+    @mock.patch.object(HiveExporter, "conclude_export")
+    @mock.patch("exporters.exporters.base_exporter.BaseExporter.handle_export")
+    @mock.patch.object(HiveExporter, "prepare_db")
+    @mock.patch.object(HiveExporter, "confirm_export_received")
+    def test_handle_export_success(self, mock_confirm, mock_prepare, mock_super_handle, mock_conclude):
+        self.exporter.handle_export(export=self.hive_export)
+        mock_confirm.assert_called_once_with(export=self.hive_export)
+        mock_prepare.assert_called_once_with(self.hive_export)
+        mock_super_handle.assert_called_once()
+        mock_conclude.assert_called_once_with(export=self.hive_export)
+
+    @mock.patch.object(HiveExporter, "mark_export_as_failed")
+    @mock.patch.object(HiveExporter, "prepare_db", side_effect=RequestException("boom"))
+    @mock.patch.object(HiveExporter, "confirm_export_received")
+    def test_handle_export_prepare_db_failure(self, mock_confirm, mock_prepare, mock_mark_failed):
+        self.exporter.handle_export(export=self.hive_export)
+        mock_confirm.assert_called_once()
+        mock_prepare.assert_called_once()
+        mock_mark_failed.assert_called_once()

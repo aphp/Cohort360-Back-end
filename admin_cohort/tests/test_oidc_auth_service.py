@@ -6,14 +6,13 @@ from requests.exceptions import RequestException
 
 
 class OIDCAuthTestCase(TestCase):
-
     def setUp(self):
         self.oidc_config = OIDCAuthConfig(
             issuer="https://example.com",
             client_id="client123",
             client_secret="secret123",
             grant_type="authorization_code",
-            redirect_uri="https://app.com/callback"
+            redirect_uri="https://app.com/callback",
         )
         with patch(target="admin_cohort.services.auth.env", side_effect=lambda key, default=None: default):
             self.oidc_auth = OIDCAuth()
@@ -36,15 +35,18 @@ class OIDCAuthTestCase(TestCase):
     def test_oidc_authenticate(self):
         token = jwt.encode({"iss": "https://example.com", "kid": "test_kid"}, "secret", algorithm="HS256")
         with patch(target="admin_cohort.services.auth.get_issuer_certs", return_value={"test_kid": "public_key"}):
-            with patch.object(target=OIDCAuth, attribute="decode_token", return_value={"iss": self.oidc_config.issuer,
-                                                                                       "preferred_username": "test_user"}):
+            with patch.object(
+                target=OIDCAuth, attribute="decode_token", return_value={"iss": self.oidc_config.issuer, "preferred_username": "test_user"}
+            ):
                 with patch(target="admin_cohort.services.auth.jwt.get_unverified_header", return_value={"kid": "test_kid"}):
                     username = self.oidc_auth.authenticate(token)
                     self.assertEqual(username, "test_user")
 
     def test_build_oidc_configs(self):
-        with patch(target="admin_cohort.services.auth.env",
-                   side_effect=lambda key, default=None: "https://example.com" if "OIDC_AUTH_SERVER_1" in key else default):
+        with patch(
+            target="admin_cohort.services.auth.env",
+            side_effect=lambda key, default=None: "https://example.com" if "OIDC_AUTH_SERVER_1" in key else default,
+        ):
             configs = build_oidc_configs()
             self.assertEqual(len(configs), 1)
             self.assertEqual(configs[0].issuer, "https://example.com")
@@ -73,8 +75,9 @@ class OIDCAuthTestCase(TestCase):
                         self.oidc_auth.logout({"refresh_token": "test_refresh"}, "access_token")
 
     def test_get_tokens_success(self):
-        with patch("requests.post", return_value=MagicMock(status_code=200, json=lambda: {"access_token": "test_access",
-                                                                                          "refresh_token": "test_refresh"})) as mock_post:
+        with patch(
+            "requests.post", return_value=MagicMock(status_code=200, json=lambda: {"access_token": "test_access", "refresh_token": "test_refresh"})
+        ) as mock_post:
             tokens = self.oidc_auth.get_tokens(code="test_code", redirect_uri="https://app.com/callback")
             self.assertIsNotNone(tokens)
             self.assertEqual(tokens.access_token, "test_access")
@@ -88,8 +91,9 @@ class OIDCAuthTestCase(TestCase):
 
     def test_refresh_token_success(self):
         with patch.object(OIDCAuth, "decode_token", return_value={"azp": "client123"}):
-            with patch("requests.post", return_value=MagicMock(status_code=200, json=lambda: {"access_token": "new_access",
-                                                                                              "refresh_token": "new_refresh"})) as mock_post:
+            with patch(
+                "requests.post", return_value=MagicMock(status_code=200, json=lambda: {"access_token": "new_access", "refresh_token": "new_refresh"})
+            ) as mock_post:
                 tokens = self.oidc_auth.refresh_token(token="old_refresh_token")
                 self.assertIsNotNone(tokens)
                 self.assertEqual(tokens.access_token, "new_access")

@@ -7,8 +7,8 @@ from cohort.models import RequestQuerySnapshot, CohortBaseModel
 
 
 class FeasibilityStudy(CohortBaseModel, JobModel):
-    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='feasibility_studies')
-    request_query_snapshot = models.ForeignKey(RequestQuerySnapshot, on_delete=models.CASCADE, related_name='feasibility_studies')
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="feasibility_studies")
+    request_query_snapshot = models.ForeignKey(RequestQuerySnapshot, on_delete=models.CASCADE, related_name="feasibility_studies")
     total_count = models.IntegerField(null=True, blank=True)
     display_eligibility_criteria = models.BooleanField(default=False)
     display_total_count = models.BooleanField(default=False)

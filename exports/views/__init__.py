@@ -6,10 +6,12 @@ from .export_result_stat import ExportResultStatViewSet
 from .datalab import DatalabViewSet
 from .infrastructure_provider import InfrastructureProviderViewSet
 
-__all__ = ["ExportsBaseViewSet",
-           "CohortViewSet",
-           "FhirFilterViewSet",
-           "ExportViewSet",
-           "ExportResultStatViewSet",
-           "DatalabViewSet",
-           "InfrastructureProviderViewSet"]
+__all__ = [
+    "ExportsBaseViewSet",
+    "CohortViewSet",
+    "FhirFilterViewSet",
+    "ExportViewSet",
+    "ExportResultStatViewSet",
+    "DatalabViewSet",
+    "InfrastructureProviderViewSet",
+]

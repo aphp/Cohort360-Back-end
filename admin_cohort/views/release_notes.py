@@ -10,12 +10,7 @@ from admin_cohort.serializers import ReleaseNoteSerializer
 extended_schema = extend_schema(tags=["Release Notes"])
 
 
-@extend_schema_view(
-    list=extended_schema,
-    retrieve=extended_schema,
-    create=extended_schema,
-    partial_update=extended_schema
-)
+@extend_schema_view(list=extended_schema, retrieve=extended_schema, create=extended_schema, partial_update=extended_schema)
 class ReleaseNotesViewSet(viewsets.ModelViewSet):
     queryset = ReleaseNote.objects.all()
     serializer_class = ReleaseNoteSerializer
@@ -24,5 +19,4 @@ class ReleaseNotesViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self) -> QuerySet:
-        return super(ReleaseNotesViewSet, self).get_queryset()\
-                                               .order_by("-insert_datetime")
+        return super(ReleaseNotesViewSet, self).get_queryset().order_by("-insert_datetime")

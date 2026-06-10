@@ -12,7 +12,6 @@ class BaseAuthBackend:
 
 
 class JWTAuthBackend(BaseAuthBackend):
-
     def authenticate(self, request, username, password):
         # param 'request' is forced by function signature in the definition of the AuthBackend. DO NOT REMOVE!
         _ = request
@@ -23,7 +22,6 @@ class JWTAuthBackend(BaseAuthBackend):
 
 
 class OIDCAuthBackend(BaseAuthBackend):
-
     def authenticate(self, request, code, redirect_uri: Optional[str] = None):
         auth_tokens = oidc_auth_service.get_tokens(code=code, redirect_uri=redirect_uri)
         if auth_tokens is None:

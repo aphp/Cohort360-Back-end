@@ -18,11 +18,7 @@ class RightsViewSet(BaseViewSet):
     permission_classes = [IsAuthenticated]
     pagination_class = NegativeLimitOffsetPagination
     http_method_names = ["get"]
-    filterset_fields = ["name",
-                        "label",
-                        "is_global",
-                        "allow_edit_accesses_on_same_level",
-                        "allow_edit_accesses_on_inf_levels"]
+    filterset_fields = ["name", "label", "is_global", "allow_edit_accesses_on_same_level", "allow_edit_accesses_on_inf_levels"]
     swagger_tags = ["Rights"]
 
     @extend_schema(responses={status.HTTP_200_OK: RightSerializer(many=True)})

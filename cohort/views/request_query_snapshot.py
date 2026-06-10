@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.http import QueryDict
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status
@@ -18,45 +19,47 @@ from cohort.views.shared import UserObjectsRestrictedViewSet
 class RequestQuerySnapshotViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
     queryset = RequestQuerySnapshot.objects.exclude(cohort_results__is_subset=True)
     serializer_class = RQSSerializer
-    http_method_names = ['get', 'post', 'patch']
-    swagger_tags = ['Request Query Snapshots']
-    filterset_fields = ['request',
-                        'name',
-                        'shared_by',
-                        'previous_snapshot',
-                        'request',
-                        'request__parent_folder']
+    http_method_names = ["get", "post", "patch"]
+    swagger_tags = ["Request Query Snapshots"]
+    filterset_fields = ["request", "name", "shared_by", "previous_snapshot", "request", "request__parent_folder"]
 
-    @extend_schema(request=RQSCreateSerializer, responses={status.HTTP_201_CREATED: RQSSerializer})
+    @extend_schema(
+        request=RQSCreateSerializer,
+        responses={status.HTTP_200_OK: RQSSerializer, status.HTTP_201_CREATED: RQSSerializer},
+    )
     def create(self, request, *args, **kwargs):
         try:
-            rqs_service.process_creation_data(data=request.data)
+            with transaction.atomic():
+                existing = rqs_service.process_creation_data(data=request.data)
+                if existing is not None:
+                    return Response(RQSSerializer(existing).data, status=status.HTTP_200_OK)
+                return super().create(request, *args, **kwargs)
         except ValueError as ve:
             return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
-        return super().create(request, *args, **kwargs)
 
     @extend_schema(request=RQSShareSerializer, responses={status.HTTP_201_CREATED: None})
-    @action(detail=True, methods=['post'], url_path="share")
+    @action(detail=True, methods=["post"], url_path="share")
     def share(self, request, *args, **kwargs):
         try:
-            rqs_service.share_snapshot(snapshot=self.get_object(),
-                                       request_name=request.data.get('name'),
-                                       recipients_ids=request.data.get('recipients'),
-                                       notify_by_email=request.data.get('notify_by_email', False))
+            rqs_service.share_snapshot(
+                snapshot=self.get_object(),
+                request_name=request.data.get("name"),
+                recipients_ids=request.data.get("recipients"),
+                notify_by_email=request.data.get("notify_by_email", False),
+            )
         except ValueError as ve:
             return Response(data=f"{ve}", status=status.HTTP_400_BAD_REQUEST)
         return Response(status=status.HTTP_201_CREATED)
 
 
 class NestedRqsViewSet(RequestQuerySnapshotViewSet):
-
     def create(self, request, *args, **kwargs):
         if type(request.data) is QueryDict:
             request.data._mutable = True
 
-        if 'request_id' in kwargs:
-            request.data["request"] = kwargs['request_id']
-        if 'previous_snapshot' in kwargs:
-            request.data["previous_snapshot"] = kwargs['previous_snapshot']
+        if "request_id" in kwargs:
+            request.data["request"] = kwargs["request_id"]
+        if "previous_snapshot" in kwargs:
+            request.data["previous_snapshot"] = kwargs["previous_snapshot"]
 
         return super().create(request, *args, **kwargs)

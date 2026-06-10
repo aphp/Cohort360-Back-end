@@ -8,5 +8,4 @@ class FhirPerimeterResultPermission(IsAuthenticated):
     def has_permission(self, request, view):
         authenticated = super().has_permission(request, view)
         user = request.user
-        return authenticated and (accesses_service.user_is_full_admin(user) or
-                                  user.username in CohortJobServerConfig.APPLICATIVE_USERS)
+        return authenticated and (accesses_service.user_is_full_admin(user) or user.username in CohortJobServerConfig.APPLICATIVE_USERS)

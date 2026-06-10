@@ -7,4 +7,4 @@ class InfrastructureProvider(ExportsBaseModel):
     name = models.CharField(null=False, max_length=255)
 
     class Meta:
-        db_table = 'infrastructure_provider'
+        db_table = "infrastructure_provider"

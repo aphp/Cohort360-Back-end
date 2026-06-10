@@ -15,52 +15,52 @@ class ExportResultStatViewSetTest(ExportsTestBase):
     def setUp(self):
         super().setUp()
         self.datalab = Datalab.objects.create(infrastructure_provider=self.infra_provider_aphp)
-        self.export = Export.objects.create(output_format=self.export_type,
-                                            owner=self.datalabs_manager_user,
-                                            datalab=self.datalab,
-                                            target_name="12345_09092023_151500")
-        self.export_result_stats = [ExportResultStat.objects.create(name=f"Stat_{i}",
-                                                                    type=StatType.INT.value,
-                                                                    value=i,
-                                                                    export=self.export) for i in range(5)]
+        self.export = Export.objects.create(
+            output_format=self.export_type, owner=self.datalabs_manager_user, datalab=self.datalab, target_name="12345_09092023_151500"
+        )
+        self.export_result_stats = [
+            ExportResultStat.objects.create(name=f"Stat_{i}", type=StatType.INT.value, value=i, export=self.export) for i in range(5)
+        ]
         self.target_export_result_stat_to_retrieve = self.export_result_stats[0]
         self.target_export_result_stat_to_patch = self.export_result_stats[1]
         self.target_export_result_stat_to_delete = self.export_result_stats[2]
 
     def test_list_export_result_stats(self):
         list_url = reverse(viewname=self.viewname_list)
-        self.check_test_list_view(list_url=list_url,
-                                  request_user=self.datalabs_reader_user,
-                                  expected_resp_status=status.HTTP_200_OK,
-                                  result_count=len(self.export_result_stats)-1)
+        self.check_test_list_view(
+            list_url=list_url,
+            request_user=self.datalabs_reader_user,
+            expected_resp_status=status.HTTP_200_OK,
+            result_count=len(self.export_result_stats) - 1,
+        )
 
     def test_retrieve_export_result_stat(self):
         retrieve_url = reverse(viewname=self.viewname_detail, args=[self.target_export_result_stat_to_retrieve.uuid])
-        self.check_test_retrieve_view(request_user=self.datalabs_reader_user,
-                                      retrieve_url=retrieve_url,
-                                      obj_id=self.target_export_result_stat_to_retrieve.uuid,
-                                      expected_resp_status=status.HTTP_200_OK,
-                                      to_read_from_response='name',
-                                      to_check_against=self.target_export_result_stat_to_retrieve.name)
+        self.check_test_retrieve_view(
+            request_user=self.datalabs_reader_user,
+            retrieve_url=retrieve_url,
+            obj_id=self.target_export_result_stat_to_retrieve.uuid,
+            expected_resp_status=status.HTTP_200_OK,
+            to_read_from_response="name",
+            to_check_against=self.target_export_result_stat_to_retrieve.name,
+        )
 
     def test_create_export_result_stat(self):
         create_url = reverse(viewname=self.viewname_list)
-        request_data = {"name": "Special stat",
-                        "type": StatType.INT.value,
-                        "value": 43,
-                        "export": self.export.uuid}
-        self.check_test_create_view(request_user=self.datalabs_manager_user,
-                                    create_url=create_url,
-                                    request_data=request_data,
-                                    expected_resp_status=status.HTTP_201_CREATED)
+        request_data = {"name": "Special stat", "type": StatType.INT.value, "value": 43, "export": self.export.uuid}
+        self.check_test_create_view(
+            request_user=self.datalabs_manager_user, create_url=create_url, request_data=request_data, expected_resp_status=status.HTTP_201_CREATED
+        )
 
     def test_patch_export_result_stat(self):
         patch_url = reverse(viewname=self.viewname_detail, args=[self.target_export_result_stat_to_patch.uuid])
-        patch_data = {'name': 'Some different name for my stat'}
-        self.check_test_patch_view(request_user=self.datalabs_manager_user,
-                                   patch_url=patch_url,
-                                   obj_id=self.target_export_result_stat_to_patch.uuid,
-                                   request_data=patch_data,
-                                   expected_resp_status=status.HTTP_200_OK,
-                                   to_read_from_response='name',
-                                   to_check_against=patch_data['name'])
+        patch_data = {"name": "Some different name for my stat"}
+        self.check_test_patch_view(
+            request_user=self.datalabs_manager_user,
+            patch_url=patch_url,
+            obj_id=self.target_export_result_stat_to_patch.uuid,
+            request_data=patch_data,
+            expected_resp_status=status.HTTP_200_OK,
+            to_read_from_response="name",
+            to_check_against=patch_data["name"],
+        )

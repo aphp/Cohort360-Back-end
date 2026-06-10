@@ -1,44 +1,25 @@
-import logging
-import sys
-
 from cohort.scripts.patch_requests_v150 import NEW_VERSION as PREV_VERSION
 from cohort.scripts.query_request_updater import RESOURCE_DEFAULT, QueryRequestUpdater, MATCH_ALL_VALUES
 
-LOGGER = logging.getLogger("info")
-stream_handler = logging.StreamHandler(stream=sys.stdout)
-LOGGER.addHandler(stream_handler)
 
 NEW_VERSION = "v1.5.1"
 
-FILTER_MAPPING = {
-    RESOURCE_DEFAULT: {
-    }
-}
+FILTER_MAPPING = {RESOURCE_DEFAULT: {}}
 
-FILTER_NAME_TO_SKIP = {
-}
+FILTER_NAME_TO_SKIP = {}
 
-code_mapping_cache = {
-}
+code_mapping_cache = {}
 
 
 def fix_encounter_filter(filter_value: str):
     return filter_value.replace("encounter.", "")
 
 
-FILTER_VALUE_MAPPING = {
-    "Encounter": {
-        "_filter": {
-            MATCH_ALL_VALUES: fix_encounter_filter
-        }
-    }
-}
+FILTER_VALUE_MAPPING = {"Encounter": {"_filter": {MATCH_ALL_VALUES: fix_encounter_filter}}}
 
-STATIC_REQUIRED_FILTERS = {
-}
+STATIC_REQUIRED_FILTERS = {}
 
-RESOURCE_NAME_MAPPING = {
-}
+RESOURCE_NAME_MAPPING = {}
 
 
 updater_v151 = QueryRequestUpdater(

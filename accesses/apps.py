@@ -6,7 +6,7 @@ env = os.environ
 
 
 class AccessConfig(AppConfig):
-    name = 'accesses'
+    name = "accesses"
 
     FHIR_URL = env.get("FHIR_URL")
     POST_AUTH_HOOKS = ["accesses.utils.impersonate_hook"]

@@ -1,11 +1,8 @@
-import logging
+from typing import Any, cast
 
 from django.core.cache import cache
 from django.core.cache.backends.dummy import DummyCache
 from rest_framework_extensions.cache.decorators import CacheResponse
-
-
-_logger = logging.getLogger("info")
 
 
 class CustomCacheResponse(CacheResponse):
@@ -44,7 +41,7 @@ def construct_cache_key(view_instance=None, view_method=None, request=None, args
 def invalidate_cache(model_name: str, user: str = "*"):
     view_name = f"*{model_name}ViewSet"
     key = f"*{user}.{view_name}.*"
-    cache.delete_pattern(key)
+    cast(Any, cache).delete_pattern(key)
 
 
 class CustomDummyCache(DummyCache):

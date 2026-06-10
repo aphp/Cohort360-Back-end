@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from accesses.models import Perimeter, Access
 from accesses.services.accesses import AccessesService
-from accesses_perimeters.models import Concept, CareSite
+from accesses_perimeters.models import ConceptFhir, CareSite
 from admin_cohort.tools.cache import invalidate_cache
 from cohort.models import RequestQuerySnapshot
 from cohort.services.request_query_snapshot import RequestQuerySnapshotService
@@ -26,7 +26,7 @@ New Data Models:
 - Provider: the user object reference. it will be mapped by omop.provider, it contains user information id, name etc...
 - CareSite: the medical service reference. it will be mapped by omop.care_site, it contains user information like
   care site id, care site name, type of care site (if it is an hospital lower or bigger service) etc...
-- Concept: the translation of reference concept table from omop. It used to get technical id from concept label
+- ConceptFhir: the translation of reference concept table from omop. It used to get technical id from concept label
   (concept name) to finally apply filter on other table.
 
 Care site Hierarchy: each care site must have a type, which correspond to the "level" of this care site in the hierarchy
@@ -37,8 +37,7 @@ It is a mono-hierarchy => one parent maximum for 1.n children
 3) We save all perimeters objects in that order
 """
 
-_logger = logging.getLogger("info")
-_logger_err = logging.getLogger("django.request")
+logger = logging.getLogger(__name__)
 
 CARE_SITE_DOMAIN_CONCEPT_NAME = "Care site"
 IS_PART_OF_RELATIONSHIP_NAME = "Care Site is part of Care Site"
@@ -47,9 +46,9 @@ IS_PART_OF_RELATIONSHIP_NAME = "Care Site is part of Care Site"
 def log(message: str, is_error: bool = False):
     message = f"[perimeters_updater] {message}"
     if is_error:
-        _logger_err.error(message)
+        logger.error(message)
     else:
-        _logger.info(message)
+        logger.info(message)
 
 
 class RelationPerimeter:
@@ -68,9 +67,9 @@ def get_concept_filter_id() -> tuple:
     It is used to define the relation between fact_id_1 and fact_id_2 in Where clause in psql query.
     """
     try:
-        is_part_of_rel_id = Concept.objects.get(concept_name=IS_PART_OF_RELATIONSHIP_NAME).concept_id
-        cs_domain_concept_id = Concept.objects.get(concept_name=CARE_SITE_DOMAIN_CONCEPT_NAME).concept_id
-    except Concept.DoesNotExist as e:
+        is_part_of_rel_id = ConceptFhir.objects.get(source_concept_name=IS_PART_OF_RELATIONSHIP_NAME).source_concept_id
+        cs_domain_concept_id = ConceptFhir.objects.get(source_concept_name=CARE_SITE_DOMAIN_CONCEPT_NAME).source_concept_id
+    except ConceptFhir.DoesNotExist as e:
         raise ValueError(f"Error while getting Concepts: {e}")
     return str(is_part_of_rel_id), str(cs_domain_concept_id)
 
@@ -126,41 +125,48 @@ def psql_query_care_site_relationship(top_care_site_id: int) -> str:
 
 
 def map_care_site_to_perimeter(care_site: CareSite, relation_perimeter: RelationPerimeter):
-    return Perimeter(id=care_site.care_site_id,
-                     local_id=str(care_site.care_site_id),
-                     source_value=care_site.care_site_source_value,
-                     name=care_site.care_site_name,
-                     short_name=care_site.care_site_short_name,
-                     type_source_value=care_site.care_site_type_source_value,
-                     parent_id=care_site.care_site_parent_id,
-                     cohort_id=care_site.cohort_id,
-                     cohort_size=care_site.cohort_size,
-                     above_levels_ids=relation_perimeter.above_levels_ids,
-                     inferior_levels_ids=relation_perimeter.inferior_levels_ids,
-                     full_path=relation_perimeter.full_path,
-                     level=relation_perimeter.level
-                     )
+    return Perimeter(
+        id=care_site.care_site_id,
+        local_id=str(care_site.care_site_id),
+        source_value=care_site.care_site_source_value,
+        name=care_site.care_site_name,
+        short_name=care_site.care_site_short_name,
+        type_source_value=care_site.care_site_type_source_value,
+        parent_id=care_site.care_site_parent_id,
+        cohort_id=care_site.cohort_id,
+        cohort_size=care_site.cohort_size,
+        above_levels_ids=relation_perimeter.above_levels_ids,
+        inferior_levels_ids=relation_perimeter.inferior_levels_ids,
+        full_path=relation_perimeter.full_path,
+        level=relation_perimeter.level,
+    )
 
 
 def is_care_site_different_from_perimeter(care_site: CareSite, perimeter: Perimeter, relation_perimeter: RelationPerimeter):
-    return any((care_site.care_site_parent_id != perimeter.parent_id,
-                care_site.care_site_type_source_value != perimeter.type_source_value,
-                care_site.care_site_name != perimeter.name,
-                care_site.care_site_short_name != perimeter.short_name,
-                care_site.delete_datetime != perimeter.delete_datetime,
-                str(care_site.cohort_id) != str(perimeter.cohort_id),
-                str(care_site.cohort_size) != str(perimeter.cohort_size),
-                relation_perimeter.above_levels_ids != perimeter.above_levels_ids,
-                relation_perimeter.full_path != perimeter.full_path,
-                relation_perimeter.inferior_levels_ids != perimeter.inferior_levels_ids))
+    return any(
+        (
+            care_site.care_site_parent_id != perimeter.parent_id,
+            care_site.care_site_type_source_value != perimeter.type_source_value,
+            care_site.care_site_name != perimeter.name,
+            care_site.care_site_short_name != perimeter.short_name,
+            care_site.delete_datetime != perimeter.delete_datetime,
+            str(care_site.cohort_id) != str(perimeter.cohort_id),
+            str(care_site.cohort_size) != str(perimeter.cohort_size),
+            relation_perimeter.above_levels_ids != perimeter.above_levels_ids,
+            relation_perimeter.full_path != perimeter.full_path,
+            relation_perimeter.inferior_levels_ids != perimeter.inferior_levels_ids,
+        )
+    )
 
 
-def set_perimeters_to_create_and_update(perimeters_to_create: List[Perimeter],
-                                        perimeters_to_update: List[Perimeter],
-                                        all_perimeters: QuerySet,
-                                        care_site: CareSite,
-                                        relation_perimeter: RelationPerimeter,
-                                        previous_level_perimeters: List[Perimeter]):
+def set_perimeters_to_create_and_update(
+    perimeters_to_create: List[Perimeter],
+    perimeters_to_update: List[Perimeter],
+    all_perimeters: QuerySet,
+    care_site: CareSite,
+    relation_perimeter: RelationPerimeter,
+    previous_level_perimeters: List[Perimeter],
+):
     try:
         perimeter = all_perimeters.get(id=care_site.care_site_id)
         if is_care_site_different_from_perimeter(care_site, perimeter, relation_perimeter):
@@ -189,36 +195,34 @@ def create_top_perimeter(top_care_site: CareSite, all_care_sites: QuerySet, all_
     path = f"{top_care_site.care_site_source_value}-{top_care_site.care_site_name}"
     log(f"Top perimeter path: {path}")
 
-    children = get_child_care_sites(care_site=top_care_site,
-                                    all_care_sites=all_care_sites)
+    children = get_child_care_sites(care_site=top_care_site, all_care_sites=all_care_sites)
     top_level = 1
-    relation_perimeters = RelationPerimeter(above_levels_ids=None,
-                                            inferior_levels_ids=children,
-                                            full_path=path,
-                                            level=top_level)
-    set_perimeters_to_create_and_update(perimeters_to_create=perimeters_to_create,
-                                        perimeters_to_update=perimeters_to_update,
-                                        all_perimeters=all_perimeters,
-                                        care_site=top_care_site,
-                                        relation_perimeter=relation_perimeters,
-                                        previous_level_perimeters=current_perimeters)
+    relation_perimeters = RelationPerimeter(above_levels_ids=None, inferior_levels_ids=children, full_path=path, level=top_level)
+    set_perimeters_to_create_and_update(
+        perimeters_to_create=perimeters_to_create,
+        perimeters_to_update=perimeters_to_update,
+        all_perimeters=all_perimeters,
+        care_site=top_care_site,
+        relation_perimeter=relation_perimeters,
+        previous_level_perimeters=current_perimeters,
+    )
     top_care_site_level = top_care_site.care_site_type_source_value
 
-    log(f"Process at level: {top_care_site_level} "
+    log(
+        f"Process at level: {top_care_site_level} "
         f"-Current Perimeters: {len(current_perimeters)} "
         f"-Perimeters to create: {len(perimeters_to_create)} "
-        f"-Perimeters to update: {len(perimeters_to_update)}")
+        f"-Perimeters to update: {len(perimeters_to_update)}"
+    )
 
     insert_perimeters(perimeters_to_create)
     update_perimeters(perimeters_to_update)
     return current_perimeters + perimeters_to_create + perimeters_to_update
 
 
-def recursively_create_child_perimeters(parents_ids: List[int],
-                                        care_sites: List[CareSite],
-                                        all_perimeters: QuerySet,
-                                        previous_level_perimeters: List[Perimeter],
-                                        level: int):
+def recursively_create_child_perimeters(
+    parents_ids: List[int], care_sites: List[CareSite], all_perimeters: QuerySet, previous_level_perimeters: List[Perimeter], level: int
+):
     if not all_perimeters:
         all_perimeters = Perimeter.objects.none()
 
@@ -232,12 +236,13 @@ def recursively_create_child_perimeters(parents_ids: List[int],
     for care_site in care_sites:
         if care_site.care_site_parent_id in parents_ids:
             if care_site.care_site_id in current_parents_ids:
-                _logger.warning(f"Care site {care_site.care_site_id} has 2 or more parents !")
+                logger.warning(f"Care site {care_site.care_site_id} has 2 or more parents !")
                 continue
 
             # We get the previous above_levels_ids value from parent perimeter and add current id
-            parent_perimeter = get_parent_perimeter_from_perimeters(perimeters=previous_level_perimeters,
-                                                                    care_site_parent_id=care_site.care_site_parent_id)
+            parent_perimeter = get_parent_perimeter_from_perimeters(
+                perimeters=previous_level_perimeters, care_site_parent_id=care_site.care_site_parent_id
+            )
 
             if parent_perimeter.above_levels_ids:
                 above_levels_ids = ",".join([parent_perimeter.above_levels_ids, str(parent_perimeter.id)])
@@ -246,17 +251,16 @@ def recursively_create_child_perimeters(parents_ids: List[int],
             children = get_child_care_sites(care_site=care_site, all_care_sites=care_sites)
             full_path = f"{parent_perimeter.full_path}/{care_site.care_site_source_value}-{care_site.care_site_name}"
 
-            relation_perimeter = RelationPerimeter(above_levels_ids=above_levels_ids,
-                                                   inferior_levels_ids=children,
-                                                   full_path=full_path,
-                                                   level=level)
+            relation_perimeter = RelationPerimeter(above_levels_ids=above_levels_ids, inferior_levels_ids=children, full_path=full_path, level=level)
 
-            set_perimeters_to_create_and_update(perimeters_to_create=perimeters_to_create,
-                                                perimeters_to_update=perimeters_to_update,
-                                                all_perimeters=all_perimeters,
-                                                care_site=care_site,
-                                                relation_perimeter=relation_perimeter,
-                                                previous_level_perimeters=new_previous_level_list)
+            set_perimeters_to_create_and_update(
+                perimeters_to_create=perimeters_to_create,
+                perimeters_to_update=perimeters_to_update,
+                all_perimeters=all_perimeters,
+                care_site=care_site,
+                relation_perimeter=relation_perimeter,
+                previous_level_perimeters=new_previous_level_list,
+            )
 
             current_parents_ids.append(care_site.care_site_id)
             care_site_levels.append(care_site.care_site_type_source_value)
@@ -266,25 +270,41 @@ def recursively_create_child_perimeters(parents_ids: List[int],
     log(f"Children care_site objects found: {len(children_care_site_objects)}")
 
     if perimeters_to_create or perimeters_to_update or new_previous_level_list:
-        log(f"Process at levels: {set(care_site_levels)}\n"
+        log(
+            f"Process at levels: {set(care_site_levels)}\n"
             f"- Perimeters already existing: {len(new_previous_level_list)}\n"
             f"- Perimeters to Create: {len(perimeters_to_create)}\n"
-            f"- Perimeters to update: {len(perimeters_to_update)}")
+            f"- Perimeters to update: {len(perimeters_to_update)}"
+        )
         insert_perimeters(perimeters_to_create)
         update_perimeters(perimeters_to_update)
         new_previous_level_list = new_previous_level_list + perimeters_to_create + perimeters_to_update
-        recursively_create_child_perimeters(parents_ids=current_parents_ids,
-                                            care_sites=children_care_site_objects,
-                                            all_perimeters=all_perimeters,
-                                            previous_level_perimeters=new_previous_level_list,
-                                            level=level+1)
+        recursively_create_child_perimeters(
+            parents_ids=current_parents_ids,
+            care_sites=children_care_site_objects,
+            all_perimeters=all_perimeters,
+            previous_level_perimeters=new_previous_level_list,
+            level=level + 1,
+        )
 
 
 def update_perimeters(perimeters_to_update: List[Perimeter]):
-    Perimeter.objects.bulk_update(perimeters_to_update,
-                                  ["source_value", "name", "short_name", "type_source_value", "parent_id",
-                                   "above_levels_ids", "full_path", "inferior_levels_ids", "delete_datetime",
-                                   "cohort_id", "cohort_size"])
+    Perimeter.objects.bulk_update(
+        perimeters_to_update,
+        [
+            "source_value",
+            "name",
+            "short_name",
+            "type_source_value",
+            "parent_id",
+            "above_levels_ids",
+            "full_path",
+            "inferior_levels_ids",
+            "delete_datetime",
+            "cohort_id",
+            "cohort_size",
+        ],
+    )
 
 
 def insert_perimeters(perimeters_to_create: List[Perimeter]):
@@ -292,8 +312,7 @@ def insert_perimeters(perimeters_to_create: List[Perimeter]):
 
 
 def delete_perimeters(perimeters: QuerySet, care_sites: RawQuerySet):
-    perimeters_to_delete = get_perimeters_to_delete(all_perimeters=perimeters,
-                                                    all_valid_care_sites=care_sites)
+    perimeters_to_delete = get_perimeters_to_delete(all_perimeters=perimeters, all_valid_care_sites=care_sites)
     if perimeters_to_delete:
         update_perimeters(perimeters_to_delete)
         log(f"{len(perimeters_to_delete)} perimeters have been deleted - {perimeters_to_delete}")
@@ -329,15 +348,14 @@ def get_updated_cohort_id_mapping(all_perimeters: QuerySet, all_valid_care_sites
     """
     Get the updated cohort id mapping for all perimeters
     """
+
     def find_matching_care_site_cohort_id(perimeter: Perimeter):
         matching_care_site = [cs for cs in all_valid_care_sites if cs.care_site_id == perimeter.id]
         if matching_care_site:
             return str(matching_care_site[0].cohort_id)
         return None
-    return {
-        perimeter.cohort_id: find_matching_care_site_cohort_id(perimeter)
-        for perimeter in all_perimeters
-    }
+
+    return {perimeter.cohort_id: find_matching_care_site_cohort_id(perimeter) for perimeter in all_perimeters}
 
 
 def update_query_snapshots_cohort_id(all_perimeters: QuerySet, all_valid_care_sites: List[CareSite]):
@@ -352,7 +370,7 @@ def update_query_snapshots_cohort_id(all_perimeters: QuerySet, all_valid_care_si
         rqs.serialized_query = RequestQuerySnapshotService.update_query_perimeter(rqs.serialized_query, differing_matching)
         rqs.perimeters_ids = sorted(list(set(differing_matching.get(pid) or pid for pid in rqs.perimeters_ids)))
         rqs_to_update.append(rqs)
-    RequestQuerySnapshot.objects.bulk_update(rqs_to_update, ['serialized_query', 'perimeters_ids'])
+    RequestQuerySnapshot.objects.bulk_update(rqs_to_update, ["serialized_query", "perimeters_ids"])
 
 
 """
@@ -384,16 +402,16 @@ def perimeters_data_model_objects_update():
     log(f"3. All perimeters: {len(all_perimeters)}")
 
     log("4. Create top hierarchy perimeter")
-    top_perimeters = create_top_perimeter(top_care_site=top_care_site,
-                                          all_care_sites=all_valid_care_sites,
-                                          all_perimeters=all_perimeters)
+    top_perimeters = create_top_perimeter(top_care_site=top_care_site, all_care_sites=all_valid_care_sites, all_perimeters=all_perimeters)
     log("5. Start recursive Perimeter objects creation")
     second_level = 2
-    recursively_create_child_perimeters(parents_ids=[top_perimeter_id],
-                                        care_sites=all_valid_care_sites,
-                                        all_perimeters=all_perimeters,
-                                        previous_level_perimeters=top_perimeters,
-                                        level=second_level)
+    recursively_create_child_perimeters(
+        parents_ids=[top_perimeter_id],
+        care_sites=all_valid_care_sites,
+        all_perimeters=all_perimeters,
+        previous_level_perimeters=top_perimeters,
+        level=second_level,
+    )
     log("6. Update cohort id in query snapshots")
     update_query_snapshots_cohort_id(all_perimeters, all_valid_care_sites)
     log("7. Deleting removed perimeters")

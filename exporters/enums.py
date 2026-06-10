@@ -14,8 +14,7 @@ class ExportTypes(Enum):
 
     @property
     def allow_download(self) -> bool:
-        return self in (ExportTypes.CSV,
-                        ExportTypes.XLSX)
+        return self in (ExportTypes.CSV, ExportTypes.XLSX)
 
     @property
     def allow_to_clean(self) -> bool:
@@ -28,28 +27,29 @@ class APIJobType(StrEnum):
 
 
 class APIJobStatus(StrEnum):
-    Received = 'Received'
-    Running = 'Running'
-    Pending = 'Pending'
-    NotFound = 'NotFound'
-    Revoked = 'Revoked'
-    Retry = 'Retry'
-    Failure = 'Failure'
-    FinishedSuccessfully = 'FinishedSuccessfully'
-    FinishedWithError = 'FinishedWithError'
-    FinishedWithTimeout = 'FinishedWithTimeout'
-    flowerNotAccessible = 'flowerNotAccessible'
+    Received = "Received"
+    Running = "Running"
+    Pending = "Pending"
+    NotFound = "NotFound"
+    Revoked = "Revoked"
+    Retry = "Retry"
+    Failure = "Failure"
+    FinishedSuccessfully = "FinishedSuccessfully"
+    FinishedWithError = "FinishedWithError"
+    FinishedWithTimeout = "FinishedWithTimeout"
+    flowerNotAccessible = "flowerNotAccessible"
 
 
-status_mapper = {APIJobStatus.Received.value: JobStatus.new,
-                 APIJobStatus.Pending.value: JobStatus.pending,
-                 APIJobStatus.Retry.value: JobStatus.pending,
-                 APIJobStatus.Running.value: JobStatus.started,
-                 APIJobStatus.FinishedSuccessfully.value: JobStatus.finished,
-                 APIJobStatus.FinishedWithError.value: JobStatus.failed,
-                 APIJobStatus.FinishedWithTimeout.value: JobStatus.failed,
-                 APIJobStatus.flowerNotAccessible.value: JobStatus.failed,
-                 APIJobStatus.Failure.value: JobStatus.failed,
-                 APIJobStatus.NotFound.value: JobStatus.failed,
-                 APIJobStatus.Revoked.value: JobStatus.cancelled
-                 }
+status_mapper = {
+    APIJobStatus.Received.value: JobStatus.new,
+    APIJobStatus.Pending.value: JobStatus.pending,
+    APIJobStatus.Retry.value: JobStatus.pending,
+    APIJobStatus.Running.value: JobStatus.started,
+    APIJobStatus.FinishedSuccessfully.value: JobStatus.finished,
+    APIJobStatus.FinishedWithError.value: JobStatus.failed,
+    APIJobStatus.FinishedWithTimeout.value: JobStatus.failed,
+    APIJobStatus.flowerNotAccessible.value: JobStatus.failed,
+    APIJobStatus.Failure.value: JobStatus.failed,
+    APIJobStatus.NotFound.value: JobStatus.failed,
+    APIJobStatus.Revoked.value: JobStatus.cancelled,
+}

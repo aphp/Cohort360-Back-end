@@ -16,13 +16,15 @@ class RightsChecker:
     right_jupyter_nomi = "right_export_jupyter_nominative"
     right_jupyter_pseudo = "right_export_jupyter_pseudonymized"
 
-    def check_owner_rights(self, owner: User, output_format:  str, nominative: bool, source_cohorts_ids: List[str]) -> None:
-        cohort_ids = []
+    def check_owner_rights(self, owner: User, output_format: str, nominative: bool, source_cohorts_ids: List[str]) -> None:
+        cohort_ids: list[str] = []
         for cohort in CohortResult.objects.filter(pk__in=source_cohorts_ids):
-            cohort_ids.extend(cohort.request_query_snapshot.perimeters_ids)
-        perimeters_ids = Perimeter.objects.filter(cohort_id__in=cohort_ids).values_list('id', flat=True)
-        data_permissions = accesses_service.get_data_reading_rights(user=owner,
-                                                                    target_perimeters_ids=perimeters_ids)
+            snap = cohort.request_query_snapshot
+            if snap is None or snap.perimeters_ids is None:
+                continue
+            cohort_ids.extend(snap.perimeters_ids)
+        perimeters_ids = Perimeter.objects.filter(cohort_id__in=cohort_ids).values_list("id", flat=True)
+        data_permissions = accesses_service.get_data_reading_rights(user=owner, target_perimeters_ids=perimeters_ids)
         self._check_rights(data_permissions=data_permissions, required_right=nominative and self.right_read_nomi or self.right_read_pseudo)
         if output_format in ("csv", "xlsx"):
             required_right = self.right_csv_xlsx_nomi

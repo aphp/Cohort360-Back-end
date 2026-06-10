@@ -11,14 +11,13 @@ from cohort.models import CohortBaseModel, RequestQuerySnapshot
 
 SNAPSHOT_DM_MODE = "Snapshot"
 GLOBAL_DM_MODE = "Global"
-DATED_MEASURE_MODE_CHOICES = [(SNAPSHOT_DM_MODE, SNAPSHOT_DM_MODE),
-                              (GLOBAL_DM_MODE, GLOBAL_DM_MODE)]
+DATED_MEASURE_MODE_CHOICES = [(SNAPSHOT_DM_MODE, SNAPSHOT_DM_MODE), (GLOBAL_DM_MODE, GLOBAL_DM_MODE)]
 
 
 class DatedMeasure(CohortBaseModel, JobModel):
     # todo : fix this, user_request_query_results is wrong
-    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='user_request_query_results')
-    request_query_snapshot = models.ForeignKey(RequestQuerySnapshot, on_delete=models.CASCADE, related_name='dated_measures')
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="user_request_query_results")
+    request_query_snapshot = models.ForeignKey(RequestQuerySnapshot, on_delete=models.CASCADE, related_name="dated_measures")
     fhir_datetime = models.DateTimeField(null=True, blank=False)
     measure = models.BigIntegerField(null=True, blank=False)
     measure_min = models.BigIntegerField(null=True, blank=False)

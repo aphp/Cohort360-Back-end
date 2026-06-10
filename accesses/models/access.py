@@ -16,15 +16,15 @@ MANUAL = settings.ACCESS_SOURCES[0]
 
 class Access(BaseModel):
     id = models.BigAutoField(primary_key=True)
-    perimeter = models.ForeignKey(Perimeter, on_delete=SET_NULL, related_name='accesses', null=True)
-    profile = models.ForeignKey(Profile, on_delete=CASCADE, related_name='accesses', null=True)
-    role = models.ForeignKey(Role, on_delete=CASCADE, related_name='accesses', null=True)
+    perimeter = models.ForeignKey(Perimeter, on_delete=SET_NULL, related_name="accesses", null=True)
+    profile = models.ForeignKey(Profile, on_delete=CASCADE, related_name="accesses", null=True)
+    role = models.ForeignKey(Role, on_delete=CASCADE, related_name="accesses", null=True)
     source = models.TextField(blank=True, null=True, default=MANUAL)
-    external_id = models.CharField(blank=True, null=True)   # for accesses retrieved from external sources, ex: ORBIS
+    external_id = models.CharField(blank=True, null=True)  # for accesses retrieved from external sources, ex: ORBIS
     start_datetime = models.DateTimeField(blank=True, null=True)
     end_datetime = models.DateTimeField(blank=True, null=True)
-    created_by = models.ForeignKey(User, on_delete=SET_NULL, related_name='created_accesses', null=True, db_column="created_by")
-    updated_by = models.ForeignKey(User, on_delete=SET_NULL, related_name='updated_accesses', null=True, db_column="updated_by")
+    created_by = models.ForeignKey(User, on_delete=SET_NULL, related_name="created_accesses", null=True, db_column="created_by")
+    updated_by = models.ForeignKey(User, on_delete=SET_NULL, related_name="updated_accesses", null=True, db_column="updated_by")
 
     def save(self, *args, **kwargs):
         super(Access, self).save(*args, **kwargs)
@@ -45,9 +45,14 @@ class Access(BaseModel):
 
     @cached_property
     def care_site(self):
-        return {'care_site_id': self.perimeter.id,
-                'care_site_name': self.perimeter.name,
-                'care_site_short_name': self.perimeter.short_name,
-                'care_site_type_source_value': self.perimeter.type_source_value,
-                'care_site_source_value': self.perimeter.source_value,
-                } if self.perimeter else None
+        return (
+            {
+                "care_site_id": self.perimeter.id,
+                "care_site_name": self.perimeter.name,
+                "care_site_short_name": self.perimeter.short_name,
+                "care_site_type_source_value": self.perimeter.type_source_value,
+                "care_site_source_value": self.perimeter.source_value,
+            }
+            if self.perimeter
+            else None
+        )

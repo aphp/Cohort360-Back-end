@@ -9,31 +9,31 @@ from cohort_job_server.query_executor_api.exceptions import FhirException
 
 
 class PatientAge(BaseModel):
-    min_age: Optional[str] = Field(default=None, alias='minAge')
-    max_age: Optional[str] = Field(default=None, alias='maxAge')
-    date_is_not_null: Optional[bool] = Field(default=None, alias='dateIsNotNull')
-    date_preference: Optional[list[str]] = Field(default=None, alias='datePreference')
+    min_age: Optional[str] = Field(default=None, alias="minAge")
+    max_age: Optional[str] = Field(default=None, alias="maxAge")
+    date_is_not_null: Optional[bool] = Field(default=None, alias="dateIsNotNull")
+    date_preference: Optional[list[str]] = Field(default=None, alias="datePreference")
 
 
 class DateRange(BaseModel):
-    min_date: Optional[str] = Field(default=None, alias='minDate')
-    max_date: Optional[str] = Field(default=None, alias='maxDate')
-    date_preference: Optional[list[str]] = Field(default=None, alias='datePreference')
-    date_is_not_null: Optional[bool] = Field(default=None, alias='dateIsNotNull')
+    min_date: Optional[str] = Field(default=None, alias="minDate")
+    max_date: Optional[str] = Field(default=None, alias="maxDate")
+    date_preference: Optional[list[str]] = Field(default=None, alias="datePreference")
+    date_is_not_null: Optional[bool] = Field(default=None, alias="dateIsNotNull")
 
 
 class Occurrence(BaseModel):
-    n: int = Field(alias='n')
-    operator: str = Field(alias='operator')
-    time_delay_min: str = Field(default=None, alias='timeDelayMin')
-    time_delay_max: str = Field(default=None, alias='timeDelayMax')
-    same_encounter: bool = Field(default=None, alias='sameEncounter')
-    same_day: bool = Field(default=None, alias='sameDay')
+    n: int = Field(alias="n")
+    operator: str = Field(alias="operator")
+    time_delay_min: str = Field(default=None, alias="timeDelayMin")
+    time_delay_max: str = Field(default=None, alias="timeDelayMax")
+    same_encounter: bool = Field(default=None, alias="sameEncounter")
+    same_day: bool = Field(default=None, alias="sameDay")
 
 
 class NAmongMOption(BaseModel):
-    n: int = Field(alias='n')
-    operator: str = Field(alias='operator')
+    n: int = Field(alias="n")
+    operator: str = Field(alias="operator")
 
 
 class TemporalConstraintDuration(BaseModel):
@@ -55,6 +55,7 @@ class TemporalConstraint(BaseModel):
     dates_are_not_null: list = Field(default=None, alias="dateIsNotNullList")
     filtered_criteria_id: list = Field(default=None, alias="filteredCriteriaIdList")
 
+
 class SourcePopulation(BaseModel):
     care_site_cohort_list: list[int] = Field(default_factory=list, alias="caresiteCohortList")
 
@@ -73,7 +74,7 @@ class Criteria(BaseModel):
     filter_solr: str = Field(None, alias="filterSolr")
     filter_fhir: str = Field(None, alias="filterFhir")
     patient_age: PatientAge = Field(None, alias="patientAge")
-    criteria: list['Criteria'] = Field(default_factory=list)
+    criteria: list["Criteria"] = Field(default_factory=list)
     occurrence: Occurrence = Field(None, alias="occurrence")
     date_range: DateRange = Field(None, alias="dateRange")
     date_range_list: list[DateRange] = Field(default_factory=list, alias="dateRangeList")
@@ -88,18 +89,18 @@ class Criteria(BaseModel):
 
 
 class CohortQuery(BaseModel):
-    instance_id: Optional[UUID] = Field(None, alias='instance_id')
-    cohort_name: str = Field(None, alias='cohortName')
+    instance_id: Optional[UUID] = Field(None, alias="instance_id")
+    cohort_name: str = Field(None, alias="cohortName")
     source_population: SourcePopulation = Field(None, alias="sourcePopulation")
     resource_type: ResourceType = Field(None, alias="resourceType")
     criteria_type: CriteriaType = Field(None, alias="_type")
     criteria: Criteria = Field(None, alias="request")
-    temporal_constraints: list[TemporalConstraint] = Field(default_factory=list, alias='temporalConstraints')
+    temporal_constraints: list[TemporalConstraint] = Field(default_factory=list, alias="temporalConstraints")
 
 
 class ModeOptions(BaseModel):
-    sampling: Optional[float] = Field(None, alias='sampling')
-    details: Optional[str] = Field(None, alias='details')
+    sampling: Optional[float] = Field(None, alias="sampling")
+    details: Optional[str] = Field(None, alias="details")
 
 
 @dataclass
@@ -108,9 +109,9 @@ class SparkJobObject:
     cohort_definition_syntax: CohortQuery
     mode: Mode
     owner_entity_id: str
-    callback_path: Optional[str] = Field(None, alias='callbackPath')
-    existing_cohort_id: Optional[int] = Field(None, alias='existingCohortId')
-    mode_options: Optional[ModeOptions] = Field(None, alias='modeOptions')
+    callback_path: Optional[str] = Field(None, alias="callbackPath")
+    existing_cohort_id: Optional[int] = Field(None, alias="existingCohortId")
+    mode_options: Optional[ModeOptions] = Field(None, alias="modeOptions")
 
 
 class FhirParameter(BaseModel):
@@ -125,10 +126,7 @@ class FhirParameters(BaseModel):
     def to_dict(self):
         if not self.params:
             raise FhirException(f"FhirParameters must have at least one parameter, got {self}")
-        return {
-            "collection": self.extract_parameters("collection"),
-            "fq": self.extract_parameters("fq")
-        }
+        return {"collection": self.extract_parameters("collection"), "fq": self.extract_parameters("fq")}
 
     def extract_parameters(self, param_name: str) -> str:
         lst = [param.value for param in self.params if param.name == param_name]

@@ -25,7 +25,6 @@ class HandshakeStatus(WebSocketMessage):
 
 
 class WebsocketManager(AsyncJsonWebsocketConsumer):
-
     @sync_to_async
     def authenticate_ws_request(self, token, auth_method, headers):
         return auth_service.authenticate_ws_request(token, auth_method, headers)
@@ -36,7 +35,7 @@ class WebsocketManager(AsyncJsonWebsocketConsumer):
     @staticmethod
     def send_to_client(client_or_group_id: str, message: WebSocketMessage):
         channel_layer = get_channel_layer()
-        payload = {'type': 'object_status_handler', 'payload': message.model_dump()}
+        payload = {"type": "object_status_handler", "payload": message.model_dump()}
         async_to_sync(channel_layer.group_send)(client_or_group_id, payload)
 
     async def object_status_handler(self, event):
@@ -45,20 +44,20 @@ class WebsocketManager(AsyncJsonWebsocketConsumer):
 
     async def receive_json(self, content, **kwargs):
         try:
-            client = await self.authenticate_ws_request(token=content['token'],
-                                                        auth_method=content['auth_method'],
-                                                        headers=content.get('headers') or {})
+            client = await self.authenticate_ws_request(
+                token=content["token"], auth_method=content["auth_method"], headers=content.get("headers") or {}
+            )
             client_id = client.username
-            await self.send_json(HandshakeStatus(type=WebSocketMessageType.HANDSHAKE, status='accepted').model_dump())
+            await self.send_json(HandshakeStatus(type=WebSocketMessageType.HANDSHAKE, status="accepted").model_dump())
         except KeyError:
-            await self.send_json(HandshakeStatus(
-                type=WebSocketMessageType.HANDSHAKE,
-                status='pending',
-                details='Could not understand the JSON object, "token" key missing').model_dump())
+            await self.send_json(
+                HandshakeStatus(
+                    type=WebSocketMessageType.HANDSHAKE, status="pending", details='Could not understand the JSON object, "token" key missing'
+                ).model_dump()
+            )
             return
         except Exception:
-            await self.send_json(
-                HandshakeStatus(type=WebSocketMessageType.HANDSHAKE, status='forbidden', details='Bad token').model_dump())
+            await self.send_json(HandshakeStatus(type=WebSocketMessageType.HANDSHAKE, status="forbidden", details="Bad token").model_dump())
             await self.close()
             return
         await self.channel_layer.group_add(f"{client_id}", self.channel_name)

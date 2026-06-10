@@ -4,8 +4,8 @@ from admin_cohort.urls import NestedDefaultRouter
 from .views import ContentViewSet
 
 router = NestedDefaultRouter()
-router.register(r'contents', ContentViewSet, basename="contents")
+router.register(r"contents", ContentViewSet, basename="contents")
 
 urlpatterns = [
-    path('', include(router.urls)),
+    path("", include(router.urls)),
 ]

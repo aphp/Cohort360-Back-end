@@ -1,6 +1,5 @@
-import datetime
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Union, Optional
 
 import dateutil.parser
@@ -13,7 +12,7 @@ from admin_cohort import settings
 from admin_cohort.models import MaintenancePhase
 from admin_cohort.services.ws_event_manager import WebSocketMessage, WebsocketManager, WebSocketMessageType
 
-_logger = logging.getLogger("info")
+logger = logging.getLogger(__name__)
 
 
 class WSMaintenanceInfo(BaseModel):
@@ -24,6 +23,7 @@ class WSMaintenanceInfo(BaseModel):
     active: bool
     type: str
     message: Optional[str]
+    is_data_saved_message_hidden: bool
 
 
 class WSMaintenance(WebSocketMessage):
@@ -38,12 +38,12 @@ def maintenance_phase_to_info(maintenance: MaintenancePhase) -> WSMaintenanceInf
         maintenance_end=maintenance.end_datetime.isoformat(),
         active=maintenance.active,
         type=maintenance.type,
-        message=maintenance.message
+        message=maintenance.message,
+        is_data_saved_message_hidden=maintenance.is_data_saved_message_hidden,
     )
 
 
 class MaintenanceService:
-
     @staticmethod
     def get_maintenance_with_event():
         now = timezone.now()
@@ -71,20 +71,16 @@ class MaintenanceService:
         start_time = dateutil.parser.parse(maintenance_info.maintenance_start)
         end_time = dateutil.parser.parse(maintenance_info.maintenance_end)
         maintenance_info.active = force_active_state if force_active_state is not None else start_time < now < end_time
-        logging.info(f"Sending maintenance notification: {maintenance_info}")
-        current_maintenances = MaintenancePhase.objects.filter(start_datetime__lte=now, end_datetime__gte=now).order_by('-end_datetime').all()
-        current_active_maintenances = [cur for cur in
-                                       current_maintenances
-                                       if cur.id != maintenance_info.id]
+        logger.info(f"Sending maintenance notification: {maintenance_info}")
+        current_maintenances = MaintenancePhase.objects.filter(start_datetime__lte=now, end_datetime__gte=now).order_by("-end_datetime").all()
+        current_active_maintenances = [cur for cur in current_maintenances if cur.id != maintenance_info.id]
         if maintenance_info.active or not current_active_maintenances:
             WebsocketManager.send_to_client("__all__", WSMaintenance(type=WebSocketMessageType.MAINTENANCE, info=maintenance_info))
 
     @staticmethod
     def get_current_maintenance(now: Optional[datetime] = None) -> Optional[MaintenancePhase]:
         ref_now = now or timezone.now()
-        return MaintenancePhase.objects.filter(start_datetime__lte=ref_now, end_datetime__gte=ref_now) \
-            .order_by('-end_datetime') \
-            .first()
+        return MaintenancePhase.objects.filter(start_datetime__lte=ref_now, end_datetime__gte=ref_now).order_by("-end_datetime").first()
 
     @staticmethod
     def get_next_maintenance() -> Union[MaintenancePhase, None]:
@@ -92,18 +88,15 @@ class MaintenanceService:
         current = MaintenanceService.get_current_maintenance(now)
         if current:
             return current
-        next_maintenance = MaintenancePhase.objects.filter(start_datetime__gte=now) \
-            .order_by('start_datetime') \
-            .first()
+        next_maintenance = MaintenancePhase.objects.filter(start_datetime__gte=now).order_by("start_datetime").first()
         return next_maintenance
 
     @staticmethod
     def is_allowed_request(request):
-        allowed = request.method in SAFE_METHODS or \
-                  request.path.startswith('/auth/') or \
-                  request.path.startswith('/maintenances/')
+        allowed = request.method in SAFE_METHODS or request.path.startswith("/auth/") or request.path.startswith("/maintenances/")
         if apps.is_installed("cohort_job_server"):
             from cohort_job_server.utils import allow_request_during_maintenance
+
             request_allowed = allow_request_during_maintenance(request)
             allowed = allowed or request_allowed
         return allowed

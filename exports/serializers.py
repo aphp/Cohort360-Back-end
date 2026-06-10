@@ -1,4 +1,3 @@
-
 from rest_framework import serializers
 
 from cohort.models import CohortResult
@@ -6,14 +5,12 @@ from exports.models import Datalab, InfrastructureProvider, ExportTable, ExportR
 
 
 class ExportsCohortResultSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = CohortResult
-        fields = ['uuid', 'owner', 'name']
+        fields = ["uuid", "owner", "name"]
 
 
 class InfrastructureProviderSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = InfrastructureProvider
         exclude = ["created_at", "modified_at", "deleted", "deleted_by_cascade"]
@@ -28,14 +25,12 @@ class DatalabSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         res = super().to_representation(instance)
-        res["infrastructure_provider"] = {"uuid": instance.infrastructure_provider_id,
-                                          "name": instance.infrastructure_provider.name
-                                          }
+        res["infrastructure_provider"] = {"uuid": instance.infrastructure_provider_id, "name": instance.infrastructure_provider.name}
         return res
 
 
 class ExportResultStatSerializer(serializers.ModelSerializer):
-    export_target = serializers.CharField(read_only=True, source='export.target_name')
+    export_target = serializers.CharField(read_only=True, source="export.target_name")
 
     class Meta:
         model = ExportResultStat
@@ -43,16 +38,17 @@ class ExportResultStatSerializer(serializers.ModelSerializer):
 
 
 class ExportTableSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = ExportTable
-        fields = ["name",
-                  "respect_table_relationships",
-                  "fhir_filter",
-                  "cohort_result_source",
-                  "pivot_merge",
-                  "pivot_merge_columns",
-                  "pivot_merge_ids"]
+        fields = [
+            "name",
+            "respect_table_relationships",
+            "fhir_filter",
+            "cohort_result_source",
+            "pivot_merge",
+            "pivot_merge_columns",
+            "pivot_merge_ids",
+        ]
 
 
 class ExportSerializer(serializers.ModelSerializer):
@@ -60,20 +56,19 @@ class ExportSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Export
-        read_only_fields = ["uuid",
-                            "request_job_id",
-                            "request_job_status",
-                            "request_job_fail_msg"]
-        fields = read_only_fields + ["owner",
-                                     "output_format",
-                                     "datalab",
-                                     "nominative",
-                                     "target_name",
-                                     "target_location",
-                                     "shift_dates",
-                                     "group_tables",
-                                     "export_tables",
-                                     "motivation"]
+        read_only_fields = ["uuid", "request_job_id", "request_job_status", "request_job_fail_msg"]
+        fields = read_only_fields + [
+            "owner",
+            "output_format",
+            "datalab",
+            "nominative",
+            "target_name",
+            "target_location",
+            "shift_dates",
+            "group_tables",
+            "export_tables",
+            "motivation",
+        ]
 
 
 class ExportTableSerializerCreate(serializers.ModelSerializer):
@@ -82,14 +77,16 @@ class ExportTableSerializerCreate(serializers.ModelSerializer):
 
     class Meta:
         model = ExportTable
-        fields = ["table_name",
-                  "columns",
-                  "cohort_result_source",
-                  "fhir_filter",
-                  "respect_table_relationships",
-                  "pivot_merge",
-                  "pivot_merge_columns",
-                  "pivot_merge_ids"]
+        fields = [
+            "table_name",
+            "columns",
+            "cohort_result_source",
+            "fhir_filter",
+            "respect_table_relationships",
+            "pivot_merge",
+            "pivot_merge_columns",
+            "pivot_merge_ids",
+        ]
 
 
 class ExportCreateSerializer(serializers.ModelSerializer):
@@ -97,13 +94,7 @@ class ExportCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Export
-        fields = ["motivation",
-                  "output_format",
-                  "datalab",
-                  "nominative",
-                  "shift_dates",
-                  "group_tables",
-                  "export_tables"]
+        fields = ["motivation", "output_format", "datalab", "nominative", "shift_dates", "group_tables", "export_tables"]
 
 
 class ExportsListSerializer(serializers.ModelSerializer):
@@ -114,15 +105,17 @@ class ExportsListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Export
-        fields = ["uuid",
-                  "owner",
-                  "output_format",
-                  "motivation",
-                  "cohort_id",
-                  "cohort_name",
-                  "patients_count",
-                  "created_at",
-                  "modified_at",
-                  "request_job_status",
-                  "target_datalab",
-                  "target_name",]
+        fields = [
+            "uuid",
+            "owner",
+            "output_format",
+            "motivation",
+            "cohort_id",
+            "cohort_name",
+            "patients_count",
+            "created_at",
+            "modified_at",
+            "request_job_status",
+            "target_datalab",
+            "target_name",
+        ]

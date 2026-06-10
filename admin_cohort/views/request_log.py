@@ -14,25 +14,25 @@ from admin_cohort.serializers import RequestLogSerializer
 
 class RequestLogFilter(filters.FilterSet):
     def method_filter(self, queryset, field, value):
-        return queryset.filter(**{f'{field}__in': str(value).upper().split(",")})
+        return queryset.filter(**{f"{field}__in": str(value).upper().split(",")})
 
     def status_code_filter(self, queryset, field, value):
-        return queryset.filter(**{f'{field}__in': [int(v) for v in str(value).upper().split(",")]})
+        return queryset.filter(**{f"{field}__in": [int(v) for v in str(value).upper().split(",")]})
 
-    method = filters.CharFilter(method='method_filter')
-    status_code = filters.CharFilter(method='status_code_filter')
+    method = filters.CharFilter(method="method_filter")
+    status_code = filters.CharFilter(method="status_code_filter")
     requested_at = filters.DateTimeFromToRangeFilter()
     response_ms = filters.RangeFilter()
-    path_contains = filters.CharFilter(field_name='path', lookup_expr='icontains')
-    response = filters.CharFilter(field_name='response', lookup_expr='icontains')
-    errors = filters.CharFilter(field_name='errors', lookup_expr='icontains')
-    data = filters.CharFilter(field_name='data', lookup_expr='icontains')
+    path_contains = filters.CharFilter(field_name="path", lookup_expr="icontains")
+    response = filters.CharFilter(field_name="response", lookup_expr="icontains")
+    errors = filters.CharFilter(field_name="errors", lookup_expr="icontains")
+    data = filters.CharFilter(field_name="data", lookup_expr="icontains")
 
-    ordering = OrderingFilter(fields=('requested_at',))
+    ordering = OrderingFilter(fields=("requested_at",))
 
     class Meta:
         model = APIRequestLog
-        fields = [f.name for f in APIRequestLog._meta.fields] + ['path_contains']
+        fields = [f.name for f in APIRequestLog._meta.fields] + ["path_contains"]
 
 
 def log_related_names(log_data: str):
@@ -45,9 +45,9 @@ def log_related_names(log_data: str):
         return None
 
     def retrieve_object_names(record: dict) -> List[Tuple[str, str]]:
-        return [(k, v) for (k, v) in record.items() if k.endswith('name') and isinstance(v, str)] \
-                + sum([retrieve_object_names(v)
-                       for v in record.values() if isinstance(v, dict)], [])
+        return [(k, v) for (k, v) in record.items() if k.endswith("name") and isinstance(v, str)] + sum(
+            [retrieve_object_names(v) for v in record.values() if isinstance(v, dict)], []
+        )
 
     return dict(retrieve_object_names(d))
 

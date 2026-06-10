@@ -9,28 +9,25 @@ from cohort.views.shared import UserObjectsRestrictedViewSet
 
 
 class RequestRefreshScheduleFilter(filters.FilterSet):
-    ordering = OrderingFilter(fields=('created_at', 'modified_at'))
+    ordering = OrderingFilter(fields=("created_at", "modified_at"))
 
     class Meta:
         model = RequestRefreshSchedule
-        fields = ('request_snapshot_id',
-                  'refresh_time',
-                  'refresh_frequency')
+        fields = ("request_snapshot_id", "refresh_time", "refresh_frequency")
 
 
 class RequestRefreshScheduleViewSet(UserObjectsRestrictedViewSet):
     queryset = RequestRefreshSchedule.objects.all()
     lookup_field = "uuid"
     serializer_class = RequestRefreshScheduleSerializer
-    http_method_names = ['get', 'post', 'patch', 'delete']
+    http_method_names = ["get", "post", "patch", "delete"]
     filterset_class = RequestRefreshScheduleFilter
-    swagger_tags = ['Cohort - Refresh Schedules']
+    swagger_tags = ["Cohort - Refresh Schedules"]
 
     @extend_schema(responses={status.HTTP_201_CREATED: RequestRefreshScheduleSerializer})
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
-        requests_refresher_service.create_refresh_schedule(http_request=request,
-                                                           refresh_schedule=response.data.serializer.instance)
+        requests_refresher_service.create_refresh_schedule(http_request=request, refresh_schedule=response.data.serializer.instance)
         return response
 
     @extend_schema(responses={status.HTTP_200_OK: RequestRefreshScheduleSerializer})

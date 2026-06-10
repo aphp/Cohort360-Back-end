@@ -6,7 +6,6 @@ from cohort_job_server.query_executor_api import QueryExecutorRequester
 
 
 class BaseCohortOperator:
-
     def __init__(self):
         self.query_executor_requester = QueryExecutorRequester()
         self.applicative_users = CohortJobServerConfig.APPLICATIVE_USERS

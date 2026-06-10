@@ -17,7 +17,7 @@ class DefaultExportTypes(Enum):
         return True
 
 
-class StatType(Enum):
-    INT: str = "Integer"
-    TXT: str = "Text"
-    SIZE_BYTES: str = "SizeBytes"
+class StatType(str, Enum):
+    INT = "Integer"
+    TXT = "Text"
+    SIZE_BYTES = "SizeBytes"

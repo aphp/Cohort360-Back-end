@@ -1,13 +1,9 @@
-import logging
-
 from celery import shared_task
 
 from admin_cohort.celery import celery_app
 from exporters.exporters.base_exporter import BaseExporter
 from exports.models import Export
 from exports.services.export_operators import ExportManager, ExportCleaner
-
-_logger = logging.getLogger('django.request')
 
 
 @shared_task

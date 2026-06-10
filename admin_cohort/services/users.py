@@ -12,11 +12,10 @@ from accesses.models import Profile
 from accesses.services.accesses_syncer import AccessesSynchronizer
 from admin_cohort.apps import AdminCohortConfig
 
-_logger = logging.getLogger("info")
+logger = logging.getLogger(__name__)
 
 
 class UsersService:
-
     def validate_user_data(self, data: dict):
         self.check_fields_against_regex(data=data)
         if "password" in data:
@@ -61,11 +60,11 @@ class UsersService:
                 if user_identity is not None:
                     return user_identity
             except ImportError as e:
-                _logger.error(f"[User Identity Check] hook improperly configured: {str(e)}")
+                logger.error(f"[User Identity Check] hook improperly configured: {str(e)}")
             except APIException as e:
-                _logger.error(f"[User Identity Check] Error: {str(e)}")
+                logger.error(f"[User Identity Check] Error: {str(e)}")
                 continue
-        _logger.error("[User Identity Check] All hooks failed. Review or remove them")
+        logger.error("[User Identity Check] All hooks failed. Review or remove them")
         return None
 
 

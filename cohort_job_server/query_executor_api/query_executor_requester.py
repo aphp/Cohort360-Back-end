@@ -8,34 +8,36 @@ from rest_framework import status
 from admin_cohort.types import JobStatus
 from admin_cohort.exceptions import MissingDataError
 from cohort.models import CohortResult
-from cohort_job_server.query_executor_api import BaseCohortRequest, CohortQuery, QueryExecutorClient, QueryExecutorResponse,\
-    query_executor_status_mapper
-from cohort_job_server.utils import _logger_err
-
+from cohort_job_server.query_executor_api import (
+    BaseCohortRequest,
+    CohortQuery,
+    QueryExecutorClient,
+    QueryExecutorResponse,
+    query_executor_status_mapper,
+)
 
 LoggerType = Type[Callable[..., None]]
 
 
 class QueryExecutorRequester:
-
     def launch_request(self, cohort_request: BaseCohortRequest) -> QueryExecutorResponse:
-        _logger = cohort_request.log
+        logger = cohort_request.log
         instance_id = cohort_request.instance_id
         json_query = cohort_request.json_query
         try:
-            _logger(msg=f"Converting the json query: {json_query}")
+            logger(msg=f"Converting the json query: {json_query}")
             cohort_query = CohortQuery(instance_id=instance_id, **json.loads(json_query))
             response = cohort_request.launch(cohort_query)
         except Exception as e:
-            _logger_err.error(f"Error sending request to Query Executor: {e}")
+            logger(f"Error sending request to Query Executor: {e}")
             response_data = {"success": False, "err_msg": str(e), "status": "ERROR"}
         else:
             response_data = {"success": True, **response.json()}
         response = QueryExecutorResponse(**response_data)
-        _logger(msg=f"Received Query Executor response {response.__dict__}")
+        logger(msg=f"Received Query Executor response {response.__dict__}")
         if instance_id is not None and cohort_request.model is not None:
             self.update_request_instance(cohort_request.model, instance_id, response)
-        _logger(msg=f"Done: {response.success and f'{cohort_request.model.__name__} updated' or response.err_msg}")
+        logger(msg=f"Done: {response.success and f'{cohort_request.model.__name__} updated' or response.err_msg}")
         return response
 
     @staticmethod
@@ -66,9 +68,9 @@ class QueryExecutorRequester:
             return JobStatus.finished
         if response.status_code != status.HTTP_200_OK:
             raise HTTPError(f"Cancel request failed: {response.status_code}: {result}")
-        if 'status' not in result:
+        if "status" not in result:
             raise MissingDataError(f"`status` is missing in response: {result}")
-        job_status = query_executor_status_mapper(result.get('status'))
+        job_status = query_executor_status_mapper(result.get("status"))
         if job_status not in [JobStatus.cancelled, JobStatus.finished]:
             raise ValueError(f"Invalid job status {result.get('status')}")
         return job_status

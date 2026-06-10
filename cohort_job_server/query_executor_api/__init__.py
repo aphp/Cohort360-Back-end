@@ -7,17 +7,19 @@ from cohort_job_server.query_executor_api.status_mapper import query_executor_st
 from cohort_job_server.query_executor_api.cohort_requests import CohortCreate, CohortCountAll, CohortCount, FeasibilityCount, BaseCohortRequest
 from cohort_job_server.query_executor_api.query_executor_requester import QueryExecutorRequester
 
-__all__ = ["CohortQuery",
-           "SparkJobObject",
-           "SourcePopulation",
-           "QueryFormatter",
-           "Mode",
-           "QueryExecutorClient",
-           "query_executor_status_mapper",
-           "QueryExecutorResponse",
-           "CohortCreate",
-           "CohortCountAll",
-           "CohortCount",
-           "FeasibilityCount",
-           "BaseCohortRequest",
-           "QueryExecutorRequester"]
+__all__ = [
+    "CohortQuery",
+    "SparkJobObject",
+    "SourcePopulation",
+    "QueryFormatter",
+    "Mode",
+    "QueryExecutorClient",
+    "query_executor_status_mapper",
+    "QueryExecutorResponse",
+    "CohortCreate",
+    "CohortCountAll",
+    "CohortCount",
+    "FeasibilityCount",
+    "BaseCohortRequest",
+    "QueryExecutorRequester",
+]

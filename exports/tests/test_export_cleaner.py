@@ -14,7 +14,6 @@ from exports.tests.test_view_export_request import ExportsTests
 
 
 class TestExportCleaner(ExportsTests):
-
     def setUp(self):
         super().setUp()
         with mock.patch("exports.services.export_operators.HDFSStorageProvider"):
@@ -23,18 +22,18 @@ class TestExportCleaner(ExportsTests):
 
         cleanable_export_types = [t.value for t in ExportsConfig.ExportTypes if t.allow_to_clean]
 
-        self.export1 = Export.objects.create(owner=self.user1,
-                                             output_format=cleanable_export_types and cleanable_export_types[0] or None,
-                                             request_job_status=JobStatus.finished,
-                                             target_location="target_location",
-                                             is_user_notified=True,
-                                             nominative=True)
-        self.export_table = ExportTable.objects.create(export=self.export1,
-                                                       name="table01",
-                                                       cohort_result_source=self.user1_cohort)
+        self.export1 = Export.objects.create(
+            owner=self.user1,
+            output_format=cleanable_export_types and cleanable_export_types[0] or None,
+            request_job_status=JobStatus.finished,
+            target_location="target_location",
+            is_user_notified=True,
+            nominative=True,
+        )
+        self.export_table = ExportTable.objects.create(export=self.export1, name="table01", cohort_result_source=self.user1_cohort)
 
     def update_export_insert_datetime(self) -> None:
-        self.export1.created_at = (timezone.now() - timedelta(days=settings.DAYS_TO_KEEP_EXPORTED_FILES))
+        self.export1.created_at = timezone.now() - timedelta(days=settings.DAYS_TO_KEEP_EXPORTED_FILES)
         self.export1.save()
 
     @mock.patch("exports.services.export_operators.push_email_notification")
@@ -57,4 +56,3 @@ class TestExportCleaner(ExportsTests):
         mock_push_notification.assert_not_called()
         self.export1.refresh_from_db()
         self.assertIsNone(self.export1.clean_datetime)
-
