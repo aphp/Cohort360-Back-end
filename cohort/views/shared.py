@@ -55,18 +55,12 @@ class UserObjectsRestrictedViewSet(RequestLogMixin, viewsets.ModelViewSet, metac
         if len(uuids) > 1:
             try:
                 response = self.destroy_many(uuids=uuids)
-                _logger.info(
-                    "User %s (id=%s) deleted %d objects: %s",
-                    request.user.username, request.user.pk, len(uuids), uuids
-                )
+                _logger.info("User %s (id=%s) deleted %d objects: %s", request.user.username, request.user.pk, len(uuids), uuids)
                 return response
             except ValueError:
                 return Response(data={"error": f"Invalid value for uuid param, {uuids=}"}, status=status.HTTP_400_BAD_REQUEST)
         response = super().destroy(request, *args, **kwargs)
-        _logger.info(
-            "User %s (id=%s) deleted object uuid=%s",
-            request.user.username, request.user.pk, kwargs.get("uuid")
-        )
+        _logger.info("User %s (id=%s) deleted object uuid=%s", request.user.username, request.user.pk, kwargs.get("uuid"))
         return response
 
     def destroy_many(self, uuids):

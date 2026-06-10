@@ -122,7 +122,9 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         )
         _logger.info(
             "Cohort created by user %s - cohort: %s - global estimation: %s",
-            request.user.username, response.data.serializer.instance, global_estimate
+            request.user.username,
+            response.data.serializer.instance,
+            global_estimate,
         )
         return response
 
