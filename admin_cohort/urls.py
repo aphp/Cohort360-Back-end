@@ -7,7 +7,7 @@ from rest_framework.routers import SimpleRouter
 from rest_framework_extensions.routers import NestedRouterMixin
 
 from admin_cohort.views import LoginView, UserViewSet, RequestLogViewSet, MaintenancePhaseViewSet, CacheViewSet, HealthView, ReleaseNotesViewSet, \
-    TokenRefreshView, LogoutView, NotFoundView
+    TokenRefreshView, LogoutView, NotFoundView, metrics_view
 
 DOCS_ENDPOINT = "docs"
 
@@ -37,5 +37,5 @@ urlpatterns = [re_path(r'^$', NotFoundView.as_view({'post': 'dispatch'}), name="
                path(f"{DOCS_ENDPOINT}", SpectacularSwaggerView.as_view(), name='swagger-ui'),
                re_path(r"^schema", SpectacularAPIView.as_view(), name='schema'),
                re_path(r"^redoc/$", SpectacularRedocView.as_view(), name='redoc'),
-               path("", include("django_prometheus.urls"))
+               path("metrics", metrics_view, name="metrics")
                ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
