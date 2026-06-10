@@ -11,11 +11,11 @@ EXPORTS_TOTAL = Counter(
     labelnames=("status", "output_format"),
 )
 
-COHORT_GENERATION_DURATION_SECONDS = Histogram(
-    "cohort360_cohort_generation_duration_seconds",
-    "Duration between cohort creation and terminal job status",
-    labelnames=("status",),
-    buckets=(1, 5, 10, 30, 60, 120, 300, 600, 1200, 1800, 3600),
+QUERY_EXECUTOR_REQUEST_DURATION_SECONDS = Histogram(
+    "cohort360_query_executor_request_duration_seconds",
+    "Duration between a query executor request and its terminal callback, by request type",
+    labelnames=("request_type", "status"),
+    buckets=(1, 5, 10, 30, 60, 120, 300, 600, 1200, 1800, 3600, 7200, 10800, 14400, 21600),
 )
 
 _ACTIVE_STATUSES = [s.value for s in JobStatus if not s.is_end_state and s != JobStatus.denied]
