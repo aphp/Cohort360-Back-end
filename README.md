@@ -246,13 +246,27 @@ the [Cohort360 project](https://github.com/aphp/Cohort360) repository.
 
   For this, the following variables are required:
   
+  The storage backend used to read, stream and delete exported files is selected from the
+  file path scheme, mirroring the data-exporter convention: a path starting with `s3a://`
+  (or `s3://`) targets S3, anything else falls back to HDFS. Set `EXPORT_CSV_PATH` /
+  `EXPORT_XLSX_PATH` accordingly to choose where exports are written. The S3 bucket is read
+  from `S3_BUCKET`; `addressing_style` defaults to `path` (suitable for on-prem MinIO/Ceph).
+
   | Variable                    | Description                                                                  | Default Value | Required ? |
   |-----------------------------|------------------------------------------------------------------------------|---------------|------------|
-  | STORAGE_PROVIDERS           | Comma-separated URLs of servers to store exported data                       |               | `yes`      |
+  | STORAGE_PROVIDERS           | Comma-separated URLs of HDFS servers (required for HDFS-stored exports)       |               | no         |
+  | S3_ENDPOINT_URL             | S3 endpoint URL (required for S3-stored exports)                             |               | no         |
+  | S3_ACCESS_KEY               | S3 access key                                                                |               | no         |
+  | S3_SECRET_KEY               | S3 secret key                                                                |               | no         |
+  | S3_BUCKET                   | S3 bucket holding the exports (required for S3-stored exports)               |               | no         |
+  | S3_REGION_NAME              | S3 region                                                                    |               | no         |
+  | S3_ADDRESSING_STYLE         | S3 addressing style (`path` for MinIO/Ceph, `virtual`/`auto` for AWS)        | path          | no         |
+  | S3_CA_BUNDLE                | Path to a CA bundle for the S3 endpoint TLS cert (on-prem self-signed)       |               | no         |
+  | S3_VERIFY_SSL               | Set to `false` to disable S3 endpoint TLS verification                       | true          | no         |
   | EXPORT_API_URL              | URL of the third-party API that handles exports                              |               | `yes`      |
   | EXPORT_API_AUTH_TOKEN       | API-key used for authentication                                              |               | `yes`      |
-  | EXPORT_CSV_PATH             | Path to the directory where CSV exports are stored                           |               | `yes`      |
-  | EXPORT_XLSX_PATH            | Path to the directory where XLSX exports are stored                          |               | `yes`      |
+  | EXPORT_CSV_PATH             | Path where CSV exports are stored (prefix `s3a://` for S3, else HDFS)         |               | `yes`      |
+  | EXPORT_XLSX_PATH            | Path where XLSX exports are stored (prefix `s3a://` for S3, else HDFS)        |               | `yes`      |
   | HADOOP_API_URL              | URL of a third-party API that handles creating the database for Hive exports |               | `yes`      |
   | HADOOP_API_AUTH_TOKEN       | API-key used for authentication                                              |               | `yes`      |
   | HIVE_DB_PATH                | Path to the directory where the Hive database is stored                      |               | `yes`      |

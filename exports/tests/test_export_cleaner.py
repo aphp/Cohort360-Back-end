@@ -16,9 +16,14 @@ from exports.tests.test_view_export_request import ExportsTests
 class TestExportCleaner(ExportsTests):
     def setUp(self):
         super().setUp()
-        with mock.patch("exports.services.export_operators.HDFSStorageProvider"):
-            self.export_cleaner = ExportCleaner()
-            self.mock_storage_provider = self.export_cleaner.storage_provider
+        self.export_cleaner = ExportCleaner()
+        self.mock_storage_provider = MagicMock()
+        patcher = mock.patch(
+            "exports.services.export_operators.get_storage_provider",
+            return_value=self.mock_storage_provider,
+        )
+        self.mock_get_storage_provider = patcher.start()
+        self.addCleanup(patcher.stop)
 
         cleanable_export_types = [t.value for t in ExportsConfig.ExportTypes if t.allow_to_clean]
 
@@ -27,6 +32,7 @@ class TestExportCleaner(ExportsTests):
             output_format=cleanable_export_types and cleanable_export_types[0] or None,
             request_job_status=JobStatus.finished,
             target_location="target_location",
+            target_name="target_name",
             is_user_notified=True,
             nominative=True,
         )
@@ -42,10 +48,22 @@ class TestExportCleaner(ExportsTests):
         mock_push_notification.return_value = None
         self.update_export_insert_datetime()
         self.export_cleaner.delete_exported_files()
+        self.mock_get_storage_provider.assert_called_once_with("target_location/target_name.zip")
         self.mock_storage_provider.delete_file.assert_called_once()
         mock_push_notification.assert_called_once()
         self.export1.refresh_from_db()
         self.assertIsNotNone(self.export1.clean_datetime)
+
+    @mock.patch("exports.services.export_operators.push_email_notification")
+    def test_delete_exported_files_on_s3(self, mock_push_notification: MagicMock):
+        self.export1.target_location = "s3a://bucket/exports"
+        self.export1.save()
+        self.mock_storage_provider.delete_file.return_value = None
+        mock_push_notification.return_value = None
+        self.update_export_insert_datetime()
+        self.export_cleaner.delete_exported_files()
+        self.mock_get_storage_provider.assert_called_once_with("s3a://bucket/exports/target_name.zip")
+        self.mock_storage_provider.delete_file.assert_called_once_with(file_name="s3a://bucket/exports/target_name.zip")
 
     @mock.patch("exports.services.export_operators.push_email_notification")
     def test_error_delete_exported_files(self, mock_push_notification: MagicMock):

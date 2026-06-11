@@ -10,5 +10,5 @@ class StorageProviderException(Exception):
     pass
 
 
-class HdfsServerUnreachable(Exception):
+class HdfsServerUnreachable(StorageProviderException):
     pass

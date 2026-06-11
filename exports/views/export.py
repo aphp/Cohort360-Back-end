@@ -138,8 +138,8 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
             return export_service.download(export=self.get_object())
         except (BadRequestError, FilesNoLongerAvailable) as e:
             return Response(data=f"Error downloading files: {e}", status=status.HTTP_400_BAD_REQUEST)
-        except StorageProviderException as e:
-            return Response(data=f"Storage provider error: {e}", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except StorageProviderException:
+            return Response(data="A storage provider error occurred while downloading the files", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @extend_schema(responses={status.HTTP_200_OK: OpenApiTypes.STR})
     @action(detail=True, methods=["post"], url_path="retry")

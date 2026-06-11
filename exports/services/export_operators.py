@@ -1,5 +1,4 @@
 import logging
-import os
 from datetime import timedelta
 
 from django.conf import settings
@@ -14,14 +13,10 @@ from exports.apps import ExportsConfig
 from exports.emails import push_email_notification, exported_files_deleted
 from exports.exceptions import BadRequestError, FilesNoLongerAvailable, StorageProviderException
 from exports.models import Export
-from exports.services.storage_provider import HDFSStorageProvider
+from exports.services.storage_provider import StorageProvider, get_storage_provider, storage_scheme
 
 
 logger = logging.getLogger(__name__)
-
-STORAGE_PROVIDERS = os.environ.get("STORAGE_PROVIDERS", "").split(",")
-if not STORAGE_PROVIDERS:
-    logger.warning("No storage provider is configured!")
 
 ExportTypes = ExportsConfig.ExportTypes
 EXPORTERS = ExportsConfig.EXPORTERS
@@ -93,7 +88,6 @@ class DefaultExporter:
 
 class ExportDownloader:
     def __init__(self):
-        self.storage_provider = HDFSStorageProvider(servers_urls=STORAGE_PROVIDERS)
         self.downloadable_export_types = [t.value for t in ExportTypes if t.allow_download]
 
     def download(self, export: Export) -> StreamingHttpResponse:
@@ -101,10 +95,11 @@ class ExportDownloader:
             raise BadRequestError("The export is not done yet or has failed or not downloadable")
         if not export.available_for_download():
             raise FilesNoLongerAvailable("The exported files are no longer available on the server.")
+        file_path = f"{export.target_full_path}.zip"
         try:
-            file_path = f"{export.target_full_path}.zip"
-            response = StreamingHttpResponse(streaming_content=self.stream_file(file_path))
-            file_size = self.get_file_size(file_name=file_path)
+            storage_provider = get_storage_provider(file_path)
+            response = StreamingHttpResponse(streaming_content=self.stream_file(storage_provider, file_path))
+            file_size = storage_provider.get_file_size(file_name=file_path)
             first = export.export_tables.first()
             if first is None or first.cohort_result_source is None:
                 raise BadRequestError("Export has no table with cohort result source")
@@ -114,21 +109,22 @@ class ExportDownloader:
             response["Content-Disposition"] = f"attachment; filename={download_file_name}"
             return response
         except StorageProviderException as e:
-            logger.exception(f"Error occurred on Storage Provider `{self.storage_provider.name}` - {e}")
+            logger.exception(f"Export {export.pk}: error on `{storage_scheme(file_path)}` storage provider - {e}")
             raise e
 
-    def stream_file(self, file_name: str):
-        with self.storage_provider.stream_file(file_name=file_name) as f:
-            for chunk in f:
-                yield chunk
-
-    def get_file_size(self, file_name: str) -> int:
-        return self.storage_provider.get_file_size(file_name=file_name)
+    @staticmethod
+    def stream_file(storage_provider: StorageProvider, file_name: str):
+        try:
+            with storage_provider.stream_file(file_name=file_name) as f:
+                for chunk in f:
+                    yield chunk
+        except StorageProviderException:
+            logger.exception(f"Error while streaming `{file_name}` from storage provider")
+            raise
 
 
 class ExportCleaner:
     def __init__(self):
-        self.storage_provider = HDFSStorageProvider(servers_urls=STORAGE_PROVIDERS)
         self.target_types = [t.value for t in ExportTypes if t.allow_to_clean]
 
     def delete_exported_files(self):
@@ -140,9 +136,14 @@ class ExportCleaner:
             created_at__lte=d,
             clean_datetime__isnull=True,
         )
+        providers: dict[str, StorageProvider] = {}
         for export in exports:
+            file_path = f"{export.target_full_path}.zip"
+            scheme = storage_scheme(file_path)
             try:
-                self.storage_provider.delete_file(file_name=f"{export.target_full_path}.zip")
+                provider = providers.get(scheme) or get_storage_provider(file_path)
+                providers[scheme] = provider
+                provider.delete_file(file_name=file_path)
             except (RequestException, StorageProviderException) as e:
                 logger.exception(f"Export {export.pk}: {e}")
                 return
