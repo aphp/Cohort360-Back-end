@@ -49,7 +49,7 @@ class TestExportCleaner(ExportsTests):
         self.update_export_insert_datetime()
         self.export_cleaner.delete_exported_files()
         self.mock_get_storage_provider.assert_called_once_with("target_location/target_name.zip")
-        self.mock_storage_provider.delete_file.assert_called_once()
+        self.mock_storage_provider.delete_file.assert_called_once_with(file_name="target_location/target_name.zip")
         mock_push_notification.assert_called_once()
         self.export1.refresh_from_db()
         self.assertIsNotNone(self.export1.clean_datetime)

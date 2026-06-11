@@ -99,6 +99,21 @@ class TestS3StorageProvider(TestCase):
             with provider.stream_file("s3a://bucket/key.zip"):
                 pass
 
+    def test_stream_file_wraps_mid_stream_error(self, mock_boto3):
+        provider, client = self._build_provider(mock_boto3)
+        body = MagicMock()
+
+        def chunks(chunk_size):
+            yield b"a"
+            raise self._client_error("GetObject")
+
+        body.iter_chunks.side_effect = chunks
+        client.get_object.return_value = {"Body": body}
+        with self.assertRaises(StorageProviderException):
+            with provider.stream_file("s3a://bucket/key.zip") as stream:
+                list(stream)
+        body.close.assert_called_once()
+
     def test_delete_file(self, mock_boto3):
         provider, client = self._build_provider(mock_boto3)
         provider.delete_file("s3a://bucket/key.zip")

@@ -165,8 +165,15 @@ class S3StorageProvider(StorageProvider):
             body = self.client.get_object(Bucket=self.bucket, Key=key)["Body"]
         except (BotoCoreError, ClientError) as e:
             raise StorageProviderException(str(e))
+
+        def chunks():
+            try:
+                yield from body.iter_chunks(chunk_size=self.chunk_size)
+            except (BotoCoreError, ClientError) as e:
+                raise StorageProviderException(str(e))
+
         try:
-            yield body.iter_chunks(chunk_size=self.chunk_size)
+            yield chunks()
         finally:
             body.close()
 
@@ -213,4 +220,5 @@ def get_storage_provider(file_name: str) -> StorageProvider:
             addressing_style=os.environ.get("S3_ADDRESSING_STYLE", "path"),
             verify=s3_verify(),
         )
-    return HDFSStorageProvider(servers_urls=os.environ.get("STORAGE_PROVIDERS", "").split(","))
+    servers_urls = [url.strip() for url in os.environ.get("STORAGE_PROVIDERS", "").split(",") if url.strip()]
+    return HDFSStorageProvider(servers_urls=servers_urls)
