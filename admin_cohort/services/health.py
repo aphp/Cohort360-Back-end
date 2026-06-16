@@ -23,7 +23,7 @@ FHIR_CACHE_TTL_SECONDS = 300
 _HTTP_HARD_FAIL_CODES = {status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN}
 
 
-def _http_reachable(url: str, *, method: str = "GET", **kwargs) -> None:
+def _http_reachable(url: str, *, method: str = "GET", **kwargs) -> requests.Response:
     """Perform an HTTP call and treat any 5xx, 401, 403 or transport error as a failure.
 
     4xx (other than auth) is considered "service is up and recognised our request shape".
@@ -31,6 +31,7 @@ def _http_reachable(url: str, *, method: str = "GET", **kwargs) -> None:
     response = requests.request(method=method, url=url, timeout=CHECK_TIMEOUT_SECONDS, **kwargs)
     if response.status_code >= status.HTTP_500_INTERNAL_SERVER_ERROR or response.status_code in _HTTP_HARD_FAIL_CODES:
         raise RuntimeError(f"HTTP {response.status_code}")
+    return response
 
 
 def _check_django() -> None:
@@ -163,10 +164,13 @@ def _check_fhir() -> Optional[str]:
             return None
         raise RuntimeError(cached.get("error") or "cached failure")
     try:
-        _http_reachable(
+        response = _http_reachable(
             f"{fhir_url.rstrip('/')}/metadata",
             headers={"Accept": "application/fhir+json"},
         )
+        resource_type = response.json().get("resourceType")
+        if resource_type != "CapabilityStatement":
+            raise RuntimeError(f"unexpected resourceType: {resource_type!r}")
     except Exception as exc:
         cache.set(FHIR_CACHE_KEY, {"ok": False, "error": str(exc)[:300]}, FHIR_CACHE_TTL_SECONDS)
         raise
