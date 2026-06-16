@@ -32,13 +32,15 @@ from admin_cohort.tools.exception_handler import custom_exception_handler
 class HttpReachableTests(unittest.TestCase):
     @patch("admin_cohort.services.health.requests.request")
     def test_2xx_ok(self, mock_request):
-        mock_request.return_value = MagicMock(status_code=200)
-        self.assertIsNone(_http_reachable("http://x"))
+        response = MagicMock(status_code=200)
+        mock_request.return_value = response
+        self.assertIs(_http_reachable("http://x"), response)
 
     @patch("admin_cohort.services.health.requests.request")
     def test_4xx_non_auth_is_ok(self, mock_request):
-        mock_request.return_value = MagicMock(status_code=404)
-        self.assertIsNone(_http_reachable("http://x"))
+        response = MagicMock(status_code=404)
+        mock_request.return_value = response
+        self.assertIs(_http_reachable("http://x"), response)
 
     @patch("admin_cohort.services.health.requests.request")
     def test_500_raises(self, mock_request):
