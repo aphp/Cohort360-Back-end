@@ -7,19 +7,23 @@ from typing import Callable, Optional
 import requests
 from django.apps import apps
 from django.conf import settings
+from django.core.cache import cache
 from django.db import connections
 from rest_framework import status
 
 
-_logger = logging.getLogger("info")
+_logger = logging.getLogger(__name__)
 
 CHECK_TIMEOUT_SECONDS = 2.0
 GLOBAL_TIMEOUT_SECONDS = CHECK_TIMEOUT_SECONDS + 1.0
 
+FHIR_CACHE_KEY = "health:fhir"
+FHIR_CACHE_TTL_SECONDS = 300
+
 _HTTP_HARD_FAIL_CODES = {status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN}
 
 
-def _http_reachable(url: str, *, method: str = "GET", **kwargs) -> None:
+def _http_reachable(url: str, *, method: str = "GET", **kwargs) -> requests.Response:
     """Perform an HTTP call and treat any 5xx, 401, 403 or transport error as a failure.
 
     4xx (other than auth) is considered "service is up and recognised our request shape".
@@ -27,6 +31,7 @@ def _http_reachable(url: str, *, method: str = "GET", **kwargs) -> None:
     response = requests.request(method=method, url=url, timeout=CHECK_TIMEOUT_SECONDS, **kwargs)
     if response.status_code >= status.HTTP_500_INTERNAL_SERVER_ERROR or response.status_code in _HTTP_HARD_FAIL_CODES:
         raise RuntimeError(f"HTTP {response.status_code}")
+    return response
 
 
 def _check_django() -> None:
@@ -149,6 +154,30 @@ def _check_influxdb() -> Optional[str]:
     return None
 
 
+def _check_fhir() -> Optional[str]:
+    fhir_url = os.environ.get("FHIR_URL")
+    if not fhir_url:
+        return "skipped"
+    cached = cache.get(FHIR_CACHE_KEY)
+    if cached is not None:
+        if cached.get("ok"):
+            return None
+        raise RuntimeError(cached.get("error") or "cached failure")
+    try:
+        response = _http_reachable(
+            f"{fhir_url.rstrip('/')}/metadata",
+            headers={"Accept": "application/fhir+json"},
+        )
+        resource_type = response.json().get("resourceType")
+        if resource_type != "CapabilityStatement":
+            raise RuntimeError(f"unexpected resourceType: {resource_type!r}")
+    except Exception as exc:
+        cache.set(FHIR_CACHE_KEY, {"ok": False, "error": str(exc)[:300]}, FHIR_CACHE_TTL_SECONDS)
+        raise
+    cache.set(FHIR_CACHE_KEY, {"ok": True, "error": None}, FHIR_CACHE_TTL_SECONDS)
+    return None
+
+
 CHECKS: list[tuple[str, Callable[[], Optional[str]], bool]] = [
     ("django", _check_django, True),
     ("db_default", _check_db_default, True),
@@ -160,6 +189,7 @@ CHECKS: list[tuple[str, Callable[[], Optional[str]], bool]] = [
     ("export_api", _check_export_api, False),
     ("smtp", _check_smtp, False),
     ("influxdb", _check_influxdb, False),
+    ("fhir", _check_fhir, False),
 ]
 
 
