@@ -1,9 +1,13 @@
 import logging
+from datetime import timedelta
 from typing import Optional
 
 from celery import shared_task, current_task
+from django.conf import settings
+from django.utils import timezone
 
 from admin_cohort import celery_app
+from admin_cohort.services.prometheus_metrics import STUCK_DATED_MEASURES_MARKED_FAILED
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult, DatedMeasure, FeasibilityStudy, RequestQuerySnapshot
 from cohort.services.base_service import load_operator
@@ -16,6 +20,8 @@ from cohort.services.emails import (
 from cohort.services.utils import locked_instance_task, get_feasibility_study_by_id, send_email_notification, ServerError
 
 logger = logging.getLogger(__name__)
+
+STUCK_DM_NON_TERMINAL_STATUSES = (JobStatus.new, JobStatus.pending, JobStatus.started)
 
 
 @shared_task
@@ -120,6 +126,35 @@ def send_email_count_request_refreshed(snapshot_id: str) -> None:
         request_name=f"{snapshot.request.name} (version {snapshot.version})",
         owner=snapshot.owner,
     )
+
+
+@shared_task
+def mark_stuck_dated_measures_as_failed() -> int:
+    from cohort.services.dated_measure import dm_service
+
+    threshold_minutes = getattr(settings, "DM_WATCHDOG_THRESHOLD_MINUTES", 15)
+    cutoff = timezone.now() - timedelta(minutes=threshold_minutes)
+    stuck = DatedMeasure.objects.filter(
+        request_job_status__in=STUCK_DM_NON_TERMINAL_STATUSES,
+        modified_at__lt=cutoff,
+    )
+
+    count = 0
+    for dm in stuck:
+        try:
+            duration = timezone.now() - dm.created_at
+            stuck_status = dm.request_job_status
+            dm.request_job_status = JobStatus.failed
+            dm.request_job_fail_msg = f"Aucune réponse du moteur de calcul après {threshold_minutes} min."
+            dm.request_job_duration = str(duration)
+            dm.save()
+            dm_service.ws_send_to_client(dm=dm)
+            STUCK_DATED_MEASURES_MARKED_FAILED.labels(stuck_status=stuck_status).inc()
+            count += 1
+            logger.warning(f"DatedMeasure[{dm.uuid}] stuck at `{stuck_status}` → forced to `failed` (owner={dm.owner_id})")
+        except Exception as e:
+            logger.exception(f"DatedMeasure[{dm.uuid}] watchdog failed: {e}")
+    return count
 
 
 @shared_task
