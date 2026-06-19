@@ -6,6 +6,7 @@ from pathlib import Path
 import environ
 import pytz
 from celery.schedules import crontab
+from django.core.exceptions import ImproperlyConfigured
 from django.db.utils import DEFAULT_DB_ALIAS
 
 
@@ -273,6 +274,11 @@ CELERY_TASK_ALWAYS_EAGER = False
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 DM_WATCHDOG_PERIOD_MINUTES = env.int("DM_WATCHDOG_PERIOD_MINUTES", default=5)
 DM_WATCHDOG_THRESHOLD_MINUTES = env.int("DM_WATCHDOG_THRESHOLD_MINUTES", default=15)
+
+if DM_WATCHDOG_PERIOD_MINUTES < 1:
+    raise ImproperlyConfigured("DM_WATCHDOG_PERIOD_MINUTES must be >= 1")
+if DM_WATCHDOG_THRESHOLD_MINUTES < 1:
+    raise ImproperlyConfigured("DM_WATCHDOG_THRESHOLD_MINUTES must be >= 1")
 
 CELERY_BEAT_SCHEDULE = {
     "maintenance_notifier": {

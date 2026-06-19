@@ -144,14 +144,25 @@ def mark_stuck_dated_measures_as_failed() -> int:
         try:
             duration = timezone.now() - dm.created_at
             stuck_status = dm.request_job_status
-            dm.request_job_status = JobStatus.failed
-            dm.request_job_fail_msg = f"Aucune réponse du moteur de calcul après {threshold_minutes} min."
-            dm.request_job_duration = str(duration)
-            dm.save()
-            dm_service.ws_send_to_client(dm=dm)
+            # Compare-and-swap : ne bascule en `failed` que si la DM est toujours
+            # éligible. Évite d'écraser un statut terminal posé entre-temps par le
+            # Query Executor (ou un run watchdog concurrent).
+            updated = DatedMeasure.objects.filter(
+                pk=dm.pk,
+                request_job_status__in=STUCK_DM_NON_TERMINAL_STATUSES,
+                modified_at__lt=cutoff,
+            ).update(
+                request_job_status=JobStatus.failed,
+                request_job_fail_msg=f"Aucune réponse du moteur de calcul après {threshold_minutes} min.",
+                request_job_duration=str(duration),
+            )
+            if not updated:
+                continue
             STUCK_DATED_MEASURES_MARKED_FAILED.labels(stuck_status=stuck_status).inc()
             count += 1
             logger.warning(f"DatedMeasure[{dm.uuid}] stuck at `{stuck_status}` → forced to `failed` (owner={dm.owner_id})")
+            dm.refresh_from_db()
+            dm_service.ws_send_to_client(dm=dm)
         except Exception as e:
             logger.exception(f"DatedMeasure[{dm.uuid}] watchdog failed: {e}")
     return count

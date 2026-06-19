@@ -209,3 +209,18 @@ class TasksTests(TestCaseWithDBs):
         self.assertEqual(finished_dm.request_job_status, JobStatus.finished.value)
         self.assertEqual(failed_dm.request_job_status, JobStatus.failed.value)
         mock_ws_send.assert_not_called()
+
+    @mock.patch("cohort.services.dated_measure.dm_service.ws_send_to_client")
+    def test_watchdog_counts_dm_even_when_ws_send_fails(self, mock_ws_send):
+        # Le WS est best-effort : une erreur d'émission ne doit pas faire diverger
+        # le statut DB (déjà `failed`) de la métrique / du compteur retourné.
+        mock_ws_send.side_effect = RuntimeError("ws down")
+        threshold = settings.DM_WATCHDOG_THRESHOLD_MINUTES
+        self._backdate(self.started_dm, minutes=threshold + 5)
+
+        marked = mark_stuck_dated_measures_as_failed()
+
+        self.assertEqual(marked, 1)
+        self.started_dm.refresh_from_db()
+        self.assertEqual(self.started_dm.request_job_status, JobStatus.failed.value)
+        mock_ws_send.assert_called_once()
