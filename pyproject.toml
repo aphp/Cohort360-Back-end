@@ -43,7 +43,7 @@ dependencies = [
     "python-json-logger==3.2.0",
     "redis>=5.2.1",
     "requests-kerberos>=0.15.0",
-    "requests>=2.32.3",
+    "requests>=2.33.0",
     "celery>=5.4.0",
     "djangorestframework-simplejwt>=5.5.1",
     "django-prometheus>=2.3.1",
