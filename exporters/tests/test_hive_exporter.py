@@ -53,6 +53,13 @@ class TestHiveExporter(ExportersTestBase):
         with self.assertRaises(ValueError):
             self.exporter.validate_tables_data(tables_data=tables_data)
 
+    def test_validate_tables_data_detects_required_table_case_insensitively(self):
+        # Ref #3289: a lowercase `patient` table is recognized as the required table, so the
+        # "missing source cohort" rule still applies instead of being silently skipped.
+        tables_data = [{"table_name": "patient"}]
+        with self.assertRaises(ValueError):
+            self.exporter.validate_tables_data(tables_data=tables_data)
+
     def test_validate_tables_data_all_tables_without_source_cohort_nor_person_table(self):
         # tables data is not valid if the `Patient` table has no source cohort
         tables_data = [{"table_name": "table_01"}, {"table_name": "table_02"}]

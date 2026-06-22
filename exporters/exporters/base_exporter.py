@@ -80,7 +80,7 @@ class BaseExporter:
     def build_tables_input(self, export) -> List[dict[str, str]]:
         required_table_name = self.export_api.required_table
         try:
-            required_table = export.export_tables.get(name=required_table_name)
+            required_table = export.export_tables.get(name__iexact=required_table_name)
             linked_cohort = required_table.cohort_result_subset or required_table.cohort_result_source
             required_table_data = {"tableName": required_table_name, "cohortId": linked_cohort.group_id, "relation": True}
             if required_table.columns:
@@ -89,7 +89,7 @@ class BaseExporter:
             raise ValueError(f"Missing {required_table_name} table from export")
 
         other_tables = []
-        for t in export.export_tables.exclude(name=required_table_name):
+        for t in export.export_tables.exclude(name__iexact=required_table_name):
             t_data = {"tableName": t.name, "relation": True}
             if t.cohort_result_subset:
                 t_data["cohortId"] = t.cohort_result_subset.group_id
