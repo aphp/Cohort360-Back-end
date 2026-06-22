@@ -18,6 +18,12 @@ QUERY_EXECUTOR_REQUEST_DURATION_SECONDS = Histogram(
     buckets=(1, 5, 10, 30, 60, 120, 300, 600, 1200, 1800, 3600, 7200, 10800, 14400, 21600),
 )
 
+STUCK_DATED_MEASURES_MARKED_FAILED = Counter(
+    "cohort360_stuck_dated_measures_marked_failed_total",
+    "DatedMeasures forced to `failed` by the watchdog, by the status they were stuck at",
+    labelnames=("stuck_status",),
+)
+
 _ACTIVE_STATUSES = [s.value for s in JobStatus if not s.is_end_state and s != JobStatus.denied]
 
 

@@ -6,6 +6,7 @@ from pathlib import Path
 import environ
 import pytz
 from celery.schedules import crontab
+from django.core.exceptions import ImproperlyConfigured
 from django.db.utils import DEFAULT_DB_ALIAS
 
 
@@ -271,11 +272,23 @@ CELERY_RESULT_SERIALIZER = "json"
 CELERY_TASK_SERIALIZER = "json"
 CELERY_TASK_ALWAYS_EAGER = False
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+DM_WATCHDOG_PERIOD_MINUTES = env.int("DM_WATCHDOG_PERIOD_MINUTES", default=5)
+DM_WATCHDOG_THRESHOLD_MINUTES = env.int("DM_WATCHDOG_THRESHOLD_MINUTES", default=15)
+
+if DM_WATCHDOG_PERIOD_MINUTES < 1:
+    raise ImproperlyConfigured("DM_WATCHDOG_PERIOD_MINUTES must be >= 1")
+if DM_WATCHDOG_THRESHOLD_MINUTES < 1:
+    raise ImproperlyConfigured("DM_WATCHDOG_THRESHOLD_MINUTES must be >= 1")
+
 CELERY_BEAT_SCHEDULE = {
     "maintenance_notifier": {
         "task": "admin_cohort.tasks.maintenance_notifier_checker",
         "schedule": crontab(minute=f"*/{MAINTENANCE_PERIODIC_SCHEDULING_MINUTES}"),
-    }
+    },
+    "mark_stuck_dated_measures_as_failed": {
+        "task": "cohort.tasks.mark_stuck_dated_measures_as_failed",
+        "schedule": crontab(minute=f"*/{DM_WATCHDOG_PERIOD_MINUTES}"),
+    },
 }
 
 SCHEDULED_TASKS = env("SCHEDULED_TASKS", default="")

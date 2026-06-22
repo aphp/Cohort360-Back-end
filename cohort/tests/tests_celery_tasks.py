@@ -1,7 +1,9 @@
+from datetime import timedelta
 from unittest import mock
 from unittest.mock import MagicMock
 
 from django.conf import settings
+from django.utils import timezone
 
 from accesses.models import Perimeter
 from admin_cohort.tests.tests_tools import new_random_user, TestCaseWithDBs
@@ -19,6 +21,7 @@ from cohort.tasks import (
     create_cohort,
     cancel_previous_count_jobs,
     feasibility_study_count,
+    mark_stuck_dated_measures_as_failed,
     send_feasibility_study_notification,
     send_email_feasibility_report_ready,
     send_email_feasibility_report_error,
@@ -147,3 +150,77 @@ class TasksTests(TestCaseWithDBs):
         cancel_previous_count_jobs(dm_id=self.dm2.uuid, cohort_counter_cls=self.cohort_counter_cls)
         failed_dm = DatedMeasure.objects.exclude(uuid=self.dm2.uuid).filter(request_query_snapshot=self.req_snapshot3).first()
         self.assertEqual(failed_dm.request_job_status, JobStatus.failed.value)
+
+    def _backdate(self, dm: DatedMeasure, minutes: int) -> None:
+        past = timezone.now() - timedelta(minutes=minutes)
+        DatedMeasure.objects.filter(pk=dm.pk).update(modified_at=past, created_at=past)
+
+    @mock.patch("cohort.services.dated_measure.dm_service.ws_send_to_client")
+    def test_watchdog_marks_stuck_dms_as_failed(self, mock_ws_send):
+        threshold = settings.DM_WATCHDOG_THRESHOLD_MINUTES
+        self._backdate(self.new_dm, minutes=threshold + 5)
+        self._backdate(self.started_dm, minutes=threshold + 5)
+        self._backdate(self.pending_dm, minutes=threshold + 5)
+
+        marked = mark_stuck_dated_measures_as_failed()
+
+        self.assertEqual(marked, 3)
+        for dm in (self.new_dm, self.started_dm, self.pending_dm):
+            dm.refresh_from_db()
+            self.assertEqual(dm.request_job_status, JobStatus.failed.value)
+            self.assertIn("moteur de calcul", dm.request_job_fail_msg)
+            self.assertTrue(dm.request_job_duration)
+        self.assertEqual(mock_ws_send.call_count, 3)
+
+    @mock.patch("cohort.services.dated_measure.dm_service.ws_send_to_client")
+    def test_watchdog_ignores_recent_dms(self, mock_ws_send):
+        self._backdate(self.started_dm, minutes=1)
+        self._backdate(self.pending_dm, minutes=2)
+
+        marked = mark_stuck_dated_measures_as_failed()
+
+        self.assertEqual(marked, 0)
+        for dm in (self.started_dm, self.pending_dm):
+            dm.refresh_from_db()
+            self.assertEqual(dm.request_job_status, JobStatus.started.value if dm == self.started_dm else JobStatus.pending.value)
+        mock_ws_send.assert_not_called()
+
+    @mock.patch("cohort.services.dated_measure.dm_service.ws_send_to_client")
+    def test_watchdog_ignores_terminal_dms(self, mock_ws_send):
+        threshold = settings.DM_WATCHDOG_THRESHOLD_MINUTES
+        finished_dm = DatedMeasure.objects.create(
+            owner=self.user1,
+            request_query_snapshot=self.req_snapshot,
+            request_job_status=JobStatus.finished,
+        )
+        failed_dm = DatedMeasure.objects.create(
+            owner=self.user1,
+            request_query_snapshot=self.req_snapshot,
+            request_job_status=JobStatus.failed,
+        )
+        self._backdate(finished_dm, minutes=threshold + 60)
+        self._backdate(failed_dm, minutes=threshold + 60)
+
+        marked = mark_stuck_dated_measures_as_failed()
+
+        self.assertEqual(marked, 0)
+        finished_dm.refresh_from_db()
+        failed_dm.refresh_from_db()
+        self.assertEqual(finished_dm.request_job_status, JobStatus.finished.value)
+        self.assertEqual(failed_dm.request_job_status, JobStatus.failed.value)
+        mock_ws_send.assert_not_called()
+
+    @mock.patch("cohort.services.dated_measure.dm_service.ws_send_to_client")
+    def test_watchdog_counts_dm_even_when_ws_send_fails(self, mock_ws_send):
+        # Le WS est best-effort : une erreur d'émission ne doit pas faire diverger
+        # le statut DB (déjà `failed`) de la métrique / du compteur retourné.
+        mock_ws_send.side_effect = RuntimeError("ws down")
+        threshold = settings.DM_WATCHDOG_THRESHOLD_MINUTES
+        self._backdate(self.started_dm, minutes=threshold + 5)
+
+        marked = mark_stuck_dated_measures_as_failed()
+
+        self.assertEqual(marked, 1)
+        self.started_dm.refresh_from_db()
+        self.assertEqual(self.started_dm.request_job_status, JobStatus.failed.value)
+        mock_ws_send.assert_called_once()
