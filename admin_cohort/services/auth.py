@@ -17,6 +17,7 @@ from django.utils import timezone
 from django.utils.module_loading import import_string
 from jwt import InvalidTokenError
 from jwt.algorithms import RSAAlgorithm
+from jwt.types import Options
 from requests import RequestException
 from rest_framework import status, HTTP_HEADER_ENCODING
 from rest_framework.exceptions import AuthenticationFailed, ValidationError, APIException
@@ -54,8 +55,8 @@ class Auth(ABC):
         # the 'logout' from 'django.contrib.auth' module is called from the logout view
         pass
 
-    def decode_token(self, token: str, verify_signature=True, key="", issuer=None, audience=None):
-        options = {"verify_signature": verify_signature}
+    def decode_token(self, token: str, verify_signature: bool = True, key="", issuer=None, audience=None):
+        options: Options = {"verify_signature": verify_signature}
         kwargs = {"algorithms": self.algorithms, "key": key, "issuer": issuer, "audience": audience}
         try:
             return jwt.decode(jwt=token, options=options, **kwargs)
