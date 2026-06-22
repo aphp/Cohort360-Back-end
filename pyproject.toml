@@ -39,7 +39,7 @@ dependencies = [
     "pytz",
     "pyyaml>=6.0.1",
     "python-dateutil>=2.8.2",
-    "pytest>=8.3.4",
+    "pytest>=9.0.3",
     "python-json-logger==3.2.0",
     "redis>=5.2.1",
     "requests-kerberos>=0.15.0",
