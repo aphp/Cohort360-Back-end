@@ -3,6 +3,7 @@ from unittest import mock
 from exporters.exporters.base_exporter import BaseExporter
 from exporters.enums import ExportTypes
 from exporters.tests.base_test import ExportersTestBase
+from exports.models import Export, ExportTable
 
 
 class TestBaseExporter(ExportersTestBase):
@@ -39,3 +40,38 @@ class TestBaseExporter(ExportersTestBase):
         self.assertIn("target_name", export_data)
         self.assertIn("target_location", export_data)
         self.assertNotIn("\n", export_data["motivation"])
+
+    def _build_datalab_export(self, patient_table_name: str) -> Export:
+        export = Export.objects.create(
+            owner=self.csv_exporter_user,
+            target_location="target_location",
+            target_name="target_name",
+            nominative=True,
+            output_format=ExportTypes.HIVE.value,
+            datalab=self.datalab,
+        )
+        ExportTable.objects.create(export=export, name=patient_table_name, cohort_result_source=self.cohort)
+        ExportTable.objects.create(export=export, name="death_date_insee", cohort_result_source=self.cohort)
+        return export
+
+    def test_send_export_succeeds_when_patient_table_capitalized(self):
+        export = self._build_datalab_export(patient_table_name="Patient")
+        with mock.patch.object(self.exporter.export_api, "launch_export", return_value="job-id") as mock_launch:
+            self.exporter.send_export(export=export, params={})
+        mock_launch.assert_called_once()
+        tables_sent = [t["tableName"] for t in mock_launch.call_args.kwargs["params"]["tablesToExport"]]
+        self.assertIn("Patient", tables_sent)
+        self.assertIn("death_date_insee", tables_sent)
+
+    def test_send_export_tolerates_lowercase_patient_table(self):
+        # Ref #3289: the AdministrationPortal used to send `table_name: 'patient'` (lowercase) while the
+        # required table is "Patient". The lookup is case-insensitive so the export still reaches the
+        # data-exporter, and the canonical "Patient" table name is forwarded regardless of stored casing.
+        export = self._build_datalab_export(patient_table_name="patient")
+        with mock.patch.object(self.exporter.export_api, "launch_export", return_value="job-id") as mock_launch:
+            self.exporter.send_export(export=export, params={})
+        mock_launch.assert_called_once()
+        tables_sent = [t["tableName"] for t in mock_launch.call_args.kwargs["params"]["tablesToExport"]]
+        self.assertIn("Patient", tables_sent)
+        self.assertNotIn("patient", tables_sent)
+        self.assertIn("death_date_insee", tables_sent)
