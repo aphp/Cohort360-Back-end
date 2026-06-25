@@ -402,5 +402,5 @@ If you find this project useful, please consider starring the repository and rep
 Write to us at: **open-source@cohort360.org**
 
 <div align="right">
-  ⬆️ <a href="#readme-top">back to top</a>
+  ⬆️ <a href="#readme-top">back to top.</a>
 </div>
