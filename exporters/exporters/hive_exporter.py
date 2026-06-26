@@ -64,10 +64,14 @@ class HiveExporter(BaseExporter):
         else:
             params = params or {"output": {"type": self.type, "databaseName": export.target_name}}
             logger.info(f"Export[{export.pk}] Calling parent handle_export with params: {params}")
+            # The parent runs the export job and then calls finalize_export() (overridden below) to
+            # transfer ownership to the datalab before the export is reported as successful.
             super().handle_export(export=export, params=params)
-            logger.info(f"Export[{export.pk}] Concluding export...")
-            self.conclude_export(export=export)
             logger.info(f"Export[{export.pk}] Hive export process finished")
+
+    def finalize_export(self, export: Export) -> None:
+        logger.info(f"Export[{export.pk}] Concluding export...")
+        self.conclude_export(export=export)
 
     def prepare_db(self, export: Export) -> None:
         logger.info(f"Export[{export.pk}] prepare_db: Creating database")
@@ -107,9 +111,9 @@ class HiveExporter(BaseExporter):
             raise RequestException(f"Error granting `{db_user}` rights on DB `{export.target_name}` - {e}")
 
     def conclude_export(self, export: Export) -> None:
+        # Transfers ownership of the exported DB files to the datalab's unix account. Any failure
+        # propagates so the caller (finalize_export -> base handle_export) marks the export as failed
+        # instead of leaving the files owned by the technical Hive user and unreadable by the datalab.
         db_user = export.datalab.name
-        try:
-            self.change_db_ownership(export=export, db_user=db_user)
-            self.log_export_task(export.pk, f"Export concluded: DB '{export.target_name}' attributed to {db_user}.")
-        except RequestException as e:
-            self.mark_export_as_failed(export=export, reason=f"Could not conclude export: {e}")
+        self.change_db_ownership(export=export, db_user=db_user)
+        self.log_export_task(export.pk, f"Export concluded: DB '{export.target_name}' attributed to {db_user}.")
