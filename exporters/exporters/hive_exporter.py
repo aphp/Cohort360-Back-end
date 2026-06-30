@@ -32,7 +32,7 @@ class HiveExporter(BaseExporter):
         for td in tables_data:
             source_cohort_id = td.get("cohort_result_source")
 
-            if td.get("table_name", "") == required_table:
+            if td.get("table_name", "").lower() == required_table.lower():
                 required_table_provided = True
                 if not source_cohort_id:
                     raise ValueError(f"The `{required_table}` table can not be exported without a source cohort")
