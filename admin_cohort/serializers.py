@@ -58,8 +58,18 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["username", "firstname", "lastname", "email", "password", "display_name", "created_by", "updated_by",
-                  "onboarding_step", "onboarding_completed_at"]
+        fields = [
+            "username",
+            "firstname",
+            "lastname",
+            "email",
+            "password",
+            "display_name",
+            "created_by",
+            "updated_by",
+            "onboarding_step",
+            "onboarding_completed_at",
+        ]
 
 
 class OnboardingSerializer(serializers.ModelSerializer):
@@ -82,7 +92,11 @@ class OnboardingSerializer(serializers.ModelSerializer):
         instance.onboarding_step = validated_data["onboarding_step"]
         if instance.onboarding_step >= User.ONBOARDING_TOTAL_STEPS and instance.onboarding_completed_at is None:
             instance.onboarding_completed_at = timezone.now()
-        instance.save(update_fields=["onboarding_step", "onboarding_completed_at", "update_datetime"])
+        update_fields = ["onboarding_step", "onboarding_completed_at", "update_datetime"]
+        if "updated_by" in validated_data:
+            instance.updated_by = validated_data["updated_by"]
+            update_fields.append("updated_by")
+        instance.save(update_fields=update_fields)
         return instance
 
 

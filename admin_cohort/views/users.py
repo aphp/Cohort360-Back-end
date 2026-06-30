@@ -129,5 +129,5 @@ class UserViewSet(RequestLogMixin, viewsets.ModelViewSet):
     def update_onboarding(self, request, *args, **kwargs):
         serializer = OnboardingSerializer(instance=request.user, data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        serializer.save(updated_by=request.user)
         return Response(data=serializer.data, status=status.HTTP_200_OK)
