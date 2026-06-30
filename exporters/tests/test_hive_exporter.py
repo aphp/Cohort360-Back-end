@@ -95,11 +95,12 @@ class TestHiveExporter(ExportersTestBase):
         self.exporter.conclude_export(export=self.hive_export)
         self.mock_hadoop_api.change_db_ownership.assert_called_once()
 
-    @mock.patch("exporters.exporters.base_exporter.notify_export_failed.delay")
-    def test_error_conclude_export(self, mock_notify_export_failed):
+    def test_error_conclude_export(self):
+        # conclude_export must propagate the failure so the caller marks the export as failed
+        # instead of silently leaving the files unreadable by the datalab.
         self.mock_hadoop_api.change_db_ownership.side_effect = RequestException()
-        self.exporter.conclude_export(export=self.hive_export)
-        mock_notify_export_failed.assert_called_once()
+        with self.assertRaises(RequestException):
+            self.exporter.conclude_export(export=self.hive_export)
 
     def test_prepare_db(self):
         self.mock_hadoop_api.create_db.return_value = "some-job-id"
@@ -108,15 +109,20 @@ class TestHiveExporter(ExportersTestBase):
         self.mock_hadoop_api.create_db.assert_called_once()
         self.mock_hadoop_api.change_db_ownership.assert_called_once()
 
-    @mock.patch.object(HiveExporter, "conclude_export")
     @mock.patch("exporters.exporters.base_exporter.BaseExporter.handle_export")
     @mock.patch.object(HiveExporter, "prepare_db")
     @mock.patch.object(HiveExporter, "confirm_export_received")
-    def test_handle_export_success(self, mock_confirm, mock_prepare, mock_super_handle, mock_conclude):
+    def test_handle_export_success(self, mock_confirm, mock_prepare, mock_super_handle):
         self.exporter.handle_export(export=self.hive_export)
         mock_confirm.assert_called_once_with(export=self.hive_export)
         mock_prepare.assert_called_once_with(self.hive_export)
         mock_super_handle.assert_called_once()
+
+    @mock.patch.object(HiveExporter, "conclude_export")
+    def test_finalize_export_concludes(self, mock_conclude):
+        # The ownership transfer is wired through finalize_export, the hook the base exporter calls
+        # before reporting success.
+        self.exporter.finalize_export(export=self.hive_export)
         mock_conclude.assert_called_once_with(export=self.hive_export)
 
     @mock.patch.object(HiveExporter, "mark_export_as_failed")
