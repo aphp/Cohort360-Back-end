@@ -238,18 +238,15 @@ class UserTestsAsAdmin(UserTests):
         self.assertIn("onboarding_completed_at", payload)
 
 
-ONBOARDING_URL = f"{USERS_URL}/me/onboarding"
+ONBOARDING_URL = "/users/me/onboarding/"
 
 
 class UserOnboardingTests(UserTests):
-    onboarding_view = staticmethod(UserViewSet.as_view({"patch": "update_onboarding"}))
-
     def _patch_onboarding(self, user, data):
-        request = self.factory.patch(ONBOARDING_URL, data, format="json")
-        force_authenticate(request, user)
-        response = self.onboarding_view(request)
-        response.render()
-        return response
+        # go through the router so the action's permission_classes (IsAuthenticated) apply
+        client = APIClient()
+        client.force_authenticate(user)
+        return client.patch(ONBOARDING_URL, data, format="json")
 
     def _advance_to_step(self, user, target):
         # steps are linear (current + 1 only), so reach `target` one step at a time
@@ -310,14 +307,7 @@ class UserOnboardingTests(UserTests):
         self.user1.refresh_from_db()
         self.assertEqual(self.user1.onboarding_step, 0)
 
-    def test_route_resolves_through_router(self):
-        client = APIClient()
-        client.force_authenticate(self.user1)
-        response = client.patch("/users/me/onboarding/", dict(onboarding_step=1), format="json")
-        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
-
     def test_requires_authentication(self):
-        request = self.factory.patch(ONBOARDING_URL, dict(onboarding_step=1), format="json")
-        response = self.onboarding_view(request)
-        response.render()
+        client = APIClient()
+        response = client.patch(ONBOARDING_URL, dict(onboarding_step=1), format="json")
         self.assertIn(response.status_code, (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN))
