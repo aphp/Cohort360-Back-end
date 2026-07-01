@@ -4,7 +4,7 @@ from unittest import mock
 from django.utils import timezone
 from django.conf import settings
 from rest_framework import status
-from rest_framework.test import APIClient, force_authenticate
+from rest_framework.test import force_authenticate
 
 from accesses.models import Access, Role, Perimeter, Profile
 from admin_cohort.exceptions import ServerError
@@ -226,88 +226,3 @@ class UserTestsAsAdmin(UserTests):
         response = UserViewSet.as_view({"get": "check_user_exists"})(request, username=random_username)
         response.render()
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    def test_user_serializer_exposes_onboarding_fields(self):
-        request = self.factory.get(USERS_URL)
-        force_authenticate(request, self.admin_user)
-        response = UserViewSet.as_view({"get": "retrieve"})(request, username=self.user1.username)
-        response.render()
-        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
-        payload = self.get_response_payload(response)
-        self.assertIn("onboarding_step", payload)
-        self.assertIn("onboarding_completed_at", payload)
-
-
-ONBOARDING_URL = "/users/me/onboarding/"
-
-
-class UserOnboardingTests(UserTests):
-    def _patch_onboarding(self, user, data):
-        # go through the router so the action's permission_classes (IsAuthenticated) apply
-        client = APIClient()
-        client.force_authenticate(user)
-        return client.patch(ONBOARDING_URL, data, format="json")
-
-    def _advance_to_step(self, user, target):
-        # steps are linear (current + 1 only), so reach `target` one step at a time
-        user.refresh_from_db()
-        response = None
-        for step in range(user.onboarding_step + 1, target + 1):
-            response = self._patch_onboarding(user, dict(onboarding_step=step))
-        return response
-
-    def test_advance_onboarding_step(self):
-        # user3 has no admin rights: this proves the endpoint is self-scoped, not gated by UsersPermission
-        response = self._patch_onboarding(self.user3, dict(onboarding_step=1))
-        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
-        self.user3.refresh_from_db()
-        self.assertEqual(self.user3.onboarding_step, 1)
-        self.assertIsNone(self.user3.onboarding_completed_at)
-        self.assertEqual(self.user3.updated_by_id, self.user3.username)
-
-    def test_completing_last_step_sets_completed_at(self):
-        response = self._advance_to_step(self.user1, User.ONBOARDING_TOTAL_STEPS)
-        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
-        self.user1.refresh_from_db()
-        self.assertEqual(self.user1.onboarding_step, User.ONBOARDING_TOTAL_STEPS)
-        self.assertIsNotNone(self.user1.onboarding_completed_at)
-
-    def test_completed_at_is_not_overwritten(self):
-        self._advance_to_step(self.user1, User.ONBOARDING_TOTAL_STEPS)
-        self.user1.refresh_from_db()
-        first_completion = self.user1.onboarding_completed_at
-        self._patch_onboarding(self.user1, dict(onboarding_step=User.ONBOARDING_TOTAL_STEPS))
-        self.user1.refresh_from_db()
-        self.assertEqual(self.user1.onboarding_completed_at, first_completion)
-
-    def test_onboarding_is_self_scoped(self):
-        # patching as user1 must never touch another user's onboarding
-        self._advance_to_step(self.user1, 2)
-        self.user2.refresh_from_db()
-        self.assertEqual(self.user2.onboarding_step, 0)
-        self.assertIsNone(self.user2.onboarding_completed_at)
-
-    def test_step_cannot_decrease(self):
-        self._advance_to_step(self.user1, 2)
-        response = self._patch_onboarding(self.user1, dict(onboarding_step=1))
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, response.content)
-        self.user1.refresh_from_db()
-        self.assertEqual(self.user1.onboarding_step, 2)
-
-    def test_step_out_of_range_rejected(self):
-        response = self._patch_onboarding(self.user1, dict(onboarding_step=User.ONBOARDING_TOTAL_STEPS + 1))
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, response.content)
-        self.user1.refresh_from_db()
-        self.assertEqual(self.user1.onboarding_step, 0)
-
-    def test_step_cannot_skip_ahead(self):
-        # navigation is linear (RG3305.02): a step can only progress one at a time
-        response = self._patch_onboarding(self.user1, dict(onboarding_step=2))
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, response.content)
-        self.user1.refresh_from_db()
-        self.assertEqual(self.user1.onboarding_step, 0)
-
-    def test_requires_authentication(self):
-        client = APIClient()
-        response = client.patch(ONBOARDING_URL, dict(onboarding_step=1), format="json")
-        self.assertIn(response.status_code, (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN))

@@ -5,8 +5,6 @@ from admin_cohort.models import BaseModel
 
 
 class User(AbstractBaseUser, BaseModel):
-    ONBOARDING_TOTAL_STEPS = 3
-
     USERNAME_FIELD = "username"
     username = models.CharField(unique=True, primary_key=True, null=False, max_length=30)  # type: ignore[assignment]
     email = models.EmailField("email address", max_length=254, unique=True, null=True)
@@ -15,8 +13,6 @@ class User(AbstractBaseUser, BaseModel):
     password = models.CharField(blank=True, null=True, max_length=128)  # type: ignore[assignment]
     created_by = models.ForeignKey("self", on_delete=models.SET_NULL, related_name="created_users", null=True, blank=True, db_column="created_by")
     updated_by = models.ForeignKey("self", on_delete=models.SET_NULL, related_name="updated_users", null=True, blank=True, db_column="updated_by")
-    onboarding_step = models.PositiveSmallIntegerField(default=0)
-    onboarding_completed_at = models.DateTimeField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.firstname} {self.lastname} ({self.username})"
