@@ -9,12 +9,11 @@ from django_filters import rest_framework as filters, OrderingFilter
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from admin_cohort.models import User
 from admin_cohort.permissions import UsersPermission
-from admin_cohort.serializers import UserSerializer, UserCheckSerializer, OnboardingSerializer
+from admin_cohort.serializers import UserSerializer, UserCheckSerializer
 from admin_cohort.services.users import users_service
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.exceptions import ServerError
@@ -123,11 +122,3 @@ class UserViewSet(RequestLogMixin, viewsets.ModelViewSet):
             }
             return Response(data=UserCheckSerializer(res).data, status=status.HTTP_200_OK)
         return Response(data={"message": "User not found"}, status=status.HTTP_404_NOT_FOUND)
-
-    @extend_schema(tags=["Users"], request=OnboardingSerializer, responses={status.HTTP_200_OK: OnboardingSerializer})
-    @action(detail=False, methods=["patch"], url_path="me/onboarding", permission_classes=[IsAuthenticated])
-    def update_onboarding(self, request, *args, **kwargs):
-        serializer = OnboardingSerializer(instance=request.user, data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save(updated_by=request.user)
-        return Response(data=serializer.data, status=status.HTTP_200_OK)
