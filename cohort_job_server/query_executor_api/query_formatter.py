@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import urllib.parse
 from typing import TYPE_CHECKING
 
@@ -50,6 +51,24 @@ def add_security_params_to_filter_fhir(sub_criteria: Criteria, source_population
     return f"{META_SECURITY_PSEUDED}&{filter_fhir_enriched}" if is_pseudo else filter_fhir_enriched
 
 
+# Code CCAM au noeud-feuille : 4 lettres + 3 chiffres (ex. JQGA004), pris comme token complet. La nomenclature
+# FHIR a segmenté ces codes par activité (JQGA004 -> JQGA004xx) : le code feuille seul ne matche plus, on le
+# cherche donc en préfixe. Le lookbehind/lookahead évite de toucher un code segmenté ou déjà suffixé de *.
+CCAM_LEAF_CODE_RE = re.compile(r"(?<![0-9A-Za-z])([A-Z]{4}[0-9]{3})(?![0-9A-Za-z*])")
+
+
+def add_prefix_search_on_ccam_leaves(filter_fhir: str, resource_type: ResourceType) -> str:
+    if not filter_fhir or resource_type != ResourceType.PROCEDURE:
+        return filter_fhir
+    params = []
+    for param in filter_fhir.split("&"):
+        key, sep, value = param.partition("=")
+        if sep and key.split(":", 1)[0] == "code":
+            value = CCAM_LEAF_CODE_RE.sub(r"\1*", value)
+        params.append(f"{key}{sep}{value}")
+    return "&".join(params)
+
+
 class QueryFormatter:
     IDENTIFIER_VALUE = "identifier.value"
 
@@ -63,6 +82,7 @@ class QueryFormatter:
                 return None
 
             if criteria.criteria_type == CriteriaType.BASIC_RESOURCE:
+                criteria.filter_fhir = add_prefix_search_on_ccam_leaves(criteria.filter_fhir, criteria.resource_type)
                 filter_fhir_enriched = add_security_params_to_filter_fhir(criteria, source_population, is_pseudo)
 
                 logger.info(f"filterFhirEnriched {filter_fhir_enriched}")

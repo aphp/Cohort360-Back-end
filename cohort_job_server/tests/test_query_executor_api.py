@@ -10,7 +10,10 @@ from cohort_job_server.apps import CohortJobServerConfig
 from cohort_job_server.query_executor_api import QueryFormatter, BaseCohortRequest
 from cohort_job_server.query_executor_api.enums import ResourceType
 from cohort_job_server.query_executor_api.exceptions import FhirException
+from cohort_job_server.query_executor_api.query_formatter import add_prefix_search_on_ccam_leaves
 from cohort_job_server.query_executor_api.schemas import FhirParameters, FhirParameter, CohortQuery
+
+CCAM = "https://aphp.fr/ig/fhir/core/CodeSystem/CCAMDescriptiveVerAPHP"
 
 
 class FhirResponseMapperTest(TestCase):
@@ -166,3 +169,58 @@ class TestQueryFormatter(TestCase):
         user1 = User.objects.create(firstname="Test", lastname="USER", email="test.user@aphp.fr", username="1111111")
         read_in_pseudo = BaseCohortRequest.is_cohort_request_pseudo_read(username=user1.username, source_population=[])
         self.assertTrue(read_in_pseudo)
+
+    @mock.patch("cohort_job_server.query_executor_api.query_formatter.query_fhir")
+    def test_format_to_fhir_adds_prefix_on_ccam_leaf(self, query_fhir):
+        query_fhir.return_value = self.mocked_query_fhir_result
+        query = CohortQuery(
+            **{
+                "_type": "request",
+                "sourcePopulation": {"caresiteCohortList": []},
+                "request": {
+                    "_type": "basicResource",
+                    "_id": 1,
+                    "isInclusive": True,
+                    "resourceType": "Procedure",
+                    "filterFhir": f"code={CCAM}|JQGA004",
+                },
+            }
+        )
+        res = self.query_formatter.format_to_fhir(query, False)
+        self.assertEqual(f"code={CCAM}|JQGA004*", res.filter_fhir)
+
+
+class TestCcamLeafStartsWith(TestCase):
+    def test_leaf_code_with_system_becomes_prefix(self):
+        self.assertEqual(f"code={CCAM}|JQGA004*", add_prefix_search_on_ccam_leaves(f"code={CCAM}|JQGA004", ResourceType.PROCEDURE))
+
+    def test_bare_leaf_code_becomes_prefix(self):
+        self.assertEqual("code=JQGA004*", add_prefix_search_on_ccam_leaves("code=JQGA004", ResourceType.PROCEDURE))
+
+    def test_comma_separated_leaves(self):
+        self.assertEqual("code=JQGA004*,HGEA002*", add_prefix_search_on_ccam_leaves("code=JQGA004,HGEA002", ResourceType.PROCEDURE))
+
+    def test_numeric_branch_node_untouched(self):
+        self.assertEqual("code=000124", add_prefix_search_on_ccam_leaves("code=000124", ResourceType.PROCEDURE))
+
+    def test_already_wildcarded_is_idempotent(self):
+        self.assertEqual("code=JQGA004*", add_prefix_search_on_ccam_leaves("code=JQGA004*", ResourceType.PROCEDURE))
+
+    def test_segmented_activity_code_untouched(self):
+        self.assertEqual("code=JQGA0041201", add_prefix_search_on_ccam_leaves("code=JQGA0041201", ResourceType.PROCEDURE))
+
+    def test_other_params_untouched(self):
+        filter_fhir = f"patient-active=true&code={CCAM}|JQGA004"
+        self.assertEqual(f"patient-active=true&code={CCAM}|JQGA004*", add_prefix_search_on_ccam_leaves(filter_fhir, ResourceType.PROCEDURE))
+
+    def test_non_procedure_resource_untouched(self):
+        self.assertEqual("code=JQGA004", add_prefix_search_on_ccam_leaves("code=JQGA004", ResourceType.CONDITION))
+
+    def test_empty_filter_untouched(self):
+        self.assertEqual("", add_prefix_search_on_ccam_leaves("", ResourceType.PROCEDURE))
+
+    def test_code_modifier_is_expanded(self):
+        self.assertEqual("code:not=JQGA004*", add_prefix_search_on_ccam_leaves("code:not=JQGA004", ResourceType.PROCEDURE))
+
+    def test_other_code_prefixed_param_untouched(self):
+        self.assertEqual("codeList=JQGA004", add_prefix_search_on_ccam_leaves("codeList=JQGA004", ResourceType.PROCEDURE))
