@@ -3,7 +3,10 @@ import json
 
 from admin_cohort.tests.tests_tools import BaseTests
 from cohort.scripts.patch_requests_v145 import return_filter_if_not_exist
+from cohort.scripts.patch_requests_v163 import replace_ccam_root_with_match_all, updater
 from cohort.scripts.query_request_updater import QueryRequestUpdater
+
+CCAM = "https://aphp.fr/ig/fhir/core/CodeSystem/CCAMDescriptiveVerAPHP"
 
 
 class TestQueryRequestUpdater(BaseTests):
@@ -94,3 +97,34 @@ class TestQueryRequestUpdater(BaseTests):
 @dataclasses.dataclass
 class Request:
     serialized_query: str
+
+
+class TestPatchRequestsV163(BaseTests):
+    def test_bare_root_becomes_match_all(self):
+        self.assertEqual("*", replace_ccam_root_with_match_all("000001"))
+
+    def test_root_with_system_becomes_match_all(self):
+        self.assertEqual("*", replace_ccam_root_with_match_all(f"{CCAM}|000001"))
+
+    def test_leaf_code_left_untouched(self):
+        self.assertEqual(f"{CCAM}|JQGA004", replace_ccam_root_with_match_all(f"{CCAM}|JQGA004"))
+
+    def test_numeric_branch_node_left_untouched(self):
+        self.assertEqual(f"{CCAM}|000124", replace_ccam_root_with_match_all(f"{CCAM}|000124"))
+
+    def test_only_root_token_replaced_in_list(self):
+        self.assertEqual(f"*,{CCAM}|JQGA004", replace_ccam_root_with_match_all(f"{CCAM}|000001,{CCAM}|JQGA004"))
+
+    def test_end_to_end_procedure_criteria(self):
+        query = {
+            "version": "v1.6.2",
+            "_type": "resource",
+            "resourceType": "Procedure",
+            "fhirFilter": f"code={CCAM}|000001",
+        }
+        saved = []
+        updater.do_update_old_query_snapshots([Request(json.dumps(query))], lambda r: saved.append(r.serialized_query), dry_run=False, debug=False)
+        self.assertEqual(1, len(saved))
+        result = json.loads(saved[0])
+        self.assertEqual("v1.6.3", result["version"])
+        self.assertEqual("code=*", result["fhirFilter"])

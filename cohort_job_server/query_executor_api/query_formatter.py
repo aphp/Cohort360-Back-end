@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import urllib.parse
 from typing import TYPE_CHECKING
 
@@ -50,6 +51,38 @@ def add_security_params_to_filter_fhir(sub_criteria: Criteria, source_population
     return f"{META_SECURITY_PSEUDED}&{filter_fhir_enriched}" if is_pseudo else filter_fhir_enriched
 
 
+# Procedure ne porte que du CCAM (EDS), donc un token sans système est du CCAM legacy.
+CCAM_CODESYSTEMS = frozenset(
+    {
+        "https://www.atih.sante.fr/plateformes-de-transmission-et-logiciels/logiciels-espace-de-telechargement/id_lot/3550",
+        "https://terminology.eds.aphp.fr/aphp-orbis-ccam",
+        "https://aphp.fr/ig/fhir/core/CodeSystem/CCAMDescriptiveVerAPHP",
+    }
+)
+
+# Code CCAM au noeud-feuille (ex. JQGA004), segmenté par activité côté FHIR.
+CCAM_LEAF_CODE_RE = re.compile(r"[A-Z]{4}[0-9]{3}")
+
+
+def prefix_ccam_leaf_code(token: str) -> str:
+    system, sep, code = token.rpartition("|")
+    if sep and system not in CCAM_CODESYSTEMS:
+        return token
+    return f"{system}{sep}{code}*" if CCAM_LEAF_CODE_RE.fullmatch(code) else token
+
+
+def add_prefix_search_on_ccam_leaves(filter_fhir: str, resource_type: ResourceType) -> str:
+    if not filter_fhir or resource_type != ResourceType.PROCEDURE:
+        return filter_fhir
+    params = []
+    for param in filter_fhir.split("&"):
+        key, sep, value = param.partition("=")
+        if sep and key.split(":", 1)[0] == "code":
+            value = ",".join(prefix_ccam_leaf_code(token) for token in value.split(","))
+        params.append(f"{key}{sep}{value}")
+    return "&".join(params)
+
+
 class QueryFormatter:
     IDENTIFIER_VALUE = "identifier.value"
 
@@ -63,6 +96,7 @@ class QueryFormatter:
                 return None
 
             if criteria.criteria_type == CriteriaType.BASIC_RESOURCE:
+                criteria.filter_fhir = add_prefix_search_on_ccam_leaves(criteria.filter_fhir, criteria.resource_type)
                 filter_fhir_enriched = add_security_params_to_filter_fhir(criteria, source_population, is_pseudo)
 
                 logger.info(f"filterFhirEnriched {filter_fhir_enriched}")
