@@ -14,6 +14,7 @@ from cohort_job_server.query_executor_api.query_formatter import add_prefix_sear
 from cohort_job_server.query_executor_api.schemas import FhirParameters, FhirParameter, CohortQuery
 
 CCAM = "https://aphp.fr/ig/fhir/core/CodeSystem/CCAMDescriptiveVerAPHP"
+ATIH = "https://www.atih.sante.fr/plateformes-de-transmission-et-logiciels/logiciels-espace-de-telechargement/id_lot/3550"
 
 
 class FhirResponseMapperTest(TestCase):
@@ -224,3 +225,9 @@ class TestCcamLeafStartsWith(TestCase):
 
     def test_other_code_prefixed_param_untouched(self):
         self.assertEqual("codeList=JQGA004", add_prefix_search_on_ccam_leaves("codeList=JQGA004", ResourceType.PROCEDURE))
+
+    def test_atih_codesystem_becomes_prefix(self):
+        self.assertEqual(f"code={ATIH}|JQGA004*", add_prefix_search_on_ccam_leaves(f"code={ATIH}|JQGA004", ResourceType.PROCEDURE))
+
+    def test_non_ccam_codesystem_untouched(self):
+        self.assertEqual("code=http://other|JQGA004", add_prefix_search_on_ccam_leaves("code=http://other|JQGA004", ResourceType.PROCEDURE))

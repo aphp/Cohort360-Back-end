@@ -3,9 +3,8 @@ from cohort.scripts.query_request_updater import MATCH_ALL_VALUES, QueryRequestU
 
 NEW_VERSION = "v1.6.3"
 
-# "000001 - ARBORESCENCE CCAM" était la racine commune à tout le référentiel CCAM. Le noeud a été supprimé du
-# référentiel ; une requête qui le portait doit désormais couvrir l'ensemble des codes CCAM, soit un match-all
-# sur le champ code (*). Les codes feuilles cassés par la segmentation sont traités à l'exécution, pas ici.
+# "000001 - ARBORESCENCE CCAM" était la racine du référentiel, désormais supprimée : une requête qui la portait
+# doit couvrir tout le CCAM. Les codes feuilles segmentés sont traités à l'exécution, pas ici.
 CCAM_ROOT_CODE = "000001"
 
 
