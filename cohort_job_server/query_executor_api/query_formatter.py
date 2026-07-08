@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import os
-import re
 import urllib.parse
 from typing import TYPE_CHECKING
 
@@ -60,15 +59,17 @@ CCAM_CODESYSTEMS = frozenset(
     }
 )
 
-# Code CCAM au noeud-feuille (ex. JQGA004), segmenté par activité côté FHIR.
-CCAM_LEAF_CODE_RE = re.compile(r"[A-Z]{4}[0-9]{3}")
-
 
 def prefix_ccam_leaf_code(token: str) -> str:
+    # Le référentiel CCAM a été ré-encodé (segmentation des actes, suffixe de niveau sur les
+    # noeuds) : un code stocké ne matche plus à l'identique, quel que soit son format. On le
+    # cherche donc en préfixe, sauf s'il porte déjà un `*` ou un système non-CCAM.
     system, sep, code = token.rpartition("|")
     if sep and system not in CCAM_CODESYSTEMS:
         return token
-    return f"{system}{sep}{code}*" if CCAM_LEAF_CODE_RE.fullmatch(code) else token
+    if not code or code.endswith("*"):
+        return token
+    return f"{system}{sep}{code}*"
 
 
 def add_prefix_search_on_ccam_leaves(filter_fhir: str, resource_type: ResourceType) -> str:
