@@ -224,6 +224,12 @@ class TestCcamLeafStartsWith(TestCase):
     def test_code_modifier_is_expanded(self):
         self.assertEqual("code:not=JQGA004*", add_prefix_search_on_ccam_leaves("code:not=JQGA004", ResourceType.PROCEDURE))
 
+    def test_valueset_modifiers_untouched(self):
+        # `code:in` / `code:not-in` portent une URI de ValueSet, jamais wildcardée.
+        vs = "https://smt.esante.gouv.fr/terminologie-ccam"
+        self.assertEqual(f"code:in={vs}", add_prefix_search_on_ccam_leaves(f"code:in={vs}", ResourceType.PROCEDURE))
+        self.assertEqual(f"code:not-in={vs}", add_prefix_search_on_ccam_leaves(f"code:not-in={vs}", ResourceType.PROCEDURE))
+
     def test_other_code_prefixed_param_untouched(self):
         self.assertEqual("codeList=JQGA004", add_prefix_search_on_ccam_leaves("codeList=JQGA004", ResourceType.PROCEDURE))
 

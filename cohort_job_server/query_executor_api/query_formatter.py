@@ -78,7 +78,9 @@ def add_prefix_search_on_ccam_leaves(filter_fhir: str, resource_type: ResourceTy
     params = []
     for param in filter_fhir.split("&"):
         key, sep, value = param.partition("=")
-        if sep and key.split(":", 1)[0] == "code":
+        base, _, modifier = key.partition(":")
+        # `code:in` / `code:not-in` portent une URI de ValueSet, pas des codes : on ne les touche pas.
+        if sep and base == "code" and modifier in ("", "not"):
             value = ",".join(prefix_ccam_leaf_code(token) for token in value.split(","))
         params.append(f"{key}{sep}{value}")
     return "&".join(params)
