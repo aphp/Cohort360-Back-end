@@ -201,14 +201,15 @@ class TestCcamLeafStartsWith(TestCase):
     def test_comma_separated_leaves(self):
         self.assertEqual("code=JQGA004*,HGEA002*", add_prefix_search_on_ccam_leaves("code=JQGA004,HGEA002", ResourceType.PROCEDURE))
 
-    def test_numeric_branch_node_untouched(self):
-        self.assertEqual("code=000124", add_prefix_search_on_ccam_leaves("code=000124", ResourceType.PROCEDURE))
+    def test_numeric_node_becomes_prefix(self):
+        # Les noeuds numériques (chapitres/branches) ont aussi été ré-encodés : cherchés en préfixe.
+        self.assertEqual("code=000124*", add_prefix_search_on_ccam_leaves("code=000124", ResourceType.PROCEDURE))
 
     def test_already_wildcarded_is_idempotent(self):
         self.assertEqual("code=JQGA004*", add_prefix_search_on_ccam_leaves("code=JQGA004*", ResourceType.PROCEDURE))
 
-    def test_segmented_activity_code_untouched(self):
-        self.assertEqual("code=JQGA0041201", add_prefix_search_on_ccam_leaves("code=JQGA0041201", ResourceType.PROCEDURE))
+    def test_segmented_activity_code_becomes_prefix(self):
+        self.assertEqual("code=JQGA0041201*", add_prefix_search_on_ccam_leaves("code=JQGA0041201", ResourceType.PROCEDURE))
 
     def test_other_params_untouched(self):
         filter_fhir = f"patient-active=true&code={CCAM}|JQGA004"
@@ -222,6 +223,12 @@ class TestCcamLeafStartsWith(TestCase):
 
     def test_code_modifier_is_expanded(self):
         self.assertEqual("code:not=JQGA004*", add_prefix_search_on_ccam_leaves("code:not=JQGA004", ResourceType.PROCEDURE))
+
+    def test_valueset_modifiers_untouched(self):
+        # `code:in` / `code:not-in` portent une URI de ValueSet, jamais wildcardée.
+        vs = "https://smt.esante.gouv.fr/terminologie-ccam"
+        self.assertEqual(f"code:in={vs}", add_prefix_search_on_ccam_leaves(f"code:in={vs}", ResourceType.PROCEDURE))
+        self.assertEqual(f"code:not-in={vs}", add_prefix_search_on_ccam_leaves(f"code:not-in={vs}", ResourceType.PROCEDURE))
 
     def test_other_code_prefixed_param_untouched(self):
         self.assertEqual("codeList=JQGA004", add_prefix_search_on_ccam_leaves("codeList=JQGA004", ResourceType.PROCEDURE))
