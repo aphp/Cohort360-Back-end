@@ -17,6 +17,7 @@ class User(AbstractBaseUser, BaseModel):
     updated_by = models.ForeignKey("self", on_delete=models.SET_NULL, related_name="updated_users", null=True, blank=True, db_column="updated_by")
     onboarding_step = models.PositiveSmallIntegerField(default=0)
     onboarding_completed_at = models.DateTimeField(blank=True, null=True)
+    charter_signed_at = models.DateTimeField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.firstname} {self.lastname} ({self.username})"
