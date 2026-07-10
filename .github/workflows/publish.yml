@@ -1,10 +1,13 @@
 name: Publish Docker backend
 
 run-name: >-
-  Publish Docker backend - ${{ github.event.workflow_run.head_branch }}
-  - ${{ github.event.workflow_run.display_title }}
+  Publish Docker backend - ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || github.ref_name }}
+  - ${{ github.event_name == 'workflow_run' && github.event.workflow_run.display_title || github.event.head_commit.message }}
 
 on:
+  push:
+    branches:
+      - backend-frigo
   workflow_run:
     workflows: [cohort360-backend-test]
     types: [completed]
@@ -16,20 +19,20 @@ on:
 
 jobs:
   publish:
-    name: Build and push backend Docker image - ${{ github.event.workflow_run.head_branch }}
+    name: Build and push backend Docker image - ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || github.ref_name }}
     runs-on: ubuntu-latest
-    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    if: github.event_name == 'push' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
 
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: Définir VERSION et les tags Docker
         env:
-          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
-          GIT_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_BRANCH: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || github.ref_name }}
+          GIT_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
         run: |
           set -euo pipefail
           VERSION=$(grep '^version =' pyproject.toml | sed -E 's/version = "(.*)"/\1/')
@@ -82,5 +85,5 @@ jobs:
           labels: |
             org.opencontainers.image.title=Cohort360 Backend
             org.opencontainers.image.version=${{ env.VERSION }}
-            org.opencontainers.image.revision=${{ github.event.workflow_run.head_sha }}
+            org.opencontainers.image.revision=${{ env.GIT_SHA }}
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
