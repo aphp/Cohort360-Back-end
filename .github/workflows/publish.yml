@@ -11,6 +11,7 @@ on:
     branches:
       - main
       - develop
+      - backend-frigo
       - 'release/**'
 
 jobs:
@@ -49,6 +50,9 @@ jobs:
               ;;
             develop)
               echo "IMAGE_TAGS=aphpid/cohort360-backend:develop" >> "$GITHUB_ENV"
+              ;;
+            backend-frigo)
+              echo "IMAGE_TAGS=aphpid/cohort360-backend:backend-frigo" >> "$GITHUB_ENV"
               ;;
             release/*)
               echo "IMAGE_TAGS=aphpid/cohort360-backend:${VERSION}-rc,aphpid/cohort360-backend:${VERSION}-rc.${SHORT_SHA}" >> "$GITHUB_ENV"
