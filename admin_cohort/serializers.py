@@ -1,3 +1,4 @@
+from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework_tracking.models import APIRequestLog
@@ -52,10 +53,51 @@ class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=False)
     created_by: serializers.SlugRelatedField = serializers.SlugRelatedField(read_only=True, slug_field="display_name")
     updated_by: serializers.SlugRelatedField = serializers.SlugRelatedField(read_only=True, slug_field="display_name")
+    onboarding_step = serializers.IntegerField(read_only=True)
+    onboarding_completed_at = serializers.DateTimeField(read_only=True)
 
     class Meta:
         model = User
-        fields = ["username", "firstname", "lastname", "email", "password", "display_name", "created_by", "updated_by"]
+        fields = [
+            "username",
+            "firstname",
+            "lastname",
+            "email",
+            "password",
+            "display_name",
+            "created_by",
+            "updated_by",
+            "onboarding_step",
+            "onboarding_completed_at",
+        ]
+
+
+class OnboardingSerializer(serializers.ModelSerializer):
+    onboarding_step = serializers.IntegerField(min_value=0, max_value=User.ONBOARDING_TOTAL_STEPS)
+
+    class Meta:
+        model = User
+        fields = ["onboarding_step", "onboarding_completed_at"]
+        read_only_fields = ["onboarding_completed_at"]
+
+    def validate_onboarding_step(self, value):
+        current = self.instance.onboarding_step if self.instance else 0
+        if value < current:
+            raise ValidationError("onboarding_step cannot decrease")
+        if value > current + 1:
+            raise ValidationError("onboarding_step must progress one step at a time")
+        return value
+
+    def update(self, instance, validated_data):
+        instance.onboarding_step = validated_data["onboarding_step"]
+        if instance.onboarding_step >= User.ONBOARDING_TOTAL_STEPS and instance.onboarding_completed_at is None:
+            instance.onboarding_completed_at = timezone.now()
+        update_fields = ["onboarding_step", "onboarding_completed_at", "update_datetime"]
+        if "updated_by" in validated_data:
+            instance.updated_by = validated_data["updated_by"]
+            update_fields.append("updated_by")
+        instance.save(update_fields=update_fields)
+        return instance
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
