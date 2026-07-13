@@ -55,6 +55,7 @@ class UserSerializer(serializers.ModelSerializer):
     updated_by: serializers.SlugRelatedField = serializers.SlugRelatedField(read_only=True, slug_field="display_name")
     onboarding_step = serializers.IntegerField(read_only=True)
     onboarding_completed_at = serializers.DateTimeField(read_only=True)
+    charter_signed_at = serializers.DateTimeField(read_only=True)
 
     class Meta:
         model = User
@@ -69,6 +70,7 @@ class UserSerializer(serializers.ModelSerializer):
             "updated_by",
             "onboarding_step",
             "onboarding_completed_at",
+            "charter_signed_at",
         ]
 
 
@@ -97,6 +99,22 @@ class OnboardingSerializer(serializers.ModelSerializer):
             instance.updated_by = validated_data["updated_by"]
             update_fields.append("updated_by")
         instance.save(update_fields=update_fields)
+        return instance
+
+
+class CharterSignatureSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["charter_signed_at"]
+        read_only_fields = ["charter_signed_at"]
+
+    def sign(self, signed_by):
+        # Signing is idempotent: only the first signature date has legal value.
+        instance = self.instance
+        if instance.charter_signed_at is None:
+            instance.charter_signed_at = timezone.now()
+            instance.updated_by = signed_by
+            instance.save(update_fields=["charter_signed_at", "updated_by", "update_datetime"])
         return instance
 
 

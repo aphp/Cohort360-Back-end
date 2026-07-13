@@ -236,6 +236,7 @@ class UserTestsAsAdmin(UserTests):
         payload = self.get_response_payload(response)
         self.assertIn("onboarding_step", payload)
         self.assertIn("onboarding_completed_at", payload)
+        self.assertIn("charter_signed_at", payload)
 
 
 ONBOARDING_URL = "/users/me/onboarding/"
@@ -310,4 +311,47 @@ class UserOnboardingTests(UserTests):
     def test_requires_authentication(self):
         client = APIClient()
         response = client.patch(ONBOARDING_URL, dict(onboarding_step=1), format="json")
+        self.assertIn(response.status_code, (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN))
+
+
+CHARTER_URL = "/users/me/onboarding/charter/"
+
+
+class CharterSignatureTests(UserTests):
+    def _sign_charter(self, user):
+        # go through the router so the action's permission_classes (IsAuthenticated) apply
+        client = APIClient()
+        client.force_authenticate(user)
+        return client.post(CHARTER_URL, format="json")
+
+    def test_signing_records_the_timestamp(self):
+        # user3 has no admin rights: this proves the endpoint is self-scoped, not gated by UsersPermission
+        response = self._sign_charter(self.user3)
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
+        self.user3.refresh_from_db()
+        self.assertIsNotNone(self.user3.charter_signed_at)
+        self.assertEqual(self.user3.updated_by_id, self.user3.username)
+        self.assertIsNotNone(response.json()["charter_signed_at"])
+
+    def test_signing_twice_keeps_the_first_date(self):
+        self._sign_charter(self.user1)
+        self.user1.refresh_from_db()
+        first_signature = self.user1.charter_signed_at
+
+        response = self._sign_charter(self.user1)
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
+        self.user1.refresh_from_db()
+        self.assertEqual(self.user1.charter_signed_at, first_signature)
+
+    def test_signature_is_self_scoped(self):
+        self._sign_charter(self.user1)
+        self.user2.refresh_from_db()
+        self.assertIsNone(self.user2.charter_signed_at)
+
+    def test_charter_is_unsigned_by_default(self):
+        self.assertIsNone(self.user1.charter_signed_at)
+
+    def test_requires_authentication(self):
+        client = APIClient()
+        response = client.post(CHARTER_URL, format="json")
         self.assertIn(response.status_code, (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN))

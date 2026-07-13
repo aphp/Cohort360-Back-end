@@ -14,7 +14,7 @@ from rest_framework.response import Response
 
 from admin_cohort.models import User
 from admin_cohort.permissions import UsersPermission
-from admin_cohort.serializers import UserSerializer, UserCheckSerializer, OnboardingSerializer
+from admin_cohort.serializers import UserSerializer, UserCheckSerializer, OnboardingSerializer, CharterSignatureSerializer
 from admin_cohort.services.users import users_service
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.exceptions import ServerError
@@ -130,4 +130,11 @@ class UserViewSet(RequestLogMixin, viewsets.ModelViewSet):
         serializer = OnboardingSerializer(instance=request.user, data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save(updated_by=request.user)
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
+
+    @extend_schema(tags=["Users"], request=None, responses={status.HTTP_200_OK: CharterSignatureSerializer})
+    @action(detail=False, methods=["post"], url_path="me/onboarding/charter", permission_classes=[IsAuthenticated])
+    def sign_charter(self, request, *args, **kwargs):
+        serializer = CharterSignatureSerializer(instance=request.user)
+        serializer.sign(signed_by=request.user)
         return Response(data=serializer.data, status=status.HTTP_200_OK)
