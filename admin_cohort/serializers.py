@@ -118,6 +118,13 @@ class CharterSignatureSerializer(serializers.ModelSerializer):
         return instance
 
 
+class OnboardingStatusSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["onboarding_step", "onboarding_completed_at", "charter_signed_at"]
+        read_only_fields = fields
+
+
 class UserCreateSerializer(serializers.ModelSerializer):
     username = serializers.CharField(required=True)
     firstname = serializers.CharField(required=True)
