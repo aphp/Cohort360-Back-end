@@ -355,3 +355,39 @@ class CharterSignatureTests(UserTests):
         client = APIClient()
         response = client.post(CHARTER_URL, format="json")
         self.assertIn(response.status_code, (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN))
+
+
+class OnboardingStatusTests(UserTests):
+    def _get_onboarding(self, user):
+        client = APIClient()
+        client.force_authenticate(user)
+        return client.get(ONBOARDING_URL)
+
+    def test_returns_the_current_progress(self):
+        self.user1.onboarding_step = User.ONBOARDING_TOTAL_STEPS
+        self.user1.onboarding_completed_at = timezone.now()
+        self.user1.save()
+        response = self._get_onboarding(self.user1)
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
+        payload = response.json()
+        self.assertEqual(payload["onboarding_step"], User.ONBOARDING_TOTAL_STEPS)
+        self.assertIsNotNone(payload["onboarding_completed_at"])
+        self.assertIn("charter_signed_at", payload)
+
+    def test_reflects_a_fresh_user(self):
+        response = self._get_onboarding(self.user3)
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
+        payload = response.json()
+        self.assertEqual(payload["onboarding_step"], 0)
+        self.assertIsNone(payload["onboarding_completed_at"])
+        self.assertIsNone(payload["charter_signed_at"])
+
+    def test_is_self_scoped(self):
+        User.objects.filter(pk=self.user2.pk).update(onboarding_step=2)
+        payload = self._get_onboarding(self.user1).json()
+        self.assertEqual(payload["onboarding_step"], 0)
+
+    def test_requires_authentication(self):
+        client = APIClient()
+        response = client.get(ONBOARDING_URL)
+        self.assertIn(response.status_code, (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN))
