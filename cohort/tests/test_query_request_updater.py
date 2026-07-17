@@ -1,7 +1,9 @@
 import dataclasses
 import json
+from unittest.mock import patch
 
 from admin_cohort.tests.tests_tools import BaseTests
+from cohort.scripts import query_request_updater as query_request_updater_module
 from cohort.scripts.patch_requests_v145 import return_filter_if_not_exist
 from cohort.scripts.patch_requests_v162 import CCAM_OLD_CODESYSTEM, map_ccam_code_token, map_ccam_codes, updater_v162
 from cohort.scripts.patch_requests_v163 import replace_ccam_root_with_match_all, updater
@@ -11,6 +13,41 @@ CCAM = "https://aphp.fr/ig/fhir/core/CodeSystem/CCAMDescriptiveVerAPHP"
 
 
 class TestQueryRequestUpdater(BaseTests):
+    def test_filter_value_can_contain_equals_signs(self):
+        updater = QueryRequestUpdater(
+            version_name="2",
+            previous_version_name="1",
+            filter_mapping={},
+            filter_names_to_skip={},
+            filter_values_mapping={},
+            static_required_filters={},
+            resource_name_mapping={},
+        )
+
+        updated_filter, changed = updater.process_filters(["SomeFilter=SomeValue=WithEquals"], "SomeResource")
+
+        self.assertEqual("SomeFilter=SomeValue=WithEquals", updated_filter)
+        self.assertFalse(changed)
+
+    def test_update_old_filters_does_not_build_request_query_snapshot(self):
+        updater = QueryRequestUpdater(
+            version_name="2",
+            previous_version_name="1",
+            filter_mapping={"SomeResource": {"SomeFilterA": "SomeFilterB"}},
+            filter_names_to_skip={},
+            filter_values_mapping={},
+            static_required_filters={},
+            resource_name_mapping={},
+        )
+        resource_filter = Filter(uuid="filter-uuid", query_version="1", fhir_resource="SomeResource", filter="SomeFilterA=SomeValue")
+
+        with patch.object(query_request_updater_module.FhirFilter.objects, "all", return_value=[resource_filter]):
+            updater.update_old_filters(dry_run=False, debug=False)
+
+        self.assertEqual("2", resource_filter.query_version)
+        self.assertEqual("SomeFilterB=SomeValue", resource_filter.filter)
+        self.assertTrue(resource_filter.saved)
+
     def test_update_old_query_snapshots(self):
         new_version = "turbo2000"
         previous_version_name = "1"
@@ -98,6 +135,18 @@ class TestQueryRequestUpdater(BaseTests):
 @dataclasses.dataclass
 class Request:
     serialized_query: str
+
+
+@dataclasses.dataclass
+class Filter:
+    uuid: str
+    query_version: str
+    fhir_resource: str
+    filter: str
+    saved: bool = False
+
+    def save(self):
+        self.saved = True
 
 
 class TestPatchRequestsV162(BaseTests):
