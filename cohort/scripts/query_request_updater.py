@@ -1,6 +1,7 @@
 import json
 import logging
 import tempfile
+from dataclasses import dataclass
 from functools import reduce
 from pathlib import Path
 from typing import List, Tuple, TypeVar, Callable, Any, Optional, Dict, Union
@@ -13,6 +14,12 @@ logger = logging.getLogger(__name__)
 
 RESOURCE_DEFAULT = "_"
 MATCH_ALL_VALUES = "__MATCH_ALL_VALUES__"
+
+
+@dataclass
+class _FilterQuerySnapshot:
+    filter_uuid: Any
+    serialized_query: str
 
 
 def find_mapped_code(
@@ -120,7 +127,7 @@ class QueryRequestUpdater:
         changed = False
         for filter_item in filter_items:
             if filter_item.strip():
-                filter_name, filter_value = filter_item.split("=")
+                filter_name, filter_value = filter_item.split("=", 1)
                 if not self.skip_filter(filter_name, resource):
                     new_filter_name, has_changed = self.map_filter_name(filter_name, resource)
                     new_filter_value, value_changed = self.map_filter_value(filter_name, resource, filter_value)
@@ -268,9 +275,9 @@ class QueryRequestUpdater:
         if with_filters:
             self.update_old_filters(dry_run, debug)
 
-    def save_filter(self, f: RequestQuerySnapshot, filters: List[FhirFilter]):
+    def save_filter(self, f: _FilterQuerySnapshot, filters: List[FhirFilter]):
         for resource_filter in filters:
-            if resource_filter.uuid == f.title:
+            if resource_filter.uuid == f.filter_uuid:
                 query = json.loads(f.serialized_query)
                 resource_filter.query_version = query.get("version", self.version_name)
                 resource_filter.filter = query["fhirFilter"]
@@ -282,8 +289,8 @@ class QueryRequestUpdater:
         all_filters: List[FhirFilter] = FhirFilter.objects.all()
         self.do_update_old_query_snapshots(
             [
-                RequestQuerySnapshot(
-                    title=f.uuid,
+                _FilterQuerySnapshot(
+                    filter_uuid=f.uuid,
                     serialized_query=json.dumps(
                         {"version": f.query_version, "_type": "resource", "resourceType": f.fhir_resource, "fhirFilter": f.filter}
                     ),
