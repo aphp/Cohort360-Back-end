@@ -127,6 +127,9 @@ class QueryRequestUpdater:
         changed = False
         for filter_item in filter_items:
             if filter_item.strip():
+                if "=" not in filter_item:
+                    updated_filters.append(filter_item)
+                    continue
                 filter_name, filter_value = filter_item.split("=", 1)
                 if not self.skip_filter(filter_name, resource):
                     new_filter_name, has_changed = self.map_filter_name(filter_name, resource)
