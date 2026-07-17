@@ -3,6 +3,7 @@ import json
 
 from admin_cohort.tests.tests_tools import BaseTests
 from cohort.scripts.patch_requests_v145 import return_filter_if_not_exist
+from cohort.scripts.patch_requests_v162 import CCAM_OLD_CODESYSTEM, map_ccam_code_token, map_ccam_codes, updater_v162
 from cohort.scripts.patch_requests_v163 import replace_ccam_root_with_match_all, updater
 from cohort.scripts.query_request_updater import QueryRequestUpdater
 
@@ -97,6 +98,43 @@ class TestQueryRequestUpdater(BaseTests):
 @dataclasses.dataclass
 class Request:
     serialized_query: str
+
+
+class TestPatchRequestsV162(BaseTests):
+    def test_old_code_system_is_replaced_without_changing_code(self):
+        self.assertEqual(f"{CCAM}|JQGA004", map_ccam_code_token(f"{CCAM_OLD_CODESYSTEM}|JQGA004"))
+
+    def test_bare_code_gets_new_code_system(self):
+        self.assertEqual(f"{CCAM}|JQGA004", map_ccam_code_token("JQGA004"))
+
+    def test_new_code_system_is_left_untouched(self):
+        self.assertEqual(f"{CCAM}|JQGA004", map_ccam_code_token(f"{CCAM}|JQGA004"))
+
+    def test_other_code_system_is_left_untouched(self):
+        other_code = "https://example.org/CodeSystem/other|JQGA004"
+        self.assertEqual(other_code, map_ccam_code_token(other_code))
+
+    def test_multiple_codes_are_converted_independently(self):
+        other_code = "https://example.org/CodeSystem/other|OTHER"
+        codes = f"{CCAM_OLD_CODESYSTEM}|JQGA004,JQGA005,{CCAM}|JQGA006,{other_code}"
+        expected = f"{CCAM}|JQGA004,{CCAM}|JQGA005,{CCAM}|JQGA006,{other_code}"
+        self.assertEqual(expected, map_ccam_codes(codes))
+
+    def test_end_to_end_procedure_criteria(self):
+        query = {
+            "version": "v1.6.1",
+            "_type": "resource",
+            "resourceType": "Procedure",
+            "fhirFilter": f"code={CCAM_OLD_CODESYSTEM}|JQGA004",
+        }
+        saved = []
+        updater_v162.do_update_old_query_snapshots(
+            [Request(json.dumps(query))], lambda r: saved.append(r.serialized_query), dry_run=False, debug=False
+        )
+        self.assertEqual(1, len(saved))
+        result = json.loads(saved[0])
+        self.assertEqual("v1.6.2", result["version"])
+        self.assertEqual(f"code={CCAM}|JQGA004", result["fhirFilter"])
 
 
 class TestPatchRequestsV163(BaseTests):
