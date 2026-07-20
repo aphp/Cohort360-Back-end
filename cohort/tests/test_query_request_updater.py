@@ -7,6 +7,7 @@ from cohort.scripts import query_request_updater as query_request_updater_module
 from cohort.scripts.patch_requests_v145 import return_filter_if_not_exist
 from cohort.scripts.patch_requests_v162 import CCAM_OLD_CODESYSTEM, map_ccam_code_token, map_ccam_codes, updater_v162
 from cohort.scripts.patch_requests_v163 import replace_ccam_root_with_match_all, updater
+from cohort.scripts.patch_requests_v164 import map_ccam_codes as map_ccam_codes_v164, updater_v164
 from cohort.scripts.query_request_updater import QueryRequestUpdater
 
 CCAM = "https://aphp.fr/ig/fhir/core/CodeSystem/CCAMDescriptiveVerAPHP"
@@ -233,3 +234,53 @@ class TestPatchRequestsV163(BaseTests):
         result = json.loads(saved[0])
         self.assertEqual("v1.6.3", result["version"])
         self.assertEqual("code=*", result["fhirFilter"])
+
+
+class TestPatchRequestsV164(BaseTests):
+    def test_bare_act_is_replaced_by_root_wildcard(self):
+        self.assertEqual(f"{CCAM}|JQGA004*", map_ccam_codes_v164(f"{CCAM}|JQGA004"))
+
+    def test_segmented_act_is_kept_and_completed(self):
+        self.assertEqual(f"{CCAM}|JQGA004...01,{CCAM}|JQGA004*", map_ccam_codes_v164(f"{CCAM}|JQGA004...01"))
+        self.assertEqual(f"{CCAM}|JQGA004-001,{CCAM}|JQGA004*", map_ccam_codes_v164(f"{CCAM}|JQGA004-001"))
+
+    def test_truncated_selection_keeps_both_codes(self):
+        codes = f"{CCAM}|JQGA004...04,{CCAM}|JQGA004...01"
+        expected = f"{CCAM}|JQGA004...04,{CCAM}|JQGA004*,{CCAM}|JQGA004...01"
+        self.assertEqual(expected, map_ccam_codes_v164(codes))
+
+    def test_distinct_acts_get_their_own_wildcard(self):
+        codes = f"{CCAM}|JQGA004...01,{CCAM}|HGEA002-1101"
+        expected = f"{CCAM}|JQGA004...01,{CCAM}|JQGA004*,{CCAM}|HGEA002-1101,{CCAM}|HGEA002*"
+        self.assertEqual(expected, map_ccam_codes_v164(codes))
+
+    def test_numeric_node_untouched(self):
+        self.assertEqual(f"{CCAM}|001472", map_ccam_codes_v164(f"{CCAM}|001472"))
+
+    def test_match_all_untouched(self):
+        self.assertEqual("*", map_ccam_codes_v164("*"))
+
+    def test_non_ccam_system_untouched(self):
+        other = "https://terminology.hl7.org/CodeSystem/other"
+        self.assertEqual(f"{other}|JQGA004", map_ccam_codes_v164(f"{other}|JQGA004"))
+
+    def test_is_idempotent(self):
+        once = map_ccam_codes_v164(f"{CCAM}|JQGA004...01")
+        self.assertEqual(once, map_ccam_codes_v164(once))
+
+    def test_end_to_end_procedure_criteria(self):
+        query = {
+            "version": "v1.6.3",
+            "_type": "resource",
+            "resourceType": "Procedure",
+            "fhirFilter": f"subject.active=true&code={CCAM}|JQGA004...04,{CCAM}|JQGA004...01",
+        }
+        saved = []
+        updater_v164.do_update_old_query_snapshots(
+            [Request(json.dumps(query))], lambda r: saved.append(r.serialized_query), dry_run=False, debug=False
+        )
+        self.assertEqual(1, len(saved))
+        result = json.loads(saved[0])
+        self.assertEqual("v1.6.4", result["version"])
+        expected = f"subject.active=true&code={CCAM}|JQGA004...04,{CCAM}|JQGA004*,{CCAM}|JQGA004...01"
+        self.assertEqual(expected, result["fhirFilter"])
