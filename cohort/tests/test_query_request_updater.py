@@ -13,6 +13,24 @@ CCAM = "https://aphp.fr/ig/fhir/core/CodeSystem/CCAMDescriptiveVerAPHP"
 
 
 class TestQueryRequestUpdater(BaseTests):
+    def test_filter_fragment_without_equals_sign_is_preserved(self):
+        updater = QueryRequestUpdater(
+            version_name="2",
+            previous_version_name="1",
+            filter_mapping={},
+            filter_names_to_skip={},
+            filter_values_mapping={},
+            static_required_filters={},
+            resource_name_mapping={},
+        )
+        original_filter = "code=https://example.org/CodeSystem/observation|123&urn:oid:1.2.3|456,urn:oid:1.2.4|789"
+        resource = {"resourceType": "Observation", "fhirFilter": original_filter}
+
+        changed = updater.process_resource(resource, "fhirFilter")
+
+        self.assertEqual(original_filter, resource["fhirFilter"])
+        self.assertFalse(changed)
+
     def test_filter_value_can_contain_equals_signs(self):
         updater = QueryRequestUpdater(
             version_name="2",
