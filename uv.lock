@@ -409,6 +409,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "asgiref" },
     { name = "celery" },
+    { name = "certifi" },
     { name = "channels" },
     { name = "channels-redis" },
     { name = "coverage" },
@@ -461,6 +462,7 @@ dev = [
 requires-dist = [
     { name = "asgiref", specifier = ">=3.8" },
     { name = "celery", specifier = ">=5.4.0" },
+    { name = "certifi", specifier = ">=2024.8.30" },
     { name = "channels", specifier = ">=4.2.0" },
     { name = "channels-redis", specifier = ">=4.2.1" },
     { name = "coverage", specifier = ">=7.6.9" },
