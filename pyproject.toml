@@ -9,6 +9,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "asgiref>=3.8",
+    "certifi>=2024.8.30",
     "channels-redis>=4.2.1",
     "channels>=4.2.0",
     "coverage>=7.6.9",
