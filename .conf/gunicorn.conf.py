@@ -9,6 +9,7 @@ env = environ.Env()
 workers = 7
 threads = 10
 limit_request_line = 8190
+timeout = 1800
 
 
 class CustomLogger(Logger):
