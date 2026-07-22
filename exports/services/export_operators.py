@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 from datetime import timedelta
 
 from django.conf import settings
@@ -12,7 +13,7 @@ from requests import RequestException
 from admin_cohort.types import JobStatus
 from exports.apps import ExportsConfig
 from exports.emails import push_email_notification, exported_files_deleted
-from exports.exceptions import BadRequestError, FilesNoLongerAvailable, StorageProviderException
+from exports.exceptions import BadRequestError, FilesNoLongerAvailable, InvalidRangeError, StorageProviderException
 from exports.models import Export
 from exports.services.storage_provider import HDFSStorageProvider
 
@@ -92,33 +93,71 @@ class DefaultExporter:
 
 
 class ExportDownloader:
+    range_pattern = re.compile(r"^bytes=(\d*)-(\d*)$")
+
     def __init__(self):
         self.storage_provider = HDFSStorageProvider(servers_urls=STORAGE_PROVIDERS)
         self.downloadable_export_types = [t.value for t in ExportTypes if t.allow_download]
 
-    def download(self, export: Export) -> StreamingHttpResponse:
+    def download(self, export: Export, range_header: str | None = None) -> StreamingHttpResponse:
         if export.request_job_status != JobStatus.finished.value or export.output_format not in self.downloadable_export_types:
             raise BadRequestError("The export is not done yet or has failed or not downloadable")
         if not export.available_for_download():
             raise FilesNoLongerAvailable("The exported files are no longer available on the server.")
         try:
             file_path = f"{export.target_full_path}.zip"
-            response = StreamingHttpResponse(streaming_content=self.stream_file(file_path))
             file_size = self.get_file_size(file_name=file_path)
+            start, end = self.parse_range(range_header=range_header, file_size=file_size)
+            content_length = end - start + 1
+            response = StreamingHttpResponse(
+                streaming_content=self.stream_file(file_path, offset=start, length=content_length),
+                status=206 if range_header else 200,
+            )
             first = export.export_tables.first()
             if first is None or first.cohort_result_source is None:
                 raise BadRequestError("Export has no table with cohort result source")
             download_file_name = f"export_{first.cohort_result_source.group_id}.zip"
             response["Content-Type"] = "application/zip"
-            response["Content-Length"] = file_size
+            response["Content-Length"] = content_length
             response["Content-Disposition"] = f"attachment; filename={download_file_name}"
+            response["Accept-Ranges"] = "bytes"
+            response["X-Accel-Buffering"] = "no"
+            if range_header:
+                response["Content-Range"] = f"bytes {start}-{end}/{file_size}"
             return response
         except StorageProviderException as e:
             logger.exception(f"Error occurred on Storage Provider `{self.storage_provider.name}` - {e}")
             raise e
 
-    def stream_file(self, file_name: str):
-        with self.storage_provider.stream_file(file_name=file_name) as f:
+    def parse_range(self, range_header: str | None, file_size: int) -> tuple[int, int]:
+        if not range_header:
+            return 0, file_size - 1
+
+        match = self.range_pattern.fullmatch(range_header.strip())
+        if match is None or file_size <= 0:
+            raise InvalidRangeError("Invalid byte range")
+
+        start_raw, end_raw = match.groups()
+        if not start_raw and not end_raw:
+            raise InvalidRangeError("Invalid byte range")
+
+        if not start_raw:
+            suffix_length = int(end_raw)
+            if suffix_length <= 0:
+                raise InvalidRangeError("Invalid byte range")
+            start = max(file_size - suffix_length, 0)
+            end = file_size - 1
+        else:
+            start = int(start_raw)
+            end = int(end_raw) if end_raw else file_size - 1
+            end = min(end, file_size - 1)
+
+        if start >= file_size or start > end:
+            raise InvalidRangeError("Requested byte range is outside the file")
+        return start, end
+
+    def stream_file(self, file_name: str, offset: int = 0, length: int | None = None):
+        with self.storage_provider.stream_file(file_name=file_name, offset=offset, length=length) as f:
             for chunk in f:
                 yield chunk
 

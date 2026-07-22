@@ -1,6 +1,7 @@
 import json
 import logging
 
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
 from django.db.models.expressions import Subquery, OuterRef
@@ -12,16 +13,25 @@ from requests.exceptions import RequestException
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from admin_cohort.tools import join_qs
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools.request_log_mixin import RequestLogMixin
 from admin_cohort.types import JobStatus
-from exports.exceptions import FilesNoLongerAvailable, BadRequestError, StorageProviderException
+from exports.exceptions import (
+    BadRequestError,
+    DownloadTicketUnavailable,
+    FilesNoLongerAvailable,
+    InvalidDownloadTicket,
+    InvalidRangeError,
+    StorageProviderException,
+)
 from exports.models import Export, ExportTable
 from exports.permissions import ExportPermission, RetryExportPermission, ExportLogsPermission
 from exports.serializers import ExportSerializer, ExportsListSerializer, ExportCreateSerializer
+from exports.services.download_ticket import export_download_ticket_service
 from exports.services.export import export_service
 from exports.views import ExportsBaseViewSet
 
@@ -83,6 +93,8 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
     )
 
     def get_permissions(self):
+        if self.action == self.download.__name__ and self._download_ticket_from_request():
+            return [AllowAny()]
         if self.action == self.retry.__name__ or self.action == self.relaunch.__name__:
             return [RetryExportPermission()]
         if self.action == self.logs.__name__:
@@ -134,12 +146,58 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
     @extend_schema(responses={(status.HTTP_200_OK, "application/zip"): OpenApiTypes.BINARY})
     @action(detail=True, methods=["get"], url_path="download")
     def download(self, request, *args, **kwargs):
+        export_uuid = kwargs[self.lookup_field]
+        ticket = self._download_ticket_from_request()
         try:
-            return export_service.download(export=self.get_object())
+            if ticket:
+                export_download_ticket_service.consume(token=ticket, expected_export_uuid=export_uuid)
+                export = Export.objects.get(pk=export_uuid)
+            else:
+                export = self.get_object()
+            response = export_service.download(export=export, range_header=request.headers.get("Range"))
+            if ticket:
+                response.delete_cookie(export_download_ticket_service.cookie_name(export_uuid), path="/", samesite="Strict")
+            return response
         except (BadRequestError, FilesNoLongerAvailable) as e:
             return Response(data=f"Error downloading files: {e}", status=status.HTTP_400_BAD_REQUEST)
+        except InvalidDownloadTicket as e:
+            return Response(data=str(e), status=status.HTTP_403_FORBIDDEN)
+        except InvalidRangeError as e:
+            response = Response(data=str(e), status=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE)
+            response["Content-Range"] = "bytes */*"
+            return response
         except StorageProviderException as e:
             return Response(data=f"Storage provider error: {e}", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @extend_schema(responses={status.HTTP_201_CREATED: OpenApiTypes.OBJECT})
+    @action(detail=True, methods=["post"], url_path="download-ticket")
+    def download_ticket(self, request, *args, **kwargs):
+        export = self.get_object()
+        try:
+            ticket = export_download_ticket_service.issue(export_uuid=export.uuid, user_id=request.user.pk)
+        except DownloadTicketUnavailable as e:
+            return Response(data=str(e), status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        response = Response(
+            data={"expires_in": export_download_ticket_service.ttl_seconds},
+            status=status.HTTP_201_CREATED,
+        )
+        response.set_cookie(
+            export_download_ticket_service.cookie_name(export.uuid),
+            ticket,
+            max_age=export_download_ticket_service.ttl_seconds,
+            httponly=True,
+            secure=not settings.DEBUG,
+            samesite="Strict",
+            path="/",
+        )
+        return response
+
+    def _download_ticket_from_request(self):
+        export_uuid = self.kwargs.get(self.lookup_field)
+        if export_uuid is None:
+            return None
+        return self.request.COOKIES.get(export_download_ticket_service.cookie_name(export_uuid))
 
     @extend_schema(responses={status.HTTP_200_OK: OpenApiTypes.STR})
     @action(detail=True, methods=["post"], url_path="retry")

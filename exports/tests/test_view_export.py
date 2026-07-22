@@ -1,6 +1,7 @@
 from unittest import mock
 
 from django.test.utils import override_settings
+from django.http import StreamingHttpResponse
 from django.urls import reverse
 from requests.exceptions import RequestException
 from rest_framework import status
@@ -13,6 +14,12 @@ from exporters.enums import APIJobStatus
 from exports.models import Export, Datalab
 from exports.tests.base_test import ExportsTestBase
 from exports.views import ExportViewSet
+from exports.services.download_ticket import export_download_ticket_service
+
+
+DOWNLOAD_TICKET_CACHE = {
+    "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "export-view-download-tickets"}
+}
 
 
 class ExportViewSetTest(ExportsTestBase):
@@ -60,6 +67,36 @@ class ExportViewSetTest(ExportsTestBase):
         self.retry_view = self.view_set.as_view({"post": "retry"})
         self.retry_url = f"/exports/{self.failed_export.uuid}/retry/"
         self.logs_view = self.view_set.as_view({"get": "logs"})
+        self.download_view = self.view_set.as_view({"get": "download"})
+        self.download_ticket_view = self.view_set.as_view({"post": "download_ticket"})
+
+    @override_settings(CACHES=DOWNLOAD_TICKET_CACHE, EXPORT_DOWNLOAD_TICKET_TTL_SECONDS=60, DEBUG=False)
+    @mock.patch("exports.views.export.export_service.download")
+    def test_download_with_single_use_httponly_ticket(self, mock_download):
+        mock_download.return_value = StreamingHttpResponse([b"zip"])
+        export = self.target_export_to_retrieve
+        ticket_url = f"/exports/{export.uuid}/download-ticket/"
+        ticket_request = self.make_request(url=ticket_url, http_verb="post", request_user=self.exporter_user)
+
+        ticket_response = self.download_ticket_view(ticket_request, uuid=export.uuid)
+
+        cookie_name = export_download_ticket_service.cookie_name(export.uuid)
+        self.assertEqual(ticket_response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(ticket_response.cookies[cookie_name]["httponly"])
+        self.assertTrue(ticket_response.cookies[cookie_name]["secure"])
+        token = ticket_response.cookies[cookie_name].value
+
+        download_url = f"/exports/{export.uuid}/download/"
+        download_request = self.factory.get(download_url, HTTP_COOKIE=f"{cookie_name}={token}")
+        download_response = self.download_view(download_request, uuid=export.uuid)
+
+        self.assertEqual(download_response.status_code, status.HTTP_200_OK)
+        mock_download.assert_called_once_with(export=mock.ANY, range_header=None)
+        self.assertEqual(download_response.cookies[cookie_name]["max-age"], 0)
+
+        replay_request = self.factory.get(download_url, HTTP_COOKIE=f"{cookie_name}={token}")
+        replay_response = self.download_view(replay_request, uuid=export.uuid)
+        self.assertEqual(replay_response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_list_exports(self):
         list_url = reverse(viewname=self.viewname_list)

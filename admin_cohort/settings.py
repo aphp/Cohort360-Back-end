@@ -346,6 +346,8 @@ CACHES = {"default": {"BACKEND": "django_redis.cache.RedisCache", "LOCATION": CE
 if not env.bool("ENABLE_CACHE", default=False):
     CACHES = {"default": {"BACKEND": "admin_cohort.tools.cache.CustomDummyCache"}}
 
+EXPORT_DOWNLOAD_TICKET_TTL_SECONDS = env.int("EXPORT_DOWNLOAD_TICKET_TTL_SECONDS", default=60)
+
 REST_FRAMEWORK_EXTENSIONS = {
     "DEFAULT_PARENT_LOOKUP_KWARG_NAME_PREFIX": "",
     "DEFAULT_USE_CACHE": "default",

@@ -28,7 +28,7 @@ class StorageProvider:
         """
         raise NotImplementedError
 
-    def stream_file(self, file_name: str):
+    def stream_file(self, file_name: str, offset: int = 0, length: int | None = None):
         """
         read and stream a file from the storage provider
         @param file_name: file to be streamed
@@ -74,8 +74,16 @@ class HDFSStorageProvider(StorageProvider):
         return self.client.status(hdfs_path=file_name).get("length")
 
     @catch_hdfs_error
-    def stream_file(self, file_name: str):
-        return self.client.read(hdfs_path=file_name, offset=0, length=None, encoding=None, chunk_size=1000000, delimiter=None, progress=None)
+    def stream_file(self, file_name: str, offset: int = 0, length: int | None = None):
+        return self.client.read(
+            hdfs_path=file_name,
+            offset=offset,
+            length=length,
+            encoding=None,
+            chunk_size=1000000,
+            delimiter=None,
+            progress=None,
+        )
 
     @catch_hdfs_error
     def delete_file(self, file_name: str):

@@ -164,8 +164,8 @@ class ExportService:
         launch_export_task.delay(export.pk)
 
     @staticmethod
-    def download(export: Export) -> StreamingHttpResponse:
-        return ExportDownloader().download(export=export)
+    def download(export: Export, range_header: str | None = None) -> StreamingHttpResponse:
+        return ExportDownloader().download(export=export, range_header=range_header)
 
     @staticmethod
     def retry(export: Export):
