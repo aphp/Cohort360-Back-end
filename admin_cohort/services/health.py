@@ -4,6 +4,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Callable, Optional
 
+import certifi
 import requests
 from django.apps import apps
 from django.conf import settings
@@ -144,6 +145,7 @@ def _check_influxdb() -> Optional[str]:
         url=settings.INFLUXDB_URL,
         token=settings.INFLUXDB_TOKEN,
         org=settings.INFLUXDB_ORG,
+        ssl_ca_cert=certifi.where(),
         timeout=int(CHECK_TIMEOUT_SECONDS * 1000),
     )
     try:

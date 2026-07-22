@@ -178,6 +178,13 @@ class IndividualChecksTests(SimpleTestCase):
         client.ping.return_value = True
         mock_client_cls.return_value = client
         self.assertIsNone(_check_influxdb())
+        mock_client_cls.assert_called_once_with(
+            url="http://x",
+            token="t",
+            org="o",
+            ssl_ca_cert=health_module.certifi.where(),
+            timeout=2000,
+        )
         client.close.assert_called_once()
 
     @override_settings(INFLUXDB_ENABLED=True, INFLUXDB_URL="http://x", INFLUXDB_TOKEN="t", INFLUXDB_ORG="o")
