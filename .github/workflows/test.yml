@@ -50,10 +50,10 @@ jobs:
         run: uv python install 3.13
 
       - name: Ruff (lint)
-        run: uv tool run ruff check .
+        run: uv tool run ruff@0.15.22 check .
 
       - name: Ruff (format)
-        run: uv tool run ruff format --check .
+        run: uv tool run ruff@0.15.22 format --check .
 
   safety:
     needs: [pr-target-guard]
