@@ -1,14 +1,11 @@
 import logging
-import sys
 
 from django.db import connections
 
 from cohort.scripts.patch_requests_v140 import NEW_VERSION as PREV_VERSION
 from cohort.scripts.query_request_updater import RESOURCE_DEFAULT, MATCH_ALL_VALUES, QueryRequestUpdater, find_mapped_code
 
-LOGGER = logging.getLogger("info")
-stream_handler = logging.StreamHandler(stream=sys.stdout)
-LOGGER.addHandler(stream_handler)
+logger = logging.getLogger(__name__)
 
 NEW_VERSION = "v1.4.4"
 
@@ -23,7 +20,7 @@ code_mapping_cache = {}
 
 
 def find_related_codes(codes: str):
-    LOGGER.info(f"Translating codes {codes}")
+    logger.info(f"Translating codes {codes}")
     return ",".join(
         [
             find_mapped_code(

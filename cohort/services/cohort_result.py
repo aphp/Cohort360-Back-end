@@ -14,7 +14,7 @@ from cohort.services.utils import get_authorization_header, ServerError
 from admin_cohort.services.ws_event_manager import WebsocketManager, WebSocketMessageType
 from cohort.tasks import create_cohort
 
-_logger = logging.getLogger("info")
+_logger = logging.getLogger(__name__)
 
 
 class CohortResultService(CommonService):

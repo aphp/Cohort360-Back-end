@@ -6,6 +6,7 @@ from pathlib import Path
 import environ
 import pytz
 from celery.schedules import crontab
+from django.core.exceptions import ImproperlyConfigured
 from django.db.utils import DEFAULT_DB_ALIAS
 
 
@@ -59,27 +60,39 @@ NOTIFY_ADMINS = env.bool("NOTIFY_ADMINS", default=False)
 logging.captureWarnings(True)
 
 SOCKET_LOGGER_HOST = env("SOCKET_LOGGER_HOST", default="localhost")
-LOGGING = dict(
-    version=1,
-    disable_existing_loggers=False,
-    loggers={
-        "info": {"level": "INFO", "handlers": ["info", "console"], "propagate": False},
-        "django.request": {"level": "ERROR", "handlers": ["error", "console"] + (NOTIFY_ADMINS and ["mail_admins"] or []), "propagate": False},
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "root": {
+        "level": "INFO",
+        "handlers": ["console", "socket_handler"] + (NOTIFY_ADMINS and ["mail_admins"] or []),
     },
-    filters={
+    "loggers": {
+        # /!\ Logs coming from modules within the project apps are managed by the root logger.
+        # this includes logs coming from loggers created per module by: logging.getLogger(__name__)
+        "django": {
+            "level": "ERROR",
+            "handlers": ["console", "socket_handler"] + (NOTIFY_ADMINS and ["mail_admins"] or []),
+            "propagate": False,
+        },
+        "celery": {
+            "level": "INFO",
+            "handlers": ["console", "socket_handler"],
+            "propagate": False,
+        },
+    },
+    "filters": {
         "request_headers_interceptor": {"()": "admin_cohort.tools.logging.RequestHeadersInterceptorFilter"},
     },
-    handlers={
-        "console": {"level": "INFO", "class": "logging.StreamHandler", "filters": ["request_headers_interceptor"]},
-        "info": {
+    "handlers": {
+        "console": {
             "level": "INFO",
-            "class": "admin_cohort.tools.logging.CustomSocketHandler",
-            "host": SOCKET_LOGGER_HOST,
-            "port": DEFAULT_TCP_LOGGING_PORT,
+            "class": "logging.StreamHandler",
+            "stream": "ext://sys.stdout",
             "filters": ["request_headers_interceptor"],
         },
-        "error": {
-            "level": "ERROR",
+        "socket_handler": {
+            "level": "INFO",
             "class": "admin_cohort.tools.logging.CustomSocketHandler",
             "host": SOCKET_LOGGER_HOST,
             "port": DEFAULT_TCP_LOGGING_PORT,
@@ -87,7 +100,7 @@ LOGGING = dict(
         },
         "mail_admins": {"level": "ERROR", "class": "django.utils.log.AdminEmailHandler", "include_html": True},
     },
-)
+}
 
 INCLUDED_APPS = env("INCLUDED_APPS", default="accesses,content_management,cohort_job_server,cohort,exports,accesses_fhir_perimeters").split(",")
 
@@ -108,9 +121,11 @@ INSTALLED_APPS = [
     "channels",
     "django_celery_beat",
     "admin_cohort",
+    "django_prometheus",
 ] + INCLUDED_APPS
 
 MIDDLEWARE = [
+    "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",
@@ -123,12 +138,16 @@ MIDDLEWARE = [
     "admin_cohort.middleware.context_request_middleware.ContextRequestMiddleware",
     "admin_cohort.middleware.jwt_session_middleware.JWTSessionMiddleware",
     "admin_cohort.middleware.swagger_headers_middleware.SwaggerHeadersMiddleware",
+    "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]
 
 INFLUXDB_ENABLED = env.bool("INFLUXDB_ENABLED", default=False)
 
 if INFLUXDB_ENABLED:
-    MIDDLEWARE = ["admin_cohort.middleware.influxdb_middleware.InfluxDBMiddleware"] + MIDDLEWARE
+    _prom_before = "django_prometheus.middleware.PrometheusBeforeMiddleware"
+    _influx = "admin_cohort.middleware.influxdb_middleware.InfluxDBMiddleware"
+    _idx = MIDDLEWARE.index(_prom_before) + 1 if _prom_before in MIDDLEWARE else 0
+    MIDDLEWARE = MIDDLEWARE[:_idx] + [_influx] + MIDDLEWARE[_idx:]
 
 TEMPLATES = [
     {
@@ -208,6 +227,7 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend", "rest_framework.filters.SearchFilter"],
     "PAGE_SIZE": 20,
+    "EXCEPTION_HANDLER": "admin_cohort.tools.exception_handler.custom_exception_handler",
 }
 
 PAGINATION_MAX_LIMIT = 30_000
@@ -252,11 +272,23 @@ CELERY_RESULT_SERIALIZER = "json"
 CELERY_TASK_SERIALIZER = "json"
 CELERY_TASK_ALWAYS_EAGER = False
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+DM_WATCHDOG_PERIOD_MINUTES = env.int("DM_WATCHDOG_PERIOD_MINUTES", default=5)
+DM_WATCHDOG_THRESHOLD_MINUTES = env.int("DM_WATCHDOG_THRESHOLD_MINUTES", default=15)
+
+if DM_WATCHDOG_PERIOD_MINUTES < 1:
+    raise ImproperlyConfigured("DM_WATCHDOG_PERIOD_MINUTES must be >= 1")
+if DM_WATCHDOG_THRESHOLD_MINUTES < 1:
+    raise ImproperlyConfigured("DM_WATCHDOG_THRESHOLD_MINUTES must be >= 1")
+
 CELERY_BEAT_SCHEDULE = {
     "maintenance_notifier": {
         "task": "admin_cohort.tasks.maintenance_notifier_checker",
         "schedule": crontab(minute=f"*/{MAINTENANCE_PERIODIC_SCHEDULING_MINUTES}"),
-    }
+    },
+    "mark_stuck_dated_measures_as_failed": {
+        "task": "cohort.tasks.mark_stuck_dated_measures_as_failed",
+        "schedule": crontab(minute=f"*/{DM_WATCHDOG_PERIOD_MINUTES}"),
+    },
 }
 
 SCHEDULED_TASKS = env("SCHEDULED_TASKS", default="")
@@ -297,7 +329,7 @@ TRACE_ID_HEADER = "X-Trace-Id"
 IMPERSONATING_HEADER = "X-Impersonate"
 
 # CUSTOM EXCEPTION REPORTER
-DEFAULT_EXCEPTION_REPORTER_FILTER = "admin_cohort.tools.except_report_filter.CustomExceptionReporterFilter"
+DEFAULT_EXCEPTION_REPORTER_FILTER = "admin_cohort.tools.exception_report_filter.CustomExceptionReporterFilter"
 
 # COHORTS +20k
 LAST_COUNT_VALIDITY = env.int("LAST_COUNT_VALIDITY", default=24)  # in hours

@@ -8,7 +8,7 @@ from rest_framework.test import force_authenticate
 
 from admin_cohort.models import User
 from admin_cohort.tests.tests_tools import CaseRetrieveFilter, random_str, ListCase, RetrieveCase, CreateCase, DeleteCase, PatchCase, RequestCase
-from cohort.models import Request, Folder
+from cohort.models import Request, Folder, RequestQuerySnapshot
 from cohort.tests.cohort_app_tests import CohortAppTests
 from cohort.tests.tests_view_folders import FolderCaseRetrieveFilter
 from cohort.views import RequestViewSet, NestedRequestViewSet
@@ -126,6 +126,28 @@ class RequestsGetTests(RequestsTests):
             ),
         ]
         [self.check_get_paged_list_case(case) for case in cases]
+
+    def test_list_ordering_puts_null_updated_at_last(self):
+        # As a user, when ordering by updated_at, requests without snapshots (null updated_at)
+        # must come last instead of bubbling to the top on a descending sort
+        folder = Folder.objects.create(owner=self.user1, name="ordering")
+        older = Request.objects.create(name="older", owner=self.user1, parent_folder=folder)
+        newer = Request.objects.create(name="newer", owner=self.user1, parent_folder=folder)
+        no_snapshot = Request.objects.create(name="no_snapshot", owner=self.user1, parent_folder=folder)
+
+        now = timezone.now()
+        for req, days in ((older, 2), (newer, 1)):
+            snapshot = RequestQuerySnapshot.objects.create(owner=self.user1, request=req, serialized_query="{}")
+            RequestQuerySnapshot.objects.filter(pk=snapshot.pk).update(created_at=now - timedelta(days=days))
+
+        request = self.factory.get(self.objects_url, data=dict(parent_folder=folder.pk, ordering="-updated_at"))
+        force_authenticate(request, self.user1)
+        response = self.__class__.list_view(request)
+        response.render()
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        ordered_ids = [r["uuid"] for r in response.data["results"]]
+        self.assertEqual(ordered_ids, [str(newer.pk), str(older.pk), str(no_snapshot.pk)])
 
     def test_rest_get_list_from_folder(self):
         # As a user, I can get the list of requests from the Folder they are

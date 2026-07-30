@@ -1,3 +1,5 @@
+import logging
+
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Q, F, BooleanField, When, Case, Value
@@ -23,6 +25,8 @@ from cohort.serializers import (
 from cohort.services.cohort_rights import cohort_rights_service
 from cohort.views.shared import UserObjectsRestrictedViewSet
 from exports.services.export import export_service
+
+_logger = logging.getLogger(__name__)
 
 
 class CohortFilter(filters.FilterSet):
@@ -115,6 +119,12 @@ class CohortResultViewSet(NestedViewSetMixin, UserObjectsRestrictedViewSet):
         response = super().create(request, *args, **kwargs)
         transaction.on_commit(
             lambda: cohort_service.handle_cohort_creation(request=request, cohort=response.data.serializer.instance, global_estimate=global_estimate)
+        )
+        _logger.info(
+            "Cohort created by user %s - cohort: %s - global estimation: %s",
+            request.user.username,
+            response.data.serializer.instance,
+            global_estimate,
         )
         return response
 

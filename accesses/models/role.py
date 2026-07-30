@@ -33,6 +33,7 @@ class Role(BaseModel):
     right_search_patients_by_ipp = models.BooleanField(default=False, null=False)
     right_search_patients_unlimited = models.BooleanField(default=False, null=False)
     right_search_opposed_patients = models.BooleanField(default=False, null=False)
+    right_read_logs = models.BooleanField(default=False, null=False)
 
     class Meta:
         constraints = [UniqueConstraint(name="unique_name", fields=["name"], condition=Q(delete_datetime__isnull=True))]
@@ -71,6 +72,7 @@ class Role(BaseModel):
             or self.right_search_patients_unlimited
             or self.right_manage_admin_accesses_same_level
             or self.right_manage_admin_accesses_inferior_levels
+            or self.right_read_logs
         )
 
     def requires_admin_accesses_managing_right_to_be_managed(self):

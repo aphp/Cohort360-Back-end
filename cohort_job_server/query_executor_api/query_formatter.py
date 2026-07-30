@@ -22,7 +22,7 @@ env = os.environ
 FHIR_URL = env.get("FHIR_URL")
 META_SECURITY_PSEUDED = "meta.security=http://terminology.hl7.org/CodeSystem/v3-ObservationValue|PSEUDED"
 
-_logger = logging.getLogger("info")
+logger = logging.getLogger(__name__)
 
 
 def query_fhir(resource: str, params: dict[str, list[str]], auth_headers: dict) -> FhirParameters:
@@ -31,11 +31,11 @@ def query_fhir(resource: str, params: dict[str, list[str]], auth_headers: dict) 
     # this additional query is made to the real endpoint because the $query one does not check for params
     if CohortJobServerConfig.TEST_FHIR_QUERIES:
         url_test = f"{FHIR_URL}/{resource}"
-        _logger.info(f"Testing real fhir query with {url_test=} {params=}")
+        logger.info(f"Testing real fhir query with {url_test=} {params=}")
         response = requests.get(url_test, params={**params, "_count": 0}, headers=auth_headers, timeout=HTTP_REQUEST_TIMEOUT)
         response.raise_for_status()
 
-    _logger.info(f"Attempting to query fhir with {url=} {params=}")
+    logger.info(f"Attempting to query fhir with {url=} {params=}")
 
     auth_headers[settings.TRACE_ID_HEADER] = get_trace_id()
 
@@ -48,6 +48,42 @@ def query_fhir(resource: str, params: dict[str, list[str]], auth_headers: dict) 
 def add_security_params_to_filter_fhir(sub_criteria: Criteria, source_population: SourcePopulation, is_pseudo: bool):
     filter_fhir_enriched = sub_criteria.add_criteria(source_population)
     return f"{META_SECURITY_PSEUDED}&{filter_fhir_enriched}" if is_pseudo else filter_fhir_enriched
+
+
+# Procedure ne porte que du CCAM (EDS), donc un token sans système est du CCAM legacy.
+CCAM_CODESYSTEMS = frozenset(
+    {
+        "https://www.atih.sante.fr/plateformes-de-transmission-et-logiciels/logiciels-espace-de-telechargement/id_lot/3550",
+        "https://terminology.eds.aphp.fr/aphp-orbis-ccam",
+        "https://aphp.fr/ig/fhir/core/CodeSystem/CCAMDescriptiveVerAPHP",
+    }
+)
+
+
+def prefix_ccam_leaf_code(token: str) -> str:
+    # Le référentiel CCAM a été ré-encodé (segmentation des actes, suffixe de niveau sur les
+    # noeuds) : un code stocké ne matche plus à l'identique, quel que soit son format. On le
+    # cherche donc en préfixe, sauf s'il porte déjà un `*` ou un système non-CCAM.
+    system, sep, code = token.rpartition("|")
+    if sep and system not in CCAM_CODESYSTEMS:
+        return token
+    if not code or code.endswith("*"):
+        return token
+    return f"{system}{sep}{code}*"
+
+
+def add_prefix_search_on_ccam_leaves(filter_fhir: str, resource_type: ResourceType) -> str:
+    if not filter_fhir or resource_type != ResourceType.PROCEDURE:
+        return filter_fhir
+    params = []
+    for param in filter_fhir.split("&"):
+        key, sep, value = param.partition("=")
+        base, _, modifier = key.partition(":")
+        # `code:in` / `code:not-in` portent une URI de ValueSet, pas des codes : on ne les touche pas.
+        if sep and base == "code" and modifier in ("", "not"):
+            value = ",".join(prefix_ccam_leaf_code(token) for token in value.split(","))
+        params.append(f"{key}{sep}{value}")
+    return "&".join(params)
 
 
 class QueryFormatter:
@@ -63,9 +99,10 @@ class QueryFormatter:
                 return None
 
             if criteria.criteria_type == CriteriaType.BASIC_RESOURCE:
+                criteria.filter_fhir = add_prefix_search_on_ccam_leaves(criteria.filter_fhir, criteria.resource_type)
                 filter_fhir_enriched = add_security_params_to_filter_fhir(criteria, source_population, is_pseudo)
 
-                _logger.info(f"filterFhirEnriched {filter_fhir_enriched}")
+                logger.info(f"filterFhirEnriched {filter_fhir_enriched}")
 
                 if CohortJobServerConfig.USE_SOLR:
                     solr_filter = self.get_mapping_criteria_filter_fhir_to_solr(criteria.filter_fhir, criteria.resource_type)
@@ -91,7 +128,7 @@ class QueryFormatter:
 
         fhir_resources_filters = self.call_fhir_resource(resource_type, filter_fhir)
         full_query = fhir_resources_filters["fq"]
-        _logger.info(f"FQ: {full_query}")
+        logger.info(f"FQ: {full_query}")
         return self.merge_fq(full_query, ipp_list_filter)
 
     def is_ipp_list(self, resource_type, filter_fhir) -> bool:
@@ -121,12 +158,12 @@ class QueryFormatter:
                 else:
                     fhir_params[key] = [decoded_value]
         params = query_fhir(resource_type, fhir_params, self.auth_headers)
-        _logger.info(f"output: {params}")
+        logger.info(f"output: {params}")
         return params.to_dict()
 
     def merge_fq(self, full_query, ipp_list_filter) -> str:
         if ipp_list_filter is None:
             return full_query
-        _logger.info("Add Ipp list")
+        logger.info("Add Ipp list")
         formatted_filter = ipp_list_filter.replace(",", " ")
         return f"{full_query}&fq={self.IDENTIFIER_VALUE}:({formatted_filter})"

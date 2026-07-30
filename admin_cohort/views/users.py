@@ -19,7 +19,7 @@ from admin_cohort.tools.cache import cache_response
 from admin_cohort.exceptions import ServerError
 from admin_cohort.tools.request_log_mixin import RequestLogMixin
 
-_logger = logging.getLogger("django.request")
+_logger_info = logging.getLogger(__name__)
 
 
 class UserFilter(filters.FilterSet):
@@ -84,6 +84,7 @@ class UserViewSet(RequestLogMixin, viewsets.ModelViewSet):
         users_service.validate_user_data(data=request.data)
         response = super().create(request, *args, **kwargs)
         users_service.setup_profile(data=request.data)
+        _logger_info.info("User created by user %s", request.user.username)
         return response
 
     @cache_response()

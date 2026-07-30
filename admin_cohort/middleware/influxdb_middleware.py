@@ -1,4 +1,6 @@
 from time import time
+
+import certifi
 from influxdb_client import InfluxDBClient
 from influxdb_client.client.write_api import ASYNCHRONOUS
 
@@ -8,7 +10,11 @@ from django.conf import settings
 class InfluxDBMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
-        self.client = InfluxDBClient(url=settings.INFLUXDB_URL, token=settings.INFLUXDB_TOKEN)
+        self.client = InfluxDBClient(
+            url=settings.INFLUXDB_URL,
+            token=settings.INFLUXDB_TOKEN,
+            ssl_ca_cert=certifi.where(),
+        )
 
     def __call__(self, request):
         if not settings.INFLUXDB_ENABLED:

@@ -1,14 +1,19 @@
+import logging
 from typing import Optional
 
 from django.utils import timezone
 
+from admin_cohort.services.prometheus_metrics import QUERY_EXECUTOR_REQUEST_DURATION_SECONDS
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult
 from cohort_job_server.apps import CohortJobServerConfig
 from cohort_job_server.base_operator import BaseCohortOperator
 from cohort_job_server.query_executor_api import query_executor_status_mapper, CohortCreate
 from cohort_job_server.tasks import notify_large_cohort_ready
-from cohort_job_server.utils import _logger, _logger_err, JOB_STATUS, GROUP_ID, GROUP_COUNT, ERR_MESSAGE
+from cohort_job_server.utils import JOB_STATUS, GROUP_ID, GROUP_COUNT, ERR_MESSAGE
+
+
+logger = logging.getLogger(__name__)
 
 
 class CohortCreator(BaseCohortOperator):
@@ -36,18 +41,20 @@ class CohortCreator(BaseCohortOperator):
 
     @staticmethod
     def handle_patch_cohort(cohort: CohortResult, data: dict) -> None:
-        _logger.info(f"Cohort[{cohort.uuid}]: Received patch data: {data}")
+        logger.info(f"Cohort[{cohort.uuid}]: Received patch data: {data}")
         if JOB_STATUS in data:
             job_status = query_executor_status_mapper(data[JOB_STATUS])
             if not job_status:
                 raise ValueError(f"Bad Request: Invalid job status: {data.get(JOB_STATUS)}")
             if job_status in (JobStatus.finished, JobStatus.failed):
-                data["request_job_duration"] = str(timezone.now() - cohort.created_at)
+                duration = timezone.now() - cohort.created_at
+                data["request_job_duration"] = str(duration)
+                QUERY_EXECUTOR_REQUEST_DURATION_SECONDS.labels(request_type="cohort", status=job_status.value).observe(duration.total_seconds())
                 if job_status == JobStatus.failed:
                     data["request_job_fail_msg"] = data.pop(ERR_MESSAGE, None)
-                    _logger_err.error(f"CohortResult[{cohort.uuid}] - Failed")
+                    logger.error(f"CohortResult[{cohort.uuid}] - Failed")
             else:
-                _logger.info(f"CohortResult[{cohort.uuid}] - Ended with status: {job_status}")
+                logger.info(f"CohortResult[{cohort.uuid}] - Ended with status: {job_status}")
             data["request_job_status"] = job_status
         if GROUP_ID in data:
             data["group_id"] = data.pop(GROUP_ID)
@@ -62,7 +69,7 @@ class CohortCreator(BaseCohortOperator):
         is_update_from_etl = caller == CohortJobServerConfig.solr_etl_username
 
         if is_update_from_query_executor:
-            _logger.info(f"Cohort[{cohort.uuid}] successfully updated from Query Executor")
+            logger.info(f"Cohort[{cohort.uuid}] successfully updated from Query Executor")
         if is_update_from_etl:
             notify_large_cohort_ready.s(cohort_id=cohort.uuid).apply_async()
-            _logger.info(f"Cohort[{cohort.uuid}] successfully updated from Solr ETL. Owner notified by email")
+            logger.info(f"Cohort[{cohort.uuid}] successfully updated from Solr ETL. Owner notified by email")

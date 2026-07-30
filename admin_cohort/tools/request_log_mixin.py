@@ -1,8 +1,4 @@
-import logging
-
 from rest_framework_tracking.mixins import LoggingMixin
-
-_logger = logging.getLogger("django.request")
 
 
 class RequestLogMixin(LoggingMixin):

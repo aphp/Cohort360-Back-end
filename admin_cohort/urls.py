@@ -12,10 +12,12 @@ from admin_cohort.views import (
     RequestLogViewSet,
     MaintenancePhaseViewSet,
     CacheViewSet,
+    HealthView,
     ReleaseNotesViewSet,
     TokenRefreshView,
     LogoutView,
     NotFoundView,
+    metrics_view,
 )
 
 DOCS_ENDPOINT = "docs"
@@ -37,6 +39,7 @@ urlpatterns = [
     re_path(r"^auth/logout/$", LogoutView.as_view({"post": "post"}), name="logout"),
     re_path(r"^auth/refresh/$", TokenRefreshView.as_view({"post": "post"}), name="token-refresh"),
     re_path(r"^cache", CacheViewSet.as_view(), name="cache"),
+    re_path(r"^health/?$", HealthView.as_view(), name="health"),
     re_path(r"^", include(router.urls)),
     path("webcontent/", include(("content_management.urls", "webcontent"), namespace="content")),
     path("accesses/", include(("accesses.urls", "accesses"), namespace="accesses")),
@@ -46,4 +49,5 @@ urlpatterns = [
     path(f"{DOCS_ENDPOINT}", SpectacularSwaggerView.as_view(), name="swagger-ui"),
     re_path(r"^schema", SpectacularAPIView.as_view(), name="schema"),
     re_path(r"^redoc/$", SpectacularRedocView.as_view(), name="redoc"),
+    path("metrics", metrics_view, name="metrics"),
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

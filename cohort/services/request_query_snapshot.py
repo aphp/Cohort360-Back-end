@@ -9,17 +9,19 @@ from admin_cohort.tools.cache import invalidate_cache
 from cohort.services.emails import send_email_notif_about_shared_request
 from cohort.models import RequestQuerySnapshot, Folder, Request
 
-_logger_err = logging.getLogger("django.request")
+logger = logging.getLogger(__name__)
 
 
 class RequestQuerySnapshotService:
     @staticmethod
-    def process_creation_data(data: dict) -> None:
+    def process_creation_data(data: dict) -> Optional[RequestQuerySnapshot]:
         previous_snapshot_id = data.get("previous_snapshot")
         request_id = data.get("request")
+        previous_snapshot: Optional[RequestQuerySnapshot] = None
         if previous_snapshot_id:
             previous_snapshot = RequestQuerySnapshot.objects.get(pk=previous_snapshot_id)
-            if request_id and request_id != previous_snapshot.request_id:
+            # cast both: request_id may be a str (JSON body) while .request_id is UUID
+            if request_id and str(request_id) != str(previous_snapshot.request_id):
                 raise ValueError("The provided request is different from the previous_snapshot's request")
             data["request"] = previous_snapshot.request_id
         elif request_id:
@@ -36,8 +38,14 @@ class RequestQuerySnapshotService:
         req_id = data.get("request")
         if req_id is None:
             raise ValueError("request is required")
-        request = Request.objects.get(pk=req_id)
+
+        request = Request.objects.select_for_update().get(pk=req_id)
+
+        if previous_snapshot is not None and previous_snapshot.serialized_query == serialized_query:
+            return previous_snapshot
+
         data["version"] = request.query_snapshots.count() + 1
+        return None
 
     @staticmethod
     def check_shared_folders(recipients: List[User]) -> tuple[List[Folder], dict[str, Folder]]:
@@ -135,7 +143,7 @@ class RequestQuerySnapshotService:
             return perimeters_ids
         except (json.JSONDecodeError, TypeError, KeyError) as e:
             msg = f"Error extracting perimeters ids from JSON query - {e}"
-            _logger_err.exception(msg=msg)
+            logger.exception(msg=msg)
             raise ValueError(msg)
 
     @staticmethod
@@ -148,7 +156,7 @@ class RequestQuerySnapshotService:
             return json.dumps(query)
         except (json.JSONDecodeError, TypeError, KeyError) as e:
             msg = f"Error updating perimeters ids from JSON query - {e}"
-            _logger_err.exception(msg=msg)
+            logger.exception(msg=msg)
             if raise_on_error:
                 raise ValueError(msg)
             return json_query

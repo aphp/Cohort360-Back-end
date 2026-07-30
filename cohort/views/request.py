@@ -1,12 +1,13 @@
 from django.db.models.expressions import Subquery, OuterRef
 from django.db.models.query import Prefetch
 from django.http import QueryDict
-from django_filters import rest_framework as filters, OrderingFilter
+from django_filters import rest_framework as filters
 from drf_spectacular.utils import extend_schema_view, extend_schema
 from rest_framework import status
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from admin_cohort.tools.cache import cache_response
+from admin_cohort.tools.ordering import NullsLastOrderingFilter
 from cohort.models import Request, RequestQuerySnapshot as RQS
 from cohort.serializers import RequestSerializer, RequestCreateSerializer, RequestPatchSerializer
 from cohort.views.shared import UserObjectsRestrictedViewSet
@@ -16,7 +17,7 @@ class RequestFilter(filters.FilterSet):
     min_updated_at = filters.IsoDateTimeFilter(field_name="updated_at", lookup_expr="gte")
     max_updated_at = filters.IsoDateTimeFilter(field_name="updated_at", lookup_expr="lte")
 
-    ordering = OrderingFilter(fields=("name", "updated_at", ("parent_folder__name", "parent_folder")))
+    ordering = NullsLastOrderingFilter(fields=("name", "updated_at", ("parent_folder__name", "parent_folder")))
 
     class Meta:
         model = Request

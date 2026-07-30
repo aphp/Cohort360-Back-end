@@ -1,4 +1,5 @@
 import json
+import logging
 
 from django.db.models import BooleanField, When, Case, Value, QuerySet
 from django.db.models.query_utils import Q
@@ -21,6 +22,8 @@ from admin_cohort.tools.request_log_mixin import RequestLogMixin
 from accesses.models import Access
 from accesses.permissions import AccessesPermission
 from accesses.serializers import AccessSerializer, DataRightSerializer, ExpiringAccessesSerializer
+
+_logger = logging.getLogger(__name__)
 
 
 class AccessFilter(filters.FilterSet):
@@ -107,7 +110,9 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
             accesses_service.process_create_data(data=request.data)
         except ValueError as e:
             return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        return super().create(request, *args, **kwargs)
+        resp = super().create(request, *args, **kwargs)
+        _logger.info("Access created by user %s - request data: %s", request.user.username, request.data)
+        return resp
 
     @extend_schema(request=AccessSerializer, responses={status.HTTP_200_OK: AccessSerializer})
     def partial_update(self, request, *args, **kwargs):
@@ -115,7 +120,9 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
             accesses_service.process_patch_data(access=self.get_object(), data=request.data)
         except ValueError as e:
             return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        return super().partial_update(request, *args, **kwargs)
+        resp = super().partial_update(request, *args, **kwargs)
+        _logger.info("Access updated by user %s - request data: %s", request.user.username, request.data)
+        return resp
 
     @extend_schema(request=AccessSerializer, responses={status.HTTP_200_OK: AccessSerializer})
     @action(url_path="close", detail=True, methods=["patch"])
@@ -126,6 +133,7 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
         except ValueError as e:
             return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         request.data.update({"end_datetime": now})
+        _logger.info("Access closed by user %s - request data: %s", request.user.username, request.data)
         return super().partial_update(request, *args, **kwargs)
 
     @extend_schema(responses={status.HTTP_204_NO_CONTENT: None})
@@ -134,6 +142,7 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
         if access.start_datetime and access.start_datetime < timezone.now():
             return Response(data={"error": "L'accès est déjà activé, il ne peut plus être supprimé."}, status=status.HTTP_400_BAD_REQUEST)
         self.perform_destroy(access)
+        _logger.info("Access deleted by user %s - access id: %s", request.user.username, access.id)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @extend_schema(responses={status.HTTP_200_OK: AccessSerializer(many=True)})

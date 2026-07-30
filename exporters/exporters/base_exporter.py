@@ -6,6 +6,7 @@ from django.utils import timezone
 from requests import RequestException
 
 from admin_cohort.models import User
+from admin_cohort.services.prometheus_metrics import EXPORTS_TOTAL
 from admin_cohort.types import JobStatus
 from exporters.apis.export_api import ExportAPI
 from exporters.apis.hadoop_api import HadoopAPI
@@ -15,8 +16,7 @@ from exports.models import Export, ExportTable
 from exports.services.rights_checker import rights_checker
 from exporters.tasks import notify_export_received, notify_export_succeeded, notify_export_failed
 
-_celery_logger = logging.getLogger("celery.app")
-_logger = logging.getLogger("django.request")
+logger = logging.getLogger(__name__)
 
 
 class BaseExporter:
@@ -75,12 +75,30 @@ class BaseExporter:
         export.request_job_duration = str(timezone.now() - start_time)
         export.save()
         self.log_export_task(export.pk, "Export job finished")
+        # Post-export finalization (e.g. transferring file ownership to the datalab) MUST succeed
+        # before the export is reported as successful. Running it here - and not after the success
+        # notification - guarantees the exported files carry the right permissions by the time the
+        # user is told the export is ready.
+        try:
+            self.finalize_export(export=export)
+        except RequestException as e:
+            self.mark_export_as_failed(export=export, reason=f"Could not finalize export: {e}")
+            return
         self.confirm_export_succeeded(export=export)
+
+    def finalize_export(self, export: Export) -> None:
+        """Hook for post-export steps that must complete before the export is considered a success.
+
+        The default export has nothing to finalize. Subclasses (e.g. Hive) override this to transfer
+        ownership of the exported files to the target datalab; raising from here marks the export as
+        failed instead of silently leaving the files unreadable.
+        """
+        pass
 
     def build_tables_input(self, export) -> List[dict[str, str]]:
         required_table_name = self.export_api.required_table
         try:
-            required_table = export.export_tables.get(name=required_table_name)
+            required_table = export.export_tables.get(name__iexact=required_table_name)
             linked_cohort = required_table.cohort_result_subset or required_table.cohort_result_source
             required_table_data = {"tableName": required_table_name, "cohortId": linked_cohort.group_id, "relation": True}
             if required_table.columns:
@@ -89,7 +107,7 @@ class BaseExporter:
             raise ValueError(f"Missing {required_table_name} table from export")
 
         other_tables = []
-        for t in export.export_tables.exclude(name=required_table_name):
+        for t in export.export_tables.exclude(name__iexact=required_table_name):
             t_data = {"tableName": t.name, "relation": True}
             if t.cohort_result_subset:
                 t_data["cohortId"] = t.cohort_result_subset.group_id
@@ -156,15 +174,22 @@ class BaseExporter:
 
     @staticmethod
     def confirm_export_succeeded(export: Export) -> None:
-        notify_export_succeeded.delay(export.pk)
+        EXPORTS_TOTAL.labels(status=JobStatus.finished.value, output_format=export.output_format).inc()
+        try:
+            notify_export_succeeded.delay(export.pk)
+        except Exception as e:
+            # The export and its file permissions are already complete at this point; a failure to
+            # enqueue the success notification must not bubble up and abort the task.
+            logger.error(f"[Export {export.pk}] Could not enqueue success notification: {e}")
 
     @staticmethod
     def mark_export_as_failed(export: Export, reason: str) -> None:
         export.request_job_status = JobStatus.failed
         export.request_job_fail_msg = reason
         export.save()
+        EXPORTS_TOTAL.labels(status=JobStatus.failed.value, output_format=export.output_format).inc()
         notify_export_failed.delay(export.pk, reason)
 
     @staticmethod
     def log_export_task(export_id, msg):
-        _celery_logger.info(f"[Export {export_id}] {msg}")
+        logger.info(f"[Export {export_id}] {msg}")

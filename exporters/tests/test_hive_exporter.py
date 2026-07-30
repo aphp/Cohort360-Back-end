@@ -9,12 +9,12 @@ from exporters.tests.base_test import ExportersTestBase
 class TestHiveExporter(ExportersTestBase):
     def setUp(self):
         super().setUp()
-        self.person_table_name = "person"
+        self.person_table_name = "Patient"
         self.cohorts = [self.cohort, self.cohort2]
         with mock.patch("exporters.exporters.base_exporter.HadoopAPI"):
             self.exporter = HiveExporter()
             self.mock_hadoop_api = self.exporter.hadoop_api
-            self.mock_hadoop_api.required_table = "person"
+            self.mock_hadoop_api.required_table = "Patient"
 
     def test_validate_tables_data_all_tables_have_source_cohort(self):
         # all tables have a linked source cohort
@@ -26,7 +26,7 @@ class TestHiveExporter(ExportersTestBase):
         self.assertTrue(check)
 
     def test_validate_tables_data_only_person_table_has_source_cohort(self):
-        # only `person` table has a linked source cohort, the other tables don't
+        # only `Patient` table has a linked source cohort, the other tables don't
         tables_data = [
             {"table_name": "table_01"},
             {"table_name": self.person_table_name, "cohort_result_source": self.cohorts[0].uuid},
@@ -42,19 +42,26 @@ class TestHiveExporter(ExportersTestBase):
         self.assertTrue(check)
 
     def test_validate_tables_data_missing_source_cohort_for_person_table(self):
-        # tables tada is not valid if the `person` table dict is in the list but missing the source cohort
+        # tables tada is not valid if the `Patient` table dict is in the list but missing the source cohort
         tables_data = [{"table_name": self.person_table_name}, {"table_name": "table_01", "cohort_result_source": self.cohorts[0].uuid}]
         with self.assertRaises(ValueError):
             self.exporter.validate_tables_data(tables_data=tables_data)
 
     def test_validate_tables_data_with_only_person_table_without_source_cohort(self):
-        # tables data is not valid if the `person` table has no source cohort
+        # tables data is not valid if the `Patient` table has no source cohort
         tables_data = [{"table_name": self.person_table_name}]
         with self.assertRaises(ValueError):
             self.exporter.validate_tables_data(tables_data=tables_data)
 
+    def test_validate_tables_data_detects_required_table_case_insensitively(self):
+        # Ref #3289: a lowercase `patient` table is recognized as the required table, so the
+        # "missing source cohort" rule still applies instead of being silently skipped.
+        tables_data = [{"table_name": "patient"}]
+        with self.assertRaises(ValueError):
+            self.exporter.validate_tables_data(tables_data=tables_data)
+
     def test_validate_tables_data_all_tables_without_source_cohort_nor_person_table(self):
-        # tables data is not valid if the `person` table has no source cohort
+        # tables data is not valid if the `Patient` table has no source cohort
         tables_data = [{"table_name": "table_01"}, {"table_name": "table_02"}]
         with self.assertRaises(ValueError):
             self.exporter.validate_tables_data(tables_data=tables_data)
@@ -88,8 +95,41 @@ class TestHiveExporter(ExportersTestBase):
         self.exporter.conclude_export(export=self.hive_export)
         self.mock_hadoop_api.change_db_ownership.assert_called_once()
 
-    @mock.patch("exporters.exporters.base_exporter.notify_export_failed.delay")
-    def test_error_conclude_export(self, mock_notify_export_failed):
+    def test_error_conclude_export(self):
+        # conclude_export must propagate the failure so the caller marks the export as failed
+        # instead of silently leaving the files unreadable by the datalab.
         self.mock_hadoop_api.change_db_ownership.side_effect = RequestException()
-        self.exporter.conclude_export(export=self.hive_export)
-        mock_notify_export_failed.assert_called_once()
+        with self.assertRaises(RequestException):
+            self.exporter.conclude_export(export=self.hive_export)
+
+    def test_prepare_db(self):
+        self.mock_hadoop_api.create_db.return_value = "some-job-id"
+        self.mock_hadoop_api.get_export_logs.return_value = {"task_status": "FinishedSuccessfully"}
+        self.exporter.prepare_db(export=self.hive_export)
+        self.mock_hadoop_api.create_db.assert_called_once()
+        self.mock_hadoop_api.change_db_ownership.assert_called_once()
+
+    @mock.patch("exporters.exporters.base_exporter.BaseExporter.handle_export")
+    @mock.patch.object(HiveExporter, "prepare_db")
+    @mock.patch.object(HiveExporter, "confirm_export_received")
+    def test_handle_export_success(self, mock_confirm, mock_prepare, mock_super_handle):
+        self.exporter.handle_export(export=self.hive_export)
+        mock_confirm.assert_called_once_with(export=self.hive_export)
+        mock_prepare.assert_called_once_with(self.hive_export)
+        mock_super_handle.assert_called_once()
+
+    @mock.patch.object(HiveExporter, "conclude_export")
+    def test_finalize_export_concludes(self, mock_conclude):
+        # The ownership transfer is wired through finalize_export, the hook the base exporter calls
+        # before reporting success.
+        self.exporter.finalize_export(export=self.hive_export)
+        mock_conclude.assert_called_once_with(export=self.hive_export)
+
+    @mock.patch.object(HiveExporter, "mark_export_as_failed")
+    @mock.patch.object(HiveExporter, "prepare_db", side_effect=RequestException("boom"))
+    @mock.patch.object(HiveExporter, "confirm_export_received")
+    def test_handle_export_prepare_db_failure(self, mock_confirm, mock_prepare, mock_mark_failed):
+        self.exporter.handle_export(export=self.hive_export)
+        mock_confirm.assert_called_once()
+        mock_prepare.assert_called_once()
+        mock_mark_failed.assert_called_once()
