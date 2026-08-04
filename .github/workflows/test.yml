@@ -5,12 +5,14 @@ on:
     branches:
       - develop
       - backend-frigo
+      - frigo
       - main
     types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches:
       - develop
       - backend-frigo
+      - frigo
       - main
       - 'release/**'
       - 'hotfix/**'

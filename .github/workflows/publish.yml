@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - backend-frigo
+      - frigo
   workflow_run:
     workflows: [cohort360-backend-test]
     types: [completed]
@@ -15,6 +16,7 @@ on:
       - main
       - develop
       - backend-frigo
+      - frigo
       - 'release/**'
 
 jobs:
@@ -54,7 +56,7 @@ jobs:
             develop)
               echo "IMAGE_TAGS=aphpid/cohort360-backend:develop" >> "$GITHUB_ENV"
               ;;
-            backend-frigo)
+            backend-frigo|frigo)
               echo "IMAGE_TAGS=aphpid/cohort360-backend:backend-frigo" >> "$GITHUB_ENV"
               ;;
             release/*)
