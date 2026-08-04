@@ -58,7 +58,10 @@ class ExportLogsPermission(IsAuthenticated):
 class RetryExportPermission(IsAuthenticated):
     def has_permission(self, request, view):
         authenticated = super().has_permission(request, view)
-        return authenticated and request.method == "POST" and accesses_service.user_is_full_admin(request.user)
+        return authenticated and request.method == "POST"
+
+    def has_object_permission(self, request, view, obj):
+        return obj.owner == request.user or accesses_service.user_is_full_admin(request.user)
 
 
 class ReadDatalabsPermission(IsAuthenticated):
