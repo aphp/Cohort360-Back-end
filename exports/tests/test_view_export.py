@@ -115,18 +115,35 @@ class ExportViewSetTest(ExportsTestBase):
         )
 
     @mock.patch("exports.services.export.launch_export_task.delay")
-    @mock.patch.object(ExportViewSet, "get_object")
-    def test_successfully_retry_export(self, mock_get_object, mock_task):
+    def test_successfully_retry_export(self, mock_task):
         mock_task.return_value = None
-        mock_get_object.return_value = self.failed_export
         request = self.make_request(url=self.retry_url, http_verb="post", request_user=self.admin_user)
-        self.retry_view.kwargs = {"uuid": self.failed_export.pk}
-        response = self.retry_view(request)
+        response = self.retry_view(request, uuid=self.failed_export.uuid)
         mock_task.assert_called_once_with(self.failed_export.pk)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.failed_export.refresh_from_db()
         self.assertEqual(self.failed_export.request_job_status, JobStatus.new)
         self.assertTrue(self.failed_export.retried)
+
+    @mock.patch("exports.services.export.launch_export_task.delay")
+    def test_owner_can_retry_own_export(self, mock_task):
+        mock_task.return_value = None
+        request = self.make_request(url=self.retry_url, http_verb="post", request_user=self.exporter_user)
+        response = self.retry_view(request, uuid=self.failed_export.uuid)
+        mock_task.assert_called_once_with(self.failed_export.pk)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.failed_export.refresh_from_db()
+        self.assertEqual(self.failed_export.request_job_status, JobStatus.new)
+        self.assertTrue(self.failed_export.retried)
+
+    @mock.patch("exports.services.export.launch_export_task.delay")
+    def test_error_retry_export_of_another_user(self, mock_task):
+        request = self.make_request(url=self.retry_url, http_verb="post", request_user=self.user_without_rights)
+        response = self.retry_view(request, uuid=self.failed_export.uuid)
+        mock_task.assert_not_called()
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.failed_export.refresh_from_db()
+        self.assertEqual(self.failed_export.request_job_status, JobStatus.failed)
 
     @mock.patch.object(BaseAPI, "get_export_logs")
     @mock.patch.object(ExportViewSet, "get_object")
