@@ -82,11 +82,6 @@ class Criteria(BaseModel):
     temporal_constraints: list[TemporalConstraint] = Field(default_factory=list, alias="temporalConstraints")
     n_among_m_options: NAmongMOption = Field(None, alias="nAmongMOptions")
 
-    def add_criteria(self, obj) -> Optional[str]:
-        if self.filter_fhir is None:
-            return None
-        return self.filter_fhir if obj is None else f"{obj}&{self.filter_fhir}"
-
 
 class CohortQuery(BaseModel):
     instance_id: Optional[UUID] = Field(None, alias="instance_id")
