@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 env = os.environ
 FHIR_URL = env.get("FHIR_URL")
-META_SECURITY_PSEUDED = "meta.security=http://terminology.hl7.org/CodeSystem/v3-ObservationValue|PSEUDED"
+SECURITY_PSEUDED = "_security=http://terminology.hl7.org/CodeSystem/v3-ObservationValue|PSEUDED"
 
 logger = logging.getLogger(__name__)
 
@@ -45,9 +45,16 @@ def query_fhir(resource: str, params: dict[str, list[str]], auth_headers: dict) 
     return FhirParameters(**result)
 
 
-def add_security_params_to_filter_fhir(sub_criteria: Criteria, source_population: SourcePopulation, is_pseudo: bool):
-    filter_fhir_enriched = sub_criteria.add_criteria(source_population)
-    return f"{META_SECURITY_PSEUDED}&{filter_fhir_enriched}" if is_pseudo else filter_fhir_enriched
+def add_security_params_to_filter_fhir(sub_criteria: Criteria, source_population: SourcePopulation, is_pseudo: bool) -> str | None:
+    if sub_criteria.filter_fhir is None:
+        return None
+    params = []
+    if is_pseudo and sub_criteria.resource_type != ResourceType.IPP_LIST:
+        params.append(SECURITY_PSEUDED)
+    if source_population is not None:
+        params.append(source_population.format_to_fhir())
+    params.append(sub_criteria.filter_fhir)
+    return "&".join(param for param in params if param)
 
 
 # Procedure ne porte que du CCAM (EDS), donc un token sans système est du CCAM legacy.
@@ -105,7 +112,7 @@ class QueryFormatter:
                 logger.info(f"filterFhirEnriched {filter_fhir_enriched}")
 
                 if CohortJobServerConfig.USE_SOLR:
-                    solr_filter = self.get_mapping_criteria_filter_fhir_to_solr(criteria.filter_fhir, criteria.resource_type)
+                    solr_filter = self.get_mapping_criteria_filter_fhir_to_solr(filter_fhir_enriched, criteria.resource_type)
                     criteria.filter_solr = solr_filter
                 return criteria
 
@@ -131,12 +138,12 @@ class QueryFormatter:
         logger.info(f"FQ: {full_query}")
         return self.merge_fq(full_query, ipp_list_filter)
 
-    def is_ipp_list(self, resource_type, filter_fhir) -> bool:
-        return resource_type is not None and resource_type.value == ResourceType.IPP_LIST and self.IDENTIFIER_VALUE in filter_fhir
+    def is_ipp_list(self, resource_type: ResourceType, filter_fhir: str) -> bool:
+        return resource_type == ResourceType.IPP_LIST and self.IDENTIFIER_VALUE in (filter_fhir or "")
 
     def filter_fhir_to_ipp(self, filter_fhir: str) -> str:
-        """Remove identifier value from the filter_fhir"""
-        return "".join([s.replace(f"{self.IDENTIFIER_VALUE}=", "") for s in filter_fhir.split("&")])
+        """Extract the identifier values from the filter_fhir"""
+        return ",".join([s.replace(f"{self.IDENTIFIER_VALUE}=", "") for s in filter_fhir.split("&") if self.IDENTIFIER_VALUE in s])
 
     def remove_identifier(self, filter_fhir: str) -> str:
         return "&".join([s for s in filter_fhir.split("&") if self.IDENTIFIER_VALUE not in s])
