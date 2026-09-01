@@ -263,6 +263,7 @@ USERNAME_REGEX = env.str("USERNAME_REGEX", default=r"[0-9]")
 EMAIL_REGEX = env.str("EMAIL_REGEX", default=r"^[\w.+-]+@[\w-]+\.[\w]+$")
 
 MAINTENANCE_PERIODIC_SCHEDULING_MINUTES = 1
+MAINTENANCE_EXEMPTED_USERS = [u for u in env("MAINTENANCE_EXEMPTED_USERS", default="").split(",") if u]
 
 # Celery
 CELERY_BROKER_URL = env.str("CELERY_BROKER_URL", default="redis://localhost:6379")

@@ -10,6 +10,8 @@ from rest_framework.permissions import SAFE_METHODS
 
 from admin_cohort import settings
 from admin_cohort.models import MaintenancePhase
+from admin_cohort.models.maintenance import MaintenanceType
+from admin_cohort.services.auth import auth_service
 from admin_cohort.services.ws_event_manager import WebSocketMessage, WebsocketManager, WebSocketMessageType
 
 logger = logging.getLogger(__name__)
@@ -92,13 +94,25 @@ class MaintenanceService:
         return next_maintenance
 
     @staticmethod
-    def is_allowed_request(request):
+    def is_exempted(username: Optional[str]) -> bool:
+        return bool(username) and username in settings.MAINTENANCE_EXEMPTED_USERS
+
+    @staticmethod
+    def is_request_from_exempted_user(request) -> bool:
+        if not settings.MAINTENANCE_EXEMPTED_USERS:
+            return False
+        return MaintenanceService.is_exempted(auth_service.get_username_from_request(request))
+
+    @staticmethod
+    def is_allowed_request(request, maintenance: MaintenancePhase):
         allowed = request.method in SAFE_METHODS or request.path.startswith("/auth/") or request.path.startswith("/maintenances/")
         if apps.is_installed("cohort_job_server"):
             from cohort_job_server.utils import allow_request_during_maintenance
 
             request_allowed = allow_request_during_maintenance(request)
             allowed = allowed or request_allowed
+        if not allowed and maintenance.type == MaintenanceType.PARTIAL:
+            allowed = MaintenanceService.is_request_from_exempted_user(request)
         return allowed
 
 

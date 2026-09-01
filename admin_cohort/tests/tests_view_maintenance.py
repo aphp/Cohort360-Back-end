@@ -2,11 +2,14 @@ import datetime
 import random
 from datetime import timedelta
 from typing import List, Tuple
+from unittest.mock import patch
 
 from django.utils import timezone
 from rest_framework import status
+from rest_framework.test import force_authenticate
 
 from accesses.models import Access, Role
+from admin_cohort import settings
 from admin_cohort.models import MaintenancePhase
 from admin_cohort.tests.tests_tools import (
     new_user_and_profile,
@@ -212,17 +215,39 @@ class MaintenanceGetNextTests(MaintenanceGetTests):
             )
         )
 
+    def get_next(self, user):
+        request = self.factory.get(path=self.objects_url)
+        force_authenticate(request, user)
+        response = self.__class__.retrieve_view(request)
+        response.render()
+        return response
+
     def test_get_next_none_coming(self):
-        # if no phase with start_datetime > now or end_datetime > now, return {}
+        # if no phase with start_datetime > now or end_datetime > now, only the exemption flag is returned
         # ( A )( B ) t
         #    -3   -1 0  ->
         self.prepare_maintenances([(-4, -3), (-2, -1)])
-        self.check_retrieve_case(
-            self.base_case.clone(
-                title="( A )( B ) t",
-                to_find=None,
-            )
-        )
+        response = self.get_next(user=self.user_with_no_right)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, {"user_exempted": False})
+
+    def test_get_next_none_coming_as_exempted_user(self):
+        self.prepare_maintenances([(-4, -3), (-2, -1)])
+        with patch.object(settings, "MAINTENANCE_EXEMPTED_USERS", [self.user_with_no_right.username]):
+            response = self.get_next(user=self.user_with_no_right)
+        self.assertEqual(response.data, {"user_exempted": True})
+
+    def test_get_next_as_exempted_user(self):
+        self.prepare_maintenances([(1, 3)])
+        with patch.object(settings, "MAINTENANCE_EXEMPTED_USERS", [self.user_with_no_right.username]):
+            response = self.get_next(user=self.user_with_no_right)
+        self.assertTrue(response.data.get("user_exempted"))
+
+    def test_get_next_as_non_exempted_user(self):
+        self.prepare_maintenances([(1, 3)])
+        with patch.object(settings, "MAINTENANCE_EXEMPTED_USERS", ["some_other_user"]):
+            response = self.get_next(user=self.user_with_no_right)
+        self.assertFalse(response.data.get("user_exempted"))
 
 
 class MaintenanceCreateTests(MaintenanceTests):

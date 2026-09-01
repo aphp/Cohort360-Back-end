@@ -11,7 +11,7 @@ class MaintenanceModeMiddleware:
     def __call__(self, request):
         maintenance = maintenance_service.get_next_maintenance()
         if maintenance and maintenance.active:
-            if maintenance_service.is_allowed_request(request):
+            if maintenance_service.is_allowed_request(request, maintenance):
                 return self.get_response(request)
             data = {
                 "message": f"The server is unavailable for maintenance up to {maintenance.end_datetime.strftime('%d/%m/%Y, %H:%M:%S')} "
