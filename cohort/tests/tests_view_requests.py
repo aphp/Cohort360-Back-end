@@ -122,7 +122,9 @@ class RequestsGetTests(RequestsTests):
             ),
             basic_case.clone(
                 params=dict(search=self.str_pattern),
-                to_find=[f for f in user1_requests if self.str_pattern.lower() in (f.name + f.description).lower()],
+                to_find=[
+                    f for f in user1_requests if self.str_pattern.lower() in f.name.lower() or self.str_pattern.lower() in f.description.lower()
+                ],
             ),
         ]
         [self.check_get_paged_list_case(case) for case in cases]
