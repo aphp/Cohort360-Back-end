@@ -18,7 +18,6 @@ from exporters.tasks import notify_export_received, notify_export_succeeded, not
 
 logger = logging.getLogger(__name__)
 
-AUTO_LINKED_TABLES = {"Patient": ["patient__identifier"]}
 TABLE_FILTERS = {"patient__identifier": "system= 'https://aphp.fr/meta/Patient/ipp' and use= 'official'"}
 
 
@@ -117,20 +116,7 @@ class BaseExporter:
             if t.columns:
                 t_data["columnsToExport"] = t.columns
             other_tables.append(t_data)
-        tables = [required_table_data] + other_tables
-        return tables + self.build_linked_tables_input(tables)
-
-    @staticmethod
-    def build_linked_tables_input(tables: List[dict[str, Any]]) -> List[dict[str, Any]]:
-        table_names = {t["tableName"] for t in tables}
-        linked_tables = []
-        for table in tables:
-            for linked_table_name in AUTO_LINKED_TABLES.get(table["tableName"], []):
-                if linked_table_name in table_names:
-                    continue
-                table_names.add(linked_table_name)
-                linked_tables.append({"tableName": linked_table_name, "relation": True})
-        return linked_tables
+        return [required_table_data] + other_tables
 
     @staticmethod
     def build_filters_input(tables: List[dict[str, Any]]) -> List[dict[str, str]]:

@@ -25,6 +25,8 @@ EXCLUDED_TABLES = ("imaging_series", "questionnaire__item", "questionnairerespon
 
 TABLES_REQUIRING_SUB_COHORTS = ("note",)
 
+AUTO_LINKED_TABLES = {"patient": ("patient__identifier",)}
+
 RESOURCE_FILTERS = {TABLES_REQUIRING_SUB_COHORTS[0]: ("DocumentReference", get_encoded_doc_ref_filter())}
 
 
@@ -77,9 +79,21 @@ class ExportService:
             ).uuid
         )
 
+    @staticmethod
+    def with_linked_tables(tables: List[dict]) -> List[dict]:
+        table_names = {str(t.get("table_name") or "").lower() for t in tables}
+        linked_tables = []
+        for table in tables:
+            for linked_name in AUTO_LINKED_TABLES.get(str(table.get("table_name") or "").lower(), ()):
+                if linked_name.lower() in table_names:
+                    continue
+                table_names.add(linked_name.lower())
+                linked_tables.append({"table_name": linked_name, "cohort_result_source": table.get("cohort_result_source")})
+        return tables + linked_tables
+
     def create_tables(self, export: Export, tables: List[dict], **kwargs) -> bool:
         requires_cohort_subsets = False
-        for table in tables:
+        for table in self.with_linked_tables(tables):
             fhir_filter_id = table.get("fhir_filter")
             cohort_source_id = table.get("cohort_result_source")
             cohort_source = cohort_source_id and CohortResult.objects.get(pk=cohort_source_id) or None
