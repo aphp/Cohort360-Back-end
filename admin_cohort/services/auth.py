@@ -414,6 +414,16 @@ class AuthService:
         logger.info("Error authenticating WS request")
         return None
 
+    def get_username_from_request(self, request) -> Optional[str]:
+        token, auth_method = self.get_token_from_headers(request)
+        if token is None or auth_method is None:
+            return None
+        try:
+            return self._get_authenticator(auth_method).authenticate(token=token)
+        except Exception as e:
+            logger.info(f"Error retrieving username from request: {e}")
+            return None
+
     def get_token_from_headers(self, request) -> Tuple[Optional[str], Optional[str]]:
         authorization = request.META.get("HTTP_AUTHORIZATION")
         authorization_method = request.META.get(f"HTTP_{settings.AUTHORIZATION_METHOD_HEADER}")

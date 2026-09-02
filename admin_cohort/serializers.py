@@ -4,6 +4,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework_tracking.models import APIRequestLog
 
 from admin_cohort.models import MaintenancePhase, User, ReleaseNote
+from admin_cohort.services.maintenance import maintenance_service
 
 
 class BaseSerializer(serializers.ModelSerializer):
@@ -39,10 +40,15 @@ class MaintenancePhaseSerializer(BaseSerializer):
     maintenance_start = serializers.DateTimeField(read_only=True, allow_null=True, source="start_datetime")
     maintenance_end = serializers.DateTimeField(read_only=True, allow_null=True, source="end_datetime")
     active = serializers.BooleanField(read_only=True)
+    user_exempted = serializers.SerializerMethodField()
 
     class Meta:
         model = MaintenancePhase
         fields = "__all__"
+
+    def get_user_exempted(self, _) -> bool:
+        request = self.context.get("request")
+        return maintenance_service.is_exempted(request and getattr(request.user, "username", None))
 
     def get_validators(self):
         return super(MaintenancePhaseSerializer, self).get_validators() + [MaintenanceValidator()]

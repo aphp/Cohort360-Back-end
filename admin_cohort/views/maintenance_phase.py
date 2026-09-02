@@ -46,8 +46,9 @@ class MaintenancePhaseViewSet(viewsets.ModelViewSet):
     @action(methods=["get"], detail=False, url_path="next")
     def next(self, request, *args, **kwargs):
         q = maintenance_service.get_next_maintenance()
-        d = self.get_serializer(q).data if q is not None else {}
-        return Response(d)
+        if q is None:
+            return Response({"user_exempted": maintenance_service.is_exempted(request.user.username)})
+        return Response(self.get_serializer(q).data)
 
     def destroy(self, request, *args, **kwargs):
         maintenance_service.send_deleted_maintenance_notification(self.get_object())
