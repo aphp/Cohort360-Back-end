@@ -78,3 +78,25 @@ class TestServiceExport(ExportsTests):
         requires_cohort_subsets = export_service.create_tables(export=self.second_export, tables=tables)
         mock_create_cohort_subset.assert_not_called()
         self.assertFalse(requires_cohort_subsets)
+
+    @mock.patch("exports.services.export.cohort_service.create_cohort_subset")
+    def test_create_tables_adds_patient_identifier(self, mock_create_cohort_subset):
+        # Ref #3397: the sub-table is stored alongside the requested ones so that it shows up in the
+        # confirmation email and in the export detail, not only in the yaml sent to the data-exporter.
+        mock_create_cohort_subset.return_value = None
+        tables = [{"table_name": "Patient", "cohort_result_source": self.main_cohort.uuid}]
+        export_service.create_tables(export=self.second_export, tables=tables)
+        created_tables = sorted(self.second_export.export_tables.values_list("name", flat=True))
+        self.assertEqual(created_tables, ["Patient", "patient__identifier"])
+        linked_table = self.second_export.export_tables.get(name="patient__identifier")
+        self.assertEqual(linked_table.cohort_result_source, self.main_cohort)
+
+    @mock.patch("exports.services.export.cohort_service.create_cohort_subset")
+    def test_create_tables_does_not_duplicate_patient_identifier(self, mock_create_cohort_subset):
+        mock_create_cohort_subset.return_value = None
+        tables = [
+            {"table_name": "patient", "cohort_result_source": self.main_cohort.uuid},
+            {"table_name": "patient__identifier", "cohort_result_source": self.main_cohort.uuid},
+        ]
+        export_service.create_tables(export=self.second_export, tables=tables)
+        self.assertEqual(self.second_export.export_tables.filter(name="patient__identifier").count(), 1)
