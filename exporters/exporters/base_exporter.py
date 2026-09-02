@@ -18,8 +18,7 @@ from exporters.tasks import notify_export_received, notify_export_succeeded, not
 
 logger = logging.getLogger(__name__)
 
-AUTO_LINKED_TABLES = {"Patient": ["patient__identifier"]}
-TABLE_FILTERS = {"patient__identifier": "system= 'https://aphp.fr/meta/Patient/ipp' and use= 'official'"}
+TABLE_FILTERS = {"Patient": [{"tableName": "patient__identifier", "expression": "system= 'https://aphp.fr/meta/Patient/ipp' and use= 'official'"}]}
 
 
 class BaseExporter:
@@ -134,7 +133,7 @@ class BaseExporter:
 
     @staticmethod
     def build_filters_input(tables: List[dict[str, Any]]) -> List[dict[str, str]]:
-        return [{"tableName": t["tableName"], "expression": TABLE_FILTERS[t["tableName"]]} for t in tables if t["tableName"] in TABLE_FILTERS]
+        return [table_filter for t in tables for table_filter in TABLE_FILTERS.get(t["tableName"], [])]
 
     def send_export(self, export: Export, params: dict) -> str:
         self.log_export_task(export.pk, f"Asking to export for '{export.target_name}'")
