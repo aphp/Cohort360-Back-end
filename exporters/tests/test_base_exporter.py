@@ -99,14 +99,14 @@ class TestBaseExporter(ExportersTestBase):
         mock_failed.assert_called_once()
         mock_succeeded.assert_not_called()
 
-    def test_send_export_carries_the_filter_of_an_exported_table(self):
-        # Ref #3397: without the filter, patient__identifier carries every identifier, not only the IPP.
+    def test_send_export_filters_patient_identifier_without_listing_it(self):
+        # Ref #3397: le dataexporter sort la sous-table avec Patient. La lister la ferait entrer dans
+        # la recherche du lien hamiltonien, qui n'existe pas, et l'export regroupé échouerait.
         export = self._build_datalab_export(patient_table_name="Patient")
-        ExportTable.objects.create(export=export, name="patient__identifier", cohort_result_source=self.cohort)
         with mock.patch.object(self.exporter.export_api, "launch_export", return_value="job-id") as mock_launch:
             self.exporter.send_export(export=export, params={})
         params = mock_launch.call_args.kwargs["params"]
-        self.assertIn("patient__identifier", [t["tableName"] for t in params["tablesToExport"]])
+        self.assertNotIn("patient__identifier", [t["tableName"] for t in params["tablesToExport"]])
         self.assertEqual(
             params["filters"],
             [
@@ -116,12 +116,6 @@ class TestBaseExporter(ExportersTestBase):
                 }
             ],
         )
-
-    def test_send_export_omits_filters_when_no_table_needs_one(self):
-        export = self._build_datalab_export(patient_table_name="Patient")
-        with mock.patch.object(self.exporter.export_api, "launch_export", return_value="job-id") as mock_launch:
-            self.exporter.send_export(export=export, params={})
-        self.assertNotIn("filters", mock_launch.call_args.kwargs["params"])
 
     def test_send_export_tolerates_lowercase_patient_table(self):
         # Ref #3289: the AdministrationPortal used to send `table_name: 'patient'` (lowercase) while the
