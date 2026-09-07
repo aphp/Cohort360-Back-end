@@ -1,4 +1,4 @@
-FROM python:3.12.8-slim-bullseye
+FROM python:3.12.8-slim-bookworm
 
 ENV LC_ALL="fr_FR.utf8" \
     LC_CTYPE="fr_FR.utf8" \
