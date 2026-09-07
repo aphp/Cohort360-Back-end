@@ -32,17 +32,28 @@ jobs:
           GIT_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
         run: |
           set -euo pipefail
-          VERSION=$(grep '^version =' pyproject.toml | sed -E 's/version = "(.*)"/\1/')
-          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          PYPROJECT_VERSION=$(grep '^version =' pyproject.toml | sed -E 's/version = "(.*)"/\1/')
           SHORT_SHA="${GIT_SHA:0:7}"
 
-          if [[ "$HEAD_BRANCH" == release/* || "$HEAD_BRANCH" == hotfix/* ]]; then
-            BRANCH_VER="${HEAD_BRANCH#*/}"
-            if [ "${BRANCH_VER}" != "${VERSION}" ]; then
-              echo "::error title=Version mismatch::Le suffixe de branche '${BRANCH_VER}' doit égaler la version pyproject '${VERSION}'."
-              exit 1
-            fi
-          fi
+          case "$HEAD_BRANCH" in
+            hotfix/*)
+              # Le suffixe de branche fait foi : pyproject.toml n'est bumpé
+              # qu'au go MEP (tag final), pas à chaque itération du hotfix.
+              VERSION="${HEAD_BRANCH#hotfix/}"
+              ;;
+            release/*)
+              VERSION="$PYPROJECT_VERSION"
+              BRANCH_VER="${HEAD_BRANCH#release/}"
+              if [ "${BRANCH_VER}" != "${VERSION}" ]; then
+                echo "::error title=Version mismatch::Le suffixe de branche release '${BRANCH_VER}' doit égaler la version pyproject '${VERSION}'."
+                exit 1
+              fi
+              ;;
+            *)
+              VERSION="$PYPROJECT_VERSION"
+              ;;
+          esac
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
           case "$HEAD_BRANCH" in
             main)
