@@ -68,22 +68,10 @@ To create a new patch script (e.g., `patch_requests_v162.py`):
 
 4. **Example configurations**:
    ```python
-   FILTER_MAPPING = {
-       "Encounter": {
-           "old-filter-name": "new-filter-name"
-       },
-       RESOURCE_DEFAULT: {
-           "global-old-name": "global-new-name"
-       }
-   }
-   
+   FILTER_MAPPING = {"Encounter": {"old-filter-name": "new-filter-name"}, RESOURCE_DEFAULT: {"global-old-name": "global-new-name"}}
+
    FILTER_VALUE_MAPPING = {
-       "MedicationRequest": {
-           "medication": {
-               "old-code|value": "new-code|value",
-               "__MATCH_ALL_VALUES__": lambda x: transform_function(x)
-           }
-       }
+       "MedicationRequest": {"medication": {"old-code|value": "new-code|value", "__MATCH_ALL_VALUES__": lambda x: transform_function(x)}}
    }
    ```
 
@@ -109,10 +97,11 @@ python manage.py shell
 
 ```python
 from cohort.scripts.patch_requests_v161 import updater_v161
+
 updater_v161.update_old_query_snapshots(
-    dry_run=True,    # Set to False to apply changes
-    debug=True,      # Enable debug logging
-    with_filters=True  # Also update FhirFilter objects
+    dry_run=True,  # Set to False to apply changes
+    debug=True,  # Enable debug logging
+    with_filters=True,  # Also update FhirFilter objects
 )
 ```
 
@@ -135,6 +124,7 @@ updater_v161.update_old_query_snapshots(
 4. Execute the patch:
    ```python
    from cohort.scripts.patch_requests_v161 import updater_v161
+
    updater_v161.update_old_query_snapshots(
        dry_run=False,
        debug=True,

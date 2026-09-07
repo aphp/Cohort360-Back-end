@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.29.1] - 2026-08-16
+
+### 🐛 Bug Fixes
+
+- _security search param PSEUDED for FHIR $query
+
 ## [3.28.0] - 2025-07-23
 
 ### 🚀 Features

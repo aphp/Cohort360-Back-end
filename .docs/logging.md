@@ -22,6 +22,7 @@ import logging
 # Get a logger for the current file
 logger = logging.getLogger(__name__)
 
+
 def my_function():
     logger.info("Starting my_function.")
     try:
@@ -30,9 +31,9 @@ def my_function():
     except Exception:
         # Use exc_info=True to automatically include exception details in the log.
         logger.error("An error occurred in my_function", exc_info=True)
-    
+
     logger.warning("This is a warning message.")
-    logger.debug("This is a debug message.") # Won't show unless level is DEBUG
+    logger.debug("This is a debug message.")  # Won't show unless level is DEBUG
 ```
 
 ## Logging config
