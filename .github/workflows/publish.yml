@@ -36,10 +36,10 @@ jobs:
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           SHORT_SHA="${GIT_SHA:0:7}"
 
-          if [[ "$HEAD_BRANCH" == release/* ]]; then
-            BRANCH_VER="${HEAD_BRANCH#release/}"
+          if [[ "$HEAD_BRANCH" == release/* || "$HEAD_BRANCH" == hotfix/* ]]; then
+            BRANCH_VER="${HEAD_BRANCH#*/}"
             if [ "${BRANCH_VER}" != "${VERSION}" ]; then
-              echo "::error title=Version mismatch::Le suffixe de branche release '${BRANCH_VER}' doit égaler la version pyproject '${VERSION}'."
+              echo "::error title=Version mismatch::Le suffixe de branche '${BRANCH_VER}' doit égaler la version pyproject '${VERSION}'."
               exit 1
             fi
           fi
@@ -54,7 +54,7 @@ jobs:
             backend-frigo)
               echo "IMAGE_TAGS=aphpid/cohort360-backend:backend-frigo" >> "$GITHUB_ENV"
               ;;
-            release/*)
+            release/*|hotfix/*)
               echo "IMAGE_TAGS=aphpid/cohort360-backend:${VERSION}-rc,aphpid/cohort360-backend:${VERSION}-rc.${SHORT_SHA}" >> "$GITHUB_ENV"
               ;;
             *)
