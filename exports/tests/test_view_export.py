@@ -1,5 +1,6 @@
 from unittest import mock
 
+from django.http import StreamingHttpResponse
 from django.test.utils import override_settings
 from django.urls import reverse
 from requests.exceptions import RequestException
@@ -10,7 +11,9 @@ from admin_cohort.types import JobStatus
 from cohort.models import CohortResult, FhirFilter
 from exporters.apis.base import BaseAPI
 from exporters.enums import APIJobStatus
+from exports.exceptions import BadRequestError, FilesNoLongerAvailable, HdfsServerUnreachable, StorageProviderException
 from exports.models import Export, Datalab
+from exports.services.export import export_service
 from exports.tests.base_test import ExportsTestBase
 from exports.views import ExportViewSet
 
@@ -60,6 +63,8 @@ class ExportViewSetTest(ExportsTestBase):
         self.retry_view = self.view_set.as_view({"post": "retry"})
         self.retry_url = f"/exports/{self.failed_export.uuid}/retry/"
         self.logs_view = self.view_set.as_view({"get": "logs"})
+        self.download_view = self.view_set.as_view({"get": "download"})
+        self.download_url = f"/exports/{self.finished_export.uuid}/download/"
 
     def test_list_exports(self):
         list_url = reverse(viewname=self.viewname_list)
@@ -182,3 +187,47 @@ class ExportViewSetTest(ExportsTestBase):
         response = self.logs_view(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIsNotNone(response.data)
+
+    def call_download_view(self):
+        request = self.make_request(url=self.download_url, http_verb="get", request_user=self.exporter_user)
+        return self.download_view(request, uuid=self.finished_export.uuid)
+
+    @mock.patch.object(ExportViewSet, "get_object")
+    def test_successfully_download_export(self, mock_get_object):
+        mock_get_object.return_value = self.finished_export
+        with mock.patch.object(export_service, "download", return_value=StreamingHttpResponse(streaming_content=iter([b"chunk"]))):
+            response = self.call_download_view()
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    @mock.patch.object(ExportViewSet, "get_object")
+    def test_download_export_not_downloadable(self, mock_get_object):
+        mock_get_object.return_value = self.finished_export
+        with mock.patch.object(export_service, "download", side_effect=BadRequestError("not downloadable")):
+            response = self.call_download_view()
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIsNotNone(response.data)
+
+    @mock.patch.object(ExportViewSet, "get_object")
+    def test_download_export_no_longer_available(self, mock_get_object):
+        mock_get_object.return_value = self.finished_export
+        with mock.patch.object(export_service, "download", side_effect=FilesNoLongerAvailable("files were cleaned")):
+            response = self.call_download_view()
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIsNotNone(response.data)
+
+    @mock.patch.object(ExportViewSet, "get_object")
+    def test_download_export_with_unreachable_storage_provider(self, mock_get_object):
+        # ref #3493: an unreachable namenode must not leak its address in the response
+        mock_get_object.return_value = self.finished_export
+        with mock.patch.object(export_service, "download", side_effect=HdfsServerUnreachable("No HDFS servers available: namenode-01")):
+            response = self.call_download_view()
+        self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+        self.assertNotIn("namenode-01", response.data)
+
+    @mock.patch.object(ExportViewSet, "get_object")
+    def test_download_export_with_storage_provider_error(self, mock_get_object):
+        mock_get_object.return_value = self.finished_export
+        with mock.patch.object(export_service, "download", side_effect=StorageProviderException("file not found on namenode-01")):
+            response = self.call_download_view()
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertNotIn("namenode-01", response.data)

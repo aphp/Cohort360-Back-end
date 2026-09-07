@@ -53,3 +53,28 @@ class TestHDFSStorageProvider(SimpleTestCase):
         mock_client.return_value.status.return_value = {"length": 1113943064}
         provider = HDFSStorageProvider(servers_urls=SERVERS)
         self.assertEqual(provider.get_file_size(file_name="/exports/an_export.zip"), 1113943064)
+
+    @mock.patch("exports.services.storage_provider.KerberosClient")
+    def test_hdfs_errors_are_wrapped_on_streaming(self, mock_client):
+        provider = HDFSStorageProvider(servers_urls=SERVERS)
+        mock_client.return_value.read.side_effect = HdfsError("file does not exist")
+        with self.assertRaises(StorageProviderException):
+            provider.stream_file(file_name="/exports/an_export.zip")
+
+    @mock.patch("exports.services.storage_provider.KerberosClient")
+    def test_hdfs_errors_are_wrapped_on_deletion(self, mock_client):
+        provider = HDFSStorageProvider(servers_urls=SERVERS)
+        mock_client.return_value.delete.side_effect = HdfsError("file does not exist")
+        with self.assertRaises(StorageProviderException):
+            provider.delete_file(file_name="/exports/an_export.zip")
+
+    @mock.patch("exports.services.storage_provider.KerberosClient")
+    def test_file_is_streamed_from_the_client(self, mock_client):
+        provider = HDFSStorageProvider(servers_urls=SERVERS)
+        self.assertEqual(provider.stream_file(file_name="/exports/an_export.zip"), mock_client.return_value.read.return_value)
+
+    @mock.patch("exports.services.storage_provider.KerberosClient")
+    def test_file_is_deleted_through_the_client(self, mock_client):
+        provider = HDFSStorageProvider(servers_urls=SERVERS)
+        provider.delete_file(file_name="/exports/an_export.zip")
+        mock_client.return_value.delete.assert_called_once()
