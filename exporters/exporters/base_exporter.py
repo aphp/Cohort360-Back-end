@@ -116,8 +116,7 @@ class BaseExporter:
             if t.columns:
                 t_data["columnsToExport"] = t.columns
             other_tables.append(t_data)
-        tables = [required_table_data] + other_tables
-        return tables + self.build_linked_tables_input(tables)
+        return [required_table_data] + other_tables
 
     @staticmethod
     def build_filters_input(tables: List[dict[str, Any]]) -> List[dict[str, str]]:
