@@ -404,7 +404,7 @@ wheels = [
 
 [[package]]
 name = "cohort360-backend"
-version = "3.29.0"
+version = "3.29.2"
 source = { virtual = "." }
 dependencies = [
     { name = "asgiref" },
