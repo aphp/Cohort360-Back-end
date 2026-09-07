@@ -120,18 +120,6 @@ class BaseExporter:
         return tables + self.build_linked_tables_input(tables)
 
     @staticmethod
-    def build_linked_tables_input(tables: List[dict[str, Any]]) -> List[dict[str, Any]]:
-        table_names = {t["tableName"] for t in tables}
-        linked_tables = []
-        for table in tables:
-            for linked_table_name in AUTO_LINKED_TABLES.get(table["tableName"], []):
-                if linked_table_name in table_names:
-                    continue
-                table_names.add(linked_table_name)
-                linked_tables.append({"tableName": linked_table_name, "relation": True})
-        return linked_tables
-
-    @staticmethod
     def build_filters_input(tables: List[dict[str, Any]]) -> List[dict[str, str]]:
         return [table_filter for t in tables for table_filter in TABLE_FILTERS.get(t["tableName"], [])]
 
