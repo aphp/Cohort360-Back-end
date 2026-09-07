@@ -18,7 +18,7 @@ from admin_cohort.tools import join_qs
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools.request_log_mixin import RequestLogMixin
 from admin_cohort.types import JobStatus
-from exports.exceptions import FilesNoLongerAvailable, BadRequestError, StorageProviderException
+from exports.exceptions import FilesNoLongerAvailable, BadRequestError, StorageProviderException, HdfsServerUnreachable
 from exports.models import Export, ExportTable
 from exports.permissions import ExportPermission, RetryExportPermission, ExportLogsPermission
 from exports.serializers import ExportSerializer, ExportsListSerializer, ExportCreateSerializer
@@ -138,8 +138,12 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
             return export_service.download(export=self.get_object())
         except (BadRequestError, FilesNoLongerAvailable) as e:
             return Response(data=f"Error downloading files: {e}", status=status.HTTP_400_BAD_REQUEST)
+        except HdfsServerUnreachable as e:
+            logger.exception(f"Export[{kwargs.get('uuid')}] Storage provider unreachable: {e}")
+            return Response(data="Storage provider unreachable", status=status.HTTP_503_SERVICE_UNAVAILABLE)
         except StorageProviderException as e:
-            return Response(data=f"Storage provider error: {e}", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.exception(f"Export[{kwargs.get('uuid')}] Storage provider error: {e}")
+            return Response(data="Storage provider error", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @extend_schema(responses={status.HTTP_200_OK: OpenApiTypes.STR})
     @action(detail=True, methods=["post"], url_path="retry")
