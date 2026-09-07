@@ -5,17 +5,14 @@ run-name: >-
   - ${{ github.event_name == 'workflow_run' && github.event.workflow_run.display_title || github.event.head_commit.message }}
 
 on:
-  push:
-    branches:
-      - backend-frigo
   workflow_run:
     workflows: [cohort360-backend-test]
     types: [completed]
     branches:
       - main
       - develop
-      - backend-frigo
       - 'release/**'
+      - 'hotfix/**'
 
 jobs:
   publish:
