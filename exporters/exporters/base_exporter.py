@@ -18,6 +18,9 @@ from exporters.tasks import notify_export_received, notify_export_succeeded, not
 
 logger = logging.getLogger(__name__)
 
+AUTO_LINKED_TABLES = {"Patient": ["patient__identifier"]}
+TABLE_FILTERS = {"patient__identifier": "system= 'https://aphp.fr/meta/Patient/ipp' and use= 'official'"}
+
 
 class BaseExporter:
     def __init__(self):
@@ -114,17 +117,38 @@ class BaseExporter:
             if t.columns:
                 t_data["columnsToExport"] = t.columns
             other_tables.append(t_data)
-        return [required_table_data] + other_tables
+        tables = [required_table_data] + other_tables
+        return tables + self.build_linked_tables_input(tables)
+
+    @staticmethod
+    def build_linked_tables_input(tables: List[dict[str, Any]]) -> List[dict[str, Any]]:
+        table_names = {t["tableName"] for t in tables}
+        linked_tables = []
+        for table in tables:
+            for linked_table_name in AUTO_LINKED_TABLES.get(table["tableName"], []):
+                if linked_table_name in table_names:
+                    continue
+                table_names.add(linked_table_name)
+                linked_tables.append({"tableName": linked_table_name, "relation": True})
+        return linked_tables
+
+    @staticmethod
+    def build_filters_input(tables: List[dict[str, Any]]) -> List[dict[str, str]]:
+        return [{"tableName": t["tableName"], "expression": TABLE_FILTERS[t["tableName"]]} for t in tables if t["tableName"] in TABLE_FILTERS]
 
     def send_export(self, export: Export, params: dict) -> str:
         self.log_export_task(export.pk, f"Asking to export for '{export.target_name}'")
+        tables = self.build_tables_input(export)
         params.update(
             {
-                "tablesToExport": self.build_tables_input(export),
+                "tablesToExport": tables,
                 "noDateShift": export.nominative or not export.shift_dates,
                 "disableTerminology": self.export_api.disable_data_translation,
             }
         )
+        table_filters = self.build_filters_input(tables)
+        if table_filters:
+            params["filters"] = table_filters
         if not export.nominative:
             if export.datalab is None:
                 raise ValueError("export.datalab is required when nominative is False")

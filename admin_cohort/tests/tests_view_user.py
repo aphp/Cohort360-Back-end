@@ -4,7 +4,7 @@ from unittest import mock
 from django.utils import timezone
 from django.conf import settings
 from rest_framework import status
-from rest_framework.test import force_authenticate
+from rest_framework.test import APIClient, force_authenticate
 
 from accesses.models import Access, Role, Perimeter, Profile
 from admin_cohort.exceptions import ServerError
@@ -226,3 +226,168 @@ class UserTestsAsAdmin(UserTests):
         response = UserViewSet.as_view({"get": "check_user_exists"})(request, username=random_username)
         response.render()
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def test_user_serializer_exposes_onboarding_fields(self):
+        request = self.factory.get(USERS_URL)
+        force_authenticate(request, self.admin_user)
+        response = UserViewSet.as_view({"get": "retrieve"})(request, username=self.user1.username)
+        response.render()
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
+        payload = self.get_response_payload(response)
+        self.assertIn("onboarding_step", payload)
+        self.assertIn("onboarding_completed_at", payload)
+        self.assertIn("charter_signed_at", payload)
+
+
+ONBOARDING_URL = "/users/me/onboarding/"
+
+
+class UserOnboardingTests(UserTests):
+    def _patch_onboarding(self, user, data):
+        # go through the router so the action's permission_classes (IsAuthenticated) apply
+        client = APIClient()
+        client.force_authenticate(user)
+        return client.patch(ONBOARDING_URL, data, format="json")
+
+    def _advance_to_step(self, user, target):
+        # steps are linear (current + 1 only), so reach `target` one step at a time
+        user.refresh_from_db()
+        response = None
+        for step in range(user.onboarding_step + 1, target + 1):
+            response = self._patch_onboarding(user, dict(onboarding_step=step))
+        return response
+
+    def test_advance_onboarding_step(self):
+        # user3 has no admin rights: this proves the endpoint is self-scoped, not gated by UsersPermission
+        response = self._patch_onboarding(self.user3, dict(onboarding_step=1))
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
+        self.user3.refresh_from_db()
+        self.assertEqual(self.user3.onboarding_step, 1)
+        self.assertIsNone(self.user3.onboarding_completed_at)
+        self.assertEqual(self.user3.updated_by_id, self.user3.username)
+
+    def test_completing_last_step_sets_completed_at(self):
+        response = self._advance_to_step(self.user1, User.ONBOARDING_TOTAL_STEPS)
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
+        self.user1.refresh_from_db()
+        self.assertEqual(self.user1.onboarding_step, User.ONBOARDING_TOTAL_STEPS)
+        self.assertIsNotNone(self.user1.onboarding_completed_at)
+
+    def test_completed_at_is_not_overwritten(self):
+        self._advance_to_step(self.user1, User.ONBOARDING_TOTAL_STEPS)
+        self.user1.refresh_from_db()
+        first_completion = self.user1.onboarding_completed_at
+        self._patch_onboarding(self.user1, dict(onboarding_step=User.ONBOARDING_TOTAL_STEPS))
+        self.user1.refresh_from_db()
+        self.assertEqual(self.user1.onboarding_completed_at, first_completion)
+
+    def test_onboarding_is_self_scoped(self):
+        # patching as user1 must never touch another user's onboarding
+        self._advance_to_step(self.user1, 2)
+        self.user2.refresh_from_db()
+        self.assertEqual(self.user2.onboarding_step, 0)
+        self.assertIsNone(self.user2.onboarding_completed_at)
+
+    def test_step_cannot_decrease(self):
+        self._advance_to_step(self.user1, 2)
+        response = self._patch_onboarding(self.user1, dict(onboarding_step=1))
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, response.content)
+        self.user1.refresh_from_db()
+        self.assertEqual(self.user1.onboarding_step, 2)
+
+    def test_step_out_of_range_rejected(self):
+        response = self._patch_onboarding(self.user1, dict(onboarding_step=User.ONBOARDING_TOTAL_STEPS + 1))
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, response.content)
+        self.user1.refresh_from_db()
+        self.assertEqual(self.user1.onboarding_step, 0)
+
+    def test_step_cannot_skip_ahead(self):
+        # navigation is linear (RG3305.02): a step can only progress one at a time
+        response = self._patch_onboarding(self.user1, dict(onboarding_step=2))
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, response.content)
+        self.user1.refresh_from_db()
+        self.assertEqual(self.user1.onboarding_step, 0)
+
+    def test_requires_authentication(self):
+        client = APIClient()
+        response = client.patch(ONBOARDING_URL, dict(onboarding_step=1), format="json")
+        self.assertIn(response.status_code, (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN))
+
+
+CHARTER_URL = "/users/me/onboarding/charter/"
+
+
+class CharterSignatureTests(UserTests):
+    def _sign_charter(self, user):
+        # go through the router so the action's permission_classes (IsAuthenticated) apply
+        client = APIClient()
+        client.force_authenticate(user)
+        return client.post(CHARTER_URL, format="json")
+
+    def test_signing_records_the_timestamp(self):
+        # user3 has no admin rights: this proves the endpoint is self-scoped, not gated by UsersPermission
+        response = self._sign_charter(self.user3)
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
+        self.user3.refresh_from_db()
+        self.assertIsNotNone(self.user3.charter_signed_at)
+        self.assertEqual(self.user3.updated_by_id, self.user3.username)
+        self.assertIsNotNone(response.json()["charter_signed_at"])
+
+    def test_signing_twice_keeps_the_first_date(self):
+        self._sign_charter(self.user1)
+        self.user1.refresh_from_db()
+        first_signature = self.user1.charter_signed_at
+
+        response = self._sign_charter(self.user1)
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
+        self.user1.refresh_from_db()
+        self.assertEqual(self.user1.charter_signed_at, first_signature)
+
+    def test_signature_is_self_scoped(self):
+        self._sign_charter(self.user1)
+        self.user2.refresh_from_db()
+        self.assertIsNone(self.user2.charter_signed_at)
+
+    def test_charter_is_unsigned_by_default(self):
+        self.assertIsNone(self.user1.charter_signed_at)
+
+    def test_requires_authentication(self):
+        client = APIClient()
+        response = client.post(CHARTER_URL, format="json")
+        self.assertIn(response.status_code, (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN))
+
+
+class OnboardingStatusTests(UserTests):
+    def _get_onboarding(self, user):
+        client = APIClient()
+        client.force_authenticate(user)
+        return client.get(ONBOARDING_URL)
+
+    def test_returns_the_current_progress(self):
+        self.user1.onboarding_step = User.ONBOARDING_TOTAL_STEPS
+        self.user1.onboarding_completed_at = timezone.now()
+        self.user1.save()
+        response = self._get_onboarding(self.user1)
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
+        payload = response.json()
+        self.assertEqual(payload["onboarding_step"], User.ONBOARDING_TOTAL_STEPS)
+        self.assertIsNotNone(payload["onboarding_completed_at"])
+        self.assertIn("charter_signed_at", payload)
+
+    def test_reflects_a_fresh_user(self):
+        response = self._get_onboarding(self.user3)
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
+        payload = response.json()
+        self.assertEqual(payload["onboarding_step"], 0)
+        self.assertIsNone(payload["onboarding_completed_at"])
+        self.assertIsNone(payload["charter_signed_at"])
+
+    def test_is_self_scoped(self):
+        User.objects.filter(pk=self.user2.pk).update(onboarding_step=2)
+        payload = self._get_onboarding(self.user1).json()
+        self.assertEqual(payload["onboarding_step"], 0)
+
+    def test_requires_authentication(self):
+        client = APIClient()
+        response = client.get(ONBOARDING_URL)
+        self.assertIn(response.status_code, (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN))

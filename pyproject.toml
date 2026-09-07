@@ -1,6 +1,6 @@
 [project]
 name = "Cohort360-Backend"
-version = "3.29.1"
+version = "3.29.2"
 authors = ["Assistance Publique - Hopitaux de Paris, Département I&D"]
 description = """Supports the official **Cohort360** web app and **Portail**
                  Built by **APHP**, _Département I&D_
@@ -22,7 +22,8 @@ dependencies = [
     "django-redis>=5.4.0",
     "django-safedelete>=1.4.0",
     "django-websocket-redis>=0.6.0",
-    "django==5.0.14",
+    # Rester sous Django 5.1 : Django 5.1 exige PostgreSQL >= 13, notre base est en PostgreSQL 12.
+    "django>=5.0.14,<5.1",
     "djangorestframework>=3.15.2",
     "drf-api-tracking>=1.8.4",
     "drf-extensions>=0.7.1",
