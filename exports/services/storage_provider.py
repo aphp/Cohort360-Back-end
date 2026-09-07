@@ -3,8 +3,12 @@ from typing import List
 
 from hdfs import HdfsError
 from hdfs.ext.kerberos import KerberosClient
+from requests.exceptions import RequestException
 
 from exports.exceptions import HdfsServerUnreachable, StorageProviderException
+
+HDFS_CONNECT_TIMEOUT = 5
+HDFS_READ_TIMEOUT = 60
 
 
 class StorageProvider:
@@ -49,14 +53,16 @@ class HDFSStorageProvider(StorageProvider):
     name = "HDFS"
 
     def get_client(self):
-        for server in self.servers_urls:
-            client = KerberosClient(server)
-            try:
-                client.status("/")
-            except HdfsError:
-                continue
-            return client
-        raise HdfsServerUnreachable("No HDFS servers available")
+        servers = [url for url in self.servers_urls if url]
+        if not servers:
+            raise HdfsServerUnreachable("No HDFS server is configured")
+        # the client rotates over the servers on each request, an unreachable namenode no longer aborts the operation
+        client = KerberosClient(";".join(servers), timeout=(HDFS_CONNECT_TIMEOUT, HDFS_READ_TIMEOUT))
+        try:
+            client.status("/")
+        except (HdfsError, RequestException) as e:
+            raise HdfsServerUnreachable(f"No HDFS servers available: {e}")
+        return client
 
     @staticmethod
     def catch_hdfs_error(func):
@@ -66,6 +72,8 @@ class HDFSStorageProvider(StorageProvider):
                 return func(*args, **kwargs)
             except HdfsError as e:
                 raise StorageProviderException(e.message)
+            except RequestException as e:
+                raise StorageProviderException(str(e))
 
         return wrapper
 
