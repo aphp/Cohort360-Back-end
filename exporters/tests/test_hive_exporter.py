@@ -2,6 +2,7 @@ from unittest import mock
 
 from requests import RequestException
 
+from exporters.enums import APIJobType
 from exporters.exporters.hive_exporter import HiveExporter
 from exporters.tests.base_test import ExportersTestBase
 
@@ -78,6 +79,17 @@ class TestHiveExporter(ExportersTestBase):
         self.mock_hadoop_api.get_export_logs.return_value = {"task_status": "FinishedWithError"}
         with self.assertRaises(RequestException):
             self.exporter.create_db(export=self.hive_export)
+
+    @mock.patch("exporters.exporters.base_exporter.time.sleep")
+    def test_failed_create_db_keeps_track_of_the_hadoop_job(self, mock_sleep):
+        # the DB creation job id used to be dropped, leaving the failed export without any job to read logs from
+        self.mock_hadoop_api.create_db.return_value = "db-job-id"
+        self.mock_hadoop_api.get_export_logs.return_value = {"task_status": "FinishedWithError"}
+        with self.assertRaises(RequestException):
+            self.exporter.create_db(export=self.hive_export)
+        self.hive_export.refresh_from_db()
+        self.assertEqual(self.hive_export.request_job_id, "db-job-id")
+        self.assertEqual(self.hive_export.request_job_type, APIJobType.HIVE_DB_CREATE)
 
     def test_successfully_change_db_ownership(self):
         self.mock_hadoop_api.change_db_ownership.return_value = None

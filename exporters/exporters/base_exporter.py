@@ -8,6 +8,7 @@ from requests import RequestException
 from admin_cohort.models import User
 from admin_cohort.services.prometheus_metrics import EXPORTS_TOTAL
 from admin_cohort.types import JobStatus
+from exporters.apis.base import BaseAPI
 from exporters.apis.export_api import ExportAPI
 from exporters.apis.hadoop_api import HadoopAPI
 from exporters.enums import APIJobType, status_mapper
@@ -146,31 +147,35 @@ class BaseExporter:
         export.request_job_status = job_status.value
         export.save()
 
+    def get_api_for_job_type(self, job_type: str) -> BaseAPI:
+        apis: dict[APIJobType, BaseAPI] = {APIJobType.EXPORT: self.export_api, APIJobType.HIVE_DB_CREATE: self.hadoop_api}
+        try:
+            return apis[APIJobType(job_type)]
+        except ValueError:
+            raise ValueError(f"No configured API found matching the job type `{job_type}`")
+
+    def get_job_logs(self, export: Export) -> dict:
+        job_type = export.request_job_type or APIJobType.EXPORT
+        return self.get_api_for_job_type(job_type).get_export_logs(job_id=export.request_job_id)
+
     def wait_for_job(self, export: Export, job_id: str, job_type: APIJobType) -> JobStatus:
         errors_count = 0
         job_status = JobStatus.pending
+        target_api = self.get_api_for_job_type(job_type)
+        # tracked as soon as it is known, otherwise a failure before the export job leaves nothing to fetch logs from
+        export.request_job_id = job_id
+        export.request_job_type = job_type
+        export.save()
 
         while errors_count < 5 and not job_status.is_end_state:
             time.sleep(10)
             self.log_export_task(export.uuid, f"Asking for status of job `{job_id}`")
-            target_api: Any
-            if job_type == APIJobType.EXPORT:
-                target_api = self.export_api
-            elif job_type == APIJobType.HIVE_DB_CREATE:
-                target_api = self.hadoop_api
-            else:
-                target_api = None
             try:
-                if target_api is None:
-                    raise RequestException("No API for job type")
                 logs_response = target_api.get_export_logs(job_id=job_id)
-                job_status = status_mapper.get(logs_response.get("task_status"), JobStatus.unknown)
+                job_status = status_mapper.get(logs_response.get("task_status", ""), JobStatus.unknown)
                 self.log_export_task(export.uuid, f"Job `{job_id}` is {job_status}")
                 export.request_job_status = job_status.value
                 export.save()
-            except AttributeError as e:
-                logging.error(f"No configured API found matching the job type `{job_type}`")
-                raise e
             except RequestException:
                 errors_count += 1
 

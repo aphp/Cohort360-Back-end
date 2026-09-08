@@ -19,4 +19,4 @@ def delete_exported_files():
 @shared_task
 def get_logs(export_id: str) -> dict:
     export = Export.objects.get(pk=export_id)
-    return BaseExporter().export_api.get_export_logs(job_id=export.request_job_id)
+    return BaseExporter().get_job_logs(export=export)
