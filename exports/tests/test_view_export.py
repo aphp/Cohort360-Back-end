@@ -10,7 +10,7 @@ from admin_cohort.permissions import IsAuthenticated
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult, FhirFilter
 from exporters.apis.base import BaseAPI
-from exporters.enums import APIJobStatus
+from exporters.enums import APIJobStatus, APIJobType
 from exports.exceptions import BadRequestError, FilesNoLongerAvailable, HdfsServerUnreachable, StorageProviderException
 from exports.models import Export, Datalab
 from exports.services.export import export_service
@@ -168,6 +168,27 @@ class ExportViewSetTest(ExportsTestBase):
         response = self.logs_view(request)
         self.assertEqual(response.status_code, status.HTTP_408_REQUEST_TIMEOUT)
         self.assertIsNotNone(response.data)
+
+    @mock.patch.object(BaseAPI, "get_export_logs")
+    @mock.patch.object(ExportViewSet, "get_object")
+    @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
+    def test_get_logs_for_export_failed_while_creating_its_db(self, mock_get_object, mock_logs_response):
+        # such an export never reaches the export API, its logs come from the job that created the Hive DB
+        export = Export.objects.create(
+            output_format=self.export_type,
+            owner=self.exporter_user,
+            target_name="12345_09092023_151500",
+            request_job_id="db_job_id",
+            request_job_type=APIJobType.HIVE_DB_CREATE,
+            request_job_status=JobStatus.failed,
+        )
+        mock_get_object.return_value = export
+        mock_logs_response.return_value = {"status": APIJobStatus.FinishedWithError, "stdout": "", "stderr": ""}
+        request = self.make_request(url=f"/exports/{export.uuid}/logs/", http_verb="get", request_user=self.admin_user)
+        self.logs_view.kwargs = {"uuid": export.uuid}
+        response = self.logs_view(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.headers["content-type"], "application/json")
 
     @mock.patch.object(ExportViewSet, "get_object")
     def test_get_logs_for_export_missing_job_id(self, mock_get_object):

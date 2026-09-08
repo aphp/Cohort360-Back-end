@@ -220,7 +220,7 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
         if export.request_job_status == JobStatus.finished:
             return Response(data="No logs available. The target export has finished successfully", status=status.HTTP_200_OK)
         if not export.request_job_id:
-            return Response(data="The target export has no job ID", status=status.HTTP_400_BAD_REQUEST)
+            return Response(data="No logs available. No job was launched for the target export", status=status.HTTP_400_BAD_REQUEST)
         try:
             logs_data = export_service.get_execution_logs(export=export)
             response = HttpResponse(json.dumps(logs_data, indent=4), content_type="application/json", status=status.HTTP_200_OK)

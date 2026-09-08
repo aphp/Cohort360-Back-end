@@ -3,7 +3,7 @@ from unittest import mock
 from requests import RequestException
 
 from exporters.exporters.base_exporter import BaseExporter
-from exporters.enums import ExportTypes
+from exporters.enums import APIJobType, ExportTypes
 from exporters.tests.base_test import ExportersTestBase
 from exports.models import Export, ExportTable
 
@@ -129,3 +129,27 @@ class TestBaseExporter(ExportersTestBase):
         self.assertIn("Patient", tables_sent)
         self.assertNotIn("patient", tables_sent)
         self.assertIn("death_date_insee", tables_sent)
+
+    def test_job_logs_are_read_from_the_export_api(self):
+        export = self._build_datalab_export(patient_table_name="Patient")
+        export.request_job_id = "job-id"
+        export.request_job_type = APIJobType.EXPORT
+        with mock.patch.object(self.exporter.export_api, "get_export_logs") as mock_logs:
+            self.exporter.get_job_logs(export=export)
+        mock_logs.assert_called_once_with(job_id="job-id")
+
+    def test_job_logs_are_read_from_the_hadoop_api_for_a_db_creation_job(self):
+        export = self._build_datalab_export(patient_table_name="Patient")
+        export.request_job_id = "db-job-id"
+        export.request_job_type = APIJobType.HIVE_DB_CREATE
+        with mock.patch.object(self.exporter.hadoop_api, "get_export_logs") as mock_logs:
+            self.exporter.get_job_logs(export=export)
+        mock_logs.assert_called_once_with(job_id="db-job-id")
+
+    def test_job_logs_default_to_the_export_api_without_a_stored_job_type(self):
+        # exports created before the job type was stored only ever tracked an export API job
+        export = self._build_datalab_export(patient_table_name="Patient")
+        export.request_job_id = "job-id"
+        with mock.patch.object(self.exporter.export_api, "get_export_logs") as mock_logs:
+            self.exporter.get_job_logs(export=export)
+        mock_logs.assert_called_once_with(job_id="job-id")
