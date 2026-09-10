@@ -153,3 +153,20 @@ class TestBaseExporter(ExportersTestBase):
         with mock.patch.object(self.exporter.export_api, "get_export_logs") as mock_logs:
             self.exporter.get_job_logs(export=export)
         mock_logs.assert_called_once_with(job_id="job-id")
+
+    @mock.patch("exporters.exporters.base_exporter.time.sleep")
+    def test_the_export_job_takes_over_the_tracking_of_the_db_creation_job(self, mock_sleep):
+        # once the DB exists, the logs of a failing export come back from the export API
+        export = self._build_datalab_export(patient_table_name="Patient")
+        export.request_job_id = "db-job-id"
+        export.request_job_type = APIJobType.HIVE_DB_CREATE
+        export.save()
+        with mock.patch.object(self.exporter.export_api, "get_export_logs", return_value={"task_status": "FinishedSuccessfully"}):
+            self.exporter.wait_for_job(export=export, job_id="export-job-id", job_type=APIJobType.EXPORT)
+        export.refresh_from_db()
+        self.assertEqual(export.request_job_id, "export-job-id")
+        self.assertEqual(export.request_job_type, APIJobType.EXPORT)
+
+    def test_no_api_matches_an_unknown_job_type(self):
+        with self.assertRaises(ValueError):
+            self.exporter.get_api_for_job_type(job_type="unknown_job_type")

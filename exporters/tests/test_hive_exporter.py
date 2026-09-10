@@ -67,14 +67,16 @@ class TestHiveExporter(ExportersTestBase):
         with self.assertRaises(ValueError):
             self.exporter.validate_tables_data(tables_data=tables_data)
 
-    def test_successfully_create_db(self):
+    @mock.patch("exporters.exporters.base_exporter.time.sleep")
+    def test_successfully_create_db(self, mock_sleep):
         self.mock_hadoop_api.create_db.return_value = "some-job-id"
         self.mock_hadoop_api.get_export_logs.return_value = {"task_status": "FinishedSuccessfully"}
         self.exporter.create_db(export=self.hive_export)
         self.mock_hadoop_api.create_db.assert_called_once()
         self.mock_hadoop_api.get_export_logs.assert_called_once()
 
-    def test_error_create_db(self):
+    @mock.patch("exporters.exporters.base_exporter.time.sleep")
+    def test_error_create_db(self, mock_sleep):
         self.mock_hadoop_api.create_db.return_value = "some-job-id"
         self.mock_hadoop_api.get_export_logs.return_value = {"task_status": "FinishedWithError"}
         with self.assertRaises(RequestException):
@@ -114,7 +116,8 @@ class TestHiveExporter(ExportersTestBase):
         with self.assertRaises(RequestException):
             self.exporter.conclude_export(export=self.hive_export)
 
-    def test_prepare_db(self):
+    @mock.patch("exporters.exporters.base_exporter.time.sleep")
+    def test_prepare_db(self, mock_sleep):
         self.mock_hadoop_api.create_db.return_value = "some-job-id"
         self.mock_hadoop_api.get_export_logs.return_value = {"task_status": "FinishedSuccessfully"}
         self.exporter.prepare_db(export=self.hive_export)
