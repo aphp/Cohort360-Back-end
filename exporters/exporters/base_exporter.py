@@ -152,7 +152,7 @@ class BaseExporter:
         try:
             return apis[APIJobType(job_type)]
         except ValueError:
-            raise ValueError(f"No configured API found matching the job type `{job_type}`")
+            raise ValueError(f"Unknown job type `{job_type}`") from None
 
     def get_job_logs(self, export: Export) -> dict:
         job_type = export.request_job_type or APIJobType.EXPORT
