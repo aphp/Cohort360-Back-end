@@ -10,6 +10,7 @@ from admin_cohort.permissions import IsAuthenticated
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult, FhirFilter
 from exporters.apis.base import BaseAPI
+from exporters.apis.hadoop_api import HadoopAPI
 from exporters.enums import APIJobStatus, APIJobType
 from exports.exceptions import BadRequestError, FilesNoLongerAvailable, HdfsServerUnreachable, StorageProviderException
 from exports.models import Export, Datalab
@@ -169,7 +170,7 @@ class ExportViewSetTest(ExportsTestBase):
         self.assertEqual(response.status_code, status.HTTP_408_REQUEST_TIMEOUT)
         self.assertIsNotNone(response.data)
 
-    @mock.patch.object(BaseAPI, "get_export_logs")
+    @mock.patch.object(HadoopAPI, "get_export_logs")
     @mock.patch.object(ExportViewSet, "get_object")
     @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
     def test_get_logs_for_export_failed_while_creating_its_db(self, mock_get_object, mock_logs_response):
@@ -189,6 +190,7 @@ class ExportViewSetTest(ExportsTestBase):
         response = self.logs_view(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.headers["content-type"], "application/json")
+        mock_logs_response.assert_called_once_with(job_id="db_job_id")
 
     @mock.patch.object(ExportViewSet, "get_object")
     def test_get_logs_for_export_missing_job_id(self, mock_get_object):
