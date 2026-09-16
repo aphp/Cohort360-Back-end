@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from unittest import mock
 
+import requests
 from django.conf import settings
 from django.test import TestCase
 
@@ -10,7 +11,11 @@ from cohort_job_server.apps import CohortJobServerConfig
 from cohort_job_server.query_executor_api import QueryFormatter, BaseCohortRequest
 from cohort_job_server.query_executor_api.enums import ResourceType
 from cohort_job_server.query_executor_api.exceptions import FhirException
-from cohort_job_server.query_executor_api.query_formatter import add_prefix_search_on_ccam_leaves, add_security_params_to_filter_fhir
+from cohort_job_server.query_executor_api.query_formatter import (
+    add_prefix_search_on_ccam_leaves,
+    add_security_params_to_filter_fhir,
+    query_fhir,
+)
 from cohort_job_server.query_executor_api.schemas import FhirParameters, FhirParameter, CohortQuery, Criteria, SourcePopulation
 
 CCAM = "https://aphp.fr/ig/fhir/core/CodeSystem/CCAMDescriptiveVerAPHP"
@@ -228,6 +233,85 @@ class TestQueryFormatter(TestCase):
         res = self.query_formatter.format_to_fhir(query, False)
         self.assertEqual(f"code={CCAM}|JQGA004*", res.filter_fhir)
         self.assertNotIn("_list", self.sent_fhir_params(query_fhir))
+
+
+class TestQueryFhir(TestCase):
+    def setUp(self):
+        self.auth_headers = {
+            "Authorization": "Bearer xxx.token.xxx",
+            settings.AUTHORIZATION_METHOD_HEADER: settings.JWT_AUTH_MODE,
+        }
+        self.params = {"_list": ["112"], "subject.active": ["true"]}
+
+    @mock.patch("cohort_job_server.query_executor_api.query_formatter.FHIR_URL", "http://fhir-test")
+    @mock.patch("cohort_job_server.query_executor_api.query_formatter.requests")
+    def test_query_fhir_sends_post_not_get(self, mock_requests):
+        mock_response = mock.MagicMock()
+        mock_response.json.return_value = {"resourceType": "Patient", "parameter": []}
+        mock_requests.post.return_value = mock_response
+
+        query_fhir("Patient", self.params, self.auth_headers)
+
+        mock_requests.get.assert_not_called()
+        mock_requests.post.assert_called_once()
+
+    @mock.patch("cohort_job_server.query_executor_api.query_formatter.FHIR_URL", "http://fhir-test")
+    @mock.patch("cohort_job_server.query_executor_api.query_formatter.requests")
+    def test_query_fhir_builds_fhir_parameters_body(self, mock_requests):
+        mock_response = mock.MagicMock()
+        mock_response.json.return_value = {"resourceType": "Patient", "parameter": []}
+        mock_requests.post.return_value = mock_response
+        params = {"_list": ["112"], "_tag": ["low-tolerance", "text-search-rank"]}
+
+        query_fhir("Patient", params, self.auth_headers)
+
+        sent_body = mock_requests.post.call_args.kwargs["json"]
+        self.assertEqual("Parameters", sent_body["resourceType"])
+        self.assertIn({"name": "_list", "valueString": "112"}, sent_body["parameter"])
+        self.assertIn({"name": "_tag", "valueString": "low-tolerance"}, sent_body["parameter"])
+        self.assertIn({"name": "_tag", "valueString": "text-search-rank"}, sent_body["parameter"])
+        self.assertEqual(3, len(sent_body["parameter"]))
+
+    @mock.patch("cohort_job_server.query_executor_api.query_formatter.FHIR_URL", "http://fhir-test")
+    @mock.patch("cohort_job_server.query_executor_api.query_formatter.requests")
+    def test_query_fhir_raises_on_http_error(self, mock_requests):
+        mock_response = mock.MagicMock()
+        mock_response.raise_for_status.side_effect = requests.HTTPError("400 Client Error")
+        mock_requests.post.return_value = mock_response
+
+        with self.assertRaises(requests.HTTPError):
+            query_fhir("Patient", self.params, self.auth_headers)
+
+    @mock.patch("cohort_job_server.query_executor_api.query_formatter.FHIR_URL", "http://fhir-test")
+    @mock.patch("cohort_job_server.query_executor_api.query_formatter.requests")
+    def test_query_fhir_parses_response_into_fhir_parameters(self, mock_requests):
+        mock_response = mock.MagicMock()
+        mock_response.json.return_value = {
+            "resourceType": "Patient",
+            "parameter": [{"name": "fq", "valueString": "fq=active:true"}],
+        }
+        mock_requests.post.return_value = mock_response
+
+        result = query_fhir("Patient", self.params, self.auth_headers)
+
+        self.assertIsInstance(result, FhirParameters)
+        self.assertEqual("fq=active:true", result.to_dict()["fq"])
+
+    @mock.patch("cohort_job_server.query_executor_api.query_formatter.CohortJobServerConfig.TEST_FHIR_QUERIES", True)
+    @mock.patch("cohort_job_server.query_executor_api.query_formatter.FHIR_URL", "http://fhir-test")
+    @mock.patch("cohort_job_server.query_executor_api.query_formatter.requests")
+    def test_query_fhir_test_flag_sends_extra_validation_call(self, mock_requests):
+        mock_response = mock.MagicMock()
+        mock_response.json.return_value = {"resourceType": "Patient", "parameter": []}
+        mock_requests.post.return_value = mock_response
+
+        query_fhir("Patient", self.params, self.auth_headers)
+
+        self.assertEqual(2, mock_requests.post.call_count)
+        first_call_url = mock_requests.post.call_args_list[0][0][0]
+        first_call_body = mock_requests.post.call_args_list[0].kwargs["data"]
+        self.assertEqual("http://fhir-test/Patient/_search", first_call_url)
+        self.assertEqual(["0"], first_call_body["_count"])
 
 
 class TestCcamLeafStartsWith(TestCase):

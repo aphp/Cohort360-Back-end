@@ -28,18 +28,29 @@ logger = logging.getLogger(__name__)
 def query_fhir(resource: str, params: dict[str, list[str]], auth_headers: dict) -> FhirParameters:
     url = f"{FHIR_URL}/{resource}/$query"
 
+    def to_fhir_parameters(body: dict[str, list[str]]) -> dict:
+        return {
+            "resourceType": "Parameters",
+            "parameter": [{"name": key, "valueString": value} for key, values in body.items() for value in values],
+        }
+
     # this additional query is made to the real endpoint because the $query one does not check for params
     if CohortJobServerConfig.TEST_FHIR_QUERIES:
-        url_test = f"{FHIR_URL}/{resource}"
+        url_test = f"{FHIR_URL}/{resource}/_search"
         logger.info(f"Testing real fhir query with {url_test=} {params=}")
-        response = requests.get(url_test, params={**params, "_count": 0}, headers=auth_headers, timeout=HTTP_REQUEST_TIMEOUT)
+        response = requests.post(
+            url_test,
+            data={**params, "_count": ["0"]},
+            headers=auth_headers,
+            timeout=HTTP_REQUEST_TIMEOUT,
+        )
         response.raise_for_status()
 
-    logger.info(f"Attempting to query fhir with {url=} {params=}")
+    logger.info(f"Attempting to query fhir with {url=} body={to_fhir_parameters(params)}")
 
     auth_headers[settings.TRACE_ID_HEADER] = get_trace_id()
 
-    response = requests.get(url, params=params, headers=auth_headers, timeout=HTTP_REQUEST_TIMEOUT)
+    response = requests.post(url, json=to_fhir_parameters(params), headers=auth_headers, timeout=HTTP_REQUEST_TIMEOUT)
     response.raise_for_status()
     result = response.json()
     return FhirParameters(**result)
