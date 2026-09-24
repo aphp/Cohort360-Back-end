@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -euo pipefail
 
 if [ $# -eq 0 ]; then
   echo "Usage: $0 <major|minor|patch>"
