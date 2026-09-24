@@ -11,6 +11,7 @@ fi
 
 BUMP_TYPE=$1
 PYPROJECT_FILE="pyproject.toml"
+CHANGELOG_FILE="CHANGELOG.md"
 
 if [[ -n "$(git status --porcelain)" ]]; then
   echo "Working tree is not clean. Commit or stash your changes before releasing."
@@ -53,7 +54,10 @@ fi
 sed -i "/^version = /s/\".*\"/\"$RELEASE_VERSION\"/" "$PYPROJECT_FILE"
 echo "$PYPROJECT_FILE updated with [version = $RELEASE_VERSION]"
 
-git add "$PYPROJECT_FILE"
+git cliff --tag "$RELEASE_VERSION" --unreleased --prepend "$CHANGELOG_FILE"
+echo "$CHANGELOG_FILE updated for $RELEASE_VERSION"
+
+git add "$PYPROJECT_FILE" "$CHANGELOG_FILE"
 git commit -m "chore: release $RELEASE_VERSION"
 
 git tag "$RELEASE_VERSION"
