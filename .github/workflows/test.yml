@@ -107,7 +107,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get -y install gcc libkrb5-dev
 
       - name: Install project + dev (mypy, django-stubs)
-        run: uv sync --group dev
+        run: uv sync --locked --group dev
 
       - name: MyPy
         env:
@@ -196,7 +196,7 @@ jobs:
           sudo update-locale
 
       - name: Install project dependencies
-        run: uv sync
+        run: uv sync --locked
 
       - name: Create logs dir
         run: mkdir log
