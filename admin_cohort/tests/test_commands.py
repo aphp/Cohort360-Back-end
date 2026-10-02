@@ -66,8 +66,9 @@ class ResetOnboardingCommandTest(TestCaseWithDBs):
             self.call()
 
     def test_all_resets_every_started_onboarding(self):
-        output, invalidate_cache = self.call("--all")
-        self.assertIn("Onboarding réinitialisé pour 2 utilisateur(s).", output)
+        with self.assertLogs(reset_onboarding.logger, "INFO") as logs:
+            _, invalidate_cache = self.call("--all")
+        self.assertEqual(logs.records[0].getMessage(), "Onboarding réinitialisé pour 2 utilisateur(s)")
         self.assert_reset("1111111")
         self.assert_reset("2222222")
         self.assert_untouched("3333333")
@@ -82,8 +83,9 @@ class ResetOnboardingCommandTest(TestCaseWithDBs):
         self.assert_untouched("4444444")
 
     def test_usernames_resets_only_targeted_users(self):
-        output, invalidate_cache = self.call("--usernames", "1111111")
-        self.assertIn("Onboarding réinitialisé pour 1 utilisateur(s).", output)
+        with self.assertLogs(reset_onboarding.logger, "INFO") as logs:
+            _, invalidate_cache = self.call("--usernames", "1111111")
+        self.assertEqual(logs.records[0].getMessage(), "Onboarding réinitialisé pour 1 utilisateur(s)")
         self.assert_reset("1111111")
         self.assertEqual(self.get_user("2222222").onboarding_step, 1)
         self.assert_untouched("2222222")
