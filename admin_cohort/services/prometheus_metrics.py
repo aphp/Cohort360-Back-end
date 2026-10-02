@@ -27,13 +27,20 @@ STUCK_DATED_MEASURES_MARKED_FAILED = Counter(
 _ACTIVE_STATUSES = [s.value for s in JobStatus if not s.is_end_state and s != JobStatus.denied]
 
 
+def _jobs_in_progress_gauge():
+    return GaugeMetricFamily(
+        "cohort360_jobs_in_progress",
+        "Jobs in progress, grouped by type",
+        labels=["type"],
+    )
+
+
 class JobsInProgressCollector(Collector):
+    def describe(self):
+        yield _jobs_in_progress_gauge()
+
     def collect(self):
-        gauge = GaugeMetricFamily(
-            "cohort360_jobs_in_progress",
-            "Jobs in progress, grouped by type",
-            labels=["type"],
-        )
+        gauge = _jobs_in_progress_gauge()
         try:
             from cohort.models import CohortResult, DatedMeasure
             from exports.models import Export
