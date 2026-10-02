@@ -3,8 +3,11 @@ import tempfile
 from unittest.mock import patch
 
 from django.test import TestCase
+from prometheus_client import CollectorRegistry
 from django.urls import reverse
 from rest_framework import status
+
+from admin_cohort.services.prometheus_metrics import JobsInProgressCollector
 
 
 class MetricsViewTests(TestCase):
@@ -35,3 +38,9 @@ class MetricsViewTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         mock_collector.assert_called_once()
         self.assertIn(b"cohort360_jobs_in_progress", response.content)
+
+
+class JobsInProgressCollectorTests(TestCase):
+    def test_register_does_not_query_db(self):
+        with self.assertNumQueries(0):
+            CollectorRegistry(auto_describe=True).register(JobsInProgressCollector())
