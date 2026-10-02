@@ -1,3 +1,4 @@
+import json
 from random import randint
 
 import pytest
@@ -10,6 +11,7 @@ from rest_framework.test import force_authenticate
 
 from admin_cohort.models import User
 from cohort.models import FhirFilter
+from cohort.services.cohort_result import CohortResultService
 from cohort.tests.cohort_app_tests import CohortAppTests
 from cohort.views.fhir_filter import FhirFilterViewSet
 
@@ -116,6 +118,59 @@ class TestFhirFilters(CohortAppTests):
         assert fhir_filter.fhir_version == kwargs["fhir_version"]
         assert fhir_filter.filter == kwargs["filter"]
         assert fhir_filter.owner == kwargs["owner"]
+
+    def test_create_filter_only_pdf_available_defaults_to_true(self):
+        url = reverse("cohort:fhir-filters-list")
+        data = {"fhir_resource": "DocumentReference", "fhir_version": "4.0", "name": "test_filter", "filter": "type=abc"}
+        request = self.factory.post(url, data=data, format="json")
+        force_authenticate(request, self.user1)
+        response: Response = self.__class__.post_view(request)
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.data["only_pdf_available"] is True
+        assert FhirFilter.objects.get().only_pdf_available is True
+
+    def test_create_filter_with_only_pdf_available_false(self):
+        url = reverse("cohort:fhir-filters-list")
+        data = {
+            "fhir_resource": "DocumentReference",
+            "fhir_version": "4.0",
+            "name": "test_filter",
+            "filter": "type=abc",
+            "only_pdf_available": False,
+        }
+        request = self.factory.post(url, data=data, format="json")
+        force_authenticate(request, self.user1)
+        response: Response = self.__class__.post_view(request)
+        assert response.status_code == status.HTTP_201_CREATED
+        fhir_filter = FhirFilter.objects.get()
+        assert fhir_filter.only_pdf_available is False
+        assert fhir_filter.filter == "type=abc"
+
+    def test_edit_only_pdf_available_keeps_filter_unchanged(self):
+        fhir_filter = FhirFilter.objects.create(
+            fhir_resource="DocumentReference", fhir_version="4.0", name="docs", filter="type=abc", owner=self.user1
+        )
+        url = reverse("cohort:fhir-filters-detail", args=[fhir_filter.uuid])
+        request = self.factory.patch(url, data={"only_pdf_available": False}, format="json")
+        force_authenticate(request, self.user1)
+        response: Response = self.__class__.patch_view(request, uuid=fhir_filter.uuid)
+        assert response.status_code == status.HTTP_200_OK
+        fhir_filter.refresh_from_db()
+        assert fhir_filter.only_pdf_available is False
+        assert fhir_filter.filter == "type=abc"
+        assert not fhir_filter.patches.exists()
+
+    def test_only_pdf_available_is_not_sent_to_query_executor(self):
+        fhir_filter = FhirFilter.objects.create(
+            fhir_resource="DocumentReference",
+            fhir_version="4.0",
+            name="docs",
+            filter="type=abc",
+            owner=self.user1,
+            only_pdf_available=False,
+        )
+        query = json.loads(CohortResultService.build_query(cohort_source_id="123", fhir_filter_id=fhir_filter.pk))
+        assert query["request"]["filterFhir"] == "type=abc"
 
     def test_uniqueness_for_non_deleted_filters(self):
         user = User.objects.first()
