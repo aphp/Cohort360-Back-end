@@ -35,4 +35,3 @@ class Command(BaseCommand):
         invalidate_cache(model_name=User.__name__)
 
         logger.info("Onboarding réinitialisé pour %s utilisateur(s)", count)
-        self.stdout.write(self.style.SUCCESS(f"Onboarding réinitialisé pour {count} utilisateur(s)."))
