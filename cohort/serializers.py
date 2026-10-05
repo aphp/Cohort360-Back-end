@@ -351,7 +351,7 @@ class FhirFilterSerializer(serializers.ModelSerializer):
 class FhirFilterCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = FhirFilter
-        fields = ["fhir_resource", "fhir_version", "filter", "name"]
+        fields = ["fhir_resource", "fhir_version", "filter", "name", "only_pdf_available"]
 
 
 class FhirFilterPatchSerializer(FhirFilterCreateSerializer): ...
