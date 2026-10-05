@@ -9,6 +9,7 @@ from rest_framework.exceptions import ValidationError
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult, FhirFilter
 from cohort.services.cohort_result import cohort_service
+from exports.exceptions import BadRequestError
 from exports.models import ExportTable, Export
 from exports.services.export_operators import ExportDownloader, ExportManager
 from exports.tasks import launch_export_task, get_logs
@@ -169,6 +170,12 @@ class ExportService:
 
     @staticmethod
     def retry(export: Export):
+        if (
+            export.export_tables.filter(cohort_result_subset__isnull=False)
+            .exclude(cohort_result_subset__request_job_status=JobStatus.finished)
+            .exists()
+        ):
+            raise BadRequestError("Some cohort subsets are not finished, relaunch the export instead")
         export.request_job_status = JobStatus.new
         export.retried = True
         export.request_job_fail_msg = ""

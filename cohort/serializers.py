@@ -1,5 +1,6 @@
 from enum import StrEnum
 from typing import Union, Optional, List
+from urllib.parse import unquote
 
 from rest_framework import serializers
 
@@ -342,6 +343,13 @@ class FhirFilterSerializer(serializers.ModelSerializer):
     class Meta:
         model = FhirFilter
         fields = "__all__"
+
+    def validate_filter(self, value: str) -> str:
+        for param in value.split("&"):
+            key, sep, param_value = param.partition("=")
+            if sep and not unquote(param_value).strip(","):
+                raise serializers.ValidationError(f"Empty value for parameter `{key}`")
+        return value
 
     def create(self, validated_data):
         validated_data["owner"] = self.context.get("request").user
