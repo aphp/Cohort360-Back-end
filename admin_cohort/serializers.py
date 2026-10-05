@@ -5,7 +5,6 @@ from rest_framework_tracking.models import APIRequestLog
 
 from admin_cohort.models import MaintenancePhase, User, ReleaseNote
 from admin_cohort.services.maintenance import maintenance_service
-from django.conf import settings
 
 
 class BaseSerializer(serializers.ModelSerializer):
@@ -90,7 +89,8 @@ class OnboardingSerializer(serializers.ModelSerializer):
         read_only_fields = ["onboarding_completed_at"]
 
     def validate_onboarding_step(self, value):
-        current = self.instance.onboarding_step if self.instance else 0
+        # -1 marks a pre-onboarding user, who starts the journey like a new one.
+        current = max(self.instance.onboarding_step, 0) if self.instance else 0
         if value < current:
             raise ValidationError("onboarding_step cannot decrease")
         if value > current + 1:
@@ -134,11 +134,7 @@ class OnboardingStatusSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_is_pre_onboarding_user(self, user) -> bool:
-        launch_date = settings.ONBOARDING_LAUNCH_DATE
-        if launch_date is None:
-            return False
-        # A null insert_datetime means the account predates the field, hence the onboarding launch.
-        return user.insert_datetime is None or user.insert_datetime < launch_date
+        return user.onboarding_step == -1
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
