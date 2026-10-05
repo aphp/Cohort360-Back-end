@@ -129,6 +129,28 @@ class TestFhirFilters(CohortAppTests):
         assert response.data["only_pdf_available"] is True
         assert FhirFilter.objects.get().only_pdf_available is True
 
+    def test_create_filter_with_empty_parameter_is_rejected(self):
+        url = reverse("cohort:fhir-filters-list")
+        for f in ("diagnosisType=%2C&code=I50", "code=I50&diagnosisType="):
+            data = {"fhir_resource": "Condition", "fhir_version": "4.0", "name": "test_filter", "filter": f}
+            request = self.factory.post(url, data=data, format="json")
+            force_authenticate(request, self.user1)
+            response: Response = self.__class__.post_view(request)
+            assert response.status_code == status.HTTP_400_BAD_REQUEST
+            assert "diagnosisType" in str(response.data["filter"])
+        assert FhirFilter.objects.count() == 0
+
+    def test_patch_filter_with_empty_parameter_is_rejected(self):
+        fhir_filter = FhirFilter.objects.create(
+            fhir_resource="Condition", fhir_version="4.0", name="original_name", filter="diagnosisType=DP%2CDAS", owner=self.user1
+        )
+        request = self.factory.patch(f"/cohort/fhir-filters/{fhir_filter.uuid}/", data={"filter": "diagnosisType=%2C"}, format="json")
+        force_authenticate(request, self.user1)
+        response: Response = self.__class__.patch_view(request, **{self.lookup_field: fhir_filter.uuid})
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        fhir_filter.refresh_from_db()
+        assert fhir_filter.filter == "diagnosisType=DP%2CDAS"
+
     def test_create_filter_with_only_pdf_available_false(self):
         url = reverse("cohort:fhir-filters-list")
         data = {

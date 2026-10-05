@@ -13,7 +13,7 @@ from exporters.apis.base import BaseAPI
 from exporters.apis.hadoop_api import HadoopAPI
 from exporters.enums import APIJobStatus, APIJobType
 from exports.exceptions import BadRequestError, FilesNoLongerAvailable, HdfsServerUnreachable, StorageProviderException
-from exports.models import Export, Datalab
+from exports.models import Export, Datalab, ExportTable
 from exports.services.export import export_service
 from exports.tests.base_test import ExportsTestBase
 from exports.views import ExportViewSet
@@ -133,6 +133,22 @@ class ExportViewSetTest(ExportsTestBase):
         self.failed_export.refresh_from_db()
         self.assertEqual(self.failed_export.request_job_status, JobStatus.new)
         self.assertTrue(self.failed_export.retried)
+
+    @mock.patch("exports.services.export.launch_export_task.delay")
+    @mock.patch.object(ExportViewSet, "get_object")
+    def test_retry_export_refused_when_cohort_subset_failed(self, mock_get_object, mock_task):
+        subset = CohortResult.objects.create(
+            name="Subset", owner=self.exporter_user, request_query_snapshot=self.rqs, request_job_status=JobStatus.failed
+        )
+        ExportTable.objects.create(export=self.failed_export, name="condition", cohort_result_source=self.cohort_result, cohort_result_subset=subset)
+        mock_get_object.return_value = self.failed_export
+        request = self.make_request(url=self.retry_url, http_verb="post", request_user=self.admin_user)
+        self.retry_view.kwargs = {"uuid": self.failed_export.pk}
+        response = self.retry_view(request)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        mock_task.assert_not_called()
+        self.failed_export.refresh_from_db()
+        self.assertEqual(self.failed_export.request_job_status, JobStatus.failed)
 
     @mock.patch.object(BaseAPI, "get_export_logs")
     @mock.patch.object(ExportViewSet, "get_object")

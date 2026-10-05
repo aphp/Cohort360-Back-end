@@ -149,7 +149,10 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
     @action(detail=True, methods=["post"], url_path="retry")
     def retry(self, request, *args, **kwargs):
         export = self.get_object()
-        export_service.retry(export=export)
+        try:
+            export_service.retry(export=export)
+        except BadRequestError as e:
+            return Response(data=str(e), status=status.HTTP_400_BAD_REQUEST)
         return Response(data=f"The export `{export.uuid}` has been relaunched", status=status.HTTP_200_OK)
 
     @extend_schema(responses={status.HTTP_201_CREATED: ExportSerializer})
