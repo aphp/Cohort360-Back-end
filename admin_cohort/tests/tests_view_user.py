@@ -3,6 +3,7 @@ from unittest import mock
 
 from django.utils import timezone
 from django.conf import settings
+from django.test import override_settings
 from rest_framework import status
 from rest_framework.test import APIClient, force_authenticate
 
@@ -386,6 +387,28 @@ class OnboardingStatusTests(UserTests):
         User.objects.filter(pk=self.user2.pk).update(onboarding_step=2)
         payload = self._get_onboarding(self.user1).json()
         self.assertEqual(payload["onboarding_step"], 0)
+
+    def test_pre_onboarding_user_when_created_before_launch(self):
+        with override_settings(ONBOARDING_LAUNCH_DATE=timezone.now() + timedelta(days=1)):
+            payload = self._get_onboarding(self.user1).json()
+        self.assertTrue(payload["is_pre_onboarding_user"])
+
+    def test_new_user_when_created_after_launch(self):
+        with override_settings(ONBOARDING_LAUNCH_DATE=timezone.now() - timedelta(days=1)):
+            payload = self._get_onboarding(self.user1).json()
+        self.assertFalse(payload["is_pre_onboarding_user"])
+
+    def test_pre_onboarding_user_when_insert_datetime_is_null(self):
+        User.objects.filter(pk=self.user1.pk).update(insert_datetime=None)
+        self.user1.refresh_from_db()
+        with override_settings(ONBOARDING_LAUNCH_DATE=timezone.now() - timedelta(days=1)):
+            payload = self._get_onboarding(self.user1).json()
+        self.assertTrue(payload["is_pre_onboarding_user"])
+
+    def test_not_pre_onboarding_user_when_launch_date_unset(self):
+        with override_settings(ONBOARDING_LAUNCH_DATE=None):
+            payload = self._get_onboarding(self.user1).json()
+        self.assertFalse(payload["is_pre_onboarding_user"])
 
     def test_requires_authentication(self):
         client = APIClient()

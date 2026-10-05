@@ -8,6 +8,7 @@ import pytz
 from celery.schedules import crontab
 from django.core.exceptions import ImproperlyConfigured
 from django.db.utils import DEFAULT_DB_ALIAS
+from django.utils.dateparse import parse_datetime
 
 
 def get_project_info():
@@ -378,3 +379,6 @@ CHANNEL_LAYERS = {
         },
     },
 }
+
+# Users created before this date (or with no insert_datetime) are shown the "pre-onboarding user" onboarding welcome.
+ONBOARDING_LAUNCH_DATE = parse_datetime(env.str("ONBOARDING_LAUNCH_DATE", default="2026-10-05T09:27:00+02:00"))

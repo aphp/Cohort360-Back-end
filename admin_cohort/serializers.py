@@ -5,6 +5,7 @@ from rest_framework_tracking.models import APIRequestLog
 
 from admin_cohort.models import MaintenancePhase, User, ReleaseNote
 from admin_cohort.services.maintenance import maintenance_service
+from django.conf import settings
 
 
 class BaseSerializer(serializers.ModelSerializer):
@@ -125,10 +126,19 @@ class CharterSignatureSerializer(serializers.ModelSerializer):
 
 
 class OnboardingStatusSerializer(serializers.ModelSerializer):
+    is_pre_onboarding_user = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ["onboarding_step", "onboarding_completed_at", "charter_signed_at"]
+        fields = ["onboarding_step", "onboarding_completed_at", "charter_signed_at", "is_pre_onboarding_user"]
         read_only_fields = fields
+
+    def get_is_pre_onboarding_user(self, user) -> bool:
+        launch_date = settings.ONBOARDING_LAUNCH_DATE
+        if launch_date is None:
+            return False
+        # A null insert_datetime means the account predates the field, hence the onboarding launch.
+        return user.insert_datetime is None or user.insert_datetime < launch_date
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
