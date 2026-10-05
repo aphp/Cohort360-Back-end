@@ -15,8 +15,7 @@ class FhirFilter(CohortBaseModel):
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="fhir_filters")
     identifying = models.BooleanField(default=False)
     auto_generated = models.BooleanField(default=False)
-    # UI-only state of the DocumentReference "PDF available" checkbox. Kept out of `filter` on purpose:
-    # `filter` is sent as-is to the query executor (cohort subsets for exports), so it must not change.
+    # Kept out of `filter`, which exports send as-is to the query executor
     only_pdf_available = models.BooleanField(default=True)
 
     # Keep a raw manager to bypass any default filters when needed (e.g., row locking on save)
