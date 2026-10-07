@@ -89,7 +89,8 @@ class OnboardingSerializer(serializers.ModelSerializer):
         read_only_fields = ["onboarding_completed_at"]
 
     def validate_onboarding_step(self, value):
-        current = self.instance.onboarding_step if self.instance else 0
+        # -1 marks a pre-onboarding user, who starts the journey like a new one.
+        current = max(self.instance.onboarding_step, 0) if self.instance else 0
         if value < current:
             raise ValidationError("onboarding_step cannot decrease")
         if value > current + 1:
@@ -125,10 +126,15 @@ class CharterSignatureSerializer(serializers.ModelSerializer):
 
 
 class OnboardingStatusSerializer(serializers.ModelSerializer):
+    is_pre_onboarding_user = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ["onboarding_step", "onboarding_completed_at", "charter_signed_at"]
+        fields = ["onboarding_step", "onboarding_completed_at", "charter_signed_at", "is_pre_onboarding_user"]
         read_only_fields = fields
+
+    def get_is_pre_onboarding_user(self, user) -> bool:
+        return user.onboarding_step == User.ONBOARDING_STEP_PRE_EXISTING
 
 
 class UserCreateSerializer(serializers.ModelSerializer):

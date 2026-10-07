@@ -257,6 +257,14 @@ class UserOnboardingTests(UserTests):
             response = self._patch_onboarding(user, dict(onboarding_step=step))
         return response
 
+    def test_pre_onboarding_user_can_advance_to_first_step(self):
+        User.objects.filter(pk=self.user1.pk).update(onboarding_step=-1)
+        self.user1.refresh_from_db()
+        response = self._patch_onboarding(self.user1, dict(onboarding_step=1))
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
+        self.user1.refresh_from_db()
+        self.assertEqual(self.user1.onboarding_step, 1)
+
     def test_advance_onboarding_step(self):
         # user3 has no admin rights: this proves the endpoint is self-scoped, not gated by UsersPermission
         response = self._patch_onboarding(self.user3, dict(onboarding_step=1))
@@ -386,6 +394,16 @@ class OnboardingStatusTests(UserTests):
         User.objects.filter(pk=self.user2.pk).update(onboarding_step=2)
         payload = self._get_onboarding(self.user1).json()
         self.assertEqual(payload["onboarding_step"], 0)
+
+    def test_pre_onboarding_user_when_step_is_minus_one(self):
+        User.objects.filter(pk=self.user1.pk).update(onboarding_step=-1)
+        self.user1.refresh_from_db()
+        payload = self._get_onboarding(self.user1).json()
+        self.assertTrue(payload["is_pre_onboarding_user"])
+
+    def test_not_pre_onboarding_user_when_step_is_zero(self):
+        payload = self._get_onboarding(self.user1).json()
+        self.assertFalse(payload["is_pre_onboarding_user"])
 
     def test_requires_authentication(self):
         client = APIClient()
