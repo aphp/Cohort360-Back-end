@@ -134,7 +134,7 @@ class OnboardingStatusSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_is_pre_onboarding_user(self, user) -> bool:
-        return user.onboarding_step == -1
+        return user.onboarding_step == User.ONBOARDING_STEP_PRE_EXISTING
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
