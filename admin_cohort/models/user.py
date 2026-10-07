@@ -6,6 +6,7 @@ from admin_cohort.models import BaseModel
 
 class User(AbstractBaseUser, BaseModel):
     ONBOARDING_TOTAL_STEPS = 3
+    ONBOARDING_STEP_PRE_EXISTING = -1
 
     USERNAME_FIELD = "username"
     username = models.CharField(unique=True, primary_key=True, null=False, max_length=30)  # type: ignore[assignment]

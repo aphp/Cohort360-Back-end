@@ -83,6 +83,7 @@ the [Cohort360 project](https://github.com/aphp/Cohort360) repository.
   | FRONTEND_URLS         | Comma-separated frontend URLs. if defined, it must include the `FRONTEND_URL`                                                                                    | http://local-portail.fr,http://local-cohort360.fr                      | no         |
   | CELERY_BROKER_URL     | Broker URL. Defaults to using _redis_                                                                                                                            | redis://localhost:6379                                                 | no         |
 
+
   ### ⚠️ File-based logging Vs multiprocessing:  
   When **Cohort360-Backend** is running in multiprocessing mode (for example: using [Gunicorn](https://docs.gunicorn.org/en/latest/run.html) 
   with workers), sending logs to a file may result in race conditions and logs loss as each process tries to write to the log file.
