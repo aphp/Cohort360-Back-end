@@ -2,6 +2,70 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.31.0] - 2026-10-08
+
+### 🚀 Features
+
+- *(maintenance)* Exempter des utilisateurs de la maintenance partielle
+- *(maintenance)* Exempter des utilisateurs de la maintenance partielle (#592)
+- Ajoute un script de bump de version (bump_version.sh)
+- Bump version script (#607)
+- *(3544)* Réinitialiser le parcours d'onboarding pour tous les utilisateurs
+- *(3544)* Réinitialiser le parcours d'onboarding pour tous les utilisateurs (#611)
+- *(fhir-filters)* Ajouter only_pdf_available pour la case PDF des filtres Documents
+- *(fhir-filters)* Ajouter only_pdf_available pour la case PDF des filtres Documents (#616)
+- *(3546)* Adapter le message d'accueil Step 1 pour utilisateurs déjà existants
+- *(3546)* Changement de la logique en se basant sur le champ onboarding_step
+- *(3546)* Correction du code après revue
+- *(3546)* Supprission des derniéres ligne sur les fichier exemple d'environnement
+- *(3546)* Adapter le message d'accueil Step 1 pour utilisateurs déjà existants (#618)
+
+### 🐛 Bug Fixes
+
+- *(export)* Filtre patient__identifier sur les IPP officiels
+- *(export)* Filtre patient__identifier sur les IPP officiels (#590)
+- *(export)* Trace patient__identifier en base plutôt que dans le yaml
+- *(export)* Trace patient__identifier en base plutôt que dans le yaml (#596)
+- *(export)* Laisse le dataexporter sortir patient__identifier
+- *(export)* Laisse le dataexporter sortir patient__identifier (#597)
+- *(exports)* Bascule sur le second namenode HDFS (#600)
+- *(docker)* Move base image from bullseye to bookworm
+- *(docker)* Passe l'image de base sur Debian trixie
+- *(docker)* Passe l'image de base sur Debian trixie (#603)
+- *(exports)* Garde le job de création de base pour la récupération des logs
+- *(exports)* Recadre l'erreur sur un type de job inconnu
+- *(jobs)* Erreur 400 empêchant la relance d'une requête datant de 2024
+- *(jobs)* Erreur 400 empêchant la relance d'une requête datant de 2024 (#605)
+- *(ci)* Aligne la validation de version release sur le hotfix
+- Rend bump_version.sh exécutable
+- Durcit bump_version.sh avec set -euo pipefail
+- Applique les retours de review sur bump_version.sh
+- Régénère le CHANGELOG.md via git cliff dans bump_version.sh
+- *(monitoring)* Ne plus requêter la base à l'enregistrement du collector
+- *(3544)* Ne plus afficher deux fois le résultat de reset_onboarding
+- Simplify a comment
+- *(exports)* Refuser les filtres à paramètre vide et la relance sur sous-cohorte en échec
+
+### 🧪 Testing
+
+- *(cohort)* Aligne l'attendu du filtre search sur les champs cherchés
+- *(cohort)* Aligne l'attendu du filtre search sur les champs cherchés (#593)
+- *(exports)* Couvre le telechargement d'export et le provider de stockage (#602)
+- *(exports)* Verrouille le routage des logs par type de job
+
+### ⚙️ Miscellaneous Tasks
+
+- *(github)* Demande la review de l'équipe design et produit sur chaque PR
+- *(github)* Demande la review de l'équipe design et produit sur chaque PR (#594)
+- *(docker)* Construit l'image sur les PR
+- *(publish)* Derive hotfix image version from branch suffix
+- *(publish)* Valide le format du suffixe de branche hotfix
+- *(publish)* Derive hotfix image version from branch suffix (#601)
+- Supprime make_release.sh, remplacé par bump_version.sh
+- *(publish)* Tag immuable develop-<sha> sur develop
+- Exige un uv.lock à jour
+- Base de test PostgreSQL sans mot de passe
+
 ## [3.29.1] - 2026-08-16
 
 ### 🐛 Bug Fixes
