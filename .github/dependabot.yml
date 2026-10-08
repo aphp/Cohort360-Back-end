@@ -1,0 +1,19 @@
+version: 2
+updates:
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: weekly
+    # Mises à jour de sécurité uniquement
+    open-pull-requests-limit: 0
+    ignore:
+      # Django 5.1 exige PostgreSQL >= 13, notre base est en PostgreSQL 12.
+      - dependency-name: django
+        versions:
+          - ">=5.1"
+    groups:
+      security-minor-patch:
+        applies-to: security-updates
+        update-types:
+          - minor
+          - patch
