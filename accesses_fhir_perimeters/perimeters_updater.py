@@ -294,7 +294,7 @@ def perimeters_data_model_objects_update():
     try:
         sync, unchanged = compute_perimeters_sync()
     except PerimetersSyncAborted as e:
-        logger.error(f"Perimeters sync aborted: {e}")
+        logger.exception(f"Perimeters sync aborted: {e}")
         return
     logger.info(
         f"2. Perimeters to create: {len(sync.to_create)}, to update: {len(sync.to_update)} (reactivated: {len(sync.reactivated_ids)}), "
