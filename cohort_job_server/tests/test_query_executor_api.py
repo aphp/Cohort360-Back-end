@@ -234,6 +234,30 @@ class TestQueryFormatter(TestCase):
         self.assertEqual(f"code={CCAM}|JQGA004*", res.filter_fhir)
         self.assertNotIn("_list", self.sent_fhir_params(query_fhir))
 
+    @mock.patch("cohort_job_server.query_executor_api.query_formatter.query_fhir")
+    def test_format_to_fhir_adds_no_encounter_param_on_observation(self, query_fhir):
+        query_fhir.return_value = self.mocked_query_fhir_result
+        filter_fhir = "status=Val&subject.active=true&code=I3356&date=ge2024-09-03T00:00:00Z&date=le2024-09-08T00:00:00Z"
+        query = CohortQuery(
+            **{
+                "_type": "request",
+                "sourcePopulation": {"caresiteCohortList": ["112"]},
+                "request": {
+                    "_type": "basicResource",
+                    "_id": 1,
+                    "isInclusive": True,
+                    "resourceType": "Observation",
+                    "filterFhir": filter_fhir,
+                },
+            }
+        )
+        for is_pseudo in (False, True):
+            with self.subTest(is_pseudo=is_pseudo):
+                res = self.query_formatter.format_to_fhir(query, is_pseudo)
+                self.assertEqual(filter_fhir, res.filter_fhir)
+                sent_params = self.sent_fhir_params(query_fhir)
+                self.assertEqual([], [key for key in sent_params if key.startswith("encounter.")])
+
 
 class TestQueryFhir(TestCase):
     def setUp(self):
