@@ -14,12 +14,6 @@ DB_NAME=cohort_db
 DB_USER=cohort_dev
 DB_PASSWORD=cohort_dev_pwd
 
-PERIMETERS_SOURCE_DB_HOST=localhost
-PERIMETERS_SOURCE_DB_PORT=5432
-PERIMETERS_SOURCE_DB_NAME=edsomop_test
-PERIMETERS_SOURCE_DB_USER=cohort_dev
-PERIMETERS_SOURCE_DB_PASSWORD=cohort_dev_pwd
-PERIMETERS_SOURCE_DB_SCHEMA=public
 ROOT_PERIMETER_ID=0
 PERIMETER_TYPES=AP-HP,GHU,Hôpital,Groupe hospitalier (GH),Pôle/DMU,Unité Fonctionnelle (UF)
 REPORTING_PERIMETER_TYPES=AP-HP,GHU,Hôpital,Groupe hospitalier (GH),Pôle/DMU,Unité Fonctionnelle (UF)
