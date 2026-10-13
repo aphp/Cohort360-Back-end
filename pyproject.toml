@@ -130,7 +130,7 @@ django_settings_module = "admin_cohort.settings"
 
 # deptry: voir package_module_name_map. DEP002 ignoré par paquet (pas globalement) : django/ASGI/outils sans import top-level.
 [tool.deptry]
-extend_exclude = ["^\\.conf/", "^\\.local/", "^\\.patch_and_fix/"]
+extend_exclude = ["^\\.conf/", "^\\.local/"]
 
 [tool.deptry.per_rule_ignores]
 DEP002 = [
@@ -167,5 +167,5 @@ pyjwt = "jwt"
 "requests-kerberos" = "requests_kerberos"
 
 [tool.bandit]
-exclude_dirs = [".venv", "tests", "migrations", ".tox", ".local", ".patch_and_fix"]
+exclude_dirs = [".venv", "tests", "migrations", ".tox", ".local"]
 skips = ["B101", "B104", "B608"]
