@@ -39,11 +39,11 @@ class CohortCounter(BaseCohortOperator):
     def translate_query(dm_id: str, json_query: str, auth_headers: dict) -> str:
         cohort_query = CohortQuery(instance_id=dm_id, **json.loads(json_query))
         cohort_count = CohortCount(instance_id=dm_id, json_query=json_query, auth_headers=auth_headers)
-        return cohort_count.create_query_executor_request(cohort_query=cohort_query)
+        return json.dumps(cohort_count.create_query_executor_request(cohort_query=cohort_query))
 
     @staticmethod
     def refresh_dated_measure_count(translated_query: str) -> None:
-        QueryExecutorClient().count(input_payload=translated_query)
+        QueryExecutorClient().submit(json.loads(translated_query))
 
     def launch_feasibility_study_count(self, fs_id: str, json_query: str, auth_headers: dict, owner_username: Optional[str] = None) -> bool:
         response = self.query_executor_requester.launch_request(
