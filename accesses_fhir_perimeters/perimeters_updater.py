@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Set, Tuple
 
 from django.conf import settings
+from django.db import transaction
 from django.utils import timezone
 from fhirpy import SyncFHIRClient
 from fhirpy.base.exceptions import OperationOutcome
@@ -300,15 +301,19 @@ def perimeters_data_model_objects_update():
         f"2. Perimeters to create: {len(sync.to_create)}, to update: {len(sync.to_update)} (reactivated: {len(sync.reactivated_ids)}), "
         f"unchanged: {len(unchanged)}, to delete: {len(sync.to_delete_ids)}, orphans ignored: {len(sync.orphans_ids)}"
     )
-    Perimeter.objects.bulk_create(sync.to_create)
-    Perimeter.objects.bulk_update(sync.to_update, SYNCED_FIELDS)
+    # All or nothing: a perimeter soft-deleted without its accesses closed would never be retried,
+    # since the next run only deletes perimeters that are still active.
+    with transaction.atomic():
+        Perimeter.objects.bulk_create(sync.to_create)
+        Perimeter.objects.bulk_update(sync.to_update, SYNCED_FIELDS)
+        logger.info("3. Deleting removed perimeters")
+        perimeters_to_delete = delete_perimeters(sync.to_delete_ids)
+        logger.info("4. Closing linked accesses")
+        AccessesService.close_accesses(perimeters_to_delete)
 
-    logger.info("3. Creating/Updating virtual cohorts for perimeters")
+    # After the commit: the cohort callbacks (/fhir-perimeters/<id>/) must find the new perimeters
+    logger.info("5. Creating/Updating virtual cohorts for perimeters")
     create_virtual_cohorts(sync.to_create, sync.to_update + unchanged)
-    logger.info("4. Deleting removed perimeters")
-    perimeters_to_delete = delete_perimeters(sync.to_delete_ids)
-    logger.info("5. Closing linked accesses")
-    AccessesService.close_accesses(perimeters_to_delete)
     logger.info("End of perimeters updating. Invalidating cache for Perimeters and Accesses")
     invalidate_cache(model_name=Perimeter.__name__)
     invalidate_cache(model_name=Access.__name__)
