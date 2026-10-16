@@ -187,14 +187,12 @@ the [Cohort360 project](https://github.com/aphp/Cohort360) repository.
 
   | Variable                | Description                                                                                                                         | Default Value | Required ?          |
   |-------------------------|-------------------------------------------------------------------------------------------------------------------------------------|---------------|---------------------|
-  | FHIR_URL                | The URL of the server used to translate FHIR criteria to Solr format, ex: https://fhir.aphp.fr                                      |               | `yes`               |
-  | QUERY_EXECUTOR_URL      | ex: https://query-executor.aphp.fr. the URL of your instance of [QueryExecutor](https://github.com/aphp/Cohort360-QueryExecutor)    |               | `yes`               |
+  | FHIR_URL                | The URL of the FHIR API (perimeters and ORBIS accesses sync, health check), ex: https://fhir.aphp.fr                         |               | `yes`               |
+  | QUERY_EXECUTOR_URL      | ex: https://query-executor.aphp.fr. the URL of the SJS. Jobs are posted as JSON with the user's token; the SJS translates `filterFhir` itself |               | `yes`               |
   | QUERY_EXECUTOR_USERNAME | The system user of the QueryExecutor app. Used to make _patch_ calls on **Cohorts** and **Count Requests**                          |               | `yes`               |
   | QUERY_EXECUTOR_TOKEN    | Query Executor application API-key                                                                                                  |               | `yes`               |
-  | USE_SOLR                | A boolean to indicate if a Solr database is used. If so, FHIR criteria are translated to Solr format                                | False         | no                  |
-  | SOLR_ETL_USERNAME       | The system user of the Solr ETL app. Used to make _patch_ calls on Cohorts                                                          |               | `yes` if `USE_SOLR` |
-  | SOLR_ETL_TOKEN          | ETL application API-key                                                                                                             |               | `yes` if `USE_SOLR` |
-  | TEST_FHIR_QUERIES       | Weather to test queries before sending them to **QueryExecutor**                                                                    | False         | no                  |
+  | SOLR_ETL_USERNAME       | The system user of the Solr ETL app. Used to make _patch_ calls on Cohorts                                                          |               | `yes`               |
+  | SOLR_ETL_TOKEN          | ETL application API-key                                                                                                             |               | `yes`               |
   | LAST_COUNT_VALIDITY     | Validity of a _Count Request_ in hours. Passed this period, the request result becomes obsolete and the request must be re-executed | 24            | no                  |
   | COHORT_SIZE_LIMIT       | Maximum patients a "small" cohort can contain ("small" cohorts are created right away while big ones can take up to 24h)            | 20000         | no                  |
 
