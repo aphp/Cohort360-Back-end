@@ -26,8 +26,8 @@ class QueryExecutorClient:
     def submit(self, job_input: dict, auth_headers: dict | None = None) -> Response:
         return requests.post(self.api_url, json=job_input, headers=self.get_headers(auth_headers), timeout=HTTP_REQUEST_TIMEOUT)
 
-    def delete(self, job_id: str) -> Response:
-        return requests.delete(f"{self.api_url}/{job_id}", timeout=HTTP_REQUEST_TIMEOUT)
+    def delete(self, job_id: str, auth_headers: dict | None = None) -> Response:
+        return requests.delete(f"{self.api_url}/{job_id}", headers=self.get_headers(auth_headers), timeout=HTTP_REQUEST_TIMEOUT)
 
 
 def replace_pattern(text: str, replacements: list[tuple[str, str]]) -> str:

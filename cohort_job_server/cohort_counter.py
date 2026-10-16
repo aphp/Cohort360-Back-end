@@ -51,8 +51,8 @@ class CohortCounter(BaseCohortOperator):
         )
         return response.success
 
-    def cancel_job(self, job_id: str) -> JobStatus:
-        return self.query_executor_requester.cancel_job(job_id=job_id)
+    def cancel_job(self, job_id: str, auth_headers: Optional[dict] = None) -> JobStatus:
+        return self.query_executor_requester.cancel_job(job_id=job_id, auth_headers=auth_headers)
 
     @staticmethod
     def handle_patch_dated_measure(dm, data) -> None:
