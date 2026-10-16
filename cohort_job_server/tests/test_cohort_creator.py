@@ -1,11 +1,13 @@
+import importlib
 from unittest import mock
 
+from django.apps import apps as django_apps
 from django.conf import settings
 from requests import Response, HTTPError
 from rest_framework import status
 
 from admin_cohort.types import JobStatus
-from cohort.models import CohortResult
+from cohort.models import CohortResult, DatedMeasure
 from cohort_job_server.apps import CohortJobServerConfig
 from cohort_job_server.cohort_creator import CohortCreator
 from cohort_job_server.query_executor_api import CohortCreate
@@ -75,6 +77,14 @@ class CohortCreatorTest(BaseTest):
         self.assertEqual(patch_data["request_job_status"], JobStatus.finished.value)
         self.assertIsNotNone(patch_data["request_job_duration"])
 
+    def test_long_pending_cohort_finishes_its_count(self):
+        patch_data = {"request_job_status": "LONG_PENDING", "group.id": "12345", "group.count": 2 * settings.COHORT_SIZE_LIMIT}
+        self.cohort_creator.handle_patch_cohort(cohort=self.cohort, data=patch_data)
+        self.cohort.dated_measure.refresh_from_db()
+        self.assertEqual(patch_data["request_job_status"], JobStatus.long_pending)
+        self.assertEqual(self.cohort.dated_measure.request_job_status, JobStatus.finished)
+        self.assertEqual(self.cohort.dated_measure.measure, 2 * settings.COHORT_SIZE_LIMIT)
+
     def test_handle_patch_cohort_failed(self):
         patch_data = {"request_job_status": "ERROR", "message": self.test_err_msg}
         self.cohort_creator.handle_patch_cohort(cohort=self.cohort, data=patch_data)
@@ -105,3 +115,15 @@ class CohortCreatorTest(BaseTest):
         self.cohort_creator.handle_cohort_post_update(cohort=self.cohort, caller=CohortJobServerConfig.solr_etl_username)
         mock_logger.assert_called_once()
         mock_notify.assert_called_once()
+
+    def test_migration_finishes_stuck_counts_only(self):
+        migration = importlib.import_module("cohort.migrations.0028_finish_long_pending_dated_measures")
+        stuck = DatedMeasure.objects.create(
+            request_query_snapshot=self.snapshot, owner=self.user, request_job_status=JobStatus.long_pending, measure=10
+        )
+        no_count = DatedMeasure.objects.create(request_query_snapshot=self.snapshot, owner=self.user, request_job_status=JobStatus.long_pending)
+        migration.finish_long_pending_dated_measures(django_apps, None)
+        stuck.refresh_from_db()
+        no_count.refresh_from_db()
+        self.assertEqual(JobStatus.finished, stuck.request_job_status)
+        self.assertEqual(JobStatus.long_pending, no_count.request_job_status)
