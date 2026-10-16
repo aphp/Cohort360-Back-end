@@ -56,7 +56,7 @@ def count_cohort(
 
 
 @shared_task
-def cancel_previous_count_jobs(dm_id: str, cohort_counter_cls: str):
+def cancel_previous_count_jobs(dm_id: str, cohort_counter_cls: str, auth_headers: Optional[dict] = None):
     dm = DatedMeasure.objects.get(pk=dm_id)
     request = dm.request_query_snapshot.request
     running_dms = request.dated_measures.exclude(uuid=dm_id).filter(
@@ -69,7 +69,7 @@ def cancel_previous_count_jobs(dm_id: str, cohort_counter_cls: str):
         job_status = r_dm.request_job_status
         try:
             if job_status == JobStatus.started:
-                new_status = cohort_counter.cancel_job(job_id=r_dm.request_job_id)
+                new_status = cohort_counter.cancel_job(job_id=r_dm.request_job_id, auth_headers=auth_headers)
                 r_dm.request_job_status = new_status
             else:
                 celery_app.control.revoke(r_dm.count_task_id)
