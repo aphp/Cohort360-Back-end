@@ -39,7 +39,7 @@ class BaseCohortRequest:
         self.sampling_ratio = sampling_ratio
         self.stage_details = stage_details
 
-    def create_query_executor_request(self, cohort_query: CohortQuery) -> str:
+    def create_query_executor_request(self, cohort_query: CohortQuery) -> dict:
         """Wrap the given query in the job envelope sent to the Query Executor."""
         if cohort_query is None:
             raise ValueError("No query received to format.")
