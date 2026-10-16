@@ -270,6 +270,18 @@ class PerimetersUpdateTest(TestCase):
         self.assertEqual(Perimeter.objects.all().count(), 5)
         mock_create_virtual_cohort.s.assert_not_called()
 
+    def test_failure_rolls_back_all_writes(self, mock_care_sites: MagicMock, mock_create_virtual_cohort: MagicMock):
+        mock_care_sites.return_value = self.fhir_care_sites()
+        with (
+            mock.patch("accesses_fhir_perimeters.perimeters_updater.AccessesService.close_accesses", side_effect=RuntimeError("db error")),
+            self.assertRaises(RuntimeError),
+        ):
+            perimeters_data_model_objects_update()
+        self.assertEqual(Perimeter.objects.all().count(), 5)
+        self.assertEqual(Perimeter.objects.get(id=2).name, "P2")
+        self.assertIsNone(Perimeter.objects.get(id=0).delete_datetime)
+        mock_create_virtual_cohort.s.assert_not_called()
+
     def test_compare_command_changes_nothing(self, mock_care_sites: MagicMock, mock_create_virtual_cohort: MagicMock):
         mock_care_sites.return_value = self.fhir_care_sites()
         out = StringIO()
