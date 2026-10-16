@@ -217,21 +217,20 @@ the [Cohort360 project](https://github.com/aphp/Cohort360) repository.
   | REPORTING_PERIMETER_TYPES | comma-separated types of perimeters to include in the `FeasibilityStudy` report |               | no         |
 
     
-  ### Perimeters retrieved from an external database
-  If it is the case, perimeters can be synced using a periodic task.  
-  For this, add **accesses_perimeters** to `INCLUDED_APPS` and set up a second database connection with the following variables: 
+  ### Perimeters synced from FHIR
+  The [**accesses_fhir_perimeters**](accesses_fhir_perimeters/perimeters_updater.py) app (in `INCLUDED_APPS` by default) rebuilds the perimeter tree
+  from the FHIR `Organization` resources (`Organization?active=true`, parent given by `partOf`):
+  * only organizations whose type (`Organization.type`) is one of `PERIMETER_TYPES` are kept; the code (`source_value`) comes from `Organization.alias`;
+  * the tree starts at `ROOT_PERIMETER_ID`: the sync stops without changes if this organization is missing; organizations not attached to it are ignored;
+  * perimeters no longer returned by FHIR are soft-deleted and their accesses are closed.
 
-  > A periodic task is provided in the  [**accesses_perimeters**](accesses_perimeters/tasks.py) app for this purpose.  
-    cf `SCHEDULED_TASKS` for configuration bellow.  
-    
-  | Variable                      | Description                  | Default Value | Required ? |
-  |-------------------------------|------------------------------|---------------|------------|
-  | PERIMETERS_SOURCE_DB_HOST     |                              |               | `yes`      |
-  | PERIMETERS_SOURCE_DB_PORT     |                              |               | `yes`      |
-  | PERIMETERS_SOURCE_DB_NAME     |                              |               | `yes`      |
-  | PERIMETERS_SOURCE_DB_USER     |                              |               | `yes`      |
-  | PERIMETERS_SOURCE_DB_PASSWORD |                              |               | `yes`      |
-  | PERIMETERS_SOURCE_DB_SCHEMAS  | comma-separated schema names | _public_      | no         |
+  It runs from the periodic task `accesses_fhir_perimeters.tasks.perimeters_daily_update` (cf `SCHEDULED_TASKS` below), or manually with `PUT /fhir-perimeters/_sync/`.  
+  `python manage.py compare_fhir_perimeters [--output diff.json]` shows what a sync would change, without writing anything.
+
+  | Variable                           | Description                                                                                       | Default Value       | Required ? |
+  |------------------------------------|---------------------------------------------------------------------------------------------------|---------------------|------------|
+  | FHIR_URL                           | FHIR API base URL                                                                                 |                     | `yes`      |
+  | FHIR_ACCESS_TOKEN                  | Static token for the FHIR API. If empty, a system token is generated on each sync                 |                     | no         |
 
 </details>
 
