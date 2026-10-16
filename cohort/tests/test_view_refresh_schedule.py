@@ -1,7 +1,12 @@
 import datetime
+import importlib
+import json
+import uuid
 from unittest import mock
 
+from django.apps import apps as django_apps
 from django.db import IntegrityError
+from django.test import TestCase
 from django_celery_beat.models import PeriodicTask, CrontabSchedule
 from rest_framework import status
 
@@ -59,11 +64,7 @@ class RequestRefreshScheduleViewTests(CohortAppTests):
         except IntegrityError:
             self.fail("Must be able to create a new Refresh Schedule object")
 
-    @mock.patch("cohort.services.request_refresh_schedule.get_authorization_header")
-    @mock.patch.object(RequestRefreshScheduleService, "translate_snapshot_query")
-    def test_successfully_creating_refresh_schedule(self, mock_translate_query, mock_get_auth_headers):
-        mock_translate_query.return_value = None
-        mock_get_auth_headers.return_value = None
+    def test_successfully_creating_refresh_schedule(self):
         request_snapshot_id = self.basic_data["request_snapshot_id"]
         case = CreateCase(
             data=self.basic_data,
@@ -73,11 +74,11 @@ class RequestRefreshScheduleViewTests(CohortAppTests):
             success=True,
         )
         self.check_create_case(case)
-        mock_translate_query.assert_called_once()
-        mock_get_auth_headers.assert_called_once()
         periodic_task = PeriodicTask.objects.get(name=request_snapshot_id)
-        self.assertIsNotNone(periodic_task)
         self.assertIsNotNone(periodic_task.crontab)
+        dm_id, counter_cls = json.loads(periodic_task.args)
+        self.assertTrue(DatedMeasure.objects.filter(uuid=dm_id).exists())
+        self.assertEqual(RequestRefreshScheduleService().operator_cls, counter_cls)
 
     def test_successfully_patch_refresh_schedule(self):
         request_snapshot_id = self.basic_data["request_snapshot_id"]
@@ -115,3 +116,22 @@ class RequestRefreshScheduleViewTests(CohortAppTests):
         self.assertIsNotNone(refresh_schedule.last_refresh)
         self.assertEqual(refresh_schedule.last_refresh_count, self.dm.measure)
         mock_send_email.assert_called_once()
+
+
+class RefreshTaskArgsMigrationTests(TestCase):
+    def test_old_args_are_rewritten_as_json_and_reenabled(self):
+        migration = importlib.import_module("cohort.migrations.0027_remove_requestquerysnapshot_translated_query")
+        dm_id = "0b6f6c2e-3c1a-4e8e-9a6f-2d1f5b7c8e90"
+        counter_cls = "cohort_job_server.cohort_counter.CohortCounter"
+        crontab = CrontabSchedule.objects.create(minute="0", hour="1")
+        task = PeriodicTask.objects.create(
+            name="old",
+            crontab=crontab,
+            task=migration.REFRESH_TASK,
+            args=str([uuid.UUID(dm_id), 'input.mode = count, input.cohortDefinitionSyntax = "{...}"', counter_cls]),
+            enabled=False,
+        )
+        migration.drop_translated_query_from_refresh_tasks(django_apps, None)
+        task.refresh_from_db()
+        self.assertEqual([dm_id, counter_cls], json.loads(task.args))
+        self.assertTrue(task.enabled)

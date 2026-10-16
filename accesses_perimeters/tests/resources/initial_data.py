@@ -78,7 +78,6 @@ request_query_snapshots_data = [
     {
         "owner_id": 1,
         "serialized_query": '{"sourcePopulation": {"caresiteCohortList": ["1", "2", "3"]}}',
-        "translated_query": None,
         "previous_snapshot_id": None,
         "shared_by_id": None,
         "perimeters_ids": ["1", "2", "3"],
@@ -87,7 +86,6 @@ request_query_snapshots_data = [
     {
         "owner_id": 1,
         "serialized_query": '{"sourcePopulation": {"caresiteCohortList": ["4", "5", "6"]}}',
-        "translated_query": None,
         "previous_snapshot_id": None,
         "shared_by_id": None,
         "perimeters_ids": ["4", "5", "6"],
@@ -96,7 +94,6 @@ request_query_snapshots_data = [
     {
         "owner_id": 1,
         "serialized_query": '{"sourcePopulation": {"caresiteCohortList": ["7", "8", "9"]}}',
-        "translated_query": None,
         "previous_snapshot_id": None,
         "shared_by_id": None,
         "perimeters_ids": ["7", "8", "9"],
@@ -105,7 +102,6 @@ request_query_snapshots_data = [
     {
         "owner_id": 1,
         "serialized_query": '{"sourcePopulation": {"caresiteCohortList": ["10", "11"]}}',
-        "translated_query": None,
         "previous_snapshot_id": None,
         "shared_by_id": None,
         "perimeters_ids": ["10", "11"],
