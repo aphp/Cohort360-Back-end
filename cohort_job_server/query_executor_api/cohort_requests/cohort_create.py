@@ -23,4 +23,4 @@ class CohortCreate(BaseCohortRequest):
         return self.query_executor_client.submit(request, self.auth_headers)
 
     def cancel(self, job_id: str) -> Response:
-        return self.query_executor_client.delete(job_id)
+        return self.query_executor_client.delete(job_id, self.auth_headers)
