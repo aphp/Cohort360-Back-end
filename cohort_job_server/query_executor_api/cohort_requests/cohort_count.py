@@ -20,4 +20,4 @@ class CohortCount(BaseCohortRequest):
     def launch(self, cohort_query: CohortQuery) -> Response:
         super().launch(cohort_query)
         request = self.create_query_executor_request(cohort_query)
-        return self.query_executor_client.count(request)
+        return self.query_executor_client.submit(request, self.auth_headers)

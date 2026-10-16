@@ -4,11 +4,17 @@ from unittest import mock
 
 from django.conf import settings
 from django.test import TestCase
+from requests import Response
+from rest_framework import status
 
-from cohort_job_server.query_executor_api import QueryFormatter, BaseCohortRequest
+from admin_cohort.types import JobStatus
+
+from cohort_job_server.query_executor_api import QueryFormatter, BaseCohortRequest, CohortCount, QueryExecutorRequester
+from cohort_job_server.query_executor_api.enums import Mode
 from cohort_job_server.query_executor_api.enums import ResourceType
 from cohort_job_server.query_executor_api.query_formatter import add_prefix_search_on_ccam_leaves
 from cohort_job_server.query_executor_api.schemas import CohortQuery
+from cohort_job_server.tests.base import BaseTest
 
 CCAM = "https://aphp.fr/ig/fhir/core/CodeSystem/CCAMDescriptiveVerAPHP"
 ATIH = "https://www.atih.sante.fr/plateformes-de-transmission-et-logiciels/logiciels-espace-de-telechargement/id_lot/3550"
@@ -180,3 +186,66 @@ class TestCcamLeafStartsWith(TestCase):
 
     def test_non_ccam_codesystem_untouched(self):
         self.assertEqual("code=http://other|JQGA004", add_prefix_search_on_ccam_leaves("code=http://other|JQGA004", ResourceType.PROCEDURE))
+
+
+class TestSubmitJob(BaseTest):
+    def setUp(self):
+        super().setUp()
+        self.json_query = json.dumps(
+            {
+                "_type": "request",
+                "sourcePopulation": {"caresiteCohortList": [self.perimeter.cohort_id]},
+                "request": {
+                    "_type": "andGroup",
+                    "_id": 0,
+                    "isInclusive": True,
+                    "criteria": [
+                        {"_type": "basicResource", "_id": 1, "isInclusive": True, "resourceType": "Procedure", "filterFhir": "code=JQGA004"}
+                    ],
+                    "temporalConstraints": [{"idList": ["All"], "constraintType": "sameEncounter"}],
+                },
+            }
+        )
+
+    @mock.patch.dict("os.environ", {"QUERY_EXECUTOR_URL": "http://sjs"})
+    @mock.patch("cohort_job_server.query_executor_api.query_executor_client.requests")
+    def test_count_is_posted_as_json_with_the_user_token(self, mock_requests):
+        mock_requests.post.return_value = mock.MagicMock(ok=True)
+        count = CohortCount(instance_id=str(self.dm.uuid), json_query=self.json_query, auth_headers=self.auth_headers, owner_username="4242")
+        count.launch(CohortQuery(instance_id=self.dm.uuid, **json.loads(self.json_query)))
+
+        url = mock_requests.post.call_args.args[0]
+        kwargs = mock_requests.post.call_args.kwargs
+        self.assertEqual("http://sjs/jobs", url)
+        self.assertNotIn("params", kwargs)
+        self.assertEqual("Bearer XXXX", kwargs["headers"]["Authorization"])
+        self.assertEqual(settings.OIDC_AUTH_MODE, kwargs["headers"][settings.AUTHORIZATION_METHOD_HEADER])
+        job_input = kwargs["json"]["input"]
+        self.assertEqual(Mode.COUNT, job_input["mode"])
+        self.assertEqual("4242", job_input["ownerEntityId"])
+        self.assertEqual(str(self.dm.uuid), job_input["cohortUuid"])
+        self.assertNotIn("callbackPath", job_input)
+        self.assertNotIn("modeOptions", job_input)
+        syntax = json.loads(job_input["cohortDefinitionSyntax"])
+        self.assertEqual("code=JQGA004*", syntax["request"]["criteria"][0]["filterFhir"])
+        self.assertNotIn("filterSolr", syntax["request"]["criteria"][0])
+        self.assertEqual("all", syntax["request"]["temporalConstraints"][0]["idList"])
+
+    @mock.patch.dict("os.environ", {"QUERY_EXECUTOR_URL": "http://sjs"})
+    @mock.patch("cohort_job_server.query_executor_api.query_executor_client.requests")
+    def test_mode_options_drop_unset_values(self, mock_requests):
+        mock_requests.post.return_value = mock.MagicMock(ok=True)
+        count = CohortCount(instance_id=str(self.dm.uuid), json_query=self.json_query, auth_headers=self.auth_headers, stage_details="ratio")
+        count.launch(CohortQuery(instance_id=self.dm.uuid, **json.loads(self.json_query)))
+        self.assertEqual({"details": "ratio"}, mock_requests.post.call_args.kwargs["json"]["input"]["modeOptions"])
+
+    @mock.patch.object(CohortCount, "launch")
+    def test_refused_job_fails_the_count(self, mock_launch):
+        response = Response()
+        response.status_code = status.HTTP_401_UNAUTHORIZED
+        response._content = b'{"message": "Invalid token"}'
+        mock_launch.return_value = response
+        QueryExecutorRequester().launch_request(CohortCount(instance_id=str(self.dm.uuid), json_query=self.json_query, auth_headers={}))
+        self.dm.refresh_from_db()
+        self.assertEqual(JobStatus.failed, self.dm.request_job_status)
+        self.assertEqual('Query Executor answered 401: {"message": "Invalid token"}', self.dm.request_job_fail_msg)
