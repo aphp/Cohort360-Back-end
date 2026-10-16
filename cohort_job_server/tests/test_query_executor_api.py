@@ -6,7 +6,6 @@ import requests
 from django.conf import settings
 from django.test import TestCase
 
-from admin_cohort.models import User
 from cohort_job_server.apps import CohortJobServerConfig
 from cohort_job_server.query_executor_api import QueryFormatter, BaseCohortRequest
 from cohort_job_server.query_executor_api.enums import ResourceType
@@ -20,7 +19,6 @@ from cohort_job_server.query_executor_api.schemas import FhirParameters, FhirPar
 
 CCAM = "https://aphp.fr/ig/fhir/core/CodeSystem/CCAMDescriptiveVerAPHP"
 ATIH = "https://www.atih.sante.fr/plateformes-de-transmission-et-logiciels/logiciels-espace-de-telechargement/id_lot/3550"
-PSEUDED_TOKEN = "http://terminology.hl7.org/CodeSystem/v3-ObservationValue|PSEUDED"
 
 
 class FhirResponseMapperTest(TestCase):
@@ -141,7 +139,7 @@ class TestQueryFormatter(TestCase):
     @mock.patch("cohort_job_server.query_executor_api.query_formatter.query_fhir")
     def test_format_to_fhir_simple_query(self, query_fhir):
         query_fhir.return_value = self.mocked_query_fhir_result
-        res = self.query_formatter.format_to_fhir(self.cohort_query_simple, False)
+        res = self.query_formatter.format_to_fhir(self.cohort_query_simple)
         self.assertEqual(1, len(res.criteria))
         res_criteria = res.criteria[0]
         self.assertEqual(ResourceType.DOCUMENT_REFERENCE, res_criteria.resource_type)
@@ -154,22 +152,7 @@ class TestQueryFormatter(TestCase):
         self.assertEqual(["1234"], self.sent_fhir_params(query_fhir)["_list"])
 
     @mock.patch("cohort_job_server.query_executor_api.query_formatter.query_fhir")
-    def test_format_to_fhir_simple_query_pseudo(self, query_fhir):
-        query_fhir.return_value = self.mocked_query_fhir_result
-        res = self.query_formatter.format_to_fhir(self.cohort_query_simple, True)
-        self.assertEqual(1, len(res.criteria))
-        res_criteria = res.criteria[0]
-        self.assertEqual(ResourceType.DOCUMENT_REFERENCE, res_criteria.resource_type)
-        self.assertEqual(
-            self.fq_value_string,
-            res_criteria.filter_solr,
-        )
-        self.assertEqual("docstatus=final&type:not=doc-impor&empty=false&patient-active=true&_text=ok", res_criteria.filter_fhir)
-        self.assertEqual([PSEUDED_TOKEN], self.sent_fhir_params(query_fhir)["_security"])
-        self.assertEqual(["1234"], self.sent_fhir_params(query_fhir)["_list"])
-
-    @mock.patch("cohort_job_server.query_executor_api.query_formatter.query_fhir")
-    def test_format_to_fhir_ipp_list_is_not_pseudonymized(self, query_fhir):
+    def test_format_to_fhir_ipp_list(self, query_fhir):
         query_fhir.return_value = self.mocked_query_fhir_result
         query = CohortQuery(
             **{
@@ -184,8 +167,7 @@ class TestQueryFormatter(TestCase):
                 },
             }
         )
-        res = self.query_formatter.format_to_fhir(query, True)
-        self.assertNotIn("_security", self.sent_fhir_params(query_fhir))
+        res = self.query_formatter.format_to_fhir(query)
         self.assertEqual(["112"], self.sent_fhir_params(query_fhir)["_list"])
         self.assertEqual(f"{self.fq_value_string}&fq=identifier.value:(8040200003 8000130100)", res.filter_solr)
 
@@ -193,13 +175,13 @@ class TestQueryFormatter(TestCase):
     def test_format_to_fhir_several_care_site_cohorts(self, query_fhir):
         query_fhir.return_value = self.mocked_query_fhir_result
         self.cohort_query_simple.source_population = SourcePopulation(caresiteCohortList=[112, 113])
-        self.query_formatter.format_to_fhir(self.cohort_query_simple, False)
+        self.query_formatter.format_to_fhir(self.cohort_query_simple)
         self.assertEqual(["112,113"], self.sent_fhir_params(query_fhir)["_list"])
 
     @mock.patch("cohort_job_server.query_executor_api.query_formatter.query_fhir")
     def test_format_to_fhir_complex_query(self, query_fhir):
         query_fhir.return_value = self.mocked_query_fhir_result
-        res = self.query_formatter.format_to_fhir(self.cohort_query_complex, False)
+        res = self.query_formatter.format_to_fhir(self.cohort_query_complex)
         self.assertEqual(6, len(res.criteria))
         res_criteria = res.criteria[1]
         self.assertEqual(ResourceType.CONDITION, res_criteria.resource_type)
@@ -208,11 +190,6 @@ class TestQueryFormatter(TestCase):
             res_criteria.filter_solr,
         )
         self.assertEqual("patient-active=true&codeList=A00-B99", res_criteria.filter_fhir)
-
-    def test_cohort_request_pseudo_read(self):
-        user1 = User.objects.create(firstname="Test", lastname="USER", email="test.user@aphp.fr", username="1111111")
-        read_in_pseudo = BaseCohortRequest.is_cohort_request_pseudo_read(username=user1.username, source_population=[])
-        self.assertTrue(read_in_pseudo)
 
     @mock.patch("cohort_job_server.query_executor_api.query_formatter.query_fhir")
     def test_format_to_fhir_adds_prefix_on_ccam_leaf(self, query_fhir):
@@ -230,7 +207,7 @@ class TestQueryFormatter(TestCase):
                 },
             }
         )
-        res = self.query_formatter.format_to_fhir(query, False)
+        res = self.query_formatter.format_to_fhir(query)
         self.assertEqual(f"code={CCAM}|JQGA004*", res.filter_fhir)
         self.assertNotIn("_list", self.sent_fhir_params(query_fhir))
 
@@ -370,26 +347,22 @@ class TestAddSecurityParamsToFilterFhir(TestCase):
         criteria.filter_fhir = filter_fhir
         return criteria
 
-    def test_pseudo_prepends_security_then_source_population(self):
-        enriched = add_security_params_to_filter_fhir(self.criteria("gender=male"), SourcePopulation(caresiteCohortList=[112]), True)
-        self.assertEqual(f"_security={PSEUDED_TOKEN}&_list=112&gender=male", enriched)
-
-    def test_nomi_only_prepends_source_population(self):
-        enriched = add_security_params_to_filter_fhir(self.criteria("gender=male"), SourcePopulation(caresiteCohortList=[112]), False)
+    def test_prepends_source_population(self):
+        enriched = add_security_params_to_filter_fhir(self.criteria("gender=male"), SourcePopulation(caresiteCohortList=[112]))
         self.assertEqual("_list=112&gender=male", enriched)
 
     def test_empty_source_population_adds_no_list(self):
-        enriched = add_security_params_to_filter_fhir(self.criteria("gender=male"), SourcePopulation(caresiteCohortList=[]), True)
-        self.assertEqual(f"_security={PSEUDED_TOKEN}&gender=male", enriched)
+        enriched = add_security_params_to_filter_fhir(self.criteria("gender=male"), SourcePopulation(caresiteCohortList=[]))
+        self.assertEqual("gender=male", enriched)
 
     def test_missing_source_population_adds_no_list(self):
-        enriched = add_security_params_to_filter_fhir(self.criteria("gender=male"), None, True)
-        self.assertEqual(f"_security={PSEUDED_TOKEN}&gender=male", enriched)
+        enriched = add_security_params_to_filter_fhir(self.criteria("gender=male"), None)
+        self.assertEqual("gender=male", enriched)
 
-    def test_ipp_list_gets_source_population_but_no_security(self):
+    def test_ipp_list_gets_source_population(self):
         criteria = self.criteria("identifier.value=8040200003", ResourceType.IPP_LIST)
-        enriched = add_security_params_to_filter_fhir(criteria, SourcePopulation(caresiteCohortList=[112]), True)
+        enriched = add_security_params_to_filter_fhir(criteria, SourcePopulation(caresiteCohortList=[112]))
         self.assertEqual("_list=112&identifier.value=8040200003", enriched)
 
     def test_no_filter_fhir_stays_none(self):
-        self.assertIsNone(add_security_params_to_filter_fhir(self.criteria(None), SourcePopulation(caresiteCohortList=[112]), True))
+        self.assertIsNone(add_security_params_to_filter_fhir(self.criteria(None), SourcePopulation(caresiteCohortList=[112])))
