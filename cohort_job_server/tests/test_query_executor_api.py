@@ -2,43 +2,16 @@ import json
 from pathlib import Path
 from unittest import mock
 
-import requests
 from django.conf import settings
 from django.test import TestCase
 
-from cohort_job_server.apps import CohortJobServerConfig
 from cohort_job_server.query_executor_api import QueryFormatter, BaseCohortRequest
 from cohort_job_server.query_executor_api.enums import ResourceType
-from cohort_job_server.query_executor_api.exceptions import FhirException
-from cohort_job_server.query_executor_api.query_formatter import (
-    add_prefix_search_on_ccam_leaves,
-    add_security_params_to_filter_fhir,
-    query_fhir,
-)
-from cohort_job_server.query_executor_api.schemas import FhirParameters, FhirParameter, CohortQuery, Criteria, SourcePopulation
+from cohort_job_server.query_executor_api.query_formatter import add_prefix_search_on_ccam_leaves
+from cohort_job_server.query_executor_api.schemas import CohortQuery
 
 CCAM = "https://aphp.fr/ig/fhir/core/CodeSystem/CCAMDescriptiveVerAPHP"
 ATIH = "https://www.atih.sante.fr/plateformes-de-transmission-et-logiciels/logiciels-espace-de-telechargement/id_lot/3550"
-
-
-class FhirResponseMapperTest(TestCase):
-    def test_map_parameters_to_string_fq_valid(self):
-        parameters = FhirParameters(
-            resourceType=ResourceType.PROCEDURE,
-            parameter=[
-                FhirParameter(name="fq", valueString="fq=active:true&fq=active:suppr&fq=gender:male"),
-                FhirParameter(name="collection", valueString=ResourceType.PROCEDURE),
-            ],
-        )
-        response = parameters.to_dict()
-        self.assertEqual(2, len(response))
-        self.assertEqual(ResourceType.PROCEDURE, response["collection"])
-        self.assertEqual("fq=active:true&fq=active:suppr&fq=gender:male", response["fq"])
-
-    def test_map_parameters_to_string_fhir_response_empty_list_exception(self):
-        parameters = FhirParameters(resourceType=ResourceType.PATIENT, parameter=[])
-        with self.assertRaises(FhirException):
-            parameters.to_dict()
 
 
 class CohortQueryTest(TestCase):
@@ -62,10 +35,7 @@ class TestBaseCohortRequest(TestCase):
     @mock.patch("cohort_job_server.query_executor_api.cohort_requests.base_cohort_request.QueryFormatter")
     @mock.patch("cohort_job_server.query_executor_api.cohort_requests.base_cohort_request.format_spark_job_request_for_query_executor")
     def test_create_query_executor_request_with_stage_details(self, mock_format_request, mock_query_formatter):
-        # Mock the format_to_fhir method to return a criteria object
-        mock_formatter_instance = mock.MagicMock()
-        mock_query_formatter.return_value = mock_formatter_instance
-        mock_formatter_instance.format_to_fhir.return_value = mock.MagicMock()
+        mock_query_formatter.format.return_value = mock.MagicMock()
 
         # Mock the format_spark_job_request_for_query_executor function to return a string
         expected_result = '{"mode_options": {"sampling": 0.5, "details": "detailed"}}'
@@ -113,47 +83,21 @@ class TestQueryFormatter(TestCase):
             with open(Path(__file__).resolve().parent.joinpath(f"resources/{filename}"), "r") as f:
                 return CohortQuery(**json.load(f))
 
-        self.auth_headers = {
-            "Authorization": "Bearer xxx.token.xxx",
-            settings.AUTHORIZATION_METHOD_HEADER: settings.JWT_AUTH_MODE,
-            "X-Trace-Id": "12a",
-        }
-        self.query_formatter = QueryFormatter(self.auth_headers)
         self.cohort_query_complex = load_query("complex_request.json")
         self.cohort_query_simple = load_query("simple_request.json")
-        self.fq_value_string = "fq=active:true&fq=gender:male"
-        self.mocked_query_fhir_result = FhirParameters(
-            resourceType=ResourceType.PATIENT,
-            parameter=[
-                FhirParameter(name="fq", valueString=self.fq_value_string),
-                FhirParameter(name="collection", valueString=ResourceType.PATIENT),
-            ],
-        )
-        CohortJobServerConfig.USE_SOLR = True
 
-    @staticmethod
-    def sent_fhir_params(query_fhir) -> dict[str, list[str]]:
-        """Params actually sent to the FHIR $query operation, asserting on the mocked return is not enough."""
-        return query_fhir.call_args[0][1]
-
-    @mock.patch("cohort_job_server.query_executor_api.query_formatter.query_fhir")
-    def test_format_to_fhir_simple_query(self, query_fhir):
-        query_fhir.return_value = self.mocked_query_fhir_result
-        res = self.query_formatter.format_to_fhir(self.cohort_query_simple)
+    def test_filter_fhir_is_sent_as_is(self):
+        res = QueryFormatter.format(self.cohort_query_simple)
         self.assertEqual(1, len(res.criteria))
-        res_criteria = res.criteria[0]
-        self.assertEqual(ResourceType.DOCUMENT_REFERENCE, res_criteria.resource_type)
-        self.assertEqual(
-            self.fq_value_string,
-            res_criteria.filter_solr,
-        )
-        self.assertEqual("docstatus=final&type:not=doc-impor&empty=false&patient-active=true&_text=ok", res_criteria.filter_fhir)
-        self.assertNotIn("_security", self.sent_fhir_params(query_fhir))
-        self.assertEqual(["1234"], self.sent_fhir_params(query_fhir)["_list"])
+        self.assertEqual("docstatus=final&type:not=doc-impor&empty=false&patient-active=true&_text=ok", res.criteria[0].filter_fhir)
 
-    @mock.patch("cohort_job_server.query_executor_api.query_formatter.query_fhir")
-    def test_format_to_fhir_ipp_list(self, query_fhir):
-        query_fhir.return_value = self.mocked_query_fhir_result
+    def test_complex_query_keeps_its_criteria(self):
+        res = QueryFormatter.format(self.cohort_query_complex)
+        self.assertEqual(6, len(res.criteria))
+        self.assertEqual(ResourceType.CONDITION, res.criteria[1].resource_type)
+        self.assertEqual("patient-active=true&codeList=A00-B99", res.criteria[1].filter_fhir)
+
+    def test_ipp_list_is_sent_as_is(self):
         query = CohortQuery(
             **{
                 "_type": "request",
@@ -167,33 +111,11 @@ class TestQueryFormatter(TestCase):
                 },
             }
         )
-        res = self.query_formatter.format_to_fhir(query)
-        self.assertEqual(["112"], self.sent_fhir_params(query_fhir)["_list"])
-        self.assertEqual(f"{self.fq_value_string}&fq=identifier.value:(8040200003 8000130100)", res.filter_solr)
+        res = QueryFormatter.format(query)
+        self.assertEqual(ResourceType.IPP_LIST, res.resource_type)
+        self.assertEqual("identifier.value=8040200003,8000130100", res.filter_fhir)
 
-    @mock.patch("cohort_job_server.query_executor_api.query_formatter.query_fhir")
-    def test_format_to_fhir_several_care_site_cohorts(self, query_fhir):
-        query_fhir.return_value = self.mocked_query_fhir_result
-        self.cohort_query_simple.source_population = SourcePopulation(caresiteCohortList=[112, 113])
-        self.query_formatter.format_to_fhir(self.cohort_query_simple)
-        self.assertEqual(["112,113"], self.sent_fhir_params(query_fhir)["_list"])
-
-    @mock.patch("cohort_job_server.query_executor_api.query_formatter.query_fhir")
-    def test_format_to_fhir_complex_query(self, query_fhir):
-        query_fhir.return_value = self.mocked_query_fhir_result
-        res = self.query_formatter.format_to_fhir(self.cohort_query_complex)
-        self.assertEqual(6, len(res.criteria))
-        res_criteria = res.criteria[1]
-        self.assertEqual(ResourceType.CONDITION, res_criteria.resource_type)
-        self.assertEqual(
-            self.fq_value_string,
-            res_criteria.filter_solr,
-        )
-        self.assertEqual("patient-active=true&codeList=A00-B99", res_criteria.filter_fhir)
-
-    @mock.patch("cohort_job_server.query_executor_api.query_formatter.query_fhir")
-    def test_format_to_fhir_adds_prefix_on_ccam_leaf(self, query_fhir):
-        query_fhir.return_value = self.mocked_query_fhir_result
+    def test_adds_prefix_on_ccam_leaf(self):
         query = CohortQuery(
             **{
                 "_type": "request",
@@ -207,88 +129,8 @@ class TestQueryFormatter(TestCase):
                 },
             }
         )
-        res = self.query_formatter.format_to_fhir(query)
+        res = QueryFormatter.format(query)
         self.assertEqual(f"code={CCAM}|JQGA004*", res.filter_fhir)
-        self.assertNotIn("_list", self.sent_fhir_params(query_fhir))
-
-
-class TestQueryFhir(TestCase):
-    def setUp(self):
-        self.auth_headers = {
-            "Authorization": "Bearer xxx.token.xxx",
-            settings.AUTHORIZATION_METHOD_HEADER: settings.JWT_AUTH_MODE,
-        }
-        self.params = {"_list": ["112"], "subject.active": ["true"]}
-
-    @mock.patch("cohort_job_server.query_executor_api.query_formatter.FHIR_URL", "http://fhir-test")
-    @mock.patch("cohort_job_server.query_executor_api.query_formatter.requests")
-    def test_query_fhir_sends_post_not_get(self, mock_requests):
-        mock_response = mock.MagicMock()
-        mock_response.json.return_value = {"resourceType": "Patient", "parameter": []}
-        mock_requests.post.return_value = mock_response
-
-        query_fhir("Patient", self.params, self.auth_headers)
-
-        mock_requests.get.assert_not_called()
-        mock_requests.post.assert_called_once()
-
-    @mock.patch("cohort_job_server.query_executor_api.query_formatter.FHIR_URL", "http://fhir-test")
-    @mock.patch("cohort_job_server.query_executor_api.query_formatter.requests")
-    def test_query_fhir_builds_fhir_parameters_body(self, mock_requests):
-        mock_response = mock.MagicMock()
-        mock_response.json.return_value = {"resourceType": "Patient", "parameter": []}
-        mock_requests.post.return_value = mock_response
-        params = {"_list": ["112"], "_tag": ["low-tolerance", "text-search-rank"]}
-
-        query_fhir("Patient", params, self.auth_headers)
-
-        sent_body = mock_requests.post.call_args.kwargs["json"]
-        self.assertEqual("Parameters", sent_body["resourceType"])
-        self.assertIn({"name": "_list", "valueString": "112"}, sent_body["parameter"])
-        self.assertIn({"name": "_tag", "valueString": "low-tolerance"}, sent_body["parameter"])
-        self.assertIn({"name": "_tag", "valueString": "text-search-rank"}, sent_body["parameter"])
-        self.assertEqual(3, len(sent_body["parameter"]))
-
-    @mock.patch("cohort_job_server.query_executor_api.query_formatter.FHIR_URL", "http://fhir-test")
-    @mock.patch("cohort_job_server.query_executor_api.query_formatter.requests")
-    def test_query_fhir_raises_on_http_error(self, mock_requests):
-        mock_response = mock.MagicMock()
-        mock_response.raise_for_status.side_effect = requests.HTTPError("400 Client Error")
-        mock_requests.post.return_value = mock_response
-
-        with self.assertRaises(requests.HTTPError):
-            query_fhir("Patient", self.params, self.auth_headers)
-
-    @mock.patch("cohort_job_server.query_executor_api.query_formatter.FHIR_URL", "http://fhir-test")
-    @mock.patch("cohort_job_server.query_executor_api.query_formatter.requests")
-    def test_query_fhir_parses_response_into_fhir_parameters(self, mock_requests):
-        mock_response = mock.MagicMock()
-        mock_response.json.return_value = {
-            "resourceType": "Patient",
-            "parameter": [{"name": "fq", "valueString": "fq=active:true"}],
-        }
-        mock_requests.post.return_value = mock_response
-
-        result = query_fhir("Patient", self.params, self.auth_headers)
-
-        self.assertIsInstance(result, FhirParameters)
-        self.assertEqual("fq=active:true", result.to_dict()["fq"])
-
-    @mock.patch("cohort_job_server.query_executor_api.query_formatter.CohortJobServerConfig.TEST_FHIR_QUERIES", True)
-    @mock.patch("cohort_job_server.query_executor_api.query_formatter.FHIR_URL", "http://fhir-test")
-    @mock.patch("cohort_job_server.query_executor_api.query_formatter.requests")
-    def test_query_fhir_test_flag_sends_extra_validation_call(self, mock_requests):
-        mock_response = mock.MagicMock()
-        mock_response.json.return_value = {"resourceType": "Patient", "parameter": []}
-        mock_requests.post.return_value = mock_response
-
-        query_fhir("Patient", self.params, self.auth_headers)
-
-        self.assertEqual(2, mock_requests.post.call_count)
-        first_call_url = mock_requests.post.call_args_list[0][0][0]
-        first_call_body = mock_requests.post.call_args_list[0].kwargs["data"]
-        self.assertEqual("http://fhir-test/Patient/_search", first_call_url)
-        self.assertEqual(["0"], first_call_body["_count"])
 
 
 class TestCcamLeafStartsWith(TestCase):
@@ -338,31 +180,3 @@ class TestCcamLeafStartsWith(TestCase):
 
     def test_non_ccam_codesystem_untouched(self):
         self.assertEqual("code=http://other|JQGA004", add_prefix_search_on_ccam_leaves("code=http://other|JQGA004", ResourceType.PROCEDURE))
-
-
-class TestAddSecurityParamsToFilterFhir(TestCase):
-    @staticmethod
-    def criteria(filter_fhir: str | None, resource_type: ResourceType = ResourceType.CONDITION) -> Criteria:
-        criteria = Criteria(resourceType=resource_type)
-        criteria.filter_fhir = filter_fhir
-        return criteria
-
-    def test_prepends_source_population(self):
-        enriched = add_security_params_to_filter_fhir(self.criteria("gender=male"), SourcePopulation(caresiteCohortList=[112]))
-        self.assertEqual("_list=112&gender=male", enriched)
-
-    def test_empty_source_population_adds_no_list(self):
-        enriched = add_security_params_to_filter_fhir(self.criteria("gender=male"), SourcePopulation(caresiteCohortList=[]))
-        self.assertEqual("gender=male", enriched)
-
-    def test_missing_source_population_adds_no_list(self):
-        enriched = add_security_params_to_filter_fhir(self.criteria("gender=male"), None)
-        self.assertEqual("gender=male", enriched)
-
-    def test_ipp_list_gets_source_population(self):
-        criteria = self.criteria("identifier.value=8040200003", ResourceType.IPP_LIST)
-        enriched = add_security_params_to_filter_fhir(criteria, SourcePopulation(caresiteCohortList=[112]))
-        self.assertEqual("_list=112&identifier.value=8040200003", enriched)
-
-    def test_no_filter_fhir_stays_none(self):
-        self.assertIsNone(add_security_params_to_filter_fhir(self.criteria(None), SourcePopulation(caresiteCohortList=[112])))

@@ -8,9 +8,6 @@ env = os.environ
 class CohortJobServerConfig(AppConfig):
     name = "cohort_job_server"
 
-    USE_SOLR = env.get("USE_SOLR", "False").lower() == "true"
-    TEST_FHIR_QUERIES = env.get("TEST_FHIR_QUERIES", "False").lower() == "true"
-
     COHORT_OPERATORS = [
         {"TYPE": "count", "OPERATOR_CLASS": "cohort_job_server.cohort_counter.CohortCounter"},
         {"TYPE": "create", "OPERATOR_CLASS": "cohort_job_server.cohort_creator.CohortCreator"},
