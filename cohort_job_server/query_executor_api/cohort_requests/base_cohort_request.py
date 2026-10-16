@@ -1,11 +1,8 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
-from accesses.models import Perimeter
-from accesses.services.accesses import accesses_service
-from admin_cohort.models import User
 from cohort_job_server.query_executor_api.exceptions import FhirException
 from cohort_job_server.query_executor_api.schemas import ModeOptions
 from cohort_job_server.query_executor_api.query_executor_client import format_spark_job_request_for_query_executor
@@ -43,23 +40,13 @@ class BaseCohortRequest:
         self.sampling_ratio = sampling_ratio
         self.stage_details = stage_details
 
-    @staticmethod
-    def is_cohort_request_pseudo_read(username: str, source_population: List[int]) -> bool:
-        user = User.objects.filter(pk=username).first()
-        perimeters = Perimeter.objects.filter(cohort_id__in=source_population)
-        return not accesses_service.user_can_access_at_least_one_target_perimeter_in_nomi(user=user, target_perimeters=perimeters)
-
     def create_query_executor_request(self, cohort_query: CohortQuery) -> str:
         """Format the given query with the Fhir nomenclature and return a dict to be sent
         for the followup QUERY EXECUTOR request."""
         if cohort_query is None:
             raise FhirException("No query received to format.")
 
-        is_pseudo = self.is_cohort_request_pseudo_read(
-            username=self.owner_username, source_population=cohort_query.source_population.care_site_cohort_list
-        )
-
-        query_executor_request = QueryFormatter(self.auth_headers).format_to_fhir(cohort_query, is_pseudo)
+        query_executor_request = QueryFormatter(self.auth_headers).format_to_fhir(cohort_query)
         cohort_query.criteria = query_executor_request
 
         callback_path = self.callback_path or (
