@@ -20,7 +20,6 @@ if TYPE_CHECKING:
 
 env = os.environ
 FHIR_URL = env.get("FHIR_URL")
-SECURITY_PSEUDED = "_security=http://terminology.hl7.org/CodeSystem/v3-ObservationValue|PSEUDED"
 
 logger = logging.getLogger(__name__)
 
@@ -56,12 +55,10 @@ def query_fhir(resource: str, params: dict[str, list[str]], auth_headers: dict) 
     return FhirParameters(**result)
 
 
-def add_security_params_to_filter_fhir(sub_criteria: Criteria, source_population: SourcePopulation, is_pseudo: bool) -> str | None:
+def add_security_params_to_filter_fhir(sub_criteria: Criteria, source_population: SourcePopulation) -> str | None:
     if sub_criteria.filter_fhir is None:
         return None
     params = []
-    if is_pseudo and sub_criteria.resource_type != ResourceType.IPP_LIST:
-        params.append(SECURITY_PSEUDED)
     if source_population is not None:
         params.append(source_population.format_to_fhir())
     params.append(sub_criteria.filter_fhir)
@@ -110,7 +107,7 @@ class QueryFormatter:
     def __init__(self, auth_headers: dict):
         self.auth_headers = auth_headers
 
-    def format_to_fhir(self, cohort_query: CohortQuery, is_pseudo: bool) -> Criteria | None:
+    def format_to_fhir(self, cohort_query: CohortQuery) -> Criteria | None:
 
         def build_solr_criteria(criteria: Criteria, source_population: SourcePopulation) -> Criteria | None:
             if criteria is None:
@@ -118,7 +115,7 @@ class QueryFormatter:
 
             if criteria.criteria_type == CriteriaType.BASIC_RESOURCE:
                 criteria.filter_fhir = add_prefix_search_on_ccam_leaves(criteria.filter_fhir, criteria.resource_type)
-                filter_fhir_enriched = add_security_params_to_filter_fhir(criteria, source_population, is_pseudo)
+                filter_fhir_enriched = add_security_params_to_filter_fhir(criteria, source_population)
 
                 logger.info(f"filterFhirEnriched {filter_fhir_enriched}")
 
