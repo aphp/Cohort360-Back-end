@@ -6,6 +6,7 @@ from unittest import mock
 from unittest.mock import call, MagicMock
 
 from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.test import TestCase, override_settings
 from django.utils import timezone
 from fhirpy import SyncFHIRClient
@@ -339,9 +340,25 @@ class PerimetersUpdateTest(TestCase):
         mock_care_sites.return_value = self.fhir_care_sites()
         out = StringIO()
         with tempfile.NamedTemporaryFile(suffix=".json") as output:
-            call_command("compare_fhir_perimeters", output=output.name, stdout=out)
-            details = json.load(open(output.name))
+            call_command("compare_fhir_perimeters", dry_run=True, output=output.name, stdout=out)
+            with open(output.name, encoding="utf-8") as f:
+                details = json.load(f)
         self.assertIn("À créer: 5", out.getvalue())
         self.assertEqual(details["to_delete_ids"], [0, 1])
         self.assertIn({"id": 2, "field": "name", "current": "P2", "fhir": "Hospital 1"}, details["field_diffs"])
         self.assertEqual(Perimeter.objects.all().count(), 5)
+
+    def test_compare_command_apply_writes_the_reported_sync(self, mock_care_sites: MagicMock):
+        mock_care_sites.return_value = self.fhir_care_sites()
+        out = StringIO()
+        call_command("compare_fhir_perimeters", apply=True, stdout=out)
+        self.assertIn("À créer: 5", out.getvalue())
+        self.assertIn("Synchro appliquée", out.getvalue())
+        mock_care_sites.assert_called_once()
+        self.assertEqual(Perimeter.objects.all().count(), 8)
+        deleted_perimeters = Perimeter.objects.exclude(delete_datetime__isnull=True).values_list("id", flat=True)
+        self.assertEqual(sorted(deleted_perimeters), [0, 1])
+
+    def test_compare_command_requires_a_mode(self, _):
+        with self.assertRaises(CommandError):
+            call_command("compare_fhir_perimeters", stdout=StringIO())

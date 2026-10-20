@@ -6,16 +6,19 @@ from django.core.management.base import BaseCommand, CommandError
 
 from accesses.models import Perimeter, Access
 from accesses.services.accesses import accesses_service
-from accesses_fhir_perimeters.perimeters_updater import compute_perimeters_sync, PerimetersSyncAborted, SYNCED_FIELDS
+from accesses_fhir_perimeters.perimeters_updater import apply_perimeters_sync, compute_perimeters_sync, PerimetersSyncAborted, SYNCED_FIELDS
 
 
 class Command(BaseCommand):
     help = (
-        "Compare les périmètres construits depuis les Organization FHIR avec la table Perimeter, sans rien modifier "
-        "(à lancer avant de basculer la synchro des périmètres sur accesses_fhir_perimeters)"
+        "Compare les périmètres construits depuis les Organization FHIR avec la table Perimeter. "
+        "--dry-run affiche le rapport sans rien modifier, --apply applique ensuite exactement ce qui a été affiché"
     )
 
     def add_arguments(self, parser):
+        mode = parser.add_mutually_exclusive_group(required=True)
+        mode.add_argument("--dry-run", action="store_true", help="Affiche le rapport sans rien écrire")
+        mode.add_argument("--apply", action="store_true", help="Affiche le rapport puis applique la synchro")
         parser.add_argument("--output", help="Écrit le détail complet (JSON) dans ce fichier")
         parser.add_argument("--sample", type=int, default=10, help="Nombre d'exemples affichés par catégorie")
 
@@ -52,7 +55,7 @@ class Command(BaseCommand):
         self.stdout.write(f"Orphelins ignorés (non rattachés à la racine): {len(sync.orphans_ids)} - ex: {sync.orphans_ids[:sample]}")
 
         if output := options["output"]:
-            with open(output, "w") as f:
+            with open(output, "w", encoding="utf-8") as f:
                 json.dump(
                     {
                         "to_create": [
@@ -69,3 +72,7 @@ class Command(BaseCommand):
                     indent=2,
                 )
             self.stdout.write(f"Détail écrit dans {output}")
+
+        if options["apply"]:
+            apply_perimeters_sync(sync)
+            self.stdout.write("Synchro appliquée")
