@@ -8,12 +8,29 @@ from cohort.scripts.patch_requests_v145 import return_filter_if_not_exist
 from cohort.scripts.patch_requests_v162 import CCAM_OLD_CODESYSTEM, map_ccam_code_token, map_ccam_codes, updater_v162
 from cohort.scripts.patch_requests_v163 import replace_ccam_root_with_match_all, updater
 from cohort.scripts.patch_requests_v164 import map_ccam_codes as map_ccam_codes_v164, updater_v164
+from cohort.scripts.patch_requests_v170 import updater_v170
 from cohort.scripts.query_request_updater import QueryRequestUpdater
 
 CCAM = "https://aphp.fr/ig/fhir/core/CodeSystem/CCAMDescriptiveVerAPHP"
 
 
 class TestQueryRequestUpdater(BaseTests):
+    def test_skip_filter_accepts_names_and_predicates(self):
+        updater = QueryRequestUpdater(
+            version_name="2",
+            previous_version_name="1",
+            filter_mapping={},
+            filter_names_to_skip={"SomeResource": ["SomeFilterA", lambda name, value: value == "SkipMe"]},
+            filter_values_mapping={},
+            static_required_filters={},
+            resource_name_mapping={},
+        )
+
+        updated_filter, changed = updater.process_filters(["SomeFilterA=x", "SomeFilterB=SkipMe", "SomeFilterC=Keep"], "SomeResource")
+
+        self.assertEqual("SomeFilterC=Keep", updated_filter)
+        self.assertTrue(changed)
+
     def test_filter_fragment_without_equals_sign_is_preserved(self):
         updater = QueryRequestUpdater(
             version_name="2",
@@ -284,3 +301,153 @@ class TestPatchRequestsV164(BaseTests):
         self.assertEqual("v1.6.4", result["version"])
         expected = f"subject.active=true&code={CCAM}|JQGA004...04,{CCAM}|JQGA004*,{CCAM}|JQGA004...01"
         self.assertEqual(expected, result["fhirFilter"])
+
+
+@dataclasses.dataclass
+class Snapshot:
+    uuid: str
+    request_id: str
+    serialized_query: str
+    deleted: object = None
+    saved: bool = False
+
+    def save(self):
+        self.saved = True
+
+
+class TestPatchRequestsV170(BaseTests):
+    @staticmethod
+    def request(*criteria, version="v1.6.4"):
+        return {"version": version, "_type": "request", "request": {"_type": "andGroup", "criteria": list(criteria)}}
+
+    @staticmethod
+    def run_updater(*queries):
+        saved = []
+        upgraded = updater_v170.do_update_old_query_snapshots(
+            [Request(json.dumps(q)) for q in queries], lambda r: saved.append(json.loads(r.serialized_query)), dry_run=False, debug=False
+        )
+        return saved, upgraded
+
+    def test_removes_encounter_params_on_observation(self):
+        criterion = {
+            "_type": "basicResource",
+            "resourceType": "Observation",
+            "filterFhir": "subject.active=true&code=http://loinc|123&encounter.status=finished&encounter.period-start=ge2024-01-01"
+            "&encounter.period-end=le2024-12-31&encounter.service-provider=8312002244&encounter.identifier=12345"
+            "&value-quantity=ge10&date=ge2024-01-01",
+        }
+        saved, upgraded = self.run_updater(self.request(criterion))
+
+        self.assertEqual(1, len(upgraded))
+        self.assertEqual("v1.7.0", saved[0]["version"])
+        self.assertEqual(
+            "subject.active=true&code=http://loinc|123&value-quantity=ge10&date=ge2024-01-01",
+            saved[0]["request"]["criteria"][0]["filterFhir"],
+        )
+
+    def test_removes_url_encoded_encounter_param(self):
+        criterion = {"_type": "basicResource", "resourceType": "Observation", "filterFhir": "code=123&encounter%2Estatus=finished"}
+        saved, _ = self.run_updater(self.request(criterion))
+
+        self.assertEqual("code=123", saved[0]["request"]["criteria"][0]["filterFhir"])
+
+    def test_removes_encounter_in_null_filter_and_keeps_date_null_filter(self):
+        encounter_filter = '_filter=(encounter.period-start ge 2024-01-01T00:00:00Z) or not (encounter.period-start eq "*")'
+        date_filter = '_filter=(date ge 2024-01-01T00:00:00Z) or not (date eq "*")'
+        criterion = {"_type": "basicResource", "resourceType": "Observation", "filterFhir": f"code=123&{encounter_filter}&{date_filter}"}
+        saved, _ = self.run_updater(self.request(criterion))
+
+        self.assertEqual(f"code=123&{date_filter}", saved[0]["request"]["criteria"][0]["filterFhir"])
+
+    def test_removes_patient_age_on_observation(self):
+        criterion = {
+            "_type": "basicResource",
+            "resourceType": "Observation",
+            "filterFhir": "code=123",
+            "patientAge": {"minAge": "18-0-0", "maxAge": "65-0-0"},
+        }
+        saved, upgraded = self.run_updater(self.request(criterion))
+
+        self.assertEqual(1, len(upgraded))
+        self.assertNotIn("patientAge", saved[0]["request"]["criteria"][0])
+        self.assertEqual("code=123", saved[0]["request"]["criteria"][0]["filterFhir"])
+
+    def test_keeps_other_resources(self):
+        criteria = [
+            {
+                "_type": "basicResource",
+                "resourceType": resource,
+                "filterFhir": "code=123&encounter.status=finished",
+                "patientAge": {"minAge": "18-0-0", "maxAge": None},
+            }
+            for resource in ("Condition", "Procedure", "MedicationRequest", "ImagingStudy")
+        ]
+        saved, upgraded = self.run_updater(self.request(*criteria))
+
+        self.assertEqual([], upgraded)
+        self.assertEqual(criteria, saved[0]["request"]["criteria"])
+
+    def test_observation_without_encounter_is_unchanged(self):
+        query = self.request({"_type": "basicResource", "resourceType": "Observation", "filterFhir": "code=123&date=ge2024-01-01"})
+        saved, upgraded = self.run_updater(query)
+
+        self.assertEqual([], upgraded)
+        self.assertEqual({**query, "version": "v1.7.0"}, saved[0])
+
+    def test_null_patient_age_is_removed_without_upgrade(self):
+        criterion = {"_type": "basicResource", "resourceType": "Observation", "filterFhir": "code=123", "patientAge": None}
+        saved, upgraded = self.run_updater(self.request(criterion))
+
+        self.assertEqual([], upgraded)
+        self.assertNotIn("patientAge", saved[0]["request"]["criteria"][0])
+
+    def test_nested_group(self):
+        criterion = {"_type": "basicResource", "resourceType": "Observation", "filterFhir": "code=123&encounter.status=finished"}
+        saved, upgraded = self.run_updater(self.request({"_type": "orGroup", "criteria": [criterion]}))
+
+        self.assertEqual(1, len(upgraded))
+        self.assertEqual("code=123", saved[0]["request"]["criteria"][0]["criteria"][0]["filterFhir"])
+
+    def test_only_previous_version_is_migrated(self):
+        criterion = {"_type": "basicResource", "resourceType": "Observation", "filterFhir": "code=123&encounter.status=finished"}
+        saved, upgraded = self.run_updater(self.request(criterion, version="v1.6.3"), self.request(criterion, version="v1.7.0"))
+
+        self.assertEqual([], saved)
+        self.assertEqual([], upgraded)
+
+    def test_update_old_filters(self):
+        biology_filter = Filter(uuid="bio", query_version="v1.6.4", fhir_resource="Observation", filter="code=123&encounter.status=finished")
+        other_filter = Filter(uuid="other", query_version="v1.6.4", fhir_resource="Condition", filter="code=I10&encounter.status=finished")
+
+        with patch.object(query_request_updater_module.FhirFilter.objects, "all", return_value=[biology_filter, other_filter]):
+            upgraded = updater_v170.update_old_filters(dry_run=False, debug=False)
+
+        self.assertEqual(["bio"], [f.filter_uuid for f in upgraded])
+        self.assertEqual("code=123", biology_filter.filter)
+        self.assertEqual("v1.7.0", biology_filter.query_version)
+        self.assertEqual("code=I10&encounter.status=finished", other_filter.filter)
+        self.assertEqual("v1.7.0", other_filter.query_version)
+
+    def test_dry_run_returns_recap_without_saving(self):
+        impacted = self.request({"_type": "basicResource", "resourceType": "Observation", "filterFhir": "code=123&encounter.status=finished"})
+        not_impacted = self.request({"_type": "basicResource", "resourceType": "Observation", "filterFhir": "code=123"})
+        snapshots = [
+            Snapshot(uuid="s1", request_id="r1", serialized_query=json.dumps(impacted)),
+            Snapshot(uuid="s2", request_id="r1", serialized_query=json.dumps(impacted)),
+            Snapshot(uuid="s3", request_id="r2", serialized_query=json.dumps(impacted), deleted="2026-01-01"),
+            Snapshot(uuid="s4", request_id="r3", serialized_query=json.dumps(not_impacted)),
+        ]
+        bio_filter = Filter(uuid="bio", query_version="v1.6.4", fhir_resource="Observation", filter="encounter.status=finished")
+
+        with (
+            patch.object(query_request_updater_module.RequestQuerySnapshot.objects, "all", return_value=snapshots),
+            patch.object(query_request_updater_module.FhirFilter.objects, "all", return_value=[bio_filter]),
+            patch.object(query_request_updater_module.CohortResult.objects, "filter") as cohorts,
+        ):
+            cohorts.return_value.count.return_value = 5
+            recap = updater_v170.update_old_query_snapshots(dry_run=True, debug=False, with_filters=True)
+
+        self.assertEqual({"snapshots": 3, "active_snapshots": 2, "requests": 1, "cohorts": 5, "filters": 1}, recap)
+        cohorts.assert_called_once_with(request_query_snapshot_id__in=["s1", "s2"])
+        self.assertFalse(any(s.saved for s in snapshots))
+        self.assertFalse(bio_filter.saved)
