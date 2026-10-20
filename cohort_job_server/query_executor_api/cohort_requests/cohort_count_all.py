@@ -27,4 +27,4 @@ class CohortCountAll(BaseCohortRequest):
         super().launch(cohort_query)
         cohort_query.source_population = SourcePopulation(caresiteCohortList=[get_top_care_site_source_population()])
         request = self.create_query_executor_request(cohort_query)
-        return self.query_executor_client.count(request)
+        return self.query_executor_client.submit(request, self.auth_headers)

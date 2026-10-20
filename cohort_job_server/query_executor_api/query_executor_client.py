@@ -1,39 +1,33 @@
 from __future__ import annotations
 
-import json
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import requests
+from django.conf import settings
 from requests import Response
 
 from admin_cohort.http_timeout import HTTP_REQUEST_TIMEOUT
+from admin_cohort.middleware.context_request_middleware import get_trace_id
 
 if TYPE_CHECKING:
     from cohort_job_server.query_executor_api import CohortQuery, SparkJobObject
 
 
 class QueryExecutorClient:
-    APP_NAME = "omop-spark-job"
-
-    # todo: remove this dependency by refactoring the Query Executor scala project and removing those class paths requirements
-    COUNT_CLASSPATH = "fr.aphp.id.eds.requester.CountQuery"
-    CREATE_CLASSPATH = "fr.aphp.id.eds.requester.CreateQuery"
-    CONTEXT = "shared"
-
     def __init__(self):
         self.api_url = f"{os.environ.get('QUERY_EXECUTOR_URL')}/jobs"
 
-    def count(self, input_payload: str) -> Response:
-        params = {"appName": self.APP_NAME, "classPath": self.COUNT_CLASSPATH, "context": self.CONTEXT}
-        return requests.post(self.api_url, params=params, data=input_payload, timeout=HTTP_REQUEST_TIMEOUT)
+    @staticmethod
+    def get_headers(auth_headers: dict | None) -> dict:
+        # The SJS checks the token itself (user rights, pseudo), so the caller's token is forwarded as is
+        return {**(auth_headers or {}), settings.TRACE_ID_HEADER: get_trace_id()}
 
-    def create(self, input_payload: str) -> Response:
-        params = {"appName": self.APP_NAME, "classPath": self.CREATE_CLASSPATH, "context": self.CONTEXT, "sync": "false"}
-        return requests.post(self.api_url, params=params, data=input_payload, timeout=HTTP_REQUEST_TIMEOUT)
+    def submit(self, job_input: dict, auth_headers: dict | None = None) -> Response:
+        return requests.post(self.api_url, json=job_input, headers=self.get_headers(auth_headers), timeout=HTTP_REQUEST_TIMEOUT)
 
-    def delete(self, job_id: str) -> Response:
-        return requests.delete(f"{self.api_url}/{job_id}", timeout=HTTP_REQUEST_TIMEOUT)
+    def delete(self, job_id: str, auth_headers: dict | None = None) -> Response:
+        return requests.delete(f"{self.api_url}/{job_id}", headers=self.get_headers(auth_headers), timeout=HTTP_REQUEST_TIMEOUT)
 
 
 def replace_pattern(text: str, replacements: list[tuple[str, str]]) -> str:
@@ -45,21 +39,22 @@ def replace_pattern(text: str, replacements: list[tuple[str, str]]) -> str:
 def format_syntax(request: CohortQuery) -> str:
     json_data = request.model_dump_json(by_alias=True, exclude_none=True)
     replacements = [('["All"]', '"all"'), ("[true]", "true"), ("[false]", "false")]
-    formatted_json = replace_pattern(json_data, replacements)
-    return json.dumps(formatted_json)
+    return replace_pattern(json_data, replacements)
 
 
-def format_spark_job_request_for_query_executor(spark_job_request: SparkJobObject) -> str:
-    callback_path = spark_job_request.callback_path
-    request_input = str(
-        f"input.cohortDefinitionName = {spark_job_request.cohort_definition_name},"
-        f"input.cohortDefinitionSyntax = {format_syntax(spark_job_request.cohort_definition_syntax)},"
-        f"input.ownerEntityId = {spark_job_request.owner_entity_id},"
-        f"input.mode = {spark_job_request.mode},"
-        f"input.cohortUuid = {spark_job_request.cohort_definition_syntax.instance_id}"
-    )
-    if callback_path:
-        request_input += f",input.callbackPath = {callback_path}"
+def format_spark_job_request_for_query_executor(spark_job_request: SparkJobObject) -> dict:
+    cohort_query = spark_job_request.cohort_definition_syntax
+    job_input: dict[str, Any] = {
+        "cohortDefinitionName": spark_job_request.cohort_definition_name,
+        "cohortDefinitionSyntax": format_syntax(cohort_query),
+        "mode": spark_job_request.mode,
+    }
+    if spark_job_request.owner_entity_id:
+        job_input["ownerEntityId"] = spark_job_request.owner_entity_id
+    if cohort_query.instance_id:
+        job_input["cohortUuid"] = str(cohort_query.instance_id)
+    if spark_job_request.callback_path:
+        job_input["callbackPath"] = spark_job_request.callback_path
     if spark_job_request.mode_options is not None:
-        request_input += ",input.modeOptions = %s" % spark_job_request.mode_options.model_dump_json(exclude_unset=True)
-    return request_input
+        job_input["modeOptions"] = spark_job_request.mode_options.model_dump(exclude_none=True)
+    return {"input": job_input}

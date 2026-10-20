@@ -1,9 +1,11 @@
+import json
+
 from django.utils.timezone import now
 from django_celery_beat.models import CrontabSchedule, PeriodicTask
 
-from cohort.models import RequestRefreshSchedule, DatedMeasure, RequestQuerySnapshot
-from cohort.services.base_service import CommonService, load_operator
-from cohort.services.utils import RefreshFrequency, get_authorization_header
+from cohort.models import RequestRefreshSchedule, DatedMeasure
+from cohort.services.base_service import CommonService
+from cohort.services.utils import RefreshFrequency
 from cohort.tasks import refresh_count_request, send_email_count_request_refreshed
 
 FREQUENCIES = {RefreshFrequency.DAILY.value: "*", RefreshFrequency.EVERY_OTHER_DAY.value: "*/2", RefreshFrequency.WEEKLY.value: "*/7"}
@@ -16,15 +18,10 @@ class RequestRefreshScheduleService(CommonService):
         crontab_schedule = self.create_crontab_schedule(refresh_schedule)
         snapshot = refresh_schedule.request_snapshot
         dm_id = DatedMeasure.objects.create(owner=snapshot.owner, request_query_snapshot=snapshot).uuid
-        self.translate_snapshot_query(rqs=snapshot, dm_id=str(dm_id), auth_headers=get_authorization_header(http_request))
-        task_args = [dm_id, snapshot.translated_query, self.operator_cls]
+        # The snapshot's query is sent as is on every run: the SJS translates it, nothing is frozen here
+        task_args = [str(dm_id), self.operator_cls]
         task = f"{refresh_count_request.__module__}.{refresh_count_request.__name__}"
-        PeriodicTask.objects.create(name=snapshot.uuid, crontab=crontab_schedule, task=task, args=str(task_args))
-
-    def translate_snapshot_query(self, rqs: RequestQuerySnapshot, dm_id: str, auth_headers: dict) -> None:
-        cohort_counter = load_operator(self.operator_cls)
-        rqs.translated_query = cohort_counter.translate_query(dm_id=dm_id, json_query=rqs.serialized_query, auth_headers=auth_headers)
-        rqs.save()
+        PeriodicTask.objects.create(name=snapshot.uuid, crontab=crontab_schedule, task=task, args=json.dumps(task_args))
 
     def reset_schedule_crontab(self, refresh_schedule: RequestRefreshSchedule) -> None:
         periodic_task = PeriodicTask.objects.get(name=refresh_schedule.request_snapshot.uuid)
