@@ -9,7 +9,7 @@ from rest_framework import status
 
 from admin_cohort.types import JobStatus
 
-from cohort_job_server.query_executor_api import QueryFormatter, BaseCohortRequest, CohortCount, QueryExecutorRequester
+from cohort_job_server.query_executor_api import QueryFormatter, BaseCohortRequest, CohortCount, CohortCountAll, QueryExecutorRequester
 from cohort_job_server.query_executor_api.enums import Mode
 from cohort_job_server.query_executor_api.enums import ResourceType
 from cohort_job_server.query_executor_api.query_formatter import add_prefix_search_on_ccam_leaves
@@ -238,6 +238,17 @@ class TestSubmitJob(BaseTest):
         count = CohortCount(instance_id=str(self.dm.uuid), json_query=self.json_query, auth_headers=self.auth_headers, stage_details="ratio")
         count.launch(CohortQuery(instance_id=self.dm.uuid, **json.loads(self.json_query)))
         self.assertEqual({"details": "ratio"}, mock_requests.post.call_args.kwargs["json"]["input"]["modeOptions"])
+
+    @mock.patch.dict("os.environ", {"QUERY_EXECUTOR_URL": "http://sjs"})
+    @mock.patch("cohort_job_server.query_executor_api.query_executor_client.requests")
+    def test_count_all_is_sent_as_estimate_on_the_root(self, mock_requests):
+        mock_requests.post.return_value = mock.MagicMock(ok=True)
+        count_all = CohortCountAll(instance_id=str(self.dm.uuid), json_query=self.json_query, auth_headers=self.auth_headers)
+        count_all.launch(CohortQuery(instance_id=self.dm.uuid, **json.loads(self.json_query)))
+        job_input = mock_requests.post.call_args.kwargs["json"]["input"]
+        self.assertEqual("estimate", job_input["mode"])
+        syntax = json.loads(job_input["cohortDefinitionSyntax"])
+        self.assertEqual([int(self.perimeter.cohort_id)], syntax["sourcePopulation"]["caresiteCohortList"])
 
     @mock.patch.object(CohortCount, "launch")
     def test_refused_job_fails_the_count(self, mock_launch):
