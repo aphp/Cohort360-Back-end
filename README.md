@@ -221,6 +221,8 @@ the [Cohort360 project](https://github.com/aphp/Cohort360) repository.
   * only organizations whose type (`Organization.type`) is one of `PERIMETER_TYPES` are kept; the code (`source_value`) comes from `Organization.alias`;
   * the tree starts at `ROOT_PERIMETER_ID`: the sync stops without changes if this organization is missing; organizations not attached to it are ignored;
   * perimeters no longer returned by FHIR are soft-deleted and their accesses are closed.
+  * each perimeter's `cohort_id` and `cohort_size` come from the FHIR `List` whose `source` is its organization (`List.id` and the `list-total` extension);
+    the sync stops without changes if the root has no `List`.
 
   It runs from the periodic task `accesses_fhir_perimeters.tasks.perimeters_daily_update` (cf `SCHEDULED_TASKS` below), or manually with `PUT /fhir-perimeters/_sync/`.  
   `python manage.py compare_fhir_perimeters [--output diff.json]` shows what a sync would change, without writing anything.
