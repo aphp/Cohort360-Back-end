@@ -225,7 +225,7 @@ the [Cohort360 project](https://github.com/aphp/Cohort360) repository.
     the sync stops without changes if the root has no `List`.
 
   It runs from the periodic task `accesses_fhir_perimeters.tasks.perimeters_daily_update` (cf `SCHEDULED_TASKS` below), or manually with `PUT /fhir-perimeters/_sync/`.  
-  `python manage.py compare_fhir_perimeters [--output diff.json]` shows what a sync would change, without writing anything.
+  `python manage.py compare_fhir_perimeters --dry-run [--output diff.json]` shows what a sync would change, without writing anything; `--apply` shows the same report then applies exactly those changes.
 
   | Variable                           | Description                                                                                       | Default Value       | Required ? |
   |------------------------------------|---------------------------------------------------------------------------------------------------|---------------------|------------|

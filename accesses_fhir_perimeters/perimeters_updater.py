@@ -337,6 +337,10 @@ def perimeters_data_model_objects_update():
         f"2. Perimeters to create: {len(sync.to_create)}, to update: {len(sync.to_update)} (reactivated: {len(sync.reactivated_ids)}), "
         f"unchanged: {len(unchanged)}, to delete: {len(sync.to_delete_ids)}, orphans ignored: {len(sync.orphans_ids)}"
     )
+    apply_perimeters_sync(sync)
+
+
+def apply_perimeters_sync(sync: PerimetersSyncResult):
     # All or nothing: a perimeter soft-deleted without its accesses closed would never be retried,
     # since the next run only deletes perimeters that are still active.
     with transaction.atomic():
