@@ -177,23 +177,6 @@ DATABASES = {
     }
 }
 
-if "accesses_perimeters" in INCLUDED_APPS:
-    DATABASES["accesses_perimeters"] = {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": env("PERIMETERS_SOURCE_DB_NAME"),
-        "USER": env("PERIMETERS_SOURCE_DB_USER"),
-        "PASSWORD": env("PERIMETERS_SOURCE_DB_PASSWORD"),
-        "HOST": env("PERIMETERS_SOURCE_DB_HOST"),
-        "PORT": env("PERIMETERS_SOURCE_DB_PORT"),
-        "TEST": {"NAME": f"test_{env('PERIMETERS_SOURCE_DB_NAME')}"},
-        "DISABLE_SERVER_SIDE_CURSORS": True,
-        "TIME_ZONE": None,
-        "CONN_HEALTH_CHECKS": False,
-        "CONN_MAX_AGE": 0,
-        "AUTOCOMMIT": True,
-        "OPTIONS": {"options": f"-c search_path={env('PERIMETERS_SOURCE_DB_SCHEMA', default='public')}"},
-    }
-
 WSGI_APPLICATION = "admin_cohort.wsgi.application"
 
 ROOT_URLCONF = "admin_cohort.urls"
