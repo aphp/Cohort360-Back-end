@@ -443,11 +443,12 @@ class TestPatchRequestsV170(BaseTests):
             patch.object(query_request_updater_module.RequestQuerySnapshot.objects, "all", return_value=snapshots),
             patch.object(query_request_updater_module.FhirFilter.objects, "all", return_value=[bio_filter]),
             patch.object(query_request_updater_module.CohortResult.objects, "filter") as cohorts,
+            patch.object(updater_v170, "log_recap_table") as log_recap,
         ):
             cohorts.return_value.count.return_value = 5
-            recap = updater_v170.update_old_query_snapshots(dry_run=True, debug=False, with_filters=True)
+            updater_v170.update_old_query_snapshots(dry_run=True, debug=False, with_filters=True)
 
-        self.assertEqual({"snapshots": 3, "active_snapshots": 2, "requests": 1, "cohorts": 5, "filters": 1}, recap)
+        log_recap.assert_called_once_with({"snapshots": 3, "active_snapshots": 2, "requests": 1, "cohorts": 5, "filters": 1}, True)
         cohorts.assert_called_once_with(request_query_snapshot_id__in=["s1", "s2"])
         self.assertFalse(any(s.saved for s in snapshots))
         self.assertFalse(bio_filter.saved)
