@@ -63,7 +63,7 @@ class QueryRequestUpdater:
         version_name: str,
         previous_version_name: Optional[List[str]],
         filter_mapping: Dict[str, Dict[str, str]],
-        filter_names_to_skip: Dict[str, List[Union[str, Callable[[str, str], bool]]]],
+        filter_names_to_skip: Dict[str, List[str | Callable[[str, str], bool]]],
         filter_values_mapping: Dict[str, Dict[str, Dict[str, Union[str, Callable[[str], str]]]]],
         static_required_filters: Dict[str, List[Union[str, Callable[[List[str]], Optional[str]]]]],
         resource_name_mapping: Dict[str, str],
