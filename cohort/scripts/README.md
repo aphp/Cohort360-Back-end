@@ -138,10 +138,18 @@ updater_v161.update_old_query_snapshots(
 - `debug` (bool): Enables verbose logging and saves debug files
 - `with_filters` (bool): Also updates standalone FhirFilter objects
 
-`update_old_query_snapshots` returns (and logs) a recap of what was actually modified, which is the figure to report after a dry run:
+`update_old_query_snapshots` logs a recap of what was actually modified, which is the figure to report after a dry run:
 
-```python
-{"snapshots": 120, "active_snapshots": 90, "requests": 40, "cohorts": 75, "filters": 12}
+```
++------------------------------------------+----------+
+| PATCH v1.7.0 — DRY RUN                   |   Nombre |
++------------------------------------------+----------+
+| Snapshots modifiés (supprimés compris)   |      120 |
+| Snapshots modifiés (hors supprimés)      |       90 |
+| Requêtes distinctes                      |       40 |
+| Cohortes liées                           |       75 |
+| Filtres modifiés                         |       12 |
++------------------------------------------+----------+
 ```
 
 `snapshots` includes soft deleted snapshots, `active_snapshots`, `requests` and `cohorts` do not.

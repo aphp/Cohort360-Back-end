@@ -283,9 +283,9 @@ class QueryRequestUpdater:
                 json.dump([json.loads(c["after"]) for c in changed_queries], fh, indent=2)
         return upgraded_queries
 
-    def update_old_query_snapshots(self, dry_run: bool = True, debug: bool = True, with_filters: bool = True) -> Dict[str, int]:
+    def update_old_query_snapshots(self, dry_run: bool = True, debug: bool = True, with_filters: bool = True):
         """
-        Returns: a recap of the modified snapshots, requests, cohorts and filters.
+        Logs a recap of the modified snapshots, requests, cohorts and filters.
         RequestQuerySnapshot.objects includes soft deleted snapshots: they are migrated but counted apart.
         """
         logger.info(f"Will update requests to version {self.version_name}. Dry run : {dry_run}")
@@ -301,7 +301,6 @@ class QueryRequestUpdater:
         if with_filters:
             recap["filters"] = len(self.update_old_filters(dry_run, debug))
         self.log_recap_table(recap, dry_run)
-        return recap
 
     RECAP_LABELS = {
         "snapshots": "Snapshots modifiés (supprimés compris)",
