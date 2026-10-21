@@ -8,7 +8,7 @@ from typing import List, Tuple, TypeVar, Callable, Any, Optional, Dict, Union
 
 from django.db.backends.base.base import BaseDatabaseWrapper
 
-from cohort.models import RequestQuerySnapshot, FhirFilter
+from cohort.models import CohortResult, RequestQuerySnapshot, FhirFilter
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +63,7 @@ class QueryRequestUpdater:
         version_name: str,
         previous_version_name: Optional[List[str]],
         filter_mapping: Dict[str, Dict[str, str]],
-        filter_names_to_skip: Dict[str, List[str]],
+        filter_names_to_skip: Dict[str, List[str | Callable[[str, str], bool]]],
         filter_values_mapping: Dict[str, Dict[str, Dict[str, Union[str, Callable[[str], str]]]]],
         static_required_filters: Dict[str, List[Union[str, Callable[[List[str]], Optional[str]]]]],
         resource_name_mapping: Dict[str, str],
@@ -119,8 +119,14 @@ class QueryRequestUpdater:
                     filters.append(static_filter)
         return has_changed
 
-    def skip_filter(self, filter_name, resource) -> bool:
-        return resource in self.filter_names_to_skip and filter_name in self.filter_names_to_skip[resource]
+    def skip_filter(self, filter_name, resource, filter_value="") -> bool:
+        for to_skip in self.filter_names_to_skip.get(resource, []):
+            if callable(to_skip):
+                if to_skip(filter_name, filter_value):
+                    return True
+            elif to_skip == filter_name:
+                return True
+        return False
 
     def process_filters(self, filter_items: List[str], resource: str) -> Tuple[str, bool]:
         updated_filters = []
@@ -131,7 +137,7 @@ class QueryRequestUpdater:
                     updated_filters.append(filter_item)
                     continue
                 filter_name, filter_value = filter_item.split("=", 1)
-                if not self.skip_filter(filter_name, resource):
+                if not self.skip_filter(filter_name, resource, filter_value):
                     new_filter_name, has_changed = self.map_filter_name(filter_name, resource)
                     new_filter_value, value_changed = self.map_filter_value(filter_name, resource, filter_value)
                     updated_filters.append(f"{new_filter_name}={new_filter_value}")
@@ -230,11 +236,15 @@ class QueryRequestUpdater:
         # if the process failed then we don't want to save the changes
         return query.get("version", None) == self.version_name, was_upgraded
 
-    def do_update_old_query_snapshots(self, queries: List[Any], save_query: Callable[[Any], None], dry_run, debug):
+    def do_update_old_query_snapshots(self, queries: List[Any], save_query: Callable[[Any], None], dry_run, debug) -> List[Any]:
+        """
+        Returns: the queries whose content was actually modified (not only their version number)
+        """
         error_loading = 0
         processed = 0
         upgraded = 0
         changed_queries = []
+        upgraded_queries = []
         debug_path: Optional[Path] = None
         versions_recap = {}
         if debug:
@@ -255,6 +265,7 @@ class QueryRequestUpdater:
                 processed += 1
                 if was_upgraded:
                     upgraded += 1
+                    upgraded_queries.append(rqs)
                     if debug:
                         logger.info(f"Updating query from {rqs.serialized_query} to {updated_query}")
                         changed_queries.append({"before": rqs.serialized_query, "after": updated_query})
@@ -270,13 +281,42 @@ class QueryRequestUpdater:
                 json.dump([json.loads(c["before"]) for c in changed_queries], fh, indent=2)
             with open(debug_path / "after", "w") as fh:
                 json.dump([json.loads(c["after"]) for c in changed_queries], fh, indent=2)
+        return upgraded_queries
 
     def update_old_query_snapshots(self, dry_run: bool = True, debug: bool = True, with_filters: bool = True):
+        """
+        Logs a recap of the modified snapshots, requests, cohorts and filters.
+        RequestQuerySnapshot.objects includes soft deleted snapshots: they are migrated but counted apart.
+        """
         logger.info(f"Will update requests to version {self.version_name}. Dry run : {dry_run}")
         all_rqs: List[RequestQuerySnapshot] = RequestQuerySnapshot.objects.all()
-        self.do_update_old_query_snapshots(all_rqs, lambda r: r.save(), dry_run, debug)
+        upgraded_rqs = self.do_update_old_query_snapshots(all_rqs, lambda r: r.save(), dry_run, debug)
+        active_rqs = [rqs for rqs in upgraded_rqs if rqs.deleted is None]
+        recap = {
+            "snapshots": len(upgraded_rqs),
+            "active_snapshots": len(active_rqs),
+            "requests": len({rqs.request_id for rqs in active_rqs}),
+            "cohorts": CohortResult.objects.filter(request_query_snapshot_id__in=[rqs.uuid for rqs in active_rqs]).count(),
+        }
         if with_filters:
-            self.update_old_filters(dry_run, debug)
+            recap["filters"] = len(self.update_old_filters(dry_run, debug))
+        self.log_recap_table(recap, dry_run)
+
+    RECAP_LABELS = {
+        "snapshots": "Snapshots modifiés (supprimés compris)",
+        "active_snapshots": "Snapshots modifiés (hors supprimés)",
+        "requests": "Requêtes distinctes",
+        "cohorts": "Cohortes liées",
+        "filters": "Filtres modifiés",
+    }
+
+    def log_recap_table(self, recap: Dict[str, int], dry_run: bool):
+        title = f"PATCH {self.version_name}{' — DRY RUN' if dry_run else ''}"
+        separator = "+" + "-" * 42 + "+" + "-" * 10 + "+"
+        rows = [separator, f"| {title:<40} | {'Nombre':>8} |", separator]
+        rows += [f"| {self.RECAP_LABELS.get(key, key):<40} | {value:>8} |" for key, value in recap.items()]
+        rows.append(separator)
+        logger.info("Upgraded recap :\n" + "\n".join(rows))
 
     def save_filter(self, f: _FilterQuerySnapshot, filters: List[FhirFilter]):
         for resource_filter in filters:
@@ -287,10 +327,10 @@ class QueryRequestUpdater:
                 resource_filter.save()
                 return
 
-    def update_old_filters(self, dry_run: bool = True, debug: bool = True):
+    def update_old_filters(self, dry_run: bool = True, debug: bool = True) -> List[_FilterQuerySnapshot]:
         logger.info(f"Will update filters to version {self.version_name}. Dry run : {dry_run}")
         all_filters: List[FhirFilter] = FhirFilter.objects.all()
-        self.do_update_old_query_snapshots(
+        return self.do_update_old_query_snapshots(
             [
                 _FilterQuerySnapshot(
                     filter_uuid=f.uuid,
