@@ -452,3 +452,21 @@ class TestPatchRequestsV170(BaseTests):
         cohorts.assert_called_once_with(request_query_snapshot_id__in=["s1", "s2"])
         self.assertFalse(any(s.saved for s in snapshots))
         self.assertFalse(bio_filter.saved)
+
+    def test_log_recap_table(self):
+        recap = {"snapshots": 3, "active_snapshots": 2, "requests": 1, "cohorts": 5, "filters": 1}
+
+        with self.assertLogs("cohort.scripts.query_request_updater", level="INFO") as logs:
+            updater_v170.log_recap_table(recap, dry_run=True)
+
+        table = logs.output[0]
+        self.assertIn("| PATCH v1.7.0 — DRY RUN                   |   Nombre |", table)
+        self.assertIn("| Snapshots modifiés (hors supprimés)      |        2 |", table)
+        self.assertIn("| Filtres modifiés                         |        1 |", table)
+
+    def test_log_recap_table_without_dry_run(self):
+        with self.assertLogs("cohort.scripts.query_request_updater", level="INFO") as logs:
+            updater_v170.log_recap_table({"snapshots": 0}, dry_run=False)
+
+        self.assertIn("| PATCH v1.7.0                             |   Nombre |", logs.output[0])
+        self.assertNotIn("DRY RUN", logs.output[0])
