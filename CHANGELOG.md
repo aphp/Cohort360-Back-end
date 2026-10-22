@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.32.0] - 2026-10-22
+
+### ⚙️ Miscellaneous Tasks
+
+- Suppression des scripts ponctuels de la MEP 2025-12-15
+- Suppression des scripts ponctuels de la MEP 2025-12-15 (#623)
+
 ## [3.31.0] - 2026-10-08
 
 ### 🚀 Features
