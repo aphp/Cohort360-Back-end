@@ -226,6 +226,12 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend", "rest_framework.filters.SearchFilter"],
+    "DEFAULT_PARSER_CLASSES": [
+        "admin_cohort.tools.parsers.JSONParser",
+        "admin_cohort.tools.parsers.FormParser",
+        "admin_cohort.tools.parsers.MultiPartParser",
+    ],
+    "DEFAULT_CONTENT_NEGOTIATION_CLASS": "admin_cohort.tools.negotiation.ContentNegotiation",
     "PAGE_SIZE": 20,
     "EXCEPTION_HANDLER": "admin_cohort.tools.exception_handler.custom_exception_handler",
 }
