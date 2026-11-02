@@ -13,6 +13,7 @@ on:
       - develop
       - 'release/**'
       - 'hotfix/**'
+      - 'feature/bc-**'
 
 jobs:
   publish:
@@ -68,8 +69,8 @@ jobs:
             develop)
               echo "IMAGE_TAGS=aphpid/cohort360-backend:develop,aphpid/cohort360-backend:develop-${SHORT_SHA}" >> "$GITHUB_ENV"
               ;;
-            backend-frigo)
-              echo "IMAGE_TAGS=aphpid/cohort360-backend:backend-frigo" >> "$GITHUB_ENV"
+            feature/bc-*)
+              echo "IMAGE_TAGS=aphpid/cohort360-backend:${HEAD_BRANCH#feature/}-${SHORT_SHA}" >> "$GITHUB_ENV"
               ;;
             release/*|hotfix/*)
               echo "IMAGE_TAGS=aphpid/cohort360-backend:${VERSION}-rc,aphpid/cohort360-backend:${VERSION}-rc.${SHORT_SHA}" >> "$GITHUB_ENV"
