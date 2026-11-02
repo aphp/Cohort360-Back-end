@@ -70,7 +70,9 @@ jobs:
               echo "IMAGE_TAGS=aphpid/cohort360-backend:develop,aphpid/cohort360-backend:develop-${SHORT_SHA}" >> "$GITHUB_ENV"
               ;;
             feature/bc-*)
-              echo "IMAGE_TAGS=aphpid/cohort360-backend:${HEAD_BRANCH#feature/}-${SHORT_SHA}" >> "$GITHUB_ENV"
+              BC_TAG="${HEAD_BRANCH#feature/}"
+              BC_TAG="${BC_TAG,,}"
+              echo "IMAGE_TAGS=aphpid/cohort360-backend:${BC_TAG},aphpid/cohort360-backend:${BC_TAG}-${SHORT_SHA}" >> "$GITHUB_ENV"
               ;;
             release/*|hotfix/*)
               echo "IMAGE_TAGS=aphpid/cohort360-backend:${VERSION}-rc,aphpid/cohort360-backend:${VERSION}-rc.${SHORT_SHA}" >> "$GITHUB_ENV"
