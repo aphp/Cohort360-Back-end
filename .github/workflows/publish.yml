@@ -13,7 +13,7 @@ on:
       - develop
       - 'release/**'
       - 'hotfix/**'
-      - 'feature/bc-**'
+      - 'feature/bc-*'
 
 jobs:
   publish:
