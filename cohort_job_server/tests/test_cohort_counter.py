@@ -89,8 +89,8 @@ class CohortCounterTest(BaseTest):
         response.status_code = status.HTTP_200_OK
         response._content = str.encode('{"status": "KILLED"}')
         mock_delete_job.return_value = response
-        s = self.cohort_counter.cancel_job(self.test_job_id)
-        mock_delete_job.assert_called_once_with(self.test_job_id)
+        s = self.cohort_counter.cancel_job(self.test_job_id, self.auth_headers)
+        mock_delete_job.assert_called_once_with(self.test_job_id, self.auth_headers)
         self.assertEqual(s, JobStatus.cancelled)
 
     def test_successfully_handle_patch_dated_measure(self):
