@@ -4,16 +4,15 @@ on:
   pull_request:
     branches:
       - develop
-      - backend-frigo
       - main
     types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches:
       - develop
-      - backend-frigo
       - main
       - 'release/**'
       - 'hotfix/**'
+      - 'feature/bc-*'
 
 jobs:
   pr-target-guard:
