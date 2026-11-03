@@ -1,7 +1,7 @@
+import logging
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
 
-from django.db import IntegrityError
 from django.db.models import QuerySet
 from django.http import Http404
 
@@ -16,6 +16,8 @@ from accesses.q_expressions import (
 from accesses.services.accesses import accesses_service
 from admin_cohort.models import User
 from cohort.models import CohortResult
+
+logger = logging.getLogger(__name__)
 
 ROLE = "role"
 READ_PATIENT_NOMI = "read_patient_nomi"
@@ -53,22 +55,33 @@ class CohortRightsService:
         return cohort_rights
 
     def get_cohort_perimeters(self, cohorts_ids: List[str], owner: User) -> dict[str, QuerySet[Perimeter]]:
-        cohorts_owners = CohortResult.objects.filter(group_id__in=cohorts_ids).values_list("owner_id", flat=True).distinct()
-        if cohorts_owners.count() != 1 or owner.username not in cohorts_owners:
-            raise IntegrityError(f"One or multiple cohorts with given IDs do not belong to user '{owner.display_name}'")
-        virtual_cohorts = self.retrieve_virtual_cohorts_ids_from_snapshot(cohorts_ids=cohorts_ids) or {}
+        cohorts = CohortResult.objects.filter(group_id__in=cohorts_ids)
+        owned_cohorts_ids = set(cohorts.filter(owner=owner).values_list("group_id", flat=True))
+        other_owners_cohorts_ids = set(cohorts.exclude(owner=owner).values_list("group_id", flat=True))
+        if other_owners_cohorts_ids:
+            logger.warning("Ignoring cohorts of other owners for user %s - group_ids: %s", owner.username, sorted(other_owners_cohorts_ids))
+        if not owned_cohorts_ids:
+            raise Http404("No cohorts found. The provided `group_id`s are not valid")
+        virtual_cohorts = self.retrieve_virtual_cohorts_ids_from_snapshot(cohorts_ids=list(owned_cohorts_ids), owner=owner) or {}
         return {cohort_id: Perimeter.objects.filter(cohort_id__in=virtual_cohort_ids) for cohort_id, virtual_cohort_ids in virtual_cohorts.items()}
 
     @staticmethod
-    def retrieve_virtual_cohorts_ids_from_snapshot(cohorts_ids: List[str]) -> dict[str, List[str]]:
+    def retrieve_virtual_cohorts_ids_from_snapshot(cohorts_ids: List[str], owner: Optional[User] = None) -> dict[str, List[str]]:
         cohorts = CohortResult.objects.filter(group_id__in=cohorts_ids)
+        if owner is not None:
+            cohorts = cohorts.filter(owner=owner)
         out: dict[str, list[str]] = {}
         for c in cohorts:
             snap = c.request_query_snapshot
             pids: list[str] = []
             if snap is not None and snap.perimeters_ids is not None:
                 pids = list(snap.perimeters_ids)
-            out[c.group_id] = pids
+            if owner is None:
+                out[c.group_id] = pids  # original behavior: the last cohort read wins
+            else:
+                # merge the perimeters of the owner's cohorts sharing the same group_id
+                previous_perimeters_ids = out.get(c.group_id, [])
+                out[c.group_id] = previous_perimeters_ids + [p for p in pids if p not in previous_perimeters_ids]
         return out
 
     @staticmethod
