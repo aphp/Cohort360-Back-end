@@ -1,11 +1,13 @@
+from contextlib import contextmanager
 from unittest import mock
 
+from django.core.cache import cache
 from django.test import override_settings
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.test import APIRequestFactory, force_authenticate
 
-from accesses import permissions
-from accesses.porthab import rights_from_groups
+from accesses import permissions, porthab
+from accesses.porthab import PorthabUnavailable, rights_from_groups
 from accesses.services.accesses import accesses_service
 from accesses.tests.base import AccessesAppTestsBase
 from accesses.utils import impersonate_hook
@@ -55,11 +57,13 @@ class PorthabRightsTests(AccessesAppTestsBase):
         self.create_new_access_for_user(profile=self.profile_y, role=self.role_full_admin, perimeter=self.aphp)
         assert accesses_service.user_is_full_admin(self.with_rights(self.user_y))
 
-    def test_porthab_full_admin_can_impersonate(self):
+    @mock.patch("accesses.utils.fetch_porthab_rights", return_value=frozenset())
+    def test_porthab_full_admin_can_impersonate(self, _):
         impersonated = impersonate_hook(self.with_rights(self.user_y, "right_full_admin"), {"X-Impersonate": self.user_z.username})
         assert impersonated == self.user_z
 
-    def test_impersonated_user_does_not_inherit_porthab_rights(self):
+    @mock.patch("accesses.utils.fetch_porthab_rights", return_value=frozenset())
+    def test_impersonated_user_does_not_inherit_porthab_rights(self, _):
         impersonated = impersonate_hook(self.with_rights(self.user_y, "right_full_admin"), {"X-Impersonate": self.user_z.username})
         assert not accesses_service.user_is_full_admin(impersonated)
 
@@ -137,3 +141,51 @@ class PorthabLoginTests(AccessesAppTestsBase):
         with self.assertRaises(User.DoesNotExist):
             self.login({"preferred_username": "7000002", "groups": ["/BBS_DA-N-EDS_JUPYTERHUB"]})
         assert not User.objects.filter(username="7000002").exists()
+
+
+@override_settings(
+    PORTHAB_RIGHTS_ENABLED=True,
+    PORTHAB_GROUP_PREFIX="EDS_DEV",
+    PORTHAB_API_URL="https://porthab.test",
+    PORTHAB_SERVICE_TOKEN_URL="https://auth.test/realms/ID-Interne/protocol/openid-connect/token",
+    PORTHAB_SERVICE_CLIENT_ID="cohort-noprod",
+    PORTHAB_SERVICE_CLIENT_SECRET="secret",
+)
+class PorthabImpersonationTests(AccessesAppTestsBase):
+    def setUp(self):
+        super().setUp()
+        cache.delete(porthab.SERVICE_TOKEN_CACHE_KEY)
+
+    @contextmanager
+    def porthab_replies(self, rights=(), status_code=200):
+        token = mock.Mock(status_code=200, **{"json.return_value": {"access_token": "jeton", "expires_in": 300}})
+        reply = mock.Mock(status_code=status_code, **{"json.return_value": {"rights": list(rights)}})
+        with (
+            mock.patch("accesses.porthab.requests.post", return_value=token) as post,
+            mock.patch("accesses.porthab.requests.get", return_value=reply) as get,
+        ):
+            yield {"post": post, "get": get}
+
+    def impersonate(self):
+        admin = self.user_y
+        admin.porthab_rights = frozenset({"right_full_admin"})
+        return impersonate_hook(admin, {"X-Impersonate": self.user_z.username})
+
+    def test_impersonated_user_gets_his_own_porthab_rights(self):
+        with self.porthab_replies(["cohort.manage_users", "cohort.search_ipp", "datalab.lire"]) as doubles:
+            impersonated = self.impersonate()
+        assert impersonated.porthab_rights == {"right_manage_users"}
+        doubles["get"].assert_called_once()
+        assert doubles["get"].call_args.args[0] == f"https://porthab.test/api/v1/applications/agents/{self.user_z.username}/rights/"
+        assert doubles["get"].call_args.kwargs["headers"] == {"Authorization": "Bearer jeton"}
+
+    def test_impersonation_fails_when_porthab_is_unreachable(self):
+        with self.porthab_replies(status_code=503), self.assertRaises(PorthabUnavailable):
+            self.impersonate()
+
+    @override_settings(PORTHAB_RIGHTS_ENABLED=False)
+    def test_porthab_is_not_called_when_disabled(self):
+        self.create_new_access_for_user(profile=self.profile_y, role=self.role_full_admin, perimeter=self.aphp)
+        with self.porthab_replies() as doubles:
+            impersonate_hook(self.user_y, {"X-Impersonate": self.user_z.username})
+        doubles["get"].assert_not_called()
