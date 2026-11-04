@@ -189,3 +189,8 @@ class PorthabImpersonationTests(AccessesAppTestsBase):
         with self.porthab_replies() as doubles:
             impersonate_hook(self.user_y, {"X-Impersonate": self.user_z.username})
         doubles["get"].assert_not_called()
+
+    def test_username_is_encoded_in_the_porthab_url(self):
+        with self.porthab_replies() as doubles:
+            porthab.fetch_porthab_rights("../../admin")
+        assert doubles["get"].call_args.args[0] == "https://porthab.test/api/v1/applications/agents/..%2F..%2Fadmin/rights/"

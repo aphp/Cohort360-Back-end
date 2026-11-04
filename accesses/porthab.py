@@ -1,6 +1,7 @@
 import logging
 from datetime import timedelta
 from typing import Iterable, Optional
+from urllib.parse import quote
 
 import requests
 from django.conf import settings
@@ -87,7 +88,7 @@ def service_token() -> str:
 
 
 def fetch_porthab_rights(username: str) -> frozenset[str]:
-    url = f"{settings.PORTHAB_API_URL.rstrip('/')}/api/v1/applications/agents/{username}/rights/"
+    url = f"{settings.PORTHAB_API_URL.rstrip('/')}/api/v1/applications/agents/{quote(username, safe='')}/rights/"
     try:
         response = requests.get(url, headers={"Authorization": f"Bearer {service_token()}"}, timeout=HTTP_REQUEST_TIMEOUT)
     except requests.RequestException as exc:
