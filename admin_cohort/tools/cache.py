@@ -28,7 +28,7 @@ def construct_cache_key(view_instance=None, view_method=None, request=None, args
     username = request.user.username
     view_class = view_instance.__class__.__name__
     view_meth_name = view_method.__name__
-    keys = (username, view_class, view_meth_name, request._request.path)
+    keys = (username, view_class, view_meth_name, request._request.path, *sorted(getattr(request.user, "porthab_rights", ())))
     if session_id is not None:
         keys = (session_id,) + keys
     key = ".".join(keys)

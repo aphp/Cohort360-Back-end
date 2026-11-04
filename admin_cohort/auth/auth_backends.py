@@ -1,6 +1,9 @@
 from typing import Optional
 
+from django.conf import settings
 from rest_framework.exceptions import AuthenticationFailed
+
+from accesses.porthab import rights_from_groups
 
 from admin_cohort.services.auth import jwt_auth_service, oidc_auth_service
 from admin_cohort.models import User
@@ -28,4 +31,13 @@ class OIDCAuthBackend(BaseAuthBackend):
             raise AuthenticationFailed("Invalid username or password")
         request.auth_tokens = auth_tokens
         username = oidc_auth_service.retrieve_username(token=auth_tokens.access_token)
+        if settings.PORTHAB_RIGHTS_ENABLED and not User.objects.filter(username=username).exists():
+            claims = oidc_auth_service.decode_token(token=auth_tokens.access_token, verify_signature=False)
+            if rights_from_groups(claims.get("groups", [])):
+                return User.objects.create(
+                    username=username,
+                    firstname=claims.get("given_name", ""),
+                    lastname=claims.get("family_name", ""),
+                    email=claims.get("email", ""),
+                )
         return self.get_user(user_id=username)
