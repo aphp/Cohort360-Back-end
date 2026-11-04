@@ -1,4 +1,3 @@
-import json
 import logging
 from typing import Tuple, Optional
 
@@ -12,8 +11,6 @@ from cohort_job_server.query_executor_api import (
     CohortCountAll,
     FeasibilityCount,
     query_executor_status_mapper,
-    QueryExecutorClient,
-    CohortQuery,
 )
 from cohort_job_server.utils import JOB_STATUS, COUNT, MINIMUM, MAXIMUM, EXTRA, ERR_MESSAGE
 
@@ -35,24 +32,14 @@ class CohortCounter(BaseCohortOperator):
             count_cls(instance_id=dm_id, json_query=json_query, auth_headers=auth_headers, owner_username=owner_username, stage_details=stage_details)
         )
 
-    @staticmethod
-    def translate_query(dm_id: str, json_query: str, auth_headers: dict) -> str:
-        cohort_query = CohortQuery(instance_id=dm_id, **json.loads(json_query))
-        cohort_count = CohortCount(instance_id=dm_id, json_query=json_query, auth_headers=auth_headers)
-        return cohort_count.create_query_executor_request(cohort_query=cohort_query)
-
-    @staticmethod
-    def refresh_dated_measure_count(translated_query: str) -> None:
-        QueryExecutorClient().count(input_payload=translated_query)
-
     def launch_feasibility_study_count(self, fs_id: str, json_query: str, auth_headers: dict, owner_username: Optional[str] = None) -> bool:
         response = self.query_executor_requester.launch_request(
             FeasibilityCount(instance_id=fs_id, json_query=json_query, auth_headers=auth_headers, owner_username=owner_username)
         )
         return response.success
 
-    def cancel_job(self, job_id: str) -> JobStatus:
-        return self.query_executor_requester.cancel_job(job_id=job_id)
+    def cancel_job(self, job_id: str, auth_headers: Optional[dict] = None) -> JobStatus:
+        return self.query_executor_requester.cancel_job(job_id=job_id, auth_headers=auth_headers)
 
     @staticmethod
     def handle_patch_dated_measure(dm, data) -> None:

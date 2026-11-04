@@ -1,5 +1,5 @@
 import json
-from typing import Type, Callable
+from typing import Type, Callable, Optional
 
 from django.db.models import Model
 from requests import HTTPError
@@ -28,6 +28,9 @@ class QueryExecutorRequester:
             logger(msg=f"Converting the json query: {json_query}")
             cohort_query = CohortQuery(instance_id=instance_id, **json.loads(json_query))
             response = cohort_request.launch(cohort_query)
+            if not response.ok:
+                # e.g. 401/403 when the SJS refuses the user's token or rights
+                raise HTTPError(f"Query Executor answered {response.status_code}: {response.text}")
         except Exception as e:
             logger(f"Error sending request to Query Executor: {e}")
             response_data = {"success": False, "err_msg": str(e), "status": "ERROR"}
@@ -58,9 +61,9 @@ class QueryExecutorRequester:
         instance.save()
 
     @staticmethod
-    def cancel_job(job_id: str) -> JobStatus:
+    def cancel_job(job_id: str, auth_headers: Optional[dict] = None) -> JobStatus:
         try:
-            response = QueryExecutorClient().delete(job_id)
+            response = QueryExecutorClient().delete(job_id, auth_headers)
             result = response.json()
         except json.JSONDecodeError as e:
             raise ValueError(f"Error with response content: {str(e)}")

@@ -187,14 +187,12 @@ the [Cohort360 project](https://github.com/aphp/Cohort360) repository.
 
   | Variable                | Description                                                                                                                         | Default Value | Required ?          |
   |-------------------------|-------------------------------------------------------------------------------------------------------------------------------------|---------------|---------------------|
-  | FHIR_URL                | The URL of the server used to translate FHIR criteria to Solr format, ex: https://fhir.aphp.fr                                      |               | `yes`               |
-  | QUERY_EXECUTOR_URL      | ex: https://query-executor.aphp.fr. the URL of your instance of [QueryExecutor](https://github.com/aphp/Cohort360-QueryExecutor)    |               | `yes`               |
+  | FHIR_URL                | The URL of the FHIR API (perimeters and ORBIS accesses sync, health check), ex: https://fhir.aphp.fr                         |               | `yes`               |
+  | QUERY_EXECUTOR_URL      | ex: https://query-executor.aphp.fr. the URL of the SJS. Jobs are posted as JSON with the user's token; the SJS translates `filterFhir` itself |               | `yes`               |
   | QUERY_EXECUTOR_USERNAME | The system user of the QueryExecutor app. Used to make _patch_ calls on **Cohorts** and **Count Requests**                          |               | `yes`               |
   | QUERY_EXECUTOR_TOKEN    | Query Executor application API-key                                                                                                  |               | `yes`               |
-  | USE_SOLR                | A boolean to indicate if a Solr database is used. If so, FHIR criteria are translated to Solr format                                | False         | no                  |
-  | SOLR_ETL_USERNAME       | The system user of the Solr ETL app. Used to make _patch_ calls on Cohorts                                                          |               | `yes` if `USE_SOLR` |
-  | SOLR_ETL_TOKEN          | ETL application API-key                                                                                                             |               | `yes` if `USE_SOLR` |
-  | TEST_FHIR_QUERIES       | Weather to test queries before sending them to **QueryExecutor**                                                                    | False         | no                  |
+  | SOLR_ETL_USERNAME       | The system user of the Solr ETL app. Used to make _patch_ calls on Cohorts                                                          |               | `yes`               |
+  | SOLR_ETL_TOKEN          | ETL application API-key                                                                                                             |               | `yes`               |
   | LAST_COUNT_VALIDITY     | Validity of a _Count Request_ in hours. Passed this period, the request result becomes obsolete and the request must be re-executed | 24            | no                  |
   | COHORT_SIZE_LIMIT       | Maximum patients a "small" cohort can contain ("small" cohorts are created right away while big ones can take up to 24h)            | 20000         | no                  |
 
@@ -217,21 +215,22 @@ the [Cohort360 project](https://github.com/aphp/Cohort360) repository.
   | REPORTING_PERIMETER_TYPES | comma-separated types of perimeters to include in the `FeasibilityStudy` report |               | no         |
 
     
-  ### Perimeters retrieved from an external database
-  If it is the case, perimeters can be synced using a periodic task.  
-  For this, add **accesses_perimeters** to `INCLUDED_APPS` and set up a second database connection with the following variables: 
+  ### Perimeters synced from FHIR
+  The [**accesses_fhir_perimeters**](accesses_fhir_perimeters/perimeters_updater.py) app (in `INCLUDED_APPS` by default) rebuilds the perimeter tree
+  from the FHIR `Organization` resources (`Organization?active=true`, parent given by `partOf`):
+  * only organizations whose type (`Organization.type`) is one of `PERIMETER_TYPES` are kept; the code (`source_value`) comes from `Organization.alias`;
+  * the tree starts at `ROOT_PERIMETER_ID`: the sync stops without changes if this organization is missing; organizations not attached to it are ignored;
+  * perimeters no longer returned by FHIR are soft-deleted and their accesses are closed.
+  * each perimeter's `cohort_id` and `cohort_size` come from the FHIR `List` whose `source` is its organization (`List.id` and the `list-total` extension);
+    the sync stops without changes if the root has no `List`.
 
-  > A periodic task is provided in the  [**accesses_perimeters**](accesses_perimeters/tasks.py) app for this purpose.  
-    cf `SCHEDULED_TASKS` for configuration bellow.  
-    
-  | Variable                      | Description                  | Default Value | Required ? |
-  |-------------------------------|------------------------------|---------------|------------|
-  | PERIMETERS_SOURCE_DB_HOST     |                              |               | `yes`      |
-  | PERIMETERS_SOURCE_DB_PORT     |                              |               | `yes`      |
-  | PERIMETERS_SOURCE_DB_NAME     |                              |               | `yes`      |
-  | PERIMETERS_SOURCE_DB_USER     |                              |               | `yes`      |
-  | PERIMETERS_SOURCE_DB_PASSWORD |                              |               | `yes`      |
-  | PERIMETERS_SOURCE_DB_SCHEMAS  | comma-separated schema names | _public_      | no         |
+  It runs from the periodic task `accesses_fhir_perimeters.tasks.perimeters_daily_update` (cf `SCHEDULED_TASKS` below), or manually with `PUT /fhir-perimeters/_sync/`.  
+  `python manage.py compare_fhir_perimeters --dry-run [--output diff.json]` shows what a sync would change, without writing anything; `--apply` shows the same report then applies exactly those changes.
+
+  | Variable                           | Description                                                                                       | Default Value       | Required ? |
+  |------------------------------------|---------------------------------------------------------------------------------------------------|---------------------|------------|
+  | FHIR_URL                           | FHIR API base URL                                                                                 |                     | `yes`      |
+  | FHIR_ACCESS_TOKEN                  | Static token for the FHIR API. If empty, a system token is generated on each sync                 |                     | no         |
 
 </details>
 
