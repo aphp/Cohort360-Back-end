@@ -23,7 +23,7 @@ def drop_translated_query_from_refresh_tasks(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("cohort", "0026_fhirfilter_only_pdf_available"),
+        ("cohort", "0027_soft_delete_duplicated_group_id_cohorts"),
         ("django_celery_beat", "0019_alter_periodictasks_options"),
     ]
 
