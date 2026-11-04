@@ -223,6 +223,10 @@ if ENABLE_OIDC_AUTH:
 # Droits applicatifs lus dans les groupes AD du token Keycloak, attribués par Port'Hab
 PORTHAB_RIGHTS_ENABLED = env.bool("PORTHAB_RIGHTS_ENABLED", default=False)
 PORTHAB_GROUP_PREFIX = env.str("PORTHAB_GROUP_PREFIX", default="EDS")
+PORTHAB_API_URL = env.str("PORTHAB_API_URL", default="")
+PORTHAB_SERVICE_TOKEN_URL = env.str("PORTHAB_SERVICE_TOKEN_URL", default="")
+PORTHAB_SERVICE_CLIENT_ID = env.str("PORTHAB_SERVICE_CLIENT_ID", default="")
+PORTHAB_SERVICE_CLIENT_SECRET = env.str("PORTHAB_SERVICE_CLIENT_SECRET", default="")
 
 REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
