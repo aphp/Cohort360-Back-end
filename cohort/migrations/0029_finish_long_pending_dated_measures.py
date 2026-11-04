@@ -9,7 +9,7 @@ def finish_long_pending_dated_measures(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("cohort", "0027_remove_requestquerysnapshot_translated_query"),
+        ("cohort", "0028_remove_requestquerysnapshot_translated_query"),
     ]
 
     operations = [

@@ -117,7 +117,7 @@ class CohortCreatorTest(BaseTest):
         mock_notify.assert_called_once()
 
     def test_migration_finishes_stuck_counts_only(self):
-        migration = importlib.import_module("cohort.migrations.0028_finish_long_pending_dated_measures")
+        migration = importlib.import_module("cohort.migrations.0029_finish_long_pending_dated_measures")
         stuck = DatedMeasure.objects.create(
             request_query_snapshot=self.snapshot, owner=self.user, request_job_status=JobStatus.long_pending, measure=10
         )

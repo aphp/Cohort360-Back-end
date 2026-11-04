@@ -120,7 +120,7 @@ class RequestRefreshScheduleViewTests(CohortAppTests):
 
 class RefreshTaskArgsMigrationTests(TestCase):
     def test_old_args_are_rewritten_as_json_and_reenabled(self):
-        migration = importlib.import_module("cohort.migrations.0027_remove_requestquerysnapshot_translated_query")
+        migration = importlib.import_module("cohort.migrations.0028_remove_requestquerysnapshot_translated_query")
         dm_id = "0b6f6c2e-3c1a-4e8e-9a6f-2d1f5b7c8e90"
         counter_cls = "cohort_job_server.cohort_counter.CohortCounter"
         crontab = CrontabSchedule.objects.create(minute="0", hour="1")
