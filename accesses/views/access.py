@@ -20,6 +20,7 @@ from admin_cohort.permissions import IsAuthenticated
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools.request_log_mixin import RequestLogMixin
 from accesses.models import Access
+from accesses.porthab import porthab_access
 from accesses.permissions import AccessesPermission
 from accesses.serializers import AccessSerializer, DataRightSerializer, ExpiringAccessesSerializer
 
@@ -159,6 +160,8 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
                     data={"message": f"No accesses to expire in the next {settings.ACCESS_EXPIRY_FIRST_ALERT_IN_DAYS} days"},
                     status=status.HTTP_200_OK,
                 )
+        elif (access := porthab_access(user)) is not None:
+            accesses = [*accesses, access]
         return Response(data=self.get_serializer(accesses, many=True).data, status=status.HTTP_200_OK)
 
     @extend_schema(responses={status.HTTP_200_OK: AccessSerializer(many=True)})

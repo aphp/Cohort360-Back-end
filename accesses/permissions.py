@@ -6,6 +6,7 @@ from rest_framework import permissions
 from rest_framework.permissions import IsAuthenticated, SAFE_METHODS
 
 from accesses.models import Role
+from accesses.porthab import porthab_role
 from accesses.services.accesses import accesses_service
 from accesses.services.roles import roles_service
 from admin_cohort.models import User
@@ -21,7 +22,10 @@ class IsAuthenticatedReadOnly(IsAuthenticated):
 
 
 def get_bound_roles(user: User) -> List[Role]:
-    return [r for a in accesses_service.get_user_valid_accesses(user) if (r := a.role) is not None]
+    roles = [r for a in accesses_service.get_user_valid_accesses(user) if (r := a.role) is not None]
+    if (role := porthab_role(user)) is not None:
+        roles.append(role)
+    return roles
 
 
 def can_user_manage_accesses(user: User) -> bool:

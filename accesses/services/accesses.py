@@ -19,6 +19,7 @@ from accesses.q_expressions import (
     q_allow_unlimited_patients_search,
 )
 from accesses.models import Perimeter, Access, Role
+from accesses.porthab import porthab_rights
 from accesses.services.shared import DataRight
 
 logger = logging.getLogger(__name__)
@@ -34,9 +35,13 @@ class AccessesService:
         return Access.objects.filter(self.q_access_is_valid() & Q(profile__is_active=True) & Q(profile__user=user))
 
     def user_is_full_admin(self, user: User) -> bool:
+        if "right_full_admin" in porthab_rights(user):
+            return True
         return any(access.role is not None and access.role.right_full_admin for access in self.get_user_valid_accesses(user))
 
     def user_can_read_logs(self, user: User) -> bool:
+        if "right_full_admin" in porthab_rights(user):
+            return True
         return any(
             access.role is not None and (access.role.right_full_admin or access.role.right_read_logs) for access in self.get_user_valid_accesses(user)
         )
@@ -131,6 +136,8 @@ class AccessesService:
         return self.get_user_valid_accesses(user=user).filter(q_allow_read_search_opposed_patient_data).exists()
 
     def can_user_manage_users(self, user: User) -> bool:
+        if "right_manage_users" in porthab_rights(user):
+            return True
         return self.get_user_valid_accesses(user=user).filter(role__right_manage_users=True).exists()
 
     def is_user_allowed_unlimited_patients_read(self, user: User) -> bool:

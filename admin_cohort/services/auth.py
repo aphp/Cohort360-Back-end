@@ -25,6 +25,7 @@ from rest_framework_simplejwt.serializers import TokenRefreshSerializer, TokenOb
 from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 
 from accesses.models import Profile, Role, Perimeter, Access
+from accesses.porthab import rights_from_groups
 from admin_cohort.apps import AdminCohortConfig
 from admin_cohort.http_timeout import HTTP_REQUEST_TIMEOUT
 from admin_cohort.models import User
@@ -391,6 +392,9 @@ class AuthService:
             if username is None:
                 return None
             user = User.objects.get(username=username)
+            if settings.PORTHAB_RIGHTS_ENABLED and auth_method == settings.OIDC_AUTH_MODE:
+                claims = authenticator.decode_token(token=token, verify_signature=False)
+                user.porthab_rights = rights_from_groups(claims.get("groups", []))
             for post_auth_hook in self.post_auth_hooks:
                 user = post_auth_hook(user, headers)
             return user, token

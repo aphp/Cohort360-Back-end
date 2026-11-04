@@ -220,6 +220,10 @@ AUTHENTICATION_BACKENDS = ["admin_cohort.auth.auth_backends.JWTAuthBackend"]
 if ENABLE_OIDC_AUTH:
     AUTHENTICATION_BACKENDS.append("admin_cohort.auth.auth_backends.OIDCAuthBackend")
 
+# Droits applicatifs lus dans les groupes AD du token Keycloak, attribués par Port'Hab
+PORTHAB_RIGHTS_ENABLED = env.bool("PORTHAB_RIGHTS_ENABLED", default=False)
+PORTHAB_GROUP_PREFIX = env.str("PORTHAB_GROUP_PREFIX", default="EDS")
+
 REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "DEFAULT_AUTHENTICATION_CLASSES": ["admin_cohort.auth.auth_class.Authentication"],
