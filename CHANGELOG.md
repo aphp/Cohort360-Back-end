@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.33.0] - 2026-11-04
+
+### 🚀 Features
+
+- *(ci)* Add support for feature branches in publish workflow and remove backend-frigo from test triggers
+- *(ci)* Add trigger for feature branches matching 'feature/bc-**' in test workflow
+- *(ci)* Add support for bc feature branches in publish and test workflows (#638)
+
+### 🐛 Bug Fixes
+
+- *(security)* Reject non-text charsets and bound Accept parsing
+
+### ⚙️ Miscellaneous Tasks
+
+- Restrict bc branch pattern to a single path segment
+- Tag bc images with the lowercased branch name
+
+### Build
+
+- *(deps)* Bump python image to 3.12.15 and certifi to 2026.10.23
+
 ## [3.32.0] - 2026-10-22
 
 ### ⚙️ Miscellaneous Tasks
