@@ -24,7 +24,7 @@ RIGHTS_BY_SLUG = {
     "READ_DATALABS": "right_read_datalabs",
 }
 RIGHTS_BY_CODE = {f"cohort.{slug.lower()}": right for slug, right in RIGHTS_BY_SLUG.items()}
-SERVICE_TOKEN_CACHE_KEY = "porthab:service_token"
+SERVICE_ACCESS_CACHE_KEY = "porthab:service_access"
 
 
 class PorthabUnavailable(APIException):
@@ -71,7 +71,7 @@ def porthab_access(user: User) -> Optional[Access]:
 
 
 def service_token() -> str:
-    token = cache.get(SERVICE_TOKEN_CACHE_KEY)
+    token = cache.get(SERVICE_ACCESS_CACHE_KEY)
     if token:
         return str(token)
     data = {
@@ -83,7 +83,7 @@ def service_token() -> str:
     if response.status_code != status.HTTP_200_OK:
         raise PorthabUnavailable()
     payload = response.json()
-    cache.set(SERVICE_TOKEN_CACHE_KEY, payload["access_token"], timeout=max(int(payload.get("expires_in", 60)) - 30, 1))
+    cache.set(SERVICE_ACCESS_CACHE_KEY, payload["access_token"], timeout=max(int(payload.get("expires_in", 60)) - 30, 1))
     return str(payload["access_token"])
 
 

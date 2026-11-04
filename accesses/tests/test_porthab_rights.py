@@ -154,7 +154,7 @@ class PorthabLoginTests(AccessesAppTestsBase):
 class PorthabImpersonationTests(AccessesAppTestsBase):
     def setUp(self):
         super().setUp()
-        cache.delete(porthab.SERVICE_TOKEN_CACHE_KEY)
+        cache.delete(porthab.SERVICE_ACCESS_CACHE_KEY)
 
     @contextmanager
     def porthab_replies(self, rights=(), status_code=200):
