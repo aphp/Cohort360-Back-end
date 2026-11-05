@@ -3,6 +3,7 @@ from unittest import mock
 
 from django.core.cache import cache
 from django.test import override_settings
+from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.test import APIRequestFactory, force_authenticate
 
@@ -136,6 +137,21 @@ class PorthabLoginTests(AccessesAppTestsBase):
         )
         assert user == User.objects.get(username="7000001")
         assert (user.firstname, user.lastname, user.email) == ("Camille", "Martin", "camille.martin@aphp.fr")
+
+    def test_agents_without_email_are_created_without_email(self):
+        for username in ("7000003", "7000004"):
+            self.login({"preferred_username": username, "groups": [f"{PREFIX}READ_DATALABS"]})
+        assert list(User.objects.filter(username__in=["7000003", "7000004"]).values_list("email", flat=True)) == [None, None]
+
+    def test_an_email_already_taken_is_not_reused(self):
+        User.objects.create(username="7000005", email="camille.martin@aphp.fr", delete_datetime=timezone.now())
+        user = self.login({"preferred_username": "7000006", "email": "camille.martin@aphp.fr", "groups": [f"{PREFIX}READ_DATALABS"]})
+        assert user.email is None
+
+    def test_a_deleted_agent_is_not_recreated(self):
+        User.objects.create(username="7000007", delete_datetime=timezone.now())
+        with self.assertRaises(User.DoesNotExist):
+            self.login({"preferred_username": "7000007", "groups": [f"{PREFIX}READ_DATALABS"]})
 
     def test_unknown_agent_without_cohort_group_is_refused(self):
         with self.assertRaises(User.DoesNotExist):
