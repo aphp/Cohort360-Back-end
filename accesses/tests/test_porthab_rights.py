@@ -183,6 +183,14 @@ class PorthabImpersonationTests(AccessesAppTestsBase):
         with self.porthab_replies(status_code=503), self.assertRaises(PorthabUnavailable):
             self.impersonate()
 
+    @override_settings(CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}})
+    def test_a_rejected_service_token_is_requested_again(self):
+        with self.porthab_replies(status_code=401) as doubles:
+            for _ in range(2):
+                with self.assertRaises(PorthabUnavailable):
+                    porthab.fetch_porthab_rights(self.user_z.username)
+        assert doubles["post"].call_count == 2
+
     @override_settings(PORTHAB_RIGHTS_ENABLED=False)
     def test_porthab_is_not_called_when_disabled(self):
         self.create_new_access_for_user(profile=self.profile_y, role=self.role_full_admin, perimeter=self.aphp)
