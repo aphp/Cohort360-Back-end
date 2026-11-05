@@ -39,7 +39,7 @@ class OIDCAuthBackend(BaseAuthBackend):
             if rights_from_groups(claims.get("groups", [])):
                 email = claims.get("email") or None
                 if email and User.objects.all(even_deleted=True).filter(email=email).exists():
-                    logger.warning(f"Email {email} déjà porté par un autre compte, {username} est créé sans email")
+                    logger.warning(f"Email déjà porté par un autre compte, {username} est créé sans email")
                     email = None
                 return User.objects.create(
                     username=username,
