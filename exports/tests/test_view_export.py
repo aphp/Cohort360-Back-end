@@ -12,8 +12,10 @@ from cohort.models import CohortResult, FhirFilter
 from exporters.apis.base import BaseAPI
 from exporters.apis.hadoop_api import HadoopAPI
 from exporters.enums import APIJobStatus, APIJobType
+from exports.enums import ExportPurpose
 from exports.exceptions import BadRequestError, FilesNoLongerAvailable, HdfsServerUnreachable, StorageProviderException
-from exports.models import Export, Datalab, ExportTable
+from exports.models import Export, Datalab, ExportProjectDetails, ExportTable
+from exports.serializers import ExportSerializer
 from exports.services.export import export_service
 from exports.tests.base_test import ExportsTestBase
 from exports.views import ExportViewSet
@@ -119,6 +121,106 @@ class ExportViewSetTest(ExportsTestBase):
             request_data=self.export_data_error,
             expected_resp_status=status.HTTP_400_BAD_REQUEST,
         )
+
+    def check_create_export_with_purpose(self, expected_resp_status, **purpose_data):
+        self.check_test_create_view(
+            request_user=self.exporter_user,
+            create_url=reverse(viewname=self.viewname_list),
+            request_data={**self.export_basic_data, **purpose_data},
+            expected_resp_status=expected_resp_status,
+        )
+
+    @mock.patch.object(ExportViewSet, "permission_classes", [IsAuthenticated])
+    def test_create_export_with_purpose_without_details(self):
+        self.check_create_export_with_purpose(status.HTTP_201_CREATED, purpose=ExportPurpose.CARE_SUPPORT.value)
+        export = Export.objects.latest("created_at")
+        self.assertEqual(export.purpose, ExportPurpose.CARE_SUPPORT.value)
+        self.assertFalse(ExportProjectDetails.objects.filter(export=export).exists())
+        self.assertIsNone(ExportSerializer(export).data["project_details"])
+
+    @mock.patch.object(ExportViewSet, "permission_classes", [IsAuthenticated])
+    def test_create_export_with_project_details(self):
+        self.check_create_export_with_purpose(
+            status.HTTP_201_CREATED,
+            purpose=ExportPurpose.INTERNAL_RESEARCH.value,
+            project_details={"title": "Project X", "project_leader": "Project leader", "end_date": "2099-12-31"},
+        )
+        details = Export.objects.latest("created_at").project_details
+        self.assertEqual(details.title, "Project X")
+        self.assertEqual(details.project_leader, "Project leader")
+        self.assertEqual(details.end_date.isoformat(), "2099-12-31")
+        self.assertIsNone(details.start_date)
+
+    @mock.patch.object(ExportViewSet, "permission_classes", [IsAuthenticated])
+    def test_deleting_export_soft_deletes_its_project_details(self):
+        self.check_create_export_with_purpose(
+            status.HTTP_201_CREATED,
+            purpose=ExportPurpose.INTERNAL_RESEARCH.value,
+            project_details={"title": "Project X", "project_leader": "Project leader"},
+        )
+        Export.objects.latest("created_at").delete()
+        self.assertEqual(ExportProjectDetails.objects.count(), 0)
+        self.assertEqual(ExportProjectDetails.all_objects.count(), 1)
+
+    @mock.patch.object(ExportViewSet, "permission_classes", [IsAuthenticated])
+    def test_create_export_with_unknown_purpose_error(self):
+        self.check_create_export_with_purpose(status.HTTP_400_BAD_REQUEST, purpose="unknown")
+
+    @mock.patch.object(ExportViewSet, "permission_classes", [IsAuthenticated])
+    def test_create_export_with_empty_purpose_error(self):
+        self.check_create_export_with_purpose(status.HTTP_400_BAD_REQUEST, purpose="")
+
+    @mock.patch.object(ExportViewSet, "permission_classes", [IsAuthenticated])
+    def test_create_internal_research_export_without_details_error(self):
+        self.check_create_export_with_purpose(status.HTTP_400_BAD_REQUEST, purpose=ExportPurpose.INTERNAL_RESEARCH.value)
+
+    @mock.patch.object(ExportViewSet, "permission_classes", [IsAuthenticated])
+    def test_create_export_with_details_for_another_purpose_error(self):
+        details = {"title": "Project X", "project_leader": "Project leader"}
+        self.check_create_export_with_purpose(status.HTTP_400_BAD_REQUEST, purpose=ExportPurpose.MULTICENTER_RESEARCH.value, project_details=details)
+
+    @mock.patch.object(ExportViewSet, "permission_classes", [IsAuthenticated])
+    def test_create_export_with_details_without_purpose_error(self):
+        details = {"title": "Project X", "project_leader": "Project leader"}
+        self.check_create_export_with_purpose(status.HTTP_400_BAD_REQUEST, project_details=details)
+
+    @mock.patch.object(ExportViewSet, "permission_classes", [IsAuthenticated])
+    def test_create_internal_research_export_with_blank_title_error(self):
+        self.check_create_export_with_purpose(
+            status.HTTP_400_BAD_REQUEST,
+            purpose=ExportPurpose.INTERNAL_RESEARCH.value,
+            project_details={"title": "   ", "project_leader": "Project leader"},
+        )
+
+    @mock.patch.object(ExportViewSet, "permission_classes", [IsAuthenticated])
+    def test_create_internal_research_export_with_blank_project_leader_error(self):
+        self.check_create_export_with_purpose(
+            status.HTTP_400_BAD_REQUEST,
+            purpose=ExportPurpose.INTERNAL_RESEARCH.value,
+            project_details={"title": "Project X", "project_leader": "   "},
+        )
+
+    @mock.patch.object(ExportViewSet, "permission_classes", [IsAuthenticated])
+    def test_create_internal_research_export_with_end_date_before_start_date_error(self):
+        self.check_create_export_with_purpose(
+            status.HTTP_400_BAD_REQUEST,
+            purpose=ExportPurpose.INTERNAL_RESEARCH.value,
+            project_details={
+                "title": "Project X",
+                "project_leader": "Project leader",
+                "start_date": "2026-06-02",
+                "end_date": "2026-06-01",
+            },
+        )
+
+    @mock.patch.object(ExportViewSet, "permission_classes", [IsAuthenticated])
+    def test_rejected_export_does_not_create_details(self):
+        self.check_create_export_with_purpose(
+            status.HTTP_400_BAD_REQUEST,
+            purpose=ExportPurpose.CARE_SUPPORT.value,
+            project_details={"title": "Project X", "project_leader": "Project leader"},
+        )
+        self.assertEqual(ExportProjectDetails.objects.count(), 0)
 
     @mock.patch("exports.services.export.launch_export_task.delay")
     @mock.patch.object(ExportViewSet, "get_object")

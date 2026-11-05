@@ -1,7 +1,8 @@
 from rest_framework import serializers
 
 from cohort.models import CohortResult
-from exports.models import Datalab, InfrastructureProvider, ExportTable, ExportResultStat, Export
+from exports.enums import ExportPurpose
+from exports.models import Datalab, InfrastructureProvider, ExportTable, ExportResultStat, Export, ExportProjectDetails
 
 
 class ExportsCohortResultSerializer(serializers.ModelSerializer):
@@ -51,8 +52,21 @@ class ExportTableSerializer(serializers.ModelSerializer):
         ]
 
 
+class ExportProjectDetailsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ExportProjectDetails
+        fields = ["title", "project_leader", "start_date", "end_date"]
+
+    def validate(self, attrs):
+        start_date, end_date = attrs.get("start_date"), attrs.get("end_date")
+        if start_date and end_date and end_date < start_date:
+            raise serializers.ValidationError("The end date must not be earlier than the start date")
+        return attrs
+
+
 class ExportSerializer(serializers.ModelSerializer):
     export_tables = ExportTableSerializer(many=True, required=False)
+    project_details = ExportProjectDetailsSerializer(required=False, allow_null=True)
 
     class Meta:
         model = Export
@@ -68,7 +82,25 @@ class ExportSerializer(serializers.ModelSerializer):
             "group_tables",
             "export_tables",
             "motivation",
+            "purpose",
+            "project_details",
         ]
+
+    def validate(self, attrs):
+        is_internal_research = attrs.get("purpose") == ExportPurpose.INTERNAL_RESEARCH.value
+        has_details = attrs.get("project_details") is not None
+        if is_internal_research and not has_details:
+            raise serializers.ValidationError("Project details are required for an internal research export")
+        if has_details and not is_internal_research:
+            raise serializers.ValidationError("Project details are only allowed for an internal research export")
+        return attrs
+
+    def create(self, validated_data):
+        details = validated_data.pop("project_details", None)
+        export = super().create(validated_data)
+        if details is not None:
+            ExportProjectDetails.objects.create(export=export, **details)
+        return export
 
 
 class ExportTableSerializerCreate(serializers.ModelSerializer):
@@ -91,10 +123,21 @@ class ExportTableSerializerCreate(serializers.ModelSerializer):
 
 class ExportCreateSerializer(serializers.ModelSerializer):
     export_tables = ExportTableSerializerCreate(many=True)
+    project_details = ExportProjectDetailsSerializer(required=False, allow_null=True)
 
     class Meta:
         model = Export
-        fields = ["motivation", "output_format", "datalab", "nominative", "shift_dates", "group_tables", "export_tables"]
+        fields = [
+            "motivation",
+            "purpose",
+            "project_details",
+            "output_format",
+            "datalab",
+            "nominative",
+            "shift_dates",
+            "group_tables",
+            "export_tables",
+        ]
 
 
 class ExportsListSerializer(serializers.ModelSerializer):
