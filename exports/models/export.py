@@ -7,10 +7,12 @@ from django.conf import settings
 from django.utils import timezone
 
 from admin_cohort.models import User, JobModel
+from exports.enums import ExportPurpose
 from exports.models import ExportsBaseModel, Datalab
 from exports.apps import ExportsConfig
 
 OUTPUT_FORMATS = [(t.value, t.value) for t in ExportsConfig.ExportTypes]
+EXPORT_PURPOSES = [(p.value, p.value) for p in ExportPurpose]
 
 
 class Export(ExportsBaseModel, JobModel):
@@ -26,6 +28,7 @@ class Export(ExportsBaseModel, JobModel):
     shift_dates = models.BooleanField(null=False, default=False)
     group_tables = models.BooleanField(null=False, default=False)
     motivation = models.TextField(null=True, blank=True)
+    purpose = models.CharField(null=True, choices=EXPORT_PURPOSES, max_length=30)
     clean_datetime = models.DateTimeField(null=True)
     retried = models.BooleanField(null=False, default=False)
     request_job_type = models.TextField(blank=True)
