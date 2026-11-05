@@ -148,10 +148,16 @@ class PorthabLoginTests(AccessesAppTestsBase):
         user = self.login({"preferred_username": "7000006", "email": "camille.martin@aphp.fr", "groups": [f"{PREFIX}READ_DATALABS"]})
         assert user.email is None
 
-    def test_a_deleted_agent_is_not_recreated(self):
-        User.objects.create(username="7000007", delete_datetime=timezone.now())
+    def test_a_deleted_agent_with_cohort_group_is_reactivated(self):
+        User.objects.create(username="7000007", email="dominique.petit@aphp.fr", delete_datetime=timezone.now())
+        user = self.login({"preferred_username": "7000007", "groups": [f"{PREFIX}READ_DATALABS"]})
+        assert user == User.objects.get(username="7000007")
+        assert user.email == "dominique.petit@aphp.fr"
+
+    def test_a_deleted_agent_without_cohort_group_stays_deleted(self):
+        User.objects.create(username="7000008", delete_datetime=timezone.now())
         with self.assertRaises(User.DoesNotExist):
-            self.login({"preferred_username": "7000007", "groups": [f"{PREFIX}READ_DATALABS"]})
+            self.login({"preferred_username": "7000008", "groups": ["/BBS_DA-N-EDS_JUPYTERHUB"]})
 
     def test_unknown_agent_without_cohort_group_is_refused(self):
         with self.assertRaises(User.DoesNotExist):
