@@ -43,6 +43,11 @@ class TestBaseExporter(ExportersTestBase):
         self.assertIn("target_location", export_data)
         self.assertNotIn("\n", export_data["motivation"])
 
+    def test_complete_export_data_with_null_motivation(self):
+        export_data = dict(output_format=ExportTypes.HIVE.value, motivation=None)
+        self.exporter.complete_data(export_data=export_data, owner=self.csv_exporter_user)
+        self.assertEqual(export_data["motivation"], "")
+
     def _build_datalab_export(self, patient_table_name: str) -> Export:
         export = Export.objects.create(
             owner=self.csv_exporter_user,

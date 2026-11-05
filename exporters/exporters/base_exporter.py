@@ -53,7 +53,7 @@ class BaseExporter:
         export_data.update(
             {
                 "owner": owner.pk,
-                "motivation": export_data.get("motivation", "").replace("\n", " - "),
+                "motivation": (export_data.get("motivation") or "").replace("\n", " - "),
                 "target_name": f"{kwargs.get('target_name')}_{timezone.now().strftime('%Y%m%d_%H%M%S%f')}",
                 "target_location": self.target_location,
             }
