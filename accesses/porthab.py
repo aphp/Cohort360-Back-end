@@ -94,6 +94,8 @@ def fetch_porthab_rights(username: str) -> frozenset[str]:
     except requests.RequestException as exc:
         logger.exception(f"Port'Hab injoignable pour les droits de {username} : {exc}")
         raise PorthabUnavailable() from exc
+    if response.status_code == status.HTTP_401_UNAUTHORIZED:
+        cache.delete(SERVICE_ACCESS_CACHE_KEY)
     if response.status_code != status.HTTP_200_OK:
         logger.error(f"Port'Hab a répondu {response.status_code} pour les droits de {username}")
         raise PorthabUnavailable()
