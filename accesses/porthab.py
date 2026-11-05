@@ -51,7 +51,7 @@ def porthab_role(user: User) -> Optional[Role]:
     rights = porthab_rights(user)
     if not rights:
         return None
-    return Role(name=PORTHAB_ROLE_NAME, **{right: True for right in rights})
+    return Role(name=PORTHAB_ROLE_NAME, **dict.fromkeys(rights, True))
 
 
 def porthab_access(user: User) -> Optional[Access]:
@@ -92,7 +92,7 @@ def fetch_porthab_rights(username: str) -> frozenset[str]:
     try:
         response = requests.get(url, headers={"Authorization": f"Bearer {service_token()}"}, timeout=HTTP_REQUEST_TIMEOUT)
     except requests.RequestException as exc:
-        logger.error(f"Port'Hab injoignable pour les droits de {username} : {exc}")
+        logger.exception(f"Port'Hab injoignable pour les droits de {username} : {exc}")
         raise PorthabUnavailable() from exc
     if response.status_code != status.HTTP_200_OK:
         logger.error(f"Port'Hab a répondu {response.status_code} pour les droits de {username}")
