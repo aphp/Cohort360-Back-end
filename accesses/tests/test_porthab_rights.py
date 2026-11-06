@@ -201,9 +201,11 @@ class PorthabImpersonationTests(AccessesAppTestsBase):
         assert doubles["get"].call_args.args[0] == f"https://porthab.test/api/v1/applications/agents/{self.user_z.username}/rights/"
         assert doubles["get"].call_args.kwargs["headers"] == {"Authorization": "Bearer jeton"}
 
-    def test_impersonation_fails_when_porthab_is_unreachable(self):
-        with self.porthab_replies(status_code=503), self.assertRaises(PorthabUnavailable):
-            self.impersonate()
+    def test_impersonation_falls_back_to_native_accesses_when_porthab_is_unreachable(self):
+        with self.porthab_replies(status_code=503):
+            impersonated = self.impersonate()
+        assert impersonated == self.user_z
+        assert impersonated.porthab_rights == frozenset()
 
     @override_settings(CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}})
     def test_a_rejected_service_token_is_requested_again(self):
