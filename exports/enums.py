@@ -21,3 +21,10 @@ class StatType(str, Enum):
     INT = "Integer"
     TXT = "Text"
     SIZE_BYTES = "SizeBytes"
+
+
+class ExportPurpose(str, Enum):
+    CARE_SUPPORT = "care_support"
+    ACTIVITY_MANAGEMENT = "activity_management"
+    INTERNAL_RESEARCH = "internal_research"
+    MULTICENTER_RESEARCH = "multicenter_research"

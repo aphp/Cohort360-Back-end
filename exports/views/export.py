@@ -166,6 +166,7 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
         # Build export data from the original export
         export_data = {
             "motivation": original_export.motivation,
+            "purpose": original_export.purpose,
             "nominative": original_export.nominative,
             "shift_dates": original_export.shift_dates,
             "output_format": original_export.output_format,
@@ -173,6 +174,15 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
         }
         if original_export.datalab:
             export_data["datalab"] = original_export.datalab.pk
+        research_details = original_export.internal_research_details
+        if research_details:
+            # Each export owns its details: the serializer creates a copy for the new export
+            export_data["internal_research_details"] = {
+                "title": research_details.title,
+                "project_leader": research_details.project_leader,
+                "start_date": research_details.start_date,
+                "end_date": research_details.end_date,
+            }
 
         # Build export_tables data from original export tables
         tables = []

@@ -2,15 +2,17 @@ from datetime import timedelta
 from typing import Optional
 
 from django.db import models
-from django.db.models import CASCADE
+from django.db.models import CASCADE, SET_NULL
 from django.conf import settings
 from django.utils import timezone
 
 from admin_cohort.models import User, JobModel
-from exports.models import ExportsBaseModel, Datalab
+from exports.enums import ExportPurpose
+from exports.models import ExportsBaseModel, Datalab, ExportInternalResearchDetails
 from exports.apps import ExportsConfig
 
 OUTPUT_FORMATS = [(t.value, t.value) for t in ExportsConfig.ExportTypes]
+EXPORT_PURPOSES = [(p.value, p.value) for p in ExportPurpose]
 
 
 class Export(ExportsBaseModel, JobModel):
@@ -26,6 +28,15 @@ class Export(ExportsBaseModel, JobModel):
     shift_dates = models.BooleanField(null=False, default=False)
     group_tables = models.BooleanField(null=False, default=False)
     motivation = models.TextField(null=True, blank=True)
+    purpose = models.CharField(null=True, choices=EXPORT_PURPOSES, max_length=30)
+    internal_research_details = models.OneToOneField(
+        to=ExportInternalResearchDetails,
+        related_name="export",
+        on_delete=SET_NULL,
+        null=True,
+        blank=True,
+        help_text="Each export owns its details: a relaunched export gets a copy, never the original row",
+    )
     clean_datetime = models.DateTimeField(null=True)
     retried = models.BooleanField(null=False, default=False)
     request_job_type = models.TextField(blank=True)
