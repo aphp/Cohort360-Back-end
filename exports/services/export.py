@@ -1,11 +1,13 @@
 import logging
-from typing import List
+from typing import List, Optional
 from urllib.parse import quote_plus
 
+from django.db.models import Q
 from django.http import StreamingHttpResponse
 from requests.exceptions import RequestException
 from rest_framework.exceptions import ValidationError
 
+from admin_cohort.models import User
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult, FhirFilter
 from cohort.services.cohort_result import cohort_service
@@ -191,6 +193,21 @@ class ExportService:
         except (RequestException, TimeoutError) as e:
             logger.error(f"Export[{export.uuid}] Failed to retrieve logs: {e}")
             raise e
+
+    @staticmethod
+    def get_prefill_reference_export(cohort: CohortResult, user: User) -> Optional[Export]:
+        """
+        Return the export used to prefill the form: the user's latest export of this cohort
+        or, failing that, of the same request. Exports without a purpose are ignored.
+        """
+        exports = Export.objects.filter(owner=user, purpose__isnull=False).order_by("-created_at")
+        root_cohort = cohort.parent_cohort or cohort
+        same_cohort = CohortResult.objects.filter(Q(pk=root_cohort.pk) | Q(parent_cohort=root_cohort))
+        reference_export = exports.filter(export_tables__cohort_result_source__in=same_cohort).first()
+        if reference_export is None and cohort.request_query_snapshot:
+            same_request = CohortResult.objects.filter(request_query_snapshot__request=cohort.request_query_snapshot.request)
+            reference_export = exports.filter(export_tables__cohort_result_source__in=same_request).first()
+        return reference_export
 
 
 export_service = ExportService()
