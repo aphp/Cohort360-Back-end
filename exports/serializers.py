@@ -103,6 +103,14 @@ class ExportSerializer(serializers.ModelSerializer):
         return export
 
 
+class ExportPurposePrefillSerializer(serializers.ModelSerializer):
+    project_details = ExportProjectDetailsSerializer(read_only=True, allow_null=True)
+
+    class Meta:
+        model = Export
+        fields = ["purpose", "project_details"]
+
+
 class ExportTableSerializerCreate(serializers.ModelSerializer):
     table_name = serializers.CharField()
     columns = serializers.ListField(child=serializers.CharField())

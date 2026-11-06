@@ -372,3 +372,51 @@ class ExportViewSetTest(ExportsTestBase):
             response = self.call_download_view()
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
         self.assertNotIn("namenode-01", response.data)
+
+    def call_prefill_purpose_view(self, query="", request_user=None):
+        url = f"{reverse(viewname=f'{self.view_root}-prefill-purpose')}{query}"
+        request = self.make_request(url=url, http_verb="get", request_user=request_user or self.exporter_user)
+        return self.view_set.as_view({"get": "prefill_purpose"})(request)
+
+    def create_export_on_cohort(self, **export_data):
+        export = Export.objects.create(output_format=self.export_type, owner=self.exporter_user, **export_data)
+        ExportTable.objects.create(export=export, name="Patient", cohort_result_source=self.cohort_result)
+        return export
+
+    def test_prefill_purpose_with_project_details(self):
+        export = self.create_export_on_cohort(purpose=ExportPurpose.INTERNAL_RESEARCH.value)
+        ExportProjectDetails.objects.create(export=export, title="Project X", project_leader="Project leader", start_date="2026-06-01")
+        response = self.call_prefill_purpose_view(f"?cohort={self.cohort_result.uuid}")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.data,
+            {
+                "purpose": ExportPurpose.INTERNAL_RESEARCH.value,
+                "project_details": {
+                    "title": "Project X",
+                    "project_leader": "Project leader",
+                    "start_date": "2026-06-01",
+                    "end_date": None,
+                },
+            },
+        )
+
+    def test_prefill_purpose_with_another_purpose_has_no_details(self):
+        self.create_export_on_cohort(purpose=ExportPurpose.CARE_SUPPORT.value)
+        response = self.call_prefill_purpose_view(f"?cohort={self.cohort_result.uuid}")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, {"purpose": ExportPurpose.CARE_SUPPORT.value, "project_details": None})
+
+    def test_prefill_purpose_without_reference_export(self):
+        response = self.call_prefill_purpose_view(f"?cohort={self.cohort_result.uuid}")
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_prefill_purpose_on_the_cohort_of_another_user(self):
+        response = self.call_prefill_purpose_view(f"?cohort={self.cohort_result.uuid}", request_user=self.datalabs_reader_user)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_prefill_purpose_without_cohort(self):
+        self.assertEqual(self.call_prefill_purpose_view().status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_prefill_purpose_with_invalid_cohort_id(self):
+        self.assertEqual(self.call_prefill_purpose_view("?cohort=not-a-uuid").status_code, status.HTTP_404_NOT_FOUND)

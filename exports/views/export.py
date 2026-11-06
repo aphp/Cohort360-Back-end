@@ -12,16 +12,18 @@ from requests.exceptions import RequestException
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
+from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 
 from admin_cohort.tools import join_qs
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools.request_log_mixin import RequestLogMixin
 from admin_cohort.types import JobStatus
+from cohort.models import CohortResult
 from exports.exceptions import FilesNoLongerAvailable, BadRequestError, StorageProviderException, HdfsServerUnreachable
 from exports.models import Export, ExportTable
 from exports.permissions import ExportPermission, RetryExportPermission, ExportLogsPermission
-from exports.serializers import ExportSerializer, ExportsListSerializer, ExportCreateSerializer
+from exports.serializers import ExportSerializer, ExportsListSerializer, ExportCreateSerializer, ExportPurposePrefillSerializer
 from exports.services.export import export_service
 from exports.views import ExportsBaseViewSet
 
@@ -144,6 +146,18 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
         except StorageProviderException as e:
             logger.exception(f"Export[{kwargs.get('uuid')}] Storage provider error: {e}")
             return Response(data="Storage provider error", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @extend_schema(
+        parameters=[OpenApiParameter("cohort", OpenApiTypes.UUID, required=True)],
+        responses={status.HTTP_200_OK: ExportPurposePrefillSerializer, status.HTTP_204_NO_CONTENT: None},
+    )
+    @action(detail=False, methods=["get"], url_path="prefill-purpose")
+    def prefill_purpose(self, request, *args, **kwargs):
+        cohort = get_object_or_404(CohortResult, pk=request.query_params.get("cohort"), owner=request.user)
+        reference_export = export_service.get_prefill_reference_export(cohort=cohort, user=request.user)
+        if reference_export is None:
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(data=ExportPurposePrefillSerializer(reference_export).data, status=status.HTTP_200_OK)
 
     @extend_schema(responses={status.HTTP_200_OK: OpenApiTypes.STR})
     @action(detail=True, methods=["post"], url_path="retry")
