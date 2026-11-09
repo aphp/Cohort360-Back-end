@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.33.1] - 2026-11-09
+
+### 🚀 Features
+
+- *(3583)* Écrire la migration positionnant l'étape d'onboarding des utilisateurs existants à -1
+- *(3583)* Écrire la migration positionnant l'étape d'onboarding des… (#646)
+
 ## [3.33.0] - 2026-11-04
 
 ### 🚀 Features
