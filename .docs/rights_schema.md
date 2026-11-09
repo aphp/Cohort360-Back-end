@@ -26,6 +26,7 @@ class CSV_Excel_Exports {
 class Jupyter_Exports {
   right_export_jupyter_nominative
   right_export_jupyter_pseudonymized
+  right_extract_export_purposes
 }
 class Users {
   right_manage_users
@@ -101,6 +102,7 @@ It allows to export data in CSV and XLSX formats.
 It allows to export data in Hive format to a Jupyter datalab or workspace.  
 - *right_export_jupyter_nominative*
 - *right_export_jupyter_pseudonymized*
+- *right_extract_export_purposes*: extract the purposes declared on the CSV and XLSX exports of all users
 
 > ⚠️  Having **right_export_jupyter_nominative** won't work unless the **right_read_patient_nominative** is enabled as well
 
@@ -120,7 +122,7 @@ The rules of managing role are defined according to the following dependencies:
   |-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
   | right_full_admin OR <br/> right_search_patients_unlimited OR <br/> right_manage_admin_accesses_same_level OR <br/>right_manage_admin_accesses_inferior_levels                                                                                                                       | right_full_admin                                                                                                                                                                                                           |
   | right_manage_users OR <br/> right_manage_data_accesses_same_level OR <br/> right_manage_data_accesses_inferior_levels OR <br/> right_manage_datalabs OR <br/> right_read_datalabs                                                         | right_full_admin  OR <br/> right_manage_admin_accesses_same_level OR <br/> right_manage_admin_accesses_inferior_levels                                                                                                     |
-  | right_read_patient_nominative OR <br/> right_read_patient_pseudonymized OR <br/> right_search_patients_by_ipp OR <br/> right_search_opposed_patients OR <br/> right_export_csv_xlsx_nominative OR <br/> right_export_jupyter_nominative OR <br/> right_export_jupyter_pseudonymized | right_full_admin  OR <br/> right_manage_admin_accesses_same_level OR <br/> right_manage_admin_accesses_inferior_levels  OR <br/> right_manage_data_accesses_same_level OR <br/> right_manage_data_accesses_inferior_levels |
+  | right_read_patient_nominative OR <br/> right_read_patient_pseudonymized OR <br/> right_search_patients_by_ipp OR <br/> right_search_opposed_patients OR <br/> right_export_csv_xlsx_nominative OR <br/> right_export_jupyter_nominative OR <br/> right_export_jupyter_pseudonymized OR <br/> right_extract_export_purposes | right_full_admin  OR <br/> right_manage_admin_accesses_same_level OR <br/> right_manage_admin_accesses_inferior_levels  OR <br/> right_manage_data_accesses_same_level OR <br/> right_manage_data_accesses_inferior_levels |
 
 ---
 

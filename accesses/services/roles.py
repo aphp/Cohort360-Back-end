@@ -18,6 +18,7 @@ ROLES_HELP_TEXT = {
     "right_export_jupyter_nominative": "Exporter ses cohortes de patients sous forme nominative vers un environnement Jupyter.",
     "right_export_jupyter_pseudonymized": "Exporter ses cohortes de patients sous forme pseudonymisée vers un environnement Jupyter.",
     "right_export_csv_xlsx_nominative": "Demander à exporter ses cohortes de patients sous forme nominative en format CSV/Excel.",
+    "right_extract_export_purposes": "Extraire les motivations des exports locaux.",
     "right_manage_datalabs": "Gérer les environnements de travail",
     "right_read_datalabs": "Consulter la liste des environnements de travail",
 }

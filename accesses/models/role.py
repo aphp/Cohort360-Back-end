@@ -21,6 +21,7 @@ class Role(BaseModel):
     # Jupyter exports
     right_export_jupyter_nominative = models.BooleanField(default=False, null=False)
     right_export_jupyter_pseudonymized = models.BooleanField(default=False, null=False)
+    right_extract_export_purposes = models.BooleanField(default=False, null=False)
     # Administration accesses management
     right_manage_admin_accesses_same_level = models.BooleanField(default=False, null=False)
     right_manage_admin_accesses_inferior_levels = models.BooleanField(default=False, null=False)
@@ -95,4 +96,5 @@ class Role(BaseModel):
             or self.right_export_csv_xlsx_nominative
             or self.right_export_jupyter_nominative
             or self.right_export_jupyter_pseudonymized
+            or self.right_extract_export_purposes
         )

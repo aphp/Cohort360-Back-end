@@ -63,6 +63,7 @@ class Command(BaseCommand):
             "right_export_csv_xlsx_nominative": True,
             "right_export_jupyter_nominative": True,
             "right_export_jupyter_pseudonymized": True,
+            "right_extract_export_purposes": True,
             "right_manage_admin_accesses_same_level": True,
             "right_manage_admin_accesses_inferior_levels": True,
             "right_manage_data_accesses_same_level": True,
