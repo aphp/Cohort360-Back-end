@@ -55,6 +55,12 @@ class ExportLogsPermission(IsAuthenticated):
         return self.has_permission(request, view)
 
 
+class ExtractExportPurposesPermission(IsAuthenticated):
+    def has_permission(self, request, view):
+        authenticated = super().has_permission(request, view)
+        return request.method in SAFE_METHODS and authenticated and accesses_service.user_can_extract_export_purposes(request.user)
+
+
 class RetryExportPermission(IsAuthenticated):
     def has_permission(self, request, view):
         authenticated = super().has_permission(request, view)

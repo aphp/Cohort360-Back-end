@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from cohort.models import CohortResult
+from exports.apps import ExportsConfig
 from exports.enums import ExportPurpose
 from exports.models import Datalab, InfrastructureProvider, ExportTable, ExportResultStat, Export, ExportProjectDetails
 
@@ -109,6 +110,26 @@ class ExportPurposePrefillSerializer(serializers.ModelSerializer):
     class Meta:
         model = Export
         fields = ["purpose", "project_details"]
+
+
+class ExportPurposesExtractionQuerySerializer(serializers.Serializer):
+    EXTRACTABLE_OUTPUT_FORMATS = (ExportsConfig.ExportTypes.CSV.value, ExportsConfig.ExportTypes.XLSX.value)
+
+    output_format = serializers.CharField(help_text="Comma separated list of output formats among csv and xlsx, as for the exports list")
+    start_date = serializers.DateField(required=False, help_text="Inclusive")
+    end_date = serializers.DateField(required=False, help_text="Inclusive")
+
+    def validate_output_format(self, value):
+        output_formats = {f.strip() for f in value.split(",") if f.strip()}
+        if not output_formats or not output_formats.issubset(self.EXTRACTABLE_OUTPUT_FORMATS):
+            raise serializers.ValidationError(f"Output formats must be among {', '.join(self.EXTRACTABLE_OUTPUT_FORMATS)}")
+        return sorted(output_formats)
+
+    def validate(self, attrs):
+        start_date, end_date = attrs.get("start_date"), attrs.get("end_date")
+        if start_date and end_date and end_date < start_date:
+            raise serializers.ValidationError("The end date must not be earlier than the start date")
+        return attrs
 
 
 class ExportTableSerializerCreate(serializers.ModelSerializer):

@@ -46,6 +46,12 @@ class AccessesService:
             access.role is not None and (access.role.right_full_admin or access.role.right_read_logs) for access in self.get_user_valid_accesses(user)
         )
 
+    def user_can_extract_export_purposes(self, user: User) -> bool:
+        return any(
+            access.role is not None and (access.role.right_full_admin or access.role.right_extract_export_purposes)
+            for access in self.get_user_valid_accesses(user)
+        )
+
     @staticmethod
     def get_expiring_accesses(user: User, accesses: QuerySet):
         today = date.today()

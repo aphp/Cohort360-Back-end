@@ -17,14 +17,22 @@ from rest_framework.response import Response
 
 from admin_cohort.tools import join_qs
 from admin_cohort.tools.cache import cache_response
+from admin_cohort.tools.csv_response import build_csv_response
 from admin_cohort.tools.request_log_mixin import RequestLogMixin
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult
 from exports.exceptions import FilesNoLongerAvailable, BadRequestError, StorageProviderException, HdfsServerUnreachable
 from exports.models import Export, ExportTable
-from exports.permissions import ExportPermission, RetryExportPermission, ExportLogsPermission
-from exports.serializers import ExportSerializer, ExportsListSerializer, ExportCreateSerializer, ExportPurposePrefillSerializer
+from exports.permissions import ExportPermission, RetryExportPermission, ExportLogsPermission, ExtractExportPurposesPermission
+from exports.serializers import (
+    ExportSerializer,
+    ExportsListSerializer,
+    ExportCreateSerializer,
+    ExportPurposePrefillSerializer,
+    ExportPurposesExtractionQuerySerializer,
+)
 from exports.services.export import export_service
+from exports.services.export_purposes_extraction import COLUMNS, export_purposes_extraction_service
 from exports.views import ExportsBaseViewSet
 
 logger = logging.getLogger(__name__)
@@ -89,10 +97,12 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
             return [RetryExportPermission()]
         if self.action == self.logs.__name__:
             return [ExportLogsPermission()]
+        if self.action == self.purposes_extraction.__name__:
+            return [ExtractExportPurposesPermission()]
         return super().get_permissions()
 
     def should_log(self, request, response):
-        return super().should_log(request, response) or self.action == self.download.__name__
+        return super().should_log(request, response) or self.action in (self.download.__name__, self.purposes_extraction.__name__)
 
     @extend_schema(
         parameters=[OpenApiParameter("return_full_objects", OpenApiTypes.BOOL)],
@@ -158,6 +168,26 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
         if reference_export is None:
             return Response(status=status.HTTP_204_NO_CONTENT)
         return Response(data=ExportPurposePrefillSerializer(reference_export).data, status=status.HTTP_200_OK)
+
+    @extend_schema(
+        parameters=[ExportPurposesExtractionQuerySerializer],
+        responses={(status.HTTP_200_OK, "text/csv"): OpenApiTypes.BINARY, status.HTTP_204_NO_CONTENT: None},
+    )
+    @action(detail=False, methods=["get"], url_path="purposes-extraction")
+    def purposes_extraction(self, request, *args, **kwargs):
+        """
+        Extract the purposes and projects declared on CSV and XLSX exports, for all users
+        """
+        query = ExportPurposesExtractionQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        exports = export_purposes_extraction_service.get_exports(**query.validated_data)
+        if not exports.exists():
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        return build_csv_response(
+            columns=COLUMNS,
+            rows=export_purposes_extraction_service.build_rows(exports=exports),
+            filename=export_purposes_extraction_service.get_filename(),
+        )
 
     @extend_schema(responses={status.HTTP_200_OK: OpenApiTypes.STR})
     @action(detail=True, methods=["post"], url_path="retry")
