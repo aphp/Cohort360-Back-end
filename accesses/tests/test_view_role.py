@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from django.db import IntegrityError
+from django.test import SimpleTestCase
 from django.utils import timezone
 from rest_framework import status
 
@@ -14,6 +15,21 @@ class RoleRetrieveFilter(CaseRetrieveFilter):
     def __init__(self, name: str, exclude: dict = None):
         self.name = name
         super().__init__(exclude=exclude)
+
+
+class RoleManagingLevelsTests(SimpleTestCase):
+    def test_every_right_sets_who_can_manage_a_role_having_it(self):
+        # A role whose rights are in none of the lists can be assigned by any accesses manager, on any perimeter
+        rights = [field.name for field in Role._meta.fields if field.name.startswith("right_")]
+        for right in rights:
+            role = Role(**{right: True})
+            with self.subTest(right=right):
+                self.assertTrue(
+                    role.requires_full_admin_right_to_be_managed()
+                    or role.requires_admin_accesses_managing_right_to_be_managed()
+                    or role.requires_data_accesses_managing_right_to_be_managed(),
+                    f"{right} is in none of the requires_*_to_be_managed lists: choose who can manage a role having it",
+                )
 
 
 class RoleViewTests(AccessesAppTestsBase):
