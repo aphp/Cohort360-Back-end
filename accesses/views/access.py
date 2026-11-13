@@ -12,6 +12,7 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework import status
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
 from accesses.services.accesses import accesses_service
@@ -114,6 +115,11 @@ class AccessViewSet(RequestLogMixin, BaseViewSet):
         resp = super().create(request, *args, **kwargs)
         _logger.info("Access created by user %s - request data: %s", request.user.username, request.data)
         return resp
+
+    def perform_create(self, serializer):
+        if not accesses_service.can_user_manage_access(user=self.request.user, target_access=serializer.validated_data):
+            raise PermissionDenied("You are not allowed to manage accesses for this role on this perimeter")
+        serializer.save()
 
     @extend_schema(request=AccessSerializer, responses={status.HTTP_200_OK: AccessSerializer})
     def partial_update(self, request, *args, **kwargs):
