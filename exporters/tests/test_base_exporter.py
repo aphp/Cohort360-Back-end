@@ -138,6 +138,16 @@ class TestBaseExporter(ExportersTestBase):
             ],
         )
 
+    def test_send_export_excludes_mdf_questionnaire_whatever_the_table_name_spelling(self):
+        export = self._build_datalab_export(patient_table_name="Patient")
+        ExportTable.objects.create(export=export, name=" questionnaireresponse ", cohort_result_source=self.cohort)
+        with mock.patch.object(self.exporter.export_api, "launch_export", return_value="job-id") as mock_launch:
+            self.exporter.send_export(export=export, params={})
+        self.assertIn(
+            {"tableName": "questionnaireResponse", "expression": "_questionnaireId != 'MdF'"},
+            mock_launch.call_args.kwargs["params"]["filters"],
+        )
+
     def test_send_export_without_questionnaire_has_no_mdf_filter(self):
         export = self._build_datalab_export(patient_table_name="Patient")
         with mock.patch.object(self.exporter.export_api, "launch_export", return_value="job-id") as mock_launch:
