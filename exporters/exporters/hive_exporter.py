@@ -7,7 +7,7 @@ from admin_cohort.models import User
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult
 from exports.models import Export, Datalab
-from exporters.exporters.base_exporter import BaseExporter
+from exporters.exporters.base_exporter import BaseExporter, normalize_table_name
 from exporters.enums import ExportTypes, APIJobType
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ class HiveExporter(BaseExporter):
         for td in tables_data:
             source_cohort_id = td.get("cohort_result_source")
 
-            if td.get("table_name", "").lower() == required_table.lower():
+            if normalize_table_name(td.get("table_name")) == normalize_table_name(required_table):
                 required_table_provided = True
                 if not source_cohort_id:
                     raise ValueError(f"The `{required_table}` table can not be exported without a source cohort")
