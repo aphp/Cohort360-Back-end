@@ -87,6 +87,19 @@ class TestCSVExporter(ExportersTestBase):
             with self.subTest(table_name=table_name), self.assertRaises(ValueError):
                 self.exporter.validate(export_data=export_data, owner=self.csv_exporter_user)
 
+    def test_error_validate_export_table_without_name(self):
+        export_data = dict(
+            output_format=ExportTypes.CSV.value,
+            nominative=True,
+            motivation="motivation",
+            export_tables=[
+                {"cohort_result_source": self.cohort.pk},
+                {"table_name": "Patient", "cohort_result_source": self.cohort.pk},
+            ],
+        )
+        with self.assertRaises(KeyError):
+            self.exporter.validate(export_data=export_data, owner=self.csv_exporter_user)
+
     def test_error_validate_export_without_source_cohort(self):
         export_data = dict(
             output_format=ExportTypes.CSV.value,
