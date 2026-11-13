@@ -145,6 +145,49 @@ class AccessViewTests(AccessesAppTestsBase):
             )
         )
 
+    def test_error_create_access_with_role_the_user_cannot_manage(self):
+        _, target_profile = new_user_and_profile()
+        data = {"profile_id": target_profile.id, "role_id": self.role_full_admin.id, "perimeter_id": self.aphp.id}
+        self.check_create_case(
+            CreateCase(
+                data=data,
+                user=self.user_data_accesses_manager_on_aphp,
+                status=status.HTTP_403_FORBIDDEN,
+                success=False,
+                retrieve_filter=AccessesRetrieveFilter(**data),
+            )
+        )
+
+    def test_error_create_access_on_a_perimeter_the_user_cannot_manage(self):
+        manager_on_p7, manager_profile = new_user_and_profile()
+        self.create_new_access_for_user(profile=manager_profile, role=self.role_data_accesses_manager, perimeter=self.p7)
+        _, target_profile = new_user_and_profile()
+        data = {"profile_id": target_profile.id, "role_id": self.role_data_reader_nomi.id, "perimeter_id": self.aphp.id}
+        self.check_create_case(
+            CreateCase(
+                data=data,
+                user=manager_on_p7,
+                status=status.HTTP_403_FORBIDDEN,
+                success=False,
+                retrieve_filter=AccessesRetrieveFilter(**data),
+            )
+        )
+
+    def test_successfully_create_full_admin_access_as_full_admin(self):
+        full_admin, full_admin_profile = new_user_and_profile()
+        self.create_new_access_for_user(profile=full_admin_profile, role=self.role_full_admin, perimeter=self.aphp)
+        _, target_profile = new_user_and_profile()
+        data = {"profile_id": target_profile.id, "role_id": self.role_full_admin.id, "perimeter_id": self.aphp.id}
+        self.check_create_case(
+            CreateCase(
+                data=data,
+                user=full_admin,
+                status=status.HTTP_201_CREATED,
+                success=True,
+                retrieve_filter=AccessesRetrieveFilter(**data),
+            )
+        )
+
     def test_successfully_close_access(self):
         initial_data = {**self.basic_access_data, "start_datetime": timezone.now(), "end_datetime": timezone.now() + timedelta(weeks=1)}
         case = PatchCase(

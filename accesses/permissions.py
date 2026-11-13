@@ -28,7 +28,7 @@ def get_bound_roles(user: User) -> List[Role]:
     return roles
 
 
-def can_user_manage_accesses(user: User) -> bool:
+def can_user_manage_any_access(user: User) -> bool:
     return any(roles_service.role_allows_to_manage_accesses(r) for r in get_bound_roles(user))
 
 
@@ -74,7 +74,7 @@ class RolesPermission(permissions.BasePermission):
 class AccessesPermission(permissions.BasePermission):
     def has_permission(self, request, view):
         if request.method in ["POST", "PATCH", "DELETE"]:
-            return can_user_manage_accesses(request.user)
+            return can_user_manage_any_access(request.user)
         return request.method in permissions.SAFE_METHODS and can_user_read_accesses(request.user)
 
     def has_object_permission(self, request, view, obj):
