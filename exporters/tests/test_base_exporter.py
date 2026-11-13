@@ -122,6 +122,36 @@ class TestBaseExporter(ExportersTestBase):
             ],
         )
 
+    def test_send_export_excludes_mdf_questionnaire(self):
+        export = self._build_datalab_export(patient_table_name="Patient")
+        ExportTable.objects.create(export=export, name="QuestionnaireResponse", cohort_result_source=self.cohort)
+        with mock.patch.object(self.exporter.export_api, "launch_export", return_value="job-id") as mock_launch:
+            self.exporter.send_export(export=export, params={})
+        self.assertEqual(
+            mock_launch.call_args.kwargs["params"]["filters"],
+            [
+                {
+                    "tableName": "patient__identifier",
+                    "expression": "system= 'https://aphp.fr/meta/Patient/ipp' and use= 'official'",
+                },
+                {"tableName": "questionnaireResponse", "expression": "_questionnaireId != 'MdF'"},
+            ],
+        )
+
+    def test_send_export_without_questionnaire_has_no_mdf_filter(self):
+        export = self._build_datalab_export(patient_table_name="Patient")
+        with mock.patch.object(self.exporter.export_api, "launch_export", return_value="job-id") as mock_launch:
+            self.exporter.send_export(export=export, params={})
+        self.assertEqual(
+            mock_launch.call_args.kwargs["params"]["filters"],
+            [
+                {
+                    "tableName": "patient__identifier",
+                    "expression": "system= 'https://aphp.fr/meta/Patient/ipp' and use= 'official'",
+                }
+            ],
+        )
+
     def test_send_export_tolerates_lowercase_patient_table(self):
         # Ref #3289: the AdministrationPortal used to send `table_name: 'patient'` (lowercase) while the
         # required table is "Patient". The lookup is case-insensitive so the export still reaches the
