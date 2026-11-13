@@ -138,6 +138,18 @@ class TestBaseExporter(ExportersTestBase):
             ],
         )
 
+    @mock.patch.object(BaseExporter, "mark_export_as_failed")
+    @mock.patch.object(BaseExporter, "send_export")
+    def test_handle_export_refuses_a_stored_questionnaire_response_sub_table(self, mock_send, mock_failed):
+        # retry and relaunch skip validate() and resend the stored tables as is
+        export = self._build_datalab_export(patient_table_name="Patient")
+        ExportTable.objects.create(export=export, name="questionnaireresponse__item__answer", cohort_result_source=self.cohort)
+
+        self.exporter.handle_export(export=export, params={})
+
+        mock_send.assert_not_called()
+        mock_failed.assert_called_once()
+
     def test_send_export_excludes_mdf_questionnaire_whatever_the_table_name_spelling(self):
         export = self._build_datalab_export(patient_table_name="Patient")
         ExportTable.objects.create(export=export, name=" questionnaireresponse ", cohort_result_source=self.cohort)

@@ -76,6 +76,11 @@ class BaseExporter:
         )
 
     def handle_export(self, export: Export, params: dict | None = None) -> None:
+        try:
+            self.check_tables([{"table_name": t.name} for t in export.export_tables.all()])
+        except ValueError as e:
+            self.mark_export_as_failed(export=export, reason=str(e))
+            return
         self.log_export_task(export.pk, "Sending request to the Export API.")
         start_time = timezone.now()
         try:
