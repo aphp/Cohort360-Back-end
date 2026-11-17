@@ -5,6 +5,7 @@ on:
     branches:
       - develop
       - main
+      - 'feature/bc-*'
     types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches:
@@ -15,6 +16,25 @@ on:
       - 'feature/bc-*'
 
 jobs:
+  pr-target-guard-pending:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          sparse-checkout: .github/scripts
+
+      - name: Commentaire de la garde marqué en cours
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: bash .github/scripts/pr-target-guard.sh pending
+
   ruff:
     runs-on: ubuntu-latest
     steps:
@@ -248,3 +268,23 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  pr-target-guard:
+    if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+    needs: [ruff, safety, mypy, bandit, deptry, test, docker, sonar]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          sparse-checkout: .github/scripts
+
+      - name: Branche cible et labels bloquants
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: bash .github/scripts/pr-target-guard.sh check
