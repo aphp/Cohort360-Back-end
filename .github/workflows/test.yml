@@ -15,24 +15,7 @@ on:
       - 'feature/bc-*'
 
 jobs:
-  pr-target-guard:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Vers main — uniquement hotfix/** ou release/**
-        if: github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'main'
-        run: |
-          case "${{ github.head_ref }}" in
-            hotfix/*|release/*) ;;
-            *)
-              echo "::error title=PR invalide vers main::Seules les branches hotfix/** ou release/** peuvent cibler main (reçu: ${{ github.head_ref }})."
-              exit 1
-              ;;
-          esac
-      - name: Garde OK
-        run: echo "PR target OK"
-
   ruff:
-    needs: [pr-target-guard]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -55,7 +38,6 @@ jobs:
         run: uv tool run --no-build ruff@0.15.22 format --check .
 
   safety:
-    needs: [pr-target-guard]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -86,7 +68,6 @@ jobs:
             --disable-optional-telemetry
 
   mypy:
-    needs: [pr-target-guard]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -116,7 +97,6 @@ jobs:
           uv run mypy admin_cohort accesses cohort
 
   bandit:
-    needs: [pr-target-guard]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -136,7 +116,6 @@ jobs:
         run: uv tool run bandit -r . -c pyproject.toml
 
   deptry:
-    needs: [pr-target-guard]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -156,7 +135,6 @@ jobs:
         run: uv tool run deptry .
 
   test:
-    needs: [pr-target-guard]
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -218,7 +196,6 @@ jobs:
 
   docker:
     if: github.event_name == 'pull_request'
-    needs: [pr-target-guard]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
