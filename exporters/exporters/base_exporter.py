@@ -19,14 +19,7 @@ from exporters.tasks import notify_export_received, notify_export_succeeded, not
 
 logger = logging.getLogger(__name__)
 
-TABLE_FILTERS = {
-    "patient": [{"tableName": "patient__identifier", "expression": "system= 'https://aphp.fr/meta/Patient/ipp' and use= 'official'"}],
-    "questionnaireresponse": [{"tableName": "questionnaireResponse", "expression": "_questionnaireId != 'MdF'"}],
-}
-
-
-def normalize_table_name(name: str | None) -> str:
-    return (name or "").strip().lower()
+TABLE_FILTERS = {"Patient": [{"tableName": "patient__identifier", "expression": "system= 'https://aphp.fr/meta/Patient/ipp' and use= 'official'"}]}
 
 
 class BaseExporter:
@@ -39,18 +32,9 @@ class BaseExporter:
     def validate(self, export_data: dict, **kwargs) -> None:
         owner = kwargs["owner"]
         check_email_address(owner.email)
-        self.forbid_questionnaire_response_sub_tables(export_data.get("export_tables", []))
         self.check_user_rights(export_data=export_data, **kwargs)
         export_data["request_job_status"] = JobStatus.validated
         self.complete_data(export_data=export_data, owner=owner)
-
-    @staticmethod
-    def forbid_questionnaire_response_sub_tables(tables: List[dict]) -> None:
-        # sub-tables come out with their parent table, which carries the filters
-        for t in tables:
-            name = normalize_table_name(t["table_name"])
-            if name.startswith("questionnaireresponse") and name != "questionnaireresponse":
-                raise ValueError(f"Table `{t['table_name']}` can only be exported through QuestionnaireResponse")
 
     @staticmethod
     def check_user_rights(export_data: dict, **kwargs) -> None:
@@ -76,11 +60,6 @@ class BaseExporter:
         )
 
     def handle_export(self, export: Export, params: dict | None = None) -> None:
-        try:
-            self.forbid_questionnaire_response_sub_tables([{"table_name": t.name} for t in export.export_tables.all()])
-        except ValueError as e:
-            self.mark_export_as_failed(export=export, reason=str(e))
-            return
         self.log_export_task(export.pk, "Sending request to the Export API.")
         start_time = timezone.now()
         try:
@@ -142,7 +121,7 @@ class BaseExporter:
 
     @staticmethod
     def build_filters_input(tables: List[dict[str, Any]]) -> List[dict[str, str]]:
-        return [table_filter for t in tables for table_filter in TABLE_FILTERS.get(normalize_table_name(t["tableName"]), [])]
+        return [table_filter for t in tables for table_filter in TABLE_FILTERS.get(t["tableName"], [])]
 
     def send_export(self, export: Export, params: dict) -> str:
         self.log_export_task(export.pk, f"Asking to export for '{export.target_name}'")
