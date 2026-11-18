@@ -7,23 +7,31 @@ from django.db.models.expressions import Subquery, OuterRef
 from django.http.response import HttpResponse
 from django_filters import rest_framework as filters, OrderingFilter
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema, OpenApiParameter, PolymorphicProxySerializer
+from drf_spectacular.utils import extend_schema, OpenApiParameter, PolymorphicProxySerializer, inline_serializer
 from requests.exceptions import RequestException
-from rest_framework import status
+from rest_framework import serializers, status
 from rest_framework.decorators import action
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 
+from admin_cohort.auth.auth_class import Authentication
 from admin_cohort.tools import join_qs
 from admin_cohort.tools.cache import cache_response
 from admin_cohort.tools.csv_response import build_csv_response
 from admin_cohort.tools.request_log_mixin import RequestLogMixin
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult
+from exports.authentication import ExportDownloadTokenAuthentication
 from exports.exceptions import FilesNoLongerAvailable, BadRequestError, StorageProviderException, HdfsServerUnreachable
 from exports.models import Export, ExportTable
-from exports.permissions import ExportPermission, RetryExportPermission, ExportLogsPermission, ExtractExportPurposesPermission
+from exports.permissions import (
+    ExportDownloadTokenPermission,
+    ExportLogsPermission,
+    ExportPermission,
+    ExtractExportPurposesPermission,
+    RetryExportPermission,
+)
 from exports.serializers import (
     ExportSerializer,
     ExportsListSerializer,
@@ -32,6 +40,7 @@ from exports.serializers import (
     ExportPurposesExtractionQuerySerializer,
 )
 from exports.services.export import export_service
+from exports.services.export_download_token import ExportDownloadToken
 from exports.services.export_purposes_extraction import COLUMNS, export_purposes_extraction_service
 from exports.views import ExportsBaseViewSet
 
@@ -75,6 +84,7 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
     )
     serializer_class = ExportSerializer
     permission_classes = [ExportPermission]
+    authentication_classes = [ExportDownloadTokenAuthentication, Authentication]
     swagger_tags = ["Exports"]
     filterset_class = ExportFilter
     http_method_names = ["get", "post"]
@@ -99,7 +109,16 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
             return [ExportLogsPermission()]
         if self.action == self.purposes_extraction.__name__:
             return [ExtractExportPurposesPermission()]
+        if self.action == self.download_token.__name__:
+            return [ExportDownloadTokenPermission()]
         return super().get_permissions()
+
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        # an export download token only opens the download of the export it was created for
+        if isinstance(request.auth, ExportDownloadToken):
+            if self.action != self.download.__name__ or request.auth.export_uuid != str(kwargs.get("uuid")):
+                raise PermissionDenied("Export download token not valid for this request")
 
     def should_log(self, request, response):
         return super().should_log(request, response) or self.action in (self.download.__name__, self.purposes_extraction.__name__)
@@ -143,19 +162,38 @@ class ExportViewSet(RequestLogMixin, ExportsBaseViewSet):
             return Response(data=ve.detail, status=status.HTTP_400_BAD_REQUEST)
         return response
 
-    @extend_schema(responses={(status.HTTP_200_OK, "application/zip"): OpenApiTypes.BINARY})
+    @staticmethod
+    def _download_error_response(error: Exception, export_uuid) -> Response:
+        if isinstance(error, (BadRequestError, FilesNoLongerAvailable)):
+            return Response(data=f"Error downloading files: {error}", status=status.HTTP_400_BAD_REQUEST)
+        if isinstance(error, HdfsServerUnreachable):
+            logger.exception(f"Export[{export_uuid}] Storage provider unreachable: {error}")
+            return Response(data="Storage provider unreachable", status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        logger.exception(f"Export[{export_uuid}] Storage provider error: {error}")
+        return Response(data="Storage provider error", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @extend_schema(
+        request=None,
+        responses={status.HTTP_200_OK: inline_serializer("ExportDownloadTokenResponse", {"token": serializers.CharField()})},
+    )
+    @action(detail=True, methods=["post"], url_path="download-token")
+    def download_token(self, request, *args, **kwargs):
+        try:
+            token = export_service.create_export_download_token(user=request.user, export=self.get_object())
+        except (BadRequestError, FilesNoLongerAvailable, HdfsServerUnreachable, StorageProviderException) as e:
+            return self._download_error_response(error=e, export_uuid=kwargs.get("uuid"))
+        return Response(data={"token": token}, status=status.HTTP_200_OK)
+
+    @extend_schema(
+        parameters=[OpenApiParameter("token", OpenApiTypes.STR, description="Export download token, replaces the Bearer")],
+        responses={(status.HTTP_200_OK, "application/zip"): OpenApiTypes.BINARY},
+    )
     @action(detail=True, methods=["get"], url_path="download")
     def download(self, request, *args, **kwargs):
         try:
             return export_service.download(export=self.get_object())
-        except (BadRequestError, FilesNoLongerAvailable) as e:
-            return Response(data=f"Error downloading files: {e}", status=status.HTTP_400_BAD_REQUEST)
-        except HdfsServerUnreachable as e:
-            logger.exception(f"Export[{kwargs.get('uuid')}] Storage provider unreachable: {e}")
-            return Response(data="Storage provider unreachable", status=status.HTTP_503_SERVICE_UNAVAILABLE)
-        except StorageProviderException as e:
-            logger.exception(f"Export[{kwargs.get('uuid')}] Storage provider error: {e}")
-            return Response(data="Storage provider error", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except (BadRequestError, FilesNoLongerAvailable, HdfsServerUnreachable, StorageProviderException) as e:
+            return self._download_error_response(error=e, export_uuid=kwargs.get("uuid"))
 
     @extend_schema(
         parameters=[OpenApiParameter("cohort", OpenApiTypes.UUID, required=True)],

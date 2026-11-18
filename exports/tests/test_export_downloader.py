@@ -41,6 +41,8 @@ class TestExportDownloader(ExportsTests):
             mock_file.__iter__.return_value = iter(["chunk1", "chunk2"])
             response = self.export_downloader.download(self.export1)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response["Cache-Control"], "no-store")
+        self.assertEqual(response["Referrer-Policy"], "no-referrer")
         self.mock_storage_provider.get_file_size.assert_called_once()
 
     def test_error_download_export_type_plain(self):

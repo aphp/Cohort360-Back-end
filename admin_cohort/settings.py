@@ -380,6 +380,7 @@ DEFAULT_ACCESS_VALIDITY_IN_DAYS = env.int("DEFAULT_ACCESS_VALIDITY_IN_DAYS", def
 
 # EXPORTS
 DAYS_TO_KEEP_EXPORTED_FILES = env.int("DAYS_TO_KEEP_EXPORTED_FILES", default=7)
+EXPORT_DOWNLOAD_TOKEN_MAX_AGE = env.int("EXPORT_DOWNLOAD_TOKEN_MAX_AGE", default=60)  # seconds
 
 # WebSockets
 WEBSOCKET_MANAGER = {"module": "admin_cohort.services.ws_event_manager", "manager_class": "WebsocketManager"}

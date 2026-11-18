@@ -96,26 +96,35 @@ class ExportDownloader:
         self.storage_provider = HDFSStorageProvider(servers_urls=STORAGE_PROVIDERS)
         self.downloadable_export_types = [t.value for t in ExportTypes if t.allow_download]
 
-    def download(self, export: Export) -> StreamingHttpResponse:
+    def check_downloadable(self, export: Export) -> int:
+        """Raises if the export can't be downloaded, else returns the zip file size."""
         if export.request_job_status != JobStatus.finished.value or export.output_format not in self.downloadable_export_types:
             raise BadRequestError("The export is not done yet or has failed or not downloadable")
         if not export.available_for_download():
             raise FilesNoLongerAvailable("The exported files are no longer available on the server.")
+        self.get_download_file_name(export=export)
         try:
-            file_path = f"{export.target_full_path}.zip"
-            response = StreamingHttpResponse(streaming_content=self.stream_file(file_path))
-            file_size = self.get_file_size(file_name=file_path)
-            first = export.export_tables.first()
-            if first is None or first.cohort_result_source is None:
-                raise BadRequestError("Export has no table with cohort result source")
-            download_file_name = f"export_{first.cohort_result_source.group_id}.zip"
-            response["Content-Type"] = "application/zip"
-            response["Content-Length"] = file_size
-            response["Content-Disposition"] = f"attachment; filename={download_file_name}"
-            return response
+            return self.get_file_size(file_name=f"{export.target_full_path}.zip")
         except StorageProviderException as e:
             logger.exception(f"Error occurred on Storage Provider `{self.storage_provider.name}` - {e}")
             raise e
+
+    @staticmethod
+    def get_download_file_name(export: Export) -> str:
+        first = export.export_tables.first()
+        if first is None or first.cohort_result_source is None:
+            raise BadRequestError("Export has no table with cohort result source")
+        return f"export_{first.cohort_result_source.group_id}.zip"
+
+    def download(self, export: Export) -> StreamingHttpResponse:
+        file_size = self.check_downloadable(export=export)
+        response = StreamingHttpResponse(streaming_content=self.stream_file(f"{export.target_full_path}.zip"))
+        response["Content-Type"] = "application/zip"
+        response["Content-Length"] = file_size
+        response["Content-Disposition"] = f"attachment; filename={self.get_download_file_name(export=export)}"
+        response["Cache-Control"] = "no-store"
+        response["Referrer-Policy"] = "no-referrer"
+        return response
 
     def stream_file(self, file_name: str):
         with self.storage_provider.stream_file(file_name=file_name) as f:
