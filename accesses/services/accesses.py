@@ -19,9 +19,16 @@ from accesses.q_expressions import (
     q_allow_unlimited_patients_search,
 )
 from accesses.models import Perimeter, Access, Role
-from accesses.porthab import porthab_rights
+from accesses.porthab import porthab_read_perimeter_ids, porthab_rights
 from accesses.services.shared import DataRight
 
+DATA_GLOBAL_RIGHTS = (
+    "right_search_patients_by_ipp",
+    "right_search_opposed_patients",
+    "right_export_csv_xlsx_nominative",
+    "right_export_jupyter_nominative",
+    "right_export_jupyter_pseudonymized",
+)
 logger = logging.getLogger(__name__)
 
 
@@ -99,10 +106,15 @@ class AccessesService:
         return self.filter_accesses_for_user(user=user, accesses=accesses.filter(q))
 
     def user_has_data_reading_accesses_on_target_perimeters(self, user: User, target_perimeters: QuerySet, read_mode: Literal["max", "min"]) -> bool:
+        nomi, pseudo = porthab_read_perimeter_ids(user)
         perimeters_with_data_accesses = (
-            self.get_user_valid_accesses(user=user)
-            .filter(q_allow_read_patient_data_nominative | q_allow_read_patient_data_pseudo)
-            .values_list("perimeter_id", flat=True)
+            set(
+                self.get_user_valid_accesses(user=user)
+                .filter(q_allow_read_patient_data_nominative | q_allow_read_patient_data_pseudo)
+                .values_list("perimeter_id", flat=True)
+            )
+            | nomi
+            | pseudo
         )
         if not perimeters_with_data_accesses:
             return False
@@ -119,8 +131,9 @@ class AccessesService:
                 has_access = True
         return has_access
 
-    def get_nominative_perimeters(self, user: User) -> QuerySet[Any, Any]:
-        return self.get_user_valid_accesses(user=user).filter(q_allow_read_patient_data_nominative).values_list("perimeter_id", flat=True)
+    def get_nominative_perimeters(self, user: User) -> list[int]:
+        native = self.get_user_valid_accesses(user=user).filter(q_allow_read_patient_data_nominative).values_list("perimeter_id", flat=True)
+        return [*native, *porthab_read_perimeter_ids(user)[0]]
 
     def user_can_access_at_least_one_target_perimeter_in_nomi(self, user: User, target_perimeters: QuerySet) -> bool:
         nomi_perimeters_ids = self.get_nominative_perimeters(user=user)
@@ -139,6 +152,8 @@ class AccessesService:
         return True
 
     def can_user_read_opposed_patient_data(self, user: User) -> bool:
+        if "right_search_opposed_patients" in porthab_rights(user):
+            return True
         return self.get_user_valid_accesses(user=user).filter(q_allow_read_search_opposed_patient_data).exists()
 
     def can_user_manage_users(self, user: User) -> bool:
@@ -209,6 +224,19 @@ class AccessesService:
                 )
             )
         return out
+
+    @staticmethod
+    def get_porthab_data_rights(user: User) -> List[DataRight]:
+        nomi, pseudo = porthab_read_perimeter_ids(user)
+        rights = [DataRight(user_id=user.pk, perimeter_id=p, right_read_patient_nominative=True, right_read_patient_pseudonymized=True) for p in nomi]
+        return rights + [DataRight(user_id=user.pk, perimeter_id=p, right_read_patient_pseudonymized=True) for p in pseudo - nomi]
+
+    @staticmethod
+    def share_porthab_global_rights(user: User, data_rights: List[DataRight]) -> None:
+        rights = porthab_rights(user)
+        global_dr = DataRight(user_id=user.pk, **{name: True for name in DATA_GLOBAL_RIGHTS if name in rights})
+        for dr in data_rights:
+            dr.acquire_extra_global_rights(global_dr)
 
     @staticmethod
     def get_data_rights_for_target_perimeters(user: User, target_perimeters_ids: List[int]) -> List[DataRight]:
@@ -287,6 +315,7 @@ class AccessesService:
 
         data_accesses = self.get_data_accesses_with_rights(user)
         data_rights_from_accesses = self.get_data_rights_from_accesses(user=user, data_accesses=data_accesses)
+        data_rights_from_accesses += self.get_porthab_data_rights(user)
         data_rights_for_perimeters = []
         if target_perimeters:
             data_rights_for_perimeters = self.get_data_rights_for_target_perimeters(user=user, target_perimeters_ids=target_perimeters_ids)
@@ -295,6 +324,7 @@ class AccessesService:
         data_rights = self.share_data_reading_rights_over_relative_hierarchy(data_rights_per_perimeter=data_rights_per_perimeter)
 
         self.share_global_rights_over_relative_hierarchy(user=user, data_rights=data_rights, data_accesses=data_accesses)
+        self.share_porthab_global_rights(user=user, data_rights=data_rights)
         if target_perimeters:
             data_rights = [dr for dr in data_rights if dr.perimeter_id in target_perimeters_ids]
 

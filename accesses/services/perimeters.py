@@ -14,6 +14,7 @@ from accesses.q_expressions import (
     q_allow_manage_accesses_on_inf_levels,
     q_impact_inferior_levels,
 )
+from accesses.porthab import porthab_read_perimeter_ids, porthab_rights
 from accesses.services.accesses import accesses_service
 from accesses.services.shared import PerimeterReadRight
 from admin_cohort.models import User
@@ -169,12 +170,20 @@ class PerimetersService:
 
     def get_data_read_rights_on_perimeters(self, user: User, is_request_filtered: bool, filtered_perimeters: QuerySet):
         user_accesses = accesses_service.get_user_valid_accesses(user=user)
-        allow_search_by_ipp = user_accesses.filter(q_allow_search_patients_by_ipp).exists()
-        allow_read_opposed_patient = user_accesses.filter(q_allow_read_search_opposed_patient_data).exists()
+        rights = porthab_rights(user)
+        allow_search_by_ipp = "right_search_patients_by_ipp" in rights or user_accesses.filter(q_allow_search_patients_by_ipp).exists()
+        allow_read_opposed_patient = (
+            "right_search_opposed_patients" in rights or user_accesses.filter(q_allow_read_search_opposed_patient_data).exists()
+        )
 
-        read_nomi_perimeters_ids = user_accesses.filter(q_allow_read_patient_data_nominative).values_list("perimeter_id", flat=True)
-        read_pseudo_perimeters_ids = user_accesses.filter(q_allow_read_patient_data_pseudo | q_allow_read_patient_data_nominative).values_list(
-            "perimeter_id", flat=True
+        porthab_nomi, porthab_pseudo = porthab_read_perimeter_ids(user)
+        read_nomi_perimeters_ids = sorted(
+            set(user_accesses.filter(q_allow_read_patient_data_nominative).values_list("perimeter_id", flat=True)) | porthab_nomi
+        )
+        read_pseudo_perimeters_ids = sorted(
+            set(user_accesses.filter(q_allow_read_patient_data_pseudo | q_allow_read_patient_data_nominative).values_list("perimeter_id", flat=True))
+            | porthab_nomi
+            | porthab_pseudo
         )
 
         top_read_nomi_perimeters_ids = self.get_top_perimeters_with_read_nomi_right(read_nomi_perimeters_ids=list(read_nomi_perimeters_ids))
@@ -183,7 +192,7 @@ class PerimetersService:
         )
 
         if is_request_filtered:
-            perimeters_with_data_accesses = Perimeter.objects.filter(id__in=read_nomi_perimeters_ids.union(read_pseudo_perimeters_ids))
+            perimeters_with_data_accesses = Perimeter.objects.filter(id__in=set(read_nomi_perimeters_ids) | set(read_pseudo_perimeters_ids))
             perimeters_and_children = [perimeters_with_data_accesses] + [self.get_all_child_perimeters(p.id) for p in perimeters_with_data_accesses]
             target_perimeters = reduce(lambda qs1, qs2: qs1 | qs2, perimeters_and_children)
         else:

@@ -1,6 +1,7 @@
 from unittest import mock
 
 from django.test import override_settings
+from rest_framework.exceptions import ValidationError
 
 from accesses import porthab
 from accesses.porthab import (
@@ -11,12 +12,16 @@ from accesses.porthab import (
     porthab_role,
     rights_from_groups,
 )
+from accesses.models import Perimeter
+from accesses.services.accesses import accesses_service
+from accesses.services.perimeters import perimeters_service
 from accesses.tests.base import AccessesAppTestsBase
 from accesses.utils import impersonate_hook
 from admin_cohort.auth.auth_backends import OIDCAuthBackend
 from admin_cohort.models import User
 from admin_cohort.services.auth import auth_service
 from admin_cohort.tools.cache import construct_cache_key
+from exports.services.rights_checker import rights_checker
 
 PER = "/BBS_DA-N-EDS_DEV_PER_"
 
@@ -112,3 +117,58 @@ class PorthabDataScopesAuthTests(AccessesAppTestsBase):
             return construct_cache_key(view_instance=self, view_method=self.test_la_cle_de_cache_depend_des_perimetres, request=request)
 
         assert key(with_grants(self.user_y, "H_P3_N")) != key(with_grants(self.user_y, "H_P3_P"))
+
+
+@override_settings(PORTHAB_RIGHTS_ENABLED=True, PORTHAB_GROUP_PREFIX="EDS_DEV")
+class PorthabDataReadingTests(AccessesAppTestsBase):
+    def rights_by_perimeter(self, user, perimeters):
+        return {dr.perimeter_id: dr for dr in accesses_service.get_data_reading_rights(user=user, target_perimeters_ids=[p.id for p in perimeters])}
+
+    def test_un_agent_port_hab_seul_lit_ses_perimetres(self):
+        user = with_grants(self.user_y, "H_P4_P", "POLE_P11_N")
+        cibles = Perimeter.objects.filter(id__in=[self.p11.id, self.p12.id])
+        assert accesses_service.user_has_data_reading_accesses_on_target_perimeters(user, cibles, read_mode="min")
+        assert accesses_service.user_can_access_at_least_one_target_perimeter_in_nomi(user, cibles)
+        assert not accesses_service.user_can_access_all_target_perimeters_in_nomi(user, cibles)
+        assert not accesses_service.user_has_data_reading_accesses_on_target_perimeters(
+            user, Perimeter.objects.filter(id=self.p3.id), read_mode="max"
+        )
+
+    def test_mes_droits_de_donnees_suivent_la_hierarchie(self):
+        droits = self.rights_by_perimeter(with_grants(self.user_y, "H_P4_P", "POLE_P11_N"), [self.p11, self.p12])
+        assert (droits[self.p11.id].right_read_patient_nominative, droits[self.p11.id].right_read_patient_pseudonymized) == (True, True)
+        assert (droits[self.p12.id].right_read_patient_nominative, droits[self.p12.id].right_read_patient_pseudonymized) == (False, True)
+
+    def test_union_avec_un_acces_natif(self):
+        self.create_new_access_for_user(profile=self.profile_y, role=self.role_data_reader_nomi, perimeter=self.p3)
+        user = with_grants(self.user_y, "H_P4_P")
+        droits = self.rights_by_perimeter(user, [self.p3, self.p4])
+        assert droits[self.p3.id].right_read_patient_nominative
+        assert droits[self.p4.id].right_read_patient_pseudonymized and not droits[self.p4.id].right_read_patient_nominative
+
+    def test_les_droits_globaux_port_hab_s_appliquent_aux_perimetres_lus(self):
+        user = with_grants(self.user_y, "H_P4_N", rights=("right_search_patients_by_ipp", "right_export_csv_xlsx_nominative"))
+        droit = self.rights_by_perimeter(user, [self.p4])[self.p4.id]
+        assert droit.right_search_patients_by_ipp and droit.right_export_csv_xlsx_nominative
+        assert not droit.right_export_jupyter_nominative
+
+    def test_recherche_des_patients_opposes(self):
+        assert not accesses_service.can_user_read_opposed_patient_data(with_grants(self.user_y, "H_P4_N"))
+        assert accesses_service.can_user_read_opposed_patient_data(with_grants(self.user_z, rights=("right_search_opposed_patients",)))
+
+    def test_droits_de_lecture_par_perimetre(self):
+        user = with_grants(self.user_y, "H_P4_P", "POLE_P11_N", rights=("right_search_patients_by_ipp",))
+        lectures = perimeters_service.get_data_read_rights_on_perimeters(
+            user=user, is_request_filtered=False, filtered_perimeters=Perimeter.objects.all()
+        )
+        par_id = {lecture.perimeter.id: lecture for lecture in lectures}
+        assert par_id[self.p4.id].right_read_patient_pseudonymized and not par_id[self.p4.id].right_read_patient_nominative
+        assert par_id[self.p11.id].right_read_patient_nominative
+        assert all(lecture.right_search_patients_by_ipp for lecture in lectures)
+
+    def test_le_controle_d_export_csv(self):
+        nomi = self.rights_by_perimeter(with_grants(self.user_y, "H_P4_N", rights=("right_export_csv_xlsx_nominative",)), [self.p4])
+        rights_checker._check_rights(list(nomi.values()), "right_export_csv_xlsx_nominative")
+        pseudo = self.rights_by_perimeter(with_grants(self.user_z, "H_P4_P", rights=("right_export_csv_xlsx_nominative",)), [self.p4])
+        with self.assertRaises(ValidationError):
+            rights_checker._check_rights(list(pseudo.values()), "right_read_patient_nominative")
