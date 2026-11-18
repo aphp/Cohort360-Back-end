@@ -4,7 +4,7 @@ from typing import Optional
 from django.conf import settings
 from rest_framework.exceptions import AuthenticationFailed
 
-from accesses.porthab import rights_from_groups
+from accesses.porthab import data_scopes_from_groups, rights_from_groups
 
 from admin_cohort.services.auth import jwt_auth_service, oidc_auth_service
 from admin_cohort.models import User
@@ -43,7 +43,8 @@ class OIDCAuthBackend(BaseAuthBackend):
         if known is not None and known.delete_datetime is None:
             return known
         claims = oidc_auth_service.decode_token(token=access_token, verify_signature=False)
-        if not rights_from_groups(claims.get("groups", [])):
+        groups = claims.get("groups", [])
+        if not rights_from_groups(groups) and not data_scopes_from_groups(groups):
             return self.get_user(user_id=username)
         if known is not None:
             logger.info(f"{username} réactivé par ses droits Port'Hab")
