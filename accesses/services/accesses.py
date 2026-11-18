@@ -228,8 +228,8 @@ class AccessesService:
     @staticmethod
     def get_porthab_data_rights(user: User) -> List[DataRight]:
         nomi, pseudo = porthab_read_perimeter_ids(user)
-        rights = [DataRight(user_id=user.pk, perimeter_id=p, right_read_patient_nominative=True, right_read_patient_pseudonymized=True) for p in nomi]
-        return rights + [DataRight(user_id=user.pk, perimeter_id=p, right_read_patient_pseudonymized=True) for p in pseudo - nomi]
+        rights = [DataRight(user_id=user.pk, perimeter_id=p, right_read_patient_nominative=True) for p in nomi]
+        return rights + [DataRight(user_id=user.pk, perimeter_id=p, right_read_patient_pseudonymized=True) for p in pseudo]
 
     @staticmethod
     def share_porthab_global_rights(user: User, data_rights: List[DataRight]) -> None:
