@@ -140,6 +140,14 @@ class PorthabDataReadingTests(AccessesAppTestsBase):
         assert (droits[self.p11.id].right_read_patient_nominative, droits[self.p11.id].right_read_patient_pseudonymized) == (True, True)
         assert (droits[self.p12.id].right_read_patient_nominative, droits[self.p12.id].right_read_patient_pseudonymized) == (False, True)
 
+    def test_un_perimetre_nominatif_ne_donne_pas_la_lecture_pseudonymisee(self):
+        droit = self.rights_by_perimeter(with_grants(self.user_y, "H_P4_N"), [self.p4])[self.p4.id]
+        assert (droit.right_read_patient_nominative, droit.right_read_patient_pseudonymized) == (True, False)
+
+    def test_les_deux_modes_sur_un_perimetre_donnent_les_deux_lectures(self):
+        droit = self.rights_by_perimeter(with_grants(self.user_y, "H_P4_N", "H_P4_P"), [self.p4])[self.p4.id]
+        assert (droit.right_read_patient_nominative, droit.right_read_patient_pseudonymized) == (True, True)
+
     def test_union_avec_un_acces_natif(self):
         self.create_new_access_for_user(profile=self.profile_y, role=self.role_data_reader_nomi, perimeter=self.p3)
         user = with_grants(self.user_y, "H_P4_P")
