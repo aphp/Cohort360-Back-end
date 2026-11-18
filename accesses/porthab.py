@@ -175,7 +175,11 @@ def fetch_porthab_grants(username: str) -> PorthabGrants:
     if response.status_code != status.HTTP_200_OK:
         logger.error(f"Port'Hab a répondu {response.status_code} pour les droits de {username}")
         raise PorthabUnavailable()
-    payload = response.json()
-    rights = frozenset(right for code in payload["rights"] if code in RIGHTS_BY_CODE for right in RIGHTS_BY_CODE[code])
-    data_scopes = frozenset(code for code in payload.get("data_scopes", []) if _is_data_scope(code))
+    try:
+        payload = response.json()
+        rights = frozenset(right for code in payload["rights"] if code in RIGHTS_BY_CODE for right in RIGHTS_BY_CODE[code])
+        data_scopes = frozenset(code for code in payload.get("data_scopes") or [] if _is_data_scope(code))
+    except (ValueError, KeyError, TypeError) as exc:
+        logger.error(f"Réponse Port'Hab illisible pour les droits de {username} : {exc}")
+        raise PorthabUnavailable() from exc
     return PorthabGrants(rights=rights, data_scopes=data_scopes)
