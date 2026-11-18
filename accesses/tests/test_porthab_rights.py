@@ -58,12 +58,12 @@ class PorthabRightsTests(AccessesAppTestsBase):
         self.create_new_access_for_user(profile=self.profile_y, role=self.role_full_admin, perimeter=self.aphp)
         assert accesses_service.user_is_full_admin(self.with_rights(self.user_y))
 
-    @mock.patch("accesses.utils.fetch_porthab_rights", return_value=frozenset())
+    @mock.patch("accesses.utils.fetch_porthab_grants", return_value=porthab.PorthabGrants(frozenset(), frozenset()))
     def test_porthab_full_admin_can_impersonate(self, _):
         impersonated = impersonate_hook(self.with_rights(self.user_y, "right_full_admin"), {"X-Impersonate": self.user_z.username})
         assert impersonated == self.user_z
 
-    @mock.patch("accesses.utils.fetch_porthab_rights", return_value=frozenset())
+    @mock.patch("accesses.utils.fetch_porthab_grants", return_value=porthab.PorthabGrants(frozenset(), frozenset()))
     def test_impersonated_user_does_not_inherit_porthab_rights(self, _):
         impersonated = impersonate_hook(self.with_rights(self.user_y, "right_full_admin"), {"X-Impersonate": self.user_z.username})
         assert not accesses_service.user_is_full_admin(impersonated)
@@ -196,7 +196,7 @@ class PorthabImpersonationTests(AccessesAppTestsBase):
     def test_impersonated_user_gets_his_own_porthab_rights(self):
         with self.porthab_replies(["cohort.manage_users", "cohort.search_ipp", "datalab.lire"]) as doubles:
             impersonated = self.impersonate()
-        assert impersonated.porthab_rights == {"right_manage_users"}
+        assert impersonated.porthab_rights == {"right_manage_users", "right_search_patients_by_ipp"}
         doubles["get"].assert_called_once()
         assert doubles["get"].call_args.args[0] == f"https://porthab.test/api/v1/applications/agents/{self.user_z.username}/rights/"
         assert doubles["get"].call_args.kwargs["headers"] == {"Authorization": "Bearer jeton"}
@@ -212,7 +212,7 @@ class PorthabImpersonationTests(AccessesAppTestsBase):
         with self.porthab_replies(status_code=401) as doubles:
             for _ in range(2):
                 with self.assertRaises(PorthabUnavailable):
-                    porthab.fetch_porthab_rights(self.user_z.username)
+                    porthab.fetch_porthab_grants(self.user_z.username)
         assert doubles["post"].call_count == 2
 
     @override_settings(PORTHAB_RIGHTS_ENABLED=False)
@@ -224,5 +224,5 @@ class PorthabImpersonationTests(AccessesAppTestsBase):
 
     def test_username_is_encoded_in_the_porthab_url(self):
         with self.porthab_replies() as doubles:
-            porthab.fetch_porthab_rights("../../admin")
+            porthab.fetch_porthab_grants("../../admin")
         assert doubles["get"].call_args.args[0] == "https://porthab.test/api/v1/applications/agents/..%2F..%2Fadmin/rights/"
