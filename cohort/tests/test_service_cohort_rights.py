@@ -1,11 +1,18 @@
 from unittest import mock
 
 from django.http import Http404
+from django.test import override_settings
 
 from accesses.models import Perimeter
+from accesses.porthab import PorthabGrants, apply_grants
 from admin_cohort.tests.tests_tools import new_random_user, TestCaseWithDBs
 from cohort.models import Folder, Request, RequestQuerySnapshot, CohortResult, DatedMeasure
-from cohort.services.cohort_rights import CohortRightsService, READ_PATIENT_NOMI
+from cohort.services.cohort_rights import (
+    EXPORT_CSV_XLSX_NOMI,
+    READ_PATIENT_NOMI,
+    READ_PATIENT_PSEUDO,
+    CohortRightsService,
+)
 
 SHARED_GROUP_ID = "9000001"
 OTHER_GROUP_ID = "9000002"
@@ -69,7 +76,7 @@ class TestCohortRightsService(TestCaseWithDBs):
         self.assertEqual(sorted(p.cohort_id for p in perimeters[SHARED_GROUP_ID]), ["101", "102"])
 
     @mock.patch.object(CohortRightsService, "get_rights_on_perimeters")
-    @mock.patch.object(CohortRightsService, "get_accesses_per_right")
+    @mock.patch.object(CohortRightsService, "get_perimeter_ids_per_right")
     @mock.patch("cohort.services.cohort_rights.accesses_service.get_user_valid_accesses")
     def test_get_user_rights_on_cohorts_with_group_id_shared_by_two_owners(
         self, mock_valid_accesses, mock_accesses_per_right, mock_rights_on_perimeters
@@ -79,3 +86,30 @@ class TestCohortRightsService(TestCaseWithDBs):
         mock_rights_on_perimeters.return_value = {READ_PATIENT_NOMI: True}
         rights = self.cohort_rights_service.get_user_rights_on_cohorts(group_ids=SHARED_GROUP_ID, user=self.user1)
         self.assertEqual(rights, [{"cohort_id": SHARED_GROUP_ID, "rights": {READ_PATIENT_NOMI: True}}])
+
+
+@override_settings(PORTHAB_RIGHTS_ENABLED=True, PORTHAB_GROUP_PREFIX="EDS_DEV")
+class TestCohortRightsWithPorthab(TestCaseWithDBs):
+    def setUp(self):
+        super().setUp()
+        self.user = new_random_user()
+        Perimeter.objects.create(id=1, name="H1", local_id="h1", cohort_id="101", source_value="001", type_source_value="Hôpital")
+        Perimeter.objects.create(id=2, name="H2", local_id="h2", cohort_id="102", source_value="002", type_source_value="Hôpital")
+        TestCohortRightsService.create_cohort(owner=self.user, group_id=SHARED_GROUP_ID, perimeters_ids=["101"])
+        TestCohortRightsService.create_cohort(owner=self.user, group_id=OTHER_GROUP_ID, perimeters_ids=["102"])
+
+    def rights(self, *codes, rights=()):
+        apply_grants(self.user, PorthabGrants(rights=frozenset(rights), data_scopes=frozenset(codes)))
+        resultat = CohortRightsService().get_user_rights_on_cohorts(group_ids=f"{SHARED_GROUP_ID},{OTHER_GROUP_ID}", user=self.user)
+        return {item["cohort_id"]: item["rights"] for item in resultat}
+
+    def test_un_agent_port_hab_seul_a_ses_droits_sur_ses_cohortes(self):
+        droits = self.rights("H_001_N", "H_002_P", rights=("right_export_csv_xlsx_nominative",))
+        assert droits[SHARED_GROUP_ID][READ_PATIENT_NOMI] and droits[SHARED_GROUP_ID][EXPORT_CSV_XLSX_NOMI]
+        assert droits[OTHER_GROUP_ID][READ_PATIENT_PSEUDO]
+        assert not droits[OTHER_GROUP_ID][READ_PATIENT_NOMI]
+        assert not droits[OTHER_GROUP_ID][EXPORT_CSV_XLSX_NOMI]
+
+    def test_sans_acces_ni_perimetre_port_hab_toujours_404(self):
+        with self.assertRaises(Http404):
+            self.rights()

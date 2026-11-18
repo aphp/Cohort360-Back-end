@@ -13,6 +13,7 @@ from accesses.q_expressions import (
     q_allow_export_jupyter_nominative,
     q_allow_export_jupyter_pseudo,
 )
+from accesses.porthab import porthab_read_perimeter_ids, porthab_rights
 from accesses.services.accesses import accesses_service
 from admin_cohort.models import User
 from cohort.models import CohortResult
@@ -43,14 +44,14 @@ class CohortRightsService:
         if not CohortResult.objects.filter(group_id__in=group_id_list).exists():
             raise Http404("No cohorts found. The provided `group_id`s are not valid")
         user_accesses = accesses_service.get_user_valid_accesses(user=user)
-        if not user_accesses:
+        if not user_accesses and not any(porthab_read_perimeter_ids(user)):
             raise Http404(f"The user `{user}` has no valid accesses")
         cohort_perimeters = self.get_cohort_perimeters(cohorts_ids=group_id_list, owner=user)
-        accesses_per_right = self.get_accesses_per_right(user_accesses=user_accesses)
+        perimeter_ids_per_right = self.get_perimeter_ids_per_right(user=user, user_accesses=user_accesses)
         cohort_rights = []
 
         for cohort_id, perimeters in cohort_perimeters.items():
-            rights = self.get_rights_on_perimeters(accesses_per_right=accesses_per_right, perimeters=perimeters)
+            rights = self.get_rights_on_perimeters(perimeter_ids_per_right=perimeter_ids_per_right, perimeters=perimeters)
             cohort_rights.append(CohortRights(cohort_id, rights).__dict__)
         return cohort_rights
 
@@ -85,24 +86,34 @@ class CohortRightsService:
         return out
 
     @staticmethod
-    def get_accesses_per_right(user_accesses: QuerySet) -> dict[str, QuerySet]:
-        return {
+    def get_perimeter_ids_per_right(user: User, user_accesses: QuerySet) -> dict[str, set[int]]:
+        natives = {
             READ_PATIENT_NOMI: user_accesses.filter(q_allow_read_patient_data_nominative),
             READ_PATIENT_PSEUDO: user_accesses.filter(q_allow_read_patient_data_pseudo | q_allow_read_patient_data_nominative),
             EXPORT_CSV_XLSX_NOMI: user_accesses.filter(q_allow_export_csv_xlsx_nominative),
             EXPORT_JUPYTER_NOMI: user_accesses.filter(q_allow_export_jupyter_nominative),
             EXPORT_JUPYTER_PSEUDO: user_accesses.filter(q_allow_export_jupyter_pseudo),
         }
+        ids = {right: set(accesses.values_list("perimeter_id", flat=True)) for right, accesses in natives.items()}
+        nomi, pseudo = porthab_read_perimeter_ids(user)
+        rights = porthab_rights(user)
+        ids[READ_PATIENT_NOMI] |= nomi
+        ids[READ_PATIENT_PSEUDO] |= nomi | pseudo
+        if "right_export_csv_xlsx_nominative" in rights:
+            ids[EXPORT_CSV_XLSX_NOMI] |= nomi
+        if "right_export_jupyter_nominative" in rights:
+            ids[EXPORT_JUPYTER_NOMI] |= nomi
+        if "right_export_jupyter_pseudonymized" in rights:
+            ids[EXPORT_JUPYTER_PSEUDO] |= nomi | pseudo
+        return ids
 
     @staticmethod
-    def get_rights_on_perimeters(accesses_per_right: dict, perimeters: QuerySet[Perimeter]) -> dict[str, bool]:
+    def get_rights_on_perimeters(perimeter_ids_per_right: dict[str, set[int]], perimeters: QuerySet[Perimeter]) -> dict[str, bool]:
         rights = all_true_rights()
         for perimeter in perimeters:
             perimeter_and_above = [perimeter.id] + perimeter.above_levels
             for r in rights:
-                accesses = accesses_per_right[r]
-                is_valid_right = accesses.filter(perimeter_id__in=perimeter_and_above).exists()
-                rights[r] = rights[r] and is_valid_right
+                rights[r] = rights[r] and any(p in perimeter_ids_per_right[r] for p in perimeter_and_above)
         return rights
 
 
