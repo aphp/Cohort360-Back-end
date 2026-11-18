@@ -6,7 +6,7 @@ from rest_framework import permissions
 from rest_framework.permissions import IsAuthenticated, SAFE_METHODS
 
 from accesses.models import Role
-from accesses.porthab import porthab_role
+from accesses.porthab import porthab_rights, porthab_role
 from accesses.services.accesses import accesses_service
 from accesses.services.roles import roles_service
 from admin_cohort.models import User
@@ -45,14 +45,20 @@ def can_user_manage_profiles(user: User) -> bool:
 
 
 def can_user_make_export_jupyter_nomi(user: User):
+    if "right_export_jupyter_nominative" in porthab_rights(user):
+        return True
     return any(r.right_export_jupyter_nominative for r in get_bound_roles(user))
 
 
 def can_user_make_export_jupyter_pseudo(user: User):
+    if "right_export_jupyter_pseudonymized" in porthab_rights(user):
+        return True
     return any(r.right_export_jupyter_pseudonymized for r in get_bound_roles(user))
 
 
 def can_user_make_export_csv_xlsx_nomi(user: User):
+    if "right_export_csv_xlsx_nominative" in porthab_rights(user):
+        return True
     return any(r.right_export_csv_xlsx_nominative for r in get_bound_roles(user))
 
 

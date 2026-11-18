@@ -3,9 +3,10 @@ from unittest import mock
 from django.test import override_settings
 from rest_framework.exceptions import ValidationError
 
-from accesses import porthab
+from accesses import permissions, porthab
 from accesses.porthab import (
     PorthabGrants,
+    PorthabUnavailable,
     data_scopes_from_groups,
     fetch_porthab_grants,
     porthab_read_perimeter_ids,
@@ -172,3 +173,30 @@ class PorthabDataReadingTests(AccessesAppTestsBase):
         pseudo = self.rights_by_perimeter(with_grants(self.user_z, "H_P4_P", rights=("right_export_csv_xlsx_nominative",)), [self.p4])
         with self.assertRaises(ValidationError):
             rights_checker._check_rights(list(pseudo.values()), "right_read_patient_nominative")
+
+
+@override_settings(PORTHAB_RIGHTS_ENABLED=True, PORTHAB_GROUP_PREFIX="EDS_DEV")
+class PorthabExportPermissionTests(AccessesAppTestsBase):
+    def test_les_droits_d_export_port_hab_ouvrent_les_permissions_d_export(self):
+        user = with_grants(self.user_y, "H_P4_N", rights=("right_export_csv_xlsx_nominative", "right_export_jupyter_nominative"))
+        assert permissions.can_user_make_export_csv_xlsx_nomi(user)
+        assert permissions.can_user_make_export_jupyter_nomi(user)
+        assert not permissions.can_user_make_export_jupyter_pseudo(user)
+        assert permissions.can_user_make_export_jupyter_pseudo(with_grants(self.user_z, rights=("right_export_jupyter_pseudonymized",)))
+
+    def test_sans_droit_d_export_aucune_permission(self):
+        assert not permissions.can_user_make_export_csv_xlsx_nomi(with_grants(self.user_y, "H_P4_N"))
+
+    @mock.patch("accesses.porthab.service_token", return_value="t")
+    @mock.patch("accesses.porthab.requests.get")
+    def test_une_reponse_mal_formee_vaut_indisponibilite(self, get, _):
+        for corps in ({"rights": None}, {"rights": [], "data_scopes": None}):
+            get.return_value = mock.Mock(status_code=200, json=lambda corps=corps: corps)
+            if corps.get("data_scopes", 0) is None:
+                assert fetch_porthab_grants("7000001").data_scopes == frozenset()
+            else:
+                with self.assertRaises(PorthabUnavailable):
+                    fetch_porthab_grants("7000001")
+        get.return_value = mock.Mock(status_code=200, json=mock.Mock(side_effect=ValueError("pas du JSON")))
+        with self.assertRaises(PorthabUnavailable):
+            fetch_porthab_grants("7000001")
