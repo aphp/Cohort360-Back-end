@@ -4,9 +4,12 @@ from unittest import mock
 
 import requests
 from django.conf import settings
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
+from accesses.models import Perimeter
+from accesses.porthab import PorthabGrants, PorthabUnavailable
 from admin_cohort.models import User
+from admin_cohort.tests.tests_tools import TestCaseWithDBs
 from cohort_job_server.apps import CohortJobServerConfig
 from cohort_job_server.query_executor_api import QueryFormatter, BaseCohortRequest
 from cohort_job_server.query_executor_api.enums import ResourceType
@@ -393,3 +396,29 @@ class TestAddSecurityParamsToFilterFhir(TestCase):
 
     def test_no_filter_fhir_stays_none(self):
         self.assertIsNone(add_security_params_to_filter_fhir(self.criteria(None), SourcePopulation(caresiteCohortList=[112]), True))
+
+
+@override_settings(PORTHAB_RIGHTS_ENABLED=True, PORTHAB_GROUP_PREFIX="EDS_DEV")
+class PorthabPseudoReadTests(TestCaseWithDBs):
+    def setUp(self):
+        super().setUp()
+        self.user = User.objects.create(firstname="Camille", lastname="MARTIN", email="c.martin@aphp.fr", username="7000003")
+        Perimeter.objects.create(id=31, name="H31", local_id="h31", cohort_id="131", source_value="031", type_source_value="Hôpital")
+
+    @mock.patch("cohort_job_server.query_executor_api.cohort_requests.base_cohort_request.fetch_porthab_grants")
+    def test_un_perimetre_port_hab_nominatif_n_est_pas_pseudonymise(self, fetch):
+        fetch.return_value = PorthabGrants(rights=frozenset(), data_scopes=frozenset({"H_031_N"}))
+        assert not BaseCohortRequest.is_cohort_request_pseudo_read(username=self.user.username, source_population=[131])
+        fetch.assert_called_once_with(self.user.username)
+
+    @mock.patch("cohort_job_server.query_executor_api.cohort_requests.base_cohort_request.fetch_porthab_grants")
+    def test_port_hab_injoignable_repli_sur_les_acces_natifs(self, fetch):
+        fetch.side_effect = PorthabUnavailable()
+        with self.assertLogs("cohort_job_server.query_executor_api.cohort_requests.base_cohort_request", level="WARNING"):
+            assert BaseCohortRequest.is_cohort_request_pseudo_read(username=self.user.username, source_population=[131])
+
+    @override_settings(PORTHAB_RIGHTS_ENABLED=False)
+    @mock.patch("cohort_job_server.query_executor_api.cohort_requests.base_cohort_request.fetch_porthab_grants")
+    def test_port_hab_desactive_aucun_appel(self, fetch):
+        assert BaseCohortRequest.is_cohort_request_pseudo_read(username=self.user.username, source_population=[131])
+        fetch.assert_not_called()
