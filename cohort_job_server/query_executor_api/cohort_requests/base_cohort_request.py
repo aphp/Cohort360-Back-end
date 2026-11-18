@@ -4,6 +4,9 @@ import logging
 from typing import TYPE_CHECKING, List, Optional
 
 from accesses.models import Perimeter
+from django.conf import settings
+
+from accesses.porthab import PorthabUnavailable, apply_grants, fetch_porthab_grants
 from accesses.services.accesses import accesses_service
 from admin_cohort.models import User
 from cohort_job_server.query_executor_api.exceptions import FhirException
@@ -46,6 +49,12 @@ class BaseCohortRequest:
     @staticmethod
     def is_cohort_request_pseudo_read(username: str, source_population: List[int]) -> bool:
         user = User.objects.filter(pk=username).first()
+        # Hors requête, pas de jeton : les périmètres Port'Hab de l'agent sont lus à la source.
+        if user is not None and settings.PORTHAB_RIGHTS_ENABLED:
+            try:
+                apply_grants(user, fetch_porthab_grants(username))
+            except PorthabUnavailable:
+                logger.warning(f"Droits Port'Hab de {username} indisponibles, requête de cohorte avec ses seuls accès natifs")
         perimeters = Perimeter.objects.filter(cohort_id__in=source_population)
         return not accesses_service.user_can_access_at_least_one_target_perimeter_in_nomi(user=user, target_perimeters=perimeters)
 
