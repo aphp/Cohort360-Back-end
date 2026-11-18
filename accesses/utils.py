@@ -4,7 +4,7 @@ from typing import Dict, Optional
 from django.conf import settings
 from rest_framework.exceptions import PermissionDenied
 
-from accesses.porthab import PorthabUnavailable, fetch_porthab_rights
+from accesses.porthab import PorthabGrants, PorthabUnavailable, apply_grants, fetch_porthab_grants
 from accesses.services.accesses import accesses_service
 from admin_cohort.models import User
 
@@ -23,9 +23,9 @@ def impersonate_hook(user: User, headers: Dict[str, str]) -> Optional[User]:
                 return user
             if settings.PORTHAB_RIGHTS_ENABLED:
                 try:
-                    impersonated_user.porthab_rights = fetch_porthab_rights(impersonated_user.username)
+                    apply_grants(impersonated_user, fetch_porthab_grants(impersonated_user.username))
                 except PorthabUnavailable:
-                    impersonated_user.porthab_rights = frozenset()
+                    apply_grants(impersonated_user, PorthabGrants(rights=frozenset(), data_scopes=frozenset()))
                     logger.warning(f"Droits Port'Hab de {impersonated} indisponibles, impersonation avec ses seuls accès natifs")
             return impersonated_user
         else:
