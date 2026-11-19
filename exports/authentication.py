@@ -5,7 +5,7 @@ from rest_framework.exceptions import AuthenticationFailed
 from admin_cohort.models import User
 from exports.services.export_download_token import read_export_download_token
 
-EXPORT_DOWNLOAD_TOKEN_PARAM = "token"
+EXPORT_DOWNLOAD_TOKEN_PARAM = "token"  # nosec B105
 
 
 class ExportDownloadTokenAuthentication(BaseAuthentication):

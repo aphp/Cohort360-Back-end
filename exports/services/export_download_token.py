@@ -6,7 +6,7 @@ from django.core import signing
 from admin_cohort.models import User
 from exports.models import Export
 
-EXPORT_DOWNLOAD_TOKEN_SALT = "exports.export_download_token"
+EXPORT_DOWNLOAD_TOKEN_SALT = "exports.export_download_token"  # nosec B105
 
 
 @dataclass(frozen=True)
