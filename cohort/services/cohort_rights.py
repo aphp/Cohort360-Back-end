@@ -98,13 +98,13 @@ class CohortRightsService:
         nomi, pseudo = porthab_read_perimeter_ids(user)
         rights = porthab_rights(user)
         ids[READ_PATIENT_NOMI] |= nomi
-        ids[READ_PATIENT_PSEUDO] |= nomi | pseudo
+        ids[READ_PATIENT_PSEUDO] |= pseudo
         if "right_export_csv_xlsx_nominative" in rights:
             ids[EXPORT_CSV_XLSX_NOMI] |= nomi
         if "right_export_jupyter_nominative" in rights:
             ids[EXPORT_JUPYTER_NOMI] |= nomi
         if "right_export_jupyter_pseudonymized" in rights:
-            ids[EXPORT_JUPYTER_PSEUDO] |= nomi | pseudo
+            ids[EXPORT_JUPYTER_PSEUDO] |= pseudo
         return ids
 
     @staticmethod

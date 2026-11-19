@@ -182,7 +182,6 @@ class PerimetersService:
         )
         read_pseudo_perimeters_ids = sorted(
             set(user_accesses.filter(q_allow_read_patient_data_pseudo | q_allow_read_patient_data_nominative).values_list("perimeter_id", flat=True))
-            | porthab_nomi
             | porthab_pseudo
         )
 

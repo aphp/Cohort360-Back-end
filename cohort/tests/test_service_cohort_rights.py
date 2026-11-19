@@ -9,6 +9,7 @@ from admin_cohort.tests.tests_tools import new_random_user, TestCaseWithDBs
 from cohort.models import Folder, Request, RequestQuerySnapshot, CohortResult, DatedMeasure
 from cohort.services.cohort_rights import (
     EXPORT_CSV_XLSX_NOMI,
+    EXPORT_JUPYTER_PSEUDO,
     READ_PATIENT_NOMI,
     READ_PATIENT_PSEUDO,
     CohortRightsService,
@@ -109,6 +110,12 @@ class TestCohortRightsWithPorthab(TestCaseWithDBs):
         assert droits[OTHER_GROUP_ID][READ_PATIENT_PSEUDO]
         assert not droits[OTHER_GROUP_ID][READ_PATIENT_NOMI]
         assert not droits[OTHER_GROUP_ID][EXPORT_CSV_XLSX_NOMI]
+
+    def test_un_perimetre_nominatif_ne_donne_pas_la_lecture_pseudonymisee(self):
+        droits = self.rights("H_001_N", rights=("right_export_jupyter_pseudonymized",))
+        assert droits[SHARED_GROUP_ID][READ_PATIENT_NOMI]
+        assert not droits[SHARED_GROUP_ID][READ_PATIENT_PSEUDO]
+        assert not droits[SHARED_GROUP_ID][EXPORT_JUPYTER_PSEUDO]
 
     def test_sans_acces_ni_perimetre_port_hab_toujours_404(self):
         with self.assertRaises(Http404):
