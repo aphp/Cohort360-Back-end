@@ -5,7 +5,13 @@ from django.test import override_settings
 
 from accesses.models import Perimeter
 from accesses.porthab import PorthabGrants, apply_grants
-from admin_cohort.tests.tests_tools import new_random_user, TestCaseWithDBs
+from datetime import timedelta
+
+from django.utils import timezone
+
+from accesses.models import Access, Role
+from accesses.tests.base import data_reader_nomi_role_definition
+from admin_cohort.tests.tests_tools import new_random_user, new_user_and_profile, TestCaseWithDBs
 from cohort.models import Folder, Request, RequestQuerySnapshot, CohortResult, DatedMeasure
 from cohort.services.cohort_rights import (
     EXPORT_CSV_XLSX_NOMI,
@@ -116,6 +122,21 @@ class TestCohortRightsWithPorthab(TestCaseWithDBs):
         assert droits[SHARED_GROUP_ID][READ_PATIENT_NOMI]
         assert not droits[SHARED_GROUP_ID][READ_PATIENT_PSEUDO]
         assert not droits[SHARED_GROUP_ID][EXPORT_JUPYTER_PSEUDO]
+
+    def test_l_export_port_hab_s_applique_aussi_aux_perimetres_natifs(self):
+        _, profile = new_user_and_profile()
+        self.user = profile.user
+        Access.objects.create(
+            profile=profile,
+            role=Role.objects.create(**data_reader_nomi_role_definition),
+            perimeter=Perimeter.objects.get(id=2),
+            start_datetime=timezone.now(),
+            end_datetime=timezone.now() + timedelta(days=1),
+        )
+        TestCohortRightsService.create_cohort(owner=self.user, group_id=SHARED_GROUP_ID, perimeters_ids=["101"])
+        TestCohortRightsService.create_cohort(owner=self.user, group_id=OTHER_GROUP_ID, perimeters_ids=["102"])
+        droits = self.rights("H_001_N", rights=("right_export_csv_xlsx_nominative",))
+        assert droits[OTHER_GROUP_ID][READ_PATIENT_NOMI] and droits[OTHER_GROUP_ID][EXPORT_CSV_XLSX_NOMI]
 
     def test_sans_acces_ni_perimetre_port_hab_toujours_404(self):
         with self.assertRaises(Http404):
