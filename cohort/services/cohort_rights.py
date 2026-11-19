@@ -100,11 +100,11 @@ class CohortRightsService:
         ids[READ_PATIENT_NOMI] |= nomi
         ids[READ_PATIENT_PSEUDO] |= pseudo
         if "right_export_csv_xlsx_nominative" in rights:
-            ids[EXPORT_CSV_XLSX_NOMI] |= nomi
+            ids[EXPORT_CSV_XLSX_NOMI] |= ids[READ_PATIENT_NOMI]
         if "right_export_jupyter_nominative" in rights:
-            ids[EXPORT_JUPYTER_NOMI] |= nomi
+            ids[EXPORT_JUPYTER_NOMI] |= ids[READ_PATIENT_NOMI]
         if "right_export_jupyter_pseudonymized" in rights:
-            ids[EXPORT_JUPYTER_PSEUDO] |= pseudo
+            ids[EXPORT_JUPYTER_PSEUDO] |= ids[READ_PATIENT_PSEUDO]
         return ids
 
     @staticmethod
