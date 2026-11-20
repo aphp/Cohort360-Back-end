@@ -88,9 +88,14 @@ class TestExportUsersImpactedByPatchV170(TestCaseWithDBs):
 
     def test_dry_run_sends_nothing(self):
         out = io.StringIO()
-        call_command(COMMAND, "--email", "a@aphp.fr", "--dry-run", stdout=out)
+        call_command(COMMAND, "--dry-run", stdout=out)
         self.assertEqual(len(mail.outbox), 0)
         self.assertIn("Utilisateurs exportés", out.getvalue())
+
+    def test_email_required_without_dry_run(self):
+        with self.assertRaises(CommandError):
+            call_command(COMMAND, stdout=io.StringIO())
+        self.assertEqual(len(mail.outbox), 0)
 
     def test_invalid_email_raises(self):
         with self.assertRaises(CommandError):

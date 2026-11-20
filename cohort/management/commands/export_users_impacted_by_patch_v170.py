@@ -5,7 +5,6 @@ import re
 from collections import defaultdict
 from datetime import datetime, timedelta
 from smtplib import SMTPException
-from urllib.parse import unquote
 from uuid import UUID
 
 from django.conf import settings
@@ -16,9 +15,8 @@ from django.utils import timezone
 
 from admin_cohort.models import User
 from cohort.models import FhirFilter, RequestQuerySnapshot
+from cohort.scripts.patch_requests_v170 import BIOLOGY, PREV_VERSION, is_encounter_filter
 
-VERSION = "v1.6.4"
-ENC = re.compile(r"\bencounter\.[A-Za-z0-9_\-]+")
 HEADER = [
     "Username",
     "Email",
@@ -46,9 +44,84 @@ def filtre_impacte(fhir_filter: str | None) -> bool:
 
 
 def impacte(criterion: dict) -> bool:
-    if criterion.get("resourceType") != "Observation":
+    if criterion.get("resourceType") != BIOLOGY:
         return False
     return filtre_impacte(criterion.get("filterFhir")) or criterion.get("patientAge") is not None
+
+
+def is_impacted_query(serialized_query: str | None) -> bool:
+    try:
+        query = json.loads(serialized_query or "{}")
+    except ValueError:
+        return False
+    if query.get("version") != PREV_VERSION or query.get("_type") != "request":
+        return False
+    return any(impacte(c) for c in walk(query.get("request") or {}))
+
+
+def keep_latest(dates: dict[str, datetime], owner: str, date: datetime) -> None:
+    dates[owner] = max(dates.get(owner, date), date)
+
+
+def collect_requests() -> tuple[defaultdict[str, set[UUID]], dict[str, datetime]]:
+    reqs: defaultdict[str, set[UUID]] = defaultdict(set)
+    last_req: dict[str, datetime] = {}
+    snapshots = RequestQuerySnapshot.objects.filter(deleted__isnull=True).only("request_id", "owner_id", "created_at", "serialized_query")
+    for s in snapshots.iterator():
+        if is_impacted_query(s.serialized_query):
+            reqs[s.owner_id].add(s.request_id)
+            keep_latest(last_req, s.owner_id, s.created_at)
+    return reqs, last_req
+
+
+def collect_filters() -> tuple[defaultdict[str, int], dict[str, datetime]]:
+    filts: defaultdict[str, int] = defaultdict(int)
+    last_filt: dict[str, datetime] = {}
+    filters = FhirFilter.objects.filter(fhir_resource=BIOLOGY, query_version=PREV_VERSION).only("owner_id", "filter", "modified_at")
+    for f in filters:
+        if filtre_impacte(f.filter):
+            filts[f.owner_id] += 1
+            keep_latest(last_filt, f.owner_id, f.modified_at)
+    return filts, last_filt
+
+
+def write_csv(
+    reqs: defaultdict[str, set[UUID]], last_req: dict[str, datetime], filts: defaultdict[str, int], last_filt: dict[str, datetime]
+) -> tuple[str, dict]:
+    owners = set(last_req) | set(last_filt)
+    since = timezone.now() - timedelta(days=365)
+    users = User.objects.filter(username__in=owners).only("username", "email", "firstname", "lastname").order_by("username")
+    out = io.StringIO()
+    writer = csv.writer(out, delimiter=";")
+    writer.writerow(HEADER)
+    for u in users:
+        dr, df = last_req.get(u.username), last_filt.get(u.username)
+        last = max(d for d in (dr, df) if d)
+        writer.writerow(
+            [
+                u.username,
+                u.email or "",
+                u.firstname or "",
+                u.lastname or "",
+                len(reqs[u.username]),
+                filts[u.username],
+                dr.date().isoformat() if dr else "",
+                df.date().isoformat() if df else "",
+                "oui" if last >= since else "non",
+            ]
+        )
+
+    exported = users.count()
+    known = User.objects.all(even_deleted=True).filter(username__in=owners).count()
+    stats = {
+        "Propriétaires impactés": len(owners),
+        "Utilisateurs exportés": exported,
+        "Comptes supprimés (non exportés)": known - exported,
+        "Absents de la table utilisateurs": len(owners) - known,
+        "Requêtes impactées": sum(len(r) for r in reqs.values()),
+        "Filtres impactés": sum(filts.values()),
+    }
+    return out.getvalue(), stats
 
 
 class Command(BaseCommand):
@@ -58,11 +131,15 @@ class Command(BaseCommand):
     )
 
     def add_arguments(self, parser):
-        parser.add_argument("--email", required=True, nargs="+", help="Adresse(s) des destinataires du CSV, séparées par des espaces")
+        parser.add_argument(
+            "--email", nargs="+", default=[], help="Adresse(s) des destinataires du CSV, séparées par des espaces (obligatoire sauf en --dry-run)"
+        )
         parser.add_argument("--dry-run", action="store_true", help="Affiche les compteurs sans envoyer d'email")
 
     def handle(self, *args, **options):
         emails = options["email"]
+        if not emails and not options["dry_run"]:
+            raise CommandError("--email est obligatoire (sauf en --dry-run)")
         invalid = [e for e in emails if not re.match(settings.EMAIL_REGEX, e) or not e.lower().endswith("@aphp.fr")]
         if invalid:
             raise CommandError(f"Adresse(s) email invalide(s) : {', '.join(invalid)}")
@@ -96,63 +173,6 @@ class Command(BaseCommand):
 
     @staticmethod
     def build_csv() -> tuple[str, dict]:
-        reqs: defaultdict[str, set[UUID]] = defaultdict(set)
-        filts: defaultdict[str, int] = defaultdict(int)
-        last: dict[str, datetime] = {}
-        last_req: dict[str, datetime] = {}
-        last_filt: dict[str, datetime] = {}
-
-        snapshots = RequestQuerySnapshot.objects.filter(deleted__isnull=True).only("request_id", "owner_id", "created_at", "serialized_query")
-        for s in snapshots.iterator():
-            try:
-                query = json.loads(s.serialized_query or "{}")
-            except ValueError:
-                continue
-            if query.get("version") != VERSION or query.get("_type") != "request":
-                continue
-            if not any(impacte(c) for c in walk(query.get("request") or {})):
-                continue
-            reqs[s.owner_id].add(s.request_id)
-            last[s.owner_id] = max(last.get(s.owner_id, s.created_at), s.created_at)
-            last_req[s.owner_id] = max(last_req.get(s.owner_id, s.created_at), s.created_at)
-
-        filters = FhirFilter.objects.filter(fhir_resource="Observation", query_version=VERSION).only("owner_id", "filter", "modified_at")
-        for f in filters:
-            if not filtre_impacte(f.filter):
-                continue
-            filts[f.owner_id] += 1
-            last[f.owner_id] = max(last.get(f.owner_id, f.modified_at), f.modified_at)
-            last_filt[f.owner_id] = max(last_filt.get(f.owner_id, f.modified_at), f.modified_at)
-
-        since = timezone.now() - timedelta(days=365)
-        users = User.objects.filter(username__in=last.keys()).only("username", "email", "firstname", "lastname").order_by("username")
-        out = io.StringIO()
-        writer = csv.writer(out, delimiter=";")
-        writer.writerow(HEADER)
-        for u in users:
-            dr, df = last_req.get(u.username), last_filt.get(u.username)
-            writer.writerow(
-                [
-                    u.username,
-                    u.email or "",
-                    u.firstname or "",
-                    u.lastname or "",
-                    len(reqs[u.username]),
-                    filts[u.username],
-                    dr.date().isoformat() if dr else "",
-                    df.date().isoformat() if df else "",
-                    "oui" if last[u.username] >= since else "non",
-                ]
-            )
-
-        exported = users.count()
-        known = User.objects.all(even_deleted=True).filter(username__in=last.keys()).count()
-        stats = {
-            "Propriétaires impactés": len(last),
-            "Utilisateurs exportés": exported,
-            "Comptes supprimés (non exportés)": known - exported,
-            "Absents de la table utilisateurs": len(last) - known,
-            "Requêtes impactées": sum(len(r) for r in reqs.values()),
-            "Filtres impactés": sum(filts.values()),
-        }
-        return out.getvalue(), stats
+        reqs, last_req = collect_requests()
+        filts, last_filt = collect_filters()
+        return write_csv(reqs, last_req, filts, last_filt)
