@@ -46,6 +46,11 @@ class ExportPermission(IsAuthenticated):
         return obj.owner == request.user and request.method in SAFE_METHODS
 
 
+class ExportDownloadTokenPermission(IsAuthenticated):
+    def has_object_permission(self, request, view, obj):
+        return obj.owner == request.user
+
+
 class ExportLogsPermission(IsAuthenticated):
     def has_permission(self, request, view):
         authenticated = super().has_permission(request, view)

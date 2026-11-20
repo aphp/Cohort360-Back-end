@@ -13,6 +13,7 @@ from cohort.models import CohortResult, FhirFilter
 from cohort.services.cohort_result import cohort_service
 from exports.exceptions import BadRequestError
 from exports.models import ExportTable, Export
+from exports.services.export_download_token import create_export_download_token
 from exports.services.export_operators import ExportDownloader, ExportManager
 from exports.tasks import launch_export_task, get_logs
 
@@ -169,6 +170,11 @@ class ExportService:
     @staticmethod
     def download(export: Export) -> StreamingHttpResponse:
         return ExportDownloader().download(export=export)
+
+    @staticmethod
+    def create_export_download_token(user: User, export: Export) -> str:
+        ExportDownloader().check_downloadable(export=export)
+        return create_export_download_token(user=user, export=export)
 
     @staticmethod
     def retry(export: Export):
