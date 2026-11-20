@@ -96,15 +96,15 @@ class ExportDownloader:
         self.storage_provider = HDFSStorageProvider(servers_urls=STORAGE_PROVIDERS)
         self.downloadable_export_types = [t.value for t in ExportTypes if t.allow_download]
 
-    def check_downloadable(self, export: Export) -> int:
-        """Raises if the export can't be downloaded, else returns the zip file size."""
+    def check_downloadable(self, export: Export) -> tuple[int, str]:
+        """Raises if the export can't be downloaded, else returns (zip file size, download file name)."""
         if export.request_job_status != JobStatus.finished.value or export.output_format not in self.downloadable_export_types:
             raise BadRequestError("The export is not done yet or has failed or not downloadable")
         if not export.available_for_download():
             raise FilesNoLongerAvailable("The exported files are no longer available on the server.")
-        self.get_download_file_name(export=export)
+        file_name = self.get_download_file_name(export=export)
         try:
-            return self.get_file_size(file_name=f"{export.target_full_path}.zip")
+            return self.get_file_size(file_name=f"{export.target_full_path}.zip"), file_name
         except StorageProviderException as e:
             logger.exception(f"Error occurred on Storage Provider `{self.storage_provider.name}` - {e}")
             raise e
@@ -117,11 +117,11 @@ class ExportDownloader:
         return f"export_{first.cohort_result_source.group_id}.zip"
 
     def download(self, export: Export) -> StreamingHttpResponse:
-        file_size = self.check_downloadable(export=export)
+        file_size, file_name = self.check_downloadable(export=export)
         response = StreamingHttpResponse(streaming_content=self.stream_file(f"{export.target_full_path}.zip"))
         response["Content-Type"] = "application/zip"
         response["Content-Length"] = file_size
-        response["Content-Disposition"] = f"attachment; filename={self.get_download_file_name(export=export)}"
+        response["Content-Disposition"] = f"attachment; filename={file_name}"
         response["Cache-Control"] = "no-store"
         response["Referrer-Policy"] = "no-referrer"
         return response

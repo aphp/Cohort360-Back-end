@@ -80,7 +80,7 @@ class ExportDownloadTokenTest(ExportsTestBase):
 
     @mock.patch("exports.services.export.ExportDownloader")
     def test_owner_gets_a_token(self, mock_downloader):
-        mock_downloader.return_value.check_downloadable.return_value = 11111
+        mock_downloader.return_value.check_downloadable.return_value = (11111, "export_1.zip")
         response = self.call_download_token_view(request_user=self.exporter_user)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(
