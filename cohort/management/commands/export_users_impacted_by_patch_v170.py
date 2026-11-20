@@ -69,7 +69,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         emails = options["email"]
-        invalid = [e for e in emails if not re.match(settings.EMAIL_REGEX, e)]
+        invalid = [e for e in emails if not re.match(settings.EMAIL_REGEX, e) or not e.lower().endswith("@aphp.fr")]
         if invalid:
             raise CommandError(f"Adresse(s) email invalide(s) : {', '.join(invalid)}")
 
