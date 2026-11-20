@@ -3,9 +3,10 @@ import io
 import json
 import re
 from collections import defaultdict
-from datetime import timedelta
+from datetime import datetime, timedelta
 from smtplib import SMTPException
 from urllib.parse import unquote
+from uuid import UUID
 
 from django.conf import settings
 from django.core.mail import EmailMessage
@@ -39,7 +40,7 @@ def walk(node):
         yield node
 
 
-def filtre_impacte(fhir_filter: str) -> bool:
+def filtre_impacte(fhir_filter: str | None) -> bool:
     for item in (fhir_filter or "").split("&"):
         name, _, value = item.partition("=")
         name = unquote(name)
@@ -101,8 +102,11 @@ class Command(BaseCommand):
 
     @staticmethod
     def build_csv() -> tuple[str, dict]:
-        reqs, filts = defaultdict(set), defaultdict(int)
-        last, last_req, last_filt = {}, {}, {}
+        reqs: defaultdict[str, set[UUID]] = defaultdict(set)
+        filts: defaultdict[str, int] = defaultdict(int)
+        last: dict[str, datetime] = {}
+        last_req: dict[str, datetime] = {}
+        last_filt: dict[str, datetime] = {}
 
         snapshots = RequestQuerySnapshot.objects.filter(deleted__isnull=True).only("request_id", "owner_id", "created_at", "serialized_query")
         for s in snapshots.iterator():
