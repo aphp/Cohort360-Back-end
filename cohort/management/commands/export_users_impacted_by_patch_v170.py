@@ -18,9 +18,17 @@ from cohort.models import FhirFilter, RequestQuerySnapshot
 
 VERSION = "v1.6.4"
 ENC = re.compile(r"\bencounter\.[A-Za-z0-9_\-]+")
-HEADER = ["Username", "Email", "Prénom", "nom", "Nombre des requêtes impacté", "Nombre des Filtre impacté",
-          "Date de dernière modification de requête", "Date de dernière modification de filtre",
-          "actif sur les 12 derniers mois"]
+HEADER = [
+    "Username",
+    "Email",
+    "Prénom",
+    "nom",
+    "Nombre des requêtes impacté",
+    "Nombre des Filtre impacté",
+    "Date de dernière modification de requête",
+    "Date de dernière modification de filtre",
+    "actif sur les 12 derniers mois",
+]
 
 
 def walk(node):
@@ -49,8 +57,10 @@ def impacte(criterion: dict) -> bool:
 
 
 class Command(BaseCommand):
-    help = ("Exporte en CSV les utilisateurs dont des requêtes ou des filtres sauvegardés vont être modifiés "
-            "par le patch v1.7.0 (migration BC3.3), et l'envoie par email")
+    help = (
+        "Exporte en CSV les utilisateurs dont des requêtes ou des filtres sauvegardés vont être modifiés "
+        "par le patch v1.7.0 (migration BC3.3), et l'envoie par email"
+    )
 
     def add_arguments(self, parser):
         parser.add_argument("--email", required=True, nargs="+", help="Adresse(s) des destinataires du CSV, séparées par des espaces")
@@ -75,11 +85,13 @@ class Command(BaseCommand):
             return
 
         filename = f"3580_utilisateurs_{timezone.now():%Y%m%d_%H%M}.csv"
-        message = EmailMessage(subject="[Cohort360] Utilisateurs dont des requêtes ou filtres Biologie sont modifiés par la migration BC3.3",
-                               body="Ci-joint la liste des utilisateurs dont des requêtes ou des filtres Biologie sauvegardés "
-                                    "sont modifiés par la migration BC3.3 (patch v1.7.0).",
-                               from_email=settings.DEFAULT_FROM_EMAIL,
-                               to=emails)
+        message = EmailMessage(
+            subject="[Cohort360] Utilisateurs dont des requêtes ou filtres Biologie sont modifiés par la migration BC3.3",
+            body="Ci-joint la liste des utilisateurs dont des requêtes ou des filtres Biologie sauvegardés "
+            "sont modifiés par la migration BC3.3 (patch v1.7.0).",
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=emails,
+        )
         message.attach(filename, content.encode("utf-8-sig"), "text/csv")
         try:
             message.send(fail_silently=False)
@@ -92,8 +104,7 @@ class Command(BaseCommand):
         reqs, filts = defaultdict(set), defaultdict(int)
         last, last_req, last_filt = {}, {}, {}
 
-        snapshots = RequestQuerySnapshot.objects.filter(deleted__isnull=True)\
-                                                .only("request_id", "owner_id", "created_at", "serialized_query")
+        snapshots = RequestQuerySnapshot.objects.filter(deleted__isnull=True).only("request_id", "owner_id", "created_at", "serialized_query")
         for s in snapshots.iterator():
             try:
                 query = json.loads(s.serialized_query or "{}")
@@ -107,8 +118,7 @@ class Command(BaseCommand):
             last[s.owner_id] = max(last.get(s.owner_id, s.created_at), s.created_at)
             last_req[s.owner_id] = max(last_req.get(s.owner_id, s.created_at), s.created_at)
 
-        filters = FhirFilter.objects.filter(fhir_resource="Observation", query_version=VERSION)\
-                                    .only("owner_id", "filter", "modified_at")
+        filters = FhirFilter.objects.filter(fhir_resource="Observation", query_version=VERSION).only("owner_id", "filter", "modified_at")
         for f in filters:
             if not filtre_impacte(f.filter):
                 continue
@@ -117,25 +127,34 @@ class Command(BaseCommand):
             last_filt[f.owner_id] = max(last_filt.get(f.owner_id, f.modified_at), f.modified_at)
 
         since = timezone.now() - timedelta(days=365)
-        users = User.objects.filter(username__in=last.keys())\
-                            .only("username", "email", "firstname", "lastname")\
-                            .order_by("username")
+        users = User.objects.filter(username__in=last.keys()).only("username", "email", "firstname", "lastname").order_by("username")
         out = io.StringIO()
         writer = csv.writer(out, delimiter=";")
         writer.writerow(HEADER)
         for u in users:
             dr, df = last_req.get(u.username), last_filt.get(u.username)
-            writer.writerow([u.username, u.email or "", u.firstname or "", u.lastname or "",
-                             len(reqs[u.username]), filts[u.username],
-                             dr.date().isoformat() if dr else "", df.date().isoformat() if df else "",
-                             "oui" if last[u.username] >= since else "non"])
+            writer.writerow(
+                [
+                    u.username,
+                    u.email or "",
+                    u.firstname or "",
+                    u.lastname or "",
+                    len(reqs[u.username]),
+                    filts[u.username],
+                    dr.date().isoformat() if dr else "",
+                    df.date().isoformat() if df else "",
+                    "oui" if last[u.username] >= since else "non",
+                ]
+            )
 
         exported = users.count()
         known = User.objects.all(even_deleted=True).filter(username__in=last.keys()).count()
-        stats = {"Propriétaires impactés": len(last),
-                 "Utilisateurs exportés": exported,
-                 "Comptes supprimés (non exportés)": known - exported,
-                 "Absents de la table utilisateurs": len(last) - known,
-                 "Requêtes impactées": sum(len(r) for r in reqs.values()),
-                 "Filtres impactés": sum(filts.values())}
+        stats = {
+            "Propriétaires impactés": len(last),
+            "Utilisateurs exportés": exported,
+            "Comptes supprimés (non exportés)": known - exported,
+            "Absents de la table utilisateurs": len(last) - known,
+            "Requêtes impactées": sum(len(r) for r in reqs.values()),
+            "Filtres impactés": sum(filts.values()),
+        }
         return out.getvalue(), stats
