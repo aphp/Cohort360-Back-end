@@ -41,14 +41,8 @@ def walk(node):
 
 
 def filtre_impacte(fhir_filter: str | None) -> bool:
-    for item in (fhir_filter or "").split("&"):
-        name, _, value = item.partition("=")
-        name = unquote(name)
-        if name.startswith("encounter."):
-            return True
-        if name == "_filter" and ENC.search(unquote(value)):
-            return True
-    return False
+    params = (item.partition("=") for item in (fhir_filter or "").split("&"))
+    return any(is_encounter_filter(name, value) for name, _, value in params)
 
 
 def impacte(criterion: dict) -> bool:
