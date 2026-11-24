@@ -32,6 +32,46 @@ def fmt_date(value) -> str:
     return timezone.localtime(value).strftime("%d/%m/%Y") if value else ""
 
 
+def user_cols(user: User) -> list[str | None]:
+    return [user.username, user.lastname, user.firstname, user.email, fmt_user(user.created_by), fmt_user(user.updated_by)]
+
+
+def access_cols(access: Access | None, admin: User) -> list[str | None]:
+    if access is None:
+        return [""] * 5
+    return [
+        access.perimeter.name if access.perimeter else "",
+        access.role.name if access.role else "",
+        fmt_date(access.start_datetime),
+        fmt_date(access.end_datetime),
+        "Oui" if admin.pk in (access.created_by_id, access.updated_by_id) else "Non",
+    ]
+
+
+def get_users(admin: User):
+    by_admin = Q(created_by=admin) | Q(updated_by=admin)
+    manual_users = Profile.objects.filter(source=MANUAL).values("user")
+    users_via_access = Access.objects.filter(by_admin, profile__source=MANUAL).values("profile__user")
+    return (
+        User.objects.filter(by_admin | Q(username__in=users_via_access), username__in=manual_users)
+        .select_related("created_by", "updated_by")
+        .order_by("lastname", "firstname", "username")
+    )
+
+
+def get_current_accesses_by_user(users) -> dict[str, list[Access]]:
+    accesses = (
+        Access.objects.filter(profile__source=MANUAL, profile__is_active=True, profile__user__in=users)
+        .filter(Q(end_datetime__isnull=True) | Q(end_datetime__gt=timezone.now()))
+        .select_related("profile", "perimeter", "role")
+        .order_by("perimeter__name", "role__name", "start_datetime")
+    )
+    accesses_by_user: dict[str, list[Access]] = {}
+    for access in accesses:
+        accesses_by_user.setdefault(access.profile.user_id, []).append(access)
+    return accesses_by_user
+
+
 class Command(BaseCommand):
     help = (
         "Exporte en CSV les comptes créés ou modifiés par un administrateur (compte ou habilitation Manual), "
@@ -47,49 +87,17 @@ class Command(BaseCommand):
         if admin is None:
             raise CommandError(f"Utilisateur introuvable : {options['username']}")
 
-        manual_accesses = Access.objects.filter(profile__source=MANUAL)
-        users = (
-            User.objects.filter(
-                Q(created_by=admin)
-                | Q(updated_by=admin)
-                | Q(username__in=manual_accesses.filter(Q(created_by=admin) | Q(updated_by=admin)).values("profile__user")),
-                username__in=Profile.objects.filter(source=MANUAL).values("user"),
-            )
-            .select_related("created_by", "updated_by")
-            .order_by("lastname", "firstname", "username")
-        )
-
-        now = timezone.now()
-        accesses_by_user: dict[str, list[Access]] = {}
-        current_accesses = (
-            manual_accesses.filter(profile__user__in=users)
-            .filter(Q(end_datetime__isnull=True) | Q(end_datetime__gt=now), profile__is_active=True)
-            .select_related("profile", "perimeter", "role")
-            .order_by("perimeter__name", "role__name", "start_datetime")
-        )
-        for access in current_accesses:
-            accesses_by_user.setdefault(access.profile.user_id, []).append(access)
+        users = get_users(admin)
+        accesses_by_user = get_current_accesses_by_user(users)
 
         buffer = io.StringIO()
         writer = csv.writer(buffer, delimiter=";")
         writer.writerow(HEADERS)
         rows = 0
         for user in users:
-            user_cols = [user.username, user.lastname, user.firstname, user.email, fmt_user(user.created_by), fmt_user(user.updated_by)]
             # one empty row keeps accounts whose accesses are all closed visible
             for access in accesses_by_user.get(user.username) or [None]:
-                access_cols = (
-                    [
-                        access.perimeter.name if access.perimeter else "",
-                        access.role.name if access.role else "",
-                        fmt_date(access.start_datetime),
-                        fmt_date(access.end_datetime),
-                        "Oui" if admin.pk in (access.created_by_id, access.updated_by_id) else "Non",
-                    ]
-                    if access
-                    else [""] * 5
-                )
-                writer.writerow(user_cols + access_cols)
+                writer.writerow(user_cols(user) + access_cols(access, admin))
                 rows += 1
 
         if options["output"]:
