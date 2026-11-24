@@ -16,18 +16,18 @@ from exports.apps import ExportsConfig
 ExportTypes = ExportsConfig.ExportTypes
 
 
-def check_allow_nomi_export(user, output_format: ExportTypes) -> Optional[bool]:
-    if output_format in (ExportTypes.CSV, ExportTypes.XLSX) and not can_user_make_export_csv_xlsx_nomi(user):
+def check_allow_nomi_export(user, output_format: str) -> Optional[bool]:
+    if output_format in (ExportTypes.CSV.value, ExportTypes.XLSX.value) and not can_user_make_export_csv_xlsx_nomi(user):
         raise PermissionDenied("Vous n'avez pas le droit d'export CSV/Excel nominatif")
-    if output_format == ExportTypes.HIVE and not can_user_make_export_jupyter_nomi(user):
+    if output_format == ExportTypes.HIVE.value and not can_user_make_export_jupyter_nomi(user):
         raise PermissionDenied("Vous n'avez pas le droit d'export Jupyter nominatif")
     return True
 
 
-def check_allow_pseudo_export(user, output_format: ExportTypes) -> Optional[bool]:
-    if output_format in (ExportTypes.CSV, ExportTypes.XLSX):
+def check_allow_pseudo_export(user, output_format: str) -> Optional[bool]:
+    if output_format in (ExportTypes.CSV.value, ExportTypes.XLSX.value):
         raise PermissionDenied("Vous n'avez pas le droit d'export CSV/Excel pseudonymisé")
-    if output_format == ExportTypes.HIVE and not can_user_make_export_jupyter_pseudo(user):
+    if output_format == ExportTypes.HIVE.value and not can_user_make_export_jupyter_pseudo(user):
         raise PermissionDenied("Vous n'avez pas le droit d'export Jupyter pseudonymisé")
     return True
 

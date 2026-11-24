@@ -21,7 +21,7 @@ class RightsChecker:
         for cohort in CohortResult.objects.filter(pk__in=source_cohorts_ids):
             snap = cohort.request_query_snapshot
             if snap is None or snap.perimeters_ids is None:
-                continue
+                raise ValidationError(f"Cannot check data rights: cohort `{cohort.pk}` has no perimeter in its snapshot.")
             cohort_ids.extend(snap.perimeters_ids)
         perimeters_ids = Perimeter.objects.filter(cohort_id__in=cohort_ids).values_list("id", flat=True)
         data_permissions = accesses_service.get_data_reading_rights(user=owner, target_perimeters_ids=perimeters_ids)
