@@ -4,13 +4,13 @@ Exports to CSV the accounts an admin created or modified (the account itself or 
 
 ## Run
 
-On the back-end pod:
+On the back-end pod, the CSV is sent by email as an attachment (only `@aphp.fr` addresses are accepted):
 
 ```bash
-python manage.py export_manual_accesses_by_admin --username <admin APH id> --output /tmp/export.csv
+python manage.py export_manual_accesses_by_admin --username <admin APH id> --emails <po>@aphp.fr <dev>@aphp.fr
 ```
 
-Then copy the file out with `kubectl cp <pod>:/tmp/export.csv ./export.csv`.
+Add `--dry-run` (without `--emails`) to only print the counts.
 
 ## Output
 
@@ -22,3 +22,4 @@ Then copy the file out with `kubectl cp <pod>:/tmp/export.csv ./export.csv`.
 - Expired, deleted, ORBIS and inactive-profile accesses are excluded.
 - Account `created_by`/`updated_by` only exist since 3.29.1; older accounts show up only through their accesses.
 - Only the last modifier is stored.
+- The user also sets their own `updated_by` (onboarding, charter signing), which can overwrite the admin's modification.

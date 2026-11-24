@@ -1,7 +1,12 @@
 import csv
 import io
+import re
+from smtplib import SMTPException
 
+from django.conf import settings
+from django.core.mail import EmailMessage
 from django.core.management.base import BaseCommand, CommandError
+from django.db import connection, transaction
 from django.db.models import Q
 from django.utils import timezone
 
@@ -72,38 +77,66 @@ def get_current_accesses_by_user(users) -> dict[str, list[Access]]:
     return accesses_by_user
 
 
+def build_csv(admin: User, users) -> tuple[str, int]:
+    accesses_by_user = get_current_accesses_by_user(users)
+    buffer = io.StringIO()
+    writer = csv.writer(buffer, delimiter=";")
+    writer.writerow(HEADERS)
+    rows = 0
+    for user in users:
+        # one empty row keeps accounts whose accesses are all closed visible
+        user_accesses: list[Access | None] = [*accesses_by_user.get(user.username, [])] or [None]
+        for access in user_accesses:
+            writer.writerow(user_cols(user) + access_cols(access, admin))
+            rows += 1
+    return buffer.getvalue(), rows
+
+
 class Command(BaseCommand):
     help = (
         "Exporte en CSV les comptes créés ou modifiés par un administrateur (compte ou habilitation Manual), "
-        "avec leurs habilitations Manual en cours ou à venir"
+        "avec leurs habilitations Manual en cours ou à venir, et l'envoie par email"
     )
 
     def add_arguments(self, parser):
         parser.add_argument("--username", required=True, help="Identifiant APH de l'administrateur")
-        parser.add_argument("--output", help="Chemin du fichier CSV (par défaut : sortie standard)")
+        parser.add_argument(
+            "--emails", nargs="+", default=[], help="Adresse(s) des destinataires du CSV, séparées par des espaces (obligatoire sauf en --dry-run)"
+        )
+        parser.add_argument("--dry-run", action="store_true", help="Affiche les compteurs sans envoyer d'email")
 
     def handle(self, *args, **options):
+        emails = options["emails"]
+        if not emails and not options["dry_run"]:
+            raise CommandError("--emails est obligatoire (sauf en --dry-run)")
+        invalid = [e for e in emails if not re.match(settings.EMAIL_REGEX, e) or not e.lower().endswith("@aphp.fr")]
+        if invalid:
+            raise CommandError(f"Adresse(s) email invalide(s) : {', '.join(invalid)}")
         admin = User.objects.filter(username=options["username"]).first()
         if admin is None:
             raise CommandError(f"Utilisateur introuvable : {options['username']}")
 
-        users = get_users(admin)
-        accesses_by_user = get_current_accesses_by_user(users)
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                cursor.execute("SET TRANSACTION READ ONLY")
+            users = get_users(admin)
+            content, rows = build_csv(admin, users)
+            accounts = users.count()
+        self.stdout.write(f"{accounts} compte(s), {rows} ligne(s) exportée(s).")
 
-        buffer = io.StringIO()
-        writer = csv.writer(buffer, delimiter=";")
-        writer.writerow(HEADERS)
-        rows = 0
-        for user in users:
-            # one empty row keeps accounts whose accesses are all closed visible
-            for access in accesses_by_user.get(user.username) or [None]:
-                writer.writerow(user_cols(user) + access_cols(access, admin))
-                rows += 1
+        if options["dry_run"]:
+            self.stdout.write("Dry run : aucun email envoyé.")
+            return
 
-        if options["output"]:
-            # utf-8-sig so Excel reads accents correctly
-            with open(options["output"], "w", encoding="utf-8-sig", newline="") as f:
-                f.write(buffer.getvalue())
-        else:
-            self.stdout.write(buffer.getvalue(), ending="")
-        self.stderr.write(f"{users.count()} compte(s), {rows} ligne(s) exportée(s).")
+        message = EmailMessage(
+            subject=f"[Cohort360] Habilitations Manual des comptes créés ou modifiés par {admin.username}",
+            body=f"Ci-joint les habilitations Manual en cours des comptes créés ou modifiés par {admin} ({accounts} compte(s)).",
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=emails,
+        )
+        message.attach(f"3757_habilitations_{admin.username}_{timezone.now():%Y%m%d_%H%M}.csv", content.encode("utf-8-sig"), "text/csv")
+        try:
+            message.send(fail_silently=False)
+        except (SMTPException, OSError) as e:
+            raise CommandError(f"Échec de l'envoi de l'email : {e}") from e
+        self.stdout.write(self.style.SUCCESS(f"CSV envoyé à {', '.join(emails)}"))
