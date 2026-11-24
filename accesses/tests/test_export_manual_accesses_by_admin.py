@@ -1,9 +1,10 @@
 import csv
-import os
-import tempfile
 from datetime import timedelta
 from io import StringIO
+from smtplib import SMTPException
+from unittest import mock
 
+from django.core import mail
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.utils import timezone
@@ -62,33 +63,53 @@ class ExportManualAccessesByAdminTest(TestCaseWithDBs):
         grant(self.inactive, self.admin, future, is_active=False)
 
     def run_command(self, *args):
-        out, err = StringIO(), StringIO()
-        call_command(export_manual_accesses_by_admin.Command(), *args, stdout=out, stderr=err)
-        return list(csv.reader(StringIO(out.getvalue()), delimiter=";")), err.getvalue()
+        out = StringIO()
+        call_command(export_manual_accesses_by_admin.Command(), "--username", *args, stdout=out)
+        return out.getvalue()
+
+    def sent_rows(self):
+        name, content, mimetype = mail.outbox[0].attachments[0]
+        self.assertTrue(name.startswith("3757_habilitations_1000000_"))
+        self.assertEqual(mimetype, "text/csv")
+        # Django decodes text/* attachments back to str; the BOM stays
+        self.assertTrue(content.startswith("\ufeff"))
+        return list(csv.reader(StringIO(content[1:]), delimiter=";"))
 
     def test_unknown_admin(self):
         with self.assertRaisesMessage(CommandError, "Utilisateur introuvable : 9999999"):
-            self.run_command("--username", "9999999")
+            self.run_command("9999999", "--emails", "po@aphp.fr")
 
     def test_export_rows(self):
-        rows, err = self.run_command("--username", "1000000")
+        out = self.run_command("1000000", "--emails", "po@aphp.fr", "Dev@APHP.FR")
+        self.assertEqual(mail.outbox[0].to, ["po@aphp.fr", "Dev@APHP.FR"])
+        rows = self.sent_rows()
         self.assertEqual(rows[0], export_manual_accesses_by_admin.HEADERS)
         body = rows[1:]
         self.assertEqual([r[0] for r in body], ["3000001", "3000001", "3000002", "3000003", "3000007"])
-        self.assertEqual(len(rows[0]), 11)
         self.assertEqual(sorted(r[10] for r in body[:2]), ["Non", "Oui"])
         self.assertEqual(body[0][4], str(self.admin))
         self.assertEqual(body[2][4], "")
         self.assertEqual(body[2][6:], ["Hôpital A", "Lecteur", body[2][8], body[2][9], "Oui"])
         self.assertEqual(body[3][6:], [""] * 5)
         self.assertEqual(body[4][6:], [""] * 5)
-        self.assertIn("4 compte(s), 5 ligne(s)", err)
+        self.assertIn("4 compte(s), 5 ligne(s)", out)
+        self.assertIn("CSV envoyé à po@aphp.fr, Dev@APHP.FR", out)
 
-    def test_output_file(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            path = os.path.join(tmp, "export.csv")
-            self.run_command("--username", "1000000", "--output", path)
-            with open(path, encoding="utf-8") as f:
-                content = f.read()
-        self.assertTrue(content.startswith("﻿Identifiant APH;"))
-        self.assertEqual(len(content.strip().splitlines()), 6)
+    def test_dry_run_sends_nothing(self):
+        out = self.run_command("1000000", "--dry-run")
+        self.assertIn("4 compte(s), 5 ligne(s)", out)
+        self.assertEqual(mail.outbox, [])
+
+    def test_emails_required_without_dry_run(self):
+        with self.assertRaisesMessage(CommandError, "--emails est obligatoire"):
+            self.run_command("1000000")
+
+    def test_emails_outside_aphp_are_refused(self):
+        with self.assertRaisesMessage(CommandError, "Adresse(s) email invalide(s) : x@gmail.com, y@aphp.fr.evil.com"):
+            self.run_command("1000000", "--emails", "po@aphp.fr", "x@gmail.com", "y@aphp.fr.evil.com")
+        self.assertEqual(mail.outbox, [])
+
+    @mock.patch("django.core.mail.EmailMessage.send", side_effect=SMTPException("boom"))
+    def test_send_failure_raises(self, _send):
+        with self.assertRaisesMessage(CommandError, "Échec de l'envoi de l'email : boom"):
+            self.run_command("1000000", "--emails", "po@aphp.fr")
