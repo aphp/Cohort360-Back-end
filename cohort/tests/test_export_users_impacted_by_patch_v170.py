@@ -72,6 +72,13 @@ class TestExportUsersImpactedByPatchV170(TestCaseWithDBs):
         self.assertEqual([r[0] for r in rows[1:]], [self.impacted_user.username])
         self.assertEqual(rows[1][4:10], ["1", "0", "Requête", "r1", "f1", str(self.request.uuid)])
 
+    def test_formulas_are_neutralized(self):
+        self.request.name = '=HYPERLINK("http://example.com")'
+        self.request.save()
+        call_command(COMMAND, "--email", "a@aphp.fr", stdout=io.StringIO())
+        rows = self.read_attached_csv()
+        self.assertEqual(rows[1][7], '\'=HYPERLINK("http://example.com")')
+
     def test_impacted_filter_is_exported(self):
         FhirFilter.objects.create(
             fhir_resource="Observation",

@@ -15,6 +15,7 @@ from django.db import connection, transaction
 from django.utils import timezone
 
 from admin_cohort.models import User
+from admin_cohort.tools.csv_response import CSV_DELIMITER, neutralize_formula
 from cohort.models import FhirFilter, RequestQuerySnapshot
 from cohort.scripts.patch_requests_v170 import BIOLOGY, PREV_VERSION, is_encounter_filter
 
@@ -111,29 +112,28 @@ def write_csv(objects: list[ImpactedObject]) -> tuple[str, dict]:
     rows = sorted((o for o in objects if o.owner in users), key=lambda o: (o.owner, o.kind, o.name.lower()))
 
     out = io.StringIO()
-    writer = csv.writer(out, delimiter=";")
+    writer = csv.writer(out, delimiter=CSV_DELIMITER)
     writer.writerow(HEADER)
     previous_owner = None
     for o in rows:
         u = users[o.owner]
         first = o.owner != previous_owner
         previous_owner = o.owner
-        writer.writerow(
-            [
-                u.username,
-                u.email or "",
-                u.firstname or "",
-                u.lastname or "",
-                counts[o.owner][REQUEST] if first else "",
-                counts[o.owner][FILTER] if first else "",
-                o.kind,
-                o.name,
-                o.project,
-                str(o.uuid),
-                o.modified_at.date().isoformat(),
-                "oui" if last_activity[o.owner] >= since else "non",
-            ]
-        )
+        cells = [
+            u.username,
+            u.email or "",
+            u.firstname or "",
+            u.lastname or "",
+            counts[o.owner][REQUEST] if first else "",
+            counts[o.owner][FILTER] if first else "",
+            o.kind,
+            o.name,
+            o.project,
+            str(o.uuid),
+            o.modified_at.date().isoformat(),
+            "oui" if last_activity[o.owner] >= since else "non",
+        ]
+        writer.writerow([neutralize_formula(str(cell)) for cell in cells])
 
     exported = len(users)
     known = User.objects.all(even_deleted=True).filter(username__in=owners).count()
