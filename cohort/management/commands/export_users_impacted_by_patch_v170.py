@@ -2,7 +2,8 @@ import csv
 import io
 import json
 import re
-from collections import defaultdict
+from collections import Counter, defaultdict
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from smtplib import SMTPException
 from uuid import UUID
@@ -14,6 +15,7 @@ from django.db import connection, transaction
 from django.utils import timezone
 
 from admin_cohort.models import User
+from admin_cohort.tools.csv_response import CSV_DELIMITER, neutralize_formula
 from cohort.models import FhirFilter, RequestQuerySnapshot
 from cohort.scripts.patch_requests_v170 import BIOLOGY, PREV_VERSION, is_encounter_filter
 
@@ -24,10 +26,24 @@ HEADER = [
     "Nom",
     "Nombre de requêtes impactées",
     "Nombre de filtres impactés",
-    "Date de dernière modification de requête",
-    "Date de dernière modification de filtre",
+    "Type",
+    "Nom de l'objet",
+    "Projet",
+    "Identifiant",
+    "Date de dernière modification",
     "actif sur les 12 derniers mois",
 ]
+REQUEST, FILTER = "Requête", "Filtre"
+
+
+@dataclass
+class ImpactedObject:
+    owner: str
+    kind: str
+    uuid: UUID
+    name: str
+    project: str
+    modified_at: datetime
 
 
 def walk(node):
@@ -63,63 +79,72 @@ def keep_latest(dates: dict[str, datetime], owner: str, date: datetime) -> None:
     dates[owner] = max(dates.get(owner, date), date)
 
 
-def collect_requests() -> tuple[defaultdict[str, set[UUID]], dict[str, datetime]]:
-    reqs: defaultdict[str, set[UUID]] = defaultdict(set)
-    last_req: dict[str, datetime] = {}
-    snapshots = RequestQuerySnapshot.objects.filter(deleted__isnull=True).only("request_id", "owner_id", "created_at", "serialized_query")
+def collect_requests() -> list[ImpactedObject]:
+    latest: dict[UUID, ImpactedObject] = {}
+    snapshots = (
+        RequestQuerySnapshot.objects.filter(deleted__isnull=True)
+        .select_related("request__parent_folder")
+        .only("request_id", "owner_id", "created_at", "serialized_query", "request__name", "request__parent_folder__name")
+    )
     for s in snapshots.iterator():
-        if is_impacted_query(s.serialized_query):
-            reqs[s.owner_id].add(s.request_id)
-            keep_latest(last_req, s.owner_id, s.created_at)
-    return reqs, last_req
+        if not is_impacted_query(s.serialized_query):
+            continue
+        current = latest.get(s.request_id)
+        if current is None or s.created_at > current.modified_at:
+            latest[s.request_id] = ImpactedObject(s.owner_id, REQUEST, s.request_id, s.request.name, s.request.parent_folder.name, s.created_at)
+    return list(latest.values())
 
 
-def collect_filters() -> tuple[defaultdict[str, int], dict[str, datetime]]:
-    filts: defaultdict[str, int] = defaultdict(int)
-    last_filt: dict[str, datetime] = {}
-    filters = FhirFilter.objects.filter(fhir_resource=BIOLOGY, query_version=PREV_VERSION).only("owner_id", "filter", "modified_at")
-    for f in filters:
-        if filtre_impacte(f.filter):
-            filts[f.owner_id] += 1
-            keep_latest(last_filt, f.owner_id, f.modified_at)
-    return filts, last_filt
+def collect_filters() -> list[ImpactedObject]:
+    filters = FhirFilter.objects.filter(fhir_resource=BIOLOGY, query_version=PREV_VERSION).only("uuid", "owner_id", "name", "filter", "modified_at")
+    return [ImpactedObject(f.owner_id, FILTER, f.uuid, f.name, "", f.modified_at) for f in filters if filtre_impacte(f.filter)]
 
 
-def write_csv(
-    reqs: defaultdict[str, set[UUID]], last_req: dict[str, datetime], filts: defaultdict[str, int], last_filt: dict[str, datetime]
-) -> tuple[str, dict]:
-    owners = set(last_req) | set(last_filt)
+def write_csv(objects: list[ImpactedObject]) -> tuple[str, dict]:
+    owners = {o.owner for o in objects}
     since = timezone.now() - timedelta(days=365)
-    users = User.objects.filter(username__in=owners).only("username", "email", "firstname", "lastname").order_by("username")
-    out = io.StringIO()
-    writer = csv.writer(out, delimiter=";")
-    writer.writerow(HEADER)
-    for u in users:
-        dr, df = last_req.get(u.username), last_filt.get(u.username)
-        last = max(d for d in (dr, df) if d)
-        writer.writerow(
-            [
-                u.username,
-                u.email or "",
-                u.firstname or "",
-                u.lastname or "",
-                len(reqs[u.username]),
-                filts[u.username],
-                dr.date().isoformat() if dr else "",
-                df.date().isoformat() if df else "",
-                "oui" if last >= since else "non",
-            ]
-        )
+    users = {u.username: u for u in User.objects.filter(username__in=owners).only("username", "email", "firstname", "lastname")}
+    last_activity: dict[str, datetime] = {}
+    counts: defaultdict[str, Counter[str]] = defaultdict(Counter)
+    for o in objects:
+        keep_latest(last_activity, o.owner, o.modified_at)
+        counts[o.owner][o.kind] += 1
+    rows = sorted((o for o in objects if o.owner in users), key=lambda o: (o.owner, o.kind, o.name.lower()))
 
-    exported = users.count()
+    out = io.StringIO()
+    writer = csv.writer(out, delimiter=CSV_DELIMITER)
+    writer.writerow(HEADER)
+    previous_owner = None
+    for o in rows:
+        u = users[o.owner]
+        first = o.owner != previous_owner
+        previous_owner = o.owner
+        cells = [
+            u.username,
+            u.email or "",
+            u.firstname or "",
+            u.lastname or "",
+            counts[o.owner][REQUEST] if first else "",
+            counts[o.owner][FILTER] if first else "",
+            o.kind,
+            o.name,
+            o.project,
+            str(o.uuid),
+            o.modified_at.date().isoformat(),
+            "oui" if last_activity[o.owner] >= since else "non",
+        ]
+        writer.writerow([neutralize_formula(str(cell)) for cell in cells])
+
+    exported = len(users)
     known = User.objects.all(even_deleted=True).filter(username__in=owners).count()
     stats = {
         "Propriétaires impactés": len(owners),
         "Utilisateurs exportés": exported,
         "Comptes supprimés (non exportés)": known - exported,
         "Absents de la table utilisateurs": len(owners) - known,
-        "Requêtes impactées": sum(len(r) for r in reqs.values()),
-        "Filtres impactés": sum(filts.values()),
+        "Requêtes impactées": sum(o.kind == REQUEST for o in objects),
+        "Filtres impactés": sum(o.kind == FILTER for o in objects),
+        "Lignes exportées": len(rows),
     }
     return out.getvalue(), stats
 
@@ -173,6 +198,4 @@ class Command(BaseCommand):
 
     @staticmethod
     def build_csv() -> tuple[str, dict]:
-        reqs, last_req = collect_requests()
-        filts, last_filt = collect_filters()
-        return write_csv(reqs, last_req, filts, last_filt)
+        return write_csv(collect_requests() + collect_filters())
