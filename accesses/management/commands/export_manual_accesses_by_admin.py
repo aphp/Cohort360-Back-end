@@ -13,6 +13,7 @@ from django.utils import timezone
 from accesses.models import Access, Profile
 from accesses.models.access import MANUAL
 from admin_cohort.models import User
+from admin_cohort.tools.csv_response import CSV_DELIMITER, neutralize_formula
 
 HEADERS = [
     "Identifiant APH",
@@ -77,14 +78,14 @@ def get_current_accesses_by_user(users) -> dict[str, list[Access]]:
 def build_csv(users) -> tuple[str, int]:
     accesses_by_user = get_current_accesses_by_user(users)
     buffer = io.StringIO()
-    writer = csv.writer(buffer, delimiter=";")
+    writer = csv.writer(buffer, delimiter=CSV_DELIMITER)
     writer.writerow(HEADERS)
     rows = 0
     for user in users:
         # one empty row keeps accounts whose accesses are all closed visible
         user_accesses: list[Access | None] = [*accesses_by_user.get(user.username, [])] or [None]
         for access in user_accesses:
-            writer.writerow(user_cols(user) + access_cols(access))
+            writer.writerow([neutralize_formula(value or "") for value in user_cols(user) + access_cols(access)])
             rows += 1
     return buffer.getvalue(), rows
 
