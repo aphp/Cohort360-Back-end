@@ -86,12 +86,12 @@ class ExportManualAccessesByAdminTest(TestCaseWithDBs):
         self.assertEqual(rows[0], export_manual_accesses_by_admin.HEADERS)
         body = rows[1:]
         self.assertEqual([r[0] for r in body], ["3000001", "3000001", "3000002", "3000003", "3000007"])
-        self.assertEqual(sorted(r[10] for r in body[:2]), ["Non", "Oui"])
-        self.assertEqual(body[0][4], str(self.admin))
-        self.assertEqual(body[2][4], "")
-        self.assertEqual(body[2][6:], ["Hôpital A", "Lecteur", body[2][8], body[2][9], "Oui"])
-        self.assertEqual(body[3][6:], [""] * 5)
-        self.assertEqual(body[4][6:], [""] * 5)
+        self.assertEqual(len(rows[0]), 10)
+        admin, other = str(self.admin), str(self.other)
+        self.assertEqual(sorted(r[4:6] for r in body[:2]), sorted([[admin, admin], [other, other]]))
+        self.assertEqual(body[2][4:8], [admin, admin, "Hôpital A", "Lecteur"])
+        self.assertEqual(body[3][4:], [""] * 6)
+        self.assertEqual(body[4][4:], [""] * 6)
         self.assertIn("4 compte(s), 5 ligne(s)", out)
         self.assertIn("CSV envoyé à po@aphp.fr, Dev@APHP.FR", out)
 

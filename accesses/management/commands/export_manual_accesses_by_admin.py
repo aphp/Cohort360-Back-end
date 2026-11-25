@@ -19,13 +19,12 @@ HEADERS = [
     "Nom",
     "Prénom",
     "Email",
-    "Créé par",
+    "Attribué par",
     "Modifié par",
     "Périmètre",
     "Habilitation",
     "Date de début",
     "Date de fin",
-    "Créée ou modifiée par l'admin",
 ]
 
 
@@ -38,18 +37,20 @@ def fmt_date(value) -> str:
 
 
 def user_cols(user: User) -> list[str | None]:
-    return [user.username, user.lastname, user.firstname, user.email, fmt_user(user.created_by), fmt_user(user.updated_by)]
+    return [user.username, user.lastname, user.firstname, user.email]
 
 
-def access_cols(access: Access | None, admin: User) -> list[str | None]:
+def access_cols(access: Access | None) -> list[str | None]:
     if access is None:
-        return [""] * 5
+        return [""] * 6
+    # same fields as « Attribué par / Modifié par » in the Portail Admin accesses table
     return [
+        fmt_user(access.created_by),
+        fmt_user(access.updated_by),
         access.perimeter.name if access.perimeter else "",
         access.role.name if access.role else "",
         fmt_date(access.start_datetime),
         fmt_date(access.end_datetime),
-        "Oui" if admin.pk in (access.created_by_id, access.updated_by_id) else "Non",
     ]
 
 
@@ -57,18 +58,14 @@ def get_users(admin: User):
     by_admin = Q(created_by=admin) | Q(updated_by=admin)
     manual_users = Profile.objects.filter(source=MANUAL).values("user")
     users_via_access = Access.objects.filter(by_admin, profile__source=MANUAL).values("profile__user")
-    return (
-        User.objects.filter(by_admin | Q(username__in=users_via_access), username__in=manual_users)
-        .select_related("created_by", "updated_by")
-        .order_by("lastname", "firstname", "username")
-    )
+    return User.objects.filter(by_admin | Q(username__in=users_via_access), username__in=manual_users).order_by("lastname", "firstname", "username")
 
 
 def get_current_accesses_by_user(users) -> dict[str, list[Access]]:
     accesses = (
         Access.objects.filter(profile__source=MANUAL, profile__is_active=True, profile__user__in=users)
         .filter(Q(end_datetime__isnull=True) | Q(end_datetime__gt=timezone.now()))
-        .select_related("profile", "perimeter", "role")
+        .select_related("profile", "perimeter", "role", "created_by", "updated_by")
         .order_by("perimeter__name", "role__name", "start_datetime")
     )
     accesses_by_user: dict[str, list[Access]] = {}
@@ -77,7 +74,7 @@ def get_current_accesses_by_user(users) -> dict[str, list[Access]]:
     return accesses_by_user
 
 
-def build_csv(admin: User, users) -> tuple[str, int]:
+def build_csv(users) -> tuple[str, int]:
     accesses_by_user = get_current_accesses_by_user(users)
     buffer = io.StringIO()
     writer = csv.writer(buffer, delimiter=";")
@@ -87,7 +84,7 @@ def build_csv(admin: User, users) -> tuple[str, int]:
         # one empty row keeps accounts whose accesses are all closed visible
         user_accesses: list[Access | None] = [*accesses_by_user.get(user.username, [])] or [None]
         for access in user_accesses:
-            writer.writerow(user_cols(user) + access_cols(access, admin))
+            writer.writerow(user_cols(user) + access_cols(access))
             rows += 1
     return buffer.getvalue(), rows
 
@@ -120,7 +117,7 @@ class Command(BaseCommand):
             with connection.cursor() as cursor:
                 cursor.execute("SET TRANSACTION READ ONLY")
             users = get_users(admin)
-            content, rows = build_csv(admin, users)
+            content, rows = build_csv(users)
             accounts = users.count()
         self.stdout.write(f"{accounts} compte(s), {rows} ligne(s) exportée(s).")
 
