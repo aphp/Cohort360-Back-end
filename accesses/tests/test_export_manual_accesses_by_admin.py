@@ -95,6 +95,12 @@ class ExportManualAccessesByAdminTest(TestCaseWithDBs):
         self.assertIn("4 compte(s), 5 ligne(s)", out)
         self.assertIn("CSV envoyé à po@aphp.fr, Dev@APHP.FR", out)
 
+    def test_formula_cells_are_neutralized(self):
+        User.objects.filter(username="3000002").update(lastname='=HYPERLINK("http://x")', firstname=None)
+        self.run_command("1000000", "--emails", "po@aphp.fr")
+        row = next(r for r in self.sent_rows() if r[0] == "3000002")
+        self.assertEqual(row[1:3], ['\'=HYPERLINK("http://x")', ""])
+
     def test_dry_run_sends_nothing(self):
         out = self.run_command("1000000", "--dry-run")
         self.assertIn("4 compte(s), 5 ligne(s)", out)
