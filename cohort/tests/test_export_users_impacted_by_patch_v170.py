@@ -70,7 +70,7 @@ class TestExportUsersImpactedByPatchV170(TestCaseWithDBs):
         rows = self.read_attached_csv()
         self.assertEqual(rows[0], HEADER)
         self.assertEqual([r[0] for r in rows[1:]], [self.impacted_user.username])
-        self.assertEqual(rows[1][4], "1")  # nombre de requêtes impactées
+        self.assertEqual(rows[1][4:10], ["1", "0", "Requête", "r1", "f1", str(self.request.uuid)])
 
     def test_impacted_filter_is_exported(self):
         FhirFilter.objects.create(
@@ -84,7 +84,20 @@ class TestExportUsersImpactedByPatchV170(TestCaseWithDBs):
         call_command(COMMAND, "--email", "a@aphp.fr", stdout=io.StringIO())
         rows = {r[0]: r for r in self.read_attached_csv()[1:]}
         self.assertEqual(set(rows), {self.impacted_user.username, self.other_user.username})
-        self.assertEqual(rows[self.other_user.username][5], "1")  # nombre de filtres impactés
+        self.assertEqual(rows[self.other_user.username][4:8], ["0", "1", "Filtre", "bio"])
+
+    def test_one_line_per_impacted_request(self):
+        # 2e snapshot impacté sur la même requête : toujours 1 ligne
+        RequestQuerySnapshot.objects.create(owner=self.impacted_user, request=self.request, serialized_query=serialized_query(BIO_ENCOUNTER))
+        # 2e requête impactée : 2e ligne pour le même utilisateur, compteur uniquement sur la 1re
+        r3 = Request.objects.create(owner=self.impacted_user, name="r3", parent_folder=self.request.parent_folder)
+        RequestQuerySnapshot.objects.create(owner=self.impacted_user, request=r3, serialized_query=serialized_query(BIO_ENCOUNTER))
+        call_command(COMMAND, "--email", "a@aphp.fr", stdout=io.StringIO())
+        rows = self.read_attached_csv()[1:]
+        self.assertEqual(
+            [(r[0], r[4], r[7]) for r in rows],
+            [(self.impacted_user.username, "2", "r1"), (self.impacted_user.username, "", "r3")],
+        )
 
     def test_dry_run_sends_nothing(self):
         out = io.StringIO()
