@@ -17,6 +17,7 @@ from cohort.services.emails import (
     send_email_notif_feasibility_report_ready,
 )
 from cohort.tasks import (
+    refresh_count_request,
     count_cohort,
     create_cohort,
     cancel_previous_count_jobs,
@@ -150,6 +151,26 @@ class TasksTests(TestCaseWithDBs):
         cancel_previous_count_jobs(dm_id=self.dm2.uuid, cohort_counter_cls=self.cohort_counter_cls)
         failed_dm = DatedMeasure.objects.exclude(uuid=self.dm2.uuid).filter(request_query_snapshot=self.req_snapshot3).first()
         self.assertEqual(failed_dm.request_job_status, JobStatus.failed.value)
+
+    @mock.patch("cohort.tasks.celery_app.control.revoke")
+    @mock.patch.object(DefaultCohortCounter, "cancel_job")
+    def test_cancel_previous_count_jobs_sends_user_token(self, mock_cancel_job, _):
+        mock_cancel_job.return_value = JobStatus.cancelled
+        auth_headers = {"Authorization": "Bearer user-token"}
+        cancel_previous_count_jobs(dm_id=self.dm2.uuid, cohort_counter_cls=self.cohort_counter_cls, auth_headers=auth_headers)
+        mock_cancel_job.assert_called()
+        for call_args in mock_cancel_job.call_args_list:
+            self.assertEqual(auth_headers, call_args.kwargs["auth_headers"])
+
+    @mock.patch("cohort.tasks.jwt_auth_service.generate_system_token", return_value="system-token")
+    @mock.patch.object(DefaultCohortCounter, "launch_dated_measure_count")
+    def test_refresh_sends_snapshot_query_with_system_token(self, mock_launch_count, _):
+        refresh_count_request(dm_id=self.dm2.uuid, cohort_counter_cls=self.cohort_counter_cls)
+        kwargs = mock_launch_count.call_args.kwargs
+        self.assertEqual(self.req_snapshot3.serialized_query, kwargs["json_query"])
+        self.assertEqual("Bearer system-token", kwargs["auth_headers"]["Authorization"])
+        self.assertEqual(settings.JWT_AUTH_MODE, kwargs["auth_headers"][settings.AUTHORIZATION_METHOD_HEADER])
+        self.assertEqual(self.dm2.owner_id, kwargs["owner_username"])
 
     def _backdate(self, dm: DatedMeasure, minutes: int) -> None:
         past = timezone.now() - timedelta(minutes=minutes)

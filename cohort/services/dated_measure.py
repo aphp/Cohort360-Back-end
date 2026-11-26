@@ -13,12 +13,13 @@ class DatedMeasureService(CommonService):
 
     def handle_count(self, dm: DatedMeasure, request) -> None:
         stage_details = request.data.get("stageDetails", None)
-        cancel_previous_count_jobs.s(dm_id=dm.uuid, cohort_counter_cls=self.operator_cls).apply_async()
+        auth_headers = get_authorization_header(request)
+        cancel_previous_count_jobs.s(dm_id=dm.uuid, cohort_counter_cls=self.operator_cls, auth_headers=auth_headers).apply_async()
         try:
             count_cohort.s(
                 dm_id=dm.uuid,
                 json_query=dm.request_query_snapshot.serialized_query,
-                auth_headers=get_authorization_header(request),
+                auth_headers=auth_headers,
                 cohort_counter_cls=self.operator_cls,
                 stage_details=stage_details,
             ).apply_async()

@@ -7,6 +7,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from admin_cohort import celery_app
+from admin_cohort.services.auth import jwt_auth_service
 from admin_cohort.services.prometheus_metrics import STUCK_DATED_MEASURES_MARKED_FAILED
 from admin_cohort.types import JobStatus
 from cohort.models import CohortResult, DatedMeasure, FeasibilityStudy, RequestQuerySnapshot
@@ -56,7 +57,7 @@ def count_cohort(
 
 
 @shared_task
-def cancel_previous_count_jobs(dm_id: str, cohort_counter_cls: str):
+def cancel_previous_count_jobs(dm_id: str, cohort_counter_cls: str, auth_headers: Optional[dict] = None):
     dm = DatedMeasure.objects.get(pk=dm_id)
     request = dm.request_query_snapshot.request
     running_dms = request.dated_measures.exclude(uuid=dm_id).filter(
@@ -69,7 +70,7 @@ def cancel_previous_count_jobs(dm_id: str, cohort_counter_cls: str):
         job_status = r_dm.request_job_status
         try:
             if job_status == JobStatus.started:
-                new_status = cohort_counter.cancel_job(job_id=r_dm.request_job_id)
+                new_status = cohort_counter.cancel_job(job_id=r_dm.request_job_id, auth_headers=auth_headers)
                 r_dm.request_job_status = new_status
             else:
                 celery_app.control.revoke(r_dm.count_task_id)
@@ -168,8 +169,14 @@ def mark_stuck_dated_measures_as_failed() -> int:
     return count
 
 
+def get_system_auth_headers() -> dict:
+    # No user behind a scheduled task: the SJS gets the system user's token, the owner is sent as ownerEntityId
+    token = jwt_auth_service.generate_system_token()
+    return {"Authorization": f"Bearer {token}", settings.AUTHORIZATION_METHOD_HEADER: settings.JWT_AUTH_MODE}
+
+
 @shared_task
-def refresh_count_request(dm_id: str, translated_query: str, cohort_counter_cls: str):
+def refresh_count_request(dm_id: str, cohort_counter_cls: str):
     dm = DatedMeasure.objects.get(uuid=dm_id)
     logger.info(f"Request Snapshot Refreshing [{dm.request_query_snapshot.uuid}]")
     try:
@@ -177,6 +184,11 @@ def refresh_count_request(dm_id: str, translated_query: str, cohort_counter_cls:
         dm.request_job_status = JobStatus.pending
         dm.save()
         cohort_counter = load_operator(cohort_counter_cls)
-        cohort_counter.refresh_dated_measure_count(translated_query=translated_query)
+        cohort_counter.launch_dated_measure_count(
+            dm_id=dm_id,
+            json_query=dm.request_query_snapshot.serialized_query,
+            auth_headers=get_system_auth_headers(),
+            owner_username=dm.owner_id,
+        )
     except Exception as e:
         raise ServerError("Error refreshing request") from e

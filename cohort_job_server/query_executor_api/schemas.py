@@ -5,7 +5,6 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from cohort_job_server.query_executor_api.enums import CriteriaType, ResourceType, Mode
-from cohort_job_server.query_executor_api.exceptions import FhirException
 
 
 class PatientAge(BaseModel):
@@ -59,11 +58,6 @@ class TemporalConstraint(BaseModel):
 class SourcePopulation(BaseModel):
     care_site_cohort_list: list[int] = Field(default_factory=list, alias="caresiteCohortList")
 
-    def format_to_fhir(self) -> str:
-        if not self.care_site_cohort_list:
-            return ""
-        return "_list=" + ",".join(map(str, self.care_site_cohort_list))
-
 
 class Criteria(BaseModel):
     # aliases are mainly converting camel case to snake case
@@ -71,7 +65,6 @@ class Criteria(BaseModel):
     id: int = Field(None, alias="_id")
     is_inclusive: bool = Field(None, alias="isInclusive")
     resource_type: ResourceType = Field(None, alias="resourceType")
-    filter_solr: str = Field(None, alias="filterSolr")
     filter_fhir: str = Field(None, alias="filterFhir")
     patient_age: PatientAge = Field(None, alias="patientAge")
     criteria: list["Criteria"] = Field(default_factory=list)
@@ -107,22 +100,3 @@ class SparkJobObject:
     callback_path: Optional[str] = Field(None, alias="callbackPath")
     existing_cohort_id: Optional[int] = Field(None, alias="existingCohortId")
     mode_options: Optional[ModeOptions] = Field(None, alias="modeOptions")
-
-
-class FhirParameter(BaseModel):
-    name: str = Field(...)
-    value: str = Field(alias="valueString")
-
-
-class FhirParameters(BaseModel):
-    resource: str = Field(alias="resourceType")
-    params: list[FhirParameter] = Field(default_factory=list, alias="parameter")
-
-    def to_dict(self):
-        if not self.params:
-            raise FhirException(f"FhirParameters must have at least one parameter, got {self}")
-        return {"collection": self.extract_parameters("collection"), "fq": self.extract_parameters("fq")}
-
-    def extract_parameters(self, param_name: str) -> str:
-        lst = [param.value for param in self.params if param.name == param_name]
-        return lst[0] if lst else None

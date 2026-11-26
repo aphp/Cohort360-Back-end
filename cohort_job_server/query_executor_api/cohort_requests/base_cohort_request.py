@@ -1,15 +1,8 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
-from accesses.models import Perimeter
-from django.conf import settings
-
-from accesses.porthab import PorthabUnavailable, apply_grants, fetch_porthab_grants
-from accesses.services.accesses import accesses_service
-from admin_cohort.models import User
-from cohort_job_server.query_executor_api.exceptions import FhirException
 from cohort_job_server.query_executor_api.schemas import ModeOptions
 from cohort_job_server.query_executor_api.query_executor_client import format_spark_job_request_for_query_executor
 from cohort_job_server.query_executor_api import Mode, QueryExecutorClient, QueryFormatter, SparkJobObject
@@ -46,30 +39,12 @@ class BaseCohortRequest:
         self.sampling_ratio = sampling_ratio
         self.stage_details = stage_details
 
-    @staticmethod
-    def is_cohort_request_pseudo_read(username: str, source_population: List[int]) -> bool:
-        user = User.objects.filter(pk=username).first()
-        # Hors requête, pas de jeton : les périmètres Port'Hab de l'agent sont lus à la source.
-        if user is not None and settings.PORTHAB_RIGHTS_ENABLED:
-            try:
-                apply_grants(user, fetch_porthab_grants(username))
-            except PorthabUnavailable:
-                logger.warning(f"Droits Port'Hab de {username} indisponibles, requête de cohorte avec ses seuls accès natifs")
-        perimeters = Perimeter.objects.filter(cohort_id__in=source_population)
-        return not accesses_service.user_can_access_at_least_one_target_perimeter_in_nomi(user=user, target_perimeters=perimeters)
-
-    def create_query_executor_request(self, cohort_query: CohortQuery) -> str:
-        """Format the given query with the Fhir nomenclature and return a dict to be sent
-        for the followup QUERY EXECUTOR request."""
+    def create_query_executor_request(self, cohort_query: CohortQuery) -> dict:
+        """Wrap the given query in the job envelope sent to the Query Executor."""
         if cohort_query is None:
-            raise FhirException("No query received to format.")
+            raise ValueError("No query received to format.")
 
-        is_pseudo = self.is_cohort_request_pseudo_read(
-            username=self.owner_username, source_population=cohort_query.source_population.care_site_cohort_list
-        )
-
-        query_executor_request = QueryFormatter(self.auth_headers).format_to_fhir(cohort_query, is_pseudo)
-        cohort_query.criteria = query_executor_request
+        cohort_query.criteria = QueryFormatter.format(cohort_query)
 
         callback_path = self.callback_path or (
             self.mode == Mode.COUNT_WITH_DETAILS and f"/cohort/feasibility-studies/{cohort_query.instance_id}/" or None

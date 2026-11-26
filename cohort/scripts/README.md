@@ -61,7 +61,7 @@ To create a new patch script (e.g., `patch_requests_v162.py`):
 
 3. **Configure mapping dictionaries**:
    - `FILTER_MAPPING`: Maps old filter names to new ones per resource type
-   - `FILTER_NAME_TO_SKIP`: Filters to remove during update
+   - `FILTER_NAME_TO_SKIP`: Filters to remove during update, given by name or by a predicate `(filter_name, filter_value) -> bool`
    - `FILTER_VALUE_MAPPING`: Transform filter values (supports functions)
    - `STATIC_REQUIRED_FILTERS`: Add required filters to resources
    - `RESOURCE_NAME_MAPPING`: Map old resource names to new ones
@@ -138,6 +138,22 @@ updater_v161.update_old_query_snapshots(
 - `debug` (bool): Enables verbose logging and saves debug files
 - `with_filters` (bool): Also updates standalone FhirFilter objects
 
+`update_old_query_snapshots` logs a recap of what was actually modified, which is the figure to report after a dry run:
+
+```
++------------------------------------------+----------+
+| PATCH v1.7.0 — DRY RUN                   |   Nombre |
++------------------------------------------+----------+
+| Snapshots modifiés (supprimés compris)   |      120 |
+| Snapshots modifiés (hors supprimés)      |       90 |
+| Requêtes distinctes                      |       40 |
+| Cohortes liées                           |       75 |
+| Filtres modifiés                         |       12 |
++------------------------------------------+----------+
+```
+
+`snapshots` includes soft deleted snapshots, `active_snapshots`, `requests` and `cohorts` do not.
+
 ## Best Practices
 
 1. **Always test with dry_run=True first** to validate changes
@@ -149,5 +165,6 @@ updater_v161.update_old_query_snapshots(
 
 ## Current Scripts
 
-- `patch_requests_v130.py` through `patch_requests_v161.py`: Version-specific update scripts
+- `patch_requests_v130.py` through `patch_requests_v164.py`: Version-specific update scripts
+- `patch_requests_v170.py`: BC3.3, removes visit criteria (`encounter.*` params and `patientAge`) from Biology (`Observation`) criteria and filters
 - `query_request_updater.py`: Core updater class and utilities
