@@ -54,7 +54,12 @@ def format_spark_job_request_for_query_executor(spark_job_request: SparkJobObjec
     if cohort_query.instance_id:
         job_input["cohortUuid"] = str(cohort_query.instance_id)
     if spark_job_request.callback_path:
-        job_input["callbackPath"] = spark_job_request.callback_path
+        callback_base_url = os.environ.get("QUERY_EXECUTOR_CALLBACK_URL")
+        if callback_base_url:
+            # A full URL overrides the SJS's own callback host (e.g. dev back-end using the qualif SJS)
+            job_input["callbackUrl"] = f"{callback_base_url.rstrip('/')}{spark_job_request.callback_path}"
+        else:
+            job_input["callbackPath"] = spark_job_request.callback_path
     if spark_job_request.mode_options is not None:
         job_input["modeOptions"] = spark_job_request.mode_options.model_dump(exclude_none=True)
     return {"input": job_input}

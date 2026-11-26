@@ -233,6 +233,26 @@ class TestSubmitJob(BaseTest):
 
     @mock.patch.dict("os.environ", {"QUERY_EXECUTOR_URL": "http://sjs"})
     @mock.patch("cohort_job_server.query_executor_api.query_executor_client.requests")
+    def test_callback_path_is_sent_without_callback_base_url(self, mock_requests):
+        mock_requests.post.return_value = mock.MagicMock(ok=True)
+        count = CohortCount(instance_id=str(self.dm.uuid), json_query=self.json_query, auth_headers=self.auth_headers, callback_path="/cb/")
+        count.launch(CohortQuery(instance_id=self.dm.uuid, **json.loads(self.json_query)))
+        job_input = mock_requests.post.call_args.kwargs["json"]["input"]
+        self.assertEqual("/cb/", job_input["callbackPath"])
+        self.assertNotIn("callbackUrl", job_input)
+
+    @mock.patch.dict("os.environ", {"QUERY_EXECUTOR_URL": "http://sjs", "QUERY_EXECUTOR_CALLBACK_URL": "https://dev-back/"})
+    @mock.patch("cohort_job_server.query_executor_api.query_executor_client.requests")
+    def test_callback_url_is_sent_with_callback_base_url(self, mock_requests):
+        mock_requests.post.return_value = mock.MagicMock(ok=True)
+        count = CohortCount(instance_id=str(self.dm.uuid), json_query=self.json_query, auth_headers=self.auth_headers, callback_path="/cb/")
+        count.launch(CohortQuery(instance_id=self.dm.uuid, **json.loads(self.json_query)))
+        job_input = mock_requests.post.call_args.kwargs["json"]["input"]
+        self.assertEqual("https://dev-back/cb/", job_input["callbackUrl"])
+        self.assertNotIn("callbackPath", job_input)
+
+    @mock.patch.dict("os.environ", {"QUERY_EXECUTOR_URL": "http://sjs"})
+    @mock.patch("cohort_job_server.query_executor_api.query_executor_client.requests")
     def test_mode_options_drop_unset_values(self, mock_requests):
         mock_requests.post.return_value = mock.MagicMock(ok=True)
         count = CohortCount(instance_id=str(self.dm.uuid), json_query=self.json_query, auth_headers=self.auth_headers, stage_details="ratio")
