@@ -3,13 +3,21 @@ from pathlib import Path
 from unittest import mock
 
 from django.conf import settings
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from requests import Response
 from rest_framework import status
 
 from admin_cohort.types import JobStatus
 
-from cohort_job_server.query_executor_api import QueryFormatter, BaseCohortRequest, CohortCount, CohortCountAll, QueryExecutorRequester
+from cohort_job_server.query_executor_api import (
+    QueryFormatter,
+    BaseCohortRequest,
+    CohortCount,
+    CohortCountAll,
+    CohortCreate,
+    FeasibilityCount,
+    QueryExecutorRequester,
+)
 from cohort_job_server.query_executor_api.enums import Mode
 from cohort_job_server.query_executor_api.enums import ResourceType
 from cohort_job_server.query_executor_api.query_formatter import add_prefix_search_on_ccam_leaves
@@ -230,6 +238,37 @@ class TestSubmitJob(BaseTest):
         self.assertEqual("code=JQGA004*", syntax["request"]["criteria"][0]["filterFhir"])
         self.assertNotIn("filterSolr", syntax["request"]["criteria"][0])
         self.assertEqual("all", syntax["request"]["temporalConstraints"][0]["idList"])
+
+    @override_settings(BACKEND_URL="https://dev-back/")
+    @mock.patch.dict("os.environ", {"QUERY_EXECUTOR_URL": "http://sjs"})
+    @mock.patch("cohort_job_server.query_executor_api.query_executor_client.requests")
+    def test_callback_url_is_built_from_backend_url(self, mock_requests):
+        mock_requests.post.return_value = mock.MagicMock(ok=True)
+        cohort_query = CohortQuery(instance_id=self.dm.uuid, **json.loads(self.json_query))
+        cases = [
+            (
+                CohortCount(instance_id=str(self.dm.uuid), json_query=self.json_query, auth_headers=self.auth_headers),
+                f"https://dev-back/cohort/dated-measures/{self.dm.uuid}/",
+            ),
+            (
+                CohortCreate(instance_id=str(self.dm.uuid), json_query=self.json_query, auth_headers=self.auth_headers),
+                f"https://dev-back/cohort/cohorts/{self.dm.uuid}/",
+            ),
+            (
+                FeasibilityCount(instance_id=str(self.dm.uuid), json_query=self.json_query, auth_headers=self.auth_headers),
+                f"https://dev-back/cohort/feasibility-studies/{self.dm.uuid}/",
+            ),
+            (
+                CohortCount(instance_id=str(self.dm.uuid), json_query=self.json_query, auth_headers=self.auth_headers, callback_path="/cb/"),
+                "https://dev-back/cb/",
+            ),
+        ]
+        for cohort_request, expected_url in cases:
+            with self.subTest(cohort_request=type(cohort_request).__name__, expected_url=expected_url):
+                cohort_request.launch(cohort_query.model_copy(deep=True))
+                job_input = mock_requests.post.call_args.kwargs["json"]["input"]
+                self.assertEqual(expected_url, job_input["callbackUrl"])
+                self.assertNotIn("callbackPath", job_input)
 
     @mock.patch.dict("os.environ", {"QUERY_EXECUTOR_URL": "http://sjs"})
     @mock.patch("cohort_job_server.query_executor_api.query_executor_client.requests")

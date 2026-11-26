@@ -9,9 +9,19 @@ from requests import Response
 
 from admin_cohort.http_timeout import HTTP_REQUEST_TIMEOUT
 from admin_cohort.middleware.context_request_middleware import get_trace_id
+from cohort_job_server.query_executor_api.enums import Mode
 
 if TYPE_CHECKING:
     from cohort_job_server.query_executor_api import CohortQuery, SparkJobObject
+
+
+# The back-end sets the full callback URL itself, the SJS's own callback config is not used
+CALLBACK_PATHS = {
+    Mode.COUNT: "/cohort/dated-measures/{}/",
+    Mode.COUNT_ALL: "/cohort/dated-measures/{}/",
+    Mode.COUNT_WITH_DETAILS: "/cohort/feasibility-studies/{}/",
+    Mode.CREATE: "/cohort/cohorts/{}/",
+}
 
 
 class QueryExecutorClient:
@@ -53,8 +63,11 @@ def format_spark_job_request_for_query_executor(spark_job_request: SparkJobObjec
         job_input["ownerEntityId"] = spark_job_request.owner_entity_id
     if cohort_query.instance_id:
         job_input["cohortUuid"] = str(cohort_query.instance_id)
-    if spark_job_request.callback_path:
-        job_input["callbackPath"] = spark_job_request.callback_path
+    callback_path = spark_job_request.callback_path
+    if not callback_path and cohort_query.instance_id and spark_job_request.mode in CALLBACK_PATHS:
+        callback_path = CALLBACK_PATHS[spark_job_request.mode].format(cohort_query.instance_id)
+    if callback_path:
+        job_input["callbackUrl"] = f"{settings.BACKEND_URL.rstrip('/')}{callback_path}"
     if spark_job_request.mode_options is not None:
         job_input["modeOptions"] = spark_job_request.mode_options.model_dump(exclude_none=True)
     return {"input": job_input}

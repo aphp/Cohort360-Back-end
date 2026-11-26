@@ -28,7 +28,7 @@ environ.Env.read_env(BASE_DIR / ".env")
 NOTSET = environ.Env.NOTSET
 
 BACKEND_HOST = env.str("BACKEND_HOST", default="localhost:8000")
-BACKEND_URL = f"https://{BACKEND_HOST}"
+BACKEND_URL = env.str("BACKEND_URL", default=f"https://{BACKEND_HOST}")
 FRONTEND_URL = env.str("FRONTEND_URL", default="http://localhost:3000")
 FRONTEND_URLS = env.str("FRONTEND_URLS", default="http://localhost:3000").split(",")
 
