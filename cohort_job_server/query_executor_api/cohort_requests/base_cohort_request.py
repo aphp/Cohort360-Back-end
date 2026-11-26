@@ -46,15 +46,12 @@ class BaseCohortRequest:
 
         cohort_query.criteria = QueryFormatter.format(cohort_query)
 
-        callback_path = self.callback_path or (
-            self.mode == Mode.COUNT_WITH_DETAILS and f"/cohort/feasibility-studies/{cohort_query.instance_id}/" or None
-        )
         spark_job_request = SparkJobObject(
             cohort_definition_name="Created from C360 backend",
             cohort_definition_syntax=cohort_query,
             mode=self.mode,
             owner_entity_id=self.owner_username,
-            callback_path=callback_path,
+            callback_path=self.callback_path,
             existing_cohort_id=self.existing_cohort_id,
             mode_options=(self.sampling_ratio or self.stage_details)
             and ModeOptions(sampling=self.sampling_ratio, details=self.stage_details)
