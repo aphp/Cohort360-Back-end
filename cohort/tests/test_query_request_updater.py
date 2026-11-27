@@ -2,7 +2,8 @@ import dataclasses
 import json
 from unittest.mock import patch
 
-from admin_cohort.tests.tests_tools import BaseTests
+from admin_cohort.tests.tests_tools import BaseTests, new_random_user
+from cohort.models import Folder, Request as RequestModel, RequestQuerySnapshot
 from cohort.scripts import query_request_updater as query_request_updater_module
 from cohort.scripts.patch_requests_v145 import return_filter_if_not_exist
 from cohort.scripts.patch_requests_v162 import CCAM_OLD_CODESYSTEM, map_ccam_code_token, map_ccam_codes, updater_v162
@@ -181,7 +182,7 @@ class Filter:
     filter: str
     saved: bool = False
 
-    def save(self):
+    def save(self, **kwargs):
         self.saved = True
 
 
@@ -470,3 +471,16 @@ class TestPatchRequestsV170(BaseTests):
 
         self.assertIn("| PATCH v1.7.0                             |   Nombre |", logs.output[0])
         self.assertNotIn("DRY RUN", logs.output[0])
+
+    def test_deleted_snapshot_stays_deleted(self):
+        user = new_random_user()
+        request = RequestModel.objects.create(owner=user, name="request", parent_folder=Folder.objects.create(owner=user, name="folder"))
+        query = self.request({"_type": "basicResource", "resourceType": "Observation", "filterFhir": "code=123&encounter.status=finished"})
+        snapshot = RequestQuerySnapshot.objects.create(owner=user, request=request, serialized_query=json.dumps(query))
+        request.delete()
+
+        updater_v170.update_old_query_snapshots(dry_run=False, debug=False, with_filters=False)
+
+        snapshot = RequestQuerySnapshot.all_objects.get(pk=snapshot.pk)
+        self.assertEqual("v1.7.0", json.loads(snapshot.serialized_query)["version"])
+        self.assertIsNotNone(snapshot.deleted)

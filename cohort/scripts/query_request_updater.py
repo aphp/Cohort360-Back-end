@@ -290,7 +290,7 @@ class QueryRequestUpdater:
         """
         logger.info(f"Will update requests to version {self.version_name}. Dry run : {dry_run}")
         all_rqs: List[RequestQuerySnapshot] = RequestQuerySnapshot.objects.all()
-        upgraded_rqs = self.do_update_old_query_snapshots(all_rqs, lambda r: r.save(), dry_run, debug)
+        upgraded_rqs = self.do_update_old_query_snapshots(all_rqs, lambda r: r.save(keep_deleted=True), dry_run, debug)
         active_rqs = [rqs for rqs in upgraded_rqs if rqs.deleted is None]
         recap = {
             "snapshots": len(upgraded_rqs),
@@ -324,7 +324,7 @@ class QueryRequestUpdater:
                 query = json.loads(f.serialized_query)
                 resource_filter.query_version = query.get("version", self.version_name)
                 resource_filter.filter = query["fhirFilter"]
-                resource_filter.save()
+                resource_filter.save(keep_deleted=True)
                 return
 
     def update_old_filters(self, dry_run: bool = True, debug: bool = True) -> List[_FilterQuerySnapshot]:
